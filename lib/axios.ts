@@ -107,6 +107,9 @@ apiClient.interceptors.response.use(
 function handleLogout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem('sso-auth-storage');
+  document.cookie = 'sso_access_token=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'sso_user_role=; path=/; max-age=0; SameSite=Lax';
   window.location.href = ROUTES.LOGIN;
 }
 
