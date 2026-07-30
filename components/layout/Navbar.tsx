@@ -114,7 +114,9 @@ export function Navbar() {
                   Tipe Akun:
                 </div>
                 <div style={{ marginTop: '0.25rem' }}>
-                  {user?.user_type && <UserTypeBadge type={user.user_type} />}
+                  {user?.roles?.map(r => (
+                    <span key={r.id} style={{ display: 'inline-block', marginRight: '4px', background: 'var(--primary-100)', color: 'var(--primary-700)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>{r.name || r.role?.name}</span>
+                  ))}
                 </div>
               </div>
 

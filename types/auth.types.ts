@@ -2,7 +2,7 @@
 // AUTH TYPES — Mengacu pada ERD: users, sso_tokens, user_sessions
 // ============================================================
 
-export type UserType = 'mahasiswa' | 'dosen' | 'tendik' | 'admin' | 'calon_mhs';
+// UserType removed
 
 /**
  * Representasi tabel `users` pada ERD IAM & Auth Center
@@ -12,7 +12,7 @@ export interface User {
   username: string;
   email: string;
   phone?: string;
-  user_type: UserType;
+  // user_type removed
   is_active: boolean;
   is_verified: boolean;
   email_verified_at?: string | null;
@@ -119,7 +119,7 @@ export interface AuditLog {
   ip_address: string;
   user_agent: string;
   created_at: string;
-  user?: Pick<User, 'id' | 'username' | 'email' | 'user_type'>;
+  user?: Pick<User, 'id' | 'username' | 'email'>;
 }
 
 /**

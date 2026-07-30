@@ -46,7 +46,7 @@ export function useAuth() {
         const userObj: User = res?.data?.id ? res.data : res?.data?.user || res?.user;
 
         if (tokenStr && userObj) {
-          setAuthCookies(tokenStr, userObj.user_type || 'mahasiswa');
+          setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
           setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
           toast.success(res?.message || `Selamat datang, ${userObj.username || 'Pengguna'}!`);
           router.push(ROUTES.DASHBOARD);
@@ -92,7 +92,6 @@ export function useAuth() {
   const hasRole = useCallback(
     (roleSlug: string) => {
       if (!user) return false;
-      if (user.user_type === 'admin') return true;
       return user.roles?.some((r: any) => r.slug === roleSlug || r.role?.slug === roleSlug) ?? false;
     },
     [user]
@@ -104,11 +103,8 @@ export function useAuth() {
       if (!user) return false;
 
       // Super admin & Admin SIMPEG memiliki semua permission
-      if (user.user_type === 'admin') return true;
-      const isAdminSimpeg = user.roles?.some((r: any) => 
-        r.slug === 'admin_simpeg' || r.slug === 'admin' || r.role?.slug === 'admin_simpeg'
-      );
-      if (isAdminSimpeg) return true;
+      if (hasRole('admin') || hasRole('superadmin')) return true;
+      if (hasRole('admin_simpeg')) return true;
 
       // Periksa daftar permission yang terikat pada role-role user
       const shortSlug = permSlug.replace(/^simpeg\.|^iam\./, '');
@@ -128,16 +124,16 @@ export function useAuth() {
     [user]
   );
 
-  const isAdmin = user?.user_type === 'admin';
-  const isDosen = user?.user_type === 'dosen';
-  const isTendik = user?.user_type === 'tendik';
-  const isMahasiswa = user?.user_type === 'mahasiswa';
+  const isAdmin = useMemo(() => hasRole('admin') || hasRole('superadmin'), [hasRole]);
+  const isDosen = useMemo(() => hasRole('dosen'), [hasRole]);
+  const isTendik = useMemo(() => hasRole('tendik'), [hasRole]);
+  const isMahasiswa = useMemo(() => hasRole('mahasiswa'), [hasRole]);
 
   const isAdminSimpeg = useMemo(() => {
     if (!user) return false;
-    if (user.user_type === 'admin') return true;
-    return user.roles?.some((r: any) => r.slug === 'admin_simpeg' || r.role?.slug === 'admin_simpeg') ?? false;
-  }, [user]);
+    if (hasRole('admin') || hasRole('superadmin')) return true;
+    return hasRole('admin_simpeg');
+  }, [user, hasRole]);
 
   return {
     user,

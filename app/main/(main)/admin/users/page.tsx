@@ -7,17 +7,17 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { UserTypeBadge, StatusBadge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/Badge';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
-import type { User, UserType } from '@/types/auth.types';
+import type { User } from '@/types/auth.types';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
+
 
   // Modal States
   const [showModal, setShowModal] = useState(false);
@@ -29,7 +29,7 @@ export default function AdminUsersPage() {
     username: '',
     email: '',
     phone: '',
-    user_type: 'mahasiswa' as UserType,
+
     password: '',
   });
 
@@ -54,7 +54,7 @@ export default function AdminUsersPage() {
 
   const handleOpenCreate = () => {
     setEditingUser(null);
-    setFormData({ username: '', email: '', phone: '', user_type: 'mahasiswa', password: '' });
+    setFormData({ username: '', email: '', phone: '', password: '' });
     setShowModal(true);
   };
 
@@ -64,7 +64,7 @@ export default function AdminUsersPage() {
       username: user.username,
       email: user.email,
       phone: user.phone || '',
-      user_type: user.user_type,
+
       password: '',
     });
     setShowModal(true);
@@ -120,8 +120,7 @@ export default function AdminUsersPage() {
     const matchSearch =
       u.username.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase());
-    const matchType = filterType === 'all' || u.user_type === filterType;
-    return matchSearch && matchType;
+    return matchSearch;
   });
 
   return (
@@ -148,21 +147,7 @@ export default function AdminUsersPage() {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Tipe:</span>
-            <select
-              className="select"
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              style={{ width: 160 }}
-            >
-              <option value="all">Semua Tipe</option>
-              <option value="mahasiswa">Mahasiswa</option>
-              <option value="dosen">Dosen</option>
-              <option value="tendik">Tendik</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+
         </div>
       </div>
 
@@ -174,7 +159,7 @@ export default function AdminUsersPage() {
               <tr>
                 <th>ID</th>
                 <th>Pengguna</th>
-                <th>Tipe (user_type)</th>
+                <th>Role(s)</th>
                 <th>Status Akun</th>
                 <th>Terverifikasi</th>
                 <th>Tanggal Dibuat</th>
@@ -206,7 +191,9 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td>
-                      <UserTypeBadge type={user.user_type} />
+                      {user.roles?.map(r => (
+                        <span key={r.id} style={{ display: 'inline-block', marginRight: '4px', background: 'var(--primary-100)', color: 'var(--primary-700)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>{r.name || r.role?.name}</span>
+                      ))}
                     </td>
                     <td>
                       <button
@@ -295,20 +282,7 @@ export default function AdminUsersPage() {
             placeholder="08123456789"
           />
 
-          <div className="form-group">
-            <label className="form-label required">Tipe Pengguna (user_type)</label>
-            <select
-              className="select"
-              value={formData.user_type}
-              onChange={(e) => setFormData({ ...formData, user_type: e.target.value as UserType })}
-            >
-              <option value="mahasiswa">Mahasiswa</option>
-              <option value="dosen">Dosen</option>
-              <option value="tendik">Tendik</option>
-              <option value="admin">Admin</option>
-              <option value="calon_mhs">Calon Mahasiswa</option>
-            </select>
-          </div>
+
 
           {!editingUser && (
             <Input

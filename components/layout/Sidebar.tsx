@@ -433,7 +433,7 @@ export function Sidebar() {
                 {user.username}
               </div>
               <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', textTransform: 'capitalize' }}>
-                {user.user_type}
+                {user.roles?.[0]?.name || user.roles?.[0]?.role?.name || 'User'}
               </div>
             </div>
           </div>
