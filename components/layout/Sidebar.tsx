@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -17,7 +18,18 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   GraduationCap,
+  Building2,
+  Briefcase,
+  Contact,
+  Award,
+  FileText,
+  Calendar,
+  Clock,
+  DollarSign,
+  TrendingUp,
+  CheckSquare,
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,6 +39,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { sidebar_open, toggleSidebar } = useUiStore();
   const { user, isAdmin } = useAuth();
+  const [simpegOpen, setSimpegOpen] = useState(pathname.startsWith('/simpeg'));
+  const [adminOpen, setAdminOpen] = useState(pathname.startsWith('/admin'));
 
   const isMainActive = (path: string) => pathname === path;
 
@@ -103,87 +117,223 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* Admin Section (Conditional) */}
+        {/* Admin Section (Conditional & Collapsible) */}
         {isAdmin && (
           <div className="sidebar-section">
-            {sidebar_open && <div className="sidebar-section-label" style={{ color: '#f87171' }}>Admin Panel</div>}
-            <Link
-              href="/admin/users"
-              className={`sidebar-item ${isMainActive('/admin/users') ? 'active' : ''}`}
-              title="Manajemen Pengguna"
-            >
-              <Users className="sidebar-item-icon" />
-              {sidebar_open && <span>Pengguna</span>}
-            </Link>
-            <Link
-              href="/admin/roles"
-              className={`sidebar-item ${isMainActive('/admin/roles') ? 'active' : ''}`}
-              title="Manajemen Role"
-            >
-              <ShieldAlert className="sidebar-item-icon" />
-              {sidebar_open && <span>Role Akses</span>}
-            </Link>
-            <Link
-              href="/admin/permissions"
-              className={`sidebar-item ${isMainActive('/admin/permissions') ? 'active' : ''}`}
-              title="Manajemen Permission"
-            >
-              <Key className="sidebar-item-icon" />
-              {sidebar_open && <span>Hak Akses</span>}
-            </Link>
-            <Link
-              href="/admin/role-permissions"
-              className={`sidebar-item ${isMainActive('/admin/role-permissions') ? 'active' : ''}`}
-              title="Role & Permission"
-            >
-              <Lock className="sidebar-item-icon" />
-              {sidebar_open && <span>Role ↔ Permission</span>}
-            </Link>
-            <Link
-              href="/admin/user-roles"
-              className={`sidebar-item ${isMainActive('/admin/user-roles') ? 'active' : ''}`}
-              title="User & Role"
-            >
-              <UserCheck className="sidebar-item-icon" />
-              {sidebar_open && <span>User ↔ Role</span>}
-            </Link>
-            <Link
-              href="/admin/sessions"
-              className={`sidebar-item ${isMainActive('/admin/sessions') ? 'active' : ''}`}
-              title="Monitor Sesi"
-            >
-              <Activity className="sidebar-item-icon" />
-              {sidebar_open && <span>Monitor Sesi</span>}
-            </Link>
-            <Link
-              href="/admin/audit-logs"
-              className={`sidebar-item ${isMainActive('/admin/audit-logs') ? 'active' : ''}`}
-              title="Audit Logs"
-            >
-              <History className="sidebar-item-icon" />
-              {sidebar_open && <span>Audit Logs</span>}
-            </Link>
+            {sidebar_open && (
+              <button
+                type="button"
+                onClick={() => setAdminOpen(!adminOpen)}
+                className="sidebar-section-label"
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  color: '#f87171',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                <span style={{ fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.05em' }}>
+                  Admin Panel
+                </span>
+                <ChevronDown
+                  size={16}
+                  style={{
+                    transform: adminOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                  }}
+                />
+              </button>
+            )}
+
+            {(adminOpen || !sidebar_open) && (
+              <>
+                <Link
+                  href="/admin/users"
+                  className={`sidebar-item ${isMainActive('/admin/users') ? 'active' : ''}`}
+                  title="Manajemen User"
+                >
+                  <Users className="sidebar-item-icon" />
+                  {sidebar_open && <span>User</span>}
+                </Link>
+                <Link
+                  href="/admin/roles"
+                  className={`sidebar-item ${isMainActive('/admin/roles') ? 'active' : ''}`}
+                  title="Manajemen Role"
+                >
+                  <ShieldAlert className="sidebar-item-icon" />
+                  {sidebar_open && <span>Role Akses</span>}
+                </Link>
+                <Link
+                  href="/admin/permissions"
+                  className={`sidebar-item ${isMainActive('/admin/permissions') ? 'active' : ''}`}
+                  title="Manajemen Permission"
+                >
+                  <Key className="sidebar-item-icon" />
+                  {sidebar_open && <span>Permission Akses</span>}
+                </Link>
+                <Link
+                  href="/admin/role-permissions"
+                  className={`sidebar-item ${isMainActive('/admin/role-permissions') ? 'active' : ''}`}
+                  title="Role & Permission"
+                >
+                  <Lock className="sidebar-item-icon" />
+                  {sidebar_open && <span>Role ↔ Permission</span>}
+                </Link>
+                <Link
+                  href="/admin/user-roles"
+                  className={`sidebar-item ${isMainActive('/admin/user-roles') ? 'active' : ''}`}
+                  title="User & Role"
+                >
+                  <UserCheck className="sidebar-item-icon" />
+                  {sidebar_open && <span>User ↔ Role</span>}
+                </Link>
+                <Link
+                  href="/admin/sessions"
+                  className={`sidebar-item ${isMainActive('/admin/sessions') ? 'active' : ''}`}
+                  title="Monitor Sesi"
+                >
+                  <Activity className="sidebar-item-icon" />
+                  {sidebar_open && <span>Monitor Sesi</span>}
+                </Link>
+                <Link
+                  href="/admin/audit-logs"
+                  className={`sidebar-item ${isMainActive('/admin/audit-logs') ? 'active' : ''}`}
+                  title="Audit Logs"
+                >
+                  <History className="sidebar-item-icon" />
+                  {sidebar_open && <span>Audit Logs</span>}
+                </Link>
+              </>
+            )}
           </div>
         )}
 
-        {/* Integrated Subsystems */}
-        {sidebar_open && (
-          <div className="sidebar-section">
-            <div className="sidebar-section-label">Sub-Sistem Terintegrasi</div>
-            {SYSTEM_MODULES.slice(0, 5).map((mod) => (
-              <a
-                key={mod.value}
-                href={`#${mod.value}`}
-                onClick={(e) => e.preventDefault()}
-                className="sidebar-item"
-                style={{ fontSize: '0.8125rem' }}
+        {/* SIMPEG Section (Collapsible) */}
+        <div className="sidebar-section">
+          {sidebar_open && (
+            <button
+              type="button"
+              onClick={() => setSimpegOpen(!simpegOpen)}
+              className="sidebar-section-label"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: '#a5b4fc',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.5rem 0.75rem',
+                borderRadius: 'var(--radius-md)',
+                transition: 'background 0.2s ease',
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.05em' }}>
+                SIMPEG (Kepegawaian)
+              </span>
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: simpegOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              />
+            </button>
+          )}
+
+          {(simpegOpen || !sidebar_open) && (
+            <>
+              <Link
+                href="/simpeg"
+                className={`sidebar-item ${isMainActive('/simpeg') ? 'active' : ''}`}
+                title="Dashboard SIMPEG"
               >
-                <ExternalLink className="sidebar-item-icon" style={{ width: 14, height: 14 }} />
-                <span>{mod.label}</span>
-              </a>
-            ))}
-          </div>
-        )}
+                <Contact className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Dashboard SIMPEG</span>}
+              </Link>
+              <Link
+                href="/simpeg/unit-kerja"
+                className={`sidebar-item ${isMainActive('/simpeg/unit-kerja') ? 'active' : ''}`}
+                title="Unit Kerja"
+              >
+                <Building2 className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Unit Kerja</span>}
+              </Link>
+              <Link
+                href="/simpeg/jabatan"
+                className={`sidebar-item ${isMainActive('/simpeg/jabatan') ? 'active' : ''}`}
+                title="Jabatan & Jafung"
+              >
+                <Briefcase className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Jabatan & Jafung</span>}
+              </Link>
+              <Link
+                href="/simpeg/pegawai"
+                className={`sidebar-item ${isMainActive('/simpeg/pegawai') ? 'active' : ''}`}
+                title="Data Pegawai"
+              >
+                <Users className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Data Pegawai</span>}
+              </Link>
+              <Link
+                href="/simpeg/dokumen"
+                className={`sidebar-item ${isMainActive('/simpeg/dokumen') ? 'active' : ''}`}
+                title="Dokumen E-File"
+              >
+                <FileText className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Dokumen E-File</span>}
+              </Link>
+              <Link
+                href="/simpeg/cuti"
+                className={`sidebar-item ${isMainActive('/simpeg/cuti') ? 'active' : ''}`}
+                title="Pengajuan Cuti"
+              >
+                <Calendar className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Pengajuan Cuti</span>}
+              </Link>
+              <Link
+                href="/simpeg/presensi"
+                className={`sidebar-item ${isMainActive('/simpeg/presensi') ? 'active' : ''}`}
+                title="Absensi & Presensi"
+              >
+                <Clock className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Absensi & Presensi</span>}
+              </Link>
+              <Link
+                href="/simpeg/payroll"
+                className={`sidebar-item ${isMainActive('/simpeg/payroll') ? 'active' : ''}`}
+                title="Slip Gaji & Payroll"
+              >
+                <DollarSign className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Slip Gaji & Payroll</span>}
+              </Link>
+              <Link
+                href="/simpeg/usulan-jafung"
+                className={`sidebar-item ${isMainActive('/simpeg/usulan-jafung') ? 'active' : ''}`}
+                title="Usulan Jafung (KUM)"
+              >
+                <TrendingUp className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Usulan Jafung (KUM)</span>}
+              </Link>
+              <Link
+                href="/simpeg/kinerja"
+                className={`sidebar-item ${isMainActive('/simpeg/kinerja') ? 'active' : ''}`}
+                title="Penilaian Kinerja BKD"
+              >
+                <CheckSquare className="sidebar-item-icon" style={{ color: '#818cf8' }} />
+                {sidebar_open && <span>Kinerja SKP & BKD</span>}
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Footer Info */}

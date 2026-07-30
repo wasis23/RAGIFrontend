@@ -7,6 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUiStore } from '@/store/uiStore';
 import { UserTypeBadge } from '@/components/ui/Badge';
 
+import { AppLauncher } from '@/components/layout/AppLauncher';
+
 export function Navbar() {
   const { user, logout } = useAuth();
   const { toggleSidebar } = useUiStore();
@@ -43,6 +45,8 @@ export function Navbar() {
 
       {/* Right side actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* Module Switcher 9-dot */}
+        <AppLauncher />
         {/* Notification Bell mock */}
         <button className="btn btn-ghost btn-icon" style={{ position: 'relative' }}>
           <Bell size={18} />

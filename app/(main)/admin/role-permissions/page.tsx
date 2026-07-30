@@ -171,8 +171,10 @@ export default function AdminRolePermissionsPage() {
       {/* Dynamic Module Permission Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {SYSTEM_MODULES.map((mod) => {
-          const modulePerms = activePermissions.filter((p) => p.module === mod.value);
-          if (modulePerms.length === 0) return null; // Sembunyikan modul jika belum ada permission terdaftar
+          const modulePerms = activePermissions.filter(
+            (p) => p.module && p.module.toLowerCase() === mod.value.toLowerCase()
+          );
+          if (modulePerms.length === 0) return null;
 
           const allModuleChecked = modulePerms.every((p) => currentAssigned.includes(p.id));
 
@@ -235,6 +237,52 @@ export default function AdminRolePermissionsPage() {
             </div>
           );
         })}
+
+        {/* Fallback Section for permissions with modules not in SYSTEM_MODULES */}
+        {(() => {
+          const knownModules = SYSTEM_MODULES.map((m) => m.value.toLowerCase());
+          const otherPerms = activePermissions.filter(
+            (p) => !p.module || !knownModules.includes(p.module.toLowerCase())
+          );
+          if (otherPerms.length === 0) return null;
+
+          return (
+            <div className="card">
+              <div className="card-header" style={{ background: 'var(--gray-50)' }}>
+                <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Permission Lainnya</h4>
+              </div>
+              <div className="card-body">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
+                  {otherPerms.map((p) => {
+                    const checked = currentAssigned.includes(p.id);
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => handleToggle(p.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '0.75rem 1rem',
+                          borderRadius: 'var(--radius-md)',
+                          border: `1.5px solid ${checked ? 'var(--primary-300)' : 'var(--border-light)'}`,
+                          background: checked ? 'var(--primary-50)' : 'white',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {checked ? <CheckSquare size={20} color="var(--primary-600)" /> : <Square size={20} color="var(--gray-400)" />}
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>{p.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{p.slug}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

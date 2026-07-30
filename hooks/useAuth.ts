@@ -1,18 +1,18 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
 import { ROUTES } from '@/lib/constants';
-import type { LoginRequest, User } from '@/types/auth.types';
+import type { LoginRequest, User, Permission } from '@/types/auth.types';
 
-// Helper set cookie untuk middleware Next.js
+// Helper set cookie untuk middleware Next.js (1 jam = 3600 detik)
 function setAuthCookies(token: string, userType: string) {
-  document.cookie = `sso_access_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-  document.cookie = `sso_user_type=${userType}; path=/; max-age=86400; SameSite=Lax`;
+  document.cookie = `sso_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
+  document.cookie = `sso_user_type=${userType}; path=/; max-age=3600; SameSite=Lax`;
 }
 
 function clearAuthCookies() {
@@ -75,53 +75,6 @@ export function useAuth() {
     [setAuth, setLoading, router]
   );
 
-  // Quick Demo Login — HANYA TERSEDIA DI DEVELOPMENT
-  // Tidak akan bisa dipanggil di production build
-  const loginAsDemo = useCallback(
-    (roleType: 'mahasiswa' | 'dosen' | 'admin' = 'admin') => {
-      if (process.env.NODE_ENV !== 'development') {
-        toast.error('Demo login tidak tersedia di production.');
-        return;
-      }
-
-      setLoading(true);
-      const demoUser: User = {
-        id: roleType === 'admin' ? 99 : 1,
-        username: roleType === 'admin' ? 'admin_super' : roleType === 'dosen' ? 'dosen_siakad' : 'mahasiswa_demo',
-        email: `${roleType}@kampus.ac.id`,
-        phone: '081234567890',
-        user_type: roleType,
-        is_active: true,
-        is_verified: true,
-        email_verified_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        roles: [
-          {
-            id: 1,
-            user_id: 1,
-            role_id: 1,
-            created_at: new Date().toISOString(),
-            role: {
-              id: 1,
-              name: roleType === 'admin' ? 'Administrator Kampus' : roleType === 'dosen' ? 'Dosen Pengajar' : 'Mahasiswa Reguler',
-              slug: roleType,
-              description: 'Role Demo',
-              created_at: new Date().toISOString(),
-            },
-          },
-        ],
-      };
-      const demoToken = 'mock_demo_access_token_dev_only';
-      setAuthCookies(demoToken, roleType);
-      setAuth(demoUser, demoToken, 'mock_demo_refresh_token_dev_only');
-      toast.success(`[DEV] Masuk sebagai ${demoUser.username} (${roleType})`);
-      setLoading(false);
-      router.push(ROUTES.DASHBOARD);
-    },
-    [setAuth, setLoading, router]
-  );
-
   const logout = useCallback(async () => {
     try {
       await authService.logout();
@@ -135,16 +88,56 @@ export function useAuth() {
     }
   }, [clearAuth, router]);
 
+  // Cek apakah user memiliki role tertentu
   const hasRole = useCallback(
     (roleSlug: string) => {
-      return user?.roles?.some((r) => r.role?.slug === roleSlug) ?? false;
+      if (!user) return false;
+      if (user.user_type === 'admin') return true;
+      return user.roles?.some((r: any) => r.slug === roleSlug || r.role?.slug === roleSlug) ?? false;
+    },
+    [user]
+  );
+
+  // Cek apakah user memiliki permission tertentu (Granular RBAC)
+  const hasPermission = useCallback(
+    (permSlug: string) => {
+      if (!user) return false;
+
+      // Super admin & Admin SIMPEG memiliki semua permission
+      if (user.user_type === 'admin') return true;
+      const isAdminSimpeg = user.roles?.some((r: any) => 
+        r.slug === 'admin_simpeg' || r.slug === 'admin' || r.role?.slug === 'admin_simpeg'
+      );
+      if (isAdminSimpeg) return true;
+
+      // Periksa daftar permission yang terikat pada role-role user
+      const shortSlug = permSlug.replace(/^simpeg\.|^iam\./, '');
+      return (
+        user.roles?.some((r: any) => {
+          const perms: Permission[] = r.permissions || r.role?.permissions || [];
+          return perms.some(
+            (p) =>
+              p.slug === permSlug ||
+              p.slug === `simpeg.${shortSlug}` ||
+              p.slug === `iam.${shortSlug}` ||
+              p.slug === shortSlug
+          );
+        }) ?? false
+      );
     },
     [user]
   );
 
   const isAdmin = user?.user_type === 'admin';
   const isDosen = user?.user_type === 'dosen';
+  const isTendik = user?.user_type === 'tendik';
   const isMahasiswa = user?.user_type === 'mahasiswa';
+
+  const isAdminSimpeg = useMemo(() => {
+    if (!user) return false;
+    if (user.user_type === 'admin') return true;
+    return user.roles?.some((r: any) => r.slug === 'admin_simpeg' || r.role?.slug === 'admin_simpeg') ?? false;
+  }, [user]);
 
   return {
     user,
@@ -155,10 +148,12 @@ export function useAuth() {
     mfa_user_id,
     isAdmin,
     isDosen,
+    isTendik,
     isMahasiswa,
+    isAdminSimpeg,
     login,
-    loginAsDemo,
     logout,
     hasRole,
+    hasPermission,
   };
 }

@@ -64,10 +64,10 @@ export default function ProfilePage() {
 
   const displayUser = user || {
     id: 1,
-    username: 'mahasiswa_demo',
-    email: 'mhs@kampus.ac.id',
+    username: 'Pengguna Terdaftar',
+    email: 'user@kampus.ac.id',
     phone: '081234567890',
-    user_type: 'mahasiswa' as const,
+    user_type: 'admin' as const,
     is_active: true,
     is_verified: true,
     email_verified_at: new Date().toISOString(),

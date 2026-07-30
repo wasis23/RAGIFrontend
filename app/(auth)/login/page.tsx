@@ -24,7 +24,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loginAsDemo, is_loading } = useAuth();
+  const { login, is_loading } = useAuth();
 
   const {
     register,
@@ -59,11 +59,7 @@ export default function LoginPage() {
         className="btn-sso-google"
         id="btn-oauth-google"
         onClick={() => {
-          if (process.env.NODE_ENV === 'development') {
-            loginAsDemo('mahasiswa');
-          } else {
-            toast('Fitur Google SSO segera hadir.', { icon: '🔜' });
-          }
+          toast('Silakan login menggunakan Email & Password resmi terdaftar di database backend.', { icon: '🔑' });
         }}
       >
         <GoogleIcon />

@@ -39,6 +39,12 @@ export const ROUTES = {
   ADMIN_USER_ROLES: '/admin/user-roles',
   ADMIN_SESSIONS: '/admin/sessions',
   ADMIN_AUDIT_LOGS: '/admin/audit-logs',
+
+  // SIMPEG Modul
+  SIMPEG_DASHBOARD: '/simpeg',
+  SIMPEG_UNIT_KERJA: '/simpeg/unit-kerja',
+  SIMPEG_JABATAN: '/simpeg/jabatan',
+  SIMPEG_PEGAWAI: '/simpeg/pegawai',
 } as const;
 
 // ============================================================

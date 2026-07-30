@@ -77,7 +77,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'sso-auth-storage',
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,
         access_token: state.access_token,

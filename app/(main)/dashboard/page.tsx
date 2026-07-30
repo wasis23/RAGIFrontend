@@ -43,15 +43,14 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
 export default function DashboardPage() {
   const { user } = useAuth();
 
-  // Mock initial session data or fallback user
   const displayUser = user || {
-    username: 'mahasiswa_demo',
-    email: 'mhs@kampus.ac.id',
-    user_type: 'mahasiswa',
+    username: 'Pengguna Terdaftar',
+    email: 'user@kampus.ac.id',
+    user_type: 'admin',
     is_active: true,
     is_verified: true,
     last_login_at: new Date().toISOString(),
-    roles: [{ role: { name: 'Mahasiswa Reguler', slug: 'mahasiswa' } }],
+    roles: [{ role: { name: 'Pengguna SSO Active', slug: 'admin' } }],
   };
 
   return (
@@ -195,7 +194,11 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   className="btn btn-outline btn-sm btn-full"
-                  onClick={() => toast.success(`Membuka SSO Gateway untuk modul: ${mod.label}`)}
+                  onClick={() => {
+                    const targetUrl = mod.value === 'simpeg' ? '/simpeg' : `/${mod.value}`;
+                    toast.success(`Membuka ${mod.label} di tab baru (Sesi ${displayUser.username} Aktif)`);
+                    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+                  }}
                 >
                   Buka Aplikasi <ExternalLink size={14} />
                 </button>
