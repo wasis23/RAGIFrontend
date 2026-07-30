@@ -22,9 +22,11 @@ export default function AdminSessionsPage() {
   const fetchSessions = async () => {
     try {
       const res = await adminService.getAllSessions();
-      const list = Array.isArray(res?.data)
+      // Backend mengirim UserSession dengan relasi user (username, email)
+      const list = (Array.isArray(res?.data)
         ? res.data
-        : (res?.data as { items?: ExtendedSession[] })?.items ?? [];
+        : ((res?.data as unknown as { items?: ExtendedSession[] })?.items ?? [])
+      ) as ExtendedSession[];
       setSessions(list);
     } catch {
       toast.error('Gagal memuat data sesi. Periksa koneksi ke server.');

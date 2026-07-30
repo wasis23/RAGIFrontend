@@ -50,7 +50,7 @@ export default function AdminUserRolesPage() {
           const res = userRolesRes.value;
           const userList = Array.isArray(res?.data)
             ? res.data
-            : (res?.data as { items?: unknown[] })?.items ?? [];
+            : ((res?.data as unknown as { items?: unknown[] })?.items ?? []);
           if (userList.length) {
             const mapped: UserRoleMapping[] = (userList as any[]).map((u) => ({
               user_id: u.id,

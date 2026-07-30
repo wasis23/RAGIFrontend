@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { History, Search, Eye, ShieldCheck, ShieldAlert, Key } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -22,9 +23,12 @@ export default function AdminAuditLogsPage() {
   const fetchLogs = async () => {
     try {
       const res = await adminService.getAuditLogs({ search });
-      const list = Array.isArray(res?.data)
+      // Backend mengirim AuditLog dengan relasi user (termasuk username)
+      // di-cast ke ExtendedAuditLog karena field username ada di relasi
+      const list = (Array.isArray(res?.data)
         ? res.data
-        : (res?.data as { items?: ExtendedAuditLog[] })?.items ?? [];
+        : ((res?.data as unknown as { items?: ExtendedAuditLog[] })?.items ?? [])
+      ) as ExtendedAuditLog[];
       setLogs(list);
     } catch {
       toast.error('Gagal memuat audit log. Periksa koneksi ke server.');

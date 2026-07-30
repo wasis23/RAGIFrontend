@@ -77,7 +77,7 @@ export default function AdminRolePermissionsPage() {
 
         if (rolePermsRes.status === 'fulfilled') {
           const res = rolePermsRes.value;
-          const rolePermsList = Array.isArray(res?.data) ? res.data : (res?.data as { items?: unknown[] })?.items ?? [];
+          const rolePermsList = Array.isArray(res?.data) ? res.data : ((res?.data as unknown as { items?: unknown[] })?.items ?? []);
           if (rolePermsList.length) {
             const map: Record<number, number[]> = {};
             (rolePermsList as any[]).forEach((item) => {
