@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
 import Link from 'next/link';
 import {
   ShieldCheck,
@@ -22,7 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { UserTypeBadge, StatusBadge } from '@/components/ui/Badge';
 import { formatDateTime } from '@/lib/utils';
-import { SYSTEM_MODULES } from '@/lib/constants';
+import { moduleService, AppModule } from '@/services/module.service';
 
 const MODULE_ICONS: Record<string, React.ReactNode> = {
   iam: <Lock size={22} color="#3b82f6" />,
@@ -42,6 +44,19 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [appModules, setAppModules] = useState<AppModule[]>([]);
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      try {
+        const modules = await moduleService.getAllModules();
+        setAppModules(modules);
+      } catch (err) {
+        console.error('Failed to load modules', err);
+      }
+    };
+    fetchModules();
+  }, []);
 
   const displayUser = user || {
     username: 'Pengguna Terdaftar',
@@ -170,8 +185,8 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-          {SYSTEM_MODULES.map((mod) => (
-            <div key={mod.value} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          {appModules.map((mod) => (
+            <div key={mod.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div className="card-body" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                   <div style={{
@@ -179,15 +194,15 @@ export default function DashboardPage() {
                     background: 'var(--gray-50)', border: '1px solid var(--border-light)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
-                    {MODULE_ICONS[mod.value] || <ExternalLink size={20} />}
+                    {MODULE_ICONS[mod.code] || <ExternalLink size={20} />}
                   </div>
                   <span className="badge badge-blue">SSO Ready</span>
                 </div>
                 <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-                  {mod.label}
+                  {mod.name}
                 </h4>
                 <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Akses modul {mod.label} secara langsung menggunakan tiket autentikasi terpusat.
+                  {mod.description || `Akses modul ${mod.name} secara langsung menggunakan tiket autentikasi terpusat.`}
                 </p>
               </div>
               <div className="card-footer" style={{ background: 'var(--gray-50)', padding: '0.75rem 1.25rem' }}>
@@ -195,8 +210,8 @@ export default function DashboardPage() {
                   type="button"
                   className="btn btn-outline btn-sm btn-full"
                   onClick={() => {
-                    const targetUrl = mod.value === 'simpeg' ? '/simpeg' : `/${mod.value}`;
-                    toast.success(`Membuka ${mod.label} di tab baru (Sesi ${displayUser.username} Aktif)`);
+                    const targetUrl = `/${mod.code}`;
+                    toast.success(`Membuka ${mod.name} di tab baru (Sesi ${displayUser.username} Aktif)`);
                     window.open(targetUrl, '_blank', 'noopener,noreferrer');
                   }}
                 >

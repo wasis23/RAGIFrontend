@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { adminService } from '@/services/admin.service';
-import { SYSTEM_MODULES, PERMISSION_ACTIONS } from '@/lib/constants';
+import { PERMISSION_ACTIONS } from '@/lib/constants';
+import { moduleService, AppModule } from '@/services/module.service';
 import type { Permission, PermissionAction } from '@/types/auth.types';
 
 export default function AdminPermissionsPage() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [appModules, setAppModules] = useState<AppModule[]>([]);
   const [filterModule, setFilterModule] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [editingPermission, setEditingPermission] = useState<Permission | null>(null);
@@ -38,9 +40,19 @@ export default function AdminPermissionsPage() {
     }
   };
 
+  const fetchModules = async () => {
+    try {
+      const data = await moduleService.getAllModules();
+      setAppModules(data);
+    } catch (err) {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     fetchPermissions();
-  }, []);
+    fetchModules();
+  }, [filterModule]);
 
   const handleOpenCreate = () => {
     setEditingPermission(null);
@@ -97,7 +109,7 @@ export default function AdminPermissionsPage() {
   };
 
   const filteredPermissions = permissions.filter(
-    (p) => filterModule === 'all' || p.module === filterModule
+    (p) => !filterModule || filterModule === 'all' || p.module === filterModule
   );
 
   return (
@@ -123,9 +135,9 @@ export default function AdminPermissionsPage() {
             onChange={(e) => setFilterModule(e.target.value)}
             style={{ maxWidth: 260 }}
           >
-            <option value="all">Semua Modul ({permissions.length} Hak Akses)</option>
-            {SYSTEM_MODULES.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+            <option value="">Semua Modul ({permissions.length} Hak Akses)</option>
+            {appModules.map((m) => (
+              <option key={m.id} value={m.code}>{m.name}</option>
             ))}
           </select>
         </div>
@@ -196,7 +208,7 @@ export default function AdminPermissionsPage() {
           </>
         }
       >
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Nama Permission"
             required
@@ -208,7 +220,6 @@ export default function AdminPermissionsPage() {
             }}
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
               <label className="form-label required">Modul Target</label>
               <select
@@ -216,8 +227,8 @@ export default function AdminPermissionsPage() {
                 value={formData.module}
                 onChange={(e) => setFormData({ ...formData, module: e.target.value })}
               >
-                {SYSTEM_MODULES.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
+                {appModules.map((m) => (
+                  <option key={m.id} value={m.code}>{m.name}</option>
                 ))}
               </select>
             </div>
@@ -234,7 +245,6 @@ export default function AdminPermissionsPage() {
                 ))}
               </select>
             </div>
-          </div>
 
           <Input
             label="Slug Identifier"
@@ -244,7 +254,7 @@ export default function AdminPermissionsPage() {
             onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
           />
 
-          <div className="form-group">
+          <div className="form-group col-span-1 md:col-span-2">
             <label className="form-label">Deskripsi</label>
             <textarea
               className="textarea"

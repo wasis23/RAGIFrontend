@@ -183,7 +183,7 @@ export default function AdminUserRolesPage() {
             Pilih role yang ingin dipasangkan ke akun <strong>{editingUser?.email}</strong>:
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {roles.map((r) => {
               const isChecked = selectedRoleIds.includes(r.id);
               return (

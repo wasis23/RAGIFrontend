@@ -256,7 +256,7 @@ export default function AdminUsersPage() {
           </>
         }
       >
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Username"
             required

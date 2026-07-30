@@ -5,7 +5,7 @@ import { ShieldAlert, Save, CheckSquare, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { SYSTEM_MODULES } from '@/lib/constants';
+import { moduleService, AppModule } from '@/services/module.service';
 import { adminService } from '@/services/admin.service';
 
 interface PermissionItem {
@@ -39,6 +39,7 @@ const MOCK_PERMISSIONS: PermissionItem[] = [
 
 export default function AdminRolePermissionsPage() {
   const [roles, setRoles] = useState<{ id: number; name: string; slug: string }[]>([]);
+  const [appModules, setAppModules] = useState<AppModule[]>([]);
   const [permissions, setPermissions] = useState<PermissionItem[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<number>(0);
   const [assignedMap, setAssignedMap] = useState<Record<number, number[]>>({});
@@ -49,10 +50,11 @@ export default function AdminRolePermissionsPage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [rolesRes, rolePermsRes, permsRes] = await Promise.allSettled([
+        const [rolesRes, rolePermsRes, permsRes, modulesRes] = await Promise.allSettled([
           adminService.getRoles(),
           adminService.getRolePermissions(),
           adminService.getPermissions(),
+          moduleService.getAllModules(),
         ]);
 
         if (rolesRes.status === 'fulfilled') {
@@ -86,6 +88,10 @@ export default function AdminRolePermissionsPage() {
             });
             setAssignedMap((prev) => ({ ...prev, ...map }));
           }
+        }
+
+        if (modulesRes.status === 'fulfilled') {
+          setAppModules(modulesRes.value);
         }
       } finally {
         setIsLoading(false);
@@ -170,26 +176,26 @@ export default function AdminRolePermissionsPage() {
 
       {/* Dynamic Module Permission Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {SYSTEM_MODULES.map((mod) => {
+        {appModules.map((mod) => {
           const modulePerms = activePermissions.filter(
-            (p) => p.module && p.module.toLowerCase() === mod.value.toLowerCase()
+            (p) => p.module && p.module.toLowerCase() === mod.code.toLowerCase()
           );
           if (modulePerms.length === 0) return null;
 
           const allModuleChecked = modulePerms.every((p) => currentAssigned.includes(p.id));
 
           return (
-            <div key={mod.value} className="card">
+            <div key={mod.id} className="card">
               <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--gray-50)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span className="badge badge-blue">{mod.value.toUpperCase()}</span>
-                  <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Modul: {mod.label}</h4>
+                  <span className="badge badge-blue">{mod.code.toUpperCase()}</span>
+                  <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Modul: {mod.name}</h4>
                 </div>
 
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() => handleToggleModuleAll(mod.value)}
+                  onClick={() => handleToggleModuleAll(mod.code)}
                   style={{ fontSize: '0.8125rem' }}
                 >
                   {allModuleChecked ? 'Batalkan Semua' : 'Pilih Semua Modul Ini'}
@@ -238,9 +244,9 @@ export default function AdminRolePermissionsPage() {
           );
         })}
 
-        {/* Fallback Section for permissions with modules not in SYSTEM_MODULES */}
+        {/* Fallback Section for permissions with modules not in appModules */}
         {(() => {
-          const knownModules = SYSTEM_MODULES.map((m) => m.value.toLowerCase());
+          const knownModules = appModules.map((m) => m.code.toLowerCase());
           const otherPerms = activePermissions.filter(
             (p) => !p.module || !knownModules.includes(p.module.toLowerCase())
           );

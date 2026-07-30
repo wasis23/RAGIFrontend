@@ -125,6 +125,7 @@ export function useAuth() {
   );
 
   const isAdmin = useMemo(() => hasRole('admin') || hasRole('superadmin'), [hasRole]);
+  const isSuperAdmin = useMemo(() => hasRole('superadmin'), [hasRole]);
   const isDosen = useMemo(() => hasRole('dosen'), [hasRole]);
   const isTendik = useMemo(() => hasRole('tendik'), [hasRole]);
   const isMahasiswa = useMemo(() => hasRole('mahasiswa'), [hasRole]);
@@ -143,6 +144,7 @@ export function useAuth() {
     requires_mfa,
     mfa_user_id,
     isAdmin,
+    isSuperAdmin,
     isDosen,
     isTendik,
     isMahasiswa,

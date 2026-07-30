@@ -76,8 +76,15 @@ export default function AdminRolesPage() {
         toast.success('Role baru berhasil ditambahkan!');
       }
       fetchRoles();
-    } catch {
-      toast.error('Gagal menyimpan role. Periksa koneksi ke server.');
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'Gagal menyimpan role. Periksa koneksi ke server.';
+      if (error.response?.status === 403) {
+        toast.error('Anda tidak memiliki wewenang untuk aksi ini.');
+      } else if (error.response?.status === 422) {
+        toast.error('Validasi gagal. Pastikan Slug Unique Identifier unik.');
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setShowModal(false);
     }
@@ -89,8 +96,13 @@ export default function AdminRolesPage() {
       await adminService.deleteRole(deletingRole.id);
       toast.success(`Role ${deletingRole.name} berhasil dihapus.`);
       fetchRoles();
-    } catch {
-      toast.error(`Gagal menghapus role. Periksa koneksi ke server.`);
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'Gagal menghapus role. Periksa koneksi ke server.';
+      if (error.response?.status === 403) {
+        toast.error('Anda tidak memiliki wewenang untuk menghapus role ini.');
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setDeletingRole(null);
     }
@@ -189,7 +201,7 @@ export default function AdminRolesPage() {
           </>
         }
       >
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Nama Role"
             required
@@ -211,7 +223,7 @@ export default function AdminRolesPage() {
             hint="Format: lowercase dengan underscore"
           />
 
-          <div className="form-group">
+          <div className="form-group col-span-1 md:col-span-2">
             <label className="form-label">Deskripsi</label>
             <textarea
               className="textarea"

@@ -90,6 +90,17 @@ export const adminService = {
     return data;
   },
 
+  // ── ROLE-MENUS MAPPING ────────────────────────────────────
+  getRoleMenus: async (roleId: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/admin/role-menus/${roleId}`);
+    return data;
+  },
+
+  assignMenusToRole: async (roleId: number, menuIds: number[]): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.post<ApiResponse<null>>(`/admin/role-menus/${roleId}`, { menu_ids: menuIds });
+    return data;
+  },
+
   // ── USER-ROLES MAPPING ────────────────────────────────────
   getUserRoles: async (): Promise<ApiResponse<UserRole[]>> => {
     const { data } = await apiClient.get<ApiResponse<UserRole[]>>('/admin/user-roles');

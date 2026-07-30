@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { menuService } from '@/services/menu.service';
+import { moduleService, AppModule } from '@/services/module.service';
 import { Menu, CreateMenuPayload, UpdateMenuPayload } from '@/types/menu';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
   List,
@@ -16,28 +18,16 @@ import {
 
 export default function AdminMenuPage() {
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [appModules, setAppModules] = useState<AppModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
-  
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<CreateMenuPayload>({
-    name: '',
-    url: '',
-    icon: '',
-    module: 'sso',
-    parent_id: null,
-    order_index: 0,
-    is_active: true
-  });
-  const [editId, setEditId] = useState<number | null>(null);
+  const [selectedModule, setSelectedModule] = useState<string>('sso');
+  const router = useRouter();
 
   const fetchMenus = async () => {
     setLoading(true);
     try {
-      const data = await menuService.getAllMenus('sso');
+      const data = await menuService.getAllMenus(selectedModule);
       setMenus(data);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Gagal memuat menu');
@@ -47,8 +37,26 @@ export default function AdminMenuPage() {
   };
 
   useEffect(() => {
-    fetchMenus();
+    const fetchInitialData = async () => {
+      try {
+        const modulesData = await moduleService.getAllModules();
+        setAppModules(modulesData);
+        // default select to first active module if sso is not available
+        if (modulesData.length > 0 && !modulesData.find(m => m.code === 'sso')) {
+          setSelectedModule(modulesData[0].code);
+        }
+      } catch (err) {
+        console.error('Failed to fetch modules');
+      }
+    };
+    fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    if (selectedModule) {
+      fetchMenus();
+    }
+  }, [selectedModule]);
 
   const handleToggle = async (id: number, currentStatus: boolean) => {
     setTogglingId(id);
@@ -76,52 +84,11 @@ export default function AdminMenuPage() {
   };
 
   const openCreateModal = () => {
-    setModalMode('create');
-    setFormData({
-      name: '',
-      url: '',
-      icon: '',
-      module: 'sso',
-      parent_id: null,
-      order_index: 0,
-      is_active: true
-    });
-    setIsModalOpen(true);
+    router.push('/admin/menus/create');
   };
 
   const openEditModal = (menu: Menu) => {
-    setModalMode('edit');
-    setEditId(menu.id);
-    setFormData({
-      name: menu.name,
-      url: menu.url,
-      icon: menu.icon,
-      module: menu.module,
-      parent_id: menu.parent_id,
-      order_index: menu.order_index,
-      is_active: menu.is_active
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      if (modalMode === 'create') {
-        await menuService.createMenu(formData);
-        toast.success('Menu berhasil ditambahkan');
-      } else if (editId) {
-        await menuService.updateMenu(editId, formData as UpdateMenuPayload);
-        toast.success('Menu berhasil diperbarui');
-      }
-      setIsModalOpen(false);
-      fetchMenus();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Terjadi kesalahan saat menyimpan menu');
-    } finally {
-      setIsSubmitting(false);
-    }
+    router.push(`/admin/menus/${menu.id}/edit`);
   };
 
   // Helper to render table rows recursively (for nested menus)
@@ -194,7 +161,16 @@ export default function AdminMenuPage() {
           </h1>
           <p className="text-gray-500 mt-1">Mengelola menu navigasi dan status aktif/nonaktifnya.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <select
+            className="select max-w-xs"
+            value={selectedModule}
+            onChange={(e) => setSelectedModule(e.target.value)}
+          >
+            {appModules.map(mod => (
+              <option key={mod.id} value={mod.code}>Modul: {mod.name.toUpperCase()}</option>
+            ))}
+          </select>
           <button className="btn btn-primary btn-outline" onClick={fetchMenus} disabled={loading}>
             <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -241,129 +217,7 @@ export default function AdminMenuPage() {
         </div>
       </div>
 
-      {/* Modal CRUD Menu */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="card bg-white w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-            <form onSubmit={handleFormSubmit}>
-              <div className="card-body">
-                <h3 className="text-lg font-bold mb-4">
-                  {modalMode === 'create' ? 'Tambah Menu Baru' : 'Edit Menu'}
-                </h3>
-                
-                <div className="space-y-4">
-                  <div className="form-control">
-                    <label className="label">Nama Menu</label>
-                    <input 
-                      type="text" 
-                      className="input" 
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="Contoh: Pengaturan"
-                    />
-                  </div>
-                  
-                  <div className="form-control">
-                    <label className="label">URL Route</label>
-                    <input 
-                      type="text" 
-                      className="input" 
-                      required
-                      value={formData.url}
-                      onChange={(e) => setFormData({...formData, url: e.target.value})}
-                      placeholder="Contoh: /admin/settings"
-                    />
-                  </div>
-
-                  <div className="form-control">
-                    <label className="label">Icon (Teks)</label>
-                    <input 
-                      type="text" 
-                      className="input" 
-                      value={formData.icon || ''}
-                      onChange={(e) => setFormData({...formData, icon: e.target.value})}
-                      placeholder="Contoh: FaHome"
-                    />
-                    <span className="text-xs text-gray-400 mt-1">Dapat menggunakan nama lucide-react (misal: FaUsers). Kosongkan jika tidak ada.</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="form-control">
-                      <label className="label">Modul</label>
-                      <select 
-                        className="input"
-                        value={formData.module}
-                        onChange={(e) => setFormData({...formData, module: e.target.value})}
-                      >
-                        <option value="sso">SSO (Auth Center)</option>
-                        <option value="SPMB">SPMB</option>
-                      </select>
-                    </div>
-                    
-                    <div className="form-control">
-                      <label className="label">Urutan (Order)</label>
-                      <input 
-                        type="number" 
-                        className="input" 
-                        value={formData.order_index}
-                        onChange={(e) => setFormData({...formData, order_index: parseInt(e.target.value) || 0})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-control">
-                    <label className="label">Parent Menu</label>
-                    <select 
-                      className="input"
-                      value={formData.parent_id || ''}
-                      onChange={(e) => setFormData({...formData, parent_id: e.target.value ? parseInt(e.target.value) : null})}
-                    >
-                      <option value="">-- Tidak ada (Root Menu) --</option>
-                      {menus.map(m => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-control flex-row items-center gap-3 mt-4">
-                    <input 
-                      type="checkbox" 
-                      id="is_active"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-600"
-                    />
-                    <label htmlFor="is_active" className="cursor-pointer font-medium text-gray-700">Langsung Aktifkan</label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 mt-8">
-                  <button 
-                    type="button" 
-                    className="btn btn-ghost" 
-                    onClick={() => setIsModalOpen(false)}
-                    disabled={isSubmitting}
-                  >
-                    Batal
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <><RefreshCw size={16} className="animate-spin mr-2" /> Menyimpan...</>
-                    ) : (
-                      'Simpan Menu'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
