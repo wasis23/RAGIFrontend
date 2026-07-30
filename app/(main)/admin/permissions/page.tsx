@@ -11,21 +11,6 @@ import { adminService } from '@/services/admin.service';
 import { SYSTEM_MODULES, PERMISSION_ACTIONS } from '@/lib/constants';
 import type { Permission, PermissionAction } from '@/types/auth.types';
 
-const MOCK_PERMISSIONS: Permission[] = [
-  { id: 1, name: 'Kelola Seluruh Pengguna', slug: 'iam.users.manage', module: 'iam', action: 'manage', description: 'Hak akses CRUD penuh untuk pengguna SSO' },
-  { id: 2, name: 'Kelola Role & Hak Akses', slug: 'iam.roles.manage', module: 'iam', action: 'manage', description: 'Konfigurasi wewenang dan permission role' },
-  { id: 3, name: 'Lihat Nilai & KHS', slug: 'siakad.grades.read', module: 'siakad', action: 'read', description: 'Hak membaca transkrip KHS/KRS di SIAKAD' },
-  { id: 4, name: 'Input & Edit Nilai Dosen', slug: 'siakad.grades.update', module: 'siakad', action: 'update', description: 'Hak menginput dan mengubah nilai matakuliah' },
-  { id: 5, name: 'Cetak Kartu Ujian (KPU)', slug: 'siakad.kpu.print', module: 'siakad', action: 'read', description: 'Cetak kartu peserta ujian semester' },
-  { id: 6, name: 'Verifikasi Lunas UKT', slug: 'sikeu.billing.update', module: 'sikeu', action: 'update', description: 'Verifikasi status lunas pembayaran UKT' },
-  { id: 7, name: 'Generate Invoice Tagihan', slug: 'sikeu.billing.create', module: 'sikeu', action: 'create', description: 'Buat tagihan biaya kuliah mahasiswa baru' },
-  { id: 8, name: 'Kelola Kurikulum OBE', slug: 'obe.curriculum.manage', module: 'obe', action: 'manage', description: 'Desain CPL, CPMK, dan kurikulum OBE' },
-  { id: 9, name: 'Akses Ruang Kelas LMS', slug: 'lms.courses.read', module: 'lms', action: 'read', description: 'Akses kelas online dan materi kuliah' },
-  { id: 10, name: 'Upload Tugas & Quiz', slug: 'lms.assignments.create', module: 'lms', action: 'create', description: 'Upload materi dan kuis perkuliahan' },
-  { id: 11, name: 'Verifikasi Berkas Calon MHS', slug: 'spmb.documents.verify', module: 'spmb', action: 'update', description: 'Verifikasi ijazah dan syarat pendaftaran' },
-  { id: 12, name: 'Kelola Publikasi & Penelitian', slug: 'simpi.research.manage', module: 'simpi', action: 'manage', description: 'Input jurnal dan luaran publikasi dosen' },
-];
-
 export default function AdminPermissionsPage() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [filterModule, setFilterModule] = useState('all');
@@ -44,10 +29,12 @@ export default function AdminPermissionsPage() {
   const fetchPermissions = async () => {
     try {
       const res = await adminService.getPermissions();
-      const list = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-      setPermissions(list?.length ? list : MOCK_PERMISSIONS);
+      const list = Array.isArray(res?.data)
+        ? res.data
+        : (res?.data as { items?: Permission[] })?.items ?? [];
+      setPermissions(list);
     } catch {
-      setPermissions(MOCK_PERMISSIONS);
+      toast.error('Gagal memuat data permission. Periksa koneksi ke server.');
     }
   };
 
@@ -90,20 +77,7 @@ export default function AdminPermissionsPage() {
       }
       fetchPermissions();
     } catch {
-      if (editingPermission) {
-        setPermissions((prev) =>
-          prev.map((p) => (p.id === editingPermission.id ? { ...p, ...formData } : p))
-        );
-        toast.success('Permission diperbarui (Mode lokal)');
-      } else {
-        const newP: Permission = {
-          id: Date.now(),
-          ...formData,
-          created_at: new Date().toISOString(),
-        };
-        setPermissions((prev) => [...prev, newP]);
-        toast.success('Permission baru dibuat (Mode lokal)');
-      }
+      toast.error('Gagal menyimpan permission. Periksa koneksi ke server.');
     } finally {
       setShowModal(false);
     }
@@ -116,8 +90,7 @@ export default function AdminPermissionsPage() {
       toast.success(`Permission ${deletingPermission.slug} berhasil dihapus.`);
       fetchPermissions();
     } catch {
-      setPermissions((prev) => prev.filter((p) => p.id !== deletingPermission.id));
-      toast.success(`Permission ${deletingPermission.slug} dihapus (Mode lokal).`);
+      toast.error(`Gagal menghapus permission. Periksa koneksi ke server.`);
     } finally {
       setDeletingPermission(null);
     }

@@ -12,37 +12,6 @@ import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
 import type { Role } from '@/types/auth.types';
 
-const MOCK_ROLES: Role[] = [
-  {
-    id: 1,
-    name: 'Super Admin',
-    slug: 'admin',
-    description: 'Akses penuh ke seluruh modul & konfigurasi SSO kampus',
-    created_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 2,
-    name: 'Dosen Pengajar',
-    slug: 'dosen',
-    description: 'Akses ke SIAKAD, LMS, dan SIMPI untuk kegiatan mengajar & nilai',
-    created_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 3,
-    name: 'Mahasiswa Reguler',
-    slug: 'mahasiswa',
-    description: 'Akses portal akademik mahasiswa (KRS, KHS, Pembayaran, LMS)',
-    created_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    id: 4,
-    name: 'Staf Keuangan',
-    slug: 'staf_keuangan',
-    description: 'Kelola pembayaran UKT, billing, dan keuangan mahasiswa di SIKEU',
-    created_at: '2026-01-10T00:00:00Z',
-  },
-];
-
 export default function AdminRolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,10 +29,12 @@ export default function AdminRolesPage() {
     setIsLoading(true);
     try {
       const res = await adminService.getRoles();
-      const roleList = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-      setRoles(roleList?.length ? roleList : MOCK_ROLES);
+      const roleList = Array.isArray(res?.data)
+        ? res.data
+        : (res?.data as { items?: Role[] })?.items ?? [];
+      setRoles(roleList);
     } catch {
-      setRoles(MOCK_ROLES);
+      toast.error('Gagal memuat data role. Periksa koneksi ke server.');
     } finally {
       setIsLoading(false);
     }
@@ -99,26 +70,14 @@ export default function AdminRolesPage() {
     try {
       if (editingRole) {
         await adminService.updateRole(editingRole.id, formData);
-        toast.success('Role berhasil diperbarui di server!');
+        toast.success('Role berhasil diperbarui!');
       } else {
         await adminService.createRole(formData);
-        toast.success('Role baru berhasil ditambahkan ke server!');
+        toast.success('Role baru berhasil ditambahkan!');
       }
       fetchRoles();
     } catch {
-      // Fallback update state lokal jika endpoint backend belum tersedia
-      if (editingRole) {
-        setRoles((prev) => prev.map((r) => (r.id === editingRole.id ? { ...r, ...formData } : r)));
-        toast.success('Role diperbarui (Mode lokal)');
-      } else {
-        const newRole: Role = {
-          id: Date.now(),
-          ...formData,
-          created_at: new Date().toISOString(),
-        };
-        setRoles((prev) => [...prev, newRole]);
-        toast.success('Role ditambahkan (Mode lokal)');
-      }
+      toast.error('Gagal menyimpan role. Periksa koneksi ke server.');
     } finally {
       setShowModal(false);
     }
@@ -128,11 +87,10 @@ export default function AdminRolesPage() {
     if (!deletingRole) return;
     try {
       await adminService.deleteRole(deletingRole.id);
-      toast.success(`Role ${deletingRole.name} berhasil dihapus dari server.`);
+      toast.success(`Role ${deletingRole.name} berhasil dihapus.`);
       fetchRoles();
     } catch {
-      setRoles((prev) => prev.filter((r) => r.id !== deletingRole.id));
-      toast.success(`Role ${deletingRole.name} dihapus (Mode lokal).`);
+      toast.error(`Gagal menghapus role. Periksa koneksi ke server.`);
     } finally {
       setDeletingRole(null);
     }

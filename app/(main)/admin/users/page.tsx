@@ -13,53 +13,6 @@ import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
 import type { User, UserType } from '@/types/auth.types';
 
-const MOCK_USERS: User[] = [
-  {
-    id: 1,
-    username: 'admin_super',
-    email: 'admin@kampus.ac.id',
-    phone: '081234567890',
-    user_type: 'admin',
-    is_active: true,
-    is_verified: true,
-    created_at: '2026-01-15T08:00:00Z',
-    updated_at: '2026-01-15T08:00:00Z',
-  },
-  {
-    id: 2,
-    username: 'dosen_siakad',
-    email: 'dosen.utama@kampus.ac.id',
-    phone: '081987654321',
-    user_type: 'dosen',
-    is_active: true,
-    is_verified: true,
-    created_at: '2026-02-01T09:30:00Z',
-    updated_at: '2026-02-01T09:30:00Z',
-  },
-  {
-    id: 3,
-    username: 'mahasiswa_demo',
-    email: 'mhs2026@kampus.ac.id',
-    phone: '081333444555',
-    user_type: 'mahasiswa',
-    is_active: true,
-    is_verified: true,
-    created_at: '2026-02-10T14:15:00Z',
-    updated_at: '2026-02-10T14:15:00Z',
-  },
-  {
-    id: 4,
-    username: 'tendik_keuangan',
-    email: 'tendik.keu@kampus.ac.id',
-    phone: '081555666777',
-    user_type: 'tendik',
-    is_active: false,
-    is_verified: true,
-    created_at: '2026-03-05T11:20:00Z',
-    updated_at: '2026-03-05T11:20:00Z',
-  },
-];
-
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,10 +37,12 @@ export default function AdminUsersPage() {
     setIsLoading(true);
     try {
       const res = await adminService.getUsers({ search });
-      const userList = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-      setUsers(userList?.length ? userList : MOCK_USERS);
+      const userList = Array.isArray(res?.data)
+        ? res.data
+        : (res?.data as { items?: User[] })?.items ?? [];
+      setUsers(userList);
     } catch {
-      setUsers(MOCK_USERS);
+      toast.error('Gagal memuat data pengguna. Periksa koneksi ke server.');
     } finally {
       setIsLoading(false);
     }
@@ -132,23 +87,7 @@ export default function AdminUsersPage() {
       }
       fetchUsers();
     } catch {
-      if (editingUser) {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === editingUser.id ? { ...u, ...formData } : u))
-        );
-        toast.success('Pengguna diperbarui (Mode lokal)');
-      } else {
-        const newUser: User = {
-          id: Date.now(),
-          ...formData,
-          is_active: true,
-          is_verified: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setUsers((prev) => [newUser, ...prev]);
-        toast.success('Pengguna baru ditambahkan (Mode lokal)');
-      }
+      toast.error('Gagal menyimpan data. Periksa koneksi ke server.');
     } finally {
       setShowModal(false);
     }
@@ -157,13 +96,10 @@ export default function AdminUsersPage() {
   const handleToggleStatus = async (user: User) => {
     try {
       await adminService.toggleUserActive(user.id, !user.is_active);
-      toast.success(`Status ${user.username} diubah menjadi ${!user.is_active ? 'Aktif' : 'Nonaktif'}`);
+      toast.success(`Status ${user.username} berhasil diubah.`);
       fetchUsers();
     } catch {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, is_active: !u.is_active } : u))
-      );
-      toast.success(`Status ${user.username} diubah (Mode lokal)`);
+      toast.error(`Gagal mengubah status ${user.username}. Periksa koneksi ke server.`);
     }
   };
 
@@ -174,8 +110,7 @@ export default function AdminUsersPage() {
       toast.success(`Pengguna ${deletingUser.username} telah dihapus.`);
       fetchUsers();
     } catch {
-      setUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
-      toast.success(`Pengguna ${deletingUser.username} dihapus (Mode lokal).`);
+      toast.error(`Gagal menghapus ${deletingUser.username}. Periksa koneksi ke server.`);
     } finally {
       setDeletingUser(null);
     }

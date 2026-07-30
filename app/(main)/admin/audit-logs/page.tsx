@@ -14,49 +14,6 @@ interface ExtendedAuditLog extends AuditLog {
   username: string;
 }
 
-const MOCK_AUDIT_LOGS: ExtendedAuditLog[] = [
-  {
-    id: 1001,
-    user_id: 1,
-    username: 'admin_super',
-    action: 'auth.login.success',
-    ip_address: '180.252.164.21',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0',
-    payload: JSON.stringify({ method: 'password', mfa_used: false }),
-    created_at: new Date(Date.now() - 3600000 * 1).toISOString(),
-  },
-  {
-    id: 1002,
-    user_id: 2,
-    username: 'dosen_siakad',
-    action: 'mfa.verify.success',
-    ip_address: '36.85.12.99',
-    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    payload: JSON.stringify({ device: 'TOTP Authenticator' }),
-    created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-  },
-  {
-    id: 1003,
-    user_id: 3,
-    username: 'mahasiswa_demo',
-    action: 'auth.login.failed',
-    ip_address: '114.124.200.45',
-    user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2)',
-    payload: JSON.stringify({ reason: 'Invalid password attempt' }),
-    created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
-  },
-  {
-    id: 1004,
-    user_id: 1,
-    username: 'admin_super',
-    action: 'role.permission.assign',
-    ip_address: '180.252.164.21',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-    payload: JSON.stringify({ role_id: 2, added_permissions: [3, 4] }),
-    created_at: new Date(Date.now() - 86400000 * 1).toISOString(),
-  },
-];
-
 export default function AdminAuditLogsPage() {
   const [logs, setLogs] = useState<ExtendedAuditLog[]>([]);
   const [search, setSearch] = useState('');
@@ -65,10 +22,12 @@ export default function AdminAuditLogsPage() {
   const fetchLogs = async () => {
     try {
       const res = await adminService.getAuditLogs({ search });
-      const list = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-      setLogs(list?.length ? list : MOCK_AUDIT_LOGS);
+      const list = Array.isArray(res?.data)
+        ? res.data
+        : (res?.data as { items?: ExtendedAuditLog[] })?.items ?? [];
+      setLogs(list);
     } catch {
-      setLogs(MOCK_AUDIT_LOGS);
+      toast.error('Gagal memuat audit log. Periksa koneksi ke server.');
     }
   };
 

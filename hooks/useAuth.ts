@@ -75,9 +75,15 @@ export function useAuth() {
     [setAuth, setLoading, router]
   );
 
-  // Quick Demo Login (Khusus tombol 1-Klik Demo untuk pengujian UI)
+  // Quick Demo Login — HANYA TERSEDIA DI DEVELOPMENT
+  // Tidak akan bisa dipanggil di production build
   const loginAsDemo = useCallback(
     (roleType: 'mahasiswa' | 'dosen' | 'admin' = 'admin') => {
+      if (process.env.NODE_ENV !== 'development') {
+        toast.error('Demo login tidak tersedia di production.');
+        return;
+      }
+
       setLoading(true);
       const demoUser: User = {
         id: roleType === 'admin' ? 99 : 1,
@@ -106,10 +112,10 @@ export function useAuth() {
           },
         ],
       };
-      const demoToken = 'mock_demo_access_token_12345';
+      const demoToken = 'mock_demo_access_token_dev_only';
       setAuthCookies(demoToken, roleType);
-      setAuth(demoUser, demoToken, 'mock_demo_refresh_token');
-      toast.success(`Berhasil masuk sebagai ${demoUser.username} (${roleType})`);
+      setAuth(demoUser, demoToken, 'mock_demo_refresh_token_dev_only');
+      toast.success(`[DEV] Masuk sebagai ${demoUser.username} (${roleType})`);
       setLoading(false);
       router.push(ROUTES.DASHBOARD);
     },

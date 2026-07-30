@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 const loginSchema = z.object({
@@ -57,7 +58,13 @@ export default function LoginPage() {
         type="button"
         className="btn-sso-google"
         id="btn-oauth-google"
-        onClick={() => loginAsDemo('mahasiswa')}
+        onClick={() => {
+          if (process.env.NODE_ENV === 'development') {
+            loginAsDemo('mahasiswa');
+          } else {
+            toast('Fitur Google SSO segera hadir.', { icon: '🔜' });
+          }
+        }}
       >
         <GoogleIcon />
         <span>Masuk dengan Google</span>

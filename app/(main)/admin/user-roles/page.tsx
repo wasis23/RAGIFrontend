@@ -20,48 +20,16 @@ interface UserRoleMapping {
   created_at: string;
 }
 
-const MOCK_ROLES = [
-  { id: 1, name: 'Super Admin', slug: 'admin' },
-  { id: 2, name: 'Dosen Pengajar', slug: 'dosen' },
-  { id: 3, name: 'Mahasiswa Reguler', slug: 'mahasiswa' },
-  { id: 4, name: 'Staf Keuangan', slug: 'staf_keuangan' },
-];
-
-const MOCK_USER_ROLES: UserRoleMapping[] = [
-  {
-    user_id: 1,
-    username: 'admin_super',
-    email: 'admin@kampus.ac.id',
-    user_type: 'admin',
-    roles: [{ id: 1, name: 'Super Admin', slug: 'admin' }],
-    created_at: '2026-01-01T00:00:00Z',
-  },
-  {
-    user_id: 2,
-    username: 'dosen_siakad',
-    email: 'dosen@kampus.ac.id',
-    user_type: 'dosen',
-    roles: [{ id: 2, name: 'Dosen Pengajar', slug: 'dosen' }],
-    created_at: '2026-01-05T00:00:00Z',
-  },
-  {
-    user_id: 3,
-    username: 'mahasiswa_demo',
-    email: 'mhs@kampus.ac.id',
-    user_type: 'mahasiswa',
-    roles: [{ id: 3, name: 'Mahasiswa Reguler', slug: 'mahasiswa' }],
-    created_at: '2026-01-10T00:00:00Z',
-  },
-];
-
 export default function AdminUserRolesPage() {
-  const [roles, setRoles] = useState(MOCK_ROLES);
-  const [userRoles, setUserRoles] = useState<UserRoleMapping[]>(MOCK_USER_ROLES);
+  const [roles, setRoles] = useState<{ id: number; name: string; slug: string }[]>([]);
+  const [userRoles, setUserRoles] = useState<UserRoleMapping[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserRoleMapping | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const [rolesRes, userRolesRes] = await Promise.allSettled([
           adminService.getRoles(),
@@ -70,21 +38,21 @@ export default function AdminUserRolesPage() {
 
         if (rolesRes.status === 'fulfilled') {
           const res = rolesRes.value;
-          const roleList = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-          if (roleList?.length) {
-            setRoles(roleList.map((r: any) => ({
-              id: r.id,
-              name: r.name,
-              slug: r.slug,
-            })));
-          }
+          const roleList = Array.isArray(res?.data)
+            ? res.data
+            : (res?.data as { items?: { id: number; name: string; slug: string }[] })?.items ?? [];
+          setRoles(roleList.map((r) => ({ id: r.id, name: r.name, slug: r.slug })));
+        } else {
+          toast.error('Gagal memuat data role. Periksa koneksi ke server.');
         }
 
         if (userRolesRes.status === 'fulfilled') {
           const res = userRolesRes.value;
-          const userList = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-          if (userList?.length) {
-            const mapped: UserRoleMapping[] = userList.map((u: any) => ({
+          const userList = Array.isArray(res?.data)
+            ? res.data
+            : (res?.data as { items?: unknown[] })?.items ?? [];
+          if (userList.length) {
+            const mapped: UserRoleMapping[] = (userList as any[]).map((u) => ({
               user_id: u.id,
               username: u.username,
               email: u.email,
@@ -94,9 +62,11 @@ export default function AdminUserRolesPage() {
             }));
             setUserRoles(mapped);
           }
+        } else {
+          toast.error('Gagal memuat data user-roles. Periksa koneksi ke server.');
         }
-      } catch {
-        // Fallback to MOCK_USER_ROLES if backend endpoint is unavailable
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
@@ -124,15 +94,9 @@ export default function AdminUserRolesPage() {
           ur.user_id === editingUser.user_id ? { ...ur, roles: newAssignedRoles } : ur
         )
       );
-      toast.success(`Role untuk ${editingUser.username} berhasil diperbarui di server!`);
+      toast.success(`Role untuk ${editingUser.username} berhasil diperbarui!`);
     } catch {
-      const newAssignedRoles = roles.filter((r) => selectedRoleIds.includes(r.id));
-      setUserRoles((prev) =>
-        prev.map((ur) =>
-          ur.user_id === editingUser.user_id ? { ...ur, roles: newAssignedRoles } : ur
-        )
-      );
-      toast.success(`Role untuk ${editingUser.username} diperbarui (Mode lokal)`);
+      toast.error(`Gagal menyimpan role untuk ${editingUser.username}. Periksa koneksi ke server.`);
     } finally {
       setEditingUser(null);
     }

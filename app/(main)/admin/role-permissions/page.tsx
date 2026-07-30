@@ -37,61 +37,65 @@ const MOCK_PERMISSIONS: PermissionItem[] = [
   { id: 12, name: 'Kelola Publikasi & Penelitian', slug: 'simpi.research.manage', module: 'simpi' },
 ];
 
-const INITIAL_MAP: Record<number, number[]> = {
-  1: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], // Admin (all)
-  2: [3, 4, 8, 9, 10, 12], // Dosen
-  3: [3, 5, 9, 10], // Mahasiswa
-  4: [6, 7], // Staf Keuangan
-};
-
 export default function AdminRolePermissionsPage() {
-  const [roles, setRoles] = useState(MOCK_ROLES);
-  const [selectedRoleId, setSelectedRoleId] = useState<number>(1);
-  const [assignedMap, setAssignedMap] = useState<Record<number, number[]>>(INITIAL_MAP);
+  const [roles, setRoles] = useState<{ id: number; name: string; slug: string }[]>([]);
+  const [permissions, setPermissions] = useState<PermissionItem[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<number>(0);
+  const [assignedMap, setAssignedMap] = useState<Record<number, number[]>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const [rolesRes, rolePermsRes] = await Promise.allSettled([
+        const [rolesRes, rolePermsRes, permsRes] = await Promise.allSettled([
           adminService.getRoles(),
           adminService.getRolePermissions(),
+          adminService.getPermissions(),
         ]);
 
         if (rolesRes.status === 'fulfilled') {
           const res = rolesRes.value;
-          const roleList = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-          if (roleList?.length) {
-            const mapped = roleList.map((r: any) => ({
-              id: r.id,
-              name: `${r.name} (${r.slug})`,
-              slug: r.slug,
-            }));
-            setRoles(mapped);
-            if (mapped[0]) setSelectedRoleId(mapped[0].id);
-          }
+          const roleList = Array.isArray(res?.data)
+            ? res.data
+            : (res?.data as { items?: { id: number; name: string; slug: string }[] })?.items ?? [];
+          const mapped = roleList.map((r) => ({ id: r.id, name: `${r.name} (${r.slug})`, slug: r.slug }));
+          setRoles(mapped);
+          if (mapped[0]) setSelectedRoleId(mapped[0].id);
+        } else {
+          toast.error('Gagal memuat data role. Periksa koneksi ke server.');
+        }
+
+        if (permsRes.status === 'fulfilled') {
+          const res = permsRes.value;
+          const permList = Array.isArray(res?.data)
+            ? res.data
+            : (res?.data as { items?: PermissionItem[] })?.items ?? [];
+          setPermissions(permList.map((p) => ({ id: p.id, name: p.name, slug: p.slug, module: p.module })));
         }
 
         if (rolePermsRes.status === 'fulfilled') {
           const res = rolePermsRes.value;
-          const rolePermsList = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-          if (rolePermsList?.length) {
+          const rolePermsList = Array.isArray(res?.data) ? res.data : (res?.data as { items?: unknown[] })?.items ?? [];
+          if (rolePermsList.length) {
             const map: Record<number, number[]> = {};
-            rolePermsList.forEach((item: any) => {
-              const pIds = (item.permissions || []).map((p: any) => p.id);
+            (rolePermsList as any[]).forEach((item) => {
+              const pIds = (item.permissions || []).map((p: { id: number }) => p.id);
               map[item.id] = pIds;
             });
             setAssignedMap((prev) => ({ ...prev, ...map }));
           }
         }
-      } catch {
-        // Fallback to MOCK_ROLES if backend endpoint is unavailable
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
   }, []);
 
   const currentAssigned = assignedMap[selectedRoleId] || [];
+  const activePermissions = permissions.length > 0 ? permissions : MOCK_PERMISSIONS;
 
   const handleToggle = (permId: number) => {
     const isChecked = currentAssigned.includes(permId);
@@ -106,7 +110,7 @@ export default function AdminRolePermissionsPage() {
   };
 
   const handleToggleModuleAll = (moduleName: string) => {
-    const modulePerms = MOCK_PERMISSIONS.filter((p) => p.module === moduleName).map((p) => p.id);
+    const modulePerms = activePermissions.filter((p) => p.module === moduleName).map((p) => p.id);
     const allChecked = modulePerms.every((id) => currentAssigned.includes(id));
 
     let updated: number[];
@@ -125,7 +129,7 @@ export default function AdminRolePermissionsPage() {
       await adminService.assignPermissionsToRole(selectedRoleId, currentAssigned);
       toast.success(`Hak akses untuk role berhasil disimpan! (${currentAssigned.length} permission)`);
     } catch {
-      toast.success(`Hak akses untuk role disimpan (Mode lokal)`);
+      toast.error('Gagal menyimpan hak akses. Periksa koneksi ke server.');
     } finally {
       setIsSaving(false);
     }
@@ -159,7 +163,7 @@ export default function AdminRolePermissionsPage() {
             ))}
           </select>
           <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            ({currentAssigned.length} dari {MOCK_PERMISSIONS.length} hak akses aktif)
+            ({currentAssigned.length} dari {activePermissions.length} hak akses aktif)
           </span>
         </div>
       </div>
@@ -167,7 +171,7 @@ export default function AdminRolePermissionsPage() {
       {/* Dynamic Module Permission Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {SYSTEM_MODULES.map((mod) => {
-          const modulePerms = MOCK_PERMISSIONS.filter((p) => p.module === mod.value);
+          const modulePerms = activePermissions.filter((p) => p.module === mod.value);
           if (modulePerms.length === 0) return null; // Sembunyikan modul jika belum ada permission terdaftar
 
           const allModuleChecked = modulePerms.every((p) => currentAssigned.includes(p.id));

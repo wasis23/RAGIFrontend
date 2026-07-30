@@ -15,42 +15,6 @@ interface ExtendedSession extends UserSession {
   email: string;
 }
 
-const MOCK_GLOBAL_SESSIONS: ExtendedSession[] = [
-  {
-    id: 201,
-    user_id: 1,
-    username: 'admin_super',
-    email: 'admin@kampus.ac.id',
-    token: 'token_admin_xyz',
-    ip_address: '180.252.164.21',
-    user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36',
-    expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
-    created_at: new Date(Date.now() - 3600000 * 3).toISOString(),
-  },
-  {
-    id: 202,
-    user_id: 2,
-    username: 'dosen_siakad',
-    email: 'dosen@kampus.ac.id',
-    token: 'token_dosen_abc',
-    ip_address: '36.85.12.99',
-    user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15',
-    expires_at: new Date(Date.now() + 86400000 * 5).toISOString(),
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-  {
-    id: 203,
-    user_id: 3,
-    username: 'mahasiswa_demo',
-    email: 'mhs@kampus.ac.id',
-    token: 'token_mhs_qwe',
-    ip_address: '114.124.200.45',
-    user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) Mobile/15E148',
-    expires_at: new Date(Date.now() + 86400000 * 3).toISOString(),
-    created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-  },
-];
-
 export default function AdminSessionsPage() {
   const [sessions, setSessions] = useState<ExtendedSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ExtendedSession | null>(null);
@@ -58,10 +22,12 @@ export default function AdminSessionsPage() {
   const fetchSessions = async () => {
     try {
       const res = await adminService.getAllSessions();
-      const list = Array.isArray(res?.data) ? res.data : (res?.data as any)?.items;
-      setSessions(list?.length ? list : MOCK_GLOBAL_SESSIONS);
+      const list = Array.isArray(res?.data)
+        ? res.data
+        : (res?.data as { items?: ExtendedSession[] })?.items ?? [];
+      setSessions(list);
     } catch {
-      setSessions(MOCK_GLOBAL_SESSIONS);
+      toast.error('Gagal memuat data sesi. Periksa koneksi ke server.');
     }
   };
 
@@ -76,8 +42,7 @@ export default function AdminSessionsPage() {
       toast.success(`Sesi untuk ${selectedSession.username} telah dipaksa keluar.`);
       fetchSessions();
     } catch {
-      setSessions((prev) => prev.filter((s) => s.id !== selectedSession.id));
-      toast.success(`Sesi untuk ${selectedSession.username} dipaksa keluar (Mode lokal).`);
+      toast.error(`Gagal memaksa logout sesi. Periksa koneksi ke server.`);
     } finally {
       setSelectedSession(null);
     }
