@@ -21,8 +21,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           const userData = res?.data?.id ? res.data : res?.data?.user || res?.user || res?.data || res;
           if (userData && (userData.id || userData.username || userData.email)) {
             setUser(userData);
-            if (userData.user_type) {
-              document.cookie = `sso_user_type=${userData.user_type}; path=/; max-age=3600; SameSite=Lax`;
+            const primaryRole = userData.roles?.[0]?.role?.slug || userData.roles?.[0]?.slug;
+            if (primaryRole) {
+              document.cookie = `sso_user_role=${primaryRole}; path=/; max-age=3600; SameSite=Lax`;
             }
           }
         })

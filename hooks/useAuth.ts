@@ -10,14 +10,14 @@ import { ROUTES } from '@/lib/constants';
 import type { LoginRequest, User, Permission } from '@/types/auth.types';
 
 // Helper set cookie untuk middleware Next.js (1 jam = 3600 detik)
-function setAuthCookies(token: string, userType: string) {
+function setAuthCookies(token: string, userRole: string) {
   document.cookie = `sso_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
-  document.cookie = `sso_user_type=${userType}; path=/; max-age=3600; SameSite=Lax`;
+  document.cookie = `sso_user_role=${userRole}; path=/; max-age=3600; SameSite=Lax`;
 }
 
 function clearAuthCookies() {
   document.cookie = 'sso_access_token=; path=/; max-age=0;';
-  document.cookie = 'sso_user_type=; path=/; max-age=0;';
+  document.cookie = 'sso_user_role=; path=/; max-age=0;';
 }
 
 export function useAuth() {
