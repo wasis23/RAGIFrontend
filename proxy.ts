@@ -27,7 +27,6 @@ export function proxy(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.includes('.') ||
-    pathname.startsWith('/main') ||
     pathname.startsWith('/spmb')
   ) {
     return NextResponse.next();
@@ -70,7 +69,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(new URL(`/spmb${pathname}`, request.url));
   }
 
-  return NextResponse.rewrite(new URL(`/main${pathname}`, request.url));
+  return NextResponse.next();
 }
 
 export const config = {
