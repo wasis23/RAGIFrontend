@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -30,10 +30,30 @@ import {
   DollarSign,
   TrendingUp,
   CheckSquare,
+  List,
+  Home,
+  UserPlus,
+  PieChart
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { SYSTEM_MODULES } from '@/lib/constants';
+import { menuService } from '@/services/menu.service';
+import { Menu } from '@/types/menu';
+
+// Helper to map DB string icons to Lucide components
+const getIcon = (iconName: string) => {
+  const iconMap: Record<string, any> = {
+    'FaHome': Home,
+    'FaUserPlus': UserPlus,
+    'FaChartPie': PieChart,
+    'FaUsers': Users,
+    'FaList': List,
+    'FaShieldAlt': ShieldAlert,
+  };
+  const IconComponent = iconMap[iconName] || LayoutDashboard;
+  return <IconComponent className="sidebar-item-icon" />;
+};
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -41,8 +61,39 @@ export function Sidebar() {
   const { user, isAdmin } = useAuth();
   const [simpegOpen, setSimpegOpen] = useState(pathname.startsWith('/simpeg'));
   const [adminOpen, setAdminOpen] = useState(pathname.startsWith('/admin'));
+  
+  const [dynamicMenus, setDynamicMenus] = useState<Menu[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const isMainActive = (path: string) => pathname === path;
+  // Determine module based on hostname
+  // We can roughly guess it from window.location in client component
+  const getModule = () => {
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname.startsWith('spmb.')) return 'SPMB';
+    }
+    return 'sso';
+  };
+
+  useEffect(() => {
+    if (user) {
+      const fetchMenus = async () => {
+        try {
+          const menus = await menuService.getMyMenus(getModule());
+          setDynamicMenus(menus);
+        } catch (error) {
+          console.error("Failed to load menus", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchMenus();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const isMainActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 
   return (
     <aside className={`sidebar ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
@@ -75,17 +126,43 @@ export function Sidebar() {
 
       {/* Navigation */}
       <div className="sidebar-nav">
-        {/* Main Section */}
+        
+        {/* Dynamic Menus from Database */}
         <div className="sidebar-section">
-          {sidebar_open && <div className="sidebar-section-label">Utama</div>}
-          <Link
-            href="/dashboard"
-            className={`sidebar-item ${isMainActive('/dashboard') ? 'active' : ''}`}
-            title="Dashboard"
-          >
-            <LayoutDashboard className="sidebar-item-icon" />
-            {sidebar_open && <span>Dashboard</span>}
-          </Link>
+          {sidebar_open && <div className="sidebar-section-label">Menu Utama</div>}
+          
+          {loading ? (
+            <div style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)' }}>Loading menus...</div>
+          ) : (
+            dynamicMenus.map((menu) => (
+              <div key={menu.id}>
+                <Link
+                  href={menu.url}
+                  className={`sidebar-item ${isMainActive(menu.url) ? 'active' : ''}`}
+                  title={menu.name}
+                >
+                  {getIcon(menu.icon)}
+                  {sidebar_open && <span>{menu.name}</span>}
+                </Link>
+                {menu.children && menu.children.length > 0 && sidebar_open && (
+                  <div style={{ paddingLeft: '1rem', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                    {menu.children.map(child => (
+                      <Link
+                        key={child.id}
+                        href={child.url}
+                        className={`sidebar-item ${isMainActive(child.url) ? 'active' : ''}`}
+                        title={child.name}
+                        style={{ padding: '0.35rem 0.75rem', minHeight: '32px' }}
+                      >
+                        {getIcon(child.icon)}
+                        <span>{child.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
 
         {/* Profile & Security Section */}
@@ -93,7 +170,7 @@ export function Sidebar() {
           {sidebar_open && <div className="sidebar-section-label">Akun & Keamanan</div>}
           <Link
             href="/profile"
-            className={`sidebar-item ${isMainActive('/profile') ? 'active' : ''}`}
+            className={`sidebar-item ${isMainActive('/profile') && !isMainActive('/profile/') ? 'active' : ''}`}
             title="Profil Saya"
           >
             <User className="sidebar-item-icon" />

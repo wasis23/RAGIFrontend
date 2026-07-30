@@ -9,17 +9,21 @@ Proyek ini menggunakan **Next.js App Router** terbaru. Oleh karena itu, *routing
 
 ## Aturan Wajib
 
-1. **Gunakan Route Groups**
-   - Proyek ini menggunakan _route groups_ (folder dengan tanda kurung) untuk mengelompokkan layout tanpa mempengaruhi URL.
-   - Folder `app/(auth)` untuk halaman publik/autentikasi (`/login`, `/forgot-password`).
-   - Folder `app/(main)` untuk halaman terproteksi setelah login (`/dashboard`, `/profile`).
-   - Jika ingin membuat halaman admin baru, letakkan di bawah `app/(main)/admin/...`.
+1. **Arsitektur Multi-Tenant (Subdomain Routing)**
+   - Proyek ini dirancang untuk melayani banyak subdomain dari satu *codebase*.
+   - **WAJIB** memisahkan aplikasi ke dalam folder root level `app/[nama_aplikasi]`. Saat ini terdapat `app/main` (untuk SIAKAD/SSO) dan `app/spmb`.
+   - Logika penentuan *routing* berada mutlak di dalam **`middleware.ts`** menggunakan `NextResponse.rewrite` yang mengecek `hostname`. Jangan melakukan *rewrite* berdasarkan URL secara manual di sisi *client*.
 
-2. **Gunakan `middleware.ts` untuk Proteksi Route**
+2. **Gunakan Route Groups**
+   - Di dalam folder tiap aplikasi (contoh: `app/main/`), gunakan _route groups_ (folder dengan tanda kurung) untuk mengelompokkan layout.
+   - Folder `app/main/(auth)` untuk halaman publik/autentikasi (`/login`, `/forgot-password`).
+   - Folder `app/main/(main)` untuk halaman terproteksi setelah login (`/dashboard`, `/profile`).
+
+3. **Gunakan `middleware.ts` untuk Proteksi Route**
    - Proteksi sesi tidak dilakukan dengan mengecek _cookie_ di setiap *layout* atau *page*.
    - **Gunakan `middleware.ts`** di _root_ proyek untuk mengatur blokir *redirect* jika belum login.
 
-3. **Server Components vs Client Components**
+4. **Server Components vs Client Components**
    - Secara bawaan, semua file `.tsx` di Next.js App Router adalah **Server Components**.
    - Tambahkan arahan `'use client';` di bagian teratas *file* **HANYA JIKA** komponen tersebut membutuhkan:
      - React Hooks (`useState`, `useEffect`).
@@ -28,7 +32,7 @@ Proyek ini menggunakan **Next.js App Router** terbaru. Oleh karena itu, *routing
      - Penggunaan browser API (`window`, `localStorage`).
    - Sedapat mungkin, pindahkan logika yang butuh `'use client'` ke komponen kecil (seperti `Form.tsx` atau `Button.tsx`) lalu *import* ke Server Component yang membungkusnya.
 
-4. **Metode Navigasi**
+5. **Metode Navigasi**
    - Gunakan komponen `<Link href="...">` bawaan Next.js untuk navigasi antar halaman agar menggunakan *client-side routing* (lebih cepat, tanpa *full reload*).
    - Gunakan hook `useRouter` dari `next/navigation` jika butuh *redirect* secara programatis, BUKAN dari `next/router`.
 
