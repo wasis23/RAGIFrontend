@@ -235,13 +235,9 @@ export default function SimpegDashboardPage() {
 
         {/* Hero Banner Personal Dosen */}
         <div
-          className="card"
+          className="card bg-simpeg-hero"
           style={{
-            background: 'linear-gradient(135deg, #059669 0%, #047857 60%, #064e3b 100%)',
-            color: 'white',
             padding: '2rem',
-            borderRadius: '16px',
-            boxShadow: '0 10px 25px -5px rgba(5, 150, 105, 0.3)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
@@ -260,19 +256,19 @@ export default function SimpegDashboardPage() {
                   marginBottom: '0.75rem',
                 }}
               >
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a7f3d0' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#c7d2fe' }} />
                 LAYANAN MANDIRI DOSEN & TENDIK
               </div>
               <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white', marginBottom: '0.5rem' }}>
                 {namaDosen}
               </h2>
               <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9375rem', maxWidth: 620, lineHeight: 1.6 }}>
-                NIP: <strong>{myPegawai?.nip || '199208152022011002'}</strong> &bull; Unit Kerja: <strong>{myPegawai?.unit_kerja?.nama || 'Fakultas Teknik'}</strong> &bull; Status: <span className="badge badge-green">Aktif</span>
+                NIP: <strong>{myPegawai?.nip || '199208152022011002'}</strong> &bull; Unit Kerja: <strong>{myPegawai?.unit_kerja?.nama || 'Fakultas Teknik'}</strong> &bull; Status: <span className="badge badge-simpeg">Aktif</span>
               </p>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button onClick={handleQuickClockIn} className="btn" style={{ background: '#10b981', color: 'white', fontWeight: 700, borderRadius: 10, padding: '0.75rem 1.25rem', border: 'none' }}>
+              <button onClick={handleQuickClockIn} className="btn" style={{ background: '#ffffff', color: '#4f46e5', fontWeight: 700, borderRadius: 10, padding: '0.75rem 1.25rem', border: 'none' }}>
                 <Clock size={18} /> Presensi Masuk Hari Ini
               </button>
               <button onClick={() => setShowEditProfileModal(true)} className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 700, borderRadius: 10, padding: '0.75rem 1.25rem', border: '1px solid rgba(255,255,255,0.3)' }}>
@@ -603,14 +599,11 @@ export default function SimpegDashboardPage() {
 
       {/* Hero Welcome Banner Admin */}
       <div
-        className="card"
+        className="card bg-simpeg-hero"
         style={{
-          background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 60%, #1e1b4b 100%)',
-          color: 'white',
           padding: '2rem',
           position: 'relative',
           overflow: 'hidden',
-          borderRadius: '16px',
         }}
       >
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>

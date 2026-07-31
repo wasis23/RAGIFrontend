@@ -739,8 +739,32 @@ h1, h2, h3, h4, h5, h6 {
 .badge-red     { background: #fee2e2; color: #991b1b; }
 .badge-gray    { background: #f1f5f9; color: #475569; }
 .badge-indigo  { background: #e0e7ff; color: #3730a3; }
+.badge-purple  { background: #f3e8ff; color: #6b21a8; }
 .badge-cyan    { background: #cffafe; color: #155e75; }
 .badge-orange  { background: #ffedd5; color: #9a3412; }
+
+/* Module Brand Badges */
+.badge-simpeg   { background: #e0e7ff; color: #3730a3; border: 1px solid rgba(79, 70, 229, 0.2); }
+.badge-spmb     { background: #d1fae5; color: #065f46; border: 1px solid rgba(16, 185, 129, 0.2); }
+.badge-siakad   { background: #dbeafe; color: #1d4ed8; border: 1px solid rgba(37, 99, 235, 0.2); }
+.badge-sikeu    { background: #fef3c7; color: #92400e; border: 1px solid rgba(217, 119, 6, 0.2); }
+.badge-lms      { background: #cffafe; color: #155e75; border: 1px solid rgba(8, 145, 178, 0.2); }
+.badge-sinapra  { background: #ffedd5; color: #9a3412; border: 1px solid rgba(234, 88, 12, 0.2); }
+.badge-kerjasama{ background: #ccfbf1; color: #115e59; border: 1px solid rgba(13, 148, 136, 0.2); }
+.badge-upm      { background: #ffe4e6; color: #9f1239; border: 1px solid rgba(225, 29, 72, 0.2); }
+
+.bg-simpeg-hero {
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 60%, #1e1b4b 100%);
+  color: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.35);
+}
+.bg-simpeg-hero h1,
+.bg-simpeg-hero h2,
+.bg-simpeg-hero h3,
+.bg-simpeg-hero h4 {
+  color: #ffffff !important;
+}
 
 .badge-dot::before {
   content: '';

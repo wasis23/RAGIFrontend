@@ -350,7 +350,7 @@ export default function PegawaiPage() {
               return (
                 <>
                   {/* Top Banner Card */}
-                  <div className="card" style={{ padding: '1.75rem', background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)', color: '#ffffff', borderRadius: '1rem' }}>
+                  <div className="card bg-simpeg-hero" style={{ padding: '1.75rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
                       <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
                         <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', fontWeight: 800 }}>
@@ -358,7 +358,7 @@ export default function PegawaiPage() {
                         </div>
                         <div>
                           <div style={{ fontSize: '0.875rem', opacity: 0.85, fontWeight: 500 }}>Profil Pegawai Kampus</div>
-                          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.25rem 0' }}>{peg.nama_lengkap}</h2>
+                          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.25rem 0', color: '#ffffff' }}>{peg.nama_lengkap}</h2>
                           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.875rem', opacity: 0.9 }}>
                             <span>NIP: <strong>{peg.nip || '199208252022012004'}</strong></span>
                             <span>•</span>
