@@ -1,5 +1,5 @@
 import apiClient from '@/lib/axios';
-import { ApiResponse } from '@/types/api';
+import { ApiResponse } from '@/types/api.types';
 
 export interface AppModule {
   id: number;
@@ -29,7 +29,7 @@ export const moduleService = {
    */
   getAllModules: async (): Promise<AppModule[]> => {
     const response = await apiClient.get<ApiResponse<AppModule[]>>('/admin/modules');
-    return response.data.data;
+    return response.data.data || [];
   },
 
   /**
@@ -37,7 +37,7 @@ export const moduleService = {
    */
   createModule: async (payload: CreateModulePayload): Promise<AppModule> => {
     const response = await apiClient.post<ApiResponse<AppModule>>('/admin/modules', payload);
-    return response.data.data;
+    return response.data.data!;
   },
 
   /**
@@ -45,7 +45,7 @@ export const moduleService = {
    */
   updateModule: async (id: number, payload: UpdateModulePayload): Promise<AppModule> => {
     const response = await apiClient.put<ApiResponse<AppModule>>(`/admin/modules/${id}`, payload);
-    return response.data.data;
+    return response.data.data!;
   },
 
   /**
@@ -60,6 +60,6 @@ export const moduleService = {
    */
   toggleModuleStatus: async (moduleId: number): Promise<AppModule> => {
     const response = await apiClient.put<ApiResponse<AppModule>>(`/admin/modules/${moduleId}/toggle`);
-    return response.data.data;
+    return response.data.data!;
   }
 };

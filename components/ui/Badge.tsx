@@ -18,7 +18,7 @@ export function Badge({ variant = 'gray', dot = false, children, className }: Ba
 }
 
 // ====== Preset Badges untuk user_type (sesuai ERD) ======
-export function UserTypeBadge({ type }: { type: string }) {
+export function UserTypeBadge({ type }: { type?: string }) {
   const map: Record<string, { label: string; variant: BadgeVariant }> = {
     mahasiswa: { label: 'Mahasiswa',           variant: 'blue'   },
     dosen:     { label: 'Dosen',               variant: 'green'  },
@@ -26,7 +26,7 @@ export function UserTypeBadge({ type }: { type: string }) {
     admin:     { label: 'Administrator',       variant: 'red'    },
     calon_mhs: { label: 'Calon Mahasiswa',     variant: 'gray'   },
   };
-  const config = map[type] ?? { label: type, variant: 'gray' as BadgeVariant };
+  const config = (type ? map[type] : null) ?? { label: type || 'User', variant: 'gray' as BadgeVariant };
   return <Badge variant={config.variant}>{config.label}</Badge>;
 }
 

@@ -12,7 +12,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function CutiPage() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.cuti.manage') || hasPermission('simpeg.cuti.approve');
   const canRead = hasPermission('simpeg.cuti.read') || hasPermission('simpeg.cuti.request') || hasPermission('simpeg.cuti.approve');
   const canCreate = hasPermission('simpeg.cuti.create') || hasPermission('simpeg.cuti.request');
   const canUpdate = hasPermission('simpeg.cuti.update') || hasPermission('simpeg.cuti.approve');
@@ -40,8 +41,18 @@ export default function CutiPage() {
     if (!canRead) return;
     setLoading(true);
     try {
-      const res = await simpegService.getCutiList();
-      setCutiList(res.data || []);
+      if (!isAdmin) {
+        const resMe = await simpegService.getPegawaiMe();
+        if (resMe.data) {
+          const pegId = resMe.data.id;
+          setFormRequest(prev => ({ ...prev, pegawai_id: pegId }));
+          const res = await simpegService.getCutiList(pegId);
+          setCutiList(res.data || []);
+        }
+      } else {
+        const res = await simpegService.getCutiList();
+        setCutiList(res.data || []);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat Pengajuan Cuti');
     } finally {

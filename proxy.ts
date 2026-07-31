@@ -21,13 +21,15 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get('host') || '';
   const isSpmb = hostname.startsWith('spmb.');
+  const isSimpeg = hostname.startsWith('simpeg.');
 
   // Izinkan akses ke file statis dan route Next.js internal
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.includes('.') ||
-    pathname.startsWith('/spmb')
+    pathname.startsWith('/spmb') ||
+    pathname.startsWith('/simpeg')
   ) {
     return NextResponse.next();
   }
@@ -35,8 +37,8 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get('sso_access_token')?.value;
   const userRole = request.cookies.get('sso_user_role')?.value;
 
-  // SPMB root "/" adalah landing page publik, jangan anggap sebagai protected route
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route)) || (isSpmb && pathname === '/');
+  // SPMB / SIMPEG root "/" adalah landing page / dashboard, bukan auth route
+  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route)) || ((isSpmb || isSimpeg) && pathname === '/');
   const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
 
   // ── 1. Jika sudah login dan mencoba akses public route (auth) → redirect ke dashboard
@@ -57,7 +59,7 @@ export function proxy(request: NextRequest) {
   }
 
   // ── 4. Redirect root "/" Main App
-  if (!isSpmb && pathname === '/') {
+  if (!isSpmb && !isSimpeg && pathname === '/') {
     if (token) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
@@ -67,6 +69,9 @@ export function proxy(request: NextRequest) {
   // ── 5. SUBDOMAIN REWRITE LOGIC
   if (isSpmb) {
     return NextResponse.rewrite(new URL(`/spmb${pathname}`, request.url));
+  }
+  if (isSimpeg) {
+    return NextResponse.rewrite(new URL(`/simpeg${pathname}`, request.url));
   }
 
   return NextResponse.next();

@@ -12,7 +12,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function KinerjaPage() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.kinerja.evaluate') || hasPermission('simpeg.kinerja.manage');
   const canRead = hasPermission('simpeg.kinerja.read');
   const canCreate = hasPermission('simpeg.kinerja.create') || hasPermission('simpeg.kinerja.evaluate');
 
@@ -35,8 +36,18 @@ export default function KinerjaPage() {
     if (!canRead) return;
     setLoading(true);
     try {
-      const res = await simpegService.getKinerjaList();
-      setKinerjaList(res.data || []);
+      if (!isAdmin) {
+        const resMe = await simpegService.getPegawaiMe();
+        if (resMe.data) {
+          const pegId = resMe.data.id;
+          setFormData(prev => ({ ...prev, pegawai_id: pegId }));
+          const res = await simpegService.getKinerjaList(pegId);
+          setKinerjaList(res.data || []);
+        }
+      } else {
+        const res = await simpegService.getKinerjaList();
+        setKinerjaList(res.data || []);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat evaluasi kinerja');
     } finally {

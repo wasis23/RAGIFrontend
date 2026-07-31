@@ -170,7 +170,7 @@ export default function ProfilePage() {
 
               <Input
                 label="Tipe Pengguna (user_type)"
-                value={displayUser.user_type.toUpperCase()}
+                value={(displayUser.user_type || 'user').toUpperCase()}
                 disabled
                 prefixIcon={<Shield size={16} />}
               />

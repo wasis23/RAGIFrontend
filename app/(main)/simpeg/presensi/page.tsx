@@ -12,7 +12,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function PresensiPage() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.presensi.manage');
   const canRead = hasPermission('simpeg.presensi.read') || hasPermission('simpeg.presensi.manage');
   const canCreate = hasPermission('simpeg.presensi.create') || hasPermission('simpeg.presensi.manage');
 
@@ -35,8 +36,18 @@ export default function PresensiPage() {
     if (!canRead) return;
     setLoading(true);
     try {
-      const res = await simpegService.getPresensiList();
-      setPresensiList(res.data || []);
+      if (!isAdmin) {
+        const resMe = await simpegService.getPegawaiMe();
+        if (resMe.data) {
+          const pegId = resMe.data.id;
+          setFormData(prev => ({ ...prev, pegawai_id: pegId }));
+          const res = await simpegService.getPresensiList(pegId);
+          setPresensiList(res.data || []);
+        }
+      } else {
+        const res = await simpegService.getPresensiList();
+        setPresensiList(res.data || []);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat log presensi');
     } finally {

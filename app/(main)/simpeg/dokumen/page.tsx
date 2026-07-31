@@ -12,7 +12,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function DokumenPage() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.dokumen.manage');
   const canRead = hasPermission('simpeg.dokumen.read') || hasPermission('simpeg.dokumen.manage');
   const canCreate = hasPermission('simpeg.dokumen.create') || hasPermission('simpeg.dokumen.upload') || hasPermission('simpeg.dokumen.manage');
   const canUpdate = hasPermission('simpeg.dokumen.update') || hasPermission('simpeg.dokumen.manage');
@@ -39,8 +40,18 @@ export default function DokumenPage() {
     if (!canRead) return;
     setLoading(true);
     try {
-      const res = await simpegService.getDokumenList();
-      setDokumenList(res.data || []);
+      if (!isAdmin) {
+        const resMe = await simpegService.getPegawaiMe();
+        if (resMe.data) {
+          const pegId = resMe.data.id;
+          setFormUpload(prev => ({ ...prev, pegawai_id: pegId }));
+          const res = await simpegService.getDokumenList(pegId);
+          setDokumenList(res.data || []);
+        }
+      } else {
+        const res = await simpegService.getDokumenList();
+        setDokumenList(res.data || []);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat Dokumen E-File');
     } finally {

@@ -85,6 +85,11 @@ export const simpegService = {
   },
 
   // ── PEGAWAI ──────────────────────────────────────────────────
+  getPegawaiMe: async (): Promise<ApiResponse<Pegawai>> => {
+    const { data } = await apiClient.get<ApiResponse<Pegawai>>('/simpeg/pegawai/me');
+    return data;
+  },
+
   getPegawaiList: async (params?: PegawaiFilterParams): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get('/simpeg/pegawai', { params });
     return data;

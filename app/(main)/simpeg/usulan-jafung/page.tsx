@@ -12,7 +12,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function UsulanJafungPage() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.usulan_jafung.verify') || hasPermission('simpeg.usulan_jafung.manage');
   const canRead = hasPermission('simpeg.usulan_jafung.read') || hasPermission('simpeg.usulan_jafung.request') || hasPermission('simpeg.usulan_jafung.verify');
   const canCreate = hasPermission('simpeg.usulan_jafung.create') || hasPermission('simpeg.usulan_jafung.request');
 
@@ -34,12 +35,26 @@ export default function UsulanJafungPage() {
     if (!canRead) return;
     setLoading(true);
     try {
-      const [resUsulan, resJaf] = await Promise.all([
-        simpegService.getUsulanJafungList(),
-        simpegService.getJabatanFungsionalList(),
-      ]);
-      setUsulanList(resUsulan.data || []);
-      setJafungList(resJaf.data || []);
+      if (!isAdmin) {
+        const resMe = await simpegService.getPegawaiMe();
+        if (resMe.data) {
+          const pegId = resMe.data.id;
+          setFormData(prev => ({ ...prev, pegawai_id: pegId }));
+          const [resUsulan, resJaf] = await Promise.all([
+            simpegService.getUsulanJafungList(pegId),
+            simpegService.getJabatanFungsionalList(),
+          ]);
+          setUsulanList(resUsulan.data || []);
+          setJafungList(resJaf.data || []);
+        }
+      } else {
+        const [resUsulan, resJaf] = await Promise.all([
+          simpegService.getUsulanJafungList(),
+          simpegService.getJabatanFungsionalList(),
+        ]);
+        setUsulanList(resUsulan.data || []);
+        setJafungList(resJaf.data || []);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat Usulan Jafung');
     } finally {

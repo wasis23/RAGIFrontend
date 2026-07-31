@@ -12,7 +12,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function PayrollPage() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.payroll.manage');
   const canRead = hasPermission('simpeg.payroll.read') || hasPermission('simpeg.payroll.view') || hasPermission('simpeg.payroll.manage');
   const canCreate = hasPermission('simpeg.payroll.create') || hasPermission('simpeg.payroll.manage');
 
@@ -37,8 +38,18 @@ export default function PayrollPage() {
     if (!canRead) return;
     setLoading(true);
     try {
-      const res = await simpegService.getPayrollList();
-      setPayrollList(res.data || []);
+      if (!isAdmin) {
+        const resMe = await simpegService.getPegawaiMe();
+        if (resMe.data) {
+          const pegId = resMe.data.id;
+          setFormData(prev => ({ ...prev, pegawai_id: pegId }));
+          const res = await simpegService.getPayrollList(pegId);
+          setPayrollList(res.data || []);
+        }
+      } else {
+        const res = await simpegService.getPayrollList();
+        setPayrollList(res.data || []);
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat Slip Gaji');
     } finally {

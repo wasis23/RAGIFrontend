@@ -93,7 +93,7 @@ export default function AdminMenuPage() {
 
   // Helper to render table rows recursively (for nested menus)
   const renderMenuRows = (menuList: Menu[], level = 0) => {
-    let rows: JSX.Element[] = [];
+    let rows: React.ReactNode[] = [];
     menuList.forEach((menu) => {
       rows.push(
         <tr key={menu.id} className="hover:bg-gray-50/50">

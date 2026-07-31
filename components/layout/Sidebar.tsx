@@ -64,12 +64,14 @@ export function Sidebar() {
   const [dynamicMenus, setDynamicMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Determine module based on hostname
-  // We can roughly guess it from window.location in client component
+  // Determine module based on pathname or hostname
   const getModule = () => {
+    if (pathname.startsWith('/simpeg')) return 'simpeg';
+    if (pathname.startsWith('/spmb')) return 'spmb';
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname.startsWith('spmb.')) return 'SPMB';
+      if (hostname.startsWith('spmb.')) return 'spmb';
+      if (hostname.startsWith('simpeg.')) return 'simpeg';
     }
     return 'sso';
   };
@@ -90,7 +92,7 @@ export function Sidebar() {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, pathname]);
 
   const isMainActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 

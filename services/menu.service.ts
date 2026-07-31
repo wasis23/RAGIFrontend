@@ -1,5 +1,5 @@
 import apiClient from '@/lib/axios';
-import { ApiResponse } from '@/types/api';
+import { ApiResponse } from '@/types/api.types';
 import { Menu, CreateMenuPayload, UpdateMenuPayload } from '@/types/menu';
 
 export const menuService = {
@@ -8,7 +8,7 @@ export const menuService = {
    */
   getMyMenus: async (module: string = 'sso'): Promise<Menu[]> => {
     const response = await apiClient.get<ApiResponse<Menu[]>>(`/menus/my-menus?module=${module}`);
-    return response.data.data;
+    return response.data.data || [];
   },
 
   /**
@@ -16,7 +16,7 @@ export const menuService = {
    */
   getAllMenus: async (module: string = 'sso'): Promise<Menu[]> => {
     const response = await apiClient.get<ApiResponse<Menu[]>>(`/admin/menus?module=${module}`);
-    return response.data.data;
+    return response.data.data || [];
   },
 
   /**
@@ -24,7 +24,7 @@ export const menuService = {
    */
   createMenu: async (payload: CreateMenuPayload): Promise<Menu> => {
     const response = await apiClient.post<ApiResponse<Menu>>('/admin/menus', payload);
-    return response.data.data;
+    return response.data.data!;
   },
 
   /**
@@ -32,7 +32,7 @@ export const menuService = {
    */
   updateMenu: async (id: number, payload: UpdateMenuPayload): Promise<Menu> => {
     const response = await apiClient.put<ApiResponse<Menu>>(`/admin/menus/${id}`, payload);
-    return response.data.data;
+    return response.data.data!;
   },
 
   /**
@@ -47,6 +47,6 @@ export const menuService = {
    */
   toggleMenuStatus: async (menuId: number): Promise<Menu> => {
     const response = await apiClient.put<ApiResponse<Menu>>(`/admin/menus/${menuId}/toggle`);
-    return response.data.data;
+    return response.data.data!;
   }
 };
