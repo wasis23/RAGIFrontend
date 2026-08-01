@@ -25,6 +25,8 @@ import type {
   SubmitLaporanPayload,
   CreatePublikasiPayload,
   CreateHkiPayload,
+  RubrikIndikator,
+  CreateRubrikPayload,
 } from '@/types/sippm.types';
 
 export const sippmService = {
@@ -193,10 +195,48 @@ export const sippmService = {
   },
 
   // ------------------------------------------------------------
-  // Cross-Module Integration Metrics
+  // Cross-Module Integration & Reference Endpoints
   // ------------------------------------------------------------
   getUpmMetrics: async (): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>('/sippm/integration/upm-iku-metrics');
+    return data;
+  },
+
+  getDosenReference: async (): Promise<ApiResponse<any[]>> => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/sippm/ref/dosen');
+    return data;
+  },
+
+  getTendikReference: async (): Promise<ApiResponse<any[]>> => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/sippm/ref/tendik');
+    return data;
+  },
+
+  getActiveMataKuliahMahasiswa: async (mahasiswaId: number): Promise<ApiResponse<any[]>> => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/sippm/ref/mahasiswa/${mahasiswaId}/mata-kuliah-aktif`);
+    return data;
+  },
+
+  // ------------------------------------------------------------
+  // Master Rubrik Indikator Penilaian
+  // ------------------------------------------------------------
+  indexRubrik: async (params?: { tipe_reviewer?: string; search?: string }): Promise<PaginatedResponse<RubrikIndikator>> => {
+    const { data } = await apiClient.get<PaginatedResponse<RubrikIndikator>>('/sippm/rubrik', { params });
+    return data;
+  },
+
+  storeRubrik: async (payload: CreateRubrikPayload): Promise<ApiResponse<RubrikIndikator>> => {
+    const { data } = await apiClient.post<ApiResponse<RubrikIndikator>>('/sippm/rubrik', payload);
+    return data;
+  },
+
+  updateRubrik: async (id: number, payload: Partial<CreateRubrikPayload>): Promise<ApiResponse<RubrikIndikator>> => {
+    const { data } = await apiClient.put<ApiResponse<RubrikIndikator>>(`/sippm/rubrik/${id}`, payload);
+    return data;
+  },
+
+  destroyRubrik: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/sippm/rubrik/${id}`);
     return data;
   },
 };

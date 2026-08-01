@@ -110,7 +110,7 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
             <div className="text-xs text-slate-400 font-semibold mb-1">SKEMA KEGIATAN</div>
             <div className="font-bold text-teal-800 text-sm flex items-center gap-1.5">
               <FlaskConical size={16} className="text-teal-600" />
-              {proposal.skema?.nama_skema || 'Skema Riset'}
+              {proposal.skema?.nama_skema || proposal.skema?.nama || 'Skema Riset'}
             </div>
           </div>
 
@@ -123,14 +123,14 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
             <div className="text-xs text-slate-400 font-semibold mb-1">DANA DIUSULKAN</div>
             <div className="font-extrabold text-teal-700 text-sm flex items-center gap-1">
               <DollarSign size={16} />
-              {formatRupiah(proposal.dana_diusulkan)}
+              {formatRupiah(proposal.dana_diusulkan || (proposal as any).anggaran_diajukan || 0)}
             </div>
           </div>
 
           <div>
             <div className="text-xs text-slate-400 font-semibold mb-1">DANA DISETUJUI</div>
             <div className="font-extrabold text-emerald-700 text-sm">
-              {proposal.dana_disetujui ? formatRupiah(proposal.dana_disetujui) : 'Belum ditetapkan'}
+              {proposal.dana_disetujui || (proposal as any).anggaran_disetujui ? formatRupiah(proposal.dana_disetujui || (proposal as any).anggaran_disetujui) : 'Belum ditetapkan'}
             </div>
           </div>
         </div>
@@ -166,9 +166,9 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
               </div>
               <div>
                 <div className="font-extrabold text-slate-900 text-sm">
-                  {proposal.ketua?.nama_lengkap || 'Ketua Pengusul'}
+                  {proposal.ketua?.nama_lengkap || (proposal as any).ketua_pegawai?.nama_lengkap || 'Ketua Pengusul'}
                 </div>
-                <div className="text-xs text-teal-700 font-medium">Ketua Tim • NIP: {proposal.ketua?.nip || '-'}</div>
+                <div className="text-xs text-teal-700 font-medium">Ketua Tim • NIP: {proposal.ketua?.nip || (proposal as any).ketua_pegawai?.nip || '-'}</div>
               </div>
             </div>
             <span className="badge badge-sippm">Ketua Pengusul</span>

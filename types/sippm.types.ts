@@ -18,6 +18,7 @@ export type StatusProposal =
   | 'completed';
 
 export type PeranAnggota = 'ketua' | 'anggota_dosen' | 'anggota_mahasiswa' | 'mitra';
+export type JenisTim = 'dosen' | 'tendik' | 'mahasiswa' | 'dosen_eksternal' | 'eksternal';
 export type StatusReviewer = 'assigned' | 'in_review' | 'completed';
 export type RekomendasiReviewer = 'terima' | 'revisi' | 'tolak';
 
@@ -29,6 +30,27 @@ export type KategoriPublikasi = 'scopus' | 'wos' | 'sinta_1_2' | 'sinta_3_6' | '
 export type KategoriHki = 'paten' | 'paten_sederhana' | 'hak_cipta' | 'merek' | 'desain_industri' | 'buku_ajar' | 'prototype';
 export type StatusVerifikasiLuaran = 'pending' | 'verified' | 'rejected';
 
+export interface RubrikIndikator {
+  id: number;
+  tipe_reviewer: 'kaprodi' | 'admin';
+  nama_indikator: string;
+  deskripsi?: string;
+  bobot: number;
+  skor_minimal_default: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateRubrikPayload {
+  tipe_reviewer: 'kaprodi' | 'admin';
+  nama_indikator: string;
+  deskripsi?: string;
+  bobot: number;
+  skor_minimal_default: number;
+  is_active?: boolean;
+}
+
 // ------------------------------------------------------------
 // Master Entities
 // ------------------------------------------------------------
@@ -36,8 +58,9 @@ export type StatusVerifikasiLuaran = 'pending' | 'verified' | 'rejected';
 export interface PeriodeHibah {
   id: number;
   tahun_anggaran: string;
-  nama_periode: string;
-  tgl_buka: string;
+  nama_periode?: string;
+  nama_gelombang?: string;
+  tgl_buka?: string;
   tgl_tutup: string;
   tgl_tutup_review: string;
   total_anggaran: number;
@@ -73,15 +96,31 @@ export interface SkemaKegiatan {
 
 export interface AnggotaKegiatan {
   id: number;
-  proposal_kegiatan_id: number;
+  proposal_kegiatan_id?: number;
+  proposal_id?: number;
+  jenis_tim?: JenisTim;
   pegawai_id?: number;
+  mahasiswa_id?: number;
+  mata_kuliah_id?: number;
   nim?: string;
-  nama: string;
-  email?: string;
-  peran: PeranAnggota;
+  nama?: string;
+  nama_eksternal?: string;
+  instansi_eksternal?: string;
+  nidn_eksternal?: string;
+  peran?: PeranAnggota;
+  peran_dalam_tim?: string;
   instansi_asal?: string;
   tugas?: string;
+  tugas_kegiatan?: string;
   created_at?: string;
+}
+
+export interface MataKuliahAktif {
+  mata_kuliah_id: number;
+  kode_mk: string;
+  nama_mk: string;
+  total_sks: number;
+  nama_kelas?: string;
 }
 
 export interface ProposalKegiatan {

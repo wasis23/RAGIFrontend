@@ -9,143 +9,184 @@ import {
   Award,
   CheckCircle2,
   AlertTriangle,
-  UserPlus,
-  ShieldAlert,
   User,
   FlaskConical,
   XCircle,
+  FileText,
+  ShieldCheck,
+  Building2,
+  CheckSquare,
+  Sparkles,
+  Info,
 } from 'lucide-react';
 import { SippmBadge } from '@/components/sippm/SippmBadge';
 import { sippmService } from '@/services/sippm.service';
-import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
-import type { ReviewerKegiatan, ProposalKegiatan } from '@/types/sippm.types';
+import type { ProposalKegiatan, RubrikIndikator } from '@/types/sippm.types';
 
 export default function ReviewerPortalPage() {
   const { user, hasRole, isAdmin } = useAuth();
-  const isLppmAdmin = isAdmin || hasRole('admin_lppm') || hasRole('superadmin');
 
-  // State Tabs
-  const [activeTab, setActiveTab] = useState<'assigned' | 'plotting'>(isLppmAdmin ? 'plotting' : 'assigned');
+  // Active Tab: 'tahap1' (Kaprodi), 'tahap2' (Admin SIPPM), 'tahap3' (Dual Reviewer Lolos)
+  const [activeTab, setActiveTab] = useState<'tahap1' | 'tahap2' | 'tahap3'>('tahap1');
 
-  // Assigned Reviewer Proposals (Reviewer View)
-  const [assignedList, setAssignedList] = useState<ReviewerKegiatan[]>([]);
-  const [loadingAssigned, setLoadingAssigned] = useState(true);
-
-  // All Submitted Proposals (Admin LPPM View)
-  const [submittedProposals, setSubmittedProposals] = useState<ProposalKegiatan[]>([]);
-  const [dosenList, setDosenList] = useState<any[]>([]);
-  const [loadingProposals, setLoadingProposals] = useState(true);
+  // Proposal Lists per Stage
+  const [tahap1List, setTahap1List] = useState<ProposalKegiatan[]>([]);
+  const [tahap2List, setTahap2List] = useState<ProposalKegiatan[]>([]);
+  const [tahap3List, setTahap3List] = useState<ProposalKegiatan[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Search
   const [search, setSearch] = useState('');
 
-  // Plotting Modal State (<= 5 inputs: Proposal, Reviewer 1, Reviewer 2)
+  // Rubrik Evaluation Modal State
   const [selectedProposal, setSelectedProposal] = useState<ProposalKegiatan | null>(null);
-  const [reviewer1Id, setReviewer1Id] = useState<string>('');
-  const [reviewer2Id, setReviewer2Id] = useState<string>('');
-  const [submittingPlot, setSubmittingPlot] = useState(false);
-  const [plotError, setPlotError] = useState<string | null>(null);
-  const [plotSuccess, setPlotSuccess] = useState<string | null>(null);
+  const [evaluationStage, setEvaluationStage] = useState<'kaprodi' | 'admin'>('kaprodi');
+  const [rubriks, setRubriks] = useState<RubrikIndikator[]>([]);
+  const [scores, setScores] = useState<Record<number, number>>({});
+  const [catatan, setCatatan] = useState('');
+  const [submittingEval, setSubmittingEval] = useState(false);
+  const [evalError, setEvalError] = useState<string | null>(null);
+  const [evalSuccess, setEvalSuccess] = useState<string | null>(null);
 
-  const fetchAssignedProposals = async () => {
+  const fetchAllProposals = async () => {
     try {
-      setLoadingAssigned(true);
-      const res = await sippmService.myAssignedProposals();
-      const list = Array.isArray(res?.data)
+      setLoading(true);
+
+      // Fetch all proposals
+      const res = await sippmService.getProposals({ per_page: 100 } as any);
+      const items: ProposalKegiatan[] = Array.isArray(res?.data)
         ? res.data
         : (res?.data as any)?.items || (res?.data as any)?.data || [];
-      setAssignedList(list);
-    } catch (err) {
-      console.error('Failed to load assigned proposals', err);
-      setAssignedList([]);
-    } finally {
-      setLoadingAssigned(false);
-    }
-  };
 
-  const fetchSubmittedProposals = async () => {
-    try {
-      setLoadingProposals(true);
-      const res = await sippmService.getProposals({ status: 'submitted' as any });
-      const items = Array.isArray(res.data) ? res.data : (res.data as any)?.items || (res.data as any)?.data || [];
-      setSubmittedProposals(items);
-    } catch (err) {
-      console.error('Failed to load submitted proposals', err);
-      setSubmittedProposals([]);
-    } finally {
-      setLoadingProposals(false);
-    }
-  };
+      // Categorize proposals into 3 review stages
+      // Tahap 1: status = 'diajukan' atau 'submitted'
+      const t1 = items.filter((p) => (p.status as any) === 'diajukan' || (p.status as any) === 'submitted');
 
-  const fetchDosenList = async () => {
-    try {
-      const res = await simpegService.getPegawaiList({ jenis_pegawai: 'dosen' });
-      const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-      setDosenList(list);
+      // Tahap 2: status = 'disetujui_kaprodi'
+      const t2 = items.filter((p) => (p.status as any) === 'disetujui_kaprodi');
+
+      // Tahap 3: status = 'disetujui_admin' atau 'lolos' atau 'approved'
+      const t3 = items.filter(
+        (p) =>
+          (p.status as any) === 'disetujui_admin' ||
+          (p.status as any) === 'lolos' ||
+          (p.status as any) === 'approved'
+      );
+
+      setTahap1List(t1);
+      setTahap2List(t2);
+      setTahap3List(t3);
     } catch (err) {
-      console.error('Failed to load dosen list for reviewers', err);
+      console.error('Failed to load proposals for reviewer portal', err);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAssignedProposals();
-    if (isLppmAdmin) {
-      fetchSubmittedProposals();
-      fetchDosenList();
-    }
-  }, [isLppmAdmin]);
+    fetchAllProposals();
+  }, []);
 
-  const handleOpenPlotModal = (proposal: ProposalKegiatan) => {
+  // Open Evaluation Modal for Tahap 1 or Tahap 2
+  const handleOpenEvaluationModal = async (proposal: ProposalKegiatan, stage: 'kaprodi' | 'admin') => {
     setSelectedProposal(proposal);
-    setReviewer1Id('');
-    setReviewer2Id('');
-    setPlotError(null);
-    setPlotSuccess(null);
+    setEvaluationStage(stage);
+    setScores({});
+    setCatatan('');
+    setEvalError(null);
+    setEvalSuccess(null);
+
+    // Fetch rubric indicators for this stage from Master Rubrik
+    try {
+      const res = await sippmService.indexRubrik({ tipe_reviewer: stage });
+      const rubrikList = Array.isArray(res?.data)
+        ? res.data
+        : (res?.data as any)?.items || (res?.data as any)?.data || [];
+
+      setRubriks(rubrikList);
+
+      // Initialize default scores to 0
+      const initialScores: Record<number, number> = {};
+      rubrikList.forEach((r: RubrikIndikator) => {
+        initialScores[r.id] = 0;
+      });
+      setScores(initialScores);
+    } catch (err) {
+      console.error('Failed to load rubriks for evaluation', err);
+    }
   };
 
-  const handleSavePlotting = async (e: React.FormEvent) => {
+  // Calculate Weighted Total Score
+  const calculateTotalScore = (): number => {
+    if (rubriks.length === 0) return 0;
+    const totalBobot = rubriks.reduce((acc: number, r: RubrikIndikator) => acc + (r.bobot || 0), 0);
+
+    if (totalBobot > 0) {
+      const weightedSum = rubriks.reduce((acc: number, r: RubrikIndikator) => {
+        const score = scores[r.id] || 0;
+        return acc + score * (r.bobot / totalBobot);
+      }, 0);
+      return Math.round(weightedSum * 10) / 10;
+    } else {
+      const sum = rubriks.reduce((acc: number, r: RubrikIndikator) => acc + (scores[r.id] || 0), 0);
+      return Math.round((sum / rubriks.length) * 10) / 10;
+    }
+  };
+
+  const currentTotalScore = calculateTotalScore();
+  const isPassing = currentTotalScore > 80;
+
+  // Submit Rubrik Evaluation
+  const handleSaveEvaluation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProposal) return;
-    if (!reviewer1Id || !reviewer2Id) {
-      setPlotError('Wajib memilih Reviewer 1 dan Reviewer 2');
-      return;
-    }
-    if (reviewer1Id === reviewer2Id) {
-      setPlotError('Reviewer 1 dan Reviewer 2 tidak boleh orang yang sama');
-      return;
-    }
 
     try {
-      setSubmittingPlot(true);
-      setPlotError(null);
-      await sippmService.assignReviewer(selectedProposal.id, {
-        reviewer_ids: [Number(reviewer1Id), Number(reviewer2Id)],
-      });
-      setPlotSuccess(`Berhasil memplot 2 Reviewer untuk proposal "${selectedProposal.judul.substring(0, 30)}..."`);
+      setSubmittingEval(true);
+      setEvalError(null);
+
+      // Determine next status based on stage and score > 80 threshold
+      let nextStatus = '';
+      if (evaluationStage === 'kaprodi') {
+        nextStatus = isPassing ? 'disetujui_kaprodi' : 'revisi';
+      } else {
+        nextStatus = isPassing ? 'disetujui_admin' : 'revisi';
+      }
+
+      // Update proposal status via backend API
+      await sippmService.updateProposal(selectedProposal.id, {
+        status: nextStatus,
+      } as any);
+
+      setEvalSuccess(
+        `Berhasil menyimpan hasil penilaian Rubrik ${
+          evaluationStage === 'kaprodi' ? 'Tahap 1 (Kaprodi)' : 'Tahap 2 (Admin SIPPM)'
+        }! Total Skor: ${currentTotalScore}. Status proposal diperbarui menjadi: "${nextStatus}".`
+      );
+
       setTimeout(() => {
         setSelectedProposal(null);
-        fetchSubmittedProposals();
+        fetchAllProposals();
       }, 1500);
     } catch (err: any) {
-      setPlotError(err.response?.data?.message || 'Gagal menyimpan penugasan reviewer');
+      setEvalError(err.response?.data?.message || 'Gagal menyimpan hasil penilaian rubrik');
     } finally {
-      setSubmittingPlot(false);
+      setSubmittingEval(false);
     }
   };
 
-  // Filtered lists
-  const filteredAssigned = (Array.isArray(assignedList) ? assignedList : []).filter(
-    (item) =>
-      (item.proposal?.judul || '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.proposal?.ketua?.nama_lengkap || '').toLowerCase().includes(search.toLowerCase())
-  );
-
-  const filteredProposals = (Array.isArray(submittedProposals) ? submittedProposals : []).filter(
-    (item) =>
-      (item.judul || '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.ketua?.nama_lengkap || '').toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter Helper
+  const filterProposalList = (list: ProposalKegiatan[]) => {
+    return list.filter(
+      (item) =>
+        (item.judul || '').toLowerCase().includes(search.toLowerCase()) ||
+        (item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || '')
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+        (item.rumpun_ilmu || '').toLowerCase().includes(search.toLowerCase())
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -153,48 +194,55 @@ export default function ReviewerPortalPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="badge badge-sippm">Fase 4: Reviewer & Evaluasi Substantif</span>
-            {isLppmAdmin && (
-              <span className="badge badge-purple font-bold">Admin LPPM Mode</span>
-            )}
+            <span className="badge badge-sippm">Fase Penilaian Rubrik Proposal</span>
+            <span className="badge badge-purple font-bold">Reviewer & Verifikator Portal</span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
-            Penugasan Dual Reviewer & Scoring Rubrik
+            Portal Penilaian Rubrik Proposal Riset & PkM
           </h1>
           <p className="text-slate-500 text-sm">
-            Kelola penugasan reviewer independen, penilaian desk evaluation, dan penetapan kelayakan hibah.
+            Penilaian bertahap indikator Keilmuan & Linieritas (Tahap 1 Kaprodi) dan Administrasi & Kelayakan Kelompok (Tahap 2 Admin SIPPM).
           </p>
         </div>
       </div>
 
-      {/* Tabs Menu (Admin LPPM vs Reviewer Portal) */}
-      <div className="flex items-center border-b border-slate-200 gap-2">
-        {isLppmAdmin && (
-          <button
-            onClick={() => setActiveTab('plotting')}
-            className={`px-4 py-2.5 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all ${
-              activeTab === 'plotting'
-                ? 'border-purple-600 text-purple-700 bg-purple-50/50 rounded-t-lg'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Users size={16} /> Plotting Dual Reviewer ({submittedProposals.length})
-          </button>
-        )}
-
+      {/* 3 STAGE TABS (Tahap 1, Tahap 2, Tahap 3) */}
+      <div className="flex items-center border-b border-slate-200 gap-2 overflow-x-auto">
         <button
-          onClick={() => setActiveTab('assigned')}
-          className={`px-4 py-2.5 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all ${
-            activeTab === 'assigned'
-              ? 'border-teal-600 text-teal-700 bg-teal-50/50 rounded-t-lg'
+          onClick={() => setActiveTab('tahap1')}
+          className={`px-4 py-3 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all shrink-0 ${
+            activeTab === 'tahap1'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-lg'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <ClipboardCheck size={16} /> Tugas Evaluasi Saya ({assignedList.length})
+          <Building2 size={16} /> Tahap 1: Review Kaprodi ({tahap1List.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('tahap2')}
+          className={`px-4 py-3 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all shrink-0 ${
+            activeTab === 'tahap2'
+              ? 'border-purple-600 text-purple-700 bg-purple-50/50 rounded-t-lg'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <ShieldCheck size={16} /> Tahap 2: Review Admin SIPPM ({tahap2List.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('tahap3')}
+          className={`px-4 py-3 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all shrink-0 ${
+            activeTab === 'tahap3'
+              ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50 rounded-t-lg'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <CheckCircle2 size={16} /> Tahap 3: Proposal Lolos Dual Reviewer ({tahap3List.length})
         </button>
       </div>
 
-      {/* Filter Card */}
+      {/* Search Filter Card */}
       <div className="card">
         <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
           <div className="input-wrapper w-full md:w-80">
@@ -207,14 +255,15 @@ export default function ReviewerPortalPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Tampilan: {activeTab === 'plotting' ? 'Panel Plotting Admin LPPM' : 'Portal Reviewer Independen'}
+          <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
+            <Info size={14} className="text-teal-600" />
+            Batas Minimal Kelulusan Skor per Tahap: <strong className="text-slate-900 font-bold">&gt; 80 / 100</strong>
           </div>
         </div>
       </div>
 
-      {/* TAB 1: PLOTTING DUAL REVIEWER (ADMIN LPPM VIEW) */}
-      {activeTab === 'plotting' && isLppmAdmin && (
+      {/* TAB 1: TAHAP 1 - REVIEW KAPRODI (KEILMUAN & LINIERITAS) */}
+      {activeTab === 'tahap1' && (
         <div className="table-container bg-white">
           <table className="table">
             <thead>
@@ -222,140 +271,61 @@ export default function ReviewerPortalPage() {
                 <th>Judul Proposal Usulan</th>
                 <th>Ketua Pengusul & Prodi</th>
                 <th>Skema & Dana</th>
-                <th>Status Reviewer</th>
-                <th className="text-right">Aksi Plotting</th>
+                <th>Status Tahap 1</th>
+                <th className="text-right">Aksi Scoring Rubrik</th>
               </tr>
             </thead>
             <tbody>
-              {loadingProposals ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400">Memuat proposal siap di-review...</td>
+                  <td colSpan={5} className="text-center py-10 text-slate-400">Memuat proposal usulan Tahap 1...</td>
                 </tr>
-              ) : filteredProposals.length === 0 ? (
+              ) : filterProposalList(tahap1List).length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center py-10 text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <CheckCircle2 size={32} className="text-emerald-400" />
-                      <span>Semua proposal diajukan telah selesai di-plot reviewer!</span>
+                      <span>Tidak ada proposal antrean penilaian Tahap 1 (Kaprodi).</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredProposals.map((item) => {
-                  const reviewerCount = item.reviewers?.length || 0;
-                  return (
-                    <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
-                      <td>
-                        <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
-                        <div className="text-xs text-purple-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
-                      </td>
-                      <td>
-                        <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                          <User size={14} className="text-slate-400" />
-                          {item.ketua?.nama_lengkap || 'Dosen Pengusul'}
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{item.ketua?.program_studi || 'Prodi Kampus'}</div>
-                      </td>
-                      <td>
-                        <div className="text-xs font-bold text-slate-700">{item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}</div>
-                        <div className="text-xs font-mono font-bold text-teal-700">
-                          Rp {(item.dana_diusulkan || 0).toLocaleString('id-ID')}
-                        </div>
-                      </td>
-                      <td>
-                        {reviewerCount >= 2 ? (
-                          <span className="badge badge-green font-bold text-[11px] flex items-center gap-1">
-                            <CheckCircle2 size={12} /> Dual Reviewer Plot (2/2)
-                          </span>
-                        ) : reviewerCount === 1 ? (
-                          <span className="badge badge-amber font-bold text-[11px] flex items-center gap-1">
-                            <AlertTriangle size={12} /> Reviewer 1 Di-assign (1/2)
-                          </span>
-                        ) : (
-                          <span className="badge badge-red font-bold text-[11px]">Belum Di-assign (0/2)</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenPlotModal(item)}
-                            className="btn btn-primary btn-sm bg-purple-700 hover:bg-purple-800 border-none font-bold shadow-xs flex items-center gap-1.5"
-                          >
-                            <UserPlus size={14} /> Plot Dual Reviewer
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* TAB 2: PORTAL PENUGASAN REVIEWER (REVIEWER VIEW) */}
-      {activeTab === 'assigned' && (
-        <div className="table-container bg-white">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Judul Proposal Usulan</th>
-                <th>Ketua Pengusul</th>
-                <th>Status Evaluasi</th>
-                <th>Rekomendasi Keputusan</th>
-                <th className="text-right">Aksi Reviewer</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingAssigned ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400">Memuat penugasan proposal...</td>
-                </tr>
-              ) : filteredAssigned.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <ClipboardCheck size={32} className="text-slate-300" />
-                      <span>Belum ada proposal yang ditugaskan kepada Anda untuk direview.</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredAssigned.map((item) => (
-                  <tr key={item.id} className="hover:bg-teal-50/40 transition-colors">
+                filterProposalList(tahap1List).map((item) => (
+                  <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors">
                     <td>
-                      <div className="font-bold text-slate-900 line-clamp-1">{item.proposal?.judul || 'Proposal Riset'}</div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                        <span className="font-medium text-teal-700">{item.proposal?.skema?.nama_skema || 'Skema Riset'}</span>
-                        <span>•</span>
-                        <span className="font-mono">Dana: Rp {(item.proposal?.dana_diusulkan || 0).toLocaleString('id-ID')}</span>
-                      </div>
+                      <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
+                      <div className="text-xs text-indigo-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
                     </td>
                     <td>
                       <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
                         <User size={14} className="text-slate-400" />
-                        {item.proposal?.ketua?.nama_lengkap || 'Dosen Pengusul'}
+                        {item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                        NIP: {item.ketua?.nip || (item as any).ketua_pegawai?.nip || '-'}
                       </div>
                     </td>
                     <td>
-                      <SippmBadge status={item.status} type="reviewer" />
+                      <div className="text-xs font-bold text-slate-700">
+                        {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
+                      </div>
+                      <div className="text-xs font-mono font-bold text-teal-700">
+                        Rp {(item.dana_diusulkan || (item as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
+                      </div>
                     </td>
                     <td>
-                      {item.penilaian ? (
-                        <SippmBadge status={item.penilaian.rekomendasi} type="rekomendasi" />
-                      ) : (
-                        <span className="text-xs text-slate-400 italic font-medium">Belum Diisi</span>
-                      )}
+                      <span className="badge badge-amber font-bold text-[11px] flex items-center gap-1">
+                        <AlertTriangle size={12} /> Menunggu Review Kaprodi
+                      </span>
                     </td>
                     <td>
                       <div className="flex items-center justify-end gap-2">
-                        <Link
-                          href={`/sippm/reviewer/${item.id}/evaluate`}
-                          className="btn btn-primary btn-sm bg-teal-600 hover:bg-teal-700 border-none shadow-xs font-bold"
+                        <button
+                          onClick={() => handleOpenEvaluationModal(item, 'kaprodi')}
+                          className="btn btn-primary btn-sm bg-indigo-600 hover:bg-indigo-700 border-none font-bold shadow-xs flex items-center gap-1.5"
                         >
-                          <ClipboardCheck size={16} /> Form Scoring Rubrik
-                        </Link>
+                          <Award size={15} /> Nilai Rubrik Tahap 1
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -366,85 +336,272 @@ export default function ReviewerPortalPage() {
         </div>
       )}
 
-      {/* PLOTTING MODAL (<= 5 Inputs, 2-Column Grid per crud-ui-standard) */}
+      {/* TAB 2: TAHAP 2 - REVIEW ADMIN SIPPM (ADMINISTRASI & KELAYAKAN KELOMPOK) */}
+      {activeTab === 'tahap2' && (
+        <div className="table-container bg-white">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Judul Proposal Usulan</th>
+                <th>Ketua Pengusul & Prodi</th>
+                <th>Skema & Dana</th>
+                <th>Verifikasi Tahap 1</th>
+                <th className="text-right">Aksi Scoring Rubrik</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-10 text-slate-400">Memuat proposal usulan Tahap 2...</td>
+                </tr>
+              ) : filterProposalList(tahap2List).length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-10 text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <CheckCircle2 size={32} className="text-purple-400" />
+                      <span>Tidak ada proposal antrean penilaian Tahap 2 (Admin SIPPM).</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filterProposalList(tahap2List).map((item) => (
+                  <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
+                    <td>
+                      <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
+                      <div className="text-xs text-purple-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
+                    </td>
+                    <td>
+                      <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                        <User size={14} className="text-slate-400" />
+                        {item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="text-xs font-bold text-slate-700">
+                        {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
+                      </div>
+                      <div className="text-xs font-mono font-bold text-teal-700">
+                        Rp {(item.dana_diusulkan || (item as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="badge badge-green font-bold text-[11px] flex items-center gap-1">
+                        <CheckCircle2 size={12} /> Disetujui Kaprodi (Skor &gt; 80)
+                      </span>
+                    </td>
+                    <td>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenEvaluationModal(item, 'admin')}
+                          className="btn btn-primary btn-sm bg-purple-700 hover:bg-purple-800 border-none font-bold shadow-xs flex items-center gap-1.5"
+                        >
+                          <ShieldCheck size={15} /> Nilai Rubrik Tahap 2
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* TAB 3: TAHAP 3 - PROPOSAL LOLOS DUAL REVIEWER (DISETUJUI) */}
+      {activeTab === 'tahap3' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-start gap-2.5">
+            <Sparkles size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <strong>Informasi Alur Tahap 3 (Final Approved)</strong>: Seluruh proposal pada tab ini dinyatakan 
+              <strong> Disetujui oleh Kaprodi (Tahap 1)</strong> dan <strong> Disetujui oleh Admin SIPPM (Tahap 2)</strong>. 
+              Admin SIPPM <em>tidak perlu mencarikan reviewer tambahan lagi</em> karena reviewer utama adalah Kaprodi di Tahap 1 dan Admin SIPPM di Tahap 2.
+            </div>
+          </div>
+
+          <div className="table-container bg-white">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Judul Proposal Usulan</th>
+                  <th>Ketua Pengusul & Prodi</th>
+                  <th>Skema & Dana Disetujui</th>
+                  <th>Status Reviewer</th>
+                  <th>Keterangan Persetujuan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-10 text-slate-400">Memuat proposal lolos Tahap 3...</td>
+                  </tr>
+                ) : filterProposalList(tahap3List).length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-10 text-slate-400">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <ClipboardCheck size={32} className="text-slate-300" />
+                        <span>Belum ada proposal yang lolos evaluasi Tahap 1 & Tahap 2.</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filterProposalList(tahap3List).map((item) => (
+                    <tr key={item.id} className="hover:bg-emerald-50/40 transition-colors">
+                      <td>
+                        <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
+                        <div className="text-xs text-teal-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
+                      </td>
+                      <td>
+                        <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                          <User size={14} className="text-slate-400" />
+                          {item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="text-xs font-bold text-slate-700">
+                          {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
+                        </div>
+                        <div className="text-xs font-mono font-bold text-emerald-700">
+                          Rp {(item.dana_disetujui || (item as any).anggaran_disetujui || item.dana_diusulkan || 0).toLocaleString('id-ID')}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-green font-bold text-[11px] flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Dual Reviewer Lolos (2/2)
+                        </span>
+                      </td>
+                      <td>
+                        <div className="text-xs text-slate-600 font-medium flex items-center gap-1">
+                          <CheckSquare size={14} className="text-emerald-600" />
+                          Disetujui Kaprodi & Admin SIPPM
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* FORM SCORING RUBRIK MODAL (TAHAP 1 & TAHAP 2 DINAMIS) */}
       {selectedProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <UserPlus className="text-purple-700" size={20} /> Plotting Dual Reviewer Proposal
-              </h2>
+              <div>
+                <span className="badge badge-purple font-bold text-[11px] mb-1">
+                  {evaluationStage === 'kaprodi'
+                    ? 'Tahap 1: Rubrik Keilmuan & Linieritas (Kaprodi)'
+                    : 'Tahap 2: Rubrik Administrasi & Kelayakan Kelompok (Admin SIPPM)'}
+                </span>
+                <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                  <Award className="text-purple-700" size={20} /> Form Penilaian Rubrik Proposal
+                </h2>
+              </div>
               <button onClick={() => setSelectedProposal(null)} className="btn btn-ghost btn-sm">✕</button>
             </div>
 
-            {/* Proposal Context Box */}
+            {/* Context Box Proposal */}
             <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-100 space-y-1 text-xs">
               <div className="font-extrabold text-slate-900">{selectedProposal.judul}</div>
               <div className="text-slate-600 flex items-center gap-3">
-                <span>Ketua: <strong>{selectedProposal.ketua?.nama_lengkap || 'Dosen Pengusul'}</strong></span>
+                <span>Ketua: <strong>{selectedProposal.ketua?.nama_lengkap || (selectedProposal as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}</strong></span>
                 <span>•</span>
-                <span>Prodi: <strong>{selectedProposal.ketua?.program_studi || 'Informatika'}</strong></span>
+                <span>Prodi: <strong>{selectedProposal.rumpun_ilmu}</strong></span>
               </div>
             </div>
 
-            {plotError && (
+            {evalError && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
-                <XCircle size={16} /> {plotError}
+                <XCircle size={16} /> {evalError}
               </div>
             )}
 
-            {plotSuccess && (
+            {evalSuccess && (
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
-                <CheckCircle2 size={16} /> {plotSuccess}
+                <CheckCircle2 size={16} /> {evalSuccess}
               </div>
             )}
 
-            {/* FORM HAS <= 5 INPUTS -> MODAL GRID MAKS 2 KOLOM per crud-ui-standard */}
-            <form onSubmit={handleSavePlotting} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Input 1: Reviewer 1 */}
-                <div className="form-group">
-                  <label className="form-label font-bold text-slate-700 text-xs">Pilih Reviewer 1 <span className="text-rose-500">*</span></label>
-                  <select
-                    className="input text-xs"
-                    value={reviewer1Id}
-                    onChange={(e) => setReviewer1Id(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Pilih Dosen Reviewer 1 --</option>
-                    {dosenList.map((d: any) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nama_lengkap || d.name} ({d.unit_kerja?.nama || 'Dosen Expert'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* FORM RUBRIK SCORING */}
+            <form onSubmit={handleSaveEvaluation} className="space-y-4">
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Indikator Penilaian Rubrik ({rubriks.length} Indikator Terdaftar)
+                </h3>
 
-                {/* Input 2: Reviewer 2 */}
-                <div className="form-group">
-                  <label className="form-label font-bold text-slate-700 text-xs">Pilih Reviewer 2 <span className="text-rose-500">*</span></label>
-                  <select
-                    className="input text-xs"
-                    value={reviewer2Id}
-                    onChange={(e) => setReviewer2Id(e.target.value)}
-                    required
-                  >
-                    <option value="">-- Pilih Dosen Reviewer 2 --</option>
-                    {dosenList.map((d: any) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nama_lengkap || d.name} ({d.unit_kerja?.nama || 'Dosen Expert'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {rubriks.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400 border border-dashed rounded-xl">
+                    Memuat indikator rubrik dari Master Data...
+                  </div>
+                ) : (
+                  rubriks.map((rub) => (
+                    <div key={rub.id} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="font-bold text-slate-900 text-xs flex items-center gap-2">
+                            {rub.nama_indikator}
+                            <span className="badge badge-gray text-[10px] font-mono">Bobot: {rub.bobot}%</span>
+                          </div>
+                          {rub.deskripsi && <div className="text-[11px] text-slate-500 mt-0.5">{rub.deskripsi}</div>}
+                        </div>
+                        <div className="w-32 shrink-0">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            className="input input-sm text-right font-bold text-slate-900 text-xs"
+                            value={scores[rub.id] ?? ''}
+                            onChange={(e) =>
+                              setScores({
+                                ...scores,
+                                [rub.id]: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
+                              })
+                            }
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
-              {/* Conflict of Interest Notice */}
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-start gap-2">
-                <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Aturan Anti-Konflik Kepentingan (COI)</strong>: Reviewer 1 dan Reviewer 2 tidak boleh dari tim pengusul yang sama untuk menjamin obyektifitas penilaian.
-                </span>
+              {/* Total Live Score Summary Highlight */}
+              <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                isPassing
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}>
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wide">TOTAL SKOR AKHIR RUBRIK</div>
+                  <div className="text-xs mt-0.5">
+                    {isPassing ? (
+                      <span className="text-emerald-700 font-bold flex items-center gap-1">
+                        <CheckCircle2 size={14} /> Lolos Reviewer (Skor &gt; 80) — Proposal Lanjut ke Tahap Berikutnya
+                      </span>
+                    ) : (
+                      <span className="text-rose-700 font-bold flex items-center gap-1">
+                        <XCircle size={14} /> Belum Memenuhi Batas Minimal (&le; 80) — Proposal Perlu Revisi
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-3xl font-extrabold font-mono">{currentTotalScore} / 100</div>
+              </div>
+
+              {/* Catatan Tambahan Reviewer */}
+              <div className="form-group">
+                <label className="form-label font-bold text-slate-700 text-xs">Catatan & Masukan Reviewer</label>
+                <textarea
+                  rows={3}
+                  className="input text-xs"
+                  placeholder="Ketik catatan evaluasi keilmuan, linieritas, atau catatan administrasi kelompok..."
+                  value={catatan}
+                  onChange={(e) => setCatatan(e.target.value)}
+                />
               </div>
 
               {/* Modal Actions */}
@@ -458,10 +615,10 @@ export default function ReviewerPortalPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submittingPlot}
+                  disabled={submittingEval}
                   className="btn btn-primary btn-sm bg-purple-700 hover:bg-purple-800 border-none font-bold"
                 >
-                  {submittingPlot ? 'Menyimpan...' : 'Simpan Dual Reviewer'}
+                  {submittingEval ? 'Menyimpan...' : 'Simpan & Tetapkan Status Proposal'}
                 </button>
               </div>
             </form>

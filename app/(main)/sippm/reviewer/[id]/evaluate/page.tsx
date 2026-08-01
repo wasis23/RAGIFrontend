@@ -47,10 +47,10 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
   } = useForm<EvaluationFormValues>({
     resolver: zodResolver(evaluationSchema) as any,
     defaultValues: {
-      skor_rekam_jejak: 80,
-      skor_substansi: 85,
-      skor_rab: 80,
-      catatan_reviewer: 'Metode usulan riset sangat jelas dan rasional. RAB dapat disetujui sesuai dengan tarif SBK.',
+      skor_rekam_jejak: 0,
+      skor_substansi: 0,
+      skor_rab: 0,
+      catatan_reviewer: '',
       rekomendasi: 'terima',
     },
   });
