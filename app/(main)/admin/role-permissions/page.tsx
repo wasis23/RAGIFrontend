@@ -51,9 +51,9 @@ export default function AdminRolePermissionsPage() {
       setIsLoading(true);
       try {
         const [rolesRes, rolePermsRes, permsRes, modulesRes] = await Promise.allSettled([
-          adminService.getRoles(),
+          adminService.getRoles({ per_page: 100 }),
           adminService.getRolePermissions(),
-          adminService.getPermissions(),
+          adminService.getPermissions({ per_page: 500 }),
           moduleService.getAllModules(),
         ]);
 
@@ -115,8 +115,16 @@ export default function AdminRolePermissionsPage() {
     });
   };
 
-  const handleToggleModuleAll = (moduleName: string) => {
-    const modulePerms = activePermissions.filter((p) => p.module === moduleName).map((p) => p.id);
+  const isModuleCodeMatch = (modCode: string, permModule: string) => {
+    const c = (modCode || '').toLowerCase();
+    const m = (permModule || '').toLowerCase();
+    if (c === m) return true;
+    if ((c === 'sso' || c === 'iam') && (m === 'sso' || m === 'iam')) return true;
+    return false;
+  };
+
+  const handleToggleModuleAll = (moduleCode: string) => {
+    const modulePerms = activePermissions.filter((p) => isModuleCodeMatch(moduleCode, p.module)).map((p) => p.id);
     const allChecked = modulePerms.every((id) => currentAssigned.includes(id));
 
     let updated: number[];
@@ -178,7 +186,7 @@ export default function AdminRolePermissionsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {appModules.map((mod) => {
           const modulePerms = activePermissions.filter(
-            (p) => p.module && p.module.toLowerCase() === mod.code.toLowerCase()
+            (p) => isModuleCodeMatch(mod.code, p.module)
           );
           if (modulePerms.length === 0) return null;
 
@@ -246,9 +254,8 @@ export default function AdminRolePermissionsPage() {
 
         {/* Fallback Section for permissions with modules not in appModules */}
         {(() => {
-          const knownModules = appModules.map((m) => m.code.toLowerCase());
           const otherPerms = activePermissions.filter(
-            (p) => !p.module || !knownModules.includes(p.module.toLowerCase())
+            (p) => !p.module || !appModules.some((m) => isModuleCodeMatch(m.code, p.module))
           );
           if (otherPerms.length === 0) return null;
 

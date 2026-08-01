@@ -30,7 +30,7 @@ export default function AdminPermissionsPage() {
 
   const fetchPermissions = async () => {
     try {
-      const res = await adminService.getPermissions();
+      const res = await adminService.getPermissions({ per_page: 500 });
       const list = Array.isArray(res?.data)
         ? res.data
         : (res?.data as { items?: Permission[] })?.items ?? [];
@@ -108,9 +108,16 @@ export default function AdminPermissionsPage() {
     }
   };
 
-  const filteredPermissions = permissions.filter(
-    (p) => !filterModule || filterModule === 'all' || p.module === filterModule
-  );
+  const isModuleMatch = (filter: string, permModule: string) => {
+    if (!filter || filter === 'all') return true;
+    const f = filter.toLowerCase();
+    const m = (permModule || '').toLowerCase();
+    if (f === m) return true;
+    if ((f === 'sso' || f === 'iam') && (m === 'sso' || m === 'iam')) return true;
+    return false;
+  };
+
+  const filteredPermissions = permissions.filter((p) => isModuleMatch(filterModule, p.module));
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>

@@ -41,7 +41,6 @@ import { SYSTEM_MODULES } from '@/lib/constants';
 import { menuService } from '@/services/menu.service';
 import { Menu } from '@/types/menu';
 
-// Helper to map DB string icons to Lucide components
 const getIcon = (iconName: string) => {
   const iconMap: Record<string, any> = {
     'FaHome': Home,
@@ -50,6 +49,20 @@ const getIcon = (iconName: string) => {
     'FaUsers': Users,
     'FaList': List,
     'FaShieldAlt': ShieldAlert,
+    'FaFileAlt': FileText,
+    'FaClipboardCheck': CheckSquare,
+    'FaFileCheck': CheckSquare,
+    'FaCreditCard': DollarSign,
+    'FaBookOpen': FileText,
+    'FaAward': Award,
+    'FaLayers': List,
+    'FaCalendar': Calendar,
+    'FaTrophy': Award,
+    'FaBriefcase': Briefcase,
+    'FaClock': Clock,
+    'FaSitemap': Building2,
+    'FaMoneyBillWave': DollarSign,
+    'FaCalendarCheck': Calendar,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -67,11 +80,13 @@ export function Sidebar() {
   // Determine module based on pathname or hostname
   const getModule = () => {
     if (pathname.startsWith('/simpeg')) return 'simpeg';
+    if (pathname.startsWith('/sippm')) return 'sippm';
     if (pathname.startsWith('/spmb')) return 'spmb';
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       if (hostname.startsWith('spmb.')) return 'spmb';
       if (hostname.startsWith('simpeg.')) return 'simpeg';
+      if (hostname.startsWith('sippm.')) return 'sippm';
     }
     return 'sso';
   };

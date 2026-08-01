@@ -22,6 +22,18 @@
   --accent-600: #4f46e5;
   --accent-700: #4338ca;
 
+  /* SIPPM Brand Colors — Deep Emerald & Vibrant Teal (Penelitian & Pengabdian Masyarakat) */
+  --sippm-50:  #f0fdfa;
+  --sippm-100: #ccfbf1;
+  --sippm-200: #99f6e4;
+  --sippm-300: #5eead4;
+  --sippm-400: #2dd4bf;
+  --sippm-500: #14b8a6;
+  --sippm-600: #0d9488;
+  --sippm-700: #0f766e;
+  --sippm-800: #115e59;
+  --sippm-900: #134e4a;
+
   /* Neutral */
   --gray-50:  #f8fafc;
   --gray-100: #f1f5f9;
@@ -745,6 +757,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Module Brand Badges */
 .badge-simpeg   { background: #e0e7ff; color: #3730a3; border: 1px solid rgba(79, 70, 229, 0.2); }
+.badge-sippm    { background: #ccfbf1; color: #0f766e; border: 1px solid rgba(13, 148, 136, 0.25); }
+.badge-sippm-gold { background: #fef3c7; color: #92400e; border: 1px solid rgba(245, 158, 11, 0.25); }
+.badge-sippm-purple { background: #f3e8ff; color: #6b21a8; border: 1px solid rgba(139, 92, 246, 0.25); }
 .badge-spmb     { background: #d1fae5; color: #065f46; border: 1px solid rgba(16, 185, 129, 0.2); }
 .badge-siakad   { background: #dbeafe; color: #1d4ed8; border: 1px solid rgba(37, 99, 235, 0.2); }
 .badge-sikeu    { background: #fef3c7; color: #92400e; border: 1px solid rgba(217, 119, 6, 0.2); }
@@ -763,6 +778,19 @@ h1, h2, h3, h4, h5, h6 {
 .bg-simpeg-hero h2,
 .bg-simpeg-hero h3,
 .bg-simpeg-hero h4 {
+  color: #ffffff !important;
+}
+
+.bg-sippm-hero {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 60%, #115e59 100%);
+  color: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.35);
+}
+.bg-sippm-hero h1,
+.bg-sippm-hero h2,
+.bg-sippm-hero h3,
+.bg-sippm-hero h4 {
   color: #ffffff !important;
 }
 
@@ -804,6 +832,18 @@ h1, h2, h3, h4, h5, h6 {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
+}
+
+.table th.text-center, .table td.text-center {
+  text-align: center !important;
+}
+
+.table th.text-left, .table td.text-left {
+  text-align: left !important;
+}
+
+.table th.text-right, .table td.text-right {
+  text-align: right !important;
 }
 
 .table td {

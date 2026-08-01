@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Grid, Shield, Users, CreditCard, UserPlus, BookOpen } from 'lucide-react';
+import { Grid, Shield, Users, CreditCard, UserPlus, BookOpen, FlaskConical } from 'lucide-react';
 
 interface SubSystemApp {
   id: string;
@@ -33,6 +33,15 @@ const APPS: SubSystemApp[] = [
     badge: 'AKTIF',
   },
   {
+    id: 'sippm',
+    name: 'SIPPM Kampus',
+    description: 'Penelitian & Pengabdian Masyarakat',
+    href: '/sippm/proposal',
+    color: '#0d9488',
+    icon: FlaskConical,
+    badge: 'AKTIF',
+  },
+  {
     id: 'sikeu',
     name: 'SIKEU Kampus',
     description: 'Tagihan UKT & Payment Gateway',
@@ -60,6 +69,7 @@ const APPS: SubSystemApp[] = [
     badge: 'PLANNED',
   },
 ];
+
 
 export function AppLauncher() {
   const [isOpen, setIsOpen] = useState(false);
