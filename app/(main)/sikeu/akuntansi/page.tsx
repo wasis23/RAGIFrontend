@@ -151,7 +151,7 @@ export default function AkuntansiPage() {
           {activeTab === 'jurnal' && (
             <button
               onClick={() => setIsJurnalModalOpen(true)}
-              className="btn bg-indigo-600 hover:bg-indigo-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Entry Jurnal Penyesuaian
             </button>
@@ -361,7 +361,7 @@ export default function AkuntansiPage() {
             <button
               onClick={() => setReportType('laba_rugi')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'laba_rugi' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'laba_rugi' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               1. Laporan Laba Rugi / Aktivitas
@@ -369,7 +369,7 @@ export default function AkuntansiPage() {
             <button
               onClick={() => setReportType('neraca')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'neraca' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'neraca' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               2. Neraca / Posisi Keuangan
@@ -377,7 +377,7 @@ export default function AkuntansiPage() {
             <button
               onClick={() => setReportType('arus_kas')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'arus_kas' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'arus_kas' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               3. Laporan Arus Kas
@@ -385,7 +385,7 @@ export default function AkuntansiPage() {
             <button
               onClick={() => setReportType('perubahan_ekuitas')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'perubahan_ekuitas' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'perubahan_ekuitas' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               4. Laporan Perubahan Ekuitas
@@ -577,7 +577,7 @@ export default function AkuntansiPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsJurnalModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" disabled={loading} className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold border-none">
+                <button type="submit" disabled={loading} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Simpan Jurnal
                 </button>
               </div>

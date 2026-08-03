@@ -192,7 +192,7 @@ export default function CreatePengeluaranPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
           >
             <Save size={16} /> {submitting ? 'Simpan...' : 'Simpan Transaksi Pengeluaran'}
           </button>

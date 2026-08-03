@@ -273,7 +273,7 @@ export default function CreateJurnalPage() {
             <button
               type="submit"
               disabled={submitting || !isBalanced}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
             >
               <Save size={16} /> {submitting ? 'Simpan...' : 'Simpan Entry Jurnal'}
             </button>

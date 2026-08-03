@@ -393,7 +393,7 @@ export default function CreateTagihanPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs border-none shadow-sm flex items-center gap-1.5"
+            className="btn bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs border-none shadow-sm flex items-center gap-1.5"
           >
             <Save size={16} /> {submitting ? 'Simpan...' : 'Terbitkan Tagihan Mahasiswa'}
           </button>

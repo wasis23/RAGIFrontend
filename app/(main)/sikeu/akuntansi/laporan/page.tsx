@@ -22,7 +22,7 @@ export default function LaporanKeuanganPage() {
         </div>
         <button
           onClick={() => alert('Fitur unduh Laporan PDF/Excel sedang disiapkan.')}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
         >
           <Download size={16} /> Unduh Laporan (PDF)
         </button>

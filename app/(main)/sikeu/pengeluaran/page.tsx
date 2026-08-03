@@ -25,7 +25,7 @@ export default function PengeluaranListPage() {
         </div>
         <Link
           href="/sikeu/pengeluaran/create"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
         >
           <Plus size={16} /> Input Pengeluaran Baru
         </Link>

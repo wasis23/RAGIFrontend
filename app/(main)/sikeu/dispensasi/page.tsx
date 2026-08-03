@@ -175,7 +175,7 @@ export default function DispensasiListPage() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="btn bg-amber-600 hover:bg-amber-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+          className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
         >
           <Plus size={16} /> Pengajuan Dispensasi Baru
         </button>
@@ -417,7 +417,7 @@ export default function DispensasiListPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setShowModal(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" disabled={submitting} className="btn bg-amber-600 hover:bg-amber-700 text-white btn-sm font-bold border-none">
+                <button type="submit" disabled={submitting} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   {submitting ? 'Mengirim...' : 'Kirim Permohonan Dispensasi'}
                 </button>
               </div>

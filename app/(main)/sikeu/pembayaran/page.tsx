@@ -146,7 +146,7 @@ export default function PembayaranPage() {
           </div>
 
           <div className="md:col-span-2 flex gap-2">
-            <button type="submit" className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold w-full border-none">
+            <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold w-full border-none">
               <Filter size={14} /> Filter
             </button>
             <button

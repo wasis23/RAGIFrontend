@@ -428,7 +428,7 @@ export default function MasterBiayaPage() {
                 setJalurForm({ nama_jalur: '', deskripsi: '' });
                 setIsJalurModalOpen(true);
               }}
-              className="btn bg-indigo-600 hover:bg-indigo-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tambah Jalur Kelas Baru
             </button>
@@ -440,7 +440,7 @@ export default function MasterBiayaPage() {
                 setStudentTypeForm({ mahasiswa_id: 105, nim: '2025010088', nama_mahasiswa: 'Mahasiswa Baru', tahun_angkatan: 2025, jalur_kelas: 'Reguler', kelompok_ukt: 3, beasiswa_id: 0, catatan_perubahan: 'Pendaftaran baru via SPMB' });
                 setIsStudentTypeModalOpen(true);
               }}
-              className="btn bg-indigo-600 hover:bg-indigo-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <UserPlus size={16} /> Penetapan Tipe Pendaftaran Baru
             </button>
@@ -452,7 +452,7 @@ export default function MasterBiayaPage() {
                 setJenisBiayaForm({ kode: '', nama: '', tipe: 'ukt', nominal_standar: 0, deskripsi: '' });
                 setIsJenisBiayaModalOpen(true);
               }}
-              className="btn bg-indigo-600 hover:bg-indigo-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tambah Komponen Biaya
             </button>
@@ -464,7 +464,7 @@ export default function MasterBiayaPage() {
                 setBeasiswaForm({ kode: '', nama: '', sumber: 'internal', tipe_potongan: 'persen', nilai_potongan: 100, jenis_biaya_id: 0, berlaku_angkatan_mulai: 2023, berlaku_angkatan_sampai: 2027, deskripsi: '' });
                 setIsBeasiswaModalOpen(true);
               }}
-              className="btn bg-emerald-600 hover:bg-emerald-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tambah Master Beasiswa
             </button>
@@ -472,7 +472,7 @@ export default function MasterBiayaPage() {
           {activeTab === 'mapping-beasiswa' && (
             <button
               onClick={() => setIsAssignBeasiswaModalOpen(true)}
-              className="btn bg-amber-600 hover:bg-amber-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tetapkan Mahasiswa Penerima
             </button>
@@ -1117,7 +1117,7 @@ export default function MasterBiayaPage() {
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsJalurModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Simpan Jalur Kelas
                 </button>
               </div>
@@ -1156,7 +1156,7 @@ export default function MasterBiayaPage() {
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsEditJalurModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Simpan Perubahan
                 </button>
               </div>
@@ -1307,7 +1307,7 @@ export default function MasterBiayaPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsStudentTypeModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" disabled={loading} className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold border-none">
+                <button type="submit" disabled={loading} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Simpan Perubahan Tipe
                 </button>
               </div>
@@ -1336,7 +1336,7 @@ export default function MasterBiayaPage() {
               </div>
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <button type="button" onClick={() => setIsAddAngkatanOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="button" onClick={handleAddAngkatan} className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold border-none">
+                <button type="button" onClick={handleAddAngkatan} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Tambah Angkatan
                 </button>
               </div>
@@ -1522,7 +1522,7 @@ export default function MasterBiayaPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsJenisBiayaModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Simpan Komponen Biaya
                 </button>
               </div>
@@ -1660,7 +1660,7 @@ export default function MasterBiayaPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsBeasiswaModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-emerald-600 hover:bg-emerald-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Simpan Master Beasiswa
                 </button>
               </div>
@@ -1705,7 +1705,7 @@ export default function MasterBiayaPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsAssignBeasiswaModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-amber-600 hover:bg-amber-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
                   Tetapkan Beasiswa
                 </button>
               </div>

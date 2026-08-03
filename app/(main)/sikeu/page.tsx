@@ -58,19 +58,19 @@ export default function SikeuDashboardPage() {
         <div className="flex flex-wrap gap-2">
           <Link
             href="/sikeu/tagihan/create"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
           >
             <Plus size={16} /> Generate Tagihan
           </Link>
           <Link
             href="/sikeu/pemasukan/create"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
           >
             <Plus size={16} /> Catat Pemasukan Hibah
           </Link>
           <Link
             href="/sikeu/approval"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
           >
             <ShieldCheck size={16} /> Approval Pimpinan ({metrics.tagihanPendingApproval + metrics.dispensasiPending})
           </Link>
