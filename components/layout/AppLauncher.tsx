@@ -2,78 +2,49 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Grid, Shield, Users, CreditCard, UserPlus, BookOpen, FlaskConical } from 'lucide-react';
+import { Grid, Shield, Users, CreditCard, UserPlus, BookOpen, FlaskConical, LayoutGrid } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { moduleService, AppModule } from '@/services/module.service';
 
-interface SubSystemApp {
-  id: string;
-  name: string;
-  description: string;
-  href: string;
-  color: string;
-  icon: any;
-  badge?: string;
-}
-
-const APPS: SubSystemApp[] = [
-  {
-    id: 'sso',
-    name: 'SSO Auth Center',
-    description: 'IAM, Audit Logs & User Roles',
+const MODULE_META: Record<string, any> = {
+  'sso': {
     href: '/admin/users',
     color: '#3b82f6',
     icon: Shield,
   },
-  {
-    id: 'simpeg',
-    name: 'SIMPEG Kampus',
-    description: 'Kepegawaian, Unit Kerja & Jabatan',
+  'simpeg': {
     href: '/simpeg',
     color: '#6366f1',
     icon: Users,
-    badge: 'AKTIF',
   },
-  {
-    id: 'sippm',
-    name: 'SIPPM Kampus',
-    description: 'Penelitian & Pengabdian Masyarakat',
+  'sippm': {
     href: '/sippm/proposal',
     color: '#0d9488',
     icon: FlaskConical,
-    badge: 'AKTIF',
   },
-  {
-    id: 'sikeu',
-    name: 'SIKEU Kampus',
-    description: 'Tagihan UKT & Payment Gateway',
+  'sikeu': {
     href: '/sikeu',
     color: '#10b981',
     icon: CreditCard,
-    badge: 'DEV',
   },
-  {
-    id: 'spmb',
-    name: 'SPMB Kampus',
-    description: 'Penerimaan Mahasiswa Baru',
+  'spmb': {
     href: '/spmb',
     color: '#0284c7',
     icon: UserPlus,
-    badge: 'DEV',
   },
-  {
-    id: 'siakad',
-    name: 'SIAKAD Core',
-    description: 'Sistem Informasi Akademik',
+  'siakad': {
     href: '/siakad',
     color: '#f59e0b',
     icon: BookOpen,
-    badge: 'PLANNED',
   },
-];
-
+};
 
 export function AppLauncher() {
   const [isOpen, setIsOpen] = useState(false);
+  const [modules, setModules] = useState<AppModule[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const { isAdmin, isSuperAdmin, isAdminSimpeg, isDosen, isTendik, isMahasiswa, hasRole } = useAuth();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -84,6 +55,32 @@ export function AppLauncher() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    // Fetch modules dari API untuk disesuaikan dengan DB
+    moduleService.getAllModules().then((res) => {
+      setModules(res.filter(m => m.is_active));
+    }).catch(() => {
+      // Ignore if failed
+    });
+  }, []);
+
+  // Cek akses pengguna terhadap modul
+  const checkAccess = (code: string) => {
+    if (isAdmin || isSuperAdmin) return true; // Admin dapat mengakses semua
+    
+    switch (code) {
+      case 'sso': return false; // User biasa tidak punya akses sso/admin
+      case 'simpeg': return isAdminSimpeg || isDosen || isTendik;
+      case 'sippm': return isDosen || hasRole('reviewer');
+      case 'sikeu': return isMahasiswa || isTendik;
+      case 'siakad': return isDosen || isMahasiswa;
+      case 'spmb': return true; // Publik/User Baru
+      default: return true; // Untuk modul kustom lain
+    }
+  };
+
+  const accessibleModules = modules.filter(m => checkAccess(m.code));
 
   return (
     <div style={{ position: 'relative' }} ref={dropdownRef}>
@@ -117,17 +114,23 @@ export function AppLauncher() {
               Sub-Sistem Terintegrasi SSO
             </span>
             <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 500 }}>
-              5 Modul
+              {accessibleModules.length} Modul
             </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-            {APPS.map((app) => {
-              const IconComp = app.icon;
+            {accessibleModules.map((app) => {
+              const meta = MODULE_META[app.code] || {
+                href: `/${app.code}`,
+                color: '#6b7280',
+                icon: LayoutGrid
+              };
+              
+              const IconComp = meta.icon;
               return (
                 <Link
                   key={app.id}
-                  href={app.href}
+                  href={meta.href}
                   onClick={() => setIsOpen(false)}
                   style={{
                     display: 'flex',
@@ -137,10 +140,10 @@ export function AppLauncher() {
                     border: '1px solid #f3f4f6',
                     textDecoration: 'none',
                     transition: 'all 0.15s ease',
-                    background: app.id === 'simpeg' ? '#f5f3ff' : '#fafafa',
+                    background: '#fafafa',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = app.color;
+                    e.currentTarget.style.borderColor = meta.color;
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)';
                   }}
@@ -156,36 +159,22 @@ export function AppLauncher() {
                         width: 32,
                         height: 32,
                         borderRadius: 8,
-                        background: `${app.color}15`,
+                        background: `${meta.color}15`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: app.color,
+                        color: meta.color,
                       }}
                     >
                       <IconComp size={18} />
                     </div>
-                    {app.badge && (
-                      <span
-                        style={{
-                          fontSize: '0.625rem',
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          background: app.id === 'simpeg' ? '#6366f1' : '#e5e7eb',
-                          color: app.id === 'simpeg' ? 'white' : '#374151',
-                        }}
-                      >
-                        {app.badge}
-                      </span>
-                    )}
                   </div>
 
                   <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
                     {app.name}
                   </div>
                   <div style={{ fontSize: '0.6875rem', color: '#6b7280', marginTop: 2, lineHeight: 1.2 }}>
-                    {app.description}
+                    {app.description || '-'}
                   </div>
                 </Link>
               );

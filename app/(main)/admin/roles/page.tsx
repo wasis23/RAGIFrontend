@@ -1,20 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ShieldAlert } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldAlert, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
-import { TableRowSkeleton } from '@/components/ui/Skeleton';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
 import type { Role } from '@/types/auth.types';
+import type { PaginationMeta } from '@/types/api.types';
 
 export default function AdminRolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Pagination & Filters State
+  const [page, setPage] = useState<number>(1);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
+  const [filterLimit, setFilterLimit] = useState<string>('15');
+  
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterName, setFilterName] = useState<string>('');
+  const [filterOrderBy, setFilterOrderBy] = useState<string>('id');
+  const [filterOrderDir, setFilterOrderDir] = useState<string>('desc');
+
+  const [appliedFilters, setAppliedFilters] = useState({
+    name: '',
+    orderBy: 'id',
+    orderDir: 'desc'
+  });
+
+  // Modal States
   const [showModal, setShowModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = useState<Role | null>(null);
@@ -28,11 +50,37 @@ export default function AdminRolesPage() {
   const fetchRoles = async () => {
     setIsLoading(true);
     try {
-      const res = await adminService.getRoles();
-      const roleList = Array.isArray(res?.data)
-        ? res.data
-        : (res?.data as { items?: Role[] })?.items ?? [];
+      const params: any = { page };
+      if (appliedFilters.name !== '') params.search = appliedFilters.name;
+      if (appliedFilters.orderBy !== '') params.order_by = appliedFilters.orderBy;
+      if (appliedFilters.orderDir !== '') params.order_dir = appliedFilters.orderDir;
+      if (filterLimit !== '') params.limit = filterLimit;
+
+      const res: any = await adminService.getRoles(params);
+      let roleList = [];
+      let metaData = undefined;
+
+      if (res && Array.isArray(res.data) && 'current_page' in res) {
+        roleList = res.data;
+        metaData = {
+          current_page: res.current_page,
+          last_page: res.last_page,
+          per_page: res.per_page,
+          total: res.total,
+          from: res.from,
+          to: res.to
+        };
+      } else if (res && res.data && Array.isArray(res.data.items)) {
+        roleList = res.data.items;
+        metaData = res.data.meta;
+      } else if (res && Array.isArray(res.data)) {
+        roleList = res.data;
+      } else if (Array.isArray(res)) {
+        roleList = res;
+      }
+
       setRoles(roleList);
+      setMeta(metaData);
     } catch {
       toast.error('Gagal memuat data role. Periksa koneksi ke server.');
     } finally {
@@ -42,7 +90,7 @@ export default function AdminRolesPage() {
 
   useEffect(() => {
     fetchRoles();
-  }, []);
+  }, [page, filterLimit, appliedFilters.name, appliedFilters.orderBy, appliedFilters.orderDir]);
 
   const handleOpenCreate = () => {
     setEditingRole(null);
@@ -108,84 +156,152 @@ export default function AdminRolesPage() {
     }
   };
 
+  const columns: ColumnDef<Role>[] = [
+    { key: 'id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{meta?.from ? meta.from + index : index + 1}</span> },
+    { key: 'name', label: 'Nama Role', render: (row) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+        <ShieldAlert size={16} color="var(--primary-600)" />
+        {row.name}
+      </div>
+    )},
+    { key: 'slug', label: 'Slug Identifier', render: (row) => (
+      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem', fontWeight: 700 }}>
+        {row.slug}
+      </code>
+    )},
+    { key: 'description', label: 'Deskripsi Akses', render: (row) => (
+      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+        {row.description || '-'}
+      </span>
+    )},
+    { key: 'created_at', label: 'Tanggal Dibuat', render: (row) => (
+      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+        {formatDate(row.created_at)}
+      </span>
+    )},
+    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<Edit2 size={14} />}
+          onClick={() => handleOpenEdit(row)}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<Trash2 size={14} color="var(--danger)" />}
+          onClick={() => setDeletingRole(row)}
+        />
+      </div>
+    )},
+  ];
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       <PageHeader
         title="Manajemen Role Akses (Roles Table)"
         description="Definisikan struktur peran pengguna dalam ekosistem kampus (Tabel: roles)"
         action={
-          <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-            Tambah Role Baru
-          </Button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
+              Tambah Role Baru
+            </Button>
+            <Button 
+              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              icon={<Filter size={16} />} 
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+          </div>
         }
       />
 
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nama Role</th>
-                <th>Slug Identifier</th>
-                <th>Deskripsi Akses</th>
-                <th>Tanggal Dibuat</th>
-                <th style={{ textAlign: 'right' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
-              ) : roles.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
-                    Belum ada data role.
-                  </td>
-                </tr>
-              ) : (
-                roles.map((role) => (
-                  <tr key={role.id}>
-                    <td style={{ fontWeight: 700, color: 'var(--text-muted)' }}>#{role.id}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                        <ShieldAlert size={16} color="var(--primary-600)" />
-                        {role.name}
-                      </div>
-                    </td>
-                    <td>
-                      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem', fontWeight: 700 }}>
-                        {role.slug}
-                      </code>
-                    </td>
-                    <td style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      {role.description || '-'}
-                    </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                      {formatDate(role.created_at)}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={<Edit2 size={14} />}
-                          onClick={() => handleOpenEdit(role)}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          icon={<Trash2 size={14} color="var(--danger)" />}
-                          onClick={() => setDeletingRole(role)}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <DataTable
+        columns={columns}
+        data={roles}
+        isLoading={isLoading}
+        meta={meta}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => { setFilterLimit(l.toString()); setPage(1); }}
+      />
+
+      {/* Filter Drawer */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Role"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setFilterName('');
+                setFilterOrderBy('id');
+                setFilterOrderDir('desc');
+                setAppliedFilters({
+                  name: '',
+                  orderBy: 'id',
+                  orderDir: 'desc'
+                });
+                setPage(1);
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                setAppliedFilters({
+                  name: filterName,
+                  orderBy: filterOrderBy,
+                  orderDir: filterOrderDir
+                });
+                setPage(1);
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <Input 
+            label="Nama / Slug Role"
+            placeholder="Ketik kata kunci..."
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+          />
+          
+          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select 
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'id', label: 'ID' },
+                { value: 'name', label: 'Nama Role' },
+                { value: 'slug', label: 'Slug' },
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+              ]}
+            />
+            <Select 
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val)}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' }
+              ]}
+            />
+          </div>
         </div>
-      </div>
+      </Drawer>
 
       {/* Modal Form */}
       <Modal
@@ -223,10 +339,9 @@ export default function AdminRolesPage() {
             hint="Format: lowercase dengan underscore"
           />
 
-          <div className="form-group col-span-1 md:col-span-2">
-            <label className="form-label">Deskripsi</label>
-            <textarea
-              className="textarea"
+          <div className="col-span-1 md:col-span-2">
+            <Textarea
+              label="Deskripsi"
               rows={3}
               placeholder="Deskripsi wewenang role..."
               value={formData.description}

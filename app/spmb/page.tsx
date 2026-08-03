@@ -1,6 +1,21 @@
+'use client';
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SpmbLandingPage() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace('/spmb/dashboard');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) return null;
+
   return (
     <div className="page-container flex flex-col items-center justify-center min-h-screen text-center animate-fade-in">
       <div className="mb-6 p-4 bg-indigo-50 rounded-2xl inline-block">

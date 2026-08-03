@@ -32,6 +32,15 @@ export const authService = {
   },
 
   /**
+   * POST /auth/register
+   * Daftar akun baru
+   */
+  register: async (payload: any): Promise<any> => {
+    const { data } = await apiClient.post('/auth/register', payload);
+    return data;
+  },
+
+  /**
    * POST /auth/logout
    * Invalidate token di server
    */

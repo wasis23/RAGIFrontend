@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
 import { useUiStore } from '@/store/uiStore';
@@ -11,6 +12,8 @@ import { TOKEN_KEY } from '@/lib/constants';
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { sidebar_open } = useUiStore();
   const { setUser } = useAuthStore();
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
@@ -24,6 +27,30 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             const primaryRole = userData.roles?.[0]?.role?.slug || userData.roles?.[0]?.slug;
             if (primaryRole) {
               document.cookie = `sso_user_role=${primaryRole}; path=/; max-age=3600; SameSite=Lax`;
+              
+              // Dynamic RBAC Guard
+              let hasSuperAccess = false;
+              const allowedModules = new Set<string>(['dashboard', 'profile']); // Base modules
+
+              userData.roles?.forEach((r: any) => {
+                const roleSlug = r.slug || r.role?.slug;
+                if (roleSlug === 'admin' || roleSlug === 'superadmin') {
+                  hasSuperAccess = true;
+                }
+                const permissions = r.permissions || r.role?.permissions || [];
+                permissions.forEach((p: any) => {
+                  const pMod = p.module || p.permission?.module;
+                  if (pMod) allowedModules.add(pMod);
+                });
+              });
+
+              if (!hasSuperAccess) {
+                // Determine module from pathname, e.g., '/simpeg/...' -> 'simpeg'
+                const currentModule = pathname.split('/')[1];
+                if (currentModule && !allowedModules.has(currentModule)) {
+                  router.replace('/dashboard');
+                }
+              }
             }
           }
         })

@@ -94,3 +94,53 @@ export default function CreateDataPage() {
 ```
 
 **PATUHI ATURAN INI SECARA KETAT.** Jangan membuat form lebih dari 5 input di dalam modal, dan jangan membuat form 1 kolom menjuntai panjang ke bawah tanpa memanfaatkan grid layout.
+
+## 3. Standar Tabel Data dan Filter (Read/List)
+
+Semua halaman yang menampilkan daftar data (tabel) WAJIB mengikuti standar ini untuk konsistensi, efisiensi, dan kemudahan pemeliharaan:
+
+### A. Komponen DataTable
+- **WAJIB** menggunakan komponen `<DataTable />` (`@/components/ui/DataTable`) untuk semua daftar data.
+- **DILARANG KERAS** menggunakan tag HTML manual seperti `<table>`, `<thead>`, `<tbody>`, `<tr>`, atau `<td>` di dalam *page* utama.
+- Komponen harus menerapkan *Server-Side Pagination* penuh dengan meneruskan parameter dari API (`limit`, `page`, dll) dan meneruskan objek `meta` (dari *PaginatedResponse* API) ke `<DataTable meta={meta} />`.
+- Jangan menggunakan array `.filter()` atau `.map()` untuk *client-side pagination*. Tabel harus selalu bergantung pada respon pagination API.
+- State perubahan halaman (termasuk *Limit/Rows per page*) harus mereset state halaman (`page`) kembali ke 1.
+
+**Contoh Implementasi Pengolahan Data API untuk DataTable:**
+```tsx
+const [page, setPage] = useState(1);
+const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
+
+const fetchUsers = async () => {
+  const res: any = await adminService.getUsers({ page, limit: filterLimit });
+  let dataList = [];
+  let metaData = undefined;
+
+  // 1. Tangani jika balasan API berupa Paginator Laravel langsung
+  if (res && Array.isArray(res.data) && 'current_page' in res) {
+    dataList = res.data;
+    metaData = {
+      current_page: res.current_page,
+      last_page: res.last_page,
+      per_page: res.per_page,
+      total: res.total,
+      from: res.from,
+      to: res.to
+    };
+  } 
+  // 2. Tangani jika dibungkus format kustom { data: { items, meta } }
+  else if (res && res.data && Array.isArray(res.data.items)) {
+    dataList = res.data.items;
+    metaData = res.data.meta;
+  }
+
+  setUsers(dataList);
+  setMeta(metaData); // <- Wajib diatur agar footer pagination di tabel berfungsi!
+};
+```
+
+### B. Standar Fitur Filter (Drawer)
+- Apabila terdapat kebutuhan pencarian/filter lebih dari 1 kolom (misalnya selain "Search/Pencarian Global" biasa), Anda **WAJIB** membuat panel filter *Sidebar* dengan menggunakan komponen `<Drawer />` (`@/components/ui/Drawer`).
+- Tombol akses filter (ikon *Filter* Lucide) diletakkan sejajar dengan tombol "Tambah Data" (di area `action` pada `<PageHeader />`).
+- Opsi limitasi jumlah data (Limit) **diletakkan dan dikelola di bagian bawah `<DataTable />`**, BUKAN di dalam komponen *Drawer*. 
+- Opsi untuk pengurutan data (*Order By*, *Direction*) jika ada, diletakkan di dalam *Drawer*.

@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserCheck, Plus, Edit2, ShieldAlert } from 'lucide-react';
+import { UserCheck, Plus, Edit2, ShieldAlert, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
-import { UserTypeBadge } from '@/components/ui/Badge';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
 import type { UserType } from '@/types/auth.types';
@@ -26,6 +30,48 @@ export default function AdminUserRolesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserRoleMapping | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([]);
+
+  // Filter States
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterName, setFilterName] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string>('all');
+  const [filterOrderBy, setFilterOrderBy] = useState<string>('username');
+  const [filterOrderDir, setFilterOrderDir] = useState<string>('asc');
+
+  const [appliedFilterName, setAppliedFilterName] = useState<string>('');
+  const [appliedFilterRole, setAppliedFilterRole] = useState<string>('all');
+  const [appliedFilterOrderBy, setAppliedFilterOrderBy] = useState<string>('username');
+  const [appliedFilterOrderDir, setAppliedFilterOrderDir] = useState<string>('asc');
+
+  const filteredUserRoles = [...userRoles].filter(ur => {
+    // Filter by name/email
+    let matchName = true;
+    if (appliedFilterName) {
+      const lowerQ = appliedFilterName.toLowerCase();
+      matchName = ur.username.toLowerCase().includes(lowerQ) || ur.email.toLowerCase().includes(lowerQ);
+    }
+
+    // Filter by Role
+    let matchRole = true;
+    if (appliedFilterRole !== 'all') {
+      if (appliedFilterRole === '0') {
+        matchRole = ur.roles.length === 0; // 0 = Tanpa Role
+      } else {
+        matchRole = ur.roles.some(r => r.id.toString() === appliedFilterRole);
+      }
+    }
+
+    return matchName && matchRole;
+  }).sort((a, b) => {
+    let cmp = 0;
+    if (appliedFilterOrderBy === 'username') {
+      cmp = a.username.localeCompare(b.username);
+    } else if (appliedFilterOrderBy === 'email') {
+      cmp = a.email.localeCompare(b.email);
+    }
+
+    return appliedFilterOrderDir === 'desc' ? -cmp : cmp;
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,69 +148,148 @@ export default function AdminUserRolesPage() {
     }
   };
 
+  const columns: ColumnDef<UserRoleMapping>[] = [
+    { key: 'user_id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{index + 1}</span> },
+    { key: 'pengguna', label: 'Pengguna', render: (row) => (
+      <div>
+        <div style={{ fontWeight: 700 }}>{row.username}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.email}</div>
+      </div>
+    )},
+    { key: 'roles', label: 'Role Terpasang', render: (row) => (
+      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+        {row.roles.length === 0 ? (
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Tanpa Role</span>
+        ) : (
+          row.roles.map((r) => (
+            <span key={r.id} className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <ShieldAlert size={12} /> {r.name}
+            </span>
+          ))
+        )}
+      </div>
+    )},
+    { key: 'created_at', label: 'Tanggal Penugasan', render: (row) => (
+      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+        {formatDate(row.created_at)}
+      </span>
+    )},
+    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
+      <Button
+        variant="outline"
+        size="sm"
+        icon={<Edit2 size={14} />}
+        onClick={() => handleOpenAssign(row)}
+      >
+        Kelola Role
+      </Button>
+    )},
+  ];
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       <PageHeader
         title="Penugasan Role Pengguna (User-Roles Table)"
         description="Hubungkan pengguna dengan satu atau lebih role sesuai wewenang (Tabel: user_roles)"
+        action={
+          <Button 
+            style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+            icon={<Filter size={16} />} 
+            onClick={() => setShowFilter(true)}
+          >
+            Filter
+          </Button>
+        }
       />
 
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>User ID</th>
-                <th>Pengguna</th>
-                <th>Tipe</th>
-                <th>Role Terpasang</th>
-                <th>Tanggal Penugasan</th>
-                <th style={{ textAlign: 'right' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {userRoles.map((ur) => (
-                <tr key={ur.user_id}>
-                  <td style={{ fontWeight: 700, color: 'var(--text-muted)' }}>#{ur.user_id}</td>
-                  <td>
-                    <div style={{ fontWeight: 700 }}>{ur.username}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{ur.email}</div>
-                  </td>
-                  <td>
-                    <UserTypeBadge type={ur.user_type} />
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-                      {ur.roles.length === 0 ? (
-                        <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Tanpa Role</span>
-                      ) : (
-                        ur.roles.map((r) => (
-                          <span key={r.id} className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            <ShieldAlert size={12} /> {r.name}
-                          </span>
-                        ))
-                      )}
-                    </div>
-                  </td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                    {formatDate(ur.created_at)}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      icon={<Edit2 size={14} />}
-                      onClick={() => handleOpenAssign(ur)}
-                    >
-                      Kelola Role
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <DataTable
+        columns={columns}
+        data={filteredUserRoles}
+        isLoading={isLoading}
+      />
+
+      {/* Filter Drawer */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Pengguna"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setFilterName('');
+                setFilterRole('all');
+                setFilterOrderBy('username');
+                setFilterOrderDir('asc');
+                setAppliedFilterName('');
+                setAppliedFilterRole('all');
+                setAppliedFilterOrderBy('username');
+                setAppliedFilterOrderDir('asc');
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                setAppliedFilterName(filterName);
+                setAppliedFilterRole(filterRole);
+                setAppliedFilterOrderBy(filterOrderBy);
+                setAppliedFilterOrderDir(filterOrderDir);
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <Input 
+            label="Cari Pengguna"
+            placeholder="Ketik username atau email..."
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+          />
+
+          <Select
+            label="Role Terpasang"
+            value={filterRole}
+            onChange={(val) => setFilterRole(val)}
+            options={[
+              { value: 'all', label: 'Semua Role' },
+              { value: '0', label: 'Tanpa Role' },
+              ...roles.map(r => ({ value: r.id.toString(), label: r.name }))
+            ]}
+          />
+          
+          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select 
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'username', label: 'Nama Pengguna' },
+                { value: 'email', label: 'Email' }
+              ]}
+            />
+
+            <Select 
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val)}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' }
+              ]}
+            />
+          </div>
         </div>
-      </div>
+      </Drawer>
 
       {/* Modal Assign Roles */}
       <Modal
@@ -183,39 +308,14 @@ export default function AdminUserRolesPage() {
             Pilih role yang ingin dipasangkan ke akun <strong>{editingUser?.email}</strong>:
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {roles.map((r) => {
-              const isChecked = selectedRoleIds.includes(r.id);
-              return (
-                <label
-                  key={r.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.75rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1.5px solid ${isChecked ? 'var(--primary-300)' : 'var(--border-light)'}`,
-                    background: isChecked ? 'var(--primary-50)' : 'white',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <input
-                      type="checkbox"
-                      className="checkbox"
-                      checked={isChecked}
-                      onChange={() => handleToggleRole(r.id)}
-                    />
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>{r.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>slug: {r.slug}</div>
-                    </div>
-                  </div>
-                  {isChecked && <span className="badge badge-green">Terpasang</span>}
-                </label>
-              );
-            })}
+          <div style={{ minHeight: '12rem' }}>
+            <Select
+              isMulti
+              placeholder="Cari dan pilih role..."
+              options={roles.map(r => ({ value: r.id.toString(), label: r.name + ' (' + r.slug + ')' }))}
+              value={selectedRoleIds.map(id => id.toString())}
+              onChange={(vals: string[]) => setSelectedRoleIds(vals.map(v => parseInt(v)))}
+            />
           </div>
         </div>
       </Modal>

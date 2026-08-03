@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldAlert, Save, CheckSquare, Square } from 'lucide-react';
+import { ShieldAlert, Save, CheckSquare, Square, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { moduleService, AppModule } from '@/services/module.service';
 import { adminService } from '@/services/admin.service';
 
@@ -42,6 +43,7 @@ export default function AdminRolePermissionsPage() {
   const [appModules, setAppModules] = useState<AppModule[]>([]);
   const [permissions, setPermissions] = useState<PermissionItem[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<number>(0);
+  const [selectedModule, setSelectedModule] = useState<string>('all');
   const [assignedMap, setAssignedMap] = useState<Record<number, number[]>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -161,30 +163,34 @@ export default function AdminRolePermissionsPage() {
         }
       />
 
-      {/* Role Selection Selector */}
+      {/* Filters Section */}
       <div className="card" style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <ShieldAlert size={20} color="var(--primary-600)" />
-          <span style={{ fontSize: '0.9375rem', fontWeight: 700 }}>Pilih Role yang Ingin Diatur:</span>
-          <select
-            className="select"
-            value={selectedRoleId}
-            onChange={(e) => setSelectedRoleId(Number(e.target.value))}
-            style={{ maxWidth: 320, fontWeight: 700 }}
-          >
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            ({currentAssigned.length} dari {activePermissions.length} hak akses aktif)
-          </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Pilih Role Pengguna"
+            value={selectedRoleId ? selectedRoleId.toString() : ''}
+            onChange={(val: string) => setSelectedRoleId(parseInt(val) || 0)}
+            options={roles.map((r) => ({ value: r.id.toString(), label: r.name }))}
+            isDisabled={isLoading}
+            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+          />
+          <Select
+            label="Filter Modul Aplikasi"
+            value={selectedModule}
+            onChange={(val: string) => setSelectedModule(val)}
+            options={[{ value: 'all', label: 'Tampilkan Semua Modul' }, ...appModules.map(m => ({ value: m.code, label: `${m.name} (${m.code.toUpperCase()})` }))]}
+            isDisabled={isLoading}
+            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+          />
+        </div>
+        <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          Terdapat <strong>{currentAssigned.length}</strong> hak akses aktif dari total {activePermissions.length} permission.
         </div>
       </div>
 
       {/* Dynamic Module Permission Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {appModules.map((mod) => {
+        {appModules.filter(mod => selectedModule === 'all' || mod.code === selectedModule).map((mod) => {
           const modulePerms = activePermissions.filter(
             (p) => isModuleCodeMatch(mod.code, p.module)
           );
@@ -253,7 +259,7 @@ export default function AdminRolePermissionsPage() {
         })}
 
         {/* Fallback Section for permissions with modules not in appModules */}
-        {(() => {
+        {selectedModule === 'all' && (() => {
           const otherPerms = activePermissions.filter(
             (p) => !p.module || !appModules.some((m) => isModuleCodeMatch(m.code, p.module))
           );

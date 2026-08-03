@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { History, Search, Eye, ShieldCheck, ShieldAlert, Key } from 'lucide-react';
+import { History, Search, Eye, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { adminService } from '@/services/admin.service';
 import { formatDateTime } from '@/lib/utils';
 import type { AuditLog } from '@/types/auth.types';
@@ -17,14 +19,18 @@ interface ExtendedAuditLog extends AuditLog {
 
 export default function AdminAuditLogsPage() {
   const [logs, setLogs] = useState<ExtendedAuditLog[]>([]);
-  const [search, setSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedLog, setSelectedLog] = useState<ExtendedAuditLog | null>(null);
 
+  // Filter States
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+
   const fetchLogs = async () => {
+    setIsLoading(true);
     try {
-      const res = await adminService.getAuditLogs({ search });
-      // Backend mengirim AuditLog dengan relasi user (termasuk username)
-      // di-cast ke ExtendedAuditLog karena field username ada di relasi
+      const res = await adminService.getAuditLogs({ search: appliedSearch });
       const list = (Array.isArray(res?.data)
         ? res.data
         : ((res?.data as unknown as { items?: ExtendedAuditLog[] })?.items ?? [])
@@ -32,19 +38,14 @@ export default function AdminAuditLogsPage() {
       setLogs(list);
     } catch {
       toast.error('Gagal memuat audit log. Periksa koneksi ke server.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     fetchLogs();
-  }, [search]);
-
-  const filteredLogs = logs.filter(
-    (l) =>
-      l.action.toLowerCase().includes(search.toLowerCase()) ||
-      l.username.toLowerCase().includes(search.toLowerCase()) ||
-      l.ip_address.includes(search)
-  );
+  }, [appliedSearch]);
 
   const getActionBadge = (action: string) => {
     if (action.includes('failed') || action.includes('delete')) {
@@ -56,71 +57,98 @@ export default function AdminAuditLogsPage() {
     return <span className="badge badge-blue">{action}</span>;
   };
 
+  const columns: ColumnDef<ExtendedAuditLog>[] = [
+    { key: 'id', label: 'ID', render: (row) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>#{row.id}</span> },
+    { key: 'created_at', label: 'Waktu Kejadian', render: (row) => (
+      <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+        {formatDateTime(row.created_at)}
+      </span>
+    )},
+    { key: 'username', label: 'Pengguna', render: (row) => <span style={{ fontWeight: 700 }}>{row.username}</span> },
+    { key: 'action', label: 'Aksi (Action)', render: (row) => getActionBadge(row.action) },
+    { key: 'ip_address', label: 'IP Address', render: (row) => (
+      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem' }}>
+        {row.ip_address}
+      </code>
+    )},
+    { key: 'payload', label: 'Payload JSON', render: (row) => (
+      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontFamily: 'monospace', maxWidth: 200, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {row.payload}
+      </span>
+    )},
+    { key: 'detail', label: 'Detail', align: 'right', render: (row) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={<Eye size={14} />}
+        onClick={() => setSelectedLog(row)}
+      >
+        Lihat
+      </Button>
+    )},
+  ];
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       <PageHeader
         title="Audit Log Keamanan (Audit Logs Table)"
         description="Jejak audit otomatis seluruh peristiwa autentikasi & perubahan data (Tabel: audit_logs)"
+        action={
+          <Button 
+            style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+            icon={<Filter size={16} />} 
+            onClick={() => setShowFilter(true)}
+          >
+            Filter Logs
+          </Button>
+        }
       />
 
-      <div className="card" style={{ padding: '1rem 1.25rem' }}>
-        <div style={{ maxWidth: 400 }}>
-          <Input
+      <DataTable
+        columns={columns}
+        data={logs}
+        isLoading={isLoading}
+      />
+
+      {/* Filter Drawer */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Audit Logs"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setFilterSearch('');
+                setAppliedSearch('');
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                setAppliedSearch(filterSearch);
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <Input 
+            label="Pencarian Bebas"
             placeholder="Cari aksi, username, atau IP address..."
             prefixIcon={<Search size={16} />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
           />
         </div>
-      </div>
-
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Waktu Kejadian</th>
-                <th>Pengguna</th>
-                <th>Aksi (Action)</th>
-                <th>IP Address</th>
-                <th>Payload JSON</th>
-                <th style={{ textAlign: 'right' }}>Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.map((log) => (
-                <tr key={log.id}>
-                  <td style={{ fontWeight: 700, color: 'var(--text-muted)' }}>#{log.id}</td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {formatDateTime(log.created_at)}
-                  </td>
-                  <td style={{ fontWeight: 700 }}>{log.username}</td>
-                  <td>{getActionBadge(log.action)}</td>
-                  <td>
-                    <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem' }}>
-                      {log.ip_address}
-                    </code>
-                  </td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontFamily: 'monospace', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {log.payload}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={<Eye size={14} />}
-                      onClick={() => setSelectedLog(log)}
-                    >
-                      Lihat
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </Drawer>
 
       {/* Modal Detail Payload */}
       <Modal

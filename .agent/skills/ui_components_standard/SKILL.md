@@ -27,6 +27,16 @@ Proyek ini **TIDAK** menggunakan pendekatan utility-first Tailwind murni (sepert
 4. **Penggunaan Icons**
    - Gunakan selalu pustaka **`lucide-react`** untuk semua ikon, kecuali SVG custom yang benar-benar tidak tersedia di Lucide.
 
+5. **Penggunaan Form UI Kit (Konsistensi Input)**
+   - Semua elemen *form* **WAJIB** menggunakan komponen buatan yang tersedia di `components/ui/`.
+   - Gunakan `<Input>` (`components/ui/Input.tsx`) untuk text, number, date, dsb.
+   - Gunakan `<Textarea>` (`components/ui/Textarea.tsx`) untuk teks multi-baris.
+   - Gunakan `<Checkbox>` (`components/ui/Checkbox.tsx`) untuk input boolean.
+   - **WAJIB: Gunakan `<Select>` dan `<AsyncSelect>` untuk Dropdown!**
+     - **Jangan pernah menggunakan tag `<select>` mentah** karena merusak standar desain dan tidak memiliki *search*.
+     - Untuk data statis atau jumlah opsi yang sedikit, gunakan **`<Select>`** dari `components/ui/Select.tsx`. Komponen ini berbasis `react-select` sehingga mendukung pencarian ketikan bawaan dan memiliki UI modern. (Contoh prop: `options={[{value: 'id', label: 'Nama'}]}`)
+     - Untuk data relasi dari API atau data dengan jumlah sangat banyak, wajib menggunakan **`<AsyncSelect>`** dari `components/ui/AsyncSelect.tsx`. Komponen ini secara cerdas melakukan *fetch* data dari backend seiring dengan *user* mengetikkan pencarian. (Contoh prop: `loadOptions={loadRoleOptions}`)
+
 ## Contoh yang BENAR
 
 ```tsx

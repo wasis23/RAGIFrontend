@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShieldAlert, Save, CheckSquare, Square, ChevronRight } from 'lucide-react';
+import { ShieldAlert, Save, CheckSquare, Square, ChevronRight, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { adminService } from '@/services/admin.service';
 import { menuService } from '@/services/menu.service';
 import { moduleService, AppModule } from '@/services/module.service';
@@ -15,6 +16,7 @@ export default function AdminRoleMenusPage() {
   const [appModules, setAppModules] = useState<AppModule[]>([]);
   const [menusByModule, setMenusByModule] = useState<Record<string, Menu[]>>({});
   const [selectedRoleId, setSelectedRoleId] = useState<number>(0);
+  const [selectedModule, setSelectedModule] = useState<string>('all');
   const [assignedMenus, setAssignedMenus] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -184,25 +186,28 @@ export default function AdminRoleMenusPage() {
         }
       />
 
-      {/* Role Selection Selector */}
+      {/* Filters Section */}
       <div className="card" style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <ShieldAlert size={20} color="var(--primary-600)" />
-          <span style={{ fontSize: '0.9375rem', fontWeight: 700 }}>Pilih Role yang Ingin Diatur:</span>
-          <select
-            className="select"
-            value={selectedRoleId}
-            onChange={(e) => setSelectedRoleId(Number(e.target.value))}
-            style={{ maxWidth: 320, fontWeight: 700 }}
-            disabled={isLoading}
-          >
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            ({assignedMenus.length} menu aktif untuk role ini)
-          </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Pilih Role Pengguna"
+            value={selectedRoleId ? selectedRoleId.toString() : ''}
+            onChange={(val: string) => setSelectedRoleId(parseInt(val) || 0)}
+            options={roles.map((r) => ({ value: r.id.toString(), label: r.name }))}
+            isDisabled={isLoading}
+            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+          />
+          <Select
+            label="Filter Modul Aplikasi"
+            value={selectedModule}
+            onChange={(val: string) => setSelectedModule(val)}
+            options={[{ value: 'all', label: 'Tampilkan Semua Modul' }, ...appModules.map(m => ({ value: m.code, label: `${m.name} (${m.code.toUpperCase()})` }))]}
+            isDisabled={isLoading}
+            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+          />
+        </div>
+        <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+          Terdapat <strong>{assignedMenus.length}</strong> menu navigasi aktif untuk role ini.
         </div>
       </div>
 
@@ -213,7 +218,7 @@ export default function AdminRoleMenusPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
-          {appModules.map(mod => {
+          {appModules.filter(mod => selectedModule === 'all' || mod.code === selectedModule).map(mod => {
             const menus = menusByModule[mod.code] || [];
             if (menus.length === 0) return null;
 

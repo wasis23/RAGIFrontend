@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { menuService } from '@/services/menu.service';
 import { moduleService, AppModule } from '@/services/module.service';
-import { Menu, CreateMenuPayload, UpdateMenuPayload } from '@/types/menu';
+import { Menu } from '@/types/menu';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
@@ -13,8 +13,17 @@ import {
   RefreshCw,
   Plus,
   Pencil,
-  Trash2
+  Trash2,
+  Filter
 } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Drawer } from '@/components/ui/Drawer';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+
+type FlattenedMenu = Menu & { level: number };
 
 export default function AdminMenuPage() {
   const [menus, setMenus] = useState<Menu[]>([]);
@@ -23,6 +32,11 @@ export default function AdminMenuPage() {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [selectedModule, setSelectedModule] = useState<string>('sso');
   const router = useRouter();
+
+  // Filter States
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterName, setFilterName] = useState<string>('');
+  const [appliedFilterName, setAppliedFilterName] = useState<string>('');
 
   const fetchMenus = async () => {
     setLoading(true);
@@ -91,133 +105,153 @@ export default function AdminMenuPage() {
     router.push(`/admin/menus/${menu.id}/edit`);
   };
 
-  // Helper to render table rows recursively (for nested menus)
-  const renderMenuRows = (menuList: Menu[], level = 0) => {
-    let rows: React.ReactNode[] = [];
-    menuList.forEach((menu) => {
-      rows.push(
-        <tr key={menu.id} className="hover:bg-gray-50/50">
-          <td style={{ paddingLeft: `${level * 2 + 1}rem` }}>
-            <div className="flex items-center gap-2">
-              {level > 0 && <span className="text-gray-400">↳</span>}
-              <span className={level === 0 ? 'font-semibold' : ''}>{menu.name}</span>
-            </div>
-          </td>
-          <td><code>{menu.url}</code></td>
-          <td>{menu.icon || '-'}</td>
-          <td>
-            {menu.is_active ? (
-              <span className="badge badge-success"><CheckCircle2 size={14} className="mr-1"/> Aktif</span>
-            ) : (
-              <span className="badge badge-error"><XCircle size={14} className="mr-1"/> Nonaktif</span>
-            )}
-          </td>
-          <td>
-            <div className="flex items-center gap-2">
-              <button
-                className={`btn btn-xs ${menu.is_active ? 'btn-error' : 'btn-success'}`}
-                onClick={() => handleToggle(menu.id, menu.is_active)}
-                disabled={togglingId === menu.id}
-                title={menu.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-              >
-                {togglingId === menu.id ? (
-                  <RefreshCw size={14} className="animate-spin" />
-                ) : (
-                  menu.is_active ? <XCircle size={14} /> : <CheckCircle2 size={14} />
-                )}
-              </button>
-              <button
-                className="btn btn-xs btn-primary btn-outline"
-                onClick={() => openEditModal(menu)}
-                title="Edit Menu"
-              >
-                <Pencil size={14} />
-              </button>
-              <button
-                className="btn btn-xs btn-error btn-outline"
-                onClick={() => handleDelete(menu.id, menu.name)}
-                title="Hapus Menu"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </td>
-        </tr>
-      );
-
-      if (menu.children && menu.children.length > 0) {
-        rows = rows.concat(renderMenuRows(menu.children, level + 1));
+  // Helper to flatten menu tree for DataTable
+  const flattenMenus = (menuList: Menu[], level = 0): FlattenedMenu[] => {
+    let result: FlattenedMenu[] = [];
+    menuList.forEach(m => {
+      result.push({ ...m, level });
+      if (m.children && m.children.length > 0) {
+        result = result.concat(flattenMenus(m.children, level + 1));
       }
     });
-    return rows;
+    return result;
   };
 
+  const allFlattenedMenus = flattenMenus(menus);
+  
+  const filteredFlattenedMenus = allFlattenedMenus.filter(m => {
+    if (!appliedFilterName) return true;
+    const lowerQ = appliedFilterName.toLowerCase();
+    return m.name.toLowerCase().includes(lowerQ) || (m.url && m.url.toLowerCase().includes(lowerQ));
+  });
+
+  const columns: ColumnDef<FlattenedMenu>[] = [
+    { key: 'name', label: 'Nama Menu', render: (row) => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: `${row.level * 1.5}rem` }}>
+        {row.level > 0 && <span style={{ color: 'var(--gray-400)' }}>↳</span>}
+        <span style={{ fontWeight: row.level === 0 ? 700 : 500, color: row.level === 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+          {row.name}
+        </span>
+      </div>
+    )},
+    { key: 'url', label: 'URL', render: (row) => (
+      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem' }}>
+        {row.url}
+      </code>
+    )},
+    { key: 'icon', label: 'Icon', render: (row) => (
+      <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{row.icon || '-'}</span>
+    )},
+    { key: 'is_active', label: 'Status', render: (row) => (
+      row.is_active ? (
+        <span className="badge badge-green"><CheckCircle2 size={12} style={{ marginRight: '0.25rem' }}/> Aktif</span>
+      ) : (
+        <span className="badge badge-red"><XCircle size={12} style={{ marginRight: '0.25rem' }}/> Nonaktif</span>
+      )
+    )},
+    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <Button
+          variant={row.is_active ? 'outline-danger' : 'outline'}
+          size="sm"
+          icon={togglingId === row.id ? <RefreshCw size={14} className="animate-spin" /> : (row.is_active ? <XCircle size={14} /> : <CheckCircle2 size={14} />)}
+          onClick={() => handleToggle(row.id, row.is_active)}
+          disabled={togglingId === row.id}
+        >
+          {row.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          icon={<Pencil size={14} />}
+          onClick={() => openEditModal(row)}
+        />
+        <Button
+          variant="outline-danger"
+          size="sm"
+          icon={<Trash2 size={14} />}
+          onClick={() => handleDelete(row.id, row.name)}
+        />
+      </div>
+    )},
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <List className="text-primary-600" /> Manajemen Menu
-          </h1>
-          <p className="text-gray-500 mt-1">Mengelola menu navigasi dan status aktif/nonaktifnya.</p>
-        </div>
-        <div className="flex gap-2 items-center">
-          <select
-            className="select max-w-xs"
-            value={selectedModule}
-            onChange={(e) => setSelectedModule(e.target.value)}
-          >
-            {appModules.map(mod => (
-              <option key={mod.id} value={mod.code}>Modul: {mod.name.toUpperCase()}</option>
-            ))}
-          </select>
-          <button className="btn btn-primary btn-outline" onClick={fetchMenus} disabled={loading}>
-            <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button className="btn btn-primary" onClick={openCreateModal}>
-            <Plus size={18} className="mr-2" />
-            Tambah Menu
-          </button>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="card-body p-0">
-          <div className="overflow-x-auto">
-            <table className="table w-full">
-              <thead>
-                <tr>
-                  <th>Nama Menu</th>
-                  <th>URL</th>
-                  <th>Icon</th>
-                  <th>Status</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-500">
-                      Memuat daftar menu...
-                    </td>
-                  </tr>
-                ) : menus.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-500">
-                      Belum ada menu yang terdaftar.
-                    </td>
-                  </tr>
-                ) : (
-                  renderMenuRows(menus)
-                )}
-              </tbody>
-            </table>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      <PageHeader
+        title="Manajemen Menu"
+        description="Mengelola menu navigasi dan status aktif/nonaktifnya untuk setiap modul."
+        action={
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ width: 220 }}>
+              <Select
+                value={appModules.find(m => m.code === selectedModule) ? { value: selectedModule, label: `Modul: ${appModules.find(m => m.code === selectedModule)?.name.toUpperCase()}` } : null}
+                onChange={(v: any) => setSelectedModule(v?.value || 'sso')}
+                options={appModules.map(m => ({ value: m.code, label: `Modul: ${m.name.toUpperCase()}` }))}
+                menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
+              />
+            </div>
+            <Button 
+              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              icon={<Filter size={16} />} 
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+            <Button variant="secondary" icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />} onClick={fetchMenus} disabled={loading}>
+              Refresh
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={openCreateModal}>
+              Tambah Menu
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      
+      <DataTable
+        columns={columns}
+        data={filteredFlattenedMenus}
+        isLoading={loading}
+      />
+
+      {/* Filter Drawer */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Menu"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setFilterName('');
+                setAppliedFilterName('');
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                setAppliedFilterName(filterName);
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <Input 
+            label="Cari Menu"
+            placeholder="Ketik nama atau URL menu..."
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+          />
+        </div>
+      </Drawer>
     </div>
   );
 }

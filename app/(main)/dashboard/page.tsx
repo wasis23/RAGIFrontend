@@ -68,6 +68,25 @@ export default function DashboardPage() {
     roles: [{ role: { name: 'Pengguna SSO Active', slug: 'admin' } }],
   };
 
+  const allowedModules = new Set<string>();
+  let hasSuperAccess = false;
+
+  displayUser.roles?.forEach((r: any) => {
+    const roleSlug = r.slug || r.role?.slug;
+    if (roleSlug === 'admin' || roleSlug === 'superadmin') {
+      hasSuperAccess = true;
+    }
+    const permissions = r.permissions || r.role?.permissions || [];
+    permissions.forEach((p: any) => {
+      const pMod = p.module || p.permission?.module;
+      if (pMod) allowedModules.add(pMod);
+    });
+  });
+
+  const filteredModules = hasSuperAccess
+    ? appModules
+    : appModules.filter(m => allowedModules.has(m.code) || m.code === 'iam'); // 'iam' is the base module
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <PageHeader
@@ -170,7 +189,7 @@ export default function DashboardPage() {
               <GraduationCap size={24} />
             </div>
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>10 Modul</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>{filteredModules.length} Modul</div>
           <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>PDDikti & OBE Compliant</span>
         </div>
       </div>
@@ -185,7 +204,7 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-          {appModules.map((mod) => (
+          {filteredModules.map((mod) => (
             <div key={mod.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div className="card-body" style={{ padding: '1.25rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>

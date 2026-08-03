@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react';
 import { moduleService, AppModule, CreateModulePayload, UpdateModulePayload } from '@/services/module.service';
 import { toast } from 'react-hot-toast';
-import {
-  List,
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-  Plus,
-  Pencil,
-  Trash2
-} from 'lucide-react';
+import { RefreshCw, Plus, Edit2, Trash2, Filter } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { StatusBadge } from '@/components/ui/Badge';
 
 export default function AdminModulePage() {
   const [modules, setModules] = useState<AppModule[]>([]);
@@ -29,6 +30,17 @@ export default function AdminModulePage() {
     is_active: true
   });
   const [editId, setEditId] = useState<number | null>(null);
+
+  // Filter States
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterName, setFilterName] = useState<string>('');
+  const [appliedFilterName, setAppliedFilterName] = useState<string>('');
+
+  const filteredModules = modules.filter(m => {
+    if (!appliedFilterName) return true;
+    const lowerQ = appliedFilterName.toLowerCase();
+    return m.name.toLowerCase().includes(lowerQ) || m.code.toLowerCase().includes(lowerQ);
+  });
 
   const fetchModules = async () => {
     setLoading(true);
@@ -114,190 +126,177 @@ export default function AdminModulePage() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <List className="text-primary-600" /> Master Modul Aplikasi
-          </h1>
-          <p className="text-gray-500 mt-1">Mengelola modul aplikasi kampus yang tersedia di SSO (seperti SSO, SPMB, dll).</p>
-        </div>
-        <div className="flex gap-2 items-center">
-          <button className="btn btn-primary btn-outline" onClick={fetchModules} disabled={loading}>
-            <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button className="btn btn-primary" onClick={openCreateModal}>
-            <Plus size={18} className="mr-2" />
-            Tambah Modul
-          </button>
-        </div>
+  const columns: ColumnDef<AppModule>[] = [
+    { key: 'id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{index + 1}</span> },
+    { key: 'name', label: 'Nama Modul', render: (row) => (
+      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.name}</span>
+    )},
+    { key: 'code', label: 'Kode (Slug)', render: (row) => (
+      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem', fontWeight: 700 }}>
+        {row.code}
+      </code>
+    )},
+    { key: 'description', label: 'Deskripsi', render: (row) => (
+      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+        {row.description || '-'}
+      </span>
+    )},
+    { key: 'is_active', label: 'Status', render: (row) => (
+      <button
+        onClick={() => handleToggle(row.id, row.is_active)}
+        disabled={togglingId === row.id}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        title="Klik untuk mengubah status"
+      >
+        {togglingId === row.id ? (
+          <RefreshCw size={14} className="animate-spin text-gray-500" />
+        ) : (
+          <StatusBadge active={row.is_active} />
+        )}
+      </button>
+    )},
+    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<Edit2 size={14} />}
+          onClick={() => openEditModal(row)}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={<Trash2 size={14} color="var(--danger)" />}
+          onClick={() => handleDelete(row.id, row.name)}
+        />
       </div>
+    )},
+  ];
 
-      <div className="card">
-        <div className="card-body p-0">
-          <div className="overflow-x-auto">
-            <table className="table w-full">
-              <thead>
-                <tr>
-                  <th>Nama Modul</th>
-                  <th>Kode (Slug)</th>
-                  <th>Deskripsi</th>
-                  <th>Status</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-500">
-                      Memuat daftar modul...
-                    </td>
-                  </tr>
-                ) : modules.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-500">
-                      Belum ada modul yang terdaftar.
-                    </td>
-                  </tr>
-                ) : (
-                  modules.map((mod) => (
-                    <tr key={mod.id} className="hover:bg-gray-50/50">
-                      <td className="font-semibold">{mod.name}</td>
-                      <td><code>{mod.code}</code></td>
-                      <td>{mod.description || '-'}</td>
-                      <td>
-                        {mod.is_active ? (
-                          <span className="badge badge-success"><CheckCircle2 size={14} className="mr-1"/> Aktif</span>
-                        ) : (
-                          <span className="badge badge-error"><XCircle size={14} className="mr-1"/> Nonaktif</span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <button
-                            className={`btn btn-xs ${mod.is_active ? 'btn-error' : 'btn-success'}`}
-                            onClick={() => handleToggle(mod.id, mod.is_active)}
-                            disabled={togglingId === mod.id}
-                            title={mod.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                          >
-                            {togglingId === mod.id ? (
-                              <RefreshCw size={14} className="animate-spin" />
-                            ) : (
-                              mod.is_active ? <XCircle size={14} /> : <CheckCircle2 size={14} />
-                            )}
-                          </button>
-                          <button
-                            className="btn btn-xs btn-primary btn-outline"
-                            onClick={() => openEditModal(mod)}
-                            title="Edit Modul"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            className="btn btn-xs btn-error btn-outline"
-                            onClick={() => handleDelete(mod.id, mod.name)}
-                            title="Hapus Modul"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+  return (
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      <PageHeader
+        title="Master Modul Aplikasi"
+        description="Mengelola modul aplikasi yang tersedia di ekosistem kampus (seperti SSO, SPMB, dll)."
+        action={
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button 
+              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              icon={<Filter size={16} />} 
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+            <Button variant="secondary" icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />} onClick={fetchModules} disabled={loading}>
+              Refresh
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={openCreateModal}>
+              Tambah Modul
+            </Button>
           </div>
+        }
+      />
+
+      <DataTable
+        columns={columns}
+        data={filteredModules}
+        isLoading={loading}
+      />
+
+      {/* Filter Drawer */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Modul"
+        footer={
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <Button 
+              variant="secondary" 
+              onClick={() => {
+                setFilterName('');
+                setAppliedFilterName('');
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={() => {
+                setAppliedFilterName(filterName);
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <Input 
+            label="Cari Modul"
+            placeholder="Ketik nama atau kode modul..."
+            value={filterName}
+            onChange={(e) => setFilterName(e.target.value)}
+          />
         </div>
-      </div>
+      </Drawer>
 
       {/* Modal CRUD Module */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="card bg-white w-full max-w-2xl shadow-xl">
-            <form onSubmit={handleFormSubmit}>
-              <div className="card-body">
-                <h3 className="text-lg font-bold mb-4">
-                  {modalMode === 'create' ? 'Tambah Modul Baru' : 'Edit Modul'}
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="form-control">
-                    <label className="label">Nama Modul</label>
-                    <input 
-                      type="text" 
-                      className="input" 
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="Contoh: Sistem Akademik"
-                    />
-                  </div>
-                  
-                  <div className="form-control">
-                    <label className="label">Kode Modul (Slug)</label>
-                    <input 
-                      type="text" 
-                      className="input" 
-                      required
-                      value={formData.code}
-                      onChange={(e) => setFormData({...formData, code: e.target.value.toLowerCase()})}
-                      placeholder="Contoh: siakad"
-                    />
-                    <span className="text-xs text-gray-400 mt-1">Harus unik dan huruf kecil semua tanpa spasi (misal: sso, spmb).</span>
-                  </div>
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={modalMode === 'create' ? 'Tambah Modul Baru' : 'Edit Modul'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Batal</Button>
+            <Button variant="primary" onClick={handleFormSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <><RefreshCw size={16} className="animate-spin mr-2 inline" /> Menyimpan...</>
+              ) : (
+                modalMode === 'create' ? 'Tambah Modul' : 'Simpan Modul'
+              )}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nama Modul"
+            required
+            placeholder="Contoh: Sistem Akademik"
+            value={formData.name}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+          />
+          
+          <Input
+            label="Kode Modul (Slug)"
+            required
+            placeholder="Contoh: siakad"
+            hint="Harus unik, huruf kecil, tanpa spasi"
+            value={formData.code}
+            onChange={(e) => setFormData({...formData, code: e.target.value.toLowerCase()})}
+          />
 
-                  <div className="form-control col-span-1 md:col-span-2">
-                    <label className="label">Deskripsi Modul</label>
-                    <textarea 
-                      className="input py-2" 
-                      rows={3}
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      placeholder="Penjelasan singkat modul ini..."
-                    />
-                  </div>
-
-                  <div className="form-control flex-row items-center gap-3 mt-4 col-span-1 md:col-span-2">
-                    <input 
-                      type="checkbox" 
-                      id="is_active"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-600"
-                    />
-                    <label htmlFor="is_active" className="cursor-pointer font-medium text-gray-700">Langsung Aktifkan Modul</label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 mt-8">
-                  <button 
-                    type="button" 
-                    className="btn btn-ghost" 
-                    onClick={() => setIsModalOpen(false)}
-                    disabled={isSubmitting}
-                  >
-                    Batal
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <><RefreshCw size={16} className="animate-spin mr-2" /> Menyimpan...</>
-                    ) : (
-                      'Simpan Modul'
-                    )}
-                  </button>
-                </div>
-              </div>
-            </form>
+          <div className="col-span-1 md:col-span-2">
+            <Textarea
+              label="Deskripsi Modul"
+              rows={3}
+              placeholder="Penjelasan singkat kegunaan modul ini..."
+              value={formData.description || ''}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
           </div>
-        </div>
-      )}
+
+          <div className="col-span-1 md:col-span-2 mt-2">
+            <Checkbox
+              label="Langsung Aktifkan Modul"
+              checked={formData.is_active}
+              onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
