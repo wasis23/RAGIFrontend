@@ -1,6 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
+  
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  
+  --color-sippm-50: var(--sippm-50);
+  --color-sippm-100: var(--sippm-100);
+  --color-sippm-200: var(--sippm-200);
+  --color-sippm-300: var(--sippm-300);
+  --color-sippm-400: var(--sippm-400);
+  --color-sippm-500: var(--sippm-500);
+  --color-sippm-600: var(--sippm-600);
+  --color-sippm-700: var(--sippm-700);
+  --color-sippm-800: var(--sippm-800);
+  --color-sippm-900: var(--sippm-900);
+}
+
 /* ============================================================
    DESIGN TOKENS — SSO Campus
    ============================================================ */

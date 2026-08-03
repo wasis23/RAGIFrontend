@@ -79,18 +79,28 @@ export function Sidebar() {
 
   // Determine module based on pathname or hostname
   const getModule = () => {
-    if (pathname.startsWith('/simpeg')) return 'simpeg';
-    if (pathname.startsWith('/sippm')) return 'sippm';
-    if (pathname.startsWith('/sikeu')) return 'sikeu';
-    if (pathname.startsWith('/spmb')) return 'spmb';
-    if (typeof window !== 'undefined') {
+    let mod = 'sso';
+    if (pathname.startsWith('/simpeg')) mod = 'simpeg';
+    else if (pathname.startsWith('/sippm')) mod = 'sippm';
+    else if (pathname.startsWith('/sikeu')) mod = 'sikeu';
+    else if (pathname.startsWith('/spmb')) mod = 'spmb';
+    else if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname.startsWith('spmb.')) return 'spmb';
-      if (hostname.startsWith('simpeg.')) return 'simpeg';
-      if (hostname.startsWith('sippm.')) return 'sippm';
-      if (hostname.startsWith('sikeu.')) return 'sikeu';
+      if (hostname.startsWith('spmb.')) mod = 'spmb';
+      else if (hostname.startsWith('simpeg.')) mod = 'simpeg';
+      else if (hostname.startsWith('sippm.')) mod = 'sippm';
+      else if (hostname.startsWith('sikeu.')) mod = 'sikeu';
     }
-    return 'sso';
+
+    if (typeof window !== 'undefined') {
+      if (pathname.startsWith('/profile')) {
+        const savedMod = localStorage.getItem('last_active_module');
+        if (savedMod) return savedMod;
+      } else {
+        localStorage.setItem('last_active_module', mod);
+      }
+    }
+    return mod;
   };
 
   useEffect(() => {
@@ -215,7 +225,7 @@ export function Sidebar() {
           {sidebar_open && <div className="sidebar-section-label">Akun & Keamanan</div>}
           <Link
             href="/profile"
-            className={`sidebar-item ${isMainActive('/profile') && !isMainActive('/profile/') ? 'active' : ''}`}
+            className={`sidebar-item ${pathname === '/profile' ? 'active' : ''}`}
             title="Profil Saya"
           >
             <User className="sidebar-item-icon" />

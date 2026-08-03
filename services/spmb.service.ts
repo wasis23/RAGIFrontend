@@ -1,4 +1,4 @@
-import api from './api';
+import api from '@/lib/axios';
 
 export interface JalurMasuk {
   id: number;
@@ -41,6 +41,26 @@ export interface PendaftaranCalonMhs {
   tanggal_lahir: string;
   tempat_lahir: string;
   jenis_kelamin: 'L' | 'P';
+  agama?: string;
+  kewarganegaraan?: string;
+  no_hp?: string;
+  alamat?: string;
+  provinsi?: string;
+  kota_kabupaten?: string;
+  kecamatan?: string;
+  kode_pos?: string;
+  asal_sekolah?: string;
+  jurusan_sekolah?: string;
+  nilai_rata_rapor?: number;
+  tahun_lulus?: string;
+  npsn_sekolah?: string;
+  nama_ayah?: string;
+  pekerjaan_ayah?: string;
+  nama_ibu?: string;
+  pekerjaan_ibu?: string;
+  penghasilan_ortu?: string;
+  nama_wali?: string;
+  telepon_wali?: string;
   status: 'draft' | 'submitted' | 'verified' | 'lulus_administrasi' | 'gagal_administrasi';
   gelombang_penerimaan?: GelombangPenerimaan;
 }
@@ -51,6 +71,21 @@ export const spmbService = {
     const response = await api.get('/spmb/jalur-masuk');
     return response.data;
   },
+
+  createJalurMasuk: async (data: Partial<JalurMasuk>) => {
+    const response = await api.post('/spmb/jalur-masuk', data);
+    return response.data;
+  },
+
+  updateJalurMasuk: async (id: number, data: Partial<JalurMasuk>) => {
+    const response = await api.put(`/spmb/jalur-masuk/${id}`, data);
+    return response.data;
+  },
+
+  deleteJalurMasuk: async (id: number) => {
+    const response = await api.delete(`/spmb/jalur-masuk/${id}`);
+    return response.data;
+  },
   
   getGelombang: async () => {
     const response = await api.get('/spmb/gelombang');
@@ -59,6 +94,16 @@ export const spmbService = {
 
   createGelombang: async (data: Partial<GelombangPenerimaan>) => {
     const response = await api.post('/spmb/gelombang', data);
+    return response.data;
+  },
+
+  updateGelombang: async (id: number, data: Partial<GelombangPenerimaan>) => {
+    const response = await api.put(`/spmb/gelombang/${id}`, data);
+    return response.data;
+  },
+
+  deleteGelombang: async (id: number) => {
+    const response = await api.delete(`/spmb/gelombang/${id}`);
     return response.data;
   },
 
@@ -75,6 +120,15 @@ export const spmbService = {
 
   finalizePendaftaran: async () => {
     const response = await api.post('/spmb/pendaftaran/finalize');
+    return response.data;
+  },
+
+  uploadBerkas: async (data: FormData) => {
+    const response = await api.post('/spmb/pendaftaran/berkas', data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 
