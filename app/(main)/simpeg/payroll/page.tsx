@@ -111,7 +111,10 @@ export default function PayrollPage() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Daftar Slip Gaji ({payrollList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <a href="/sikeu/akuntansi/jurnal" className="btn btn-outline btn-sm" style={{ color: '#4f46e5', borderColor: '#4f46e5' }}>
+            Lihat Jurnal SIKEU &rarr;
+          </a>
           <button onClick={loadPayroll} className="btn btn-outline btn-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>

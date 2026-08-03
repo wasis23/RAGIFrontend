@@ -45,6 +45,23 @@ export const ROUTES = {
   SIMPEG_UNIT_KERJA: '/simpeg/unit-kerja',
   SIMPEG_JABATAN: '/simpeg/jabatan',
   SIMPEG_PEGAWAI: '/simpeg/pegawai',
+
+  // SIKEU Modul
+  SIKEU_DASHBOARD: '/sikeu',
+  SIKEU_TAGIHAN: '/sikeu/tagihan',
+  SIKEU_PEMBAYARAN: '/sikeu/pembayaran',
+  SIKEU_DISPENSASI: '/sikeu/dispensasi',
+  SIKEU_APPROVAL: '/sikeu/approval',
+  SIKEU_PEMASUKAN: '/sikeu/pemasukan',
+  SIKEU_PENGELUARAN: '/sikeu/pengeluaran',
+  SIKEU_UNIT_KAS: '/sikeu/unit-kas',
+  SIKEU_PENCAIRAN: '/sikeu/pencairan',
+  SIKEU_COA: '/sikeu/akuntansi/coa',
+  SIKEU_JURNAL: '/sikeu/akuntansi/jurnal',
+  SIKEU_BUKU_BESAR: '/sikeu/akuntansi/buku-besar',
+  SIKEU_LAPORAN: '/sikeu/akuntansi/laporan',
+  SIKEU_PAJAK: '/sikeu/pajak',
+  SIKEU_MASTER: '/sikeu/master',
 } as const;
 
 // ============================================================

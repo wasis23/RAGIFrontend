@@ -114,12 +114,14 @@ export default function PencairanPage() {
             Lihat berkas fisik Surat Perjanjian Kerja (SPK) resmi, pengajuan pencairan Termin 1 (70%) & Termin 2 (30%), serta LPJ.
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none shadow-sm font-bold flex items-center gap-1.5"
-        >
-          <Plus size={18} /> Pengajuan Pencairan Dana
-        </button>
+        <div className="flex items-center gap-2">
+          <a href="/sikeu/pemasukan" className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-sm font-bold transition flex items-center gap-1.5">
+            Lihat Pemasukan SIKEU &rarr;
+          </a>
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none shadow-sm font-bold">
+            <Plus size={18} /> Pengajuan Pencairan Dana
+          </button>
+        </div>
       </div>
 
       {feedback && (

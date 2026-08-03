@@ -81,12 +81,14 @@ export function Sidebar() {
   const getModule = () => {
     if (pathname.startsWith('/simpeg')) return 'simpeg';
     if (pathname.startsWith('/sippm')) return 'sippm';
+    if (pathname.startsWith('/sikeu')) return 'sikeu';
     if (pathname.startsWith('/spmb')) return 'spmb';
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       if (hostname.startsWith('spmb.')) return 'spmb';
       if (hostname.startsWith('simpeg.')) return 'simpeg';
       if (hostname.startsWith('sippm.')) return 'sippm';
+      if (hostname.startsWith('sikeu.')) return 'sikeu';
     }
     return 'sso';
   };
