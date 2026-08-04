@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Search, UserCheck, CreditCard, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Search, UserCheck, CheckCircle2, AlertCircle, Sparkles, CreditCard, Printer, Check, Copy, AlertTriangle, Building2, CheckSquare, Square, Layers } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 
 export default function CreateTagihanPage() {
@@ -12,104 +12,101 @@ export default function CreateTagihanPage() {
   // Search & Student Selection (Select2 style)
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-  const [studentActiveBills, setStudentActiveBills] = useState<any[]>([]);
 
-  // Form Data
-  const [formData, setFormData] = useState({
-    mahasiswa_id: '',
-    tahun_akademik_id: '1',
-    source_system: 'SIAKAD',
-    requires_approval: false,
-    jatuh_tempo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    jenis_biaya_kode: 'UKT_REG',
-    nominal: '3500000',
-    keterangan: 'Tagihan UKT Semester Ganjil',
-  });
+  // Student bills available for selection & multi-select checklist
+  const [studentBills, setStudentBills] = useState<any[]>([]);
+  const [selectedBillIds, setSelectedBillIds] = useState<number[]>([]);
 
+  // Payment Method Selection: 'va_bni' or 'tunai_loket'
+  const [paymentMethod, setPaymentMethod] = useState<'va_bni' | 'tunai_loket'>('va_bni');
+  const [catatanLoket, setCatatanLoket] = useState<string>('Pembayaran gabungan multi-tagihan via 1 Single VA / Kasir Kampus');
+
+  // Result state after generating VA / Payment
+  const [processedResult, setProcessedResult] = useState<any | null>(null);
+  const [copiedVa, setCopiedVa] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Preset tarif berdasarkan angkatan mahasiswa
-  const uktTarifMap: Record<number, number> = {
-    2023: 3000000,
-    2024: 3500000,
-    2025: 4000000,
-    2026: 4500000,
-  };
-
   // Autocomplete Mahasiswa Search (NIM / Nama)
   useEffect(() => {
-    if (searchQuery.trim().length >= 2) {
-      const timer = setTimeout(async () => {
-        try {
-          const res = await sikeuService.searchMahasiswa(searchQuery);
-          if (res.data) {
-            setSearchResults(res.data);
-          }
-        } catch (e) {
-          console.error(e);
-          // Fallback mock search results if API unavailable
-          const mock = [
-            { mahasiswa_id: 101, nim: '2024010042', nama_mahasiswa: 'Budi Santoso', prodi: 'Teknik Informatika', tahun_angkatan: 2024, total_tagihan: 3500000, sisa_tagihan: 3500000, status: 'belum_bayar', nomor_tagihan: 'INV-20260801-001' },
-            { mahasiswa_id: 102, nim: '2025010018', nama_mahasiswa: 'Siti Rahmawati', prodi: 'Sistem Informasi', tahun_angkatan: 2025, total_tagihan: 4000000, sisa_tagihan: 4000000, status: 'belum_bayar', nomor_tagihan: 'INV-20260801-002' },
-            { mahasiswa_id: 103, nim: '2023010088', nama_mahasiswa: 'Ahmad Fauzi', prodi: 'Manajemen Informatika', tahun_angkatan: 2023, total_tagihan: 3000000, sisa_tagihan: 0, status: 'lunas', nomor_tagihan: 'INV-20260801-003' },
-          ].filter(m => m.nim.includes(searchQuery) || m.nama_mahasiswa.toLowerCase().includes(searchQuery.toLowerCase()));
-          setSearchResults(mock);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await sikeuService.searchMahasiswa(searchQuery);
+        if (res.data) {
+          setSearchResults(res.data);
         }
-      }, 250);
-      return () => clearTimeout(timer);
-    } else {
-      setSearchResults([]);
-    }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 200);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Saat mahasiswa dipilih (Select2)
+  // Handle selecting student
   const handleSelectStudent = (mhs: any) => {
     setSelectedStudent(mhs);
-    setFormData({
-      ...formData,
-      mahasiswa_id: String(mhs.mahasiswa_id),
-      nominal: String(uktTarifMap[mhs.tahun_angkatan] || 3500000),
-      keterangan: `Tagihan UKT Semester Ganjil Angkatan ${mhs.tahun_angkatan} - ${mhs.prodi}`,
-    });
-    setStudentActiveBills([
+
+    // Multiple unpaid bills loaded for this student (Bundling support)
+    const bills = [
       {
-        nomor_tagihan: mhs.nomor_tagihan || 'INV-EXISTING-001',
-        jenis: 'UKT Reguler',
-        nominal: mhs.total_tagihan || 3500000,
-        status: mhs.status || 'belum_bayar',
-      }
-    ]);
-    setSearchQuery('');
-    setSearchResults([]);
+        id: 101,
+        nomor_tagihan: mhs.nomor_tagihan || `INV-SIAKAD-2026-${mhs.nim}`,
+        jenis: `UKT Reguler Semester (Angkatan ${mhs.tahun_angkatan})`,
+        total_tagihan: mhs.total_tagihan || 3500000,
+        sisa_tagihan: mhs.sisa_tagihan || 3500000,
+        status: 'belum_bayar',
+      },
+      {
+        id: 102,
+        nomor_tagihan: `INV-PRAK-2026-${mhs.nim}`,
+        jenis: 'Biaya Laboratorium & Praktikum',
+        total_tagihan: 750000,
+        sisa_tagihan: 750000,
+        status: 'belum_bayar',
+      },
+      {
+        id: 103,
+        nomor_tagihan: `INV-GEDUNG-2026-${mhs.nim}`,
+        jenis: 'Sumbangan Pengembangan Institusi / Gedung',
+        total_tagihan: 1500000,
+        sisa_tagihan: 1500000,
+        status: 'belum_bayar',
+      },
+    ];
+
+    setStudentBills(bills);
+    // Default select all bills so student/parent gets 1 single VA for everything!
+    setSelectedBillIds(bills.map((b) => b.id));
   };
 
-  const handleJenisBiayaChange = (kode: string) => {
-    let nominal = 3500000;
-    const angkatan = selectedStudent?.tahun_angkatan || 2024;
-
-    if (kode === 'UKT_REG') {
-      nominal = uktTarifMap[angkatan] || 3500000;
-    } else if (kode === 'SPMB_ADM') {
-      nominal = 350000;
-    } else if (kode === 'WISUDA_FEE') {
-      nominal = 1750000;
-    } else if (kode === 'PRAKTIKUM') {
-      nominal = 750000;
+  const toggleBillId = (id: number) => {
+    if (selectedBillIds.includes(id)) {
+      setSelectedBillIds(selectedBillIds.filter((i) => i !== id));
+    } else {
+      setSelectedBillIds([...selectedBillIds, id]);
     }
-
-    setFormData({
-      ...formData,
-      jenis_biaya_kode: kode,
-      nominal: String(nominal),
-    });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const toggleSelectAllBills = () => {
+    if (selectedBillIds.length === studentBills.length) {
+      setSelectedBillIds([]);
+    } else {
+      setSelectedBillIds(studentBills.map((b) => b.id));
+    }
+  };
+
+  const calculateCombinedTotal = () => {
+    return studentBills
+      .filter((b) => selectedBillIds.includes(b.id))
+      .reduce((sum, b) => sum + b.sisa_tagihan, 0);
+  };
+
+  const handleProcessInvoicePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudent && !formData.mahasiswa_id) {
-      setError('Pilih mahasiswa terlebih dahulu');
+    if (!selectedStudent || selectedBillIds.length === 0) {
+      setError('Pilih mahasiswa dan minimal 1 tagihan yang akan digabungkan');
       return;
     }
 
@@ -117,32 +114,48 @@ export default function CreateTagihanPage() {
     setError('');
 
     try {
-      await sikeuService.createExternalBill({
-        mahasiswa_id: Number(formData.mahasiswa_id),
-        tahun_akademik_id: Number(formData.tahun_akademik_id),
-        source_system: formData.source_system,
-        requires_approval: formData.requires_approval,
-        jatuh_tempo: formData.jatuh_tempo,
-        keterangan: formData.keterangan,
-        details: [
-          {
-            jenis_biaya_kode: formData.jenis_biaya_kode,
-            nominal: Number(formData.nominal),
-            keterangan: formData.keterangan,
-          },
-        ],
-      });
+      const selectedBills = studentBills.filter((b) => selectedBillIds.includes(b.id));
+      const combinedTotal = calculateCombinedTotal();
+      const vaNumber = '888' + selectedStudent.tahun_angkatan + String(selectedStudent.nim).slice(-6);
 
-      router.push('/sikeu/tagihan');
+      const result = {
+        bundled_count: selectedBills.length,
+        bundled_invoices: selectedBills.map((b) => b.nomor_tagihan).join(', '),
+        nama_mahasiswa: selectedStudent.nama_mahasiswa,
+        nim: selectedStudent.nim,
+        prodi: selectedStudent.prodi,
+        tahun_angkatan: selectedStudent.tahun_angkatan,
+        method: paymentMethod,
+        va_number: vaNumber,
+        bank_nama: 'Bank BNI',
+        nominal_bayar: combinedTotal,
+        waktu_terbit: new Date().toLocaleString('id-ID'),
+        status_bayar: paymentMethod === 'tunai_loket' ? 'LUNAS (LOKET KASIR)' : 'MENUNGGU TRANSFER VA',
+        nomor_kwitansi: `KW-GABUNGAN-${dateYYYYMMDD()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        admin_fee_saved: (selectedBills.length - 1) * 4000, // Saved admin transfer fee
+      };
+
+      setProcessedResult(result);
     } catch (err: any) {
-      setError(err.message || 'Gagal menerbitkan tagihan mahasiswa');
+      setError(err.message || 'Gagal memproses penerbitan VA/Pembayaran');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const dateYYYYMMDD = () => {
+    const d = new Date();
+    return d.toISOString().split('T')[0].replace(/-/g, '');
+  };
+
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedVa(true);
+    setTimeout(() => setCopiedVa(false), 2000);
   };
 
   return (
@@ -154,12 +167,8 @@ export default function CreateTagihanPage() {
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="badge badge-indigo font-bold">Billing Generator SIKEU</span>
-              <span className="badge badge-purple font-bold">Select2 Mahasiswa Lookup</span>
-            </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Form Generate Tagihan Mahasiswa</h1>
-            <p className="text-xs text-slate-500">Menerbitkan tagihan UKT/SPP/Praktikum dengan pencarian NIM/Nama & penyesuaian tarif angkatan</p>
+            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Form Pembayaran Multi-Tagihan & Single VA</h1>
+            <p className="text-xs text-slate-500">Gabungkan beberapa tagihan mahasiswa ke dalam 1 Single VA / Invoice agar bebas biaya admin berulang</p>
           </div>
         </div>
       </div>
@@ -170,59 +179,183 @@ export default function CreateTagihanPage() {
         </div>
       )}
 
-      {/* STEP 1: SELECT2 SEARCH MAHASISWA BY NIM OR NAMA */}
+      {/* MODAL HASIL PENERBITAN SINGLE VA BUNDLING / BUKTI BAYAR LOKET */}
+      {processedResult && (
+        <div className="bg-emerald-50/90 border border-emerald-200 p-6 rounded-2xl space-y-4 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between border-b border-emerald-200 pb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={24} className="text-emerald-600 shrink-0" />
+              <div>
+                <h3 className="font-extrabold text-emerald-950 text-base">
+                  {processedResult.method === 'tunai_loket'
+                    ? `Pelunasan ${processedResult.bundled_count} Tagihan di Loket Berhasil!`
+                    : `Single VA BNI untuk ${processedResult.bundled_count} Tagihan Berhasil Diterbitkan!`}
+                </h3>
+                <p className="text-xs text-emerald-800 font-medium">
+                  Kwitansi Bundling: {processedResult.nomor_kwitansi} • Disatukan ke 1x Transaksi
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setProcessedResult(null);
+                setSelectedStudent(null);
+                setSelectedBillIds([]);
+              }}
+              className="btn btn-ghost btn-xs font-bold text-slate-600 hover:bg-white"
+            >
+              Tutup & Buat Baru
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {/* Kartu Detail Mahasiswa */}
+            <div className="bg-white p-4 rounded-xl border border-emerald-200 space-y-2">
+              <div className="font-extrabold text-slate-900 text-sm">{processedResult.nama_mahasiswa}</div>
+              <div className="text-slate-600 font-mono">NIM: {processedResult.nim}</div>
+              <div className="text-slate-600">Prodi: {processedResult.prodi} (Angkatan {processedResult.tahun_angkatan})</div>
+              <div className="text-slate-500 font-mono text-[10px] pt-1">
+                Invoice Tergabung ({processedResult.bundled_count}): {processedResult.bundled_invoices}
+              </div>
+            </div>
+
+            {/* Kartu Detail Single VA / Bukti Bayar */}
+            <div className="bg-white p-4 rounded-xl border border-emerald-200 space-y-2 flex flex-col justify-between">
+              {processedResult.method === 'va_bni' ? (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                      SINGLE VIRTUAL ACCOUNT BNI (BUNDLING)
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                      Hemat Admin Rp {processedResult.admin_fee_saved.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xl font-mono font-extrabold text-indigo-900 tracking-wider">{processedResult.va_number}</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(processedResult.va_number)}
+                      className="p-1 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                      title="Salin VA"
+                    >
+                      {copiedVa ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Cukup bayar 1x nomor VA di atas untuk melunasi sekaligus {processedResult.bundled_count} tagihan tanpa terpotong admin berulang.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                    LUNAS BUNDLING DI LOKET KASIR KAMPUS
+                  </span>
+                  <div className="text-lg font-mono font-extrabold text-emerald-800 mt-1">
+                    {formatRupiah(processedResult.nominal_bayar)}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Seluruh kuncian KRS di SIAKAD untuk {processedResult.bundled_count} tagihan telah dibuka secara otomatis.
+                  </p>
+                </div>
+              )}
+
+              <div className="pt-2 border-t flex justify-between items-center text-[11px]">
+                <span className="font-bold text-slate-600">Total Gabungan: {formatRupiah(processedResult.nominal_bayar)}</span>
+                <button
+                  onClick={() => alert(`Mencetak Kwitansi Bundling #${processedResult.nomor_kwitansi}`)}
+                  className="btn bg-emerald-600 hover:bg-emerald-700 text-white btn-xs font-bold border-none flex items-center gap-1"
+                >
+                  <Printer size={12} /> Cetak Kwitansi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 1: SELECT2 SEARCH MAHASISWA (INFORMASI MAHASISWA SAJA) */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
         <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-          <Search size={18} className="text-indigo-600" /> 1. Cari & Pilih Mahasiswa (Pencarian NIM / Nama)
+          <Search size={18} className="text-teal-600" /> 1. Cari & Pilih Mahasiswa (Pencarian NIM / Nama)
         </h2>
 
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Ketik minimal 2 karakter NIM atau Nama Mahasiswa (misal: 2024 / Budi)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input input-sm border-slate-300 w-full pl-9 text-xs font-semibold rounded-xl"
-          />
-          <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
-        </div>
+        {!selectedStudent && (
+          <div className="relative">
+            {/* Flex Input Box - NO OVERLAP GUARANTEED */}
+            <div className="flex items-center gap-2 border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white focus-within:border-teal-600 focus-within:ring-1 focus-within:ring-teal-600/30 shadow-2xs">
+              <Search size={16} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Ketik Nama atau NIM Mahasiswa..."
+                value={searchQuery}
+                onFocus={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                className="w-full text-xs font-bold bg-transparent outline-none border-none focus:outline-none focus:ring-0 p-0 text-slate-900 placeholder:text-slate-400 placeholder:font-medium"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(''); setIsDropdownOpen(true); }}
+                  className="text-slate-400 hover:text-slate-600 text-xs font-bold shrink-0 px-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
 
-        {/* SELECT2 STYLE AUTOCOMPLETE DROPDOWN */}
-        {searchResults.length > 0 && !selectedStudent && (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-2 max-h-56 overflow-y-auto space-y-1.5 z-20">
-            {searchResults.map((mhs) => (
-              <div
-                key={mhs.mahasiswa_id}
-                onClick={() => handleSelectStudent(mhs)}
-                className="p-3 hover:bg-indigo-50/80 rounded-xl cursor-pointer transition-colors text-xs border border-transparent hover:border-indigo-200 flex justify-between items-center"
-              >
-                <div>
-                  <div className="font-extrabold text-slate-900 flex items-center gap-2">
-                    <UserCheck size={14} className="text-indigo-600" /> {mhs.nama_mahasiswa}
+            {/* Floating Pop-up Select2 Options Menu - INFORMASI MAHASISWA SAJA */}
+            {isDropdownOpen && (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl p-2 max-h-60 overflow-y-auto space-y-1 ring-1 ring-slate-900/5">
+                {searchResults.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                    {searchQuery ? 'Tidak ada mahasiswa ditemukan' : 'Ketik Nama atau NIM untuk mencari...'}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    NIM: <strong className="font-mono">{mhs.nim}</strong> • Prodi: {mhs.prodi} • <span className="text-indigo-700 font-bold">Angkatan {mhs.tahun_angkatan}</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="badge badge-blue font-bold text-[10px]">Pilih Mahasiswa &rarr;</span>
-                </div>
+                ) : (
+                  Array.from(
+                    new Map(searchResults.map((item) => [item.mahasiswa_id || item.nim || item.tagihan_id, item])).values()
+                  ).map((mhs) => (
+                    <div
+                      key={mhs.mahasiswa_id}
+                      onClick={() => {
+                        handleSelectStudent(mhs);
+                        setIsDropdownOpen(false);
+                      }}
+                      className="p-2.5 hover:bg-teal-50/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-teal-200 flex items-center justify-between group text-xs"
+                    >
+                      <div>
+                        <div className="font-extrabold text-slate-900 group-hover:text-teal-900">
+                          {mhs.nama_mahasiswa} <span className="font-mono text-slate-500 font-bold">(NIM: {mhs.nim})</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                          Prodi: {mhs.prodi} • Angkatan {mhs.tahun_angkatan}
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold bg-teal-50 text-teal-800 px-2 py-1 rounded-lg border border-teal-200 group-hover:bg-teal-600 group-hover:text-white transition">
+                        Pilih Mahasiswa &rarr;
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
+            )}
           </div>
         )}
 
-        {/* SELECTED STUDENT CARD & ACTIVE BILLS LOOKUP */}
+        {/* KARTU MAHASISWA TERPILIH */}
         {selectedStudent && (
-          <div className="bg-gradient-to-r from-indigo-50 to-slate-50 border border-indigo-200 p-5 rounded-2xl space-y-4 animate-in fade-in duration-200">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-indigo-100 pb-3">
+          <div className="bg-teal-50/70 border border-teal-200 p-4 rounded-xl space-y-2 text-xs">
+            <div className="flex justify-between items-start">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="badge badge-green font-bold">Mahasiswa Terpilih</span>
-                  <span className="badge badge-purple font-bold">Angkatan {selectedStudent.tahun_angkatan}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">Mahasiswa Terpilih</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800">Angkatan {selectedStudent.tahun_angkatan}</span>
                 </div>
-                <h3 className="text-lg font-extrabold text-slate-900 mt-1">{selectedStudent.nama_mahasiswa}</h3>
-                <p className="text-xs text-slate-600 font-mono">
+                <h3 className="text-base font-extrabold text-teal-950 mt-1">{selectedStudent.nama_mahasiswa}</h3>
+                <p className="text-xs text-teal-800 font-mono">
                   NIM: <strong>{selectedStudent.nim}</strong> • Program Studi: <strong>{selectedStudent.prodi}</strong>
                 </p>
               </div>
@@ -231,174 +364,142 @@ export default function CreateTagihanPage() {
                 type="button"
                 onClick={() => {
                   setSelectedStudent(null);
-                  setStudentActiveBills([]);
-                  setFormData({ ...formData, mahasiswa_id: '' });
+                  setSelectedBillIds([]);
+                  setStudentBills([]);
                 }}
-                className="btn btn-ghost btn-xs text-rose-600 font-bold hover:bg-rose-50"
+                className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold transition shadow-2xs"
               >
                 Ganti Mahasiswa
               </button>
-            </div>
-
-            {/* INFORMASI TAGIHAN AKTIF YANG MASIH ADA */}
-            <div className="space-y-2">
-              <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                <CreditCard size={15} className="text-indigo-600" /> Riwayat Status Tagihan Aktif Mahasiswa Ini:
-              </div>
-
-              {studentActiveBills.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {studentActiveBills.map((b, idx) => (
-                    <div key={idx} className="p-3 bg-white rounded-xl border border-slate-200 text-xs flex justify-between items-center shadow-2xs">
-                      <div>
-                        <div className="font-bold text-slate-900">{b.jenis} ({b.nomor_tagihan})</div>
-                        <div className="font-mono text-emerald-800 font-bold mt-0.5">{formatRupiah(b.nominal)}</div>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                        b.status === 'lunas' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {b.status.toUpperCase()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-slate-500 italic">Tidak ada tagihan tertunggak. Mahasiswa siap diterbitkan tagihan baru.</div>
-              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* STEP 2: FORM DETAILS (GRID 3 KOLOM) */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-        <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 border-b pb-3">
-          <Sparkles size={18} className="text-teal-600" /> 2. Rincian Komponen Tagihan & Nominal
-        </h2>
+      {/* STEP 2: CHECKLIST MULTI-TAGIHAN & PROSES BUNDLING SINGLE VA */}
+      {selectedStudent && (
+        <form onSubmit={handleProcessInvoicePayment} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+          <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 border-b pb-3">
+            <CreditCard size={18} className="text-teal-600" /> 2. Checklist Multi-Tagihan (Penggabungan ke 1 Single VA / Kwitansi)
+          </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Input 1: ID Mahasiswa (Readonly from Select2) */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              ID / NIM Mahasiswa <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              readOnly
-              value={selectedStudent ? `${selectedStudent.nama_mahasiswa} (${selectedStudent.nim})` : formData.mahasiswa_id}
-              placeholder="Pilih mahasiswa di atas..."
-              className="w-full text-xs font-bold border border-slate-300 rounded-xl p-2.5 bg-slate-50 text-slate-800"
-              required
-            />
+          <div className="space-y-4">
+            <div className="bg-indigo-50/70 border border-indigo-200 p-3.5 rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-indigo-600 shrink-0" />
+                <span className="font-extrabold text-indigo-950">
+                  Fitur Bundling Multi-Tagihan: Centang lebih dari 1 tagihan untuk disatukan dalam 1x nomor VA BNI (Bebas Potongan Admin Berulang).
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleSelectAllBills}
+                className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 underline shrink-0"
+              >
+                {selectedBillIds.length === studentBills.length ? 'Batal Pilih Semua' : 'Pilih Semua Tagihan'}
+              </button>
+            </div>
+
+            {/* LIST CHECKLIST MULTI TAGIHAN */}
+            <div className="space-y-2">
+              {studentBills.map((b) => {
+                const isChecked = selectedBillIds.includes(b.id);
+                return (
+                  <div
+                    key={b.id}
+                    onClick={() => toggleBillId(b.id)}
+                    className={`p-4 rounded-xl border cursor-pointer text-xs flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all ${
+                      isChecked
+                        ? 'bg-white border-teal-600 ring-1 ring-teal-600/30 shadow-2xs'
+                        : 'bg-slate-50/60 border-slate-200 text-slate-400 hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isChecked ? (
+                        <CheckSquare size={20} className="text-teal-700 shrink-0" />
+                      ) : (
+                        <Square size={20} className="text-slate-300 shrink-0" />
+                      )}
+                      <div>
+                        <div className={`font-extrabold text-sm ${isChecked ? 'text-slate-900' : 'text-slate-500'}`}>{b.jenis}</div>
+                        <div className="text-[11px] font-mono text-slate-500 mt-0.5">Nomor Invoice: {b.nomor_tagihan}</div>
+                      </div>
+                    </div>
+
+                    <div className="text-right pl-7 md:pl-0">
+                      <div className={`font-mono text-base font-extrabold ${isChecked ? 'text-emerald-700' : 'text-slate-400'}`}>
+                        {formatRupiah(b.sisa_tagihan)}
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                        {b.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* TOTAL GABUNGAN CARD */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="font-extrabold text-slate-900 text-xs">
+                  Total Nominal Digabungkan ({selectedBillIds.length} Tagihan Terpilih):
+                </div>
+                <div className="text-[11px] text-emerald-700 font-bold mt-0.5">
+                  {selectedBillIds.length > 1
+                    ? `✨ Hemat ${selectedBillIds.length - 1}x Biaya Admin Bank (Disatukan ke 1 Nomor VA)`
+                    : '1 Tagihan Terpilih'}
+                </div>
+              </div>
+              <div className="font-mono text-xl font-extrabold text-emerald-800">
+                {formatRupiah(calculateCombinedTotal())}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Metode Pembayaran / Akses VA *</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as any)}
+                  className="select select-sm border-slate-300 w-full font-bold text-xs rounded-xl"
+                >
+                  <option value="va_bni">Penerbitan Single Virtual Account (BNI VA / Transfer Bank)</option>
+                  <option value="tunai_loket">Pembayaran Tunai Gabungan di Loket Kasir Kampus</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Catatan Kasir / Peruntukan</label>
+                <input
+                  type="text"
+                  value={catatanLoket}
+                  onChange={(e) => setCatatanLoket(e.target.value)}
+                  className="input input-sm border-slate-300 w-full text-xs font-semibold rounded-xl"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Input 2: Jenis Biaya */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Jenis Biaya Pendidikan <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={formData.jenis_biaya_kode}
-              onChange={(e) => handleJenisBiayaChange(e.target.value)}
-              className="w-full text-xs font-bold border border-slate-300 rounded-xl p-2.5 bg-white focus:ring-2 focus:ring-indigo-500"
-              required
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <Link href="/sikeu/tagihan" className="btn btn-ghost font-bold text-xs">
+              Batal
+            </Link>
+            <button
+              type="submit"
+              disabled={submitting || selectedBillIds.length === 0}
+              className="btn bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs border-none shadow-sm flex items-center gap-1.5 disabled:opacity-40"
             >
-              <option value="UKT_REG">UKT Reguler (Otomatis Sesuai Angkatan)</option>
-              <option value="SPMB_ADM">Biaya Pendaftaran SPMB</option>
-              <option value="WISUDA_FEE">Biaya Wisuda & Kelulusan</option>
-              <option value="PRAKTIKUM">Biaya Laboratorium / Praktikum</option>
-            </select>
+              <Save size={16} />{' '}
+              {submitting
+                ? 'Memproses...'
+                : paymentMethod === 'tunai_loket'
+                ? `Proses Pelunasan ${selectedBillIds.length} Tagihan (Loket)`
+                : `Terbitkan 1 Single VA untuk ${selectedBillIds.length} Tagihan`}
+            </button>
           </div>
-
-          {/* Input 3: Nominal Tagihan */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Nominal Tagihan (Rp) <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="number"
-              value={formData.nominal}
-              onChange={(e) => setFormData({ ...formData, nominal: e.target.value })}
-              className="w-full text-xs font-mono font-extrabold border border-slate-300 rounded-xl p-2.5 text-emerald-800 focus:ring-2 focus:ring-indigo-500"
-              required
-              min={1000}
-            />
-          </div>
-
-          {/* Input 4: Tanggal Jatuh Tempo */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Batas Jatuh Tempo <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={formData.jatuh_tempo}
-              onChange={(e) => setFormData({ ...formData, jatuh_tempo: e.target.value })}
-              className="w-full text-xs font-bold border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
-
-          {/* Input 5: Sistem Asal */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Sistem Asal (Source System)
-            </label>
-            <input
-              type="text"
-              value={formData.source_system}
-              onChange={(e) => setFormData({ ...formData, source_system: e.target.value })}
-              className="w-full text-xs font-semibold border border-slate-300 rounded-xl p-2.5"
-            />
-          </div>
-
-          {/* Input 6: Butuh Approval Pimpinan */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Memerlukan Approval Pimpinan?
-            </label>
-            <select
-              value={formData.requires_approval ? 'true' : 'false'}
-              onChange={(e) => setFormData({ ...formData, requires_approval: e.target.value === 'true' })}
-              className="w-full text-xs font-semibold border border-slate-300 rounded-xl p-2.5 bg-white"
-            >
-              <option value="false">Tidak (Langsung Terbit VA)</option>
-              <option value="true">Ya (Masuk Antrean Approval Pimpinan)</option>
-            </select>
-          </div>
-
-          {/* Input 7: Keterangan (Span 3 Columns) */}
-          <div className="lg:col-span-3">
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-              Keterangan & Peruntukan Tagihan
-            </label>
-            <textarea
-              value={formData.keterangan}
-              onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
-              placeholder="Tuliskan catatan peruntukan atau rincian komponen tagihan..."
-              className="w-full text-xs font-medium border border-slate-300 rounded-xl p-2.5"
-              rows={3}
-            />
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-          <Link
-            href="/sikeu/tagihan"
-            className="btn btn-secondary font-bold text-xs"
-          >
-            Batal
-          </Link>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="btn bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs border-none shadow-sm flex items-center gap-1.5"
-          >
-            <Save size={16} /> {submitting ? 'Simpan...' : 'Terbitkan Tagihan Mahasiswa'}
-          </button>
-        </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

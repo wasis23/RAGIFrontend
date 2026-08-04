@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, ArrowLeft, Clock, CheckCircle, AlertCircle, FileText, Search, Printer, ShieldAlert, CheckSquare, Square } from 'lucide-react';
+import { Plus, ArrowLeft, Clock, CheckCircle, AlertCircle, FileText, Search, Printer, ShieldAlert, CheckSquare, Square, AlertTriangle } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 
 export default function DispensasiListPage() {
@@ -16,6 +16,7 @@ export default function DispensasiListPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [selectedStudentTagihan, setSelectedStudentTagihan] = useState<any | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -47,9 +48,9 @@ export default function DispensasiListPage() {
     loadDispensasi();
   }, []);
 
-  // Handle student search
+  // Handle student search & default options on modal open
   useEffect(() => {
-    if (searchQuery.trim().length >= 2) {
+    if (showModal) {
       const timer = setTimeout(async () => {
         try {
           const res = await sikeuService.searchMahasiswa(searchQuery);
@@ -57,26 +58,48 @@ export default function DispensasiListPage() {
         } catch (e) {
           console.error(e);
         }
-      }, 300);
+      }, 200);
       return () => clearTimeout(timer);
-    } else {
-      setSearchResults([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, showModal]);
+
+  const calculateTotalFromSelected = (item: any, ids: number[]) => {
+    if (!item || !item.details || item.details.length === 0) return item ? (item.sisa_tagihan || item.total_tagihan) : 0;
+    const selectedDetails = item.details.filter((d: any) => ids.includes(d.detail_id));
+    const sum = selectedDetails.reduce((acc: number, d: any) => acc + Number(d.nominal_bersih || d.nominal || 0), 0);
+    return sum;
+  };
 
   const handleSelectStudentTagihan = (item: any) => {
     setSelectedStudentTagihan(item);
+    const initialIds = item.details ? item.details.map((d: any) => d.detail_id) : [];
+    setSelectedItemIds(initialIds);
     setFormData({ ...formData, nominal_per_cicilan: item.sisa_tagihan || item.total_tagihan });
-    if (item.details) {
-      setSelectedItemIds(item.details.map((d: any) => d.detail_id));
-    }
   };
 
   const toggleItemSelection = (id: number) => {
+    let updatedIds: number[];
     if (selectedItemIds.includes(id)) {
-      setSelectedItemIds(selectedItemIds.filter(i => i !== id));
+      updatedIds = selectedItemIds.filter(i => i !== id);
     } else {
-      setSelectedItemIds([...selectedItemIds, id]);
+      updatedIds = [...selectedItemIds, id];
+    }
+    setSelectedItemIds(updatedIds);
+    if (selectedStudentTagihan) {
+      const newTotal = calculateTotalFromSelected(selectedStudentTagihan, updatedIds);
+      setFormData({ ...formData, nominal_per_cicilan: newTotal });
+    }
+  };
+
+  const toggleSelectAllItems = () => {
+    if (!selectedStudentTagihan || !selectedStudentTagihan.details) return;
+    if (selectedItemIds.length === selectedStudentTagihan.details.length) {
+      setSelectedItemIds([]);
+      setFormData({ ...formData, nominal_per_cicilan: 0 });
+    } else {
+      const allIds = selectedStudentTagihan.details.map((d: any) => d.detail_id);
+      setSelectedItemIds(allIds);
+      setFormData({ ...formData, nominal_per_cicilan: selectedStudentTagihan.sisa_tagihan || selectedStudentTagihan.total_tagihan });
     }
   };
 
@@ -267,97 +290,164 @@ export default function DispensasiListPage() {
 
             {error && <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-xl border border-rose-200">{error}</div>}
 
-            {/* STEP 1: Search NIM / Nama Mahasiswa */}
+            {/* STEP 1: Single Unified Select2 Searchable Dropdown */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700">Cari Mahasiswa (Ketik NIM / Nama) *</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Ketik minimal 2 karakter NIM atau Nama..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input input-sm border-slate-300 w-full pl-8 text-xs font-medium"
-                />
-                <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
-              </div>
+              <label className="text-xs font-bold text-slate-700">Pilih / Cari Mahasiswa (NIM / Nama) *</label>
 
-              {/* Autocomplete Dropdown Search Results */}
-              {searchResults.length > 0 && !selectedStudentTagihan && (
-                <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-2 max-h-48 overflow-y-auto space-y-1">
-                  {searchResults.map((item) => (
-                    <div
-                      key={item.tagihan_id}
-                      onClick={() => handleSelectStudentTagihan(item)}
-                      className="p-2.5 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors text-xs border border-transparent hover:border-amber-200"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div className="font-bold text-slate-900">{item.nama_mahasiswa} ({item.nim})</div>
-                        <span className="font-mono font-bold text-emerald-800">{formatRupiah(item.sisa_tagihan)}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">
-                        No Tagihan: {item.nomor_tagihan} • Prodi: {item.prodi} ({item.tahun_angkatan})
-                      </div>
-                      {item.has_unpaid_previous_dispensation && (
-                        <div className="text-[10px] text-rose-600 font-bold mt-1">
-                          ⚠️ Peringatan: Mahasiswa ini masih belum melunasi dispensasi sebelumnya!
+              {!selectedStudentTagihan && (
+                <div className="relative">
+                  {/* Flex Input Box - NO OVERLAP GUARANTEED */}
+                  <div className="flex items-center gap-2 border border-slate-300 rounded-xl px-3.5 py-2 bg-white focus-within:border-teal-600 focus-within:ring-1 focus-within:ring-teal-600/30 shadow-2xs">
+                    <Search size={16} className="text-slate-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Ketik Nama atau NIM Mahasiswa..."
+                      value={searchQuery}
+                      onFocus={() => setIsDropdownOpen(true)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setIsDropdownOpen(true);
+                      }}
+                      className="w-full text-xs font-bold bg-transparent outline-none border-none focus:outline-none focus:ring-0 p-0 text-slate-900 placeholder:text-slate-400 placeholder:font-medium"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => { setSearchQuery(''); setIsDropdownOpen(true); }}
+                        className="text-slate-400 hover:text-slate-600 text-xs font-bold shrink-0 px-1"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Floating Pop-up Select2 Options Menu - INFORMASI MAHASISWA SAJA */}
+                  {isDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl p-2 max-h-60 overflow-y-auto space-y-1 ring-1 ring-slate-900/5">
+                      {searchResults.length === 0 ? (
+                        <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                          {searchQuery ? 'Tidak ada mahasiswa ditemukan' : 'Ketik Nama atau NIM untuk mencari...'}
                         </div>
+                      ) : (
+                        Array.from(
+                          new Map(searchResults.map((item) => [item.mahasiswa_id || item.nim || item.tagihan_id, item])).values()
+                        ).map((item) => (
+                          <div
+                            key={item.tagihan_id}
+                            onClick={() => {
+                              handleSelectStudentTagihan(item);
+                              setIsDropdownOpen(false);
+                            }}
+                            className="p-2.5 hover:bg-teal-50/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-teal-200 flex items-center justify-between group"
+                          >
+                            <div>
+                              <div className="font-extrabold text-slate-900 text-xs group-hover:text-teal-900">
+                                {item.nama_mahasiswa} <span className="font-mono text-slate-500 font-bold">(NIM: {item.nim})</span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                                Prodi: {item.prodi} • Angkatan {item.tahun_angkatan}
+                              </div>
+                            </div>
+                            {item.has_unpaid_previous_dispensation && (
+                              <span className="text-[10px] text-rose-700 font-extrabold bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200 flex items-center gap-1 shrink-0">
+                                <AlertTriangle size={12} /> Tunggakan
+                              </span>
+                            )}
+                          </div>
+                        ))
                       )}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 
-              {/* Selected Student Display & Warning Banner */}
+              {/* Selected Student Display, Warning Banner & Component Checklist */}
               {selectedStudentTagihan && (
-                <div className="bg-amber-50/60 border border-amber-200 p-4 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between items-start">
+                <div className="bg-teal-50/70 border border-teal-200 p-4 rounded-xl space-y-3 text-xs">
+                  <div className="flex justify-between items-start border-b border-teal-200 pb-3">
                     <div>
-                      <div className="font-extrabold text-slate-900 text-sm">{selectedStudentTagihan.nama_mahasiswa}</div>
-                      <div className="text-slate-600 font-mono">NIM: {selectedStudentTagihan.nim} • Tagihan: {selectedStudentTagihan.nomor_tagihan}</div>
+                      <div className="font-extrabold text-teal-950 text-sm">{selectedStudentTagihan.nama_mahasiswa}</div>
+                      <div className="text-teal-800 font-mono text-[11px] font-bold">
+                        NIM: {selectedStudentTagihan.nim} • Tagihan: {selectedStudentTagihan.nomor_tagihan} ({selectedStudentTagihan.prodi})
+                      </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setSelectedStudentTagihan(null)}
-                      className="text-xs text-rose-600 font-bold hover:underline"
+                      onClick={() => { setSelectedStudentTagihan(null); setSelectedItemIds([]); }}
+                      className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold transition shadow-2xs"
                     >
-                      Ganti
+                      Ganti Mahasiswa
                     </button>
                   </div>
 
                   {/* PERINGATAN TUNGGAKAN DISPENSASI SEBELUMNYA */}
                   {selectedStudentTagihan.has_unpaid_previous_dispensation && (
-                    <div className="p-3 bg-rose-100 text-rose-900 rounded-lg font-bold border border-rose-300 flex items-start gap-2 text-xs">
+                    <div className="p-3 bg-rose-100 text-rose-900 rounded-xl font-bold border border-rose-300 flex items-start gap-2 text-xs">
                       <ShieldAlert size={18} className="text-rose-700 shrink-0 mt-0.5" />
                       <div>
-                        <div>PERINGATAN TUNGGAKAN MASIH BELUM LUNAS!</div>
+                        <div className="font-extrabold">⚠️ PERINGATAN: MAHASISWA MEMILIKI TUNGGAKAN!</div>
                         <p className="text-[11px] font-medium text-rose-800 mt-0.5">
-                          Mahasiswa ini masih memiliki riwayat dispensasi sebelumnya yang telah melewati batas jatuh tempo dan belum dilunasi. Pimpinan akan meninjau alasan pengajuan ulang ini.
+                          Mahasiswa ini masih memiliki riwayat dispensasi sebelumnya yang melewati jatuh tempo dan belum dilunasi. Pimpinan akan meninjau alasan permohonan ulang ini.
                         </p>
                       </div>
                     </div>
                   )}
 
                   {/* Checklist Komponen Tagihan */}
-                  {selectedStudentTagihan.details && selectedStudentTagihan.details.length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-amber-200">
-                      <div className="font-extrabold text-slate-800">Checklist Komponen Tagihan yang Didispensasikan:</div>
-                      {selectedStudentTagihan.details.map((d: any) => (
-                        <div
-                          key={d.detail_id}
-                          onClick={() => toggleItemSelection(d.detail_id)}
-                          className="flex items-center justify-between p-2 bg-white rounded-lg border border-amber-200 cursor-pointer text-xs"
+                  {selectedStudentTagihan.details && selectedStudentTagihan.details.length > 0 ? (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-teal-950">Checklist Komponen Tagihan yang Didispensasikan:</span>
+                        <button
+                          type="button"
+                          onClick={toggleSelectAllItems}
+                          className="text-[11px] font-bold text-teal-700 hover:text-teal-900 underline"
                         >
-                          <div className="flex items-center gap-2">
-                            {selectedItemIds.includes(d.detail_id) ? (
-                              <CheckSquare size={16} className="text-amber-700" />
-                            ) : (
-                              <Square size={16} className="text-slate-400" />
-                            )}
-                            <span className="font-semibold text-slate-800">{d.jenis_biaya}</span>
-                          </div>
-                          <span className="font-mono font-bold text-slate-900">{formatRupiah(d.nominal_bersih)}</span>
-                        </div>
-                      ))}
+                          {selectedItemIds.length === selectedStudentTagihan.details.length ? 'Batal Pilih Semua' : 'Pilih Semua Komponen'}
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {selectedStudentTagihan.details.map((d: any) => {
+                          const isChecked = selectedItemIds.includes(d.detail_id);
+                          return (
+                            <div
+                              key={d.detail_id}
+                              onClick={() => toggleItemSelection(d.detail_id)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer text-xs transition-all ${
+                                isChecked
+                                  ? 'bg-white border-teal-600 shadow-2xs ring-1 ring-teal-600/30'
+                                  : 'bg-slate-50/80 border-slate-200 text-slate-400 hover:bg-white'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                {isChecked ? (
+                                  <CheckSquare size={16} className="text-teal-700 shrink-0" />
+                                ) : (
+                                  <Square size={16} className="text-slate-300 shrink-0" />
+                                )}
+                                <span className={`font-bold ${isChecked ? 'text-slate-900' : 'text-slate-500'}`}>
+                                  {d.jenis_biaya}
+                                </span>
+                              </div>
+                              <span className={`font-mono font-extrabold ${isChecked ? 'text-emerald-700' : 'text-slate-400'}`}>
+                                {formatRupiah(d.nominal_bersih)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2 border-t border-teal-200 text-xs font-bold">
+                        <span className="text-teal-950">Subtotal Terpilih ({selectedItemIds.length} Komponen):</span>
+                        <span className="font-mono text-sm font-extrabold text-emerald-800">
+                          {formatRupiah(formData.nominal_per_cicilan)}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 italic p-2 bg-white rounded-lg border border-teal-200">
+                      Tagihan ini tidak memiliki rincian komponen terpisah. Total tagihan: {formatRupiah(selectedStudentTagihan.sisa_tagihan)}
                     </div>
                   )}
                 </div>
