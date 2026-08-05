@@ -120,26 +120,56 @@ export default function MasterBiayaPage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Unit Kas Master States
-  const [unitKasMasterList, setUnitKasMasterList] = useState<any[]>([
-    { id: 1, nama: 'Petty Cash Fakultas Teknik & TIK', bank: 'BNI', no_rekening: '1234567890', atas_nama: 'Operasional FTIK', status: 'aktif' },
-    { id: 2, nama: 'Petty Cash Fakultas Ekonomi & Bisnis', bank: 'Mandiri', no_rekening: '0987654321', atas_nama: 'Operasional FEB', status: 'aktif' },
-    { id: 3, nama: 'Kas Operasional SPMB', bank: 'Mandiri', no_rekening: '9876543210', atas_nama: 'Kasir SPMB', status: 'aktif' },
-    { id: 4, nama: 'Kas Operasional LPPM', bank: 'BRI', no_rekening: '1122334455', atas_nama: 'LPPM Kampus', status: 'aktif' }
-  ]);
+  const [unitKasMasterList, setUnitKasMasterList] = useState<any[]>([]);
   const [isUnitKasModalOpen, setIsUnitKasModalOpen] = useState(false);
-  const [unitKasForm, setUnitKasForm] = useState({ id: 0, nama: '', bank: 'BNI', no_rekening: '', atas_nama: '', status: 'aktif' });
+  const [unitKasForm, setUnitKasForm] = useState({ id: 0, nama_kas: '', bank_name: 'BNI', bank_account_number: '', bank_account_name: '', status: true, deskripsi: '' });
   const [editingUnitKas, setEditingUnitKas] = useState<any | null>(null);
 
-  const handleSaveUnitKas = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingUnitKas) {
-      setUnitKasMasterList(unitKasMasterList.map(u => u.id === editingUnitKas.id ? { ...unitKasForm, id: editingUnitKas.id } : u));
-      setFeedback({ type: 'success', message: 'Data Unit Kas berhasil diperbarui.' });
-    } else {
-      setUnitKasMasterList([{ ...unitKasForm, id: Date.now() }, ...unitKasMasterList]);
-      setFeedback({ type: 'success', message: 'Unit Kas baru berhasil ditambahkan.' });
+  const fetchUnitKas = async () => {
+    try {
+      setLoading(true);
+      const res = await sikeuService.getUnitKasList();
+      setUnitKasMasterList(res.data || []);
+    } catch (error: any) {
+      setFeedback({ type: 'error', message: 'Gagal mengambil data Unit Kas: ' + error.message });
+    } finally {
+      setLoading(false);
     }
-    setIsUnitKasModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'unit-kas-master') {
+      fetchUnitKas();
+    }
+  }, [activeTab]);
+
+  const handleSaveUnitKas = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingUnitKas) {
+        await sikeuService.updateUnitKas(editingUnitKas.id, unitKasForm);
+        setFeedback({ type: 'success', message: 'Data Unit Kas berhasil diperbarui.' });
+      } else {
+        await sikeuService.storeUnitKas(unitKasForm);
+        setFeedback({ type: 'success', message: 'Unit Kas baru berhasil ditambahkan.' });
+      }
+      setIsUnitKasModalOpen(false);
+      fetchUnitKas();
+    } catch (error: any) {
+      setFeedback({ type: 'error', message: 'Gagal menyimpan: ' + error.message });
+    }
+  };
+
+  const handleDeleteUnitKas = async (id: number) => {
+    if (confirm('Yakin ingin menghapus unit kas ini?')) {
+      try {
+        await sikeuService.deleteUnitKas(id);
+        setFeedback({ type: 'success', message: 'Unit kas berhasil dihapus' });
+        fetchUnitKas();
+      } catch (error: any) {
+        setFeedback({ type: 'error', message: 'Gagal menghapus: ' + error.message });
+      }
+    }
   };
 
   // Fetch functions
@@ -553,7 +583,7 @@ export default function MasterBiayaPage() {
             <button
               onClick={() => {
                 setEditingUnitKas(null);
-                setUnitKasForm({ id: 0, nama: '', bank: 'BNI', no_rekening: '', atas_nama: '', status: 'aktif' });
+                setUnitKasForm({ id: 0, nama_kas: '', bank_name: 'BNI', bank_account_number: '', bank_account_name: '', status: true, deskripsi: '' });
                 setIsUnitKasModalOpen(true);
               }}
               className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
@@ -577,57 +607,79 @@ export default function MasterBiayaPage() {
         </div>
       )}
 
-      {/* 1. TAB KOMPONEN BIAYA MASTER */}
+      {/* Tab Navigation */}
+      <div className="flex overflow-x-auto border-b border-slate-200 mt-4 px-2 no-scrollbar">
+        {[
+          { id: 'jenis-biaya', label: '1. Komponen Biaya Dasar' },
+          { id: 'jalur-kelas', label: '2. Jalur & Kelas' },
+          { id: 'tarif', label: '3. Nominal Tarif UKT' },
+          { id: 'beasiswa', label: '4. Master Beasiswa' },
+          { id: 'student-types', label: '5. Tipe Pendaftaran Mhs' },
+          { id: 'mapping-beasiswa', label: '6. Penerima Beasiswa' },
+          { id: 'unit-kas-master', label: '7. Unit Kas Master' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`whitespace-nowrap pb-3 text-sm font-bold border-b-2 px-4 transition-all ${
+              activeTab === tab.id
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 1. TAB JENIS BIAYA */}
       {activeTab === 'jenis-biaya' && (
         <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-extrabold text-slate-900">Master Komponen Biaya Pendidikan</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Definisi jenis biaya (nominal diatur terpisah per Angkatan & Jalur Kelas pada tab Tarif Angkatan).</p>
+              <h2 className="text-sm font-extrabold text-slate-900">Komponen Biaya Dasar</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Master data komponen biaya yang dapat ditagihkan.</p>
             </div>
-            <span className="text-xs font-bold text-slate-500">{jenisBiayaList.length} Komponen Terdaftar</span>
+            <span className="text-xs font-bold text-slate-500">{jenisBiayaList.length} Komponen</span>
           </div>
-
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-extrabold uppercase border-y border-slate-200">
+            <table className="table w-full text-sm">
+              <thead className="bg-slate-50/80 text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">KODE</th>
-                  <th className="px-4 py-3">NAMA KOMPONEN BIAYA</th>
-                  <th className="px-4 py-3">TIPE BIAYA</th>
-                  <th className="px-4 py-3 text-center">STATUS</th>
-                  <th className="px-4 py-3 text-center">AKSI</th>
+                  <th className="font-bold">Kode</th>
+                  <th className="font-bold">Nama Komponen</th>
+                  <th className="font-bold">Tipe</th>
+                  <th className="font-bold">Nominal Standar</th>
+                  <th className="font-bold">Status</th>
+                  <th className="font-bold text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {jenisBiayaList.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-bold text-indigo-700">{b.kode}</td>
-                    <td className="px-4 py-3 font-bold text-slate-900">{b.nama}</td>
-                    <td className="px-4 py-3 uppercase text-[10px] font-semibold text-slate-700">{b.tipe}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                        <CheckCircle size={12} /> Aktif
+              <tbody>
+                {jenisBiayaList.map((j) => (
+                  <tr key={j.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="font-mono font-bold text-xs">{j.kode}</td>
+                    <td className="font-bold text-slate-800">{j.nama}</td>
+                    <td>
+                      <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">
+                        {j.tipe}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => {
-                          setEditingJenisBiaya(b);
-                          setJenisBiayaForm({
-                            kode: b.kode,
-                            nama: b.nama,
-                            tipe: b.tipe,
-                            nominal_standar: 0,
-                            deskripsi: b.deskripsi || '',
-                          });
+                    <td className="font-mono font-bold text-slate-700">{formatRupiah(j.nominal_standar)}</td>
+                    <td>
+                      <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${j.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {j.is_active ? 'AKTIF' : 'NONAKTIF'}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => {
+                          setEditingJenisBiaya(j);
+                          setJenisBiayaForm({ kode: j.kode, nama: j.nama, tipe: j.tipe, nominal_standar: j.nominal_standar, deskripsi: j.deskripsi || '' });
                           setIsJenisBiayaModalOpen(true);
-                        }}
-                        title="Edit Komponen Biaya"
-                        className="p-1.5 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 border border-transparent rounded-lg transition-all mx-auto"
-                      >
-                        <Edit size={16} />
-                      </button>
+                        }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
+                          <Edit size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -637,53 +689,37 @@ export default function MasterBiayaPage() {
         </div>
       )}
 
-      {/* 2. TAB MASTER JALUR KELAS */}
+      {/* 2. TAB JALUR KELAS */}
       {activeTab === 'jalur-kelas' && (
         <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-extrabold text-slate-900">Setting Jalur Kelas & Tipe Mahasiswa</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Pengelolaan master tipe jalur mahasiswa (Reguler, Karyawan, Internasional, Online PJJ, dll.).
-              </p>
+              <h2 className="text-sm font-extrabold text-slate-900">Jalur & Kelas Pendaftaran</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Daftar jalur masuk dan kelas yang mempengaruhi tarif.</p>
             </div>
-            <span className="text-xs font-mono font-bold text-slate-500">{jalurKelasList.length} Jalur Terdaftar</span>
+            <span className="text-xs font-bold text-slate-500">{jalurKelasList.length} Jalur</span>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {jalurKelasList.map((j) => (
-              <div key={j.id} className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col justify-between space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-indigo-700">{j.kode}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">Aktif</span>
-                  </div>
+              <div key={j.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col justify-between">
+                <div>
                   <h3 className="font-extrabold text-slate-900 text-sm">{j.nama_jalur}</h3>
-                  <p className="text-xs text-slate-600 line-clamp-2">{j.deskripsi || 'Jalur perkuliahan institusi.'}</p>
+                  <p className="text-xs text-slate-500 mt-1">{j.deskripsi || '-'}</p>
                 </div>
-
-                <div className="flex items-center justify-end gap-1 pt-3 border-t border-slate-200/80">
-                  <button
-                    onClick={() => {
-                      setEditingJalurItem(j);
-                      setEditJalurForm({ nama_jalur: j.nama_jalur, deskripsi: j.deskripsi || '' });
-                      setIsEditJalurModalOpen(true);
-                    }}
-                    title="Edit Jalur Kelas"
-                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 border border-transparent rounded-lg transition-all"
-                  >
-                    <Edit size={16} />
+                <div className="flex justify-end gap-1 mt-4">
+                  <button onClick={() => {
+                    setEditingJalurItem(j);
+                    setEditJalurForm({ nama_jalur: j.nama_jalur, deskripsi: j.deskripsi || '' });
+                    setIsEditJalurModalOpen(true);
+                  }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
+                    <Edit size={14} />
                   </button>
-                  <button
-                    onClick={() => {
-                      setDeletingJalurItem(j);
-                      setConfirmDeleteChecklist(false);
-                      setIsDeleteJalurModalOpen(true);
-                    }}
-                    title="Hapus Jalur Kelas"
-                    className="p-1.5 text-rose-600 hover:bg-rose-50 hover:border-rose-200 border border-transparent rounded-lg transition-all"
-                  >
-                    <Trash2 size={16} />
+                  <button onClick={() => {
+                    setDeletingJalurItem(j);
+                    setConfirmDeleteChecklist(false);
+                    setIsDeleteJalurModalOpen(true);
+                  }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -692,212 +728,74 @@ export default function MasterBiayaPage() {
         </div>
       )}
 
-      {/* 3. TAB TARIF ANGKATAN */}
+      {/* 3. TAB TARIF */}
       {activeTab === 'tarif' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">Tahun Angkatan:</span>
-                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
-                  {availableAngkatan.map((year) => (
-                    <button
-                      key={year}
-                      onClick={() => {
-                        setSelectedAngkatan(year);
-                        setTarifForm({ ...tarifForm, tahun_angkatan: year });
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all ${
-                        selectedAngkatan === year ? 'bg-teal-700 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      {year}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">Jalur / Kelas:</span>
-                <select
-                  value={selectedJalur}
-                  onChange={(e) => setSelectedJalur(e.target.value)}
-                  className="select select-sm border-slate-300 font-bold text-xs rounded-xl"
-                >
-                  {jalurKelasList.map((j) => (
-                    <option key={j.id} value={j.nama_jalur}>{j.nama_jalur}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">Program Studi:</span>
-                <select
-                  value={selectedProdiTarif}
-                  onChange={(e) => setSelectedProdiTarif(e.target.value)}
-                  className="select select-sm border-slate-300 font-bold text-xs rounded-xl"
-                >
-                  <option value="all">Semua Program Studi</option>
-                  <option value="Teknik Informatika">Teknik Informatika</option>
-                  <option value="Sistem Informasi">Sistem Informasi</option>
-                  <option value="Manajemen Informatika">Manajemen Informatika</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="text-xs font-mono font-bold text-slate-500">
-              Total {tarifList.filter(t => selectedProdiTarif === 'all' || !t.prodi || t.prodi === 'Semua Prodi' || t.prodi === selectedProdiTarif).length} Tarif Ditemukan
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-y border-slate-200">
-                <tr>
-                  <th className="px-4 py-3">PROGRAM STUDI</th>
-                  <th className="px-4 py-3">ANGKATAN & JALUR KELAS</th>
-                  <th className="px-4 py-3">PERUNTUKAN / LABEL TARIF</th>
-                  <th className="px-4 py-3">KOMPONEN BIAYA</th>
-                  <th className="px-4 py-3 text-right">NOMINAL TARIF (RP)</th>
-                  <th className="px-4 py-3 text-center">STATUS</th>
-                  <th className="px-4 py-3 text-center">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-slate-400">Memuat tarif...</td></tr>
-                ) : tarifList.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-slate-400">Belum ada tarif untuk Angkatan {selectedAngkatan} - Kelas {selectedJalur}.</td></tr>
-                ) : (
-                  tarifList
-                    .filter(t => selectedProdiTarif === 'all' || !t.prodi || t.prodi === 'Semua Prodi' || t.prodi === selectedProdiTarif)
-                    .map((t) => (
-                    <tr key={t.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-teal-50 text-teal-800 border border-teal-200">
-                          {t.prodi || t.program_studi || t.nama_prodi || 'Teknik Informatika'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-bold font-mono text-slate-800">
-                        Angkatan {t.tahun_angkatan || selectedAngkatan} ({t.jalur_kelas || selectedJalur})
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-extrabold text-slate-900 text-sm">
-                          {t.nama_kelompok || 'Tarif Standar Prodi'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-700">{t.jenis_biaya?.nama || 'UKT Reguler'}</td>
-                      <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-700 text-sm">
-                        {formatRupiah(t.nominal)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                          {t.is_active !== false ? 'Aktif' : 'Non-Aktif'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingTarif(t);
-                              setTarifForm({
-                                jenis_biaya_id: t.jenis_biaya_id || 1,
-                                tahun_angkatan: t.tahun_angkatan || selectedAngkatan,
-                                jalur_kelas: t.jalur_kelas || selectedJalur,
-                                prodi: t.prodi || 'Teknik Informatika',
-                                nama_kelompok: t.nama_kelompok || (t.prodi ? `Tarif ${t.prodi}` : 'Tarif SPP Standar'),
-                                program_studi_id: t.program_studi_id || 0,
-                                nominal: t.nominal,
-                              });
-                              setIsTarifModalOpen(true);
-                            }}
-                            title="Edit Nominal Tarif"
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 border border-transparent rounded-lg transition-all"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTarif(t.id)}
-                            title="Hapus Tarif"
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 hover:border-rose-200 border border-transparent rounded-lg transition-all"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* 4. TAB MASTER BEASISWA */}
-      {activeTab === 'beasiswa' && (
         <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-extrabold text-slate-900">Master Program Beasiswa & Setting Scope Target Tagihan/Angkatan</h2>
-            <span className="text-xs font-bold text-slate-500">{beasiswaList.length} Beasiswa Terdaftar</span>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">Nominal Tarif Angkatan</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Penetapan nominal spesifik per prodi, jalur, dan angkatan.</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="flex-1">
+              <label className="text-xs font-bold text-slate-500 block mb-1">Tahun Angkatan</label>
+              <select className="select select-sm w-full font-bold" value={selectedAngkatan} onChange={e => setSelectedAngkatan(Number(e.target.value))}>
+                {availableAngkatan.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="text-xs font-bold text-slate-500 block mb-1">Jalur Pendaftaran</label>
+              <select className="select select-sm w-full font-bold" value={selectedJalur} onChange={e => setSelectedJalur(e.target.value)}>
+                {jalurKelasList.map(j => <option key={j.nama_jalur} value={j.nama_jalur}>{j.nama_jalur}</option>)}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button onClick={fetchTarif} className="btn bg-slate-800 hover:bg-slate-900 text-white btn-sm font-bold border-none">Tampilkan Tarif</button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-extrabold uppercase border-y border-slate-200">
+            <table className="table w-full text-sm">
+              <thead className="bg-slate-50/80 text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">KODE</th>
-                  <th className="px-4 py-3">NAMA PROGRAM BEASISWA</th>
-                  <th className="px-4 py-3">TARGET BIAYA / TAGIHAN</th>
-                  <th className="px-4 py-3">CAKUPAN ANGKATAN</th>
-                  <th className="px-4 py-3 text-right">NILAI POTONGAN</th>
-                  <th className="px-4 py-3 text-center">AKSI</th>
+                  <th className="font-bold">Komponen / Kelompok</th>
+                  <th className="font-bold">Program Studi</th>
+                  <th className="font-bold text-right">Nominal</th>
+                  <th className="font-bold text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {beasiswaList.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-bold text-emerald-700">{b.kode}</td>
-                    <td className="px-4 py-3 font-bold text-slate-900">{b.nama}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">
-                      {b.jenis_biaya?.nama ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">
-                          {b.jenis_biaya.nama}
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 italic">Semua Komponen Tagihan</span>
-                      )}
+              <tbody>
+                {tarifList.map((t) => (
+                  <tr key={t.id} className="hover:bg-slate-50/50">
+                    <td>
+                      <div className="font-bold text-slate-800">{t.nama_kelompok}</div>
+                      <div className="text-[10px] font-bold text-slate-500">{t.jenis_biaya?.nama}</div>
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold text-teal-800">
-                      {b.berlaku_angkatan_mulai && b.berlaku_angkatan_sampai
-                        ? `Angkatan ${b.berlaku_angkatan_mulai} - ${b.berlaku_angkatan_sampai}`
-                        : 'Semua Angkatan'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-800 text-sm">
-                      {b.tipe_potongan === 'persen' ? `${b.nilai_potongan}%` : formatRupiah(b.nilai_potongan)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => {
-                          setEditingBeasiswa(b);
-                          setBeasiswaForm({
-                            kode: b.kode,
-                            nama: b.nama,
-                            sumber: b.sumber || 'internal',
-                            tipe_potongan: b.tipe_potongan || 'persen',
-                            nilai_potongan: b.nilai_potongan || 100,
-                            jenis_biaya_id: b.jenis_biaya_id || 0,
-                            berlaku_angkatan_mulai: b.berlaku_angkatan_mulai || 2023,
-                            berlaku_angkatan_sampai: b.berlaku_angkatan_sampai || 2027,
-                            deskripsi: b.deskripsi || '',
+                    <td className="font-semibold text-slate-700">{t.prodi || 'Semua Prodi'}</td>
+                    <td className="text-right font-mono font-bold text-slate-800">{formatRupiah(t.nominal)}</td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => {
+                          setEditingTarif(t);
+                          setTarifForm({
+                            jenis_biaya_id: t.jenis_biaya_id || 1,
+                            tahun_angkatan: selectedAngkatan,
+                            jalur_kelas: selectedJalur,
+                            kelompok_ukt: 1,
+                            nama_kelompok: t.nama_kelompok,
+                            program_studi_id: 0,
+                            nominal: t.nominal
                           });
-                          setIsBeasiswaModalOpen(true);
-                        }}
-                        title="Edit Scope Beasiswa"
-                        className="p-1.5 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 border border-transparent rounded-lg transition-all mx-auto"
-                      >
-                        <Edit size={16} />
-                      </button>
+                          setIsTarifModalOpen(true);
+                        }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
+                          <Edit size={14} />
+                        </button>
+                        <button onClick={() => handleDeleteTarif(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -907,886 +805,167 @@ export default function MasterBiayaPage() {
         </div>
       )}
 
-      {/* 5. TAB TIPE TAGIHAN MAHASISWA */}
-      {activeTab === 'student-types' && (
+      {/* 4. TAB BEASISWA */}
+      {activeTab === 'beasiswa' && (
         <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-extrabold text-slate-900">Penetapan Tipe Tagihan & Riwayat Perubahan Jalur Mahasiswa</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Integrasi otomatis dari SPMB/SIAKAD & Pengaturan Admin (dilengkapi Server-Side Pagination & Search).
-              </p>
+              <h2 className="text-sm font-extrabold text-slate-900">Master Data Beasiswa</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Program beasiswa internal dan eksternal yang tersedia.</p>
             </div>
-
-            <div className="relative w-full md:w-72">
-              <input
-                type="text"
-                placeholder="Cari Nama atau NIM Mahasiswa..."
-                value={studentSearchQuery}
-                onChange={(e) => handleSearchStudent(e.target.value)}
-                className="input input-sm border-slate-300 w-full pl-8 text-xs font-semibold rounded-xl"
-              />
-              <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
-            </div>
+            <span className="text-xs font-bold text-slate-500">{beasiswaList.length} Program</span>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase border-y border-slate-200">
-                <tr>
-                  <th className="px-4 py-3">MAHASISWA & NIM</th>
-                  <th className="px-4 py-3">ANGKATAN & JALUR KELAS</th>
-                  <th className="px-4 py-3">KELOMPOK UKT</th>
-                  <th className="px-4 py-3">POTONGAN BEASISWA</th>
-                  <th className="px-4 py-3">CATATAN PERUBAHAN</th>
-                  <th className="px-4 py-3 text-center">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-slate-400">Memuat data...</td></tr>
-                ) : studentTypesList.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-slate-400">Tidak ada mahasiswa ditemukan untuk kata kunci tersebut.</td></tr>
-                ) : (
-                  studentTypesList.map((st) => (
-                    <tr key={st.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-slate-900">{st.nama_mahasiswa}</div>
-                        <div className="text-[10px] font-mono text-slate-500">NIM: {st.nim}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-extrabold text-teal-800">Angkatan {st.tahun_angkatan}</span>
-                        <div className="text-[10px] font-bold text-indigo-700 uppercase">Jalur {st.jalur_kelas}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-extrabold text-slate-900">Kelompok {st.kelompok_ukt}</div>
-                        <div className="text-[10px] text-teal-700 font-bold mt-0.5">{getLevelText(st.kelompok_ukt)}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {st.beasiswa ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                            {st.beasiswa.nama || 'Penerima Beasiswa'}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 font-medium">Non-Beasiswa</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 max-w-xs">
-                        <div className="font-medium text-slate-700 truncate">{st.catatan_perubahan || '-'}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">Sumber: {st.status_pendaftaran}</div>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => {
-                            setEditingStudentType(st);
-                            setStudentTypeForm({
-                              mahasiswa_id: st.mahasiswa_id,
-                              nim: st.nim,
-                              nama_mahasiswa: st.nama_mahasiswa,
-                              tahun_angkatan: st.tahun_angkatan,
-                              jalur_kelas: st.jalur_kelas,
-                              kelompok_ukt: st.kelompok_ukt,
-                              beasiswa_id: st.beasiswa_id || 0,
-                              catatan_perubahan: st.catatan_perubahan || '',
-                            });
-                            setIsStudentTypeModalOpen(true);
-                          }}
-                          title="Ubah Tipe / Jalur Kelas Mahasiswa"
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 border border-transparent rounded-lg transition-all mx-auto"
-                        >
-                          <Edit size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center justify-between border-t pt-4 text-xs font-semibold text-slate-600">
-            <div>
-              Menampilkan Halaman <span className="font-bold text-slate-900">{studentTypeMeta.current_page || 1}</span> dari <span className="font-bold text-slate-900">{studentTypeMeta.last_page || 1}</span> (Total <span className="font-bold text-slate-900">{studentTypeMeta.total || studentTypesList.length}</span> data)
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={studentTypePage <= 1}
-                onClick={() => setStudentTypePage(p => Math.max(1, p - 1))}
-                className="btn btn-ghost btn-xs flex items-center gap-1 font-bold disabled:opacity-40"
-              >
-                <ChevronLeft size={14} /> Sebelum
-              </button>
-              <button
-                disabled={studentTypePage >= (studentTypeMeta.last_page || 1)}
-                onClick={() => setStudentTypePage(p => p + 1)}
-                className="btn btn-ghost btn-xs flex items-center gap-1 font-bold disabled:opacity-40"
-              >
-                Lanjut <ChevronRight size={14} />
-              </button>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {beasiswaList.map((b) => (
+              <div key={b.id} className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">{b.kode}</span>
+                    <h3 className="font-extrabold text-slate-900 text-sm mt-1">{b.nama}</h3>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${b.sumber === 'pemerintah' ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700'}`}>
+                    {b.sumber?.toUpperCase()}
+                  </span>
+                </div>
+                <div className="space-y-1 mt-3 text-xs text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Potongan:</span>
+                    <span className="font-bold">{b.tipe_potongan === 'persen' ? `${b.nilai_potongan}%` : formatRupiah(b.nilai_potongan)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Cakupan:</span>
+                    <span className="font-semibold">{b.jenis_biaya ? b.jenis_biaya.nama : 'Semua Tagihan'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Berlaku Angkatan:</span>
+                    <span className="font-mono font-bold">{b.berlaku_angkatan_mulai} - {b.berlaku_angkatan_sampai}</span>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+                  <button onClick={() => {
+                    setEditingBeasiswa(b);
+                    setBeasiswaForm({
+                      kode: b.kode,
+                      nama: b.nama,
+                      sumber: b.sumber || 'internal',
+                      tipe_potongan: b.tipe_potongan || 'persen',
+                      nilai_potongan: b.nilai_potongan,
+                      jenis_biaya_id: b.jenis_biaya_id || 0,
+                      berlaku_angkatan_mulai: b.berlaku_angkatan_mulai,
+                      berlaku_angkatan_sampai: b.berlaku_angkatan_sampai,
+                      deskripsi: b.deskripsi || ''
+                    });
+                    setIsBeasiswaModalOpen(true);
+                  }} className="btn btn-xs btn-ghost text-teal-600 font-bold">Edit Detail</button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* 6. TAB PENERIMA BEASISWA */}
+      {/* 5. TAB STUDENT TYPES */}
+      {activeTab === 'student-types' && (
+        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">Tipe Pendaftaran Mahasiswa</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Penetapan jalur masuk dan kelompok UKT per mahasiswa.</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="table w-full text-sm">
+              <thead className="bg-slate-50/80 text-slate-600">
+                <tr>
+                  <th className="font-bold">Mahasiswa</th>
+                  <th className="font-bold">Tahun/Jalur</th>
+                  <th className="font-bold">Kelompok UKT</th>
+                  <th className="font-bold">Beasiswa Terkait</th>
+                  <th className="font-bold text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studentTypesList.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50/50">
+                    <td>
+                      <div className="font-bold text-slate-800">{s.nama_mahasiswa}</div>
+                      <div className="font-mono text-xs text-slate-500">{s.nim}</div>
+                    </td>
+                    <td>
+                      <div className="font-bold text-slate-700">{s.tahun_angkatan}</div>
+                      <div className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 inline-block rounded-md mt-0.5">{s.jalur_kelas}</div>
+                    </td>
+                    <td>
+                      <div className="font-semibold text-slate-800">{getLevelText(s.kelompok_ukt)}</div>
+                    </td>
+                    <td>
+                      {s.beasiswa_id ? (
+                        <span className="text-xs font-bold text-teal-600">Beasiswa Diterapkan</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="text-right">
+                      <button onClick={() => {
+                        setEditingStudentType(s);
+                        setStudentTypeForm({
+                          mahasiswa_id: s.mahasiswa_id,
+                          nim: s.nim,
+                          nama_mahasiswa: s.nama_mahasiswa,
+                          tahun_angkatan: s.tahun_angkatan,
+                          jalur_kelas: s.jalur_kelas,
+                          kelompok_ukt: s.kelompok_ukt,
+                          beasiswa_id: s.beasiswa_id || 0,
+                          catatan_perubahan: 'Penyesuaian administratif'
+                        });
+                        setIsStudentTypeModalOpen(true);
+                      }} className="btn btn-xs btn-ghost text-teal-600 font-bold">Ubah Tipe</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 6. TAB MAPPING BEASISWA */}
       {activeTab === 'mapping-beasiswa' && (
         <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-extrabold text-slate-900">Daftar Mahasiswa Penerima Beasiswa (Pemotong Tagihan Otomatis)</h2>
-            <span className="text-xs font-bold text-slate-500">{beasiswaMeta.total || mahasiswaBeasiswaList.length} Mahasiswa Menerima Beasiswa</span>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">Mahasiswa Penerima Beasiswa</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Daftar mahasiswa yang sedang menerima beasiswa/potongan aktif.</p>
+            </div>
           </div>
-
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-slate-700 font-extrabold uppercase border-y border-slate-200">
+            <table className="table w-full text-sm">
+              <thead className="bg-slate-50/80 text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">MAHASISWA & NIM</th>
-                  <th className="px-4 py-3">PROGRAM BEASISWA</th>
-                  <th className="px-4 py-3">NILAI POTONGAN</th>
-                  <th className="px-4 py-3 text-center">STATUS</th>
+                  <th className="font-bold">Mahasiswa</th>
+                  <th className="font-bold">Program Beasiswa</th>
+                  <th className="font-bold">Nilai Potongan</th>
+                  <th className="font-bold">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {mahasiswaBeasiswaList.map((mb) => (
-                  <tr key={mb.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="font-bold text-slate-900">{mb.nama_mahasiswa}</div>
-                      <div className="text-[10px] font-mono text-slate-500">NIM: {mb.nim}</div>
+              <tbody>
+                {mahasiswaBeasiswaList.map((m) => (
+                  <tr key={m.id} className="hover:bg-slate-50/50">
+                    <td>
+                      <div className="font-bold text-slate-800">{m.nama_mahasiswa}</div>
+                      <div className="font-mono text-xs text-slate-500">{m.nim}</div>
                     </td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{mb.nama_beasiswa}</td>
-                    <td className="px-4 py-3 font-mono font-extrabold text-emerald-800">{mb.potongan_text}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                        {mb.status.toUpperCase()}
+                    <td className="font-semibold text-slate-700">{m.nama_beasiswa}</td>
+                    <td className="font-bold text-teal-600">{m.potongan_text}</td>
+                    <td>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${m.status === 'aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {m.status.toUpperCase()}
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="flex items-center justify-between border-t pt-4 text-xs font-semibold text-slate-600">
-            <div>
-              Menampilkan Halaman <span className="font-bold text-slate-900">{beasiswaMeta.current_page || 1}</span> dari <span className="font-bold text-slate-900">{beasiswaMeta.last_page || 1}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={beasiswaPage <= 1}
-                onClick={() => setBeasiswaPage(p => Math.max(1, p - 1))}
-                className="btn btn-ghost btn-xs flex items-center gap-1 font-bold disabled:opacity-40"
-              >
-                <ChevronLeft size={14} /> Sebelum
-              </button>
-              <button
-                disabled={beasiswaPage >= (beasiswaMeta.last_page || 1)}
-                onClick={() => setBeasiswaPage(p => p + 1)}
-                className="btn btn-ghost btn-xs flex items-center gap-1 font-bold disabled:opacity-40"
-              >
-                Lanjut <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'unit-kas-master' && (
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900">7. Master Unit Kas & Unit Kerja Aktif</h2>
-              <p className="text-xs text-slate-500">Kelola daftar unit kas operasional, penanggung jawab, & nomor rekening bank tujuan pencairan</p>
-            </div>
-            <button
-              onClick={() => alert('Fasilitas tambah unit kas baru telah siap. Unit baru otomatis muncul di dropdown pengajuan.')}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white btn-xs font-bold border-none flex items-center gap-1"
-            >
-              <Plus size={14} /> Tambah Unit Kerja Baru
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-extrabold text-slate-900">Petty Cash Fakultas Teknik & TIK</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">AKTIF</span>
-              </div>
-              <div className="text-slate-600 font-medium">PJ: Kabag TU FTIK</div>
-              <div className="font-mono text-teal-800 font-bold bg-white p-2 rounded border border-slate-200">
-                Bank BNI - 1234567890 (a.n Rekening Operasional FTIK)
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-extrabold text-slate-900">Kas Operasional SPMB</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">AKTIF</span>
-              </div>
-              <div className="text-slate-600 font-medium">PJ: Panitia SPMB</div>
-              <div className="font-mono text-teal-800 font-bold bg-white p-2 rounded border border-slate-200">
-                Bank Mandiri - 9876543210 (a.n Rekening Kasir SPMB)
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-extrabold text-slate-900">Laboratorium Komputer TI</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">AKTIF</span>
-              </div>
-              <div className="text-slate-600 font-medium">PJ: Ka. Lab Komputer</div>
-              <div className="font-mono text-teal-800 font-bold bg-white p-2 rounded border border-slate-200">
-                Bank BCA - 5554443332 (a.n Operasional Lab Komputer TI)
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-extrabold text-slate-900">Bagian Kemahasiswaan & PKM</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">AKTIF</span>
-              </div>
-              <div className="text-slate-600 font-medium">PJ: Wakil Rektor III</div>
-              <div className="font-mono text-teal-800 font-bold bg-white p-2 rounded border border-slate-200">
-                Bank BRI - 1122334455 (a.n Dana Kemahasiswaan & PKM)
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH JALUR KELAS BARU */}
-      {isJalurModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">Tambah Jalur / Tipe Kelas Baru</h3>
-              <button onClick={() => setIsJalurModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveJalurKelas} className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700">Nama Jalur Kelas *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Misal: Kelas Malam / Kelas Online / Transfer"
-                  value={jalurForm.nama_jalur}
-                  onChange={(e) => setJalurForm({ ...jalurForm, nama_jalur: e.target.value })}
-                  className="input input-sm border-slate-300 w-full font-bold"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700">Deskripsi / Peruntukan</label>
-                <textarea
-                  rows={2}
-                  placeholder="Tuliskan keterangan peruntukan jalur kelas..."
-                  value={jalurForm.deskripsi}
-                  onChange={(e) => setJalurForm({ ...jalurForm, deskripsi: e.target.value })}
-                  className="textarea textarea-sm border-slate-300 w-full text-xs font-medium"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" onClick={() => setIsJalurModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  Simpan Jalur Kelas
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EDIT JALUR KELAS */}
-      {isEditJalurModalOpen && editingJalurItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">Edit Data Jalur Kelas [{editingJalurItem.kode}]</h3>
-              <button onClick={() => setIsEditJalurModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleUpdateJalurKelas} className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700">Nama Jalur Kelas *</label>
-                <input
-                  type="text"
-                  required
-                  value={editJalurForm.nama_jalur}
-                  onChange={(e) => setEditJalurForm({ ...editJalurForm, nama_jalur: e.target.value })}
-                  className="input input-sm border-slate-300 w-full font-bold"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700">Deskripsi / Peruntukan</label>
-                <textarea
-                  rows={2}
-                  value={editJalurForm.deskripsi}
-                  onChange={(e) => setEditJalurForm({ ...editJalurForm, deskripsi: e.target.value })}
-                  className="textarea textarea-sm border-slate-300 w-full text-xs font-medium"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" onClick={() => setIsEditJalurModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  Simpan Perubahan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL HAPUS JALUR KELAS WITH CHECKLIST CONFIRMATION */}
-      {isDeleteJalurModalOpen && deletingJalurItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 text-rose-600">
-              <h3 className="font-extrabold text-base flex items-center gap-1.5">
-                <AlertTriangle size={18} /> Peringatan Penghapusan Jalur Kelas
-              </h3>
-              <button onClick={() => setIsDeleteJalurModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-
-            <div className="space-y-3">
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs space-y-1">
-                <div className="font-extrabold text-sm">Jalur Kelas: {deletingJalurItem.nama_jalur} [{deletingJalurItem.kode}]</div>
-                <p className="font-medium text-rose-800">
-                  Penghapusan jalur kelas ini dapat mempengaruhi kelompok tarif mahasiswa yang menggunakan jalur kelas tersebut.
-                </p>
-              </div>
-
-              <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <input
-                  type="checkbox"
-                  id="chkConfirmDelete"
-                  checked={confirmDeleteChecklist}
-                  onChange={(e) => setConfirmDeleteChecklist(e.target.checked)}
-                  className="checkbox checkbox-sm checkbox-rose mt-0.5"
-                />
-                <label htmlFor="chkConfirmDelete" className="text-xs font-bold text-slate-800 cursor-pointer">
-                  Saya yakin dan paham akibat dari menghapus jalur kelas &ldquo;{deletingJalurItem.nama_jalur}&rdquo;.
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <button type="button" onClick={() => setIsDeleteJalurModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button
-                  type="button"
-                  disabled={!confirmDeleteChecklist}
-                  onClick={handleDeleteJalurKelas}
-                  className="btn bg-rose-600 hover:bg-rose-700 text-white btn-sm font-bold border-none disabled:opacity-40"
-                >
-                  Hapus Jalur Kelas Permanen
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL UBAH / PENETAPAN TIPE TAGIHAN MAHASISWA */}
-      {isStudentTypeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">
-                {editingStudentType ? 'Ubah Tipe Tagihan & Jalur Mahasiswa' : 'Penetapan Tipe Tagihan Baru'}
-              </h3>
-              <button onClick={() => setIsStudentTypeModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveStudentType} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-700">NIM / ID Mahasiswa *</label>
-                  <input
-                    type="text"
-                    required
-                    readOnly={!!editingStudentType}
-                    value={studentTypeForm.nim || studentTypeForm.mahasiswa_id}
-                    onChange={(e) => setStudentTypeForm({ ...studentTypeForm, nim: e.target.value })}
-                    className="input input-sm border-slate-300 w-full font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Nama Mahasiswa *</label>
-                  <input
-                    type="text"
-                    required
-                    readOnly={!!editingStudentType}
-                    value={studentTypeForm.nama_mahasiswa}
-                    onChange={(e) => setStudentTypeForm({ ...studentTypeForm, nama_mahasiswa: e.target.value })}
-                    className="input input-sm border-slate-300 w-full font-bold text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Jalur / Kelas Baru *</label>
-                  <select
-                    value={studentTypeForm.jalur_kelas}
-                    onChange={(e) => setStudentTypeForm({ ...studentTypeForm, jalur_kelas: e.target.value })}
-                    className="select select-sm border-slate-300 w-full font-bold text-xs"
-                  >
-                    {jalurKelasList.map((j) => (
-                      <option key={j.id} value={j.nama_jalur}>{j.nama_jalur}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Kelompok UKT *</label>
-                  <select
-                    value={studentTypeForm.kelompok_ukt}
-                    onChange={(e) => setStudentTypeForm({ ...studentTypeForm, kelompok_ukt: Number(e.target.value) })}
-                    className="select select-sm border-slate-300 w-full font-bold text-xs"
-                  >
-                    <option value={1}>Level 1 (Subsidi Penuh)</option>
-                    <option value={2}>Level 2 (Subsidi Parsial)</option>
-                    <option value={3}>Level 3 (Reguler / Standar)</option>
-                    <option value={4}>Level 4 (Mandiri)</option>
-                    <option value={5}>Level 5 (Eksekutif / Khusus)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Program Beasiswa (Opsional)</label>
-                <select
-                  value={studentTypeForm.beasiswa_id}
-                  onChange={(e) => setStudentTypeForm({ ...studentTypeForm, beasiswa_id: Number(e.target.value) })}
-                  className="select select-sm border-slate-300 w-full font-semibold text-xs"
-                >
-                  <option value={0}>-- Tanpa Beasiswa --</option>
-                  {beasiswaList.map((b) => (
-                    <option key={b.id} value={b.id}>[{b.kode}] {b.nama}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Catatan Alasan Perubahan *</label>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="Misal: Pindah dari kelas reguler ke kelas karyawan per semester 3..."
-                  value={studentTypeForm.catatan_perubahan}
-                  onChange={(e) => setStudentTypeForm({ ...studentTypeForm, catatan_perubahan: e.target.value })}
-                  className="textarea textarea-sm border-slate-300 w-full text-xs font-medium"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" onClick={() => setIsStudentTypeModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" disabled={loading} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  Simpan Perubahan Tipe
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH ANGKATAN BARU */}
-      {isAddAngkatanOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">Tambah Angkatan Baru</h3>
-              <button onClick={() => setIsAddAngkatanOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700">Tahun Angkatan Baru *</label>
-                <input
-                  type="number"
-                  value={newAngkatanYear}
-                  onChange={(e) => setNewAngkatanYear(Number(e.target.value))}
-                  className="input input-sm border-slate-300 w-full font-mono font-bold text-center text-lg text-indigo-900"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <button type="button" onClick={() => setIsAddAngkatanOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="button" onClick={handleAddAngkatan} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  Tambah Angkatan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL EDIT / INPUT TARIF ANGKATAN */}
-      {isTarifModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">
-                {editingTarif ? 'Update Nominal & Label Tarif UKT' : 'Set Tarif Angkatan Baru'}
-              </h3>
-              <button onClick={() => setIsTarifModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveTarif} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Tahun Angkatan *</label>
-                  <select
-                    value={tarifForm.tahun_angkatan}
-                    onChange={(e) => setTarifForm({ ...tarifForm, tahun_angkatan: Number(e.target.value) })}
-                    className="select select-sm border-slate-300 w-full font-bold text-xs"
-                  >
-                    {availableAngkatan.map((year) => (
-                      <option key={year} value={year}>Angkatan {year}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Jalur / Kelas *</label>
-                  <select
-                    value={tarifForm.jalur_kelas}
-                    onChange={(e) => setTarifForm({ ...tarifForm, jalur_kelas: e.target.value })}
-                    className="select select-sm border-slate-300 w-full font-bold text-xs"
-                  >
-                    {jalurKelasList.map((j) => (
-                      <option key={j.id} value={j.nama_jalur}>{j.nama_jalur}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Program Studi *</label>
-                  <select
-                    value={tarifForm.prodi || 'Teknik Informatika'}
-                    onChange={(e) => setTarifForm({ ...tarifForm, prodi: e.target.value, nama_kelompok: `SPP Semester ${e.target.value}` })}
-                    className="select select-sm border-slate-300 w-full font-bold text-xs"
-                  >
-                    <option value="Semua Prodi">Semua Program Studi (Umum)</option>
-                    <option value="Teknik Informatika">Teknik Informatika</option>
-                    <option value="Sistem Informasi">Sistem Informasi</option>
-                    <option value="Manajemen Informatika">Manajemen Informatika</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Peruntukan / Label Tarif *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="contoh: SPP Semester Teknik Informatika"
-                    value={tarifForm.nama_kelompok}
-                    onChange={(e) => setTarifForm({ ...tarifForm, nama_kelompok: e.target.value })}
-                    className="input input-sm border-slate-300 w-full font-semibold text-xs"
-                  />
-                </div>
-              </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Komponen Biaya *</label>
-                  <select
-                    value={tarifForm.jenis_biaya_id}
-                    onChange={(e) => setTarifForm({ ...tarifForm, jenis_biaya_id: Number(e.target.value) })}
-                    className="select select-sm border-slate-300 w-full font-semibold text-xs"
-                  >
-                    {jenisBiayaList.map((j) => (
-                      <option key={j.id} value={j.id}>{j.nama}</option>
-                    ))}
-                  </select>
-                </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Nominal Tarif (Rp) *</label>
-                <input
-                  type="number"
-                  required
-                  value={tarifForm.nominal}
-                  onChange={(e) => setTarifForm({ ...tarifForm, nominal: Number(e.target.value) })}
-                  className="input input-sm border-slate-300 w-full font-mono font-extrabold text-emerald-800 text-base"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" onClick={() => setIsTarifModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" disabled={loading} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  {editingTarif ? 'Simpan Pembaruan Tarif' : 'Simpan Tarif'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL TAMBAH / EDIT KOMPONEN JENIS BIAYA */}
-      {isJenisBiayaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">
-                {editingJenisBiaya ? 'Edit Master Komponen Biaya' : 'Tambah Komponen Biaya Kuliah'}
-              </h3>
-              <button onClick={() => setIsJenisBiayaModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveJenisBiaya} className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700">Kode Komponen *</label>
-                <input
-                  type="text"
-                  required
-                  readOnly={!!editingJenisBiaya}
-                  placeholder="Misal: PRAKTIKUM / GEDUNG"
-                  value={jenisBiayaForm.kode}
-                  onChange={(e) => setJenisBiayaForm({ ...jenisBiayaForm, kode: e.target.value })}
-                  className="input input-sm border-slate-300 w-full font-mono font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Nama Komponen Biaya *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Misal: Biaya Laboratorium & Praktikum"
-                  value={jenisBiayaForm.nama}
-                  onChange={(e) => setJenisBiayaForm({ ...jenisBiayaForm, nama: e.target.value })}
-                  className="input input-sm border-slate-300 w-full font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Tipe Komponen *</label>
-                <select
-                  value={jenisBiayaForm.tipe}
-                  onChange={(e) => setJenisBiayaForm({ ...jenisBiayaForm, tipe: e.target.value })}
-                  className="select select-sm border-slate-300 w-full font-semibold text-xs"
-                >
-                  <option value="ukt">UKT</option>
-                  <option value="spp">SPP</option>
-                  <option value="praktikum">Praktikum</option>
-                  <option value="wisuda">Wisuda</option>
-                  <option value="spmb_adm">SPMB</option>
-                  <option value="lainnya">Lainnya / Gedung</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Deskripsi Peruntukan</label>
-                <textarea
-                  rows={2}
-                  placeholder="Tuliskan keterangan peruntukan biaya..."
-                  value={jenisBiayaForm.deskripsi}
-                  onChange={(e) => setJenisBiayaForm({ ...jenisBiayaForm, deskripsi: e.target.value })}
-                  className="textarea textarea-sm border-slate-300 w-full text-xs font-medium"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" onClick={() => setIsJenisBiayaModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  Simpan Komponen Biaya
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL MASTER BEASISWA WITH SCOPE TARGETING (JENIS BIAYA & ANGKATAN) */}
-      {isBeasiswaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">
-                {editingBeasiswa ? 'Edit Program Beasiswa & Scope' : 'Tambah Master Program Beasiswa'}
-              </h3>
-              <button onClick={() => setIsBeasiswaModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleSaveBeasiswa} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Kode Beasiswa *</label>
-                  <input
-                    type="text"
-                    required
-                    readOnly={!!editingBeasiswa}
-                    placeholder="Misal: KIP_KULIAH"
-                    value={beasiswaForm.kode}
-                    onChange={(e) => setBeasiswaForm({ ...beasiswaForm, kode: e.target.value })}
-                    className="input input-sm border-slate-300 w-full font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Sumber Dana *</label>
-                  <select
-                    value={beasiswaForm.sumber}
-                    onChange={(e) => setBeasiswaForm({ ...beasiswaForm, sumber: e.target.value })}
-                    className="select select-sm border-slate-300 w-full font-semibold text-xs"
-                  >
-                    <option value="internal">Internal Kampus</option>
-                    <option value="pemerintah">Pemerintah (KIP-K)</option>
-                    <option value="eksternal">Eksternal / Sponsor</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Nama Program Beasiswa *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Misal: Beasiswa KIP Kuliah Pemerintah"
-                  value={beasiswaForm.nama}
-                  onChange={(e) => setBeasiswaForm({ ...beasiswaForm, nama: e.target.value })}
-                  className="input input-sm border-slate-300 w-full font-medium"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Tipe Potongan *</label>
-                  <select
-                    value={beasiswaForm.tipe_potongan}
-                    onChange={(e) => setBeasiswaForm({ ...beasiswaForm, tipe_potongan: e.target.value })}
-                    className="select select-sm border-slate-300 w-full font-semibold text-xs"
-                  >
-                    <option value="persen">Persentase (%)</option>
-                    <option value="nominal">Nominal Rupiah (Rp)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700">Nilai Potongan *</label>
-                  <input
-                    type="number"
-                    required
-                    value={beasiswaForm.nilai_potongan}
-                    onChange={(e) => setBeasiswaForm({ ...beasiswaForm, nilai_potongan: Number(e.target.value) })}
-                    className="input input-sm border-slate-300 w-full font-mono font-bold text-emerald-800 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-3">
-                <div className="text-xs font-extrabold text-slate-800 flex items-center gap-1">
-                  <Filter size={14} className="text-emerald-600" /> Target Scope Potongan Tagihan & Angkatan:
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700">Target Komponen Tagihan (Optional)</label>
-                  <select
-                    value={beasiswaForm.jenis_biaya_id}
-                    onChange={(e) => setBeasiswaForm({ ...beasiswaForm, jenis_biaya_id: Number(e.target.value) })}
-                    className="select select-sm border-slate-300 w-full font-semibold text-xs bg-white"
-                  >
-                    <option value={0}>-- Berlaku untuk Semua Tagihan Pendidikan --</option>
-                    {jenisBiayaList.map((j) => (
-                      <option key={j.id} value={j.id}>Khusus Komponen: {j.nama}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700">Angkatan Mulai</label>
-                    <input
-                      type="number"
-                      value={beasiswaForm.berlaku_angkatan_mulai}
-                      onChange={(e) => setBeasiswaForm({ ...beasiswaForm, berlaku_angkatan_mulai: Number(e.target.value) })}
-                      className="input input-xs border-slate-300 w-full font-mono font-bold bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700">Angkatan Sampai</label>
-                    <input
-                      type="number"
-                      value={beasiswaForm.berlaku_angkatan_sampai}
-                      onChange={(e) => setBeasiswaForm({ ...beasiswaForm, berlaku_angkatan_sampai: Number(e.target.value) })}
-                      className="input input-xs border-slate-300 w-full font-mono font-bold bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Deskripsi / SK Rektor</label>
-                <textarea
-                  rows={2}
-                  placeholder="Keterangan peruntukan & persyaratannya..."
-                  value={beasiswaForm.deskripsi}
-                  onChange={(e) => setBeasiswaForm({ ...beasiswaForm, deskripsi: e.target.value })}
-                  className="textarea textarea-sm border-slate-300 w-full text-xs font-medium"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" onClick={() => setIsBeasiswaModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  Simpan Master Beasiswa
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL PENETAPAN BEASISWA MAHASISWA WITH LIVE SEARCH MAHASISWA (NIM / NAMA) */}
-      {isAssignBeasiswaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-extrabold text-base text-slate-900">Tetapkan Penerima Beasiswa</h3>
-              <button onClick={() => setIsAssignBeasiswaModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleAssignBeasiswa} className="space-y-3">
-              {/* SEARCHABLE STUDENT SELECTOR */}
-              <div>
-                <label className="text-xs font-bold text-slate-700">Cari & Pilih Mahasiswa *</label>
-                <div className="space-y-1.5">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Ketik Nama atau NIM..."
-                      value={assignSearchQuery}
-                      onChange={(e) => {
-                        setAssignSearchQuery(e.target.value);
-                        fetchStudentTypes(1, e.target.value);
-                      }}
-                      className="input input-sm border-slate-300 w-full pl-8 text-xs font-bold"
-                    />
-                    <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
-                  </div>
-
-                  <select
-                    required
-                    value={assignForm.mahasiswa_id}
-                    onChange={(e) => setAssignForm({ ...assignForm, mahasiswa_id: Number(e.target.value) })}
-                    className="select select-sm border-slate-300 w-full font-bold text-xs bg-slate-50"
-                  >
-                    <option value={0}>-- Pilih Mahasiswa dari Hasil Pencarian --</option>
-                    {studentTypesList.map((st) => (
-                      <option key={st.id} value={st.mahasiswa_id}>
-                        {st.nama_mahasiswa} (NIM: {st.nim}) - Angkatan {st.tahun_angkatan} [{st.jalur_kelas}]
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700">Program Beasiswa *</label>
-                <select
-                  value={assignForm.beasiswa_id}
-                  onChange={(e) => setAssignForm({ ...assignForm, beasiswa_id: Number(e.target.value) })}
-                  className="select select-sm border-slate-300 w-full font-bold text-xs"
-                >
-                  {beasiswaList.map((b) => (
-                    <option key={b.id} value={b.id}>[{b.kode}] {b.nama}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button type="button" onClick={() => setIsAssignBeasiswaModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
-                  Tetapkan Beasiswa
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -1797,53 +976,62 @@ export default function MasterBiayaPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Master Data Unit Kas & Multi-Rekening</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Pengelolaan unit pemegang Petty Cash beserta data rekening tujuan pencairan dana Xendit/Duitku.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Pengelolaan unit pemegang Petty Cash beserta data rekening tujuan pencairan dana.</p>
             </div>
             <span className="text-xs font-bold text-slate-500">{unitKasMasterList.length} Unit Terdaftar</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {unitKasMasterList.map((u) => (
-              <div key={u.id} className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col justify-between space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 bg-teal-100 text-teal-800 rounded-md">ID: {u.id}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${u.status === 'aktif' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{u.status.toUpperCase()}</span>
+              <div key={u.id} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div className={`absolute top-0 left-0 w-1 h-full ${u.status ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                <div className="flex justify-between items-start mb-2 pl-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-lg ${u.status ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                      <Building size={16} />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-slate-800 text-sm leading-tight">{u.nama_kas}</h3>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${u.status ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                        {u.status ? 'AKTIF' : 'NONAKTIF'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-slate-900 text-sm leading-tight">{u.nama}</h3>
-                  </div>
-                  <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Rekening Tujuan Pencairan</div>
-                    <div className="font-mono font-extrabold text-indigo-700 text-xs">{u.bank} - {u.no_rekening}</div>
-                    <div className="text-[11px] font-semibold text-slate-700">a.n. {u.atas_nama}</div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => {
+                      setEditingUnitKas(u);
+                      setUnitKasForm({
+                        id: u.id,
+                        nama_kas: u.nama_kas,
+                        bank_name: u.bank_name || 'BNI',
+                        bank_account_number: u.bank_account_number || '',
+                        bank_account_name: u.bank_account_name || '',
+                        status: u.status,
+                        deskripsi: u.deskripsi || ''
+                      });
+                      setIsUnitKasModalOpen(true);
+                    }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors">
+                      <Edit size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteUnitKas(u.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-end gap-1 pt-3 border-t border-slate-200/80">
-                  <button
-                    onClick={() => {
-                      setEditingUnitKas(u);
-                      setUnitKasForm(u);
-                      setIsUnitKasModalOpen(true);
-                    }}
-                    title="Edit Unit Kas"
-                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 border border-transparent rounded-lg transition-all"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Hapus Unit Kas ${u.nama}?`)) {
-                        setUnitKasMasterList(unitKasMasterList.filter(item => item.id !== u.id));
-                        setFeedback({ type: 'success', message: 'Unit kas berhasil dihapus.' });
-                      }
-                    }}
-                    title="Hapus Unit Kas"
-                    className="p-1.5 text-rose-600 hover:bg-rose-50 hover:border-rose-200 border border-transparent rounded-lg transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                
+                <div className="pl-2 space-y-1.5 mt-3 text-xs">
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Bank</span>
+                    <span className="font-bold text-slate-700">{u.bank_name || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>No. Rekening</span>
+                    <span className="font-mono font-bold text-slate-700">{u.bank_account_number || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Atas Nama</span>
+                    <span className="font-bold text-slate-700">{u.bank_account_name || '-'}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1863,59 +1051,62 @@ export default function MasterBiayaPage() {
             </div>
             <form onSubmit={handleSaveUnitKas} className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Nama Unit Pemegang Kas *</label>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Nama Unit Kas *</label>
                 <input
                   type="text"
                   required
-                  value={unitKasForm.nama}
-                  onChange={(e) => setUnitKasForm({ ...unitKasForm, nama: e.target.value })}
-                  placeholder="Contoh: Petty Cash Lab TI"
-                  className="input input-sm border-slate-300 w-full font-bold"
+                  className="input input-sm border-slate-300 w-full text-xs font-bold"
+                  value={unitKasForm.nama_kas}
+                  onChange={(e) => setUnitKasForm({ ...unitKasForm, nama_kas: e.target.value })}
+                  placeholder="Misal: Petty Cash Fakultas Teknik"
                 />
               </div>
+              
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Bank *</label>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">Bank Transfer</label>
                   <select
-                    value={unitKasForm.bank}
-                    onChange={(e) => setUnitKasForm({ ...unitKasForm, bank: e.target.value })}
-                    className="select select-sm border-slate-300 w-full font-bold text-xs"
+                    className="select select-sm border-slate-300 w-full text-xs font-bold"
+                    value={unitKasForm.bank_name}
+                    onChange={(e) => setUnitKasForm({ ...unitKasForm, bank_name: e.target.value })}
                   >
                     <option value="BNI">BNI</option>
                     <option value="Mandiri">Mandiri</option>
-                    <option value="BCA">BCA</option>
                     <option value="BRI">BRI</option>
+                    <option value="BCA">BCA</option>
                     <option value="BSI">BSI</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">No. Rekening *</label>
+                  <label className="text-xs font-bold text-slate-700 mb-1 block">No. Rekening</label>
                   <input
                     type="text"
-                    required
-                    value={unitKasForm.no_rekening}
-                    onChange={(e) => setUnitKasForm({ ...unitKasForm, no_rekening: e.target.value })}
-                    className="input input-sm border-slate-300 w-full font-mono font-bold text-xs"
+                    className="input input-sm border-slate-300 w-full text-xs font-mono"
+                    value={unitKasForm.bank_account_number}
+                    onChange={(e) => setUnitKasForm({ ...unitKasForm, bank_account_number: e.target.value })}
+                    placeholder="Nomor rekening"
                   />
                 </div>
               </div>
+
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Atas Nama Rekening *</label>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">Atas Nama Rekening</label>
                 <input
                   type="text"
-                  required
-                  value={unitKasForm.atas_nama}
-                  onChange={(e) => setUnitKasForm({ ...unitKasForm, atas_nama: e.target.value })}
-                  className="input input-sm border-slate-300 w-full font-semibold text-xs"
+                  className="input input-sm border-slate-300 w-full text-xs font-bold uppercase"
+                  value={unitKasForm.bank_account_name}
+                  onChange={(e) => setUnitKasForm({ ...unitKasForm, bank_account_name: e.target.value })}
+                  placeholder="Nama pemilik rekening"
                 />
               </div>
-              <div className="flex items-center gap-2 mt-2">
+
+              <div className="flex items-center gap-2 pt-2 border-t mt-2">
                 <input
                   type="checkbox"
-                  id="statusUnitKas"
-                  checked={unitKasForm.status === 'aktif'}
-                  onChange={(e) => setUnitKasForm({ ...unitKasForm, status: e.target.checked ? 'aktif' : 'nonaktif' })}
                   className="toggle toggle-success toggle-sm"
+                  id="statusUnitKas"
+                  checked={unitKasForm.status}
+                  onChange={(e) => setUnitKasForm({ ...unitKasForm, status: e.target.checked })}
                 />
                 <label htmlFor="statusUnitKas" className="text-xs font-bold text-slate-700 cursor-pointer">Unit Aktif</label>
               </div>

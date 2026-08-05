@@ -1,17 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, DollarSign, CheckCircle, ShieldCheck, Wallet, ArrowUpRight, ArrowDownLeft, Clock, FileText, Send, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { sikeuService } from '@/services/sikeu.service';
 
 export default function UnitKasPage() {
   // Master Data Unit
-  const [unitList] = useState([
-    { id: 1, nama: 'Petty Cash Fakultas Teknik & TIK' },
-    { id: 2, nama: 'Petty Cash Fakultas Ekonomi & Bisnis' },
-    { id: 3, nama: 'Kas Operasional SPMB' },
-    { id: 4, nama: 'Kas Operasional LPPM' },
-  ]);
+  const [unitList, setUnitList] = useState<any[]>([]);
 
   const [kasList] = useState([
     { id: 1, nama: 'Kas Kabag Keuangan (Kas Utama Kabag)', saldoAwal: 500000000, saldoSaatIni: 883000000, pj: 'Kabag Keuangan', deskripsi: 'Kas Utama Operasional & Verifikasi Bagian Keuangan', isKabag: true, status: true },
@@ -21,10 +17,24 @@ export default function UnitKasPage() {
   ]);
 
   // List of Unit Cash Requests / Proposals submitted to Kabag
-  const [pengajuanKasList, setPengajuanKasList] = useState<any[]>([
-    { id: 101, kode: 'REQ-KAS-202608-01', unit: 'Petty Cash Fakultas Teknik & TIK', jenis: 'Pengisian Kas Operasional', nominal: 10000000, pemohon: 'Kabag TU FTIK', tanggal: '2026-08-02', status: 'pending_approval', alasan: 'Pengisian ulang petty cash untuk operasional ujian susulan', rekening_tujuan: 'BNI - 1234567890 (a.n Operasional FTIK)' },
-    { id: 102, kode: 'REQ-KAS-202608-02', unit: 'Kas Operasional SPMB', jenis: 'Tambahan Kas Tunai Loket', nominal: 15000000, pemohon: 'Panitia SPMB', tanggal: '2026-08-03', status: 'approved', alasan: 'Persediaan kembalian pendaftaran SPMB Gelombang 2', rekening_tujuan: 'Mandiri - 9876543210 (a.n Kasir SPMB)' },
-  ]);
+  const [pengajuanKasList, setPengajuanKasList] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [unitRes, pengajuanRes] = await Promise.all([
+        sikeuService.getUnitKasList(),
+        sikeuService.getPengajuanKasList()
+      ]);
+      setUnitList(unitRes.data || []);
+      setPengajuanKasList(pengajuanRes.data || []);
+    } catch (error: any) {
+      setFeedback({ type: 'error', message: 'Gagal memuat data: ' + error.message });
+    }
+  };
 
   // Modal States
   const [isPengajuanModalOpen, setIsPengajuanModalOpen] = useState(false);
@@ -33,7 +43,7 @@ export default function UnitKasPage() {
   // Kabag Approval Modal States
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [approvingItem, setApprovingItem] = useState<any | null>(null);
-  const [approveForm, setApproveForm] = useState({ catatan_kabag: '', payment_gateway: 'xendit' });
+  const [approveForm, setApproveForm] = useState({ catatan_kabag: '' });
 
   const [pengajuanForm, setPengajuanForm] = useState({
     unit_pemohon: unitList[0].nama,
@@ -52,7 +62,7 @@ export default function UnitKasPage() {
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const handleCreatePengajuan = (e: React.FormEvent) => {
+  const handleCreatePengajuan = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalJenisPengajuan = pengajuanForm.jenis_pengajuan === 'lainnya' ? pengajuanForm.jenis_pengajuan_manual : pengajuanForm.jenis_pengajuan;
 
@@ -61,42 +71,38 @@ export default function UnitKasPage() {
       return;
     }
 
-    const newReq = {
-      id: Date.now(),
-      kode: `REQ-KAS-202608-${Math.floor(10 + Math.random() * 90)}`,
-      unit: pengajuanForm.unit_pemohon,
-      jenis: finalJenisPengajuan,
-      nominal: Number(pengajuanForm.nominal),
-      pemohon: 'Admin Unit Kas',
-      tanggal: new Date().toISOString().split('T')[0],
-      status: 'pending_approval',
-      alasan: pengajuanForm.keterangan,
-      rekening_tujuan: pengajuanForm.rekening_tujuan,
-    };
-    setPengajuanKasList([newReq, ...pengajuanKasList]);
-    setFeedback({
-      type: 'success',
-      message: `Permohonan dana kas unit (${newReq.kode}) sebesar ${formatRupiah(newReq.nominal)} berhasil diajukan ke Kabag Keuangan.`,
-    });
-    setIsPengajuanModalOpen(false);
+    try {
+      const selectedUnit = unitList.find((u: any) => u.id === Number(pengajuanForm.unit_pemohon));
+      await sikeuService.storePengajuanKas({
+        unit_kas_id: selectedUnit ? selectedUnit.id : null,
+        judul_pengajuan: finalJenisPengajuan,
+        deskripsi: pengajuanForm.keterangan,
+        nominal_diajukan: Number(pengajuanForm.nominal)
+      });
+      setFeedback({ type: 'success', message: 'Permohonan dana kas unit berhasil diajukan.' });
+      setIsPengajuanModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      setFeedback({ type: 'error', message: 'Gagal mengajukan: ' + error.message });
+    }
   };
 
-  const handleApproveKabag = (e: React.FormEvent) => {
+  const handleApproveKabag = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!approvingItem) return;
 
-    // Simulate Payment Gateway API Call (Xendit/Duitku)
-    setTimeout(() => {
-      setPengajuanKasList(pengajuanKasList.map(req => 
-        req.id === approvingItem.id ? { ...req, status: 'approved' } : req
-      ));
+    try {
+      await sikeuService.approvePengajuanKas(approvingItem.id);
       setFeedback({
         type: 'success',
-        message: `Pengajuan ${approvingItem.kode} DISETUJUI. Dana Rp ${new Intl.NumberFormat('id-ID').format(approvingItem.nominal)} sedang diproses melalui ${approveForm.payment_gateway.toUpperCase()} ke Rekening: ${approvingItem.rekening_tujuan}.`,
+        message: `Pengajuan ${approvingItem.nomor_pengajuan} DISETUJUI dan dana sedang diproses pencairannya.`,
       });
       setIsApproveModalOpen(false);
       setApprovingItem(null);
-    }, 1200);
+      fetchData();
+    } catch (error: any) {
+      setFeedback({ type: 'error', message: 'Gagal approve: ' + error.message });
+    }
   };
 
   const formatRupiah = (val: number) => {
@@ -128,10 +134,10 @@ export default function UnitKasPage() {
             onClick={() => {
               setPengajuanForm({
                 ...pengajuanForm,
-                unit_pemohon: unitList[0].nama,
+                unit_pemohon: unitList.length > 0 ? unitList[0].id : '',
                 jenis_pengajuan: 'Pengisian Uang Muka Operasional (Petty Cash)',
                 jenis_pengajuan_manual: '',
-                rekening_tujuan: 'BNI - 1234567890 (a.n Operasional FTIK)',
+                rekening_tujuan: 'Pencairan Kas Tunai',
               });
               setIsPengajuanModalOpen(true);
             }}
@@ -228,27 +234,27 @@ export default function UnitKasPage() {
             <tbody className="divide-y divide-slate-100">
               {pengajuanKasList.map((req) => (
                 <tr key={req.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono font-bold text-teal-800">{req.kode}
-                    <div className="text-[10px] text-slate-500 font-sans mt-0.5">{req.tanggal}</div>
+                  <td className="px-4 py-3 font-mono font-bold text-teal-800">{req.nomor_pengajuan}
+                    <div className="text-[10px] text-slate-500 font-sans mt-0.5">{new Date(req.created_at).toLocaleDateString('id-ID')}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-bold text-slate-900">{req.unit}</div>
-                    <div className="text-[10px] text-slate-500 font-semibold">Pemohon: {req.pemohon}</div>
+                    <div className="font-bold text-slate-900">{req.unit_kas?.nama_kas || 'Unit Tidak Diketahui'}</div>
+                    <div className="text-[10px] text-slate-500 font-semibold">Pemohon: Admin Unit Kas</div>
                   </td>
                   <td className="px-4 py-3 max-w-[200px]">
-                    <div className="font-bold text-slate-800">{req.jenis}</div>
-                    <div className="text-[10px] text-slate-500 italic mt-0.5 truncate" title={req.alasan}>&ldquo;{req.alasan}&rdquo;</div>
+                    <div className="font-bold text-slate-800">{req.judul_pengajuan}</div>
+                    <div className="text-[10px] text-slate-500 italic mt-0.5 truncate" title={req.deskripsi}>&ldquo;{req.deskripsi}&rdquo;</div>
                   </td>
                   <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-800 text-sm">
-                    {formatRupiah(req.nominal)}
+                    {formatRupiah(req.nominal_diajukan)}
                   </td>
-                  <td className="px-4 py-3 font-mono text-[10px] font-bold text-slate-600 max-w-[120px] truncate" title={req.rekening_tujuan}>
-                    {req.rekening_tujuan}
+                  <td className="px-4 py-3 font-mono text-[10px] font-bold text-slate-600 max-w-[120px] truncate" title={req.unit_kas?.bank_account_number}>
+                    {req.unit_kas?.bank_name} - {req.unit_kas?.bank_account_number}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {req.status === 'approved' ? (
+                    {req.status === 'dicairkan' ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle size={12} /> DISETUJUI
+                        <CheckCircle size={12} /> DICAIRKAN
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
@@ -257,11 +263,11 @@ export default function UnitKasPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
-                     {req.status === 'pending_approval' ? (
+                     {req.status === 'pending_keuangan' ? (
                         <button
                           onClick={() => {
                             setApprovingItem(req);
-                            setApproveForm({ catatan_kabag: '', payment_gateway: 'xendit' });
+                            setApproveForm({ catatan_kabag: '' });
                             setIsApproveModalOpen(true);
                           }}
                           className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-xs font-bold border-none"
@@ -299,7 +305,7 @@ export default function UnitKasPage() {
                   className="select select-sm border-slate-300 w-full font-bold text-xs"
                 >
                   {unitList.map(unit => (
-                    <option key={unit.id} value={unit.nama}>{unit.nama}</option>
+                    <option key={unit.id} value={unit.id}>{unit.nama_kas}</option>
                   ))}
                 </select>
               </div>
@@ -400,36 +406,24 @@ export default function UnitKasPage() {
             <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-2 text-xs">
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-500 font-semibold">No. Pengajuan</span>
-                <span className="col-span-2 font-mono font-bold text-indigo-800">{approvingItem.kode}</span>
+                <span className="col-span-2 font-mono font-bold text-indigo-800">{approvingItem.nomor_pengajuan}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-500 font-semibold">Unit & Pemohon</span>
-                <span className="col-span-2 font-bold text-slate-800">{approvingItem.unit} ({approvingItem.pemohon})</span>
+                <span className="col-span-2 font-bold text-slate-800">{approvingItem.unit_kas?.nama_kas} (Admin)</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-500 font-semibold">Rekening Tujuan</span>
-                <span className="col-span-2 font-mono font-bold text-teal-700">{approvingItem.rekening_tujuan}</span>
+                <span className="col-span-2 font-mono font-bold text-teal-700">{approvingItem.unit_kas?.bank_account_number}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-500 font-semibold">Nominal Cair</span>
-                <span className="col-span-2 font-mono font-extrabold text-emerald-700 text-lg">{formatRupiah(approvingItem.nominal)}</span>
+                <span className="col-span-2 font-mono font-extrabold text-emerald-700 text-lg">{formatRupiah(approvingItem.nominal_diajukan)}</span>
               </div>
             </div>
 
             <form onSubmit={handleApproveKabag} className="space-y-4 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Pilih Payment Gateway untuk Pencairan *</label>
-                <div className="flex gap-4 mt-2">
-                  <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-3 rounded-xl border border-slate-200 flex-1 hover:border-indigo-300">
-                    <input type="radio" name="pg" value="xendit" checked={approveForm.payment_gateway === 'xendit'} onChange={(e) => setApproveForm({...approveForm, payment_gateway: e.target.value})} className="radio radio-primary radio-sm" />
-                    <span className="font-extrabold text-slate-800">Xendit Disbursement</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-3 rounded-xl border border-slate-200 flex-1 hover:border-indigo-300">
-                    <input type="radio" name="pg" value="duitku" checked={approveForm.payment_gateway === 'duitku'} onChange={(e) => setApproveForm({...approveForm, payment_gateway: e.target.value})} className="radio radio-primary radio-sm" />
-                    <span className="font-extrabold text-slate-800">Duitku Disbursement</span>
-                  </label>
-                </div>
-              </div>
+
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Catatan Persetujuan Kabag (Opsional)</label>

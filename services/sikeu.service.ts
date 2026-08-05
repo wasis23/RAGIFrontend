@@ -311,4 +311,67 @@ export const sikeuService = {
     const query = new URLSearchParams(params as any).toString();
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran?${query}`);
   },
+
+  // Payment Gateway Config
+  getPaymentGateways: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/payment-gateway');
+  },
+
+  getActivePaymentGateway: async () => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/payment-gateway/active');
+  },
+
+  getPaymentGatewayBalance: async (gatewayName: string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/payment-gateway/${gatewayName}/balance`);
+  },
+
+  updatePaymentGateway: async (gatewayName: string, payload: any) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/payment-gateway/${gatewayName}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Master Unit Kas
+  getUnitKasList: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/unit-kas');
+  },
+
+  storeUnitKas: async (payload: any) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/unit-kas', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateUnitKas: async (id: number, payload: any) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/unit-kas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteUnitKas: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/unit-kas/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Pengajuan Pencairan Kas
+  getPengajuanKasList: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pengajuan-kas');
+  },
+
+  storePengajuanKas: async (payload: any) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pengajuan-kas', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  approvePengajuanKas: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pengajuan-kas/${id}/approve`, {
+      method: 'POST',
+    });
+  },
 };

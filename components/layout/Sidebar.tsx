@@ -187,20 +187,12 @@ export function Sidebar() {
         {/* SIKEU Static / Fallback Left Sidebar Navigation */}
         {pathname.startsWith('/sikeu') && (() => {
           const sikeuMenus = [
-            { name: 'Dashboard Keuangan', url: '/sikeu', icon: LayoutDashboard, section: 'Transaksi & Operasional' },
-            { name: 'Portal Kabag Keuangan', url: '/sikeu/kabag', icon: ShieldCheck, section: 'Transaksi & Operasional' },
-            { name: 'Payment Gateway API', url: '/sikeu/payment-gateway', icon: Key, section: 'Transaksi & Operasional' },
-            { name: 'Tagihan & Semester', url: '/sikeu/tagihan', icon: FileText, section: 'Transaksi & Operasional' },
-            { name: 'Kas Unit & Kas Kabag', url: '/sikeu/unit-kas', icon: DollarSign, section: 'Transaksi & Operasional' },
-            { name: 'Approval Pimpinan', url: '/sikeu/approval', icon: CheckSquare, section: 'Transaksi & Operasional' },
-            { name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: User, section: 'Transaksi & Operasional' },
-            { name: 'Akuntansi & Jurnal', url: '/sikeu/akuntansi', icon: PieChart, section: 'Transaksi & Operasional' },
-            { name: 'Pemasukan Kampus', url: '/sikeu/pemasukan', icon: TrendingUp, section: 'Transaksi & Operasional' },
-            { name: 'Pengeluaran Operasional', url: '/sikeu/pengeluaran', icon: Clock, section: 'Transaksi & Operasional' },
-            { name: 'Pajak & Potongan', url: '/sikeu/pajak', icon: Award, section: 'Transaksi & Operasional' },
-            { name: 'Riwayat Pembayaran', url: '/sikeu/pembayaran', icon: List, section: 'Transaksi & Operasional' },
+            // 1. Transaksi Pembayaran Mahasiswa
+            { name: 'Tagihan & Semester', url: '/sikeu/tagihan', icon: FileText, section: 'Transaksi Pembayaran Mahasiswa' },
+            { name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: User, section: 'Transaksi Pembayaran Mahasiswa' },
+            { name: 'Riwayat Pembayaran', url: '/sikeu/pembayaran', icon: List, section: 'Transaksi Pembayaran Mahasiswa' },
 
-            // Master SIKEU Keuangan separate menus
+            // 2. Master SIKEU Keuangan
             { name: 'Master Komponen Biaya', url: '/sikeu/master?tab=jenis-biaya', icon: Building2, section: 'Master SIKEU Keuangan' },
             { name: 'Master Jalur & Kelas', url: '/sikeu/master?tab=jalur-kelas', icon: Building2, section: 'Master SIKEU Keuangan' },
             { name: 'Tarif Angkatan', url: '/sikeu/master?tab=tarif', icon: Calendar, section: 'Master SIKEU Keuangan' },
@@ -208,6 +200,19 @@ export function Sidebar() {
             { name: 'Penetapan Tagihan', url: '/sikeu/master?tab=student-types', icon: UserCheck, section: 'Master SIKEU Keuangan' },
             { name: 'Penerima Beasiswa', url: '/sikeu/master?tab=mapping-beasiswa', icon: Users, section: 'Master SIKEU Keuangan' },
             { name: 'Master Unit Kas', url: '/sikeu/master?tab=unit-kas-master', icon: DollarSign, section: 'Master SIKEU Keuangan' },
+
+            // 3. Transaksi Akuntansi & Operasional
+            { name: 'Kas Unit & Kas Kabag', url: '/sikeu/unit-kas', icon: DollarSign, section: 'Transaksi Akuntansi & Operasional' },
+            { name: 'Akuntansi & Jurnal', url: '/sikeu/akuntansi', icon: PieChart, section: 'Transaksi Akuntansi & Operasional' },
+            { name: 'Pemasukan Kampus', url: '/sikeu/pemasukan', icon: TrendingUp, section: 'Transaksi Akuntansi & Operasional' },
+            { name: 'Pengeluaran Operasional', url: '/sikeu/pengeluaran', icon: Clock, section: 'Transaksi Akuntansi & Operasional' },
+            { name: 'Pajak & Potongan', url: '/sikeu/pajak', icon: Award, section: 'Transaksi Akuntansi & Operasional' },
+
+            // 4. Portal & Pengaturan Keuangan
+            { name: 'Dashboard Keuangan', url: '/sikeu', icon: LayoutDashboard, section: 'Portal & Pengaturan Keuangan' },
+            { name: 'Portal Kabag Keuangan', url: '/sikeu/kabag', icon: ShieldCheck, section: 'Portal & Pengaturan Keuangan' },
+            { name: 'Approval Pimpinan', url: '/sikeu/approval', icon: CheckSquare, section: 'Portal & Pengaturan Keuangan' },
+            { name: 'Payment Gateway API', url: '/sikeu/payment-gateway', icon: Key, section: 'Portal & Pengaturan Keuangan' },
           ];
 
           const filteredMenus = sikeuMenus.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()));
