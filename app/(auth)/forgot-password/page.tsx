@@ -40,25 +40,18 @@ export default function ForgotPasswordPage() {
 
   if (isSuccess) {
     return (
-      <div className="animate-bounce-in" style={{ textAlign: 'center' }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: 'var(--primary-50)', border: '2px solid var(--primary-200)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 1.5rem',
-        }}>
+      <div className="animate-bounce-in auth-centered">
+        <div className="auth-icon-circle">
           <CheckCircle2 size={36} color="var(--primary-600)" />
         </div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.75rem' }}>
-          Email Terkirim!
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem', lineHeight: 1.7, marginBottom: '0.5rem' }}>
+        <h1 className="auth-heading">Email Terkirim!</h1>
+        <p className="auth-subheading leading-7 mb-2">
           Kami telah mengirimkan tautan reset password ke:
         </p>
-        <p style={{ fontWeight: 700, color: 'var(--primary-700)', marginBottom: '1.5rem', fontSize: '0.9375rem' }}>
+        <p className="auth-link-text mb-6 text-[0.9375rem]">
           {sentEmail}
         </p>
-        <div className="alert alert-info" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+        <div className="alert alert-info text-left mb-6">
           <span>💡</span>
           <span>Periksa folder <strong>Spam</strong> jika email tidak masuk dalam 5 menit. Tautan berlaku selama <strong>60 menit</strong>.</span>
         </div>
@@ -69,8 +62,8 @@ export default function ForgotPasswordPage() {
         >
           Kirim Ulang Email
         </Button>
-        <div style={{ marginTop: '1rem' }}>
-          <Link href="/login" style={{ color: 'var(--primary-600)', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none' }}>
+        <div className="mt-4">
+          <Link href="/login" className="auth-link-text text-sm">
             ← Kembali ke Login
           </Link>
         </div>
@@ -82,28 +75,22 @@ export default function ForgotPasswordPage() {
     <div className="animate-fade-in">
       <Link
         href="/login"
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textDecoration: 'none', marginBottom: '1.75rem', fontWeight: 500 }}
+        className="auth-back-link"
       >
         <ArrowLeft size={16} /> Kembali ke Login
       </Link>
 
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{
-          width: 52, height: 52, borderRadius: 14,
-          background: 'var(--primary-50)', border: '1px solid var(--primary-200)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem',
-        }}>
+      <div className="mb-8">
+        <div className="auth-icon-circle-sm">
           <Mail size={24} color="var(--primary-600)" />
         </div>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-          Lupa Password?
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem', lineHeight: 1.6 }}>
+        <h1 className="auth-heading">Lupa Password?</h1>
+        <p className="auth-subheading">
           Masukkan email akun kampus Anda. Kami akan mengirimkan tautan untuk mereset password.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <form onSubmit={handleSubmit(onSubmit)} className="auth-form-stack">
         <Input
           id="forgot-email"
           label="Email Kampus"

@@ -37,32 +37,29 @@ function PasswordStrength({ password }: { password: string }) {
     { label: 'Karakter khusus', ok: /[^A-Za-z0-9]/.test(password) },
   ];
   const score = checks.filter((c) => c.ok).length;
-  const colors = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'];
+  const colors = ['var(--danger)', 'var(--warning)', 'var(--primary-500)', 'var(--success)'];
   const labels = ['Lemah', 'Cukup', 'Kuat', 'Sangat Kuat'];
 
   if (!password) return null;
 
   return (
-    <div style={{ marginTop: '0.5rem' }}>
-      <div style={{ display: 'flex', gap: 4, marginBottom: '0.5rem' }}>
+    <div className="password-strength">
+      <div className="password-strength-bars">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{
-            flex: 1, height: 4, borderRadius: 99,
-            background: i < score ? colors[score - 1] : 'var(--gray-200)',
-            transition: 'background 0.3s',
-          }} />
+          <div key={i} className={`password-strength-bar${i < score ? ` filled` : ''}`}
+            style={{ background: i < score ? colors[score - 1] : undefined }} />
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <div className="password-strength-meta">
+        <div className="password-strength-checks">
           {checks.map((c, i) => (
-            <span key={i} style={{ fontSize: '0.75rem', color: c.ok ? '#10b981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span key={i} className={`password-strength-check${c.ok ? ' ok' : ''}`}>
               <span>{c.ok ? '✓' : '○'}</span> {c.label}
             </span>
           ))}
         </div>
         {score > 0 && (
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: colors[score - 1] }}>
+          <span className="password-strength-label" style={{ color: colors[score - 1] }}>
             {labels[score - 1]}
           </span>
         )}
@@ -103,23 +100,19 @@ function ResetPasswordForm() {
     return (
       <div className="alert alert-danger">
         <span>⚠️</span>
-        <span>Token reset tidak ditemukan. Silakan <Link href="/forgot-password" style={{ fontWeight: 700 }}>kirim ulang email</Link>.</span>
+        <span>Token reset tidak ditemukan. Silakan <Link href="/forgot-password" className="font-bold">kirim ulang email</Link>.</span>
       </div>
     );
   }
 
   if (isSuccess) {
     return (
-      <div className="animate-bounce-in" style={{ textAlign: 'center' }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: '#f0fdf4', border: '2px solid #bbf7d0',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem',
-        }}>
-          <CheckCircle2 size={36} color="#16a34a" />
+      <div className="animate-bounce-in auth-centered">
+        <div className="auth-icon-circle auth-icon-success">
+          <CheckCircle2 size={36} color="#fff" />
         </div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.75rem' }}>Password Diperbarui!</h1>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9375rem' }}>
+        <h1 className="auth-heading">Password Diperbarui!</h1>
+        <p className="auth-subheading" className="mb-8">
           Password Anda berhasil diperbarui. Silakan login dengan password baru Anda.
         </p>
         <Button full size="lg" onClick={() => router.push('/login')}>
@@ -131,21 +124,17 @@ function ResetPasswordForm() {
 
   return (
     <div className="animate-fade-in">
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{
-          width: 52, height: 52, borderRadius: 14,
-          background: 'var(--primary-50)', border: '1px solid var(--primary-200)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem',
-        }}>
+      <div className="mb-8">
+        <div className="auth-icon-circle-sm">
           <ShieldCheck size={24} color="var(--primary-600)" />
         </div>
-        <h1 style={{ fontSize: '1.875rem', fontWeight: 800, marginBottom: '0.5rem' }}>Reset Password</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
+        <h1 className="auth-heading">Reset Password</h1>
+        <p className="auth-subheading">
           Buat password baru yang kuat untuk akun kampus Anda.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+      <form onSubmit={handleSubmit(onSubmit)} className="auth-form-stack">
         <div className="form-group">
           <Input
             id="reset-password"
@@ -176,7 +165,7 @@ function ResetPasswordForm() {
           {...register('password_confirmation')}
         />
 
-        <Button type="submit" full size="lg" loading={isLoading} style={{ marginTop: '0.25rem' }}>
+        <Button type="submit" full size="lg" loading={isLoading} className="mt-1">
           Simpan Password Baru
         </Button>
       </form>
@@ -186,7 +175,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Memuat...</div>}>
+    <Suspense fallback={<div className="text-center auth-muted-link">Memuat...</div>}>
       <ResetPasswordForm />
     </Suspense>
   );

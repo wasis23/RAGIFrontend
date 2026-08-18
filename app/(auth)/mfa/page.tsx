@@ -41,7 +41,7 @@ function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]
   };
 
   return (
-    <div style={{ display: 'flex', gap: '0.625rem', justifyContent: 'center' }}>
+    <div className="otp-row">
       {value.map((v, i) => (
         <input
           key={i}
@@ -53,19 +53,7 @@ function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]
           onChange={(e) => handleChange(e, i)}
           onKeyDown={(e) => handleKey(e, i)}
           onPaste={handlePaste}
-          style={{
-            width: 52, height: 60, textAlign: 'center',
-            fontSize: '1.5rem', fontWeight: 700,
-            border: `2px solid ${v ? 'var(--primary-500)' : 'var(--border-light)'}`,
-            borderRadius: 'var(--radius-md)',
-            outline: 'none',
-            background: v ? 'var(--primary-50)' : 'white',
-            color: 'var(--text-primary)',
-            transition: 'all var(--transition-fast)',
-            caretColor: 'var(--primary-600)',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = 'var(--primary-500)')}
-          onBlur={(e) => (e.target.style.borderColor = e.target.value ? 'var(--primary-500)' : 'var(--border-light)')}
+          className={`otp-input${v ? ' filled' : ''}`}
         />
       ))}
     </div>
@@ -116,68 +104,51 @@ function MfaForm() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ textAlign: 'center' }}>
-      {/* Icon */}
-      <div style={{
-        width: 72, height: 72, borderRadius: '50%',
-        background: 'linear-gradient(135deg, var(--primary-50), var(--primary-100))',
-        border: '2px solid var(--primary-200)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem',
-      }}>
+    <div className="animate-fade-in auth-centered">
+      <div className="auth-icon-circle">
         <ShieldCheck size={36} color="var(--primary-600)" />
       </div>
 
-      <h1 style={{ fontSize: '1.875rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-        Verifikasi Dua Faktor
-      </h1>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem', marginBottom: '0.5rem' }}>
+      <h1 className="auth-heading">Verifikasi Dua Faktor</h1>
+      <p className="auth-subheading" className="mb-2">
         Masukkan kode 6-digit dari aplikasi autentikator Anda
       </p>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', marginBottom: '2rem' }}>
+      <p className="auth-muted-link text-[0.8125rem] mb-8">
         Google Authenticator · Microsoft Authenticator · Authy
       </p>
 
-      {/* OTP Input */}
-      <div style={{ marginBottom: '1.75rem' }}>
+      <div className="otp-section">
         <OtpInput value={digits} onChange={setDigits} />
       </div>
 
-      {/* Verify Button */}
       <Button
         full
         size="lg"
         loading={isLoading}
         disabled={!isComplete}
         onClick={handleVerify}
-        style={{ marginBottom: '1rem' }}
+        className="mb-4"
       >
         Verifikasi Kode
       </Button>
 
-      {/* Resend */}
       <button
         type="button"
         disabled={countdown > 0}
         onClick={handleResend}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '0.375rem',
-          margin: '0 auto', fontSize: '0.875rem',
-          color: countdown > 0 ? 'var(--text-muted)' : 'var(--primary-600)',
-          fontWeight: 600, background: 'none', border: 'none', cursor: countdown > 0 ? 'default' : 'pointer',
-        }}
+        className="resend-button"
       >
         <RefreshCw size={14} />
         {countdown > 0 ? `Kirim ulang dalam ${countdown}s` : 'Tidak menerima kode?'}
       </button>
 
-      {/* Info */}
-      <div className="alert alert-info" style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+      <div className="alert alert-info auth-alert">
         <span>💡</span>
         <span>Kode berlaku selama <strong>30 detik</strong>. Pastikan waktu perangkat Anda sudah sinkron.</span>
       </div>
 
-      <div style={{ marginTop: '1.25rem' }}>
-        <a href="/login" style={{ color: 'var(--text-muted)', fontSize: '0.875rem', textDecoration: 'none' }}>
+      <div className="auth-switch">
+        <a href="/login" className="auth-muted-link">
           ← Gunakan akun lain
         </a>
       </div>
@@ -187,7 +158,7 @@ function MfaForm() {
 
 export default function MfaPage() {
   return (
-    <Suspense fallback={<div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Memuat...</div>}>
+    <Suspense fallback={<div className="auth-centered auth-muted-link">Memuat...</div>}>
       <MfaForm />
     </Suspense>
   );

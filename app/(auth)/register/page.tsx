@@ -50,17 +50,15 @@ export default function RegisterPage() {
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '0 auto', padding: '2rem 1rem' }}>
-      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-          Daftar Calon Mahasiswa
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+    <div className="auth-centered">
+      <div className="mb-8">
+        <h1 className="auth-heading">Daftar Calon Mahasiswa</h1>
+        <p className="auth-subheading" className="mt-2">
           Buat akun untuk memulai pendaftaran SPMB Anda.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <form onSubmit={handleSubmit} className="auth-form-stack">
         <Input
           label="Username"
           name="username"
@@ -109,14 +107,14 @@ export default function RegisterPage() {
           placeholder="Ulangi password"
         />
 
-        <Button type="submit" variant="primary" loading={isLoading} style={{ marginTop: '0.5rem' }}>
+        <Button type="submit" variant="primary" full loading={isLoading} className="mt-2">
           Daftar Akun
         </Button>
       </form>
 
-      <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+      <p className="auth-muted-link text-center mt-6 text-sm">
         Sudah punya akun?{' '}
-        <Link href="/login" style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'underline' }}>
+        <Link href="/login" className="auth-link-text">
           Login di sini
         </Link>
       </p>

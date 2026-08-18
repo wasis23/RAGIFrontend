@@ -148,13 +148,13 @@ export default function LoginPage() {
       </form>
 
       {/* Footer */}
-        <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+        <p className="login-footer-text">
           Belum punya akun?{' '}
-          <Link href="/register" style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'underline' }}>
+          <Link href="/register" className="login-footer-link">
             Daftar Calon Mahasiswa SPMB
           </Link>
           <br />
-          Mengalami kendala? <a href="#" style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'underline' }}>Hubungi Helpdesk</a>
+          Mengalami kendala? <a href="#" className="login-footer-link">Hubungi Helpdesk</a>
         </p>
     </div>
   );
