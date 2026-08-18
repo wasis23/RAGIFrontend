@@ -3,14 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  DollarSign,
   TrendingUp,
   TrendingDown,
-  Clock,
   CheckCircle,
   FileText,
-  Building,
-  PieChart,
   ShieldCheck,
   AlertCircle,
   Plus,
@@ -20,14 +16,16 @@ import {
   UserCheck,
   Receipt,
   Grid,
-  Layers,
-  Award,
   RefreshCw,
   Zap,
-  ExternalLink,
   ArrowUpRight
 } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { StatCard } from '@/components/ui/StatCard';
+import { Hero } from '@/components/ui/Hero';
 
 export default function SikeuDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -141,323 +139,256 @@ export default function SikeuDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800">Ekosistem SIKEU</span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800">Super Admin & Kabag Finansial</span>
-          </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Dashboard & Navigation Center Keuangan (SIKEU)</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Pusat Kendali Eksekutif Penerimaan, Live Saldo Payment Gateway, Kas Kabag Keuangan, Akuntansi, & Approval Pimpinan
-          </p>
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <Badge variant="green">Ekosistem SIKEU</Badge>
+          <Badge variant="indigo">Super Admin & Kabag Finansial</Badge>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/sikeu/tagihan/create"
-            className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm px-3.5 py-2 rounded-xl"
-          >
-            <Plus size={16} /> Bayar Loket / Terbitkan VA
-          </Link>
-          <Link
-            href="/sikeu/pengeluaran/create"
-            className="btn bg-rose-600 hover:bg-rose-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm px-3.5 py-2 rounded-xl"
-          >
-            <Plus size={16} /> Catat Pengeluaran
-          </Link>
-          <Link
-            href="/sikeu/approval"
-            className="btn bg-amber-500 hover:bg-amber-600 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm px-3.5 py-2 rounded-xl"
-          >
-            <ShieldCheck size={16} /> Approval ({metrics.totalPendingApproval})
-          </Link>
-          <button
-            onClick={loadDashboardData}
-            disabled={loading}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
-            title="Refresh Data Dashboard"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
+        <PageHeader
+          title="Dashboard & Navigation Center Keuangan (SIKEU)"
+          description="Pusat Kendali Eksekutif Penerimaan, Live Saldo Payment Gateway, Kas Kabag Keuangan, Akuntansi, & Approval Pimpinan"
+          action={
+            <div className="page-actions">
+              <Link href="/sikeu/tagihan/create" className="btn btn-primary">
+                <Plus size={16} /> Bayar Loket / Terbitkan VA
+              </Link>
+              <Link href="/sikeu/pengeluaran/create" className="btn btn-secondary">
+                <Plus size={16} /> Catat Pengeluaran
+              </Link>
+              <Link href="/sikeu/approval" className="btn btn-outline">
+                <ShieldCheck size={16} /> Approval ({metrics.totalPendingApproval})
+              </Link>
+              <button
+                onClick={loadDashboardData}
+                disabled={loading}
+                className="btn btn-ghost btn-icon"
+                title="Refresh Data Dashboard"
+              >
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          }
+        />
       </div>
 
       {/* LIVE PAYMENT GATEWAY (XENDIT) SYNC BANNER */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 rounded-2xl text-white shadow-sm border border-indigo-900/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start md:items-center gap-3.5">
-          <div className="p-3 bg-indigo-600/30 border border-indigo-400/30 rounded-2xl text-indigo-300 shrink-0">
-            <Zap size={24} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-indigo-300">
-                Payment Gateway Saldo Tracker ({paymentGateway.gateway_name?.toUpperCase()})
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                paymentGateway.status_koneksi === 'connected' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                paymentGateway.status_koneksi === 'unconfigured' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-              }`}>
-                {paymentGateway.status_koneksi === 'connected' ? '🟢 Live Connected' :
-                 paymentGateway.status_koneksi === 'unconfigured' ? '🟡 API Key Belum Dikonfigurasi' :
-                 '🔴 Offline / Error'}
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700 uppercase">
-                {paymentGateway.environment}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-mono font-extrabold tracking-tight text-white">
-                Rp {Number(paymentGateway.available_balance || 0).toLocaleString('id-ID')}
-              </span>
-              <span className="text-[11px] text-slate-400">
-                Saldo siap ditarik/settlement (Update: {paymentGateway.last_updated})
-              </span>
-            </div>
-            {paymentGateway.error_message && (
-              <p className="text-[11px] text-amber-300/90 mt-1 flex items-center gap-1">
-                <AlertCircle size={12} /> {paymentGateway.error_message}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleRefreshGatewayBalance}
-            disabled={syncingBalance}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm disabled:opacity-50 cursor-pointer"
+      <Hero
+        badge={
+          <>
+            <Zap size={14} /> Payment Gateway Saldo Tracker ({paymentGateway.gateway_name?.toUpperCase()})
+          </>
+        }
+        title={`Rp ${Number(paymentGateway.available_balance || 0).toLocaleString('id-ID')}`}
+        description={`Saldo siap ditarik/settlement (Update: ${paymentGateway.last_updated})`}
+        actions={
+          <>
+            <button
+              onClick={handleRefreshGatewayBalance}
+              disabled={syncingBalance}
+              className="btn hero-btn-white"
+            >
+              <RefreshCw size={14} className={syncingBalance ? 'animate-spin' : ''} />
+              {syncingBalance ? 'Menyinkronkan...' : 'Sync Saldo Xendit'}
+            </button>
+            <Link href="/sikeu/payment-gateway" className="btn hero-btn-glass">
+              <Settings size={14} /> Kelola API
+            </Link>
+          </>
+        }
+      >
+        <div className="relative z-10 flex flex-wrap items-center gap-2 mt-4">
+          <Badge
+            variant={
+              paymentGateway.status_koneksi === 'connected' ? 'green' :
+              paymentGateway.status_koneksi === 'unconfigured' ? 'yellow' :
+              'red'
+            }
+            dot
           >
-            <RefreshCw size={14} className={syncingBalance ? 'animate-spin' : ''} />
-            {syncingBalance ? 'Menyinkronkan...' : 'Sync Saldo Xendit'}
-          </button>
-          <Link
-            href="/sikeu/payment-gateway"
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
-          >
-            <Settings size={14} /> Kelola API
-          </Link>
+            {paymentGateway.status_koneksi === 'connected' ? 'Live Connected' :
+             paymentGateway.status_koneksi === 'unconfigured' ? 'API Key Belum Dikonfigurasi' :
+             'Offline / Error'}
+          </Badge>
+          <Badge variant="gray">{paymentGateway.environment}</Badge>
+          {paymentGateway.error_message && (
+            <span className="text-sm text-white flex items-center gap-1">
+              <AlertCircle size={12} /> {paymentGateway.error_message}
+            </span>
+          )}
         </div>
-      </div>
+      </Hero>
 
       {/* Financial Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider">Total Penerimaan (UKT + Hibah)</span>
-            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-              <TrendingUp size={18} />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl font-mono font-extrabold text-slate-900">
-              Rp {metrics.totalPenerimaan.toLocaleString('id-ID')}
-            </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">
-              Mahasiswa: Rp {metrics.penerimaanMahasiswa.toLocaleString('id-ID')} | Hibah: Rp {metrics.penerimaanEksternal.toLocaleString('id-ID')}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider">Total Pengeluaran & Pencairan</span>
-            <div className="p-2 bg-rose-50 rounded-xl text-rose-600">
-              <TrendingDown size={18} />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl font-mono font-extrabold text-slate-900">
-              Rp {metrics.totalPengeluaran.toLocaleString('id-ID')}
-            </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-1">Belanja vendor, operasional & kas unit</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-teal-700 uppercase tracking-wider">Saldo Kas Utama Kabag</span>
-            <div className="p-2 bg-teal-50 rounded-xl text-teal-600">
-              <Wallet size={18} />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl font-mono font-extrabold text-slate-900">
-              Rp {metrics.saldoKasUtama.toLocaleString('id-ID')}
-            </div>
-            <p className="text-[11px] text-emerald-700 font-bold mt-1">
-              Total Semua Unit Kas: Rp {metrics.saldoTotalKas.toLocaleString('id-ID')}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Pajak Terutang (PPh/PPN)</span>
-            <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
-              <AlertCircle size={18} />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl font-mono font-extrabold text-slate-900">
-              Rp {metrics.pajakTerutang.toLocaleString('id-ID')}
-            </div>
-            <Link href="/sikeu/pajak" className="text-[11px] text-amber-700 font-bold hover:underline mt-1 inline-flex items-center gap-0.5">
+      <div className="kpi-grid">
+        <StatCard
+          label="Total Penerimaan (UKT + Hibah)"
+          value={`Rp ${metrics.totalPenerimaan.toLocaleString('id-ID')}`}
+          icon={<TrendingUp size={18} />}
+          iconVariant="green"
+          footer={`Mahasiswa: Rp ${metrics.penerimaanMahasiswa.toLocaleString('id-ID')} | Hibah: Rp ${metrics.penerimaanEksternal.toLocaleString('id-ID')}`}
+        />
+        <StatCard
+          label="Total Pengeluaran & Pencairan"
+          value={`Rp ${metrics.totalPengeluaran.toLocaleString('id-ID')}`}
+          icon={<TrendingDown size={18} />}
+          iconVariant="red"
+          footer="Belanja vendor, operasional & kas unit"
+        />
+        <StatCard
+          label="Saldo Kas Utama Kabag"
+          value={`Rp ${metrics.saldoKasUtama.toLocaleString('id-ID')}`}
+          icon={<Wallet size={18} />}
+          iconVariant="teal"
+          footer={`Total Semua Unit Kas: Rp ${metrics.saldoTotalKas.toLocaleString('id-ID')}`}
+        />
+        <StatCard
+          label="Pajak Terutang (PPh/PPN)"
+          value={`Rp ${metrics.pajakTerutang.toLocaleString('id-ID')}`}
+          icon={<AlertCircle size={18} />}
+          iconVariant="amber"
+          footer={
+            <Link href="/sikeu/pajak" className="text-blue-600 font-semibold hover:underline">
               Kelola & Setor NTPN &rarr;
             </Link>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {/* SUPER ADMIN MENU GRID - ALL SIKEU FEATURES */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
+      <Card>
+        <CardHeader>
           <div className="flex items-center gap-2">
-            <Grid size={20} className="text-teal-600" />
+            <Grid size={20} className="text-blue-600" />
             <div>
-              <h2 className="text-base font-extrabold text-slate-900">Navigasi Seluruh Sub-Modul SIKEU (Super Admin Portal)</h2>
-              <p className="text-xs text-slate-500">Akses penuh ke 12 sub-modul keuangan terpadu kampus</p>
+              <h2 className="font-bold">Navigasi Seluruh Sub-Modul SIKEU (Super Admin Portal)</h2>
+              <p className="text-sm text-slate-500">Akses penuh ke 12 sub-modul keuangan terpadu kampus</p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-teal-50 text-teal-800 border border-teal-200">
-            12 Sub-Modul Aktif
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {sikeuModules.map((m, idx) => {
-            const IconComp = m.icon;
-            return (
-              <Link
-                key={idx}
-                href={m.href}
-                className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-teal-600 hover:shadow-xs transition-all flex flex-col justify-between space-y-2 group"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div className="p-2 bg-white rounded-lg border border-slate-200 text-teal-700 group-hover:bg-teal-600 group-hover:text-white transition">
+          <Badge variant="green">12 Sub-Modul Aktif</Badge>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {sikeuModules.map((m, idx) => {
+              const IconComp = m.icon;
+              return (
+                <Link key={idx} href={m.href} className="module-card">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="module-card-icon">
                       <IconComp size={18} />
                     </div>
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 font-mono">
-                      {m.badge}
-                    </span>
+                    <Badge variant="gray">{m.badge}</Badge>
                   </div>
-                  <h3 className="font-extrabold text-slate-900 text-xs mt-2 group-hover:text-teal-900 transition">{m.title}</h3>
-                  <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{m.desc}</p>
-                </div>
-                <div className="text-[10px] font-bold text-teal-700 group-hover:translate-x-0.5 transition-transform flex items-center gap-1 pt-1">
-                  Buka Modul &rarr;
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+                  <span className="module-card-title">{m.title}</span>
+                  <span className="module-card-desc">{m.desc}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Cross-Module Integrations Section */}
-      <div className="bg-gradient-to-r from-slate-900 to-teal-950 p-6 rounded-2xl text-white shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+      <Card>
+        <CardHeader>
           <div>
-            <h2 className="text-lg font-bold font-jakarta text-white">Integrasi Otomatis Cross-Modul Keuangan</h2>
-            <p className="text-xs text-slate-300">Sinkronisasi Jurnal Akuntansi & Mutasi Kas Real-Time dari Modul Ekosistem Kampus</p>
+            <h2 className="font-bold">Integrasi Otomatis Cross-Modul Keuangan</h2>
+            <p className="text-sm text-slate-500">Sinkronisasi Jurnal Akuntansi & Mutasi Kas Real-Time dari Modul Ekosistem Kampus</p>
           </div>
-          <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold rounded-full flex items-center gap-1.5 w-fit">
-            <CheckCircle size={14} /> 4 Modul Terhubung Real-Time
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700">
-            <div className="flex items-center justify-between text-xs font-semibold text-sky-300 mb-1">
-              <span>SIMPEG Payroll</span>
-              <span className="px-1.5 py-0.5 bg-sky-500/20 text-sky-300 rounded text-[10px]">Auto-Post</span>
+          <Badge variant="green" dot>4 Modul Terhubung Real-Time</Badge>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="module-card">
+              <div className="flex items-center justify-between mb-1">
+                <span className="module-card-title">SIMPEG Payroll</span>
+                <Badge variant="blue">Auto-Post</Badge>
+              </div>
+              <p className="module-card-desc">Penggajian Dosen & Tendik terposting otomatis ke Beban Gaji & Utang PPh21.</p>
             </div>
-            <p className="text-xs text-slate-300">Penggajian Dosen & Tendik terposting otomatis ke Beban Gaji & Utang PPh21.</p>
-          </div>
 
-          <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700">
-            <div className="flex items-center justify-between text-xs font-semibold text-emerald-300 mb-1">
-              <span>SIPPM Riset & PkM</span>
-              <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded text-[10px]">Auto-Post</span>
+            <div className="module-card">
+              <div className="flex items-center justify-between mb-1">
+                <span className="module-card-title">SIPPM Riset & PkM</span>
+                <Badge variant="green">Auto-Post</Badge>
+              </div>
+              <p className="module-card-desc">Pencairan termin hibah otomatis mencatat Pemasukan Kampus & saldo Kas.</p>
             </div>
-            <p className="text-xs text-slate-300">Pencairan termin hibah otomatis mencatat Pemasukan Kampus & saldo Kas.</p>
-          </div>
 
-          <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700">
-            <div className="flex items-center justify-between text-xs font-semibold text-purple-300 mb-1">
-              <span>SPMB Pendaftaran</span>
-              <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded text-[10px]">Auto-Unlock</span>
+            <div className="module-card">
+              <div className="flex items-center justify-between mb-1">
+                <span className="module-card-title">SPMB Pendaftaran</span>
+                <Badge variant="purple">Auto-Unlock</Badge>
+              </div>
+              <p className="module-card-desc">Callback VA lunas otomatis membuka (unlock) status pendaftaran calon mahasiswa.</p>
             </div>
-            <p className="text-xs text-slate-300">Callback VA lunas otomatis membuka (unlock) status pendaftaran calon mahasiswa.</p>
-          </div>
 
-          <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700">
-            <div className="flex items-center justify-between text-xs font-semibold text-amber-300 mb-1">
-              <span>SIAKAD UKT</span>
-              <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded text-[10px]">Auto-KRS</span>
+            <div className="module-card">
+              <div className="flex items-center justify-between mb-1">
+                <span className="module-card-title">SIAKAD UKT</span>
+                <Badge variant="yellow">Auto-KRS</Badge>
+              </div>
+              <p className="module-card-desc">Pembayaran UKT atau approval dispensasi pimpinan otomatis unlock KRS mahasiswa.</p>
             </div>
-            <p className="text-xs text-slate-300">Pembayaran UKT atau approval dispensasi pimpinan otomatis unlock KRS mahasiswa.</p>
           </div>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Recent Auto-Journal Feed */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+      <Card>
+        <CardHeader>
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Feed Jurnal Akuntansi Terbaru</h2>
-            <p className="text-xs text-slate-500">Pencatatan jurnal umum berimbang otomatis dari seluruh transaksi kampus</p>
+            <h2 className="font-bold">Feed Jurnal Akuntansi Terbaru</h2>
+            <p className="text-sm text-slate-500">Pencatatan jurnal umum berimbang otomatis dari seluruh transaksi kampus</p>
           </div>
-          <Link href="/sikeu/akuntansi" className="text-xs font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1">
+          <Link href="/sikeu/akuntansi" className="btn btn-ghost btn-sm">
             Lihat Semua Jurnal <ArrowUpRight size={14} />
           </Link>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 text-slate-700 font-extrabold uppercase border-y border-slate-200">
-              <tr>
-                <th className="px-4 py-3">No. Jurnal</th>
-                <th className="px-4 py-3">Tanggal</th>
-                <th className="px-4 py-3">Sumber Transaksi</th>
-                <th className="px-4 py-3">Keterangan</th>
-                <th className="px-4 py-3 text-right">Total Nominal</th>
-                <th className="px-4 py-3 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {recentJurnal.length > 0 ? (
-                recentJurnal.map((j) => (
-                  <tr key={j.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-bold text-indigo-700">{j.nomor_jurnal}</td>
-                    <td className="px-4 py-3 font-mono">{j.tanggal_jurnal}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold capitalize">
-                        {j.jenis_sumber?.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-medium">{j.keterangan}</td>
-                    <td className="px-4 py-3 text-right font-mono font-extrabold text-slate-900">
-                      Rp {Number(j.total_debet).toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                        <CheckCircle size={12} /> Posted
-                      </span>
+        </CardHeader>
+        <CardBody>
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>No. Jurnal</th>
+                  <th>Tanggal</th>
+                  <th>Sumber Transaksi</th>
+                  <th>Keterangan</th>
+                  <th className="text-right">Total Nominal</th>
+                  <th className="text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentJurnal.length > 0 ? (
+                  recentJurnal.map((j) => (
+                    <tr key={j.id}>
+                      <td className="font-mono font-bold">{j.nomor_jurnal}</td>
+                      <td className="font-mono">{j.tanggal_jurnal}</td>
+                      <td>
+                        <Badge variant="gray">{j.jenis_sumber?.replace('_', ' ')}</Badge>
+                      </td>
+                      <td>{j.keterangan}</td>
+                      <td className="text-right font-mono font-bold">
+                        Rp {Number(j.total_debet).toLocaleString('id-ID')}
+                      </td>
+                      <td className="text-center">
+                        <Badge variant="green">
+                          <CheckCircle size={12} /> Posted
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="text-center py-6 text-slate-400">
+                      Belum ada data jurnal akuntansi yang tercatat.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center py-6 text-slate-400">
-                    Belum ada data jurnal akuntansi yang tercatat.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

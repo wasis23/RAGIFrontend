@@ -91,7 +91,7 @@ export default function StudentTagihanPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
@@ -110,9 +110,9 @@ export default function StudentTagihanPage() {
       </div>
 
       {/* Daftar Tagihan */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-6 space-y-4">
+      <div className="card p-6 overflow-hidden p-6 space-y-4">
         <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-          <CreditCard size={18} className="text-teal-600" /> Daftar Tagihan Pendidikan Semester Berjalan
+          <CreditCard size={18} className="text-primary-600" /> Daftar Tagihan Pendidikan Semester Berjalan
         </h2>
 
         <div className="space-y-4">
@@ -144,7 +144,7 @@ export default function StudentTagihanPage() {
                     </span>
                     <button
                       onClick={() => handleOpenInvoice(b.id)}
-                      className="btn bg-teal-700 hover:bg-teal-800 text-white btn-sm font-bold text-xs border-none flex items-center gap-1.5 shadow-sm"
+                      className="btn btn-primary btn-sm font-bold text-xs border-none flex items-center gap-1.5 shadow-sm"
                     >
                       <FileText size={15} /> Cetak Invoice & VA
                     </button>
@@ -177,8 +177,8 @@ export default function StudentTagihanPage() {
 
       {/* MODAL INVOICE MAHASISWA CETAK MANDIRI */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b pb-4 print:hidden">
               <div className="flex items-center gap-2">
                 <span className="badge badge-purple font-bold">Surat Tagihan Resmi (Invoice)</span>
@@ -198,7 +198,7 @@ export default function StudentTagihanPage() {
               <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start">
                 <div>
                   <h3 className="font-extrabold text-base tracking-wider uppercase text-slate-900">UNIVERSITAS SSO CAMPUS</h3>
-                  <h4 className="font-bold text-xs text-teal-800 uppercase">DIREKTORAT KEUANGAN & AKUNTANSI (SIKEU)</h4>
+                  <h4 className="font-bold text-xs text-slate-700 uppercase">DIREKTORAT KEUANGAN & AKUNTANSI (SIKEU)</h4>
                   <p className="text-[10px] text-slate-600">Jl. Kampus Terpadu No. 1 • Telp: (021) 789-0123 • Email: keu@campus.ac.id</p>
                 </div>
                 <div className="text-right">
@@ -216,11 +216,11 @@ export default function StudentTagihanPage() {
                   <div>Program Studi: {selectedInvoice.mahasiswa.prodi} (Angkatan {selectedInvoice.mahasiswa.angkatan})</div>
                 </div>
 
-                <div className="space-y-1 bg-white p-3 rounded-lg border border-teal-200">
-                  <div className="text-[10px] font-extrabold text-teal-700 uppercase flex items-center gap-1">
+                <div className="space-y-1 bg-white p-3 rounded-lg border border-slate-200">
+                  <div className="text-[10px] font-extrabold text-slate-700 uppercase flex items-center gap-1">
                     <QrCode size={13} /> Nomor Virtual Account Pembayaran:
                   </div>
-                  <div className="font-mono text-base font-extrabold text-teal-900 tracking-wider">
+                  <div className="font-mono text-base font-extrabold text-primary-900 tracking-wider">
                     {selectedInvoice.virtual_account.va_number}
                   </div>
                   <div className="text-[10px] font-bold text-slate-600">{selectedInvoice.virtual_account.bank}</div>
@@ -266,7 +266,7 @@ export default function StudentTagihanPage() {
                   </div>
                   <div className="flex justify-between text-base font-extrabold border-t pt-2 text-slate-900">
                     <span>Sisa Harus Dibayar:</span>
-                    <span className="font-mono text-teal-800">{formatRupiah(selectedInvoice.ringkasan.sisa_tagihan)}</span>
+                    <span className="font-mono text-slate-700">{formatRupiah(selectedInvoice.ringkasan.sisa_tagihan)}</span>
                   </div>
                 </div>
               </div>

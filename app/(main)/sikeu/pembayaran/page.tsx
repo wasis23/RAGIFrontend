@@ -71,7 +71,7 @@ export default function PembayaranPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
@@ -95,7 +95,7 @@ export default function PembayaranPage() {
       </div>
 
       {/* FILTER CARD */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+      <div className="card p-6 space-y-4">
         <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end text-xs">
           <div className="md:col-span-4">
             <label className="font-bold text-slate-700">Cari NIM / Nama / Kode Transaksi</label>
@@ -146,7 +146,7 @@ export default function PembayaranPage() {
           </div>
 
           <div className="md:col-span-2 flex gap-2">
-            <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold w-full border-none">
+            <button type="submit" className="btn btn-primary btn-sm font-bold w-full border-none">
               <Filter size={14} /> Filter
             </button>
             <button
@@ -168,7 +168,7 @@ export default function PembayaranPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+      <div className="card p-6 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-extrabold text-slate-900">Daftar Transaksi Pembayaran Mahasiswa</h2>
           <span className="text-xs font-mono font-bold text-slate-500">{payments.length} Data Ditampilkan</span>
@@ -209,11 +209,11 @@ export default function PembayaranPage() {
                     <td className="px-4 py-3 font-medium text-slate-700">{p.waktu_bayar || '-'}</td>
                     <td className="px-4 py-3 text-center">
                       {p.status === 'success' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 uppercase">
+                        <span className="inline-flex items-center gap-1 badge badge-green uppercase">
                           <CheckCircle size={12} /> Lunas (Sukses)
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 uppercase">
+                        <span className="inline-flex items-center gap-1 badge badge-yellow uppercase">
                           <AlertCircle size={12} /> {p.status}
                         </span>
                       )}

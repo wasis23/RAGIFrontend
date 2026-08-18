@@ -85,17 +85,17 @@ export default function TaxReportPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
           </Link>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800">
+              <span className="badge badge-purple">
                 Tax & Fiscal Compliance
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
+              <span className="badge badge-green">
                 PPh 21 / 23 / PPN 11%
               </span>
             </div>
@@ -129,7 +129,7 @@ export default function TaxReportPage() {
       )}
 
       {/* Filter & Actions */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="card p-5 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <form onSubmit={handleSearch} className="relative w-full md:w-64">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={14} />
@@ -147,7 +147,7 @@ export default function TaxReportPage() {
             <select
               value={filterJenis}
               onChange={(e) => setFilterJenis(e.target.value)}
-              className="border border-slate-200 bg-slate-50 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none"
+              className="select select-sm"
             >
               <option value="semua">Semua Jenis Pajak</option>
               <option value="pph_21">PPh 21 (Honorarium SDM)</option>
@@ -161,7 +161,7 @@ export default function TaxReportPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="border border-slate-200 bg-slate-50 text-xs font-bold rounded-xl px-3 py-2 focus:outline-none"
+              className="select select-sm"
             >
               <option value="semua">Semua Status</option>
               <option value="terutang">Terutang (Belum Setor)</option>
@@ -189,7 +189,7 @@ export default function TaxReportPage() {
       </div>
 
       {/* Tax Table */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="card p-6">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-slate-700 font-extrabold uppercase border-y border-slate-200">
@@ -227,11 +227,11 @@ export default function TaxReportPage() {
                     <td className="px-4 py-3 font-mono font-bold text-indigo-700">{t.ntpn}</td>
                     <td className="px-4 py-3 text-center">
                       {t.status === 'disetor' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                        <span className="inline-flex items-center gap-1 badge badge-green">
                           <CheckCircle size={12} /> Sudah Disetor
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700">
+                        <span className="inline-flex items-center gap-1 badge badge-yellow">
                           <AlertCircle size={12} /> Terutang
                         </span>
                       )}
@@ -244,7 +244,7 @@ export default function TaxReportPage() {
                             setNtpnInput('');
                             setIsSetorModalOpen(true);
                           }}
-                          className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition shadow-2xs"
+                          className="btn btn-primary btn-sm"
                         >
                           Input NTPN Setor
                         </button>
@@ -268,8 +268,8 @@ export default function TaxReportPage() {
 
       {/* MODAL INPUT BUKTI / NTPN PENYETORAN PAJAK */}
       {isSetorModalOpen && selectedTax && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-base text-slate-900">Input NTPN / Bukti Penyetoran Pajak</h3>
               <button onClick={() => setIsSetorModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 font-bold">✕</button>
@@ -304,7 +304,7 @@ export default function TaxReportPage() {
                 <button
                   type="submit"
                   disabled={submittingSetor}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl transition disabled:opacity-50"
+                  className="btn btn-primary disabled:opacity-50"
                 >
                   {submittingSetor ? 'Menyimpan...' : 'Simpan Bukti Setor'}
                 </button>

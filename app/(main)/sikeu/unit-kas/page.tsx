@@ -112,15 +112,15 @@ export default function UnitKasPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800">Kas Unit & Treasury</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800">Pengajuan & Mutasi Kas Kabag</span>
+              <span className="badge badge-teal-pill">Kas Unit & Treasury</span>
+              <span className="badge badge-indigo">Pengajuan & Mutasi Kas Kabag</span>
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Pengelolaan Kas Unit & Pengajuan Dana Kas</h1>
             <p className="text-xs text-slate-500">
@@ -141,13 +141,13 @@ export default function UnitKasPage() {
               });
               setIsPengajuanModalOpen(true);
             }}
-            className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
           >
             <Send size={16} /> Ajukan Permohonan Dana Kas Unit
           </button>
           <button
             onClick={() => setIsTransferModalOpen(true)}
-            className="btn bg-slate-100 hover:bg-slate-200 text-slate-800 border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+            className="btn btn-secondary border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
           >
             <ArrowUpRight size={16} /> Mutasi ke Kas Kabag
           </button>
@@ -174,17 +174,17 @@ export default function UnitKasPage() {
             key={k.id}
             className={`p-5 rounded-2xl border shadow-sm space-y-3 transition-all flex flex-col justify-between ${
               k.isKabag
-                ? 'bg-gradient-to-br from-slate-900 to-teal-950 text-white border-teal-700 md:col-span-1'
+                ? 'bg-gradient-to-br from-slate-900 to-primary-950 text-white border-primary-700 md:col-span-1'
                 : 'bg-white border-slate-100 text-slate-900'
             }`}
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-extrabold tracking-wide ${k.isKabag ? 'text-teal-300 flex items-center gap-1' : 'text-slate-800'}`}>
+                <span className={`text-xs font-extrabold tracking-wide ${k.isKabag ? 'text-slate-300 flex items-center gap-1' : 'text-slate-800'}`}>
                   {k.isKabag && <ShieldCheck size={16} />} {k.nama}
                 </span>
                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
-                  k.isKabag ? 'bg-teal-400/20 text-teal-300 border border-teal-400/30' : 'bg-emerald-50 text-emerald-700'
+                  k.isKabag ? 'bg-slate-400/20 text-slate-300 border border-slate-400/30' : 'bg-emerald-50 text-emerald-700'
                 }`}>
                   {k.isKabag ? 'KAS UTAMA KABAG' : 'PETTY CASH'}
                 </span>
@@ -207,10 +207,10 @@ export default function UnitKasPage() {
       </div>
 
       {/* SEKSI RIWAYAT PENGAJUAN PERMOHONAN DANA KAS UNIT KE KABAG KEUANGAN */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+      <div className="card p-6 space-y-4">
         <div className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
-            <Send size={18} className="text-teal-600" />
+            <Send size={18} className="text-primary-600" />
             <div>
               <h2 className="text-base font-extrabold text-slate-900">Riwayat & Daftar Persetujuan Pengajuan Dana Kas Unit</h2>
               <p className="text-xs text-slate-500">Daftar permohonan pengisian kas operasional & reimbursement yang telah diajukan ke Kabag Keuangan</p>
@@ -234,7 +234,7 @@ export default function UnitKasPage() {
             <tbody className="divide-y divide-slate-100">
               {pengajuanKasList.map((req) => (
                 <tr key={req.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 font-mono font-bold text-teal-800">{req.nomor_pengajuan}
+                  <td className="px-4 py-3 font-mono font-bold text-slate-700">{req.nomor_pengajuan}
                     <div className="text-[10px] text-slate-500 font-sans mt-0.5">{new Date(req.created_at).toLocaleDateString('id-ID')}</div>
                   </td>
                   <td className="px-4 py-3">
@@ -253,11 +253,11 @@ export default function UnitKasPage() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     {req.status === 'dicairkan' ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 badge badge-green border border-emerald-200">
                         <CheckCircle size={12} /> DICAIRKAN
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                      <span className="badge badge-yellow inline-flex items-center gap-1">
                         <Clock size={12} /> PENDING
                       </span>
                     )}
@@ -270,7 +270,7 @@ export default function UnitKasPage() {
                             setApproveForm({ catatan_kabag: '' });
                             setIsApproveModalOpen(true);
                           }}
-                          className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-xs font-bold border-none"
+                          className="btn btn-primary btn-xs font-bold border-none"
                         >
                           ACC KABAG
                         </button>
@@ -287,11 +287,11 @@ export default function UnitKasPage() {
 
       {/* MODAL AJUKAN PERMOHONAN DANA KAS UNIT KE KABAG KEUANGAN */}
       {isPengajuanModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <Send size={18} className="text-teal-600" /> Form Pengajuan Dana Kas Unit
+                <Send size={18} className="text-primary-600" /> Form Pengajuan Dana Kas Unit
               </h3>
               <button onClick={() => setIsPengajuanModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
             </div>
@@ -364,7 +364,7 @@ export default function UnitKasPage() {
                   <option value="BRI - 1122334455 (a.n Kemahasiswaan & PKM)">BRI - 1122334455 (a.n Kemahasiswaan & PKM)</option>
                   <option value="KAS_TUNAI">Pencairan Kas Tunai Loket</option>
                 </select>
-                <p className="text-[10px] text-teal-700 font-medium mt-1 leading-tight">
+                <p className="text-[10px] text-slate-700 font-medium mt-1 leading-tight">
                   ⚡ Saat Kabag Keuangan ACC, Gateway (Xendit/Duitku) akan mentransfer dana dari Wallet langsung ke nomor rekening spesifik unit Anda.
                 </p>
               </div>
@@ -383,7 +383,7 @@ export default function UnitKasPage() {
 
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <button type="button" onClick={() => setIsPengajuanModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn btn-primary btn-sm font-bold border-none">
                   Kirim Pengajuan ke Kabag
                 </button>
               </div>
@@ -394,8 +394,8 @@ export default function UnitKasPage() {
 
       {/* MODAL KABAG APPROVAL (XENDIT / DUITKU INTEGRATION MOCK) */}
       {isApproveModalOpen && approvingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border-2 border-indigo-500">
+        <div className="modal-overlay">
+          <div className="modal modal-md modal-body">
             <div className="flex items-center justify-between border-b pb-3 border-indigo-100">
               <h3 className="font-extrabold text-base text-indigo-900 flex items-center gap-2">
                 <ShieldCheck size={20} className="text-indigo-600" /> Verifikasi & Cairkan Dana (Kabag Keuangan)
@@ -414,7 +414,7 @@ export default function UnitKasPage() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-500 font-semibold">Rekening Tujuan</span>
-                <span className="col-span-2 font-mono font-bold text-teal-700">{approvingItem.unit_kas?.bank_account_number}</span>
+                <span className="col-span-2 font-mono font-bold text-slate-700">{approvingItem.unit_kas?.bank_account_number}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-slate-500 font-semibold">Nominal Cair</span>
@@ -442,7 +442,7 @@ export default function UnitKasPage() {
 
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <button type="button" onClick={() => setIsApproveModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal / Tolak</button>
-                <button type="submit" className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-sm font-bold border-none shadow-md">
+                <button type="submit" className="btn btn-primary btn-sm font-bold border-none shadow-md">
                   <CheckCircle size={16} /> Setujui & Cairkan Dana
                 </button>
               </div>
@@ -453,11 +453,11 @@ export default function UnitKasPage() {
 
       {/* MODAL MUTASI KAS KABAG */}
       {isTransferModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <Wallet size={18} className="text-teal-600" /> Mutasi Penyetoran ke Kas Kabag
+                <Wallet size={18} className="text-primary-600" /> Mutasi Penyetoran ke Kas Kabag
               </h3>
               <button onClick={() => setIsTransferModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
             </div>
@@ -504,7 +504,7 @@ export default function UnitKasPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsTransferModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn btn-primary btn-sm font-bold border-none">
                   Proses Mutasi Kas
                 </button>
               </div>

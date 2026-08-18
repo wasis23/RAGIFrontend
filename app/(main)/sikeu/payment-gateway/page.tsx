@@ -136,16 +136,16 @@ export default function PaymentGatewayConfigPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
           </Link>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800">Super Admin Configuration</span>
+              <span className="badge badge-indigo">Super Admin Configuration</span>
               {currentConfig.is_active && (
-                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">{activeTab.toUpperCase()} Active</span>
+                 <span className="badge badge-green">{activeTab.toUpperCase()} Active</span>
               )}
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Konfigurasi Payment Gateway</h1>
@@ -159,7 +159,7 @@ export default function PaymentGatewayConfigPage() {
           <button
             onClick={handleRefreshBalance}
             disabled={loadingBalance}
-            className="btn bg-slate-100 hover:bg-slate-200 text-slate-800 border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+            className="btn btn-secondary border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
           >
             <RefreshCw size={14} className={loadingBalance ? 'animate-spin' : ''} /> Sync Saldo
           </button>
@@ -177,13 +177,13 @@ export default function PaymentGatewayConfigPage() {
       <div className="flex border-b border-slate-200 gap-4 px-2">
         <button
           onClick={() => setActiveTab('xendit')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all ${activeTab === 'xendit' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all ${activeTab === 'xendit' ? 'border-primary-600 text-slate-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Xendit Gateway {configs['xendit']?.is_active && '🟢'}
         </button>
         <button
           onClick={() => setActiveTab('duitku')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all ${activeTab === 'duitku' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`pb-3 text-sm font-bold border-b-2 transition-all ${activeTab === 'duitku' ? 'border-primary-600 text-slate-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Duitku Gateway {configs['duitku']?.is_active && '🟢'}
         </button>
@@ -191,9 +191,9 @@ export default function PaymentGatewayConfigPage() {
 
       {/* METRICS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-teal-950 p-6 rounded-2xl text-white shadow-sm space-y-3">
+        <div className="bg-gradient-to-br from-slate-900 via-primary-950 to-primary-950 p-6 rounded-2xl text-white shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-teal-300">Saldo Tersedia ({activeTab.toUpperCase()})</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-300">Saldo Tersedia ({activeTab.toUpperCase()})</span>
           </div>
           <div>
             <div className="text-3xl font-mono font-extrabold text-emerald-400">
@@ -205,7 +205,7 @@ export default function PaymentGatewayConfigPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+        <div className="card p-6 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700">Pending Settlement</span>
           </div>
@@ -216,7 +216,7 @@ export default function PaymentGatewayConfigPage() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
+        <div className="card p-6 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">Total Akumulasi</span>
           </div>
@@ -229,10 +229,10 @@ export default function PaymentGatewayConfigPage() {
       </div>
 
       {/* FORM CONFIG */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+      <div className="card p-6 space-y-6">
         <div className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
-            <Sliders size={20} className="text-teal-600" />
+            <Sliders size={20} className="text-primary-600" />
             <div>
               <h2 className="text-base font-extrabold text-slate-900">Form Pengaturan Kredensial {activeTab.toUpperCase()} API</h2>
             </div>
@@ -314,7 +314,7 @@ export default function PaymentGatewayConfigPage() {
                   type="checkbox"
                   checked={currentConfig.auto_disbursement_enabled}
                   onChange={(e) => handleFormChange('auto_disbursement_enabled', e.target.checked)}
-                  className="checkbox checkbox-xs checkbox-teal"
+                  className="checkbox checkbox-xs checkbox-primary"
                 />
                 <span className="font-bold text-slate-800 text-xs">Auto-Disbursement saat Kabag ACC</span>
               </label>
@@ -324,7 +324,7 @@ export default function PaymentGatewayConfigPage() {
                   type="checkbox"
                   checked={currentConfig.account_validation_enabled}
                   onChange={(e) => handleFormChange('account_validation_enabled', e.target.checked)}
-                  className="checkbox checkbox-xs checkbox-teal"
+                  className="checkbox checkbox-xs checkbox-primary"
                 />
                 <span className="font-bold text-slate-800 text-xs">Validasi Nama Rekening Bank Otomatis</span>
               </label>
@@ -334,7 +334,7 @@ export default function PaymentGatewayConfigPage() {
           <div className="flex justify-end pt-3 border-t">
             <button
               type="submit"
-              className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none"
+              className="btn btn-primary btn-sm font-bold border-none"
             >
               Simpan Konfigurasi {activeTab.toUpperCase()}
             </button>

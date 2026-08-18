@@ -161,7 +161,7 @@ export default function CreateTagihanPage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header & Back Button */}
-      <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex items-center justify-between card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu/tagihan" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition" title="Kembali ke Daftar Tagihan">
             <ArrowLeft size={20} />
@@ -264,7 +264,7 @@ export default function CreateTagihanPage() {
                 <span className="font-bold text-slate-600">Total Gabungan: {formatRupiah(processedResult.nominal_bayar)}</span>
                 <button
                   onClick={() => alert(`Mencetak Kwitansi Bundling #${processedResult.nomor_kwitansi}`)}
-                  className="btn bg-emerald-600 hover:bg-emerald-700 text-white btn-xs font-bold border-none flex items-center gap-1"
+                  className="btn btn-primary btn-xs font-bold border-none flex items-center gap-1"
                 >
                   <Printer size={12} /> Cetak Kwitansi
                 </button>
@@ -275,15 +275,15 @@ export default function CreateTagihanPage() {
       )}
 
       {/* STEP 1: SELECT2 SEARCH MAHASISWA (INFORMASI MAHASISWA SAJA) */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+      <div className="card p-6 space-y-4">
         <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-          <Search size={18} className="text-teal-600" /> 1. Cari & Pilih Mahasiswa (Pencarian NIM / Nama)
+          <Search size={18} className="text-primary-600" /> 1. Cari & Pilih Mahasiswa (Pencarian NIM / Nama)
         </h2>
 
         {!selectedStudent && (
           <div className="relative">
             {/* Flex Input Box - NO OVERLAP GUARANTEED */}
-            <div className="flex items-center gap-2 border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white focus-within:border-teal-600 focus-within:ring-1 focus-within:ring-teal-600/30 shadow-2xs">
+            <div className="flex items-center gap-2 border border-slate-300 rounded-xl px-3.5 py-2.5 bg-white focus-within:border-primary-600 focus-within:ring-1 focus-within:ring-primary-600/30 shadow-2xs">
               <Search size={16} className="text-slate-400 shrink-0" />
               <input
                 type="text"
@@ -324,17 +324,17 @@ export default function CreateTagihanPage() {
                         handleSelectStudent(mhs);
                         setIsDropdownOpen(false);
                       }}
-                      className="p-2.5 hover:bg-teal-50/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-teal-200 flex items-center justify-between group text-xs"
+                      className="p-2.5 hover:bg-slate-100/80 rounded-xl cursor-pointer transition-all border border-transparent hover:border-slate-300 flex items-center justify-between group text-xs"
                     >
                       <div>
-                        <div className="font-extrabold text-slate-900 group-hover:text-teal-900">
+                        <div className="font-extrabold text-slate-900 group-hover:text-primary-700">
                           {mhs.nama_mahasiswa} <span className="font-mono text-slate-500 font-bold">(NIM: {mhs.nim})</span>
                         </div>
                         <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
                           Prodi: {mhs.prodi} • Angkatan {mhs.tahun_angkatan}
                         </div>
                       </div>
-                      <span className="text-[10px] font-extrabold bg-teal-50 text-teal-800 px-2 py-1 rounded-lg border border-teal-200 group-hover:bg-teal-600 group-hover:text-white transition">
+                      <span className="text-[10px] font-extrabold bg-slate-50 text-slate-700 px-2 py-1 rounded-lg border border-slate-200 group-hover:bg-primary-600 group-hover:text-white transition">
                         Pilih Mahasiswa &rarr;
                       </span>
                     </div>
@@ -347,15 +347,15 @@ export default function CreateTagihanPage() {
 
         {/* KARTU MAHASISWA TERPILIH */}
         {selectedStudent && (
-          <div className="bg-teal-50/70 border border-teal-200 p-4 rounded-xl space-y-2 text-xs">
+          <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-2 text-xs">
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">Mahasiswa Terpilih</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800">Angkatan {selectedStudent.tahun_angkatan}</span>
+                  <span className="badge badge-green">Mahasiswa Terpilih</span>
+                  <span className="badge badge-teal-pill">Angkatan {selectedStudent.tahun_angkatan}</span>
                 </div>
-                <h3 className="text-base font-extrabold text-teal-950 mt-1">{selectedStudent.nama_mahasiswa}</h3>
-                <p className="text-xs text-teal-800 font-mono">
+                <h3 className="text-base font-extrabold text-primary-950 mt-1">{selectedStudent.nama_mahasiswa}</h3>
+                <p className="text-xs text-slate-700 font-mono">
                   NIM: <strong>{selectedStudent.nim}</strong> • Program Studi: <strong>{selectedStudent.prodi}</strong>
                 </p>
               </div>
@@ -378,9 +378,9 @@ export default function CreateTagihanPage() {
 
       {/* STEP 2: CHECKLIST MULTI-TAGIHAN & PROSES BUNDLING SINGLE VA */}
       {selectedStudent && (
-        <form onSubmit={handleProcessInvoicePayment} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+        <form onSubmit={handleProcessInvoicePayment} className="card p-6 space-y-6">
           <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2 border-b pb-3">
-            <CreditCard size={18} className="text-teal-600" /> 2. Checklist Multi-Tagihan (Penggabungan ke 1 Single VA / Kwitansi)
+            <CreditCard size={18} className="text-primary-600" /> 2. Checklist Multi-Tagihan (Penggabungan ke 1 Single VA / Kwitansi)
           </h2>
 
           <div className="space-y-4">
@@ -410,13 +410,13 @@ export default function CreateTagihanPage() {
                     onClick={() => toggleBillId(b.id)}
                     className={`p-4 rounded-xl border cursor-pointer text-xs flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all ${
                       isChecked
-                        ? 'bg-white border-teal-600 ring-1 ring-teal-600/30 shadow-2xs'
+                        ? 'bg-white border-primary-600 ring-1 ring-primary-600/30 shadow-2xs'
                         : 'bg-slate-50/60 border-slate-200 text-slate-400 hover:bg-white'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       {isChecked ? (
-                        <CheckSquare size={20} className="text-teal-700 shrink-0" />
+                        <CheckSquare size={20} className="text-slate-700 shrink-0" />
                       ) : (
                         <Square size={20} className="text-slate-300 shrink-0" />
                       )}
@@ -488,7 +488,7 @@ export default function CreateTagihanPage() {
             <button
               type="submit"
               disabled={submitting || selectedBillIds.length === 0}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs border-none shadow-sm flex items-center gap-1.5 disabled:opacity-40"
+              className="btn btn-primary font-bold text-xs border-none shadow-sm flex items-center gap-1.5 disabled:opacity-40"
             >
               <Save size={16} />{' '}
               {submitting

@@ -157,7 +157,7 @@ export default function TagihanListPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
@@ -171,13 +171,13 @@ export default function TagihanListPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMassModalOpen(true)}
-            className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
           >
             <Sparkles size={16} /> Aktifkan Tagihan Semester (Masal)
           </button>
           <Link
             href="/sikeu/tagihan/create"
-            className="btn bg-slate-100 hover:bg-slate-200 text-slate-800 border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+            className="btn btn-secondary border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
           >
             <CreditCard size={16} /> Bayar Loket / Terbitkan VA
           </Link>
@@ -201,7 +201,7 @@ export default function TagihanListPage() {
       <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <Filter size={15} className="text-teal-600" />
+            <Filter size={15} className="text-primary-600" />
             <span className="font-bold text-slate-700">Angkatan:</span>
             <select
               value={selectedAngkatan}
@@ -237,7 +237,7 @@ export default function TagihanListPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="card p-6">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-slate-700 font-extrabold uppercase border-y border-slate-200">
@@ -265,7 +265,7 @@ export default function TagihanListPage() {
                       <div className="text-[10px] font-mono text-slate-500">NIM: {item.nim}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-extrabold text-teal-800">Angkatan {item.angkatan}</div>
+                      <div className="font-extrabold text-slate-700">Angkatan {item.angkatan}</div>
                       <div className="text-[10px] font-semibold text-slate-500">{item.prodi}</div>
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-800">{item.kelompok_ukt}</td>
@@ -275,15 +275,15 @@ export default function TagihanListPage() {
                     <td className="px-4 py-3 font-mono font-medium">{item.jatuhTempo}</td>
                     <td className="px-4 py-3 text-center">
                       {item.status === 'lunas' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                        <span className="inline-flex items-center gap-1 badge badge-green">
                           <CheckCircle size={12} /> LUNAS (KRS AKTIF)
                         </span>
                       ) : item.status === 'pending_approval' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700">
+                        <span className="inline-flex items-center gap-1 badge badge-yellow">
                           <Clock size={12} /> PENDING APPROVAL
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700">
+                        <span className="inline-flex items-center gap-1 badge badge-red">
                           <AlertCircle size={12} /> BELUM BAYAR
                         </span>
                       )}
@@ -298,8 +298,8 @@ export default function TagihanListPage() {
 
       {/* MODAL AKTIFKAN TAGIHAN MASAL SEMESTER AKTIF (INTERAKTIF CHECKLIST DATA MASTER) */}
       {isMassModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal modal-md modal-body">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-base text-slate-900">Setting & Aktifkan Tagihan Semester Masal</h3>
               <button onClick={() => setIsMassModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
@@ -363,7 +363,7 @@ export default function TagihanListPage() {
                   <button
                     type="button"
                     onClick={toggleSelectAllMasterComponents}
-                    className="text-[11px] font-bold text-teal-700 hover:underline"
+                    className="text-[11px] font-bold text-slate-700 hover:underline"
                   >
                     {selectedComponentKodes.length === masterComponents.length ? 'Batal Semua' : 'Pilih Semua'}
                   </button>
@@ -378,13 +378,13 @@ export default function TagihanListPage() {
                         onClick={() => toggleComponentKode(c.kode)}
                         className={`p-2.5 rounded-xl border cursor-pointer text-xs flex justify-between items-center transition-all ${
                           isChecked
-                            ? 'bg-teal-50/80 border-teal-600 ring-1 ring-teal-600/30 font-bold'
+                            ? 'bg-slate-50 border-primary-600 ring-1 ring-primary-600/30 font-bold'
                             : 'bg-slate-50/60 border-slate-200 text-slate-400 hover:bg-slate-100'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           {isChecked ? (
-                            <CheckSquare size={16} className="text-teal-700 shrink-0" />
+                            <CheckSquare size={16} className="text-slate-700 shrink-0" />
                           ) : (
                             <Square size={16} className="text-slate-300 shrink-0" />
                           )}
@@ -418,7 +418,7 @@ export default function TagihanListPage() {
                         d.setDate(d.getDate() + 30);
                         setMassForm({ ...massForm, jatuh_tempo: d.toISOString().split('T')[0] });
                       }}
-                      className="text-[10px] font-bold text-teal-700 hover:underline"
+                      className="text-[10px] font-bold text-slate-700 hover:underline"
                     >
                       +30 Hari
                     </button>
@@ -430,7 +430,7 @@ export default function TagihanListPage() {
                         d.setDate(d.getDate() + 60);
                         setMassForm({ ...massForm, jatuh_tempo: d.toISOString().split('T')[0] });
                       }}
-                      className="text-[10px] font-bold text-teal-700 hover:underline"
+                      className="text-[10px] font-bold text-slate-700 hover:underline"
                     >
                       +60 Hari
                     </button>
@@ -450,7 +450,7 @@ export default function TagihanListPage() {
                 <button
                   type="submit"
                   disabled={massSubmitting || selectedComponentKodes.length === 0}
-                  className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none disabled:opacity-40"
+                  className="btn btn-primary btn-sm font-bold border-none disabled:opacity-40"
                 >
                   {massSubmitting ? 'Memproses...' : 'Terbitkan Tagihan Masal'}
                 </button>

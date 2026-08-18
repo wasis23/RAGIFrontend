@@ -111,7 +111,7 @@ export default function SikeuApprovalPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex items-center justify-between card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
@@ -142,7 +142,7 @@ export default function SikeuApprovalPage() {
       )}
 
       {/* CARD CATEGORY 1: PERMOHONAN DISPENSASI PEMBAYARAN MAHASISWA */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+      <div className="card p-6 space-y-4">
         <div className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
             <User size={20} className="text-amber-600" />
@@ -151,7 +151,7 @@ export default function SikeuApprovalPage() {
               <p className="text-xs text-slate-500">Persetujuan cicilan / penundaan bayar (Otomatis membuka kuncian KRS di SIAKAD)</p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-800">
+          <span className="badge badge-yellow">
             {dispensasiList.length} Antrean
           </span>
         </div>
@@ -188,7 +188,7 @@ export default function SikeuApprovalPage() {
                   </button>
                   <button
                     onClick={() => setModalAction({ category: 'dispensasi', action: 'approve', id: d.id, title: `Setujui Dispensasi ${d.mahasiswa_nama}` })}
-                    className="btn bg-emerald-600 hover:bg-emerald-700 text-white btn-xs font-bold border-none"
+                    className="btn btn-primary btn-xs font-bold border-none"
                   >
                     <CheckCircle size={14} /> Setujui Dispensasi
                   </button>
@@ -200,16 +200,16 @@ export default function SikeuApprovalPage() {
       </div>
 
       {/* CARD CATEGORY 2: PERIZINAN MUTASI & PENGELOLAAN KAS KABAG KEUANGAN */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+      <div className="card p-6 space-y-4">
         <div className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
-            <Wallet size={20} className="text-teal-600" />
+            <Wallet size={20} className="text-primary-600" />
             <div>
               <h2 className="text-base font-extrabold text-slate-900">2. Card Approval Perizinan Kas Kabag Keuangan & Mutasi Unit</h2>
               <p className="text-xs text-slate-500">Persetujuan transfer dana antar unit kas (Otomatis mencatat Jurnal Umum Debet/Kredit)</p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-teal-100 text-teal-800">
+          <span className="badge badge-teal-pill">
             {kasKabagList.length} Antrean
           </span>
         </div>
@@ -219,22 +219,22 @@ export default function SikeuApprovalPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {kasKabagList.map((k) => (
-              <div key={k.id} className="p-4 rounded-xl border border-teal-200 bg-teal-50/40 space-y-3 text-xs flex flex-col justify-between">
+              <div key={k.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 text-xs flex flex-col justify-between">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-teal-800">{k.kode_mutasi}</span>
+                    <span className="font-mono text-xs font-bold text-slate-700">{k.kode_mutasi}</span>
                     <span className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(k.nominal)}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-700 font-bold bg-white p-2 rounded-lg border border-teal-200">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-700 font-bold bg-white p-2 rounded-lg border border-slate-200">
                     <span>{k.unit_asal}</span>
-                    <ArrowRightLeft size={12} className="text-teal-600 shrink-0" />
+                    <ArrowRightLeft size={12} className="text-primary-600 shrink-0" />
                     <span>{k.unit_tujuan}</span>
                   </div>
                   <p className="text-[11px] text-slate-600">Peruntukan: <strong>{k.peruntukan}</strong></p>
                   <div className="text-[10px] text-slate-500 font-semibold">Pemohon: {k.pemohon}</div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-teal-200/60">
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
                   <button
                     onClick={() => setModalAction({ category: 'kas', action: 'reject', id: k.id, title: `Tolak Mutasi ${k.kode_mutasi}` })}
                     className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 font-bold"
@@ -243,7 +243,7 @@ export default function SikeuApprovalPage() {
                   </button>
                   <button
                     onClick={() => setModalAction({ category: 'kas', action: 'approve', id: k.id, title: `Setujui Mutasi ${k.kode_mutasi}` })}
-                    className="btn bg-teal-600 hover:bg-teal-700 text-white btn-xs font-bold border-none"
+                    className="btn btn-primary btn-xs font-bold border-none"
                   >
                     <CheckCircle size={14} /> Setujui Mutasi Kas
                   </button>
@@ -255,7 +255,7 @@ export default function SikeuApprovalPage() {
       </div>
 
       {/* CARD CATEGORY 3: PENGELUARAN OPERASIONAL UNIT & PRODI */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+      <div className="card p-6 space-y-4">
         <div className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
             <TrendingDown size={20} className="text-purple-600" />
@@ -264,7 +264,7 @@ export default function SikeuApprovalPage() {
               <p className="text-xs text-slate-500">Persetujuan pencairan anggaran belanja operasional & kegiatan laboratorium/prodi</p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-purple-100 text-purple-800">
+          <span className="badge badge-purple">
             {operasionalList.length} Antrean
           </span>
         </div>
@@ -295,7 +295,7 @@ export default function SikeuApprovalPage() {
                   </button>
                   <button
                     onClick={() => setModalAction({ category: 'operasional', action: 'approve', id: o.id, title: `Setujui Pengeluaran ${o.nomor_pengajuan}` })}
-                    className="btn bg-purple-600 hover:bg-purple-700 text-white btn-xs font-bold border-none"
+                    className="btn btn-primary btn-xs font-bold border-none"
                   >
                     <CheckCircle size={14} /> Setujui Pencairan
                   </button>
@@ -307,7 +307,7 @@ export default function SikeuApprovalPage() {
       </div>
 
       {/* CARD CATEGORY 4: TAGIHAN EKSTERNAL LINTAS SISTEM */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+      <div className="card p-6 space-y-4">
         <div className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
             <FileText size={20} className="text-indigo-600" />
@@ -316,7 +316,7 @@ export default function SikeuApprovalPage() {
               <p className="text-xs text-slate-500">Persetujuan khusus invoice baru yang memerlukan persetujuan pimpinan</p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-indigo-100 text-indigo-800">
+          <span className="badge badge-indigo">
             {tagihanList.length} Antrean
           </span>
         </div>
@@ -345,7 +345,7 @@ export default function SikeuApprovalPage() {
                   </button>
                   <button
                     onClick={() => setModalAction({ category: 'tagihan', action: 'approve', id: t.id, title: `Setujui Tagihan ${t.nomor_tagihan}` })}
-                    className="btn bg-indigo-600 hover:bg-indigo-700 text-white btn-xs font-bold border-none"
+                    className="btn btn-primary btn-xs font-bold border-none"
                   >
                     <CheckCircle size={14} /> Setujui Invoice
                   </button>
@@ -358,8 +358,8 @@ export default function SikeuApprovalPage() {
 
       {/* Confirmation Modal */}
       {modalAction && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <h3 className="text-base font-extrabold text-slate-900">{modalAction.title}</h3>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Catatan Pimpinan (Opsional)</label>
@@ -367,7 +367,7 @@ export default function SikeuApprovalPage() {
                 value={catatan}
                 onChange={(e) => setCatatan(e.target.value)}
                 placeholder="Tuliskan catatan atau instruksi persetujuan..."
-                className="w-full text-xs font-medium border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                className="textarea textarea-sm w-full"
                 rows={3}
               />
             </div>
@@ -381,8 +381,8 @@ export default function SikeuApprovalPage() {
               <button
                 onClick={handleConfirmAction}
                 disabled={processing}
-                className={`btn btn-sm font-bold text-white border-none ${
-                  modalAction.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'
+                className={`btn btn-sm font-bold ${
+                  modalAction.action === 'approve' ? 'btn-primary' : 'btn-danger'
                 }`}
               >
                 {processing ? 'Memproses...' : modalAction.action === 'approve' ? 'Konfirmasi Approve' : 'Konfirmasi Tolak'}

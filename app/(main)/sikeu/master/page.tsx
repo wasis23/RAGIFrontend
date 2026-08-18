@@ -484,7 +484,7 @@ export default function MasterBiayaPage() {
   return (
     <div className="space-y-6">
       {/* Header tanpa Badge */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
@@ -505,7 +505,7 @@ export default function MasterBiayaPage() {
                 setJenisBiayaForm({ kode: '', nama: '', tipe: 'ukt', nominal_standar: 0, deskripsi: '' });
                 setIsJenisBiayaModalOpen(true);
               }}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tambah Komponen Biaya
             </button>
@@ -516,7 +516,7 @@ export default function MasterBiayaPage() {
                 setJalurForm({ nama_jalur: '', deskripsi: '' });
                 setIsJalurModalOpen(true);
               }}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tambah Jalur Kelas Baru
             </button>
@@ -525,7 +525,7 @@ export default function MasterBiayaPage() {
             <>
               <button
                 onClick={() => setIsAddAngkatanOpen(true)}
-                className="btn bg-slate-100 hover:bg-slate-200 text-slate-800 border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
+                className="btn btn-secondary border-none font-bold text-xs flex items-center gap-1.5 shadow-2xs"
               >
                 <Plus size={16} /> Tambah Angkatan
               </button>
@@ -535,7 +535,7 @@ export default function MasterBiayaPage() {
                   setTarifForm({ jenis_biaya_id: 1, tahun_angkatan: selectedAngkatan, jalur_kelas: selectedJalur, prodi: 'Teknik Informatika', nama_kelompok: 'SPP Semester Teknik Informatika', program_studi_id: 0, nominal: 3500000 });
                   setIsTarifModalOpen(true);
                 }}
-                className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
               >
                 <Plus size={16} /> Atur Nominal Tarif
               </button>
@@ -548,7 +548,7 @@ export default function MasterBiayaPage() {
                 setBeasiswaForm({ kode: '', nama: '', sumber: 'internal', tipe_potongan: 'persen', nilai_potongan: 100, jenis_biaya_id: 0, berlaku_angkatan_mulai: 2023, berlaku_angkatan_sampai: 2027, deskripsi: '' });
                 setIsBeasiswaModalOpen(true);
               }}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tambah Master Beasiswa
             </button>
@@ -560,7 +560,7 @@ export default function MasterBiayaPage() {
                 setStudentTypeForm({ mahasiswa_id: 105, nim: '2025010088', nama_mahasiswa: 'Mahasiswa Baru', tahun_angkatan: 2025, jalur_kelas: 'Reguler', kelompok_ukt: 3, beasiswa_id: 0, catatan_perubahan: 'Pendaftaran baru via SPMB' });
                 setIsStudentTypeModalOpen(true);
               }}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <UserPlus size={16} /> Penetapan Tipe Pendaftaran Baru
             </button>
@@ -574,7 +574,7 @@ export default function MasterBiayaPage() {
                 }
                 setIsAssignBeasiswaModalOpen(true);
               }}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tetapkan Mahasiswa Penerima
             </button>
@@ -586,7 +586,7 @@ export default function MasterBiayaPage() {
                 setUnitKasForm({ id: 0, nama_kas: '', bank_name: 'BNI', bank_account_number: '', bank_account_name: '', status: true, deskripsi: '' });
                 setIsUnitKasModalOpen(true);
               }}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Building size={16} /> Tambah Unit Kas Baru
             </button>
@@ -623,7 +623,7 @@ export default function MasterBiayaPage() {
             onClick={() => setActiveTab(tab.id as any)}
             className={`whitespace-nowrap pb-3 text-sm font-bold border-b-2 px-4 transition-all ${
               activeTab === tab.id
-                ? 'border-teal-600 text-teal-700'
+                ? 'border-primary-600 text-slate-700'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -634,7 +634,7 @@ export default function MasterBiayaPage() {
 
       {/* 1. TAB JENIS BIAYA */}
       {activeTab === 'jenis-biaya' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Komponen Biaya Dasar</h2>
@@ -676,7 +676,7 @@ export default function MasterBiayaPage() {
                           setEditingJenisBiaya(j);
                           setJenisBiayaForm({ kode: j.kode, nama: j.nama, tipe: j.tipe, nominal_standar: j.nominal_standar, deskripsi: j.deskripsi || '' });
                           setIsJenisBiayaModalOpen(true);
-                        }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
+                        }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg">
                           <Edit size={14} />
                         </button>
                       </div>
@@ -691,7 +691,7 @@ export default function MasterBiayaPage() {
 
       {/* 2. TAB JALUR KELAS */}
       {activeTab === 'jalur-kelas' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Jalur & Kelas Pendaftaran</h2>
@@ -711,7 +711,7 @@ export default function MasterBiayaPage() {
                     setEditingJalurItem(j);
                     setEditJalurForm({ nama_jalur: j.nama_jalur, deskripsi: j.deskripsi || '' });
                     setIsEditJalurModalOpen(true);
-                  }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
+                  }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg">
                     <Edit size={14} />
                   </button>
                   <button onClick={() => {
@@ -730,7 +730,7 @@ export default function MasterBiayaPage() {
 
       {/* 3. TAB TARIF */}
       {activeTab === 'tarif' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Nominal Tarif Angkatan</h2>
@@ -752,7 +752,7 @@ export default function MasterBiayaPage() {
               </select>
             </div>
             <div className="flex items-end">
-              <button onClick={fetchTarif} className="btn bg-slate-800 hover:bg-slate-900 text-white btn-sm font-bold border-none">Tampilkan Tarif</button>
+              <button onClick={fetchTarif} className="btn btn-primary btn-sm font-bold border-none">Tampilkan Tarif</button>
             </div>
           </div>
 
@@ -789,7 +789,7 @@ export default function MasterBiayaPage() {
                             nominal: t.nominal
                           });
                           setIsTarifModalOpen(true);
-                        }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg">
+                        }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg">
                           <Edit size={14} />
                         </button>
                         <button onClick={() => handleDeleteTarif(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg">
@@ -807,7 +807,7 @@ export default function MasterBiayaPage() {
 
       {/* 4. TAB BEASISWA */}
       {activeTab === 'beasiswa' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Master Data Beasiswa</h2>
@@ -823,7 +823,7 @@ export default function MasterBiayaPage() {
                     <span className="font-mono text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">{b.kode}</span>
                     <h3 className="font-extrabold text-slate-900 text-sm mt-1">{b.nama}</h3>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${b.sumber === 'pemerintah' ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700'}`}>
+                  <span className={`badge ${b.sumber === 'pemerintah' ? 'badge-indigo' : 'badge-gray'}`}>
                     {b.sumber?.toUpperCase()}
                   </span>
                 </div>
@@ -856,7 +856,7 @@ export default function MasterBiayaPage() {
                       deskripsi: b.deskripsi || ''
                     });
                     setIsBeasiswaModalOpen(true);
-                  }} className="btn btn-xs btn-ghost text-teal-600 font-bold">Edit Detail</button>
+                  }} className="btn btn-xs btn-ghost text-primary-600 font-bold">Edit Detail</button>
                 </div>
               </div>
             ))}
@@ -866,7 +866,7 @@ export default function MasterBiayaPage() {
 
       {/* 5. TAB STUDENT TYPES */}
       {activeTab === 'student-types' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Tipe Pendaftaran Mahasiswa</h2>
@@ -900,7 +900,7 @@ export default function MasterBiayaPage() {
                     </td>
                     <td>
                       {s.beasiswa_id ? (
-                        <span className="text-xs font-bold text-teal-600">Beasiswa Diterapkan</span>
+                        <span className="text-xs font-bold text-primary-600">Beasiswa Diterapkan</span>
                       ) : (
                         <span className="text-xs text-slate-400">-</span>
                       )}
@@ -919,7 +919,7 @@ export default function MasterBiayaPage() {
                           catatan_perubahan: 'Penyesuaian administratif'
                         });
                         setIsStudentTypeModalOpen(true);
-                      }} className="btn btn-xs btn-ghost text-teal-600 font-bold">Ubah Tipe</button>
+                      }} className="btn btn-xs btn-ghost text-primary-600 font-bold">Ubah Tipe</button>
                     </td>
                   </tr>
                 ))}
@@ -931,7 +931,7 @@ export default function MasterBiayaPage() {
 
       {/* 6. TAB MAPPING BEASISWA */}
       {activeTab === 'mapping-beasiswa' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Mahasiswa Penerima Beasiswa</h2>
@@ -956,7 +956,7 @@ export default function MasterBiayaPage() {
                       <div className="font-mono text-xs text-slate-500">{m.nim}</div>
                     </td>
                     <td className="font-semibold text-slate-700">{m.nama_beasiswa}</td>
-                    <td className="font-bold text-teal-600">{m.potongan_text}</td>
+                    <td className="font-bold text-primary-600">{m.potongan_text}</td>
                     <td>
                       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${m.status === 'aktif' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                         {m.status.toUpperCase()}
@@ -972,7 +972,7 @@ export default function MasterBiayaPage() {
 
       {/* 7. TAB MASTER UNIT KAS */}
       {activeTab === 'unit-kas-master' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900">Master Data Unit Kas & Multi-Rekening</h2>
@@ -1010,7 +1010,7 @@ export default function MasterBiayaPage() {
                         deskripsi: u.deskripsi || ''
                       });
                       setIsUnitKasModalOpen(true);
-                    }} className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors">
+                    }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg transition-colors">
                       <Edit size={14} />
                     </button>
                     <button onClick={() => handleDeleteUnitKas(u.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
@@ -1041,11 +1041,11 @@ export default function MasterBiayaPage() {
 
       {/* MODAL UNIT KAS */}
       {isUnitKasModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <Building size={18} className="text-teal-600" /> {editingUnitKas ? 'Edit Unit Kas' : 'Tambah Unit Kas Baru'}
+                <Building size={18} className="text-primary-600" /> {editingUnitKas ? 'Edit Unit Kas' : 'Tambah Unit Kas Baru'}
               </h3>
               <button onClick={() => setIsUnitKasModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
             </div>
@@ -1112,7 +1112,7 @@ export default function MasterBiayaPage() {
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t mt-4">
                 <button type="button" onClick={() => setIsUnitKasModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn btn-primary btn-sm font-bold border-none">
                   Simpan Unit Kas
                 </button>
               </div>

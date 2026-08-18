@@ -48,7 +48,7 @@ export default function CreatePemasukanPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header & Back Button */}
-      <div className="flex items-center justify-between bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex items-center justify-between card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu/pemasukan" className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition" title="Kembali ke Daftar Pemasukan">
             <ArrowLeft size={20} />
@@ -67,7 +67,7 @@ export default function CreatePemasukanPage() {
       )}
 
       {/* Form with 3-Column Grid per crud-ui-standard */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm space-y-6">
+      <form onSubmit={handleSubmit} className="card p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* Input 1: Sumber Pemasukan */}
           <div>
@@ -77,7 +77,7 @@ export default function CreatePemasukanPage() {
             <select
               value={formData.sumber_pemasukan}
               onChange={(e) => setFormData({ ...formData, sumber_pemasukan: e.target.value })}
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="select select-sm"
               required
             >
               <option value="hibah_sippm">Hibah Riset / PkM (SIPPM)</option>
@@ -97,7 +97,7 @@ export default function CreatePemasukanPage() {
               value={formData.nominal}
               onChange={(e) => setFormData({ ...formData, nominal: e.target.value })}
               placeholder="Contoh: 50000000"
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="textarea textarea-sm w-full"
               required
               min={1000}
             />
@@ -112,7 +112,7 @@ export default function CreatePemasukanPage() {
               type="date"
               value={formData.tanggal_terima}
               onChange={(e) => setFormData({ ...formData, tanggal_terima: e.target.value })}
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="textarea textarea-sm w-full"
               required
             />
           </div>
@@ -127,7 +127,7 @@ export default function CreatePemasukanPage() {
               value={formData.nama_donor_instansi}
               onChange={(e) => setFormData({ ...formData, nama_donor_instansi: e.target.value })}
               placeholder="Contoh: Kemdikbudristek / PT Telkom"
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="textarea textarea-sm w-full"
               required
             />
           </div>
@@ -142,7 +142,7 @@ export default function CreatePemasukanPage() {
               value={formData.nomor_kontrak_ref}
               onChange={(e) => setFormData({ ...formData, nomor_kontrak_ref: e.target.value })}
               placeholder="Contoh: 045/SPK/LPPM/2026"
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="textarea textarea-sm w-full"
             />
           </div>
 
@@ -156,7 +156,7 @@ export default function CreatePemasukanPage() {
               value={formData.file_bukti_transfer}
               onChange={(e) => setFormData({ ...formData, file_bukti_transfer: e.target.value })}
               placeholder="Bukti_Transfer_Hibah_2026.pdf"
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="textarea textarea-sm w-full"
             />
           </div>
 
@@ -169,7 +169,7 @@ export default function CreatePemasukanPage() {
               value={formData.keterangan}
               onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
               placeholder="Tuliskan keterangan detail mengenai hibah atau peruntukan dana..."
-              className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="textarea textarea-sm w-full"
               rows={3}
             />
           </div>
@@ -186,7 +186,7 @@ export default function CreatePemasukanPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
           >
             <Save size={16} /> {submitting ? 'Simpan...' : 'Simpan Pemasukan & Auto-Jurnal'}
           </button>

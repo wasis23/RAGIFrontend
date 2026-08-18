@@ -92,15 +92,15 @@ export default function SikeuKabagPage() {
   return (
     <div className="space-y-6">
       {/* Header Portal Kabag Keuangan */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
           </Link>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800">Otoritas Finansial Tertinggi</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-800">Kabag Keuangan Portal</span>
+              <span className="badge badge-teal-pill">Otoritas Finansial Tertinggi</span>
+              <span className="badge badge-indigo">Kabag Keuangan Portal</span>
             </div>
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Portal Khusus Kabag Keuangan</h1>
             <p className="text-xs text-slate-500">Pusat Otorisasi Kas Utama, Persetujuan Dispensasi, Mutasi Likuiditas, & Pengawasan Akuntansi</p>
@@ -110,13 +110,13 @@ export default function SikeuKabagPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMutasiModalOpen(true)}
-            className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
           >
             <ArrowRightLeft size={16} /> Buat Mutasi Kas Kabag
           </button>
           <Link
             href="/sikeu/approval"
-            className="btn bg-amber-500 hover:bg-amber-600 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            className="btn btn-secondary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
           >
             <ShieldCheck size={16} /> Portal Approval ({pendingDispensasi.length + pendingMutasi.length + pendingOperasional.length})
           </Link>
@@ -138,18 +138,18 @@ export default function SikeuKabagPage() {
 
       {/* METRICS CARDS KHUSUS KABAG KEUANGAN */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+        <div className="card p-5 flex justify-between items-center">
           <div>
-            <span className="text-[10px] font-extrabold text-teal-700 uppercase tracking-wider">Saldo Kas Utama Kabag</span>
+            <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider">Saldo Kas Utama Kabag</span>
             <div className="text-2xl font-mono font-extrabold text-slate-900 mt-1">Rp 383.000.000</div>
             <p className="text-[11px] text-emerald-700 font-bold mt-0.5">Surplus Tersedia untuk Mutasi</p>
           </div>
-          <div className="p-3 bg-teal-50 text-teal-700 rounded-2xl">
+          <div className="p-3 bg-slate-50 text-slate-700 rounded-2xl">
             <Wallet size={24} />
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+        <div className="card p-5 flex justify-between items-center">
           <div>
             <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Pengajuan Menunggu Persetujuan Kabag</span>
             <div className="text-2xl font-mono font-extrabold text-amber-900 mt-1">
@@ -162,7 +162,7 @@ export default function SikeuKabagPage() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+        <div className="card p-5 flex justify-between items-center">
           <div>
             <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider">Total Mutasi Kas Ter-Otorisasi</span>
             <div className="text-2xl font-mono font-extrabold text-indigo-900 mt-1">Rp 60.000.000</div>
@@ -175,13 +175,13 @@ export default function SikeuKabagPage() {
       </div>
 
       {/* TAB SUB-NAVIGASI OTORITAS KABAG */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="card p-6 overflow-hidden">
         <div className="flex border-b border-slate-200 bg-slate-50/50 p-2 gap-2 text-xs font-bold">
           <button
             onClick={() => setActiveTab('approval')}
             className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
               activeTab === 'approval'
-                ? 'bg-teal-600 text-white shadow-xs'
+                ? 'bg-primary-600 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-200/60'
             }`}
           >
@@ -191,7 +191,7 @@ export default function SikeuKabagPage() {
             onClick={() => setActiveTab('kas-utama')}
             className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
               activeTab === 'kas-utama'
-                ? 'bg-teal-600 text-white shadow-xs'
+                ? 'bg-primary-600 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-200/60'
             }`}
           >
@@ -201,7 +201,7 @@ export default function SikeuKabagPage() {
             onClick={() => setActiveTab('akuntansi')}
             className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
               activeTab === 'akuntansi'
-                ? 'bg-teal-600 text-white shadow-xs'
+                ? 'bg-primary-600 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-200/60'
             }`}
           >
@@ -239,7 +239,7 @@ export default function SikeuKabagPage() {
                       <div className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(d.nominal)}</div>
                       <button
                         onClick={() => setModalAction({ id: d.id, title: `Dispensasi ${d.mhs}`, type: 'dispensasi' })}
-                        className="btn bg-amber-500 hover:bg-amber-600 text-white btn-xs font-bold border-none"
+                        className="btn btn-secondary btn-xs font-bold border-none"
                       >
                         Proses Keputusan &rarr;
                       </button>
@@ -252,16 +252,16 @@ export default function SikeuKabagPage() {
             {/* SEKSI 2: PERIZINAN MUTASI KAS UNTUK KABAG */}
             <div className="space-y-3 pt-4 border-t">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-teal-950 flex items-center gap-1.5">
-                  <ArrowRightLeft size={16} className="text-teal-700" /> Permohonan Mutasi Kas Antar Unit ({pendingMutasi.length}):
+                <span className="text-xs font-extrabold text-primary-950 flex items-center gap-1.5">
+                  <ArrowRightLeft size={16} className="text-slate-700" /> Permohonan Mutasi Kas Antar Unit ({pendingMutasi.length}):
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 {pendingMutasi.map((k) => (
-                  <div key={k.id} className="p-4 rounded-xl border border-teal-200 bg-teal-50/40 space-y-2 flex justify-between items-center">
+                  <div key={k.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 flex justify-between items-center">
                     <div>
-                      <div className="font-mono font-bold text-teal-900">{k.kode}</div>
+                      <div className="font-mono font-bold text-primary-900">{k.kode}</div>
                       <div className="text-[11px] text-slate-700 font-bold">{k.dari} &rarr; {k.ke}</div>
                       <div className="text-[11px] text-slate-500 mt-0.5">{k.alasan}</div>
                     </div>
@@ -269,7 +269,7 @@ export default function SikeuKabagPage() {
                       <div className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(k.nominal)}</div>
                       <button
                         onClick={() => setModalAction({ id: k.id, title: `Mutasi Kas ${k.kode}`, type: 'mutasi' })}
-                        className="btn bg-teal-600 hover:bg-teal-700 text-white btn-xs font-bold border-none"
+                        className="btn btn-primary btn-xs font-bold border-none"
                       >
                         Setujui Mutasi &rarr;
                       </button>
@@ -291,16 +291,16 @@ export default function SikeuKabagPage() {
               </div>
               <button
                 onClick={() => setIsMutasiModalOpen(true)}
-                className="btn bg-teal-600 hover:bg-teal-700 text-white btn-xs font-bold border-none"
+                className="btn btn-primary btn-xs font-bold border-none"
               >
                 + Buat Mutasi Kas Baru
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl space-y-2">
-                <div className="font-bold text-teal-900">Kas Utama Kabag Keuangan</div>
-                <div className="text-xl font-mono font-extrabold text-teal-950">Rp 383.000.000</div>
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="font-bold text-primary-900">Kas Utama Kabag Keuangan</div>
+                <div className="text-xl font-mono font-extrabold text-primary-950">Rp 383.000.000</div>
                 <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">KAS UTAMA INSTANSI</span>
               </div>
 
@@ -327,7 +327,7 @@ export default function SikeuKabagPage() {
                 <h2 className="text-base font-extrabold text-slate-900">Pengawasan Jurnal Akuntansi & Balanced Ledger</h2>
                 <p className="text-xs text-slate-500">Pencatatan otomatis jurnal debet & kredit dari transaksi yang disetujui Kabag</p>
               </div>
-              <Link href="/sikeu/akuntansi" className="btn bg-slate-100 hover:bg-slate-200 text-slate-800 btn-xs font-bold border-none">
+              <Link href="/sikeu/akuntansi" className="btn btn-secondary btn-xs font-bold border-none">
                 Buka Portal Akuntansi Lengkap &rarr;
               </Link>
             </div>
@@ -341,8 +341,8 @@ export default function SikeuKabagPage() {
 
       {/* MODAL HASIL OTORISASI DECISION KABAG */}
       {modalAction && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <h3 className="text-base font-extrabold text-slate-900">Otorisasi Kabag Keuangan: {modalAction.title}</h3>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Catatan Instruksi Kabag Keuangan (Opsional)</label>
@@ -350,7 +350,7 @@ export default function SikeuKabagPage() {
                 value={catatan}
                 onChange={(e) => setCatatan(e.target.value)}
                 placeholder="Tuliskan catatan persetujuan atau dispensasi..."
-                className="w-full text-xs font-medium border border-slate-300 rounded-xl p-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                className="textarea textarea-sm w-full"
                 rows={3}
               />
             </div>
@@ -358,7 +358,7 @@ export default function SikeuKabagPage() {
               <button onClick={() => setModalAction(null)} className="btn btn-ghost btn-sm font-bold">Batal</button>
               <button
                 onClick={handleApprove}
-                className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none"
+                className="btn btn-primary btn-sm font-bold border-none"
               >
                 Setujui & Terbitkan Otorisasi
               </button>
@@ -369,8 +369,8 @@ export default function SikeuKabagPage() {
 
       {/* MODAL BUAT MUTASI KAS KABAG */}
       {isMutasiModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-base font-extrabold text-slate-900">Form Mutasi Dana Kas Kabag Keuangan</h3>
               <button onClick={() => setIsMutasiModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
@@ -425,7 +425,7 @@ export default function SikeuKabagPage() {
 
               <div className="flex justify-end gap-2 pt-3 border-t">
                 <button type="button" onClick={() => setIsMutasiModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
+                <button type="submit" className="btn btn-primary btn-sm font-bold border-none">
                   Terbitkan Mutasi Kas
                 </button>
               </div>

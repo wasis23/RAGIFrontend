@@ -60,7 +60,7 @@ export default function CoaPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition">
             <ArrowLeft size={20} />
@@ -72,14 +72,14 @@ export default function CoaPage() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
         >
           <Plus size={16} /> Tambah Akun COA
         </button>
       </div>
 
       {/* COA Table */}
-      <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+      <div className="card p-6">
         {loading ? (
           <div className="text-center py-8 text-gray-400">Loading COA...</div>
         ) : coaList.length > 0 ? (
@@ -111,7 +111,7 @@ export default function CoaPage() {
                     </td>
                     <td className="px-4 py-3 uppercase text-xs font-semibold text-gray-700">{item.saldo_normal}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
+                      <span className="badge badge-green inline-flex items-center gap-1">
                         <CheckCircle size={12} /> Aktif
                       </span>
                     </td>
@@ -129,8 +129,8 @@ export default function CoaPage() {
 
       {/* Modal <= 5 Input Grid 2-Column (per crud-ui-standard) */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-md modal-body">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="text-lg font-bold text-gray-900">Tambah Akun COA Baru</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
@@ -148,7 +148,7 @@ export default function CoaPage() {
                     value={formData.kode_akun}
                     onChange={(e) => setFormData({ ...formData, kode_akun: e.target.value })}
                     placeholder="Contoh: 101.03"
-                    className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="textarea textarea-sm w-full"
                     required
                   />
                 </div>
@@ -161,7 +161,7 @@ export default function CoaPage() {
                     value={formData.nama_akun}
                     onChange={(e) => setFormData({ ...formData, nama_akun: e.target.value })}
                     placeholder="Kas Kecil Fakultas"
-                    className="w-full text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="textarea textarea-sm w-full"
                     required
                   />
                 </div>
@@ -172,7 +172,7 @@ export default function CoaPage() {
                   <select
                     value={formData.kelompok}
                     onChange={(e) => setFormData({ ...formData, kelompok: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="select select-sm"
                     required
                   >
                     <option value="aset">Aset (100)</option>
@@ -189,7 +189,7 @@ export default function CoaPage() {
                   <select
                     value={formData.saldo_normal}
                     onChange={(e) => setFormData({ ...formData, saldo_normal: e.target.value })}
-                    className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="select select-sm"
                     required
                   >
                     <option value="debet">DEBET</option>
@@ -209,7 +209,7 @@ export default function CoaPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition"
+                  className="px-4 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition"
                 >
                   {submitting ? 'Simpan...' : 'Simpan Akun COA'}
                 </button>

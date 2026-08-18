@@ -77,17 +77,17 @@ export default function CreatePengeluaranPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header & Back Button */}
-      <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex items-center justify-between card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu/pengeluaran" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition" title="Kembali">
             <ArrowLeft size={20} />
           </Link>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800">
+              <span className="badge badge-red">
                 Form Pengeluaran Baru
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700">
+              <span className="badge badge-gray">
                 Auto Debet Kas & Balanced Journal
               </span>
             </div>
@@ -106,7 +106,7 @@ export default function CreatePengeluaranPage() {
       )}
 
       {/* Form with 3-Column Grid per crud-ui-standard */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
+      <form onSubmit={handleSubmit} className="card p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* Input 1: Kategori Pengeluaran */}
           <div>
@@ -116,7 +116,7 @@ export default function CreatePengeluaranPage() {
             <select
               value={formData.kategori}
               onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-              className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="select select-sm"
               required
             >
               <option value="operasional">Beban Operasional Kampus</option>
@@ -153,7 +153,7 @@ export default function CreatePengeluaranPage() {
               type="date"
               value={formData.tanggal_transaksi}
               onChange={(e) => setFormData({ ...formData, tanggal_transaksi: e.target.value })}
-              className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="select select-sm"
               required
             />
           </div>
@@ -173,7 +173,7 @@ export default function CreatePengeluaranPage() {
                 if (jenis === 'ppn_11') tarif = '11';
                 setFormData({ ...formData, jenis_pajak: jenis, tarif_pajak_persen: tarif });
               }}
-              className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="select select-sm"
             >
               <option value="tanpa_pajak">Tanpa Pajak</option>
               <option value="pph_21">PPh 21 (Honorarium SDM - 5%)</option>
@@ -190,7 +190,7 @@ export default function CreatePengeluaranPage() {
             <select
               value={formData.unit_kas_id}
               onChange={(e) => setFormData({ ...formData, unit_kas_id: e.target.value })}
-              className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="select select-sm"
             >
               {unitKasList.map((k) => (
                 <option key={k.id} value={k.id}>
@@ -210,7 +210,7 @@ export default function CreatePengeluaranPage() {
               value={formData.nama_vendor}
               onChange={(e) => setFormData({ ...formData, nama_vendor: e.target.value })}
               placeholder="PT Solusi Lab Utama / Nama Dosen"
-              className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="select select-sm"
               required
             />
           </div>
@@ -225,7 +225,7 @@ export default function CreatePengeluaranPage() {
               value={formData.npwp_vendor}
               onChange={(e) => setFormData({ ...formData, npwp_vendor: e.target.value })}
               placeholder="01.234.567.8-901.000"
-              className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="select select-sm"
             />
           </div>
 
@@ -239,7 +239,7 @@ export default function CreatePengeluaranPage() {
               value={formData.keterangan}
               onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
               placeholder="Pembelian Router Cisco Core & Kabel UTP Cat6 Lab TI..."
-              className="w-full text-xs border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="select select-sm"
             />
           </div>
 
@@ -271,7 +271,7 @@ export default function CreatePengeluaranPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition disabled:opacity-50"
+            className="btn btn-primary disabled:opacity-50"
           >
             <Save size={16} /> {submitting ? 'Menyimpan Transaksi...' : 'Simpan Transaksi Pengeluaran'}
           </button>

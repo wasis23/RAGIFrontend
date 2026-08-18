@@ -132,7 +132,7 @@ export default function AkuntansiPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
         <div className="flex items-center gap-3">
           <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
             <ArrowLeft size={20} />
@@ -151,7 +151,7 @@ export default function AkuntansiPage() {
           {activeTab === 'jurnal' && (
             <button
               onClick={() => setIsJurnalModalOpen(true)}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Entry Jurnal Penyesuaian
             </button>
@@ -159,7 +159,7 @@ export default function AkuntansiPage() {
           {activeTab === 'coa' && (
             <button
               onClick={() => setIsCoaModalOpen(true)}
-              className="btn bg-teal-600 hover:bg-teal-700 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Plus size={16} /> Tambah Akun COA
             </button>
@@ -167,7 +167,7 @@ export default function AkuntansiPage() {
           {activeTab === 'laporan' && (
             <button
               onClick={() => window.print()}
-              className="btn bg-slate-800 hover:bg-slate-900 text-white border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
+              className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
             >
               <Printer size={16} /> Cetak / Export PDF
             </button>
@@ -220,7 +220,7 @@ export default function AkuntansiPage() {
 
       {/* TAB 1: JURNAL UMUM */}
       {activeTab === 'jurnal' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm overflow-hidden space-y-4 p-6">
+        <div className="card p-6 overflow-hidden space-y-4 p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-extrabold text-slate-900">Daftar Transaksi Jurnal Umum & Auto-Feed</h2>
             <button onClick={fetchJurnal} className="btn btn-ghost btn-xs text-slate-500 flex items-center gap-1">
@@ -256,7 +256,7 @@ export default function AkuntansiPage() {
                       <td className="px-4 py-3 text-right font-bold text-emerald-700">{formatRupiah(j.total_debet)}</td>
                       <td className="px-4 py-3 text-right font-bold text-slate-900">{formatRupiah(j.total_kredit)}</td>
                       <td className="px-4 py-3 text-center font-sans">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                        <span className="badge badge-green">
                           {j.status_posting?.toUpperCase() || 'POSTED'}
                         </span>
                       </td>
@@ -271,7 +271,7 @@ export default function AkuntansiPage() {
 
       {/* TAB 2: BUKU BESAR */}
       {activeTab === 'buku-besar' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-slate-700">Pilih Kode Akun (COA):</span>
@@ -318,7 +318,7 @@ export default function AkuntansiPage() {
 
       {/* TAB 3: CHART OF ACCOUNTS (COA) */}
       {activeTab === 'coa' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="card p-6 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-extrabold text-slate-900">Master Chart of Accounts (COA) Standar Akuntansi Kampus</h2>
             <span className="text-xs font-bold text-slate-500">{coaList.length} Akun Terdaftar</span>
@@ -343,7 +343,7 @@ export default function AkuntansiPage() {
                     <td className="px-4 py-3 uppercase text-[10px] font-bold text-slate-700">{c.kelompok}</td>
                     <td className="px-4 py-3 uppercase text-[10px] font-bold text-emerald-800">{c.saldo_normal}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">Aktif</span>
+                      <span className="badge badge-green">Aktif</span>
                     </td>
                   </tr>
                 ))}
@@ -355,13 +355,13 @@ export default function AkuntansiPage() {
 
       {/* TAB 4: 4 LAPORAN KEUANGAN UTAMA */}
       {activeTab === 'laporan' && (
-        <div className="bg-white rounded-b-2xl border border-slate-100 shadow-sm p-6 space-y-6">
+        <div className="card p-6 p-6 space-y-6">
           {/* Sub-tabs Laporan */}
           <div className="flex items-center gap-2 border-b pb-4 overflow-x-auto">
             <button
               onClick={() => setReportType('laba_rugi')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'laba_rugi' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'laba_rugi' ? 'bg-primary-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               1. Laporan Laba Rugi / Aktivitas
@@ -369,7 +369,7 @@ export default function AkuntansiPage() {
             <button
               onClick={() => setReportType('neraca')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'neraca' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'neraca' ? 'bg-primary-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               2. Neraca / Posisi Keuangan
@@ -377,7 +377,7 @@ export default function AkuntansiPage() {
             <button
               onClick={() => setReportType('arus_kas')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'arus_kas' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'arus_kas' ? 'bg-primary-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               3. Laporan Arus Kas
@@ -385,7 +385,7 @@ export default function AkuntansiPage() {
             <button
               onClick={() => setReportType('perubahan_ekuitas')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all shrink-0 ${
-                reportType === 'perubahan_ekuitas' ? 'bg-teal-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                reportType === 'perubahan_ekuitas' ? 'bg-primary-700 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               4. Laporan Perubahan Ekuitas
@@ -408,14 +408,14 @@ export default function AkuntansiPage() {
             {/* LABA RUGI */}
             {reportType === 'laba_rugi' && (
               <div className="space-y-4 max-w-3xl mx-auto">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                <div className="card p-4 space-y-2">
                   <div className="font-extrabold text-xs text-indigo-900 border-b pb-1">PENDAPATAN OPERASIONAL & HIBAH</div>
                   <div className="flex justify-between text-xs font-semibold"><span>Pendapatan UKT / SPP Mahasiswa</span><span className="font-mono">Rp 520.000.000</span></div>
                   <div className="flex justify-between text-xs font-semibold"><span>Pemasukan Hibah Riset SIPPM</span><span className="font-mono">Rp 25.000.000</span></div>
                   <div className="flex justify-between text-xs font-extrabold text-emerald-700 border-t pt-2"><span>TOTAL PENDAPATAN</span><span className="font-mono">Rp 545.000.000</span></div>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                <div className="card p-4 space-y-2">
                   <div className="font-extrabold text-xs text-rose-900 border-b pb-1">BEBAN OPERASIONAL & GAJI</div>
                   <div className="flex justify-between text-xs font-semibold"><span>Beban Gaji & Honorarium Pegawai</span><span className="font-mono">Rp 185.000.000</span></div>
                   <div className="flex justify-between text-xs font-semibold"><span>Beban Pengadaan Server & Operasional TI</span><span className="font-mono">Rp 15.000.000</span></div>
@@ -432,25 +432,25 @@ export default function AkuntansiPage() {
             {/* NERACA */}
             {reportType === 'neraca' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                <div className="card p-4 space-y-2">
                   <div className="font-extrabold text-xs text-indigo-900 border-b pb-1">ASET (AKTIVA)</div>
                   <div className="flex justify-between text-xs font-semibold"><span>Kas & Bank Rektorat</span><span className="font-mono">Rp 500.000.000</span></div>
                   <div className="flex justify-between text-xs font-semibold"><span>Piutang UKT Mahasiswa</span><span className="font-mono">Rp 45.000.000</span></div>
-                  <div className="flex justify-between text-xs font-extrabold text-teal-800 border-t pt-2"><span>TOTAL ASET</span><span className="font-mono">Rp 545.000.000</span></div>
+                  <div className="flex justify-between text-xs font-extrabold text-slate-700 border-t pt-2"><span>TOTAL ASET</span><span className="font-mono">Rp 545.000.000</span></div>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                <div className="card p-4 space-y-2">
                   <div className="font-extrabold text-xs text-indigo-900 border-b pb-1">LIABILITAS & EKUITAS (PASIVA)</div>
                   <div className="flex justify-between text-xs font-semibold"><span>Utang Pajak PPh/PPN Terutang</span><span className="font-mono">Rp 9.300.000</span></div>
                   <div className="flex justify-between text-xs font-semibold"><span>Ekuitas Dana Awal + Surplus</span><span className="font-mono">Rp 535.700.000</span></div>
-                  <div className="flex justify-between text-xs font-extrabold text-teal-800 border-t pt-2"><span>TOTAL LIABILITAS & EKUITAS</span><span className="font-mono">Rp 545.000.000</span></div>
+                  <div className="flex justify-between text-xs font-extrabold text-slate-700 border-t pt-2"><span>TOTAL LIABILITAS & EKUITAS</span><span className="font-mono">Rp 545.000.000</span></div>
                 </div>
               </div>
             )}
 
             {/* ARUS KAS */}
             {reportType === 'arus_kas' && (
-              <div className="bg-white p-4 rounded-xl border border-slate-200 max-w-3xl mx-auto space-y-2 text-xs font-semibold">
+              <div className="card p-4 max-w-3xl mx-auto space-y-2 text-xs font-semibold">
                 <div className="font-extrabold text-slate-900 border-b pb-1">ARUS KAS DARI AKTIVITAS OPERASIONAL</div>
                 <div className="flex justify-between"><span>Penerimaan Pembayaran UKT & SPMB</span><span className="font-mono text-emerald-700">+ Rp 520.000.000</span></div>
                 <div className="flex justify-between"><span>Penerimaan Hibah Riset SIPPM</span><span className="font-mono text-emerald-700">+ Rp 25.000.000</span></div>
@@ -461,7 +461,7 @@ export default function AkuntansiPage() {
 
             {/* PERUBAHAN EKUITAS */}
             {reportType === 'perubahan_ekuitas' && (
-              <div className="bg-white p-4 rounded-xl border border-slate-200 max-w-3xl mx-auto space-y-2 text-xs font-semibold">
+              <div className="card p-4 max-w-3xl mx-auto space-y-2 text-xs font-semibold">
                 <div className="flex justify-between"><span>Saldo Ekuitas Awal Periode</span><span className="font-mono">Rp 190.700.000</span></div>
                 <div className="flex justify-between"><span>Surplus Bersih Periode Berjalan</span><span className="font-mono text-emerald-700">+ Rp 345.000.000</span></div>
                 <div className="flex justify-between font-extrabold text-indigo-900 border-t pt-2 text-sm"><span>EKUITAS DANA AKHIR PERIODE</span><span className="font-mono font-extrabold">Rp 535.700.000</span></div>
@@ -473,8 +473,8 @@ export default function AkuntansiPage() {
 
       {/* MODAL ENTRY JURNAL PENYESUAIAN */}
       {isJurnalModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-base text-slate-900">Entry Jurnal Penyesuaian / Manual</h3>
               <button onClick={() => setIsJurnalModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
@@ -577,7 +577,7 @@ export default function AkuntansiPage() {
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsJurnalModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" disabled={loading} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
+                <button type="submit" disabled={loading} className="btn btn-primary btn-sm font-bold border-none">
                   Simpan Jurnal
                 </button>
               </div>
@@ -588,8 +588,8 @@ export default function AkuntansiPage() {
 
       {/* MODAL COA */}
       {isCoaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-sm">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-extrabold text-base text-slate-900">Tambah Chart of Accounts (COA)</h3>
               <button onClick={() => setIsCoaModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
@@ -646,7 +646,7 @@ export default function AkuntansiPage() {
               </div>
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button type="button" onClick={() => setIsCoaModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" disabled={loading} className="btn bg-teal-600 hover:bg-teal-700 text-white btn-sm font-bold border-none">
+                <button type="submit" disabled={loading} className="btn btn-primary btn-sm font-bold border-none">
                   Simpan COA
                 </button>
               </div>
