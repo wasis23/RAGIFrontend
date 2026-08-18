@@ -374,4 +374,57 @@ export const sikeuService = {
       method: 'POST',
     });
   },
+
+  // Dashboard Executive Summary & Live Xendit
+  getDashboardSummary: async () => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/dashboard-summary');
+  },
+
+  // Pengeluaran Kampus
+  getPengeluaranList: async (params?: { search?: string; kategori?: string; jenis_pajak?: string; status?: string; page?: number; per_page?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.kategori) query.append('kategori', params.kategori);
+    if (params?.jenis_pajak) query.append('jenis_pajak', params.jenis_pajak);
+    if (params?.status) query.append('status', params.status);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pengeluaran?${query.toString()}`);
+  },
+
+  storePengeluaran: async (payload: {
+    kategori: string;
+    nominal: number;
+    tanggal_transaksi: string;
+    nama_vendor: string;
+    npwp_vendor?: string;
+    jenis_pajak: string;
+    unit_kas_id?: number;
+    keterangan?: string;
+    file_bukti_bayar?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pengeluaran', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Pajak Kampus & Setor NTPN
+  getPajakList: async (params?: { search?: string; jenis?: string; status?: string; page?: number; per_page?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.jenis) query.append('jenis', params.jenis);
+    if (params?.status) query.append('status', params.status);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pajak?${query.toString()}`);
+  },
+
+  setorPajak: async (id: number, payload: { ntpn: string; tanggal_setor?: string; unit_kas_id?: number }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pajak/${id}/setor`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
+
