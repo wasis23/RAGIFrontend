@@ -232,10 +232,10 @@ export default function Iku5StandardsPage() {
           <div className="text-[11px] text-slate-400 mt-1">Data master dari SIMPEG Backend</div>
         </div>
 
-        <div className="card p-5 border-l-4 border-l-teal-600 bg-white shadow-xs">
+        <div className="card p-5 border-l-4 border-l-primary-600 bg-white shadow-xs">
           <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">Rata-rata Target Scopus</div>
-          <div className="text-2xl font-black text-teal-700 mt-1 flex items-center gap-2">
-            <Globe size={24} className="text-teal-600" />
+          <div className="text-2xl font-black text-primary-700 mt-1 flex items-center gap-2">
+            <Globe size={24} className="text-primary-600" />
             {Math.round(prodiStandards.reduce((sum, p) => sum + p.target_scopus, 0) / (prodiStandards.length || 1))} Artikel / Prodi
           </div>
           <div className="text-[11px] text-slate-400 mt-1">Standardisasi Jurnal Q1 - Q4</div>
@@ -336,7 +336,7 @@ export default function Iku5StandardsPage() {
                     </span>
                   </td>
                   <td className="text-center py-4 px-4 font-mono font-black text-slate-800 text-xs">
-                    <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
+                    <span className="badge badge-gray">
                       {item.min_capaian_iku}%
                     </span>
                   </td>
@@ -357,8 +357,8 @@ export default function Iku5StandardsPage() {
 
       {/* EDIT MODAL FORM (<= 5 inputs / 2-column grid per crud-ui-standard) */}
       {isModalOpen && selectedProdi && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <Sliders className="text-purple-700" size={20} /> Konfigurasi Target Standar IKU 5

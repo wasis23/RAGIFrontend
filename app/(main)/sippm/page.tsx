@@ -48,14 +48,14 @@ export default function SippmDashboardPage() {
       {/* Main Menu Grid / Quick Access Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Card 1: Proposal Usulan */}
-        <Link href="/sippm/proposal" className="card p-6 hover:shadow-lg transition-all duration-200 border-l-4 border-l-teal-600 group bg-white">
+        <Link href="/sippm/proposal" className="card p-6 hover:shadow-lg transition-all duration-200 border-l-4 border-l-primary-600 group bg-white">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-700 flex items-center justify-center group-hover:scale-110 transition-transform">
               <FileText size={24} />
             </div>
-            <ArrowRight size={20} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-1 transition-all" />
+            <ArrowRight size={20} className="text-slate-400 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" />
           </div>
-          <h3 className="text-lg font-black text-slate-900 group-hover:text-teal-700 transition-colors">Proposal Usulan Hibah</h3>
+          <h3 className="text-lg font-black text-slate-900 group-hover:text-primary-700 transition-colors">Proposal Usulan Hibah</h3>
           <p className="text-xs text-slate-500 mt-1 font-medium">Pengajuan proposal riset & PkM, anggota tim, serta persetujuan LPPM.</p>
         </Link>
 

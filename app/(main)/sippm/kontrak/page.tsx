@@ -235,7 +235,7 @@ export default function KontrakPage() {
         </div>
         <button
           onClick={() => handleOpenCreateModal()}
-          className="btn btn-primary bg-amber-600 hover:bg-amber-700 border-none shadow-sm font-bold flex items-center gap-1.5"
+          className="btn btn-secondary font-bold flex items-center gap-1.5"
         >
           <Plus size={18} /> Terbitkan Kontrak Manual
         </button>
@@ -329,7 +329,7 @@ export default function KontrakPage() {
                   </td>
 
                   {/* DANA DIUSULKAN */}
-                  <td className="font-bold text-teal-700 text-xs">
+                  <td className="font-bold text-primary-700 text-xs">
                     {formatRupiah(row.dana_diusulkan)}
                   </td>
 
@@ -357,7 +357,7 @@ export default function KontrakPage() {
                       {row.type === 'pending' && row.rawProposal ? (
                         <button
                           onClick={() => handleOpenCreateModal(row.rawProposal)}
-                          className="btn btn-primary btn-sm bg-emerald-600 hover:bg-emerald-700 border-none font-bold shadow-xs flex items-center gap-1.5"
+                          className="btn btn-primary btn-sm font-bold shadow-xs flex items-center gap-1.5"
                         >
                           <DollarSign size={14} /> Tetapkan & Terbitkan SPK
                         </button>
@@ -377,8 +377,8 @@ export default function KontrakPage() {
 
       {/* MODAL FORM PENETAPAN NOMINAL & KONTRAK SPK (Grid 2 Kolom per crud-ui-standard) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <FileCheck className="text-amber-600" size={20} /> Penetapan Nominal & Terbitkan SPK
@@ -390,7 +390,7 @@ export default function KontrakPage() {
               <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs space-y-1">
                 <div className="font-extrabold text-slate-900">{selectedProp.judul}</div>
                 <div className="text-slate-700 flex items-center gap-3">
-                  <span>Dana Diusulkan Dosen: <strong className="text-teal-800 font-bold">{formatRupiah(selectedProp.dana_diusulkan || (selectedProp as any).anggaran_diajukan || 0)}</strong></span>
+                  <span>Dana Diusulkan Dosen: <strong className="text-primary-800 font-bold">{formatRupiah(selectedProp.dana_diusulkan || (selectedProp as any).anggaran_diajukan || 0)}</strong></span>
                 </div>
               </div>
             )}

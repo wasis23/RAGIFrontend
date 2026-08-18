@@ -94,7 +94,7 @@ export default function EditProposalPage({ params }: { params: Promise<{ id: str
         <div className="card">
           <div className="card-header bg-slate-50">
             <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-              <FlaskConical size={18} className="text-teal-600" /> Form Perubahan Data Proposal
+              <FlaskConical size={18} className="text-primary-600" /> Form Perubahan Data Proposal
             </h2>
           </div>
           <div className="card-body">
@@ -132,7 +132,7 @@ export default function EditProposalPage({ params }: { params: Promise<{ id: str
           <button type="button" onClick={() => router.back()} className="btn btn-secondary font-semibold">
             Batal
           </button>
-          <button type="submit" disabled={submitting} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none font-bold">
+          <button type="submit" disabled={submitting} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none font-bold">
             <Save size={18} /> {submitting ? 'Menyimpan...' : 'Simpan Perubahan'}
           </button>
         </div>

@@ -23,6 +23,7 @@ import {
   FlaskConical,
   FileCheck,
 } from 'lucide-react';
+import { Hero } from '@/components/ui/Hero';
 
 interface ProdiDetail {
   id: string;
@@ -289,10 +290,10 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800 border border-teal-200">
+              <span className="badge badge-blue">
                 Laporan Penjaminan Mutu UPM
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+              <span className="badge badge-purple">
                 IKU 5 Kemendikbudristek
               </span>
             </div>
@@ -307,7 +308,7 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
 
         <button
           onClick={() => window.print()}
-          className="btn btn-primary bg-teal-700 hover:bg-teal-800 border-none text-white font-bold text-xs flex items-center gap-2 shadow-sm shrink-0"
+          className="btn btn-primary bg-primary-700 hover:bg-primary-800 border-none text-white font-bold text-xs flex items-center gap-2 shadow-sm shrink-0"
         >
           <Printer size={16} /> Cetak Laporan PDF
         </button>
@@ -315,13 +316,13 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
 
       {/* TOP EXECUTIVE STATS GRID (4 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-5 bg-white border border-teal-200/80 shadow-xs space-y-1">
-          <div className="flex items-center justify-between text-teal-700 text-xs font-semibold">
+        <div className="card p-5 bg-white border border-primary-200/80 shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-primary-700 text-xs font-semibold">
             <span>DOSEN PENGUSUL</span>
-            <User size={18} className="text-teal-600" />
+            <User size={18} className="text-primary-600" />
           </div>
           <div className="text-3xl font-black font-mono text-slate-900">{prodi.dosen_pengusul} Dosen</div>
-          <div className="text-[11px] text-teal-700 font-bold">Partisipasi Aktif LPPM</div>
+          <div className="text-[11px] text-primary-700 font-bold">Partisipasi Aktif LPPM</div>
         </div>
 
         <div className="card p-5 bg-white border border-purple-200/80 shadow-xs space-y-1">
@@ -375,7 +376,7 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
               onClick={() => setActiveTab('publikasi')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
                 activeTab === 'publikasi'
-                  ? 'bg-teal-700 text-white shadow-xs'
+                  ? 'bg-primary-700 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -386,7 +387,7 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
               onClick={() => setActiveTab('hibah')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
                 activeTab === 'hibah'
-                  ? 'bg-teal-700 text-white shadow-xs'
+                  ? 'bg-primary-700 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -397,7 +398,7 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
               onClick={() => setActiveTab('hki')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
                 activeTab === 'hki'
-                  ? 'bg-teal-700 text-white shadow-xs'
+                  ? 'bg-primary-700 text-white shadow-xs'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -449,7 +450,7 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
                       </td>
                       <td className="text-left align-middle space-y-1">
                         <div className="font-bold text-slate-900 text-xs leading-snug">{pub.judul}</div>
-                        <div className="text-[11px] text-teal-700 font-medium">{pub.jurnal}</div>
+                        <div className="text-[11px] text-primary-700 font-medium">{pub.jurnal}</div>
                       </td>
                       <td className="text-center align-middle">
                         <div className="flex justify-center">
@@ -521,9 +522,9 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
                       </td>
                       <td className="text-center align-middle">
                         <div className="text-xs font-bold text-slate-800">{hib.skema}</div>
-                        <div className="text-[11px] text-teal-700 font-medium">{hib.sumber}</div>
+                        <div className="text-[11px] text-primary-700 font-medium">{hib.sumber}</div>
                       </td>
-                      <td className="text-center align-middle font-mono font-extrabold text-teal-900 text-xs">
+                      <td className="text-center align-middle font-mono font-extrabold text-primary-900 text-xs">
                         {formatRupiah(hib.dana)}
                       </td>
                       <td className="text-center align-middle">
@@ -594,25 +595,21 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
       </div>
 
       {/* FOOTER NOTE / CATATAN EVALUASI UPM */}
-      <div
-        className="p-6 rounded-2xl text-white shadow-xl space-y-3 border border-teal-800/80"
-        style={{ background: 'linear-gradient(135deg, #042f2e 0%, #0d9488 50%, #0f172a 100%)' }}
-      >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-teal-200 font-extrabold text-sm tracking-wide">
-              <CheckCircle2 size={20} className="text-teal-300" /> REKOMENDASI PENJAMINAN MUTU UPM
-            </div>
-            <p className="text-xs md:text-sm text-teal-50 leading-relaxed font-semibold max-w-4xl opacity-95">
-              Capaian IKU 5 Program Studi <strong>{prodi.nama_prodi}</strong> telah diverifikasi oleh Badan Penjaminan Mutu (UPM) Kampus. Seluruh luaran publikasi Scopus, Sinta, dan HKI telah memenuhi kriteria SPMI Kemendikbudristek.
-            </p>
-          </div>
-          <div className="text-left md:text-right shrink-0 bg-teal-950/80 p-3.5 rounded-xl border border-teal-700/60">
-            <div className="text-[10px] text-teal-300 uppercase font-black tracking-wider">STATUS AKREDITASI PRODI</div>
+      <Hero
+        badge={<span className="flex items-center gap-2 text-primary-200 font-extrabold text-sm tracking-wide"><CheckCircle2 size={20} /> REKOMENDASI PENJAMINAN MUTU UPM</span>}
+        title=""
+        description={
+          <p className="text-xs md:text-sm text-primary-50 leading-relaxed font-semibold max-w-4xl opacity-95">
+            Capaian IKU 5 Program Studi <strong>{prodi.nama_prodi}</strong> telah diverifikasi oleh Badan Penjaminan Mutu (UPM) Kampus. Seluruh luaran publikasi Scopus, Sinta, dan HKI telah memenuhi kriteria SPMI Kemendikbudristek.
+          </p>
+        }
+        actions={
+          <div className="text-left md:text-right shrink-0 bg-primary-950/80 p-3.5 rounded-xl border border-primary-700/60">
+            <div className="text-[10px] text-primary-300 uppercase font-black tracking-wider">STATUS AKREDITASI PRODI</div>
             <div className="text-xl font-black text-emerald-300 font-mono">UNGGUL (A)</div>
           </div>
-        </div>
-      </div>
+        }
+      />
     </div>
   );
 }

@@ -256,7 +256,7 @@ export default function ReviewerPortalPage() {
             />
           </div>
           <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-            <Info size={14} className="text-teal-600" />
+            <Info size={14} className="text-primary-600" />
             Batas Minimal Kelulusan Skor per Tahap: <strong className="text-slate-900 font-bold">&gt; 80 / 100</strong>
           </div>
         </div>
@@ -309,7 +309,7 @@ export default function ReviewerPortalPage() {
                       <div className="text-xs font-bold text-slate-700">
                         {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
                       </div>
-                      <div className="text-xs font-mono font-bold text-teal-700">
+                      <div className="text-xs font-mono font-bold text-primary-700">
                         Rp {(item.dana_diusulkan || (item as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
                       </div>
                     </td>
@@ -322,7 +322,7 @@ export default function ReviewerPortalPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleOpenEvaluationModal(item, 'kaprodi')}
-                          className="btn btn-primary btn-sm bg-indigo-600 hover:bg-indigo-700 border-none font-bold shadow-xs flex items-center gap-1.5"
+                          className="btn btn-primary btn-sm font-bold shadow-xs flex items-center gap-1.5"
                         >
                           <Award size={15} /> Nilai Rubrik Tahap 1
                         </button>
@@ -380,7 +380,7 @@ export default function ReviewerPortalPage() {
                       <div className="text-xs font-bold text-slate-700">
                         {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
                       </div>
-                      <div className="text-xs font-mono font-bold text-teal-700">
+                      <div className="text-xs font-mono font-bold text-primary-700">
                         Rp {(item.dana_diusulkan || (item as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
                       </div>
                     </td>
@@ -449,7 +449,7 @@ export default function ReviewerPortalPage() {
                     <tr key={item.id} className="hover:bg-emerald-50/40 transition-colors">
                       <td>
                         <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
-                        <div className="text-xs text-teal-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
+                        <div className="text-xs text-primary-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
                       </td>
                       <td>
                         <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
@@ -487,8 +487,8 @@ export default function ReviewerPortalPage() {
 
       {/* FORM SCORING RUBRIK MODAL (TAHAP 1 & TAHAP 2 DINAMIS) */}
       {selectedProposal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <span className="badge badge-purple font-bold text-[11px] mb-1">

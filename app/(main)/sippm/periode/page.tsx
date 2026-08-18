@@ -103,7 +103,7 @@ export default function MasterPeriodePage() {
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Master Periode Hibah</h1>
           <p className="text-slate-500 text-sm">Pengaturan jadwal pendaftaran hibah riset & alokasi pagu anggaran tahunan.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none shadow-sm">
+        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-sm">
           <Plus size={18} /> Buat Periode Baru
         </button>
       </div>
@@ -158,15 +158,15 @@ export default function MasterPeriodePage() {
             ) : (
               filteredList.map((item) => (
                 <tr key={item.id}>
-                  <td className="font-mono text-xs font-bold text-teal-700">{item.tahun_anggaran}</td>
+                  <td className="font-mono text-xs font-bold text-primary-700">{item.tahun_anggaran}</td>
                   <td className="font-bold text-slate-800">{item.nama_periode}</td>
                   <td className="text-slate-600 text-xs">
                     <div className="flex items-center gap-1 font-medium text-slate-700">
-                      <Clock size={14} className="text-teal-600" />
+                      <Clock size={14} className="text-primary-600" />
                       {item.tgl_buka} s.d {item.tgl_tutup}
                     </div>
                   </td>
-                  <td className="font-bold text-teal-700">{formatRupiah(item.total_anggaran)}</td>
+                  <td className="font-bold text-primary-700">{formatRupiah(item.total_anggaran)}</td>
                   <td>
                     <span className={`badge ${item.is_active ? 'badge-green badge-dot' : 'badge-gray'}`}>
                       {item.is_active ? 'Aktif' : 'Tutup'}
@@ -181,11 +181,11 @@ export default function MasterPeriodePage() {
 
       {/* Modal Form <= 5 inputs (Grid 2 Kolom) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <Calendar className="text-teal-600" size={20} /> Buat Periode Hibah Baru
+                <Calendar className="text-primary-600" size={20} /> Buat Periode Hibah Baru
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
             </div>
@@ -229,7 +229,7 @@ export default function MasterPeriodePage() {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
                   Batal
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none">
+                <button type="submit" disabled={submitting} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none">
                   {submitting ? 'Menyimpan...' : 'Simpan Periode'}
                 </button>
               </div>

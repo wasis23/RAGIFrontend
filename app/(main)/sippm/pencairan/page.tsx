@@ -118,7 +118,7 @@ export default function PencairanPage() {
           <a href="/sikeu/pemasukan" className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-sm font-bold transition flex items-center gap-1.5">
             Lihat Pemasukan SIKEU &rarr;
           </a>
-          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none shadow-sm font-bold">
+          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-sm font-bold">
             <Plus size={18} /> Pengajuan Pencairan Dana
           </button>
         </div>
@@ -160,7 +160,7 @@ export default function PencairanPage() {
       <div className="card">
         <div className="card-header bg-slate-50">
           <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-            <CreditCard size={18} className="text-teal-600" /> Daftar Kontrak SPK Aktif, Berkas Legal, & Alokasi Pencairan
+            <CreditCard size={18} className="text-primary-600" /> Daftar Kontrak SPK Aktif, Berkas Legal, & Alokasi Pencairan
           </h2>
         </div>
         <div className="card-body p-0">
@@ -226,8 +226,8 @@ export default function PencairanPage() {
 
       {/* MODAL PREVIEW DOKUMEN SPK KONTRAK PROFESIONAL */}
       {selectedSpkKontrak && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-8 shadow-2xl border border-slate-200 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             {/* Action Bar */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-4 print:hidden">
               <div className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export default function PencairanPage() {
                 <h3 className="font-extrabold text-lg tracking-wider text-slate-900 uppercase font-sans">
                   UNIVERSITAS SSO CAMPUS INTEGRATED
                 </h3>
-                <h4 className="font-bold text-sm tracking-wide text-teal-800 uppercase font-sans">
+                <h4 className="font-bold text-sm tracking-wide text-primary-800 uppercase font-sans">
                   LEMBAGA PENELITIAN DAN PENGABDIAN KEPADA MASYARAKAT (LPPM)
                 </h4>
                 <p className="text-[11px] font-sans text-slate-600">
@@ -364,8 +364,8 @@ export default function PencairanPage() {
                     <div className="text-[11px] text-slate-500">Kepala LPPM SSO Campus</div>
                   </div>
                   <div className="space-y-1">
-                    <div className="font-bold underline flex items-center justify-center gap-1 text-teal-800">
-                      <ShieldCheck size={16} className="text-teal-600" /> Dr. Ir. Superadmin, M.T.
+                    <div className="font-bold underline flex items-center justify-center gap-1 text-primary-800">
+                      <ShieldCheck size={16} className="text-primary-600" /> Dr. Ir. Superadmin, M.T.
                     </div>
                     <div className="text-[11px] text-slate-500">NIP: 197805122003121002</div>
                   </div>
@@ -384,11 +384,11 @@ export default function PencairanPage() {
 
       {/* FORM MODAL PENGAJUAN PENCAIRAN DANA (Grid 2 Kolom per crud-ui-standard) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <Building className="text-teal-600" size={20} /> Pengajuan Pencairan Dana Hibah
+                <Building className="text-primary-600" size={20} /> Pengajuan Pencairan Dana Hibah
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
             </div>
@@ -440,7 +440,7 @@ export default function PencairanPage() {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
                   Batal
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none font-bold">
+                <button type="submit" disabled={submitting} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none font-bold">
                   {submitting ? 'Mengirim...' : 'Kirim Pengajuan'}
                 </button>
               </div>

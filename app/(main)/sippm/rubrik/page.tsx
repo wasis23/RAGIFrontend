@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Filter,
 } from 'lucide-react';
+import { Hero } from '@/components/ui/Hero';
 import { sippmService } from '@/services/sippm.service';
 import type { RubrikIndikator, CreateRubrikPayload } from '@/types/sippm.types';
 
@@ -149,27 +150,19 @@ export default function MasterRubrikPage() {
       )}
 
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-900 via-emerald-900 to-slate-900 p-8 text-white shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-bold uppercase tracking-wider mb-3 border border-teal-500/30">
-              <ClipboardList size={14} /> Master Data Reviewer SIPPM
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Master Rubrik Indikator Penilaian Proposal
-            </h1>
-            <p className="mt-2 text-sm text-teal-100/80 max-w-2xl">
-              Kelola indikator penilaian keilmuan untuk **Reviewer 1 (Kaprodi)** dan penilaian kelayakan administrasi untuk **Reviewer 2 (Admin SIPPM)** beserta aturan batas nilai lulus (*Minimal Pass Score*).
-            </p>
-          </div>
+      <Hero
+        badge={<span className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/20 text-primary-300 text-xs font-bold uppercase tracking-wider border border-primary-500/30"><ClipboardList size={14} /> Master Data Reviewer SIPPM</span>}
+        title="Master Rubrik Indikator Penilaian Proposal"
+        description="Kelola indikator penilaian keilmuan untuk **Reviewer 1 (Kaprodi)** dan penilaian kelayakan administrasi untuk **Reviewer 2 (Admin SIPPM)** beserta aturan batas nilai lulus (*Minimal Pass Score*)."
+        actions={
           <button
             onClick={openCreateModal}
-            className="btn bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold border-none shadow-lg hover:shadow-teal-500/20 rounded-xl px-5 py-3 flex items-center gap-2 shrink-0 transition-all transform hover:-translate-y-0.5"
+            className="btn hero-btn-white"
           >
             <Plus size={18} /> Tambah Indikator Penilaian
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filter Tabs & Search */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
@@ -177,7 +170,7 @@ export default function MasterRubrikPage() {
           <button
             onClick={() => setActiveTab('all')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
-              activeTab === 'all' ? 'bg-white text-teal-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'all' ? 'bg-white text-primary-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             Semua Indikator
@@ -185,7 +178,7 @@ export default function MasterRubrikPage() {
           <button
             onClick={() => setActiveTab('kaprodi')}
             className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
-              activeTab === 'kaprodi' ? 'bg-teal-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'kaprodi' ? 'bg-primary-700 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <UserCheck size={14} /> Tahap 1: Kaprodi (Keilmuan)
@@ -206,7 +199,7 @@ export default function MasterRubrikPage() {
             placeholder="Cari indikator penilaian..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input input-sm w-full pl-9 pr-4 rounded-xl border-slate-300 focus:border-teal-500 font-medium text-xs"
+            className="input input-sm w-full pl-9 pr-4 rounded-xl border-slate-300 focus:border-primary-500 font-medium text-xs"
           />
           <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
         </form>
@@ -244,11 +237,11 @@ export default function MasterRubrikPage() {
                   <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-4 px-6">
                       {item.tipe_reviewer === 'kaprodi' ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-100 text-teal-800 text-xs font-extrabold border border-teal-300">
+                        <span className="badge badge-blue inline-flex items-center gap-1.5">
                           <UserCheck size={12} /> Tahap 1: Kaprodi
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-extrabold border border-emerald-300">
+                        <span className="badge badge-green inline-flex items-center gap-1.5">
                           <ShieldCheck size={12} /> Tahap 2: Admin SIPPM
                         </span>
                       )}
@@ -265,17 +258,17 @@ export default function MasterRubrikPage() {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className="inline-flex items-center gap-1 font-extrabold text-teal-700 bg-teal-50 px-3 py-1 rounded-lg border border-teal-200">
+                      <span className="inline-flex items-center gap-1 font-extrabold text-primary-700 bg-primary-50 px-3 py-1 rounded-lg border border-primary-200">
                         <Award size={14} /> &gt; {Number(item.skor_minimal_default)} Poin
                       </span>
                     </td>
                     <td className="py-4 px-6 text-center">
                       {item.is_active ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+                        <span className="badge badge-green inline-flex items-center gap-1">
                           <CheckCircle2 size={12} /> Aktif
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-bold border border-slate-200">
+                        <span className="badge badge-gray inline-flex items-center gap-1">
                           <XCircle size={12} /> Nonaktif
                         </span>
                       )}
@@ -284,7 +277,7 @@ export default function MasterRubrikPage() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => openEditModal(item)}
-                          className="p-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 transition-all"
+                          className="p-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 transition-all"
                           title="Edit Indikator"
                         >
                           <Edit2 size={14} />
@@ -308,11 +301,11 @@ export default function MasterRubrikPage() {
 
       {/* Modal Form Create/Edit */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="modal-overlay">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-slate-100 animate-in fade-in zoom-in duration-150">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200">
               <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <ClipboardList className="text-teal-600" size={20} />
+                <ClipboardList className="text-primary-600" size={20} />
                 {editingItem ? 'Edit Indikator Penilaian' : 'Tambah Indikator Penilaian Baru'}
               </h3>
               <button
@@ -383,7 +376,7 @@ export default function MasterRubrikPage() {
                     required
                     value={formData.skor_minimal_default}
                     onChange={(e) => setFormData({ ...formData, skor_minimal_default: parseFloat(e.target.value) || 0 })}
-                    className="input input-sm font-extrabold text-teal-800 border-slate-300"
+                    className="input input-sm font-extrabold text-primary-800 border-slate-300"
                   />
                 </div>
               </div>
@@ -394,7 +387,7 @@ export default function MasterRubrikPage() {
                   id="is_active"
                   checked={formData.is_active}
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="checkbox checkbox-teal checkbox-sm"
+                  className="checkbox checkbox-primary checkbox-sm"
                 />
                 <label htmlFor="is_active" className="text-xs font-bold text-slate-700 cursor-pointer">
                   Aktifkan Indikator Penilaian Ini
@@ -412,7 +405,7 @@ export default function MasterRubrikPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn bg-teal-700 hover:bg-teal-800 text-white btn-sm font-bold border-none shadow-md"
+                  className="btn bg-primary-700 hover:bg-primary-800 text-white btn-sm font-bold border-none shadow-md"
                 >
                   {submitting ? 'Menyimpan...' : editingItem ? 'Simpan Pembaruan' : 'Tambah Indikator'}
                 </button>

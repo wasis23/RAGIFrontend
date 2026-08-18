@@ -181,7 +181,7 @@ export default function PublikasiRegistryPage() {
                     <td className="font-bold text-slate-700 text-xs">{displayTahun}</td>
                     <td>
                       {linkUrl ? (
-                        <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-700 hover:underline inline-flex items-center gap-1 font-mono">
+                        <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-700 hover:underline inline-flex items-center gap-1 font-mono">
                           <ExternalLink size={12} /> Link DOI
                         </a>
                       ) : (
@@ -228,8 +228,8 @@ export default function PublikasiRegistryPage() {
 
       {/* Modal Form <= 5 inputs (Grid 2 Kolom per crud-ui-standard) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <BookOpen className="text-purple-700" size={20} /> Registrasi Publikasi Ilmiah

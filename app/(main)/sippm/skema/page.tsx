@@ -101,7 +101,7 @@ export default function MasterSkemaPage() {
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Master Skema Kegiatan</h1>
           <p className="text-slate-500 text-sm">Kelola skema hibah penelitian & pengabdian masyarakat beserta pagu maksimal dana.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none shadow-sm">
+        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-sm">
           <Plus size={18} /> Tambah Skema Baru
         </button>
       </div>
@@ -164,7 +164,7 @@ export default function MasterSkemaPage() {
 
                 return (
                   <tr key={item.id}>
-                    <td className="font-mono text-xs font-bold text-teal-700">{kodeSkema}</td>
+                    <td className="font-mono text-xs font-bold text-primary-700">{kodeSkema}</td>
                     <td className="font-bold text-slate-800">{namaSkema}</td>
                     <td>
                       <span className={`badge ${jenisKegiatan === 'penelitian' ? 'badge-blue' : 'badge-green'}`}>
@@ -172,7 +172,7 @@ export default function MasterSkemaPage() {
                       </span>
                     </td>
                     <td className="capitalize text-slate-600 font-medium">{kategoriSkema.replace(/_/g, ' ')}</td>
-                    <td className="font-bold text-teal-700">{formatRupiah(maksAnggaran)}</td>
+                    <td className="font-bold text-primary-700">{formatRupiah(maksAnggaran)}</td>
                     <td>
                       <span className={`badge ${item.is_active !== false ? 'badge-green badge-dot' : 'badge-gray'}`}>
                         {item.is_active !== false ? 'Aktif' : 'Non-Aktif'}
@@ -188,11 +188,11 @@ export default function MasterSkemaPage() {
 
       {/* Modal <= 5 Input Form (Grid 2 Kolom per crud-ui-standard) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <Layers className="text-teal-600" size={20} /> Tambah Skema Kegiatan
+                <Layers className="text-primary-600" size={20} /> Tambah Skema Kegiatan
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
             </div>
@@ -243,7 +243,7 @@ export default function MasterSkemaPage() {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
                   Batal
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none">
+                <button type="submit" disabled={submitting} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none">
                   {submitting ? 'Menyimpan...' : 'Simpan Skema'}
                 </button>
               </div>

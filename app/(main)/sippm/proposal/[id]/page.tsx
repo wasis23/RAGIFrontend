@@ -95,7 +95,7 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
               <Link href={`/sippm/proposal/${proposal.id}/edit`} className="btn btn-secondary btn-sm">
                 <Edit size={16} /> Edit
               </Link>
-              <button onClick={handleSubmitProposal} className="btn btn-primary btn-sm bg-teal-600 border-none shadow-xs">
+              <button onClick={handleSubmitProposal} className="btn btn-primary btn-sm bg-primary-600 border-none shadow-xs">
                 <Send size={16} /> Submit Proposal
               </button>
             </>
@@ -108,8 +108,8 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
         <div className="card-body grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <div className="text-xs text-slate-400 font-semibold mb-1">SKEMA KEGIATAN</div>
-            <div className="font-bold text-teal-800 text-sm flex items-center gap-1.5">
-              <FlaskConical size={16} className="text-teal-600" />
+            <div className="font-bold text-primary-800 text-sm flex items-center gap-1.5">
+              <FlaskConical size={16} className="text-primary-600" />
               {proposal.skema?.nama_skema || proposal.skema?.nama || 'Skema Riset'}
             </div>
           </div>
@@ -121,7 +121,7 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
 
           <div>
             <div className="text-xs text-slate-400 font-semibold mb-1">DANA DIUSULKAN</div>
-            <div className="font-extrabold text-teal-700 text-sm flex items-center gap-1">
+            <div className="font-extrabold text-primary-700 text-sm flex items-center gap-1">
               <DollarSign size={16} />
               {formatRupiah(proposal.dana_diusulkan || (proposal as any).anggaran_diajukan || 0)}
             </div>
@@ -140,7 +140,7 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
       <div className="card">
         <div className="card-header bg-slate-50">
           <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-            <FileText size={18} className="text-teal-600" /> Abstrak Usulan
+            <FileText size={18} className="text-primary-600" /> Abstrak Usulan
           </h2>
         </div>
         <div className="card-body">
@@ -154,21 +154,21 @@ export default function ProposalDetailPage({ params }: { params: Promise<{ id: s
       <div className="card">
         <div className="card-header bg-slate-50">
           <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-            <Users size={18} className="text-teal-600" /> Tim Ketua & Anggota
+            <Users size={18} className="text-primary-600" /> Tim Ketua & Anggota
           </h2>
         </div>
         <div className="card-body space-y-3">
           {/* Ketua */}
-          <div className="p-3 rounded-xl bg-teal-50/60 border border-teal-200 flex items-center justify-between">
+          <div className="p-3 rounded-xl bg-primary-50 border border-primary-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-teal-700 text-white font-extrabold flex items-center justify-center text-sm">
+              <div className="w-10 h-10 rounded-full bg-primary-700 text-white font-extrabold flex items-center justify-center text-sm">
                 K
               </div>
               <div>
                 <div className="font-extrabold text-slate-900 text-sm">
                   {proposal.ketua?.nama_lengkap || (proposal as any).ketua_pegawai?.nama_lengkap || 'Ketua Pengusul'}
                 </div>
-                <div className="text-xs text-teal-700 font-medium">Ketua Tim • NIP: {proposal.ketua?.nip || (proposal as any).ketua_pegawai?.nip || '-'}</div>
+                <div className="text-xs text-primary-700 font-medium">Ketua Tim • NIP: {proposal.ketua?.nip || (proposal as any).ketua_pegawai?.nip || '-'}</div>
               </div>
             </div>
             <span className="badge badge-sippm">Ketua Pengusul</span>

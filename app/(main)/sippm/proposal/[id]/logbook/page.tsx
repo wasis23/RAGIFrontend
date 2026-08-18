@@ -153,7 +153,7 @@ export default function LogbookKegiatanPage({ params }: { params: Promise<{ id: 
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none font-bold shadow-xs flex items-center gap-1.5"
+          className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none font-bold shadow-xs flex items-center gap-1.5"
         >
           <Plus size={18} /> Tambah Catatan Logbook
         </button>
@@ -168,14 +168,14 @@ export default function LogbookKegiatanPage({ params }: { params: Promise<{ id: 
 
       {/* Header Context Banner */}
       {proposal && (
-        <div className="card bg-teal-900 text-white p-6 border-none shadow-lg">
+        <div className="card bg-primary-900 text-white p-6 border-none shadow-lg">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-1">
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-teal-800 text-teal-200">
+              <span className="badge badge-blue">
                 {proposal.skema?.nama_skema || 'Skema Riset'}
               </span>
               <h2 className="text-xl font-extrabold text-white leading-tight">{proposal.judul}</h2>
-              <div className="text-xs text-teal-200 flex items-center gap-3 pt-1">
+              <div className="text-xs text-primary-200 flex items-center gap-3 pt-1">
                 <span>Ketua: <strong>{proposal.ketua?.nama_lengkap || 'Dosen Pengusul'}</strong></span>
                 <span>•</span>
                 <span>Tahun: <strong>{proposal.created_at?.substring(0, 4) || '2026'}</strong></span>
@@ -183,15 +183,15 @@ export default function LogbookKegiatanPage({ params }: { params: Promise<{ id: 
             </div>
 
             {/* Progress Meter */}
-            <div className="bg-teal-950/70 border border-teal-500/40 p-4 rounded-2xl shrink-0 min-w-56 space-y-2">
+            <div className="bg-primary-950/70 border border-primary-500/40 p-4 rounded-2xl shrink-0 min-w-56 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-teal-200 font-bold">TOTAL KEMAJUAN RISET</span>
+                <span className="text-primary-200 font-bold">TOTAL KEMAJUAN RISET</span>
                 <span className="text-emerald-300 font-mono font-black">{maxProgress}%</span>
               </div>
-              <div className="w-full h-3 rounded-full bg-teal-900 overflow-hidden border border-teal-700">
+              <div className="w-full h-3 rounded-full bg-primary-900 overflow-hidden border border-primary-700">
                 <div className="h-full bg-emerald-400 rounded-full transition-all duration-300" style={{ width: `${maxProgress}%` }}></div>
               </div>
-              <div className="text-[11px] text-teal-300 text-center font-medium pt-0.5">
+              <div className="text-[11px] text-primary-300 text-center font-medium pt-0.5">
                 {maxProgress >= 70 ? '✅ Syarat Monev & Pencairan 30% Terpenuhi' : '⏳ Capai min 70% untuk Termin 2'}
               </div>
             </div>
@@ -203,7 +203,7 @@ export default function LogbookKegiatanPage({ params }: { params: Promise<{ id: 
       <div className="card">
         <div className="card-header bg-slate-50 flex items-center justify-between">
           <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-            <TrendingUp size={18} className="text-teal-600" /> Riwayat Logbook Progres Kegiatan Lapangan
+            <TrendingUp size={18} className="text-primary-600" /> Riwayat Logbook Progres Kegiatan Lapangan
           </h2>
           <span className="text-xs text-slate-500 font-medium">Total {logbookEntries.length} Catatan Masuk</span>
         </div>
@@ -213,7 +213,7 @@ export default function LogbookKegiatanPage({ params }: { params: Promise<{ id: 
               <div key={entry.id} className="p-5 hover:bg-slate-50/70 transition-colors space-y-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <span className="badge badge-teal font-mono text-xs font-bold">{entry.tgl_kegiatan}</span>
+                    <span className="badge badge-cyan font-mono text-xs font-bold">{entry.tgl_kegiatan}</span>
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
                       Progress: {entry.persentase_capaian}%
                     </span>
@@ -247,11 +247,11 @@ export default function LogbookKegiatanPage({ params }: { params: Promise<{ id: 
 
       {/* MODAL FORM <= 5 INPUTS (Grid 2 Kolom per crud-ui-standard) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <FlaskConical className="text-teal-600" size={20} /> Input Catatan Logbook Kegiatan Riset
+                <FlaskConical className="text-primary-600" size={20} /> Input Catatan Logbook Kegiatan Riset
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
             </div>
@@ -307,7 +307,7 @@ export default function LogbookKegiatanPage({ params }: { params: Promise<{ id: 
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">
                   Batal
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary btn-sm bg-teal-600 hover:bg-teal-700 border-none font-bold">
+                <button type="submit" disabled={submitting} className="btn btn-primary btn-sm bg-primary-600 hover:bg-primary-700 border-none font-bold">
                   {submitting ? 'Menyimpan...' : 'Simpan Logbook'}
                 </button>
               </div>

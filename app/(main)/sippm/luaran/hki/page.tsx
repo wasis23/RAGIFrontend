@@ -222,8 +222,8 @@ export default function HkiRegistryPage() {
 
       {/* Modal Form <= 5 inputs (Grid 2 Kolom per crud-ui-standard) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
+        <div className="modal-overlay">
+          <div className="modal modal-lg modal-body">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <Award className="text-purple-700" size={20} /> Registrasi HKI & Paten Baru

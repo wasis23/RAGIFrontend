@@ -1657,6 +1657,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 .hero-btn-glass:hover { background: rgba(255,255,255,0.25); }
 
+.hero-metric {
+  padding: 0.875rem;
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
 /* ============================================================
    STAT CARD — Varian ikon & teks (pendamping .stat-card)
    ============================================================ */

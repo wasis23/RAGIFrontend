@@ -128,16 +128,16 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
 
       {/* Ringkasan Proposal Card */}
       {reviewerData?.proposal && (
-        <div className="card bg-teal-900 text-white p-6 shadow-md border-none">
+        <div className="card bg-primary-900 text-white p-6 shadow-md border-none">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-teal-800 text-teal-200 mb-2">
+              <span className="badge badge-blue mb-2">
                 {reviewerData.proposal.skema?.nama_skema || 'Skema Riset'}
               </span>
               <h2 className="text-xl font-extrabold text-white leading-tight">
                 {reviewerData.proposal.judul}
               </h2>
-              <div className="flex items-center gap-4 text-xs text-teal-200 mt-2">
+              <div className="flex items-center gap-4 text-xs text-primary-200 mt-2">
                 <span>Ketua: <strong>{reviewerData.proposal.ketua?.nama_lengkap || 'Dosen Pengusul'}</strong></span>
                 <span>•</span>
                 <span>Dana Diusulkan: <strong>Rp {(reviewerData.proposal.dana_diusulkan || 0).toLocaleString('id-ID')}</strong></span>
@@ -152,7 +152,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
         <div className="card">
           <div className="card-header bg-slate-50">
             <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-              <Award size={18} className="text-teal-600" /> Rubrik Bobot Penilaian (Skala 0 - 100)
+              <Award size={18} className="text-primary-600" /> Rubrik Bobot Penilaian (Skala 0 - 100)
             </h2>
           </div>
           <div className="card-body">
@@ -195,12 +195,12 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
               </div>
 
               {/* Total Skor Calculation Highlight */}
-              <div className="col-span-full p-4 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-between">
+              <div className="col-span-full p-4 rounded-xl bg-primary-50 border border-primary-200 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-teal-800 uppercase tracking-wide">TOTAL SKOR PENILAIAN</div>
-                  <div className="text-xs text-teal-600">Terhitung otomatis dari 3 kriteria di atas</div>
+                  <div className="text-xs font-bold text-primary-800 uppercase tracking-wide">TOTAL SKOR PENILAIAN</div>
+                  <div className="text-xs text-primary-600">Terhitung otomatis dari 3 kriteria di atas</div>
                 </div>
-                <div className="text-3xl font-extrabold text-teal-800">{totalSkor} / 100</div>
+                <div className="text-3xl font-extrabold text-primary-800">{totalSkor} / 100</div>
               </div>
 
               {/* Rekomendasi Select */}
@@ -236,7 +236,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
           <button
             type="submit"
             disabled={submitting}
-            className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none font-bold"
+            className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none font-bold"
           >
             <Save size={18} /> {submitting ? 'Menyimpan Penilaian...' : 'Simpan Desk Evaluation'}
           </button>

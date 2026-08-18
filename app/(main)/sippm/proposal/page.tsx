@@ -123,7 +123,7 @@ export default function ProposalListPage() {
           <div className="flex items-center gap-2">
             <span className="badge badge-sippm">Modul Proposal SIPPM</span>
             {isLppmAdmin ? (
-              <span className="badge badge-teal flex items-center gap-1 font-bold">
+              <span className="badge badge-cyan flex items-center gap-1 font-bold">
                 <Shield size={12} /> Access: Admin LPPM (Semua Data Dosen)
               </span>
             ) : (
@@ -143,7 +143,7 @@ export default function ProposalListPage() {
         </div>
 
         {/* Create Proposal Button */}
-        <Link href="/sippm/proposal/create" className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none shadow-sm font-bold">
+        <Link href="/sippm/proposal/create" className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-sm font-bold">
           <FilePlus size={18} /> Buat Proposal Baru
         </Link>
       </div>
@@ -166,7 +166,7 @@ export default function ProposalListPage() {
             {/* Filter Dosen (Khusus Admin) */}
             {isLppmAdmin && (
               <select
-                className="input text-xs w-full sm:w-56 bg-teal-50/50 border-teal-200 font-semibold"
+                className="input text-xs w-full sm:w-56 bg-primary-50/50 border-primary-200 font-semibold"
                 value={dosenFilter}
                 onChange={(e) => setDosenFilter(e.target.value)}
               >
@@ -236,11 +236,11 @@ export default function ProposalListPage() {
               </tr>
             ) : (
               displayedProposals.map((item) => (
-                <tr key={item.id} className="hover:bg-teal-50/40 transition-colors">
+                <tr key={item.id} className="hover:bg-primary-50/40 transition-colors">
                   <td>
                     <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
                     <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                      <span className="font-medium text-teal-700">{item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}</span>
+                      <span className="font-medium text-primary-700">{item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}</span>
                       <span>•</span>
                       <span className="capitalize">{item.rumpun_ilmu}</span>
                     </div>
@@ -252,7 +252,7 @@ export default function ProposalListPage() {
                     </div>
                     <div className="text-[11px] text-slate-400 font-mono mt-0.5">{item.ketua?.nip || 'NIP Verified'}</div>
                   </td>
-                  <td className="font-bold text-teal-700 text-sm">
+                  <td className="font-bold text-primary-700 text-sm">
                     {formatRupiah(item.dana_diusulkan)}
                   </td>
                   <td>
@@ -262,7 +262,7 @@ export default function ProposalListPage() {
                     <div className="flex items-center justify-end gap-2">
                       <Link
                         href={`/sippm/proposal/${item.id}`}
-                        className="btn btn-ghost btn-sm text-teal-700 hover:bg-teal-50"
+                        className="btn btn-ghost btn-sm text-primary-700 hover:bg-primary-50"
                         title="Lihat Detail"
                       >
                         <Eye size={16} /> Detail

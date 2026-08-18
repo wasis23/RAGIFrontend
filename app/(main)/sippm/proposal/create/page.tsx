@@ -266,7 +266,7 @@ export default function CreateProposalPage() {
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             Form Pengajuan Proposal Usulan SIPPM
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">
+            <span className="badge badge-blue">
               Integrasi SIAKAD & SIMPEG
             </span>
           </h1>
@@ -287,7 +287,7 @@ export default function CreateProposalPage() {
         <div className="card shadow-sm border border-slate-200 rounded-2xl overflow-hidden bg-white">
           <div className="card-header bg-slate-50 border-b border-slate-200 px-6 py-4">
             <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-              <FlaskConical size={18} className="text-teal-600" /> Skema, Periode TA & Ketua Pengusul
+              <FlaskConical size={18} className="text-primary-600" /> Skema, Periode TA & Ketua Pengusul
             </h2>
           </div>
           <div className="card-body p-6">
@@ -367,7 +367,7 @@ export default function CreateProposalPage() {
                 <input
                   type="text"
                   readOnly
-                  className="input font-bold bg-slate-100 text-teal-800 cursor-not-allowed border-slate-300"
+                  className="input font-bold bg-slate-100 text-primary-800 cursor-not-allowed border-slate-300"
                   value={currentProdi}
                 />
                 <span className="text-[11px] text-slate-400 mt-0.5 block">Terisi otomatis dari data Ketua Pengusul Dosen SIMPEG</span>
@@ -390,7 +390,7 @@ export default function CreateProposalPage() {
                 <label className="form-label font-bold text-xs">Dana Diusulkan (Rp) <span className="text-rose-500">*</span></label>
                 <input
                   type="number"
-                  className="input font-semibold text-teal-700"
+                  className="input font-semibold text-primary-700"
                   placeholder="20000000"
                   {...register('anggaran_diajukan', { valueAsNumber: true })}
                 />
@@ -416,7 +416,7 @@ export default function CreateProposalPage() {
           <div className="card-header bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <UserPlus size={18} className="text-teal-600" /> Struktur Jenis Tim Anggota (Internal & Eksternal)
+                <UserPlus size={18} className="text-primary-600" /> Struktur Jenis Tim Anggota (Internal & Eksternal)
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Dukungan Jenis Tim lengkap: Dosen, Tendik (SIMPEG), Mahasiswa (SIAKAD), serta Dosen Eksternal.
@@ -432,7 +432,7 @@ export default function CreateProposalPage() {
                   tugas_kegiatan: '',
                 })
               }
-              className="btn btn-secondary btn-sm bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 font-bold"
+              className="btn btn-secondary btn-sm bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100 font-bold"
             >
               + Tambah Anggota Tim
             </button>
@@ -447,7 +447,7 @@ export default function CreateProposalPage() {
                   <div className="form-group md:col-span-3">
                     <label className="form-label text-xs font-bold">Jenis Tim <span className="text-rose-500">*</span></label>
                     <select
-                      className="input input-sm font-semibold bg-white border-teal-300"
+                      className="input input-sm font-semibold bg-white border-primary-300"
                       {...register(`anggota.${index}.jenis_tim` as const)}
                       onChange={(e) => {
                         const val = e.target.value as JenisTim;
@@ -590,13 +590,13 @@ export default function CreateProposalPage() {
         </div>
 
         {/* CARD 3: BOX INTEGRASI MATA KULIAH SIAKAD (KONVERSI NILAI MAHASISWA) */}
-        <div className="card shadow-sm border border-teal-200 rounded-2xl overflow-hidden bg-white">
-          <div className="card-header bg-teal-50/60 border-b border-teal-200 px-6 py-4 flex items-center justify-between">
+        <div className="card shadow-sm border border-primary-200 rounded-2xl overflow-hidden bg-white">
+          <div className="card-header bg-primary-50 border-b border-primary-200 px-6 py-4 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-extrabold text-teal-950 flex items-center gap-2">
-                <BookOpen size={18} className="text-teal-600" /> Integrasi Mata Kuliah SIAKAD (Konversi Nilai Mahasiswa)
+              <h2 className="text-sm font-extrabold text-primary-950 flex items-center gap-2">
+                <BookOpen size={18} className="text-primary-600" /> Integrasi Mata Kuliah SIAKAD (Konversi Nilai Mahasiswa)
               </h2>
-              <p className="text-xs text-teal-800/80 mt-0.5 font-medium">
+              <p className="text-xs text-primary-800/80 mt-0.5 font-medium">
                 Pilih atau ketik nama mata kuliah aktif SIAKAD yang akan mendapatkan konversi nilai / SKS bagi mahasiswa yang berpartisipasi.
               </p>
             </div>
@@ -609,21 +609,21 @@ export default function CreateProposalPage() {
                   keterangan: '',
                 })
               }
-              className="btn btn-secondary btn-sm bg-teal-600 text-white hover:bg-teal-700 font-bold border-none shadow-sm"
+              className="btn btn-secondary btn-sm bg-primary-600 text-white hover:bg-primary-700 font-bold border-none shadow-sm"
             >
               <Plus size={16} /> Tambah Mata Kuliah Konversi
             </button>
           </div>
           <div className="card-body p-6 space-y-4">
             {mkFields.map((field, index) => (
-              <div key={field.id} className="p-4 rounded-xl bg-teal-50/30 border border-teal-200 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              <div key={field.id} className="p-4 rounded-xl bg-primary-50/30 border border-primary-200 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                 {/* Select Box / Single Select Dropdown */}
                 <div className="form-group md:col-span-6">
-                  <label className="form-label text-xs font-bold text-teal-900">
+                  <label className="form-label text-xs font-bold text-primary-900">
                     Mata Kuliah Aktif SIAKAD ({index + 1}) <span className="text-rose-500">*</span>
                   </label>
                   <select
-                    className="input input-sm font-semibold text-slate-800 border-teal-300 focus:border-teal-500 bg-white"
+                    className="input input-sm font-semibold text-slate-800 border-primary-300 focus:border-primary-500 bg-white"
                     {...register(`mata_kuliah_konversi.${index}.mata_kuliah_id` as const, { valueAsNumber: true })}
                   >
                     <option value={0}>-- Pilih Mata Kuliah Aktif SIAKAD --</option>
@@ -637,7 +637,7 @@ export default function CreateProposalPage() {
 
                 {/* Keterangan / Target Konversi */}
                 <div className="form-group md:col-span-5">
-                  <label className="form-label text-xs font-bold text-teal-900">Catatan / Target Konversi (Opsional)</label>
+                  <label className="form-label text-xs font-bold text-primary-900">Catatan / Target Konversi (Opsional)</label>
                   <input
                     type="text"
                     className="input input-sm font-medium bg-white"
@@ -667,12 +667,12 @@ export default function CreateProposalPage() {
         <div className="card shadow-sm border border-slate-200 rounded-2xl overflow-hidden bg-white">
           <div className="card-header bg-slate-50 border-b border-slate-200 px-6 py-4">
             <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-              <Upload size={18} className="text-teal-600" /> Berkas Dokumen Proposal (PDF)
+              <Upload size={18} className="text-primary-600" /> Berkas Dokumen Proposal (PDF)
             </h2>
           </div>
           <div className="card-body p-6">
-            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-teal-500 transition-colors bg-slate-50/50">
-              <FileText className="mx-auto text-teal-600 mb-2" size={36} />
+            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-primary-500 transition-colors bg-slate-50/50">
+              <FileText className="mx-auto text-primary-600 mb-2" size={36} />
               <div className="text-sm font-bold text-slate-800 mb-1">
                 {fileProposal ? fileProposal.name : 'Pilih atau drop file PDF Proposal'}
               </div>
@@ -706,7 +706,7 @@ export default function CreateProposalPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="btn btn-primary bg-teal-600 hover:bg-teal-700 border-none shadow-md font-bold text-white px-6"
+            className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-md font-bold text-white px-6"
           >
             <Save size={18} /> {submitting ? 'Menyimpan Proposal...' : 'Simpan Draf Proposal'}
           </button>
