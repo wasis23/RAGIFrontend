@@ -1273,6 +1273,340 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ============================================================
+   SPINNER — Loading indicator untuk Button & aksi async
+   ============================================================ */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   TABLE RESPONSIVE — Wrapper scroll horizontal
+   ============================================================ */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* ============================================================
+   PAGE HEADER — Judul halaman + aksi
+   ============================================================ */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.75rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.page-description {
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  margin-top: 0.25rem;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   HERO — Satu gaya hero untuk semua modul
+   ============================================================ */
+.hero {
+  background: linear-gradient(135deg, var(--primary-600) 0%, var(--accent-600) 60%, var(--primary-800) 100%);
+  color: white;
+  border-radius: var(--radius-xl);
+  padding: 2rem;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(99,102,241,0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(59,130,246,0.2) 0%, transparent 50%);
+}
+
+.hero-inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  padding: 0.25rem 0.75rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: white;
+}
+
+.hero-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.hero-description {
+  color: rgba(255,255,255,0.85);
+  font-size: 0.9375rem;
+  max-width: 620px;
+  line-height: 1.6;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.hero-btn-white {
+  background: #ffffff;
+  color: var(--primary-700);
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.hero-btn-white:hover { background: var(--gray-100); }
+
+.hero-btn-glass {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.hero-btn-glass:hover { background: rgba(255,255,255,0.25); }
+
+/* ============================================================
+   STAT CARD — Varian ikon & teks (pendamping .stat-card)
+   ============================================================ */
+.stat-icon-blue   { background: #eff6ff; color: #2563eb; }
+.stat-icon-green  { background: #d1fae5; color: #059669; }
+.stat-icon-amber  { background: #fef3c7; color: #d97706; }
+.stat-icon-red    { background: #fee2e2; color: #dc2626; }
+.stat-icon-indigo { background: #e0e7ff; color: #4f46e5; }
+.stat-icon-teal   { background: #ccfbf1; color: #0d9488; }
+.stat-icon-rose   { background: #ffe4e6; color: #e11d48; }
+.stat-icon-purple { background: #f3e8ff; color: #7c3aed; }
+.stat-icon-orange { background: #ffedd5; color: #ea580c; }
+.stat-icon-cyan   { background: #cffafe; color: #0891b2; }
+.stat-icon-gray   { background: #f1f5f9; color: #475569; }
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.stat-footer {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* ============================================================
+   DROPDOWN — Menu aksi / profil
+   ============================================================ */
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  min-width: 220px;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-light);
+  padding: 0.5rem;
+  z-index: 100;
+  animation: fadeIn 0.15s ease;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  text-decoration: none;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item:hover { background: var(--gray-100); }
+
+.dropdown-item-danger { color: var(--danger); }
+
+.dropdown-header {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 0.25rem;
+}
+
+.dropdown-divider {
+  border-top: 1px solid var(--border-light);
+  margin: 0.25rem 0;
+}
+
+/* ============================================================
+   MODULE CARD — Kartu tautan modul
+   ============================================================ */
+.module-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-light);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  background: var(--gray-50);
+  color: inherit;
+}
+
+.module-card:hover {
+  border-color: var(--primary-300);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.module-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+
+.module-card-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.module-card-desc {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+/* ============================================================
+   KPI GRID — Grid kartu statistik
+   ============================================================ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+/* ============================================================
+   FORM SECTION — Seksi form dalam card
+   ============================================================ */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.form-section:last-child { border-bottom: none; }
+
+.form-section-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   ACTION ROW — Deretan tombol aksi form
+   ============================================================ */
+.action-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-light);
+}
+
+/* ============================================================
+   EMPTY STATE — Elemen pendamping .empty-state
+   ============================================================ */
+.empty-state-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.empty-state-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.empty-state-description {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  max-width: 360px;
+}
+
+/* ============================================================
    RESPONSIVE UTILITIES
    ============================================================ */
 @media (max-width: 768px) {

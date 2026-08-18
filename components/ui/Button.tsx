@@ -32,7 +32,7 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <span className="spinner" style={{ borderTopColor: 'currentColor' }} />
+        <span className="spinner" />
       ) : (
         icon
       )}
