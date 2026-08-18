@@ -88,17 +88,17 @@ export default function MasterJalurPage() {
   }, [data, appliedFilters]);
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Master Jalur Masuk"
         description="Kelola jalur masuk pendaftaran mahasiswa baru"
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/jalur/create')}>
               Tambah Jalur
             </Button>
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline"
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -116,16 +116,16 @@ export default function MasterJalurPage() {
               { key: 'nama', label: 'Nama Jalur', sortable: true },
               { key: 'tipe', label: 'Tipe', render: (row) => <span className="uppercase badge badge-ghost badge-sm">{row.tipe}</span> },
               { key: 'ujian', label: 'Komponen Ujian', render: (row) => (
-                <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                  {row.ada_ujian_tulis && <span style={{ fontSize: '0.7rem', padding: '2px 6px', background: 'var(--bg-light)', borderRadius: 4, border: '1px solid var(--border-light)' }}>Tulis</span>}
-                  {row.ada_ujian_praktik && <span style={{ fontSize: '0.7rem', padding: '2px 6px', background: 'var(--bg-light)', borderRadius: 4, border: '1px solid var(--border-light)' }}>Praktik</span>}
-                  {row.ada_wawancara && <span style={{ fontSize: '0.7rem', padding: '2px 6px', background: 'var(--bg-light)', borderRadius: 4, border: '1px solid var(--border-light)' }}>Wawancara</span>}
-                  {!row.ada_ujian_tulis && !row.ada_ujian_praktik && !row.ada_wawancara && <span style={{ color: 'var(--text-muted)' }}>-</span>}
+                <div className="flex gap-1 flex-wrap">
+                  {row.ada_ujian_tulis && <span className="text-[0.7rem] px-1.5 py-0.5 bg-slate-50 rounded border border-slate-200">Tulis</span>}
+                  {row.ada_ujian_praktik && <span className="text-[0.7rem] px-1.5 py-0.5 bg-slate-50 rounded border border-slate-200">Praktik</span>}
+                  {row.ada_wawancara && <span className="text-[0.7rem] px-1.5 py-0.5 bg-slate-50 rounded border border-slate-200">Wawancara</span>}
+                  {!row.ada_ujian_tulis && !row.ada_ujian_praktik && !row.ada_wawancara && <span className="text-slate-400">-</span>}
                 </div>
               )},
-              { key: 'is_active', label: 'Status', render: (row) => row.is_active ? <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', fontWeight: 600 }}>Aktif</span> : <span style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', fontWeight: 600 }}>Tidak Aktif</span> },
+              { key: 'is_active', label: 'Status', render: (row) => row.is_active ? <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-emerald-600">Aktif</span> : <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-red-500">Tidak Aktif</span> },
               { key: 'actions', label: 'Aksi', align: 'right', render: (row) => (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="sm" icon={<Edit size={14} />} onClick={() => router.push(`/spmb/master/jalur/${row.id}/edit`)} />
                   <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => handleDelete(row.id)} />
                 </div>
@@ -138,7 +138,7 @@ export default function MasterJalurPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Jalur Masuk"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -177,7 +177,7 @@ export default function MasterJalurPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Pencarian"
             placeholder="Kode atau nama jalur..."
@@ -210,7 +210,7 @@ export default function MasterJalurPage() {
             ]}
           />
           
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 

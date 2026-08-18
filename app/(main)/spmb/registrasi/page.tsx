@@ -156,7 +156,7 @@ export default function RegistrasiSpmbPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         
         {/* Pilihan Jalur & Gelombang */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+        <div className="card p-6">
           <h3 className="text-lg font-semibold text-slate-800 mb-4 pb-2 border-b">Pilih Jalur & Gelombang</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Controller
@@ -210,7 +210,7 @@ export default function RegistrasiSpmbPage() {
         </div>
 
         {/* Biodata Diri */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+        <div className="card p-6">
           <h3 className="text-lg font-semibold text-slate-800 mb-4 pb-2 border-b">Biodata Calon Mahasiswa</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -266,7 +266,7 @@ export default function RegistrasiSpmbPage() {
         </div>
 
         {/* Riwayat Pendidikan */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+        <div className="card p-6">
           <h3 className="text-lg font-semibold text-slate-800 mb-4 pb-2 border-b">Riwayat Pendidikan</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input

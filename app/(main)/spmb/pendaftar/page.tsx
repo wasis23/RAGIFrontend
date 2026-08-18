@@ -126,9 +126,9 @@ export default function PendaftarPage() {
   };
 
   const columns: ColumnDef<PendaftaranCalonMhs>[] = [
-    { key: 'id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{meta?.from ? meta.from + index : index + 1}</span> },
+    { key: 'id', label: 'No', render: (row, index) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + index : index + 1}</span> },
     { key: 'no_pendaftaran', label: 'No. Pendaftaran', render: (row) => (
-      <span style={{ fontWeight: 700 }}>
+      <span className="font-bold">
         {row.no_pendaftaran}
       </span>
     )},
@@ -137,7 +137,7 @@ export default function PendaftarPage() {
     { key: 'gelombang', label: 'Gelombang', render: (row) => row.gelombang_penerimaan?.nama || '-' },
     { key: 'status', label: 'Status', render: (row) => getStatusBadge(row.status) },
     { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+      <div className="flex justify-end gap-2">
         {['submitted', 'verified'].includes(row.status) && (
           <Button
             variant="primary"
@@ -152,14 +152,14 @@ export default function PendaftarPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Verifikasi Pendaftar (SPMB)"
         description="Kelola dan verifikasi administrasi calon mahasiswa"
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline"
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -184,7 +184,7 @@ export default function PendaftarPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Pendaftar"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -213,7 +213,7 @@ export default function PendaftarPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Select 
             label="Status Pendaftaran"
             value={filterStatus}

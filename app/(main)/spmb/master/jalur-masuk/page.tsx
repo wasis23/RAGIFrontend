@@ -30,15 +30,15 @@ export default function JalurMasukPage() {
   }, []);
 
   const columns: ColumnDef<JalurMasuk>[] = [
-    { key: 'id', label: 'No', render: (_, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{index + 1}</span> },
+    { key: 'id', label: 'No', render: (_, index) => <span className="font-bold text-slate-400">{index + 1}</span> },
     { key: 'kode', label: 'Kode', render: (row) => (
-      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem', fontWeight: 700 }}>
+      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold">
         {row.kode}
       </code>
     )},
-    { key: 'nama', label: 'Nama Jalur', render: (row) => <span style={{ fontWeight: 700 }}>{row.nama}</span> },
+    { key: 'nama', label: 'Nama Jalur', render: (row) => <span className="font-bold">{row.nama}</span> },
     { key: 'tipe', label: 'Tipe', render: (row) => (
-      <span style={{ textTransform: 'capitalize' }}>{row.tipe}</span>
+      <span className="capitalize">{row.tipe}</span>
     )},
     { key: 'status', label: 'Status', render: (row) => (
       <Badge variant={row.is_active ? 'success' : 'danger'}>
@@ -46,14 +46,14 @@ export default function JalurMasukPage() {
       </Badge>
     )},
     { key: 'created_at', label: 'Tanggal Dibuat', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <span className="text-[0.8125rem] text-slate-400">
         {formatDate(row.created_at)}
       </span>
     )},
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Master Jalur Masuk"
         description="Kelola data jalur masuk penerimaan mahasiswa baru SPMB"

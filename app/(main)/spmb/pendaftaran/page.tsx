@@ -118,41 +118,32 @@ export default function DataPendaftarPage() {
     }
   };
 
-  const statusColors: Record<string, { bg: string; color: string }> = {
-    'draft': { bg: 'var(--bg-light)', color: 'var(--text-secondary)' },
-    'submitted': { bg: 'var(--info-light)', color: 'var(--info-dark)' },
-    'verified': { bg: 'var(--primary-100)', color: 'var(--primary-700)' },
-    'lulus_administrasi': { bg: 'var(--success-light)', color: 'var(--success-dark)' },
-    'gagal_administrasi': { bg: 'var(--danger-light)', color: 'var(--danger-dark)' },
+  const statusColors: Record<string, string> = {
+    'draft': 'badge-gray',
+    'submitted': 'badge-blue',
+    'verified': 'badge-green',
+    'lulus_administrasi': 'badge-green',
+    'gagal_administrasi': 'badge-red',
   };
 
   const renderStatus = (val: string) => {
-    const style = statusColors[val] || statusColors['draft'];
+    const badgeClass = statusColors[val] || statusColors['draft'];
     return (
-      <span style={{ 
-        display: 'inline-block', 
-        background: style.bg, 
-        color: style.color, 
-        padding: '2px 8px', 
-        borderRadius: '4px', 
-        fontSize: '0.75rem', 
-        fontWeight: 700, 
-        textTransform: 'uppercase' 
-      }}>
+      <span className={`badge ${badgeClass}`}>
         {val.replace('_', ' ')}
       </span>
     );
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Data Pendaftar"
         description="Kelola dan verifikasi berkas calon mahasiswa baru"
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline"
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -171,7 +162,7 @@ export default function DataPendaftarPage() {
           { key: 'program_studi', label: 'Program Studi Pilihan 1', render: (row) => row.program_studi?.nama || '-' },
           { key: 'status', label: 'Status', render: (row) => renderStatus(row.status) },
           { key: 'actions', label: 'Aksi', align: 'right', render: (row) => (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" icon={<Eye size={16} />} onClick={() => handleOpenDetail(row)}>
                 Verifikasi
               </Button>
@@ -186,7 +177,7 @@ export default function DataPendaftarPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Pendaftar"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -224,7 +215,7 @@ export default function DataPendaftarPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Pencarian"
             placeholder="No pendaftaran atau nama..."
@@ -246,7 +237,7 @@ export default function DataPendaftarPage() {
             ]}
           />
           
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 

@@ -117,7 +117,7 @@ export default function MasterKuotaProdiPage() {
             ]}
           />
 
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
           
           <div className="grid grid-cols-2 gap-4">
             <Select 

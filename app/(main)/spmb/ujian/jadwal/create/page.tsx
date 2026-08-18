@@ -54,7 +54,7 @@ export default function CreateJadwalUjianPage() {
         action={
           <button 
             onClick={() => router.back()} 
-            className="btn bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm"
+            className="btn btn-secondary"
           >
             <ArrowLeft size={16} className="mr-2" /> Kembali
           </button>

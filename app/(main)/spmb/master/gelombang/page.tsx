@@ -97,17 +97,17 @@ export default function MasterGelombangPage() {
   }, [data, appliedFilters]);
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Master Gelombang"
         description="Kelola jadwal dan gelombang pendaftaran SPMB"
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/gelombang/create')}>
               Tambah Gelombang
             </Button>
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline"
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -132,16 +132,16 @@ export default function MasterGelombangPage() {
               { key: 'biaya_pendaftaran', label: 'Biaya', render: (row) => `Rp ${(Number(row.biaya_pendaftaran) || 0).toLocaleString('id-ID')}` },
               { key: 'status', label: 'Status', render: (row) => {
                 const colors: any = {
-                  'draft': { bg: 'var(--bg-light)', color: 'var(--text-secondary)' },
-                  'aktif': { bg: 'var(--success-light)', color: 'var(--success-dark)' },
-                  'ditutup': { bg: 'var(--warning-light)', color: 'var(--warning-dark)' },
-                  'selesai': { bg: 'var(--primary-100)', color: 'var(--primary-700)' },
+                  'draft': 'badge-gray',
+                  'aktif': 'badge-green',
+                  'ditutup': 'badge-yellow',
+                  'selesai': 'badge-blue',
                 };
-                const style = colors[row.status] || colors['draft'];
-                return <span style={{ display: 'inline-block', background: style.bg, color: style.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{row.status}</span>;
+                const badgeClass = colors[row.status] || colors['draft'];
+                return <span className={`badge ${badgeClass}`}>{row.status}</span>;
               }},
               { key: 'actions', label: 'Aksi', align: 'right', render: (row) => (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="sm" icon={<Edit size={14} />} onClick={() => router.push(`/spmb/master/gelombang/${row.id}/edit`)} />
                   <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => handleDelete(row.id)} />
                 </div>
@@ -154,7 +154,7 @@ export default function MasterGelombangPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Gelombang"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -193,7 +193,7 @@ export default function MasterGelombangPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Nama Gelombang"
             placeholder="Cari nama gelombang..."
@@ -224,7 +224,7 @@ export default function MasterGelombangPage() {
             ]}
           />
           
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 
