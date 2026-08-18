@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Award, Plus, RefreshCw, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Award, Plus, RefreshCw, ShieldAlert } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { Card, CardBody } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { simpegService } from '@/services/simpeg.service';
 import type { UsulanJafung, JabatanFungsionalAkademik } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
@@ -91,86 +96,86 @@ export default function UsulanJafungPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in space-y-6">
         <PageHeader
           title="Usulan Kenaikan Jabatan Fungsional (Jafung & KUM Dosen)"
           description="Pengajuan & Verifikasi Angka Kredit Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
-            Akses Ditolak / Dibatasi
-          </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
-            Peran Anda saat ini tidak memiliki permission untuk melihat atau mengajukan Usulan Jafung Dosen.
-          </p>
-        </div>
+        <Card>
+          <EmptyState
+            icon={<ShieldAlert size={48} className="text-[var(--danger)]" />}
+            title="Akses Ditolak / Dibatasi"
+            description="Peran Anda saat ini tidak memiliki permission untuk melihat atau mengajukan Usulan Jafung Dosen."
+          />
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Usulan Kenaikan Jabatan Fungsional (Jafung & KUM Dosen)"
         description="Pengajuan & Verifikasi Angka Kredit Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Daftar Usulan Jafung Dosen ({usulanList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button onClick={loadData} className="btn btn-outline btn-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-lg">Daftar Usulan Jafung Dosen ({usulanList.length})</h3>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={loadData}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          </Button>
           {canCreate && (
-            <button onClick={() => setShowModal(true)} className="btn btn-primary btn-sm">
+            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
               <Plus size={16} /> Ajukan Kenaikan Jafung
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat usulan jafung...</div>
-        ) : usulanList.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Award size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
-            <p>Belum ada usulan kenaikan Jafung Dosen.</p>
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nama Dosen</th>
-                  <th>Jafung Asal</th>
-                  <th>Jafung Tujuan</th>
-                  <th>Angka Kredit (KUM)</th>
-                  <th>Catatan Reviewer Tim Senat</th>
+      {loading ? (
+        <Card>
+          <CardBody className="text-center text-[var(--text-muted)] py-8">Memuat usulan jafung...</CardBody>
+        </Card>
+      ) : usulanList.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<Award size={48} className="opacity-40" />}
+            title="Belum ada usulan kenaikan Jafung Dosen."
+          />
+        </Card>
+      ) : (
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Nama Dosen</th>
+                <th>Jafung Asal</th>
+                <th>Jafung Tujuan</th>
+                <th>Angka Kredit (KUM)</th>
+                <th>Catatan Reviewer Tim Senat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usulanList.map((u) => (
+                <tr key={u.id}>
+                  <td className="font-bold">
+                    {u.pegawai?.nama_lengkap || `Dosen ID ${u.pegawai_id}`}
+                  </td>
+                  <td>{u.jafung_asal?.nama || 'Tenaga Pengajar'}</td>
+                  <td>
+                    <Badge variant="purple" className="font-bold">
+                      {u.jafung_tujuan?.nama || `Jafung ID ${u.jafung_tujuan_id}`}
+                    </Badge>
+                  </td>
+                  <td className="font-bold text-[var(--success)]">{u.angka_kredit_usulan} KUM</td>
+                  <td className="text-sm text-[var(--text-secondary)]">{u.catatan_reviewer || '-'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {usulanList.map((u) => (
-                  <tr key={u.id}>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {u.pegawai?.nama_lengkap || `Dosen ID ${u.pegawai_id}`}
-                    </td>
-                    <td>{u.jafung_asal?.nama || 'Tenaga Pengajar'}</td>
-                    <td>
-                      <span className="badge badge-purple" style={{ fontWeight: 700 }}>
-                        {u.jafung_tujuan?.nama || `Jafung ID ${u.jafung_tujuan_id}`}
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: 700, color: '#059669' }}>{u.angka_kredit_usulan} KUM</td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{u.catatan_reviewer || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal Ajukan Jafung */}
       {canCreate && (
@@ -185,23 +190,17 @@ export default function UsulanJafungPage() {
             </>
           }
         >
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="form-group">
-              <label className="form-label">Jabatan Fungsional Tujuan</label>
-              <select
-                className="input"
-                value={formData.jafung_tujuan_id}
-                onChange={(e) => setFormData({ ...formData, jafung_tujuan_id: e.target.value })}
-                required
-              >
-                <option value="">-- Pilih Jafung Target --</option>
-                {jafungList.map((jf) => (
-                  <option key={jf.id} value={jf.id}>
-                    {jf.nama} ({jf.angka_kredit_min} KUM)
-                  </option>
-                ))}
-              </select>
-            </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Select
+              label="Jabatan Fungsional Tujuan"
+              value={formData.jafung_tujuan_id}
+              onChange={(val) => setFormData({ ...formData, jafung_tujuan_id: val })}
+              options={[
+                { value: '', label: '-- Pilih Jafung Target --' },
+                ...jafungList.map((jf) => ({ value: String(jf.id), label: `${jf.nama} (${jf.angka_kredit_min} KUM)` })),
+              ]}
+              required
+            />
             <Input
               label="Total Angka Kredit Usulan (KUM)"
               type="number"
@@ -209,16 +208,13 @@ export default function UsulanJafungPage() {
               onChange={(e) => setFormData({ ...formData, angka_kredit_usulan: Number(e.target.value) })}
               required
             />
-            <div className="form-group">
-              <label className="form-label">Catatan Pengajuan / Ringkasan Tridharma</label>
-              <textarea
-                className="input"
-                rows={3}
-                value={formData.catatan_reviewer}
-                onChange={(e) => setFormData({ ...formData, catatan_reviewer: e.target.value })}
-                placeholder="Tuliskan karya ilmiah & pengajaran pendukung..."
-              />
-            </div>
+            <Textarea
+              label="Catatan Pengajuan / Ringkasan Tridharma"
+              rows={3}
+              value={formData.catatan_reviewer}
+              onChange={(e) => setFormData({ ...formData, catatan_reviewer: e.target.value })}
+              placeholder="Tuliskan karya ilmiah & pengajaran pendukung..."
+            />
           </form>
         </Modal>
       )}

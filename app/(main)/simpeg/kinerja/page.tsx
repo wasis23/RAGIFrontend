@@ -86,17 +86,17 @@ export default function KinerjaPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in" className="flex flex-col gap-6">
         <PageHeader
           title="Penilaian Kinerja Pegawai (SKP & BKD)"
           description="Evaluasi Kinerja Tahunan SKP PNS/Non-PNS & Laporan Beban Kerja Dosen (BKD)"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
+        <div className="card" className="p-12 text-center">
+          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
           </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
+          <p className="text-slate-400 max-w-[500px] mx-auto">
             Peran Anda saat ini tidak memiliki permission untuk melihat Penilaian Kinerja.
           </p>
         </div>
@@ -105,15 +105,15 @@ export default function KinerjaPage() {
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-6">
       <PageHeader
         title="Penilaian Kinerja Pegawai (SKP & BKD)"
         description="Evaluasi Kinerja Tahunan SKP PNS/Non-PNS & Laporan Beban Kerja Dosen (BKD)"
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Laporan Kinerja SKP & BKD ({kinerjaList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold">Laporan Kinerja SKP & BKD ({kinerjaList.length})</h3>
+        <div className="flex gap-3">
           <button onClick={loadKinerja} className="btn btn-outline btn-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -125,12 +125,12 @@ export default function KinerjaPage() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
+      <div className="card" className="p-5">
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat evaluasi kinerja...</div>
+          <div className="p-8 text-center text-slate-400">Memuat evaluasi kinerja...</div>
         ) : kinerjaList.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <TrendingUp size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
+          <div className="p-12 text-center text-slate-400">
+            <TrendingUp size={48} className="mx-auto mb-4 opacity-40" />
             <p>Belum ada evaluasi kinerja tercatat.</p>
           </div>
         ) : (
@@ -149,20 +149,20 @@ export default function KinerjaPage() {
               <tbody>
                 {kinerjaList.map((k) => (
                   <tr key={k.id}>
-                    <td style={{ fontWeight: 700 }}>
+                    <td className="font-bold">
                       {k.tahun} ({k.semester.toUpperCase()})
                     </td>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <td className="font-bold">
                       {k.pegawai?.nama_lengkap || `Pegawai ID ${k.pegawai_id}`}
                     </td>
-                    <td style={{ fontWeight: 700, color: '#4f46e5' }}>{k.nilai_skp} / 100</td>
-                    <td style={{ fontWeight: 700, color: '#059669' }}>{k.nilai_bkd ? `${k.nilai_bkd} SKS` : '-'}</td>
+                    <td className="font-bold text-primary-600">{k.nilai_skp} / 100</td>
+                    <td className="font-bold text-emerald-600">{k.nilai_bkd ? `${k.nilai_bkd} SKS` : '-'}</td>
                     <td>
-                      <span className="badge badge-green" style={{ textTransform: 'uppercase' }}>
+                      <span className="badge badge-green" className="uppercase">
                         {k.predikat.replace('_', ' ')}
                       </span>
                     </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                    <td className="text-[0.8125rem] text-slate-500">
                       {k.evaluator?.username || 'Asesor SDM'}
                     </td>
                   </tr>
@@ -186,8 +186,8 @@ export default function KinerjaPage() {
             </>
           }
         >
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Tahun Evaluasi"
                 type="number"
@@ -208,7 +208,7 @@ export default function KinerjaPage() {
                 </select>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Nilai SKP (Skala 0-100)"
                 type="number"

@@ -124,17 +124,17 @@ export default function CutiPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in" className="flex flex-col gap-6">
         <PageHeader
           title="Layanan & Pengajuan Cuti Pegawai"
           description="Permohonan Cuti Tahunan, Sakit, Alasan Penting, Melahirkan, dan Approval SDM"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
+        <div className="card" className="p-12 text-center">
+          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
           </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
+          <p className="text-slate-400 max-w-[500px] mx-auto">
             Peran Anda saat ini tidak memiliki permission untuk melihat layanan Cuti Pegawai.
           </p>
         </div>
@@ -143,15 +143,15 @@ export default function CutiPage() {
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-6">
       <PageHeader
         title="Layanan & Pengajuan Cuti Pegawai"
         description="Permohonan Cuti Tahunan, Sakit, Alasan Penting, Melahirkan, dan Approval SDM"
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Daftar Pengajuan Cuti ({cutiList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold">Daftar Pengajuan Cuti ({cutiList.length})</h3>
+        <div className="flex gap-3">
           <button onClick={loadCuti} className="btn btn-outline btn-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -163,12 +163,12 @@ export default function CutiPage() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
+      <div className="card" className="p-5">
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat permohonan cuti...</div>
+          <div className="p-8 text-center text-slate-400">Memuat permohonan cuti...</div>
         ) : cutiList.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Calendar size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
+          <div className="p-12 text-center text-slate-400">
+            <Calendar size={48} className="mx-auto mb-4 opacity-40" />
             <p>Belum ada riwayat pengajuan cuti.</p>
           </div>
         ) : (
@@ -182,23 +182,23 @@ export default function CutiPage() {
                   <th>Lama Cuti</th>
                   <th>Alasan</th>
                   <th>Status Approval</th>
-                  {canUpdate && <th style={{ textAlign: 'right' }}>Aksi SDM</th>}
+                  {canUpdate && <th className="text-right">Aksi SDM</th>}
                 </tr>
               </thead>
               <tbody>
                 {cutiList.map((cuti) => (
                   <tr key={cuti.id}>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <td className="font-bold">
                       {cuti.pegawai?.nama_lengkap || `Pegawai ID ${cuti.pegawai_id}`}
                     </td>
                     <td>
-                      <span className="badge badge-purple" style={{ textTransform: 'uppercase' }}>
+                      <span className="badge badge-purple" className="uppercase">
                         {(cuti.jenis_cuti || 'tahunan').replace('_', ' ')}
                       </span>
                     </td>
                     <td>{cuti.tanggal_mulai} s/d {cuti.tanggal_selesai}</td>
-                    <td style={{ fontWeight: 700, color: '#4f46e5' }}>{cuti.jumlah_hari} Hari</td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{cuti.alasan}</td>
+                    <td className="font-bold text-primary-600">{cuti.jumlah_hari} Hari</td>
+                    <td className="text-[0.8125rem] text-slate-500">{cuti.alasan}</td>
                     <td>
                       <span
                         className={`badge ${
@@ -208,17 +208,17 @@ export default function CutiPage() {
                             ? 'badge-red'
                             : 'badge-yellow'
                         }`}
-                        style={{ textTransform: 'uppercase' }}
+                        className="uppercase"
                       >
                         {cuti.status_approval}
                       </span>
                     </td>
                     {canUpdate && (
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="text-right">
                         <button
                           onClick={() => handleOpenApprovalModal(cuti)}
                           className="btn btn-outline btn-sm"
-                          style={{ fontSize: '0.75rem' }}
+                          className="text-xs"
                         >
                           Proses SDM
                         </button>
@@ -245,7 +245,7 @@ export default function CutiPage() {
             </>
           }
         >
-          <form onSubmit={handleRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleRequestSubmit} className="flex flex-col gap-4">
             <div className="form-group">
               <label className="form-label">Jenis Cuti</label>
               <select
@@ -260,7 +260,7 @@ export default function CutiPage() {
                 <option value="besar">Cuti Besar</option>
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Tanggal Mulai"
                 type="date"
@@ -305,7 +305,7 @@ export default function CutiPage() {
           onClose={() => setShowModalApproval(false)}
           title="Proses Persetujuan Cuti SDM"
           footer={
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', width: '100%' }}>
+            <div className="flex gap-2 justify-end w-full">
               <Button variant="danger" onClick={() => handleProcessApproval('rejected')}>
                 <XCircle size={16} /> Tolak Cuti
               </Button>
@@ -316,8 +316,8 @@ export default function CutiPage() {
           }
         >
           {selectedCuti && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+            <div className="flex flex-col gap-4">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <div><strong>Pegawai:</strong> {selectedCuti.pegawai?.nama_lengkap || selectedCuti.pegawai_id}</div>
                 <div><strong>Jenis:</strong> {(selectedCuti.jenis_cuti || 'TAHUNAN').toUpperCase()} ({selectedCuti.jumlah_hari} Hari)</div>
                 <div><strong>Periode:</strong> {selectedCuti.tanggal_mulai} s/d {selectedCuti.tanggal_selesai}</div>

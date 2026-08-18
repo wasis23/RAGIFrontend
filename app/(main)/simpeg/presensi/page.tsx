@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw, MapPin, ShieldAlert, Plus } from 'lucide-react';
+import { Clock, RefreshCw, MapPin, ShieldAlert, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Card, CardBody } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { simpegService } from '@/services/simpeg.service';
 import type { PresensiPegawai, StatusKehadiran } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
@@ -77,105 +81,105 @@ export default function PresensiPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in space-y-6">
         <PageHeader
           title="Monitoring & Log Presensi Pegawai"
           description="Rekap Kehadiran Harian, Jam Masuk/Pulang, Geo-Tagging GPS, dan Status Dinas"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
-            Akses Ditolak / Dibatasi
-          </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
-            Peran Anda saat ini tidak memiliki permission untuk membaca data Absensi & Presensi.
-          </p>
-        </div>
+        <Card>
+          <EmptyState
+            icon={<ShieldAlert size={48} className="text-[var(--danger)]" />}
+            title="Akses Ditolak / Dibatasi"
+            description="Peran Anda saat ini tidak memiliki permission untuk membaca data Absensi & Presensi."
+          />
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Monitoring & Log Presensi Pegawai"
         description="Rekap Kehadiran Harian, Jam Masuk/Pulang, Geo-Tagging GPS, dan Status Dinas"
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Log Presensi Harian ({presensiList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button onClick={loadPresensi} className="btn btn-outline btn-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-lg">Log Presensi Harian ({presensiList.length})</h3>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={loadPresensi}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          </Button>
           {canCreate && (
-            <button onClick={() => setShowModal(true)} className="btn btn-primary btn-sm">
+            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
               <Plus size={16} /> Record Presensi Manual
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat data presensi...</div>
-        ) : presensiList.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Clock size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
-            <p>Belum ada log presensi tercatat.</p>
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Tanggal</th>
-                  <th>Nama Pegawai</th>
-                  <th>Jam Masuk</th>
-                  <th>Jam Keluar</th>
-                  <th>Status Kehadiran</th>
-                  <th>Lokasi GPS / Catatan</th>
+      {loading ? (
+        <Card>
+          <CardBody className="text-center text-[var(--text-muted)] py-8">Memuat data presensi...</CardBody>
+        </Card>
+      ) : presensiList.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<Clock size={48} className="opacity-40" />}
+            title="Belum ada log presensi tercatat."
+          />
+        </Card>
+      ) : (
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Nama Pegawai</th>
+                <th>Jam Masuk</th>
+                <th>Jam Keluar</th>
+                <th>Status Kehadiran</th>
+                <th>Lokasi GPS / Catatan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {presensiList.map((p) => (
+                <tr key={p.id}>
+                  <td className="font-bold">{p.tanggal}</td>
+                  <td className="font-bold">
+                    {p.pegawai?.nama_lengkap || `Pegawai ID ${p.pegawai_id}`}
+                  </td>
+                  <td className="font-bold text-[var(--success)]">{p.jam_masuk || '-'}</td>
+                  <td className="font-bold text-[var(--danger)]">{p.jam_keluar || '-'}</td>
+                  <td>
+                    <Badge
+                      variant={
+                        p.status_kehadiran === 'hadir'
+                          ? 'green'
+                          : p.status_kehadiran === 'izin' || p.status_kehadiran === 'dinas'
+                          ? 'blue'
+                          : 'red'
+                      }
+                      className="uppercase"
+                    >
+                      {p.status_kehadiran}
+                    </Badge>
+                  </td>
+                  <td className="text-sm text-[var(--text-secondary)]">
+                    {p.lat_long ? (
+                      <div className="flex items-center gap-1 text-accent-600">
+                        <MapPin size={14} /> {p.lat_long}
+                      </div>
+                    ) : (
+                      p.catatan || '-'
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {presensiList.map((p) => (
-                  <tr key={p.id}>
-                    <td style={{ fontWeight: 700 }}>{p.tanggal}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {p.pegawai?.nama_lengkap || `Pegawai ID ${p.pegawai_id}`}
-                    </td>
-                    <td style={{ color: '#059669', fontWeight: 700 }}>{p.jam_masuk || '-'}</td>
-                    <td style={{ color: '#dc2626', fontWeight: 700 }}>{p.jam_keluar || '-'}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          p.status_kehadiran === 'hadir'
-                            ? 'badge-green'
-                            : p.status_kehadiran === 'izin' || p.status_kehadiran === 'dinas'
-                            ? 'badge-blue'
-                            : 'badge-red'
-                        }`}
-                        style={{ textTransform: 'uppercase' }}
-                      >
-                        {p.status_kehadiran}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                      {p.lat_long ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#4f46e5' }}>
-                          <MapPin size={14} /> {p.lat_long}
-                        </div>
-                      ) : (
-                        p.catatan || '-'
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal Input Log Presensi */}
       {canCreate && (
@@ -190,7 +194,7 @@ export default function PresensiPage() {
             </>
           }
         >
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               label="Tanggal Presensi"
               type="date"
@@ -198,7 +202,7 @@ export default function PresensiPage() {
               onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })}
               required
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Jam Masuk"
                 type="time"
@@ -212,20 +216,18 @@ export default function PresensiPage() {
                 onChange={(e) => setFormData({ ...formData, jam_keluar: e.target.value })}
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Status Kehadiran</label>
-              <select
-                className="input"
-                value={formData.status_kehadiran}
-                onChange={(e) => setFormData({ ...formData, status_kehadiran: e.target.value as StatusKehadiran })}
-              >
-                <option value="hadir">Hadir Tepat Waktu</option>
-                <option value="dinas">Dinas Luar</option>
-                <option value="izin">Izin Resmi</option>
-                <option value="sakit">Sakit</option>
-                <option value="alfa">Tanpa Keterangan / Alfa</option>
-              </select>
-            </div>
+            <Select
+              label="Status Kehadiran"
+              value={formData.status_kehadiran}
+              onChange={(val) => setFormData({ ...formData, status_kehadiran: val as StatusKehadiran })}
+              options={[
+                { value: 'hadir', label: 'Hadir Tepat Waktu' },
+                { value: 'dinas', label: 'Dinas Luar' },
+                { value: 'izin', label: 'Izin Resmi' },
+                { value: 'sakit', label: 'Sakit' },
+                { value: 'alfa', label: 'Tanpa Keterangan / Alfa' },
+              ]}
+            />
             <Input
               label="Catatan / Keterangan"
               value={formData.catatan}

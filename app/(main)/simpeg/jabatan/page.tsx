@@ -161,17 +161,17 @@ export default function JabatanPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in" className="flex flex-col gap-6">
         <PageHeader
           title="Manajemen Jabatan & Jafung Dosen"
           description="Kelola daftar Jabatan Struktural/Teknis serta Jabatan Fungsional Akademik Dosen"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
+        <div className="card" className="p-12 text-center">
+          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
           </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
+          <p className="text-slate-400 max-w-[500px] mx-auto">
             Peran Anda saat ini tidak memiliki hak akses (*permission*) untuk melihat Jabatan & Jafung.
           </p>
         </div>
@@ -180,15 +180,15 @@ export default function JabatanPage() {
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-6">
       <PageHeader
         title="Manajemen Jabatan & Jafung Dosen"
         description="Kelola daftar Jabatan Struktural/Teknis serta Jabatan Fungsional Akademik Dosen"
       />
 
       {/* Tabs */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', background: '#f3f4f6', padding: '0.25rem', borderRadius: 10 }}>
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div className="flex gap-2 bg-slate-100 p-1 rounded-[10px]">
           <button
             onClick={() => setActiveTab('jabatan')}
             className="btn btn-sm"
@@ -215,7 +215,7 @@ export default function JabatanPage() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div className="flex gap-3">
           <button onClick={loadData} className="btn btn-outline btn-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -234,9 +234,9 @@ export default function JabatanPage() {
 
       {/* Tab 1: Jabatan */}
       {activeTab === 'jabatan' && (
-        <div className="card" style={{ padding: '1.25rem' }}>
+        <div className="card" className="p-5">
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat data jabatan...</div>
+            <div className="p-8 text-center text-slate-400">Memuat data jabatan...</div>
           ) : (
             <div className="table-responsive">
               <table className="table">
@@ -247,15 +247,15 @@ export default function JabatanPage() {
                     <th>Unit Kerja</th>
                     <th>Level</th>
                     <th>Status</th>
-                    {(canUpdate || canDelete) && <th style={{ textAlign: 'right' }}>Aksi</th>}
+                    {(canUpdate || canDelete) && <th className="text-right">Aksi</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {jabatanList.map((j) => (
                     <tr key={j.id}>
-                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{j.nama}</td>
+                      <td className="font-bold">{j.nama}</td>
                       <td>
-                        <span className="badge badge-purple" style={{ textTransform: 'uppercase' }}>
+                        <span className="badge badge-purple" className="uppercase">
                           {j.tipe}
                         </span>
                       </td>
@@ -267,15 +267,15 @@ export default function JabatanPage() {
                         </span>
                       </td>
                       {(canUpdate || canDelete) && (
-                        <td style={{ textAlign: 'right' }}>
+                        <td className="text-right">
                           {canUpdate && (
                             <button onClick={() => handleOpenEditJabatan(j)} className="btn btn-ghost btn-icon btn-sm" title="Edit">
-                              <Edit2 size={16} color="#4f46e5" />
+                              <Edit2 size={16} color="var(--primary-600)" />
                             </button>
                           )}
                           {canDelete && (
                             <button onClick={() => handleDeleteJabatan(j.id, j.nama)} className="btn btn-ghost btn-icon btn-sm" title="Hapus">
-                              <Trash2 size={16} color="#ef4444" />
+                              <Trash2 size={16} color="var(--danger)" />
                             </button>
                           )}
                         </td>
@@ -291,9 +291,9 @@ export default function JabatanPage() {
 
       {/* Tab 2: Jafung */}
       {activeTab === 'jafung' && (
-        <div className="card" style={{ padding: '1.25rem' }}>
+        <div className="card" className="p-5">
           {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat master Jafung...</div>
+            <div className="p-8 text-center text-slate-400">Memuat master Jafung...</div>
           ) : (
             <div className="table-responsive">
               <table className="table">
@@ -308,14 +308,14 @@ export default function JabatanPage() {
                 <tbody>
                   {jafungList.map((jf) => (
                     <tr key={jf.id}>
-                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{jf.nama}</td>
+                      <td className="font-bold">{jf.nama}</td>
                       <td>
-                        <span className="badge badge-blue" style={{ textTransform: 'uppercase' }}>
+                        <span className="badge badge-blue" className="uppercase">
                           {jf.golongan.replace('_', ' ')}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 700, color: '#059669' }}>{jf.angka_kredit_min} KUM</td>
-                      <td style={{ fontWeight: 700, color: '#4f46e5' }}>{jf.angka_kredit_max} KUM</td>
+                      <td className="font-bold text-emerald-600">{jf.angka_kredit_min} KUM</td>
+                      <td className="font-bold text-primary-600">{jf.angka_kredit_max} KUM</td>
                     </tr>
                   ))}
                 </tbody>
@@ -338,7 +338,7 @@ export default function JabatanPage() {
             </>
           }
         >
-          <form onSubmit={handleSubmitJabatan} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleSubmitJabatan} className="flex flex-col gap-4">
             <Input
               label="Nama Jabatan"
               value={formJabatan.nama}
@@ -390,7 +390,7 @@ export default function JabatanPage() {
             </>
           }
         >
-          <form onSubmit={handleSubmitJafung} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleSubmitJafung} className="flex flex-col gap-4">
             <Input
               label="Nama Jabatan Fungsional"
               value={formJafung.nama}
@@ -412,7 +412,7 @@ export default function JabatanPage() {
                 <option value="guru_besar">Guru Besar / Profesor (IV/d - IV/e)</option>
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Min KUM"
                 type="number"

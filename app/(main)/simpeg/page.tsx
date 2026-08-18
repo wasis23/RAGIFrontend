@@ -26,6 +26,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Hero } from '@/components/ui/Hero';
+import { StatCard } from '@/components/ui/StatCard';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, UnitKerja, DokumenPegawai, PengajuanCuti, PresensiPegawai, GajiPegawai, UsulanJafung } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
@@ -227,126 +229,101 @@ export default function SimpegDashboardPage() {
     const namaDosen = myPegawai?.nama_lengkap || user?.username || 'Dosen';
 
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      <div className="animate-fade-in space-y-7">
         <PageHeader
           title={`Portal Layanan Mandiri SIMPEG`}
           description={`Selamat datang, ${namaDosen} — Manajemen Data Kepegawaian, Dokumen, dan Layanan Mandiri`}
         />
 
-        {/* Hero Banner Personal Dosen */}
-        <div
-          className="card bg-simpeg-hero"
-          style={{
-            padding: '2rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
-            <div>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  background: 'rgba(255,255,255,0.18)',
-                  backdropFilter: 'blur(8px)',
-                  padding: '0.25rem 0.75rem',
-                  borderRadius: 99,
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  marginBottom: '0.75rem',
-                }}
-              >
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#c7d2fe' }} />
-                LAYANAN MANDIRI DOSEN & TENDIK
-              </div>
-              <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white', marginBottom: '0.5rem' }}>
-                {namaDosen}
-              </h2>
-              <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.9375rem', maxWidth: 620, lineHeight: 1.6 }}>
-                NIP: <strong>{myPegawai?.nip || '199208152022011002'}</strong> &bull; Unit Kerja: <strong>{myPegawai?.unit_kerja?.nama || 'Fakultas Teknik'}</strong> &bull; Status: <span className="badge badge-simpeg">Aktif</span>
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <button onClick={handleQuickClockIn} className="btn" style={{ background: '#ffffff', color: '#4f46e5', fontWeight: 700, borderRadius: 10, padding: '0.75rem 1.25rem', border: 'none' }}>
+        <Hero
+          badge="LAYANAN MANDIRI DOSEN & TENDIK"
+          title={namaDosen}
+          description={
+            <>
+              NIP: <strong>{myPegawai?.nip || '199208152022011002'}</strong> &bull; Unit Kerja: <strong>{myPegawai?.unit_kerja?.nama || 'Fakultas Teknik'}</strong> &bull; Status: <span className="badge badge-simpeg">Aktif</span>
+            </>
+          }
+          actions={
+            <div className="flex gap-3 flex-wrap">
+              <button onClick={handleQuickClockIn} className="btn hero-btn-white">
                 <Clock size={18} /> Presensi Masuk Hari Ini
               </button>
-              <button onClick={() => setShowEditProfileModal(true)} className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 700, borderRadius: 10, padding: '0.75rem 1.25rem', border: '1px solid rgba(255,255,255,0.3)' }}>
+              <button onClick={() => setShowEditProfileModal(true)} className="btn hero-btn-glass">
                 <Edit3 size={18} /> Edit Profil Saya
               </button>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* Layout Grid 2 Kolom: Kiri (Biodata Dosen Ybs) & Kanan (Layanan Mandiri / Data Terkait Anisa) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(360px, 2fr)', gap: '1.5rem' }}>
+        <div className="simpeg-grid-2col">
           
           {/* Panel Kiri: Biodata Lengkap Dosen Ybs */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div className="card" style={{ padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                <div style={{ width: 54, height: 54, borderRadius: '50%', background: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 800 }}>
+          <div className="flex flex-col gap-6">
+            <div className="card p-6">
+              <div className="simpeg-bio-header">
+                <div className="simpeg-bio-avatar">
                   {namaDosen.charAt(0)}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>Biodata Pegawai</h3>
-                  <span className="badge badge-purple" style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                  <h3 className="text-lg font-bold">Biodata Pegawai</h3>
+                  <span className="badge badge-purple uppercase text-xs">
                     {myPegawai?.jenis_pegawai || 'DOSEN'}
                   </span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', fontSize: '0.875rem' }}>
+              <div className="simpeg-bio-fields">
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>NIP / Identitas</span>
-                  <strong style={{ fontFamily: 'monospace', color: '#4f46e5' }}>{myPegawai?.nip || '-'}</strong>
+                  <span className="simpeg-bio-label">NIP / Identitas</span>
+                  <strong className="font-mono text-primary-600">{myPegawai?.nip || '-'}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>NIK (KTP)</span>
+                  <span className="simpeg-bio-label">NIK (KTP)</span>
                   <strong>{myPegawai?.nik || '327101...'}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Unit Kerja Bertugas</span>
+                  <span className="simpeg-bio-label">Unit Kerja Bertugas</span>
                   <strong>{myPegawai?.unit_kerja?.nama || 'Fakultas Teknik'}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Status Kepegawaian</span>
-                  <strong style={{ textTransform: 'capitalize' }}>{(myPegawai?.status_kepegawaian || 'tetap_yayasan').replace('_', ' ')}</strong>
+                  <span className="simpeg-bio-label">Status Kepegawaian</span>
+                  <strong className="capitalize">{(myPegawai?.status_kepegawaian || 'tetap_yayasan').replace('_', ' ')}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Nomor HP / WhatsApp</span>
+                  <span className="simpeg-bio-label">Nomor HP / WhatsApp</span>
                   <strong>{myPegawai?.telepon || '081234567890'}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.75rem' }}>Alamat Tempat Tinggal</span>
+                  <span className="simpeg-bio-label">Alamat Tempat Tinggal</span>
                   <strong>{myPegawai?.alamat || 'Jl. Merdeka No. 45, Bandung'}</strong>
                 </div>
               </div>
             </div>
 
             {/* Quick Action Navigation for Dosen */}
-            <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <h4 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Pintas Layanan Saya</h4>
-              <button onClick={() => setShowUploadModal(true)} className="btn btn-outline btn-sm" style={{ justifyContent: 'flex-start' }}>
+            <div className="card p-5 flex flex-col gap-3">
+              <h4 className="text-[0.9375rem] font-bold mb-1">Pintas Layanan Saya</h4>
+              <button onClick={() => setShowUploadModal(true)} className="btn btn-outline btn-sm justify-start">
                 <Upload size={16} /> Unggah Dokumen E-File
               </button>
-              <button onClick={() => setShowCutiModal(true)} className="btn btn-outline btn-sm" style={{ justifyContent: 'flex-start' }}>
+              <button onClick={() => setShowCutiModal(true)} className="btn btn-outline btn-sm justify-start">
                 <Calendar size={16} /> Ajukan Permohonan Cuti
               </button>
-              <Link href="/simpeg/usulan-jafung" className="btn btn-outline btn-sm" style={{ justifyContent: 'flex-start', textDecoration: 'none' }}>
+              <Link href="/simpeg/usulan-jafung" className="btn btn-outline btn-sm justify-start no-underline">
                 <Award size={16} /> Ajukan Usulan Jafung (KUM)
               </Link>
             </div>
           </div>
 
           {/* Panel Kanan: Data Terkait Dosen Ybs (Anisa Only) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="flex flex-col gap-6">
 
             {/* 1. Dokumen E-File Pribadi */}
-            <div className="card" style={{ padding: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <FileText size={18} color="#4f46e5" /> Dokumen E-File Pribadi ({myDokumen.length})
+            <div className="card p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  <FileText size={18} className="text-primary-600" /> Dokumen E-File Pribadi ({myDokumen.length})
                 </h3>
                 <button onClick={() => setShowUploadModal(true)} className="btn btn-primary btn-sm">
                   <Plus size={14} /> Unggah Berkas
@@ -354,7 +331,7 @@ export default function SimpegDashboardPage() {
               </div>
 
               {myDokumen.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Belum ada berkas E-File diunggah.</p>
+                <p className="text-sm text-slate-400">Belum ada berkas E-File diunggah.</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table">
@@ -368,9 +345,9 @@ export default function SimpegDashboardPage() {
                     <tbody>
                       {myDokumen.slice(0, 3).map((d) => (
                         <tr key={d.id}>
-                          <td style={{ fontWeight: 600 }}>{d.nama_dokumen}</td>
-                          <td><span className="badge badge-purple" style={{ textTransform: 'uppercase' }}>{d.jenis_dokumen}</span></td>
-                          <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{d.file_size || '1.5 MB'}</td>
+                          <td className="font-semibold">{d.nama_dokumen}</td>
+                          <td><span className="badge badge-purple uppercase">{d.jenis_dokumen}</span></td>
+                          <td className="text-xs text-slate-400">{d.file_size || '1.5 MB'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -380,10 +357,10 @@ export default function SimpegDashboardPage() {
             </div>
 
             {/* 2. Pengajuan Cuti Saya */}
-            <div className="card" style={{ padding: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Calendar size={18} color="#059669" /> Pengajuan Cuti Saya ({myCuti.length})
+            <div className="card p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  <Calendar size={18} className="text-emerald-600" /> Pengajuan Cuti Saya ({myCuti.length})
                 </h3>
                 <button onClick={() => setShowCutiModal(true)} className="btn btn-outline btn-sm">
                   <Plus size={14} /> Ajukan Cuti
@@ -391,7 +368,7 @@ export default function SimpegDashboardPage() {
               </div>
 
               {myCuti.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Belum ada riwayat pengajuan cuti.</p>
+                <p className="text-sm text-slate-400">Belum ada riwayat pengajuan cuti.</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table">
@@ -406,9 +383,9 @@ export default function SimpegDashboardPage() {
                     <tbody>
                       {myCuti.slice(0, 3).map((c) => (
                         <tr key={c.id}>
-                          <td style={{ fontWeight: 600 }}>{(c.jenis_cuti || 'tahunan').toUpperCase()}</td>
-                          <td style={{ fontSize: '0.8125rem' }}>{c.tanggal_mulai} s/d {c.tanggal_selesai}</td>
-                          <td style={{ fontWeight: 700, color: '#4f46e5' }}>{c.jumlah_hari} Hari</td>
+                          <td className="font-semibold">{(c.jenis_cuti || 'tahunan').toUpperCase()}</td>
+                          <td className="text-[0.8125rem]">{c.tanggal_mulai} s/d {c.tanggal_selesai}</td>
+                          <td className="font-bold text-primary-600">{c.jumlah_hari} Hari</td>
                           <td>
                             <span className={`badge ${c.status_approval === 'approved' ? 'badge-green' : c.status_approval === 'rejected' ? 'badge-red' : 'badge-yellow'}`}>
                               {c.status_approval}
@@ -423,12 +400,12 @@ export default function SimpegDashboardPage() {
             </div>
 
             {/* 3. Slip Gaji / Payroll Saya */}
-            <div className="card" style={{ padding: '1.25rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem' }}>
-                <DollarSign size={18} color="#0284c7" /> Slip Gaji Saya ({myPayroll.length})
+            <div className="card p-5">
+              <h3 className="text-base font-bold flex items-center gap-2 mb-4">
+                <DollarSign size={18} className="text-sky-600" /> Slip Gaji Saya ({myPayroll.length})
               </h3>
               {myPayroll.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Belum ada slip gaji diterbitkan.</p>
+                <p className="text-sm text-slate-400">Belum ada slip gaji diterbitkan.</p>
               ) : (
                 <div className="table-responsive">
                   <table className="table">
@@ -443,9 +420,9 @@ export default function SimpegDashboardPage() {
                     <tbody>
                       {myPayroll.slice(0, 3).map((p) => (
                         <tr key={p.id}>
-                          <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{p.periode_bulan_tahun}</td>
+                          <td className="font-bold font-mono">{p.periode_bulan_tahun}</td>
                           <td>Rp {p.gaji_pokok?.toLocaleString('id-ID')}</td>
-                          <td style={{ fontWeight: 700, color: '#059669' }}>Rp {p.gaji_bersih?.toLocaleString('id-ID')}</td>
+                          <td className="font-bold text-emerald-600">Rp {p.gaji_bersih?.toLocaleString('id-ID')}</td>
                           <td><span className="badge badge-green">PAID</span></td>
                         </tr>
                       ))}
@@ -471,7 +448,7 @@ export default function SimpegDashboardPage() {
             </>
           }
         >
-          <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleUpdateProfile} className="flex flex-col gap-4">
             <Input
               label="Nama Lengkap & Gelar"
               value={formProfile.nama_lengkap}
@@ -508,7 +485,7 @@ export default function SimpegDashboardPage() {
             </>
           }
         >
-          <form onSubmit={handleUploadDokumen} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleUploadDokumen} className="flex flex-col gap-4">
             <Input
               label="Nama / Judul Dokumen"
               value={formUpload.nama_dokumen}
@@ -546,8 +523,8 @@ export default function SimpegDashboardPage() {
             </>
           }
         >
-          <form onSubmit={handleRequestCuti} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <form onSubmit={handleRequestCuti} className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Tanggal Mulai"
                 type="date"
@@ -591,180 +568,122 @@ export default function SimpegDashboardPage() {
   // RENDER ADMIN VIEW (FOR SUPER ADMIN / OPERATOR SDM)
   // -------------------------------------------------------------
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in space-y-7">
       <PageHeader
         title="Dashboard Kepegawaian (SIMPEG Admin)"
         description="Pusat kelola Sumber Daya Manusia, Unit Kerja, dan Jabatan Universitas"
       />
 
-      {/* Hero Welcome Banner Admin */}
-      <div
-        className="card bg-simpeg-hero"
-        style={{
-          padding: '2rem',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', padding: '0.25rem 0.75rem', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a7f3d0' }} />
-              PANEL UTAMA ADMIN SIMPEG KAMPUS
-            </div>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white', marginBottom: '0.5rem' }}>
-              Sistem Informasi Kepegawaian Kampus
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9375rem', maxWidth: 620, lineHeight: 1.6 }}>
-              Kelola data seluruh Dosen, Tenaga Kependidikan, Unit Kerja, Jabatan, dan Riwayat SK Kepegawaian terhubung langsung dengan SSO Central Authorization.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <Hero
+        badge="PANEL UTAMA ADMIN SIMPEG KAMPUS"
+        title="Sistem Informasi Kepegawaian Kampus"
+        description="Kelola data seluruh Dosen, Tenaga Kependidikan, Unit Kerja, Jabatan, dan Riwayat SK Kepegawaian terhubung langsung dengan SSO Central Authorization."
+        actions={
+          <div className="flex gap-3">
             <Link
               href="/simpeg/pegawai"
-              className="btn"
-              style={{ background: 'white', color: '#4338ca', fontWeight: 700, borderRadius: 10, padding: '0.75rem 1.25rem', border: 'none' }}
+              className="btn hero-btn-white"
             >
               <Plus size={18} /> Tambah Pegawai
             </Link>
             <button
               onClick={fetchData}
-              className="btn"
-              style={{ background: 'rgba(255,255,255,0.2)', color: 'white', borderRadius: 10, padding: '0.75rem', border: '1px solid rgba(255,255,255,0.3)' }}
+              className="btn hero-btn-glass btn-icon"
               title="Refresh Data"
             >
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* KPI Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
-        <div className="stat-card" style={{ borderLeft: '4px solid #6366f1' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Total SDM / Pegawai</span>
-            <div className="stat-icon" style={{ background: '#eeeffe', color: '#4f46e5' }}>
-              <Users size={22} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0' }}>
-            {loading ? '...' : stats.totalPegawai}
-          </div>
-          <span style={{ fontSize: '0.8125rem', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <TrendingUp size={14} /> Terdaftar di SSO
-          </span>
-        </div>
-
-        <div className="stat-card" style={{ borderLeft: '4px solid #10b981' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Dosen Pengajar</span>
-            <div className="stat-icon" style={{ background: '#d1fae5', color: '#059669' }}>
-              <GraduationCap size={22} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0' }}>
-            {loading ? '...' : stats.totalDosen}
-          </div>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            NIDN / NIP Verified
-          </span>
-        </div>
-
-        <div className="stat-card" style={{ borderLeft: '4px solid #0284c7' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tenaga Kependidikan</span>
-            <div className="stat-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-              <Briefcase size={22} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0' }}>
-            {loading ? '...' : stats.totalTendik}
-          </div>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            Staf & Administrasi
-          </span>
-        </div>
-
-        <div className="stat-card" style={{ borderLeft: '4px solid #f59e0b' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Unit Kerja</span>
-            <div className="stat-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
-              <Building2 size={22} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0' }}>
-            {loading ? '...' : stats.totalUnitKerja}
-          </div>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-            Fakultas, Prodi & Biro
-          </span>
-        </div>
+      <div className="kpi-grid">
+        <StatCard
+          label="Total SDM / Pegawai"
+          value={loading ? '...' : stats.totalPegawai}
+          icon={<Users size={22} />}
+          iconVariant="indigo"
+          footer={<span className="flex items-center gap-1"><TrendingUp size={14} /> Terdaftar di SSO</span>}
+        />
+        <StatCard
+          label="Dosen Pengajar"
+          value={loading ? '...' : stats.totalDosen}
+          icon={<GraduationCap size={22} />}
+          iconVariant="green"
+          footer="NIDN / NIP Verified"
+        />
+        <StatCard
+          label="Tenaga Kependidikan"
+          value={loading ? '...' : stats.totalTendik}
+          icon={<Briefcase size={22} />}
+          iconVariant="cyan"
+          footer="Staf & Administrasi"
+        />
+        <StatCard
+          label="Unit Kerja"
+          value={loading ? '...' : stats.totalUnitKerja}
+          icon={<Building2 size={22} />}
+          iconVariant="amber"
+          footer="Fakultas, Prodi & Biro"
+        />
       </div>
 
       {/* Quick Navigation Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-        <Link href="/simpeg/pegawai" style={{ textDecoration: 'none' }}>
-          <div className="card" style={{ padding: '1.5rem', height: '100%', transition: 'all 0.2s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#eeeffe', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Users size={22} />
-              </div>
-              <ArrowRight size={20} color="#6b7280" />
+      <div className="quick-nav-grid">
+        <Link href="/simpeg/pegawai" className="card quick-nav-card no-underline">
+          <div className="flex items-center justify-between mb-4">
+            <div className="module-card-icon-lg">
+              <Users size={22} />
             </div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-              Manajemen Data Pegawai
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Lihat, cari, dan kelola profil biodata lengkap seluruh Dosen & Staf Tendik kampus.
-            </p>
+            <ArrowRight size={20} className="text-slate-400" />
           </div>
+          <h3 className="text-lg font-bold mb-1">
+            Manajemen Data Pegawai
+          </h3>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Lihat, cari, dan kelola profil biodata lengkap seluruh Dosen & Staf Tendik kampus.
+          </p>
         </Link>
 
-        <Link href="/simpeg/unit-kerja" style={{ textDecoration: 'none' }}>
-          <div className="card" style={{ padding: '1.5rem', height: '100%', transition: 'all 0.2s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Building2 size={22} />
-              </div>
-              <ArrowRight size={20} color="#6b7280" />
+        <Link href="/simpeg/unit-kerja" className="card quick-nav-card no-underline">
+          <div className="flex items-center justify-between mb-4">
+            <div className="module-card-icon-lg bg-amber-50 text-amber-600">
+              <Building2 size={22} />
             </div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-              Struktur Unit Kerja
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Kelola hierarki organisasi Rektorat, Dekanat Fakultas, Program Studi, Biro, dan LP3M.
-            </p>
+            <ArrowRight size={20} className="text-slate-400" />
           </div>
+          <h3 className="text-lg font-bold mb-1">
+            Struktur Unit Kerja
+          </h3>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Kelola hierarki organisasi Rektorat, Dekanat Fakultas, Program Studi, Biro, dan LP3M.
+          </p>
         </Link>
 
-        <Link href="/simpeg/jabatan" style={{ textDecoration: 'none' }}>
-          <div className="card" style={{ padding: '1.5rem', height: '100%', transition: 'all 0.2s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Briefcase size={22} />
-              </div>
-              <ArrowRight size={20} color="#6b7280" />
+        <Link href="/simpeg/jabatan" className="card quick-nav-card no-underline">
+          <div className="flex items-center justify-between mb-4">
+            <div className="module-card-icon-lg bg-sky-50 text-sky-600">
+              <Briefcase size={22} />
             </div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-              Jabatan & Jafung Dosen
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Pengaturan Jabatan Struktural serta Jabatan Fungsional Akademik (Lektor, Guru Besar).
-            </p>
+            <ArrowRight size={20} className="text-slate-400" />
           </div>
+          <h3 className="text-lg font-bold mb-1">
+            Jabatan & Jafung Dosen
+          </h3>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            Pengaturan Jabatan Struktural serta Jabatan Fungsional Akademik (Lektor, Guru Besar).
+          </p>
         </Link>
       </div>
 
       {/* Recent Pegawai Section */}
-      <div className="card" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <h3 className="text-lg font-bold">
               Data Pegawai Terkini
             </h3>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+            <p className="text-[0.8125rem] text-slate-500">
               Pegawai yang baru ditambahkan ke dalam database SIMPEG
             </p>
           </div>
@@ -775,11 +694,11 @@ export default function SimpegDashboardPage() {
         </div>
 
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div className="p-8 text-center text-slate-400">
             Memuat data pegawai...
           </div>
         ) : pegawaiList.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div className="p-8 text-center text-slate-400">
             Belum ada data pegawai terdaftar.
           </div>
         ) : (
@@ -797,27 +716,19 @@ export default function SimpegDashboardPage() {
               <tbody>
                 {pegawaiList.map((p) => (
                   <tr key={p.id}>
-                    <td style={{ fontFamily: 'monospace', fontWeight: 600 }}>{p.nip || p.nik || '-'}</td>
+                    <td className="font-mono font-semibold">{p.nip || p.nik || '-'}</td>
                     <td>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{p.nama_lengkap}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.telepon || '-'}</div>
+                      <div className="font-bold">{p.nama_lengkap}</div>
+                      <div className="text-xs text-slate-400">{p.telepon || '-'}</div>
                     </td>
                     <td>
-                      <span
-                        className="badge"
-                        style={{
-                          background: p.jenis_pegawai === 'dosen' ? '#d1fae5' : '#e0f2fe',
-                          color: p.jenis_pegawai === 'dosen' ? '#065f46' : '#0369a1',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                        }}
-                      >
+                      <span className={`badge ${p.jenis_pegawai === 'dosen' ? 'badge-green' : 'badge-cyan'}`}>
                         {p.jenis_pegawai}
                       </span>
                     </td>
                     <td>{p.unit_kerja?.nama || 'Rektorat'}</td>
                     <td>
-                      <span className="badge badge-green" style={{ textTransform: 'capitalize' }}>
+                      <span className="badge badge-green capitalize">
                         {p.status}
                       </span>
                     </td>

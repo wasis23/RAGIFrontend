@@ -1,11 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DollarSign, Printer, Plus, RefreshCw, CheckCircle, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
+import { DollarSign, Printer, Plus, RefreshCw, ShieldAlert } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Card, CardBody } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { simpegService } from '@/services/simpeg.service';
 import type { GajiPegawai, StatusTransferGaji } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
@@ -84,99 +88,97 @@ export default function PayrollPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in space-y-6">
         <PageHeader
           title="Payroll & Slip Gaji Pegawai"
           description="Penggajian, Tunjangan Jabatan, Potongan PPh21, dan Integrasi Jurnal Keuangan (SIKEU)"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
-            Akses Ditolak / Dibatasi
-          </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
-            Peran Anda saat ini tidak memiliki permission untuk melihat Slip Gaji & Payroll.
-          </p>
-        </div>
+        <Card>
+          <EmptyState
+            icon={<ShieldAlert size={48} className="text-[var(--danger)]" />}
+            title="Akses Ditolak / Dibatasi"
+            description="Peran Anda saat ini tidak memiliki permission untuk melihat Slip Gaji & Payroll."
+          />
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Payroll & Slip Gaji Pegawai"
         description="Penggajian, Tunjangan Jabatan, Potongan PPh21, dan Integrasi Jurnal Keuangan (SIKEU)"
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Daftar Slip Gaji ({payrollList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <a href="/sikeu/akuntansi/jurnal" className="btn btn-outline btn-sm" style={{ color: '#4f46e5', borderColor: '#4f46e5' }}>
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-lg">Daftar Slip Gaji ({payrollList.length})</h3>
+        <div className="flex gap-3 items-center">
+          <Button variant="outline" size="sm" onClick={() => window.open('/sikeu/akuntansi/jurnal', '_blank')}>
             Lihat Jurnal SIKEU &rarr;
-          </a>
-          <button onClick={loadPayroll} className="btn btn-outline btn-sm">
+          </Button>
+          <Button variant="outline" size="sm" onClick={loadPayroll}>
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
+          </Button>
           {canCreate && (
-            <button onClick={() => setShowModal(true)} className="btn btn-primary btn-sm">
+            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
               <Plus size={16} /> Terbitkan Payroll Baru
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat slip gaji...</div>
-        ) : payrollList.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <DollarSign size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
-            <p>Belum ada data slip gaji penerbitan.</p>
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Periode</th>
-                  <th>Nama Pegawai</th>
-                  <th>Gaji Pokok</th>
-                  <th>Tunjangan</th>
-                  <th>Potongan</th>
-                  <th>Take Home Pay</th>
-                  <th>Status SIKEU</th>
-                  <th style={{ textAlign: 'right' }}>Aksi</th>
+      {loading ? (
+        <Card>
+          <CardBody className="text-center text-[var(--text-muted)] py-8">Memuat slip gaji...</CardBody>
+        </Card>
+      ) : payrollList.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<DollarSign size={48} className="opacity-40" />}
+            title="Belum ada data slip gaji penerbitan."
+          />
+        </Card>
+      ) : (
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Periode</th>
+                <th>Nama Pegawai</th>
+                <th>Gaji Pokok</th>
+                <th>Tunjangan</th>
+                <th>Potongan</th>
+                <th>Take Home Pay</th>
+                <th>Status SIKEU</th>
+                <th className="text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payrollList.map((g) => (
+                <tr key={g.id}>
+                  <td className="font-bold font-mono">{g.periode_bulan_tahun}</td>
+                  <td className="font-bold">
+                    {g.pegawai?.nama_lengkap || `Pegawai ID ${g.pegawai_id}`}
+                  </td>
+                  <td>{formatRupiah(g.gaji_pokok)}</td>
+                  <td className="text-[var(--success)]">+{formatRupiah(g.total_tunjangan)}</td>
+                  <td className="text-[var(--danger)]">-{formatRupiah(g.total_potongan)}</td>
+                  <td className="font-bold text-accent-600">{formatRupiah(g.gaji_bersih)}</td>
+                  <td>
+                    <Badge variant="green" className="uppercase">
+                      {g.status_transfer} (Posted)
+                    </Badge>
+                  </td>
+                  <td className="text-right">
+                    <Button variant="ghost" size="sm" icon={<Printer size={16} />} onClick={() => toast.success('Mengunduh Slip Gaji PDF...')} title="Cetak Slip Gaji" />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {payrollList.map((g) => (
-                  <tr key={g.id}>
-                    <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{g.periode_bulan_tahun}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {g.pegawai?.nama_lengkap || `Pegawai ID ${g.pegawai_id}`}
-                    </td>
-                    <td>{formatRupiah(g.gaji_pokok)}</td>
-                    <td style={{ color: '#059669' }}>+{formatRupiah(g.total_tunjangan)}</td>
-                    <td style={{ color: '#dc2626' }}>-{formatRupiah(g.total_potongan)}</td>
-                    <td style={{ fontWeight: 700, color: '#4f46e5' }}>{formatRupiah(g.gaji_bersih)}</td>
-                    <td>
-                      <span className="badge badge-green" style={{ textTransform: 'uppercase' }}>
-                        {g.status_transfer} (Posted)
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button onClick={() => toast.success('Mengunduh Slip Gaji PDF...')} className="btn btn-ghost btn-icon btn-sm" title="Cetak Slip Gaji">
-                        <Printer size={16} color="#4f46e5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal Terbit Payroll */}
       {canCreate && (
@@ -191,7 +193,7 @@ export default function PayrollPage() {
             </>
           }
         >
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               label="Periode (YYYY-MM)"
               value={formData.periode_bulan_tahun}
@@ -199,7 +201,7 @@ export default function PayrollPage() {
               placeholder="2026-07"
               required
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Gaji Pokok (IDR)"
                 type="number"
@@ -214,7 +216,7 @@ export default function PayrollPage() {
                 onChange={(e) => setFormData({ ...formData, total_tunjangan: Number(e.target.value) })}
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Total Potongan (IDR)"
                 type="number"
@@ -229,7 +231,7 @@ export default function PayrollPage() {
                 required
               />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Nama Bank"
                 value={formData.bank_nama}

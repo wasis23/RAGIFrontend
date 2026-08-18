@@ -180,17 +180,17 @@ export default function PegawaiPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in" className="flex flex-col gap-6">
         <PageHeader
           title="Data Pegawai (Dosen & Tendik)"
           description="Direktori Profil, NIP, NIDN, Jabatan, dan Status Kepegawaian Kampus"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
+        <div className="card" className="p-12 text-center">
+          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
           </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
+          <p className="text-slate-400 max-w-[500px] mx-auto">
             Peran Anda tidak memiliki permission untuk melihat Data Pegawai SIMPEG.
           </p>
         </div>
@@ -199,7 +199,7 @@ export default function PegawaiPage() {
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-6">
       <PageHeader
         title="Data Pegawai (Dosen & Tendik)"
         description="Direktori Profil, NIP, NIDN, Jabatan, dan Status Kepegawaian Kampus"
@@ -209,26 +209,26 @@ export default function PegawaiPage() {
       {isAdmin ? (
         <>
           {/* Action & Filter Bar for Admin */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: 300, maxWidth: 600 }}>
-              <div style={{ position: 'relative', flex: 1 }}>
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <form onSubmit={handleSearchSubmit} className="flex gap-3 flex-1 min-w-[300px] max-w-[600px]">
+              <div className="relative flex-1">
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Cari NIP, NIK, atau Nama Pegawai..."
-                  style={{ paddingLeft: '2.5rem' }}
+                  className="pl-10"
                 />
-                <Search size={18} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               </div>
               <button type="submit" className="btn btn-outline btn-sm">Cari</button>
             </form>
 
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div className="flex gap-3 items-center">
               <select
                 className="input"
                 value={selectedJenis}
                 onChange={(e) => setSelectedJenis(e.target.value)}
-                style={{ width: 'auto', fontSize: '0.875rem' }}
+                className="w-auto text-sm"
               >
                 <option value="">-- Semua Jenis --</option>
                 <option value="dosen">Dosen</option>
@@ -240,7 +240,7 @@ export default function PegawaiPage() {
                 className="input"
                 value={selectedUnit}
                 onChange={(e) => setSelectedUnit(e.target.value)}
-                style={{ width: 'auto', fontSize: '0.875rem' }}
+                className="w-auto text-sm"
               >
                 <option value="">-- Semua Unit --</option>
                 {unitList.map((u) => (
@@ -261,12 +261,12 @@ export default function PegawaiPage() {
           </div>
 
           {/* Table Data for Admin */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <div className="card" className="p-5">
             {loading ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat data pegawai...</div>
+              <div className="p-8 text-center text-slate-400">Memuat data pegawai...</div>
             ) : pegawaiList.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <Users size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
+              <div className="p-12 text-center text-slate-400">
+                <Users size={48} className="mx-auto mb-4 opacity-40" />
                 <p>Tidak ada data pegawai ditemukan.</p>
               </div>
             ) : (
@@ -280,48 +280,48 @@ export default function PegawaiPage() {
                       <th>Unit Kerja</th>
                       <th>Kontak</th>
                       <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Aksi</th>
+                      <th className="text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pegawaiList.map((peg) => (
                       <tr key={peg.id}>
-                        <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#4f46e5' }}>
+                        <td className="font-mono font-bold text-primary-600">
                           {peg.nip || peg.nik || `ID-${peg.id}`}
                         </td>
                         <td>
-                          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{peg.nama_lengkap}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{peg.jenis_kelamin === 'L' ? 'Laki-Laki' : 'Perempuan'}</div>
+                          <div className="font-bold">{peg.nama_lengkap}</div>
+                          <div className="text-xs text-slate-400">{peg.jenis_kelamin === 'L' ? 'Laki-Laki' : 'Perempuan'}</div>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span className={`badge ${peg.jenis_pegawai === 'dosen' ? 'badge-purple' : 'badge-blue'}`} style={{ textTransform: 'uppercase', width: 'fit-content' }}>
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`badge ${peg.jenis_pegawai === 'dosen' ? 'badge-purple' : 'badge-blue'}`} className="uppercase w-fit">
                               {peg.jenis_pegawai}
                             </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{peg.status_kepegawaian.replace('_', ' ')}</span>
+                            <span className="text-xs text-slate-500">{peg.status_kepegawaian.replace('_', ' ')}</span>
                           </div>
                         </td>
                         <td>{peg.unit_kerja?.nama || '-'}</td>
                         <td>
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{peg.telepon || '-'}</div>
+                          <div className="text-[0.8125rem] text-slate-500">{peg.telepon || '-'}</div>
                         </td>
                         <td>
                           <span className={`badge ${peg.status === 'aktif' ? 'badge-green' : 'badge-gray'}`}>
                             {peg.status}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td className="text-right">
                           <Link href={`/simpeg/pegawai/${peg.id}`} className="btn btn-ghost btn-icon btn-sm" title="Lihat Profil">
-                            <Eye size={16} color="#4f46e5" />
+                            <Eye size={16} color="var(--primary-600)" />
                           </Link>
                           {canUpdate && (
                             <button onClick={() => handleOpenEditModal(peg)} className="btn btn-ghost btn-icon btn-sm" title="Edit">
-                              <Edit2 size={16} color="#4f46e5" />
+                              <Edit2 size={16} color="var(--primary-600)" />
                             </button>
                           )}
                           {canDelete && (
                             <button onClick={() => handleDelete(peg.id, peg.nama_lengkap)} className="btn btn-ghost btn-icon btn-sm" title="Hapus">
-                              <Trash2 size={16} color="#ef4444" />
+                              <Trash2 size={16} color="var(--danger)" />
                             </button>
                           )}
                         </td>
@@ -335,13 +335,13 @@ export default function PegawaiPage() {
         </>
       ) : (
         /* Personal Biodata & Jabatan View for Non-Admin Dosen/Tendik (No Table, No Filters) */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="flex flex-col gap-6">
           {loading ? (
-            <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <div className="card" className="p-12 text-center text-slate-400">
               Memuat profil biodata Anda...
             </div>
           ) : pegawaiList.length === 0 ? (
-            <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <div className="card" className="p-12 text-center text-slate-400">
               Data pegawai belum terdaftar di sistem.
             </div>
           ) : (
@@ -350,16 +350,16 @@ export default function PegawaiPage() {
               return (
                 <>
                   {/* Top Banner Card */}
-                  <div className="card bg-simpeg-hero" style={{ padding: '1.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
-                      <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-                        <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', fontWeight: 800 }}>
+                  <div className="card bg-simpeg-hero p-7">
+                    <div className="flex justify-between items-start flex-wrap gap-6">
+                      <div className="flex gap-5 items-center">
+                        <div className="w-[68px] h-[68px] rounded-full bg-white/20 flex items-center justify-center text-[1.75rem] font-extrabold">
                           {peg.nama_lengkap?.charAt(0) || 'D'}
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.875rem', opacity: 0.85, fontWeight: 500 }}>Profil Pegawai Kampus</div>
-                          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0.25rem 0', color: '#ffffff' }}>{peg.nama_lengkap}</h2>
-                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.875rem', opacity: 0.9 }}>
+                          <div className="text-sm opacity-85 font-medium">Profil Pegawai Kampus</div>
+                          <h2 className="text-2xl font-extrabold my-1 text-white">{peg.nama_lengkap}</h2>
+                          <div className="flex gap-3 items-center flex-wrap text-sm opacity-90">
                             <span>NIP: <strong>{peg.nip || '199208252022012004'}</strong></span>
                             <span>•</span>
                             <span>Status: <strong>{peg.status_kepegawaian?.toUpperCase() || 'TETAP YAYASAN'}</strong></span>
@@ -370,7 +370,7 @@ export default function PegawaiPage() {
                       <button
                         onClick={() => handleOpenEditModal(peg)}
                         className="btn btn-secondary btn-sm"
-                        style={{ background: '#ffffff', color: '#4f46e5', border: 'none', fontWeight: 700 }}
+                        className="bg-white text-primary-600 border-none font-bold"
                       >
                         <Edit2 size={16} /> Edit Kontak & Biodata
                       </button>
@@ -378,75 +378,75 @@ export default function PegawaiPage() {
                   </div>
 
                   {/* 2-Column Section: Biodata & Riwayat Jabatan */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6">
                     
                     {/* Card 1: Biodata & Identitas Utama */}
-                    <div className="card" style={{ padding: '1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <Users size={20} color="#4f46e5" />
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    <div className="card" className="p-6">
+                      <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
+                        <Users size={20} color="var(--primary-600)" />
+                        <h3 className="text-lg font-bold m-0">
                           Biodata & Identitas Utama
                         </h3>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div className="flex flex-col gap-4">
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Nama Lengkap & Gelar</div>
-                          <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>{peg.nama_lengkap}</div>
+                          <div className="text-xs text-slate-400 uppercase font-semibold">Nama Lengkap & Gelar</div>
+                          <div className="text-[0.9375rem] font-bold">{peg.nama_lengkap}</div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>NIP</div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{peg.nip || '-'}</div>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">NIP</div>
+                            <div className="text-sm font-semibold font-mono">{peg.nip || '-'}</div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>NIK (KTP)</div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{peg.nik || '327101...'}</div>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">NIK (KTP)</div>
+                            <div className="text-sm font-semibold font-mono">{peg.nik || '327101...'}</div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Tempat, Tgl Lahir</div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">Tempat, Tgl Lahir</div>
+                            <div className="text-sm text-slate-500">
                               {peg.tempat_lahir || 'Bandung'}, {peg.tanggal_lahir || '15 Jan 1985'}
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Jenis Kelamin</div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">Jenis Kelamin</div>
+                            <div className="text-sm text-slate-500">
                               {peg.jenis_kelamin === 'L' ? 'Laki-Laki' : 'Perempuan'}
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Jenis Pegawai</div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#4f46e5', textTransform: 'uppercase' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">Jenis Pegawai</div>
+                            <div className="text-sm font-bold text-primary-600 uppercase">
                               {peg.jenis_pegawai}
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Unit Kerja Bertugas</div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">Unit Kerja Bertugas</div>
+                            <div className="text-sm text-slate-500">
                               {peg.unit_kerja?.nama || 'Rektorat Universitas'}
                             </div>
                           </div>
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Nomor Telepon / WhatsApp</div>
-                          <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Phone size={14} color="#4f46e5" />
+                          <div className="text-xs text-slate-400 uppercase font-semibold">Nomor Telepon / WhatsApp</div>
+                          <div className="text-sm text-slate-500 flex items-center gap-2">
+                            <Phone size={14} color="var(--primary-600)" />
                             {peg.telepon || '081234567890'}
                           </div>
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Alamat Domisili</div>
-                          <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                          <div className="text-xs text-slate-400 uppercase font-semibold">Alamat Domisili</div>
+                          <div className="text-sm text-slate-500">
                             {peg.alamat || 'Jl. Kampus Utama No. 12, Bandung'}
                           </div>
                         </div>
@@ -454,62 +454,62 @@ export default function PegawaiPage() {
                     </div>
 
                     {/* Card 2: Riwayat Jabatan & Jabatan Fungsional (Jafung) */}
-                    <div className="card" style={{ padding: '1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <Building2 size={20} color="#4f46e5" />
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                    <div className="card" className="p-6">
+                      <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
+                        <Building2 size={20} color="var(--primary-600)" />
+                        <h3 className="text-lg font-bold m-0">
                           Riwayat Jabatan & Jabatan Fungsional
                         </h3>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ background: 'var(--bg-card-hover)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border-color)' }}>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Jabatan Fungsional Akademik (Jafung)</div>
-                          <div style={{ fontSize: '1.125rem', fontWeight: 800, color: '#4f46e5', margin: '0.25rem 0' }}>
+                      <div className="flex flex-col gap-4">
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <div className="text-xs text-slate-400 uppercase font-semibold">Jabatan Fungsional Akademik (Jafung)</div>
+                          <div className="text-lg font-extrabold text-primary-600 my-1">
                             Lektor (200 KUM)
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Status SK Jafung: Disetujui Kemendikbudristek</div>
+                          <div className="text-xs text-slate-400">Status SK Jafung: Disetujui Kemendikbudristek</div>
                         </div>
 
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Jabatan Pengajar / Struktural</div>
-                          <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          <div className="text-xs text-slate-400 uppercase font-semibold">Jabatan Pengajar / Struktural</div>
+                          <div className="text-[0.9375rem] font-bold">
                             Dosen Pengajar Tetap Program Studi
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Nomor SK Jabatan</div>
-                            <div style={{ fontSize: '0.875rem', fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">Nomor SK Jabatan</div>
+                            <div className="text-sm font-mono font-semibold">
                               SK/SK-PEG/2022/088
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>TMT Jabatan</div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">TMT Jabatan</div>
+                            <div className="text-sm text-slate-500">
                               01 Januari 2022
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Golongan / Pangkat</div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">Golongan / Pangkat</div>
+                            <div className="text-sm font-semibold">
                               Penata Muda Tk. I (III/b)
                             </div>
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Masa Kerja Golongan</div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <div className="text-xs text-slate-400 uppercase font-semibold">Masa Kerja Golongan</div>
+                            <div className="text-sm text-slate-500">
                               4 Tahun 6 Bulan
                             </div>
                           </div>
                         </div>
 
-                        <div style={{ marginTop: '0.5rem', background: '#ecfdf5', color: '#065f46', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <CheckCircle size={16} color="#10b981" />
+                        <div className="mt-2 bg-emerald-50 text-emerald-700 p-3 rounded-lg text-[0.8125rem] flex items-center gap-2">
+                          <CheckCircle size={16} color="var(--success)" />
                           <span>Persyaratan pengajuan kenaikan jafung ke <strong>Lektor Kepala (300 KUM)</strong> sudah memenuhi kriteria.</span>
                         </div>
                       </div>

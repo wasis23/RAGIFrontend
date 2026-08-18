@@ -130,17 +130,17 @@ export default function UnitKerjaPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in" className="flex flex-col gap-6">
         <PageHeader
           title="Manajemen Unit Kerja & SOTK Kampus"
           description="Kelola Struktur Organisasi (Rektorat, Fakultas, Prodi, Biro, & Lembaga)"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
+        <div className="card" className="p-12 text-center">
+          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
           </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
+          <p className="text-slate-400 max-w-[500px] mx-auto">
             Peran Anda saat ini tidak memiliki hak akses (*permission*) untuk membaca atau mengelola Unit Kerja.
           </p>
         </div>
@@ -149,15 +149,15 @@ export default function UnitKerjaPage() {
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-6">
       <PageHeader
         title="Manajemen Unit Kerja & SOTK Kampus"
         description="Kelola Struktur Organisasi (Rektorat, Fakultas, Prodi, Biro, & Lembaga)"
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Daftar Unit Kerja ({unitList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold">Daftar Unit Kerja ({unitList.length})</h3>
+        <div className="flex gap-3">
           <button onClick={loadData} className="btn btn-outline btn-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -170,12 +170,12 @@ export default function UnitKerjaPage() {
       </div>
 
       {/* Table Data */}
-      <div className="card" style={{ padding: '1.25rem' }}>
+      <div className="card" className="p-5">
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat unit kerja...</div>
+          <div className="p-8 text-center text-slate-400">Memuat unit kerja...</div>
         ) : unitList.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <Building2 size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
+          <div className="p-12 text-center text-slate-400">
+            <Building2 size={48} className="mx-auto mb-4 opacity-40" />
             <p>Belum ada data unit kerja.</p>
           </div>
         ) : (
@@ -188,16 +188,16 @@ export default function UnitKerjaPage() {
                   <th>Tipe Unit</th>
                   <th>Unit Induk</th>
                   <th>Status</th>
-                  {(canUpdate || canDelete) && <th style={{ textAlign: 'right' }}>Aksi</th>}
+                  {(canUpdate || canDelete) && <th className="text-right">Aksi</th>}
                 </tr>
               </thead>
               <tbody>
                 {unitList.map((unit) => (
                   <tr key={unit.id}>
-                    <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#4f46e5' }}>{unit.kode}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{unit.nama}</td>
+                    <td className="font-mono font-bold text-primary-600">{unit.kode}</td>
+                    <td className="font-bold">{unit.nama}</td>
                     <td>
-                      <span className="badge badge-purple" style={{ textTransform: 'uppercase' }}>
+                      <span className="badge badge-purple" className="uppercase">
                         {unit.tipe}
                       </span>
                     </td>
@@ -208,15 +208,15 @@ export default function UnitKerjaPage() {
                       </span>
                     </td>
                     {(canUpdate || canDelete) && (
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="text-right">
                         {canUpdate && (
                           <button onClick={() => handleOpenEdit(unit)} className="btn btn-ghost btn-icon btn-sm" title="Edit">
-                            <Edit2 size={16} color="#4f46e5" />
+                            <Edit2 size={16} color="var(--primary-600)" />
                           </button>
                         )}
                         {canDelete && (
                           <button onClick={() => handleDelete(unit.id, unit.nama)} className="btn btn-ghost btn-icon btn-sm" title="Hapus">
-                            <Trash2 size={16} color="#ef4444" />
+                            <Trash2 size={16} color="var(--danger)" />
                           </button>
                         )}
                       </td>
@@ -242,8 +242,8 @@ export default function UnitKerjaPage() {
             </>
           }
         >
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="grid grid-cols-[1fr_2fr] gap-4">
               <Input
                 label="Kode Unit"
                 value={formData.kode}

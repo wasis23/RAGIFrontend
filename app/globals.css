@@ -2329,6 +2329,88 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
 }
 
+.simpeg-grid-2col {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(360px, 2fr);
+  gap: 1.5rem;
+}
+
+.simpeg-bio-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.simpeg-bio-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--primary-100);
+  color: var(--primary-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.simpeg-bio-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  font-size: 0.875rem;
+}
+
+.simpeg-bio-label {
+  color: var(--text-muted);
+  display: block;
+  font-size: 0.75rem;
+}
+
+.quick-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.quick-nav-card {
+  padding: 1.5rem;
+  height: 100%;
+  transition: all 0.2s ease;
+}
+
+.doc-preview {
+  position: relative;
+  height: 250px;
+  background: #1e293b;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: white;
+}
+
+.doc-preview-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-25deg);
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: rgba(239, 68, 68, 0.25);
+  pointer-events: none;
+  white-space: pre-wrap;
+  text-align: center;
+  padding: 1rem;
+  line-height: 1.6;
+}
+
 .json-pre {
   background: var(--gray-900);
   color: #38bdf8;

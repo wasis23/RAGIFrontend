@@ -125,17 +125,17 @@ export default function DokumenPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="animate-fade-in" className="flex flex-col gap-6">
         <PageHeader
           title="Manajemen Dokumen E-File Digital"
           description="Arsip Surat Keputusan (SK), Ijazah, Transkrip, KTP, KK, dan Sertifikat Kepegawaian"
         />
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ShieldAlert size={56} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: '#991b1b' }}>
+        <div className="card" className="p-12 text-center">
+          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
           </h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 500, margin: '0 auto' }}>
+          <p className="text-slate-400 max-w-[500px] mx-auto">
             Peran Anda tidak memiliki permission untuk membaca Arsip Dokumen E-File.
           </p>
         </div>
@@ -144,15 +144,15 @@ export default function DokumenPage() {
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-6">
       <PageHeader
         title="Manajemen Dokumen E-File Digital"
         description="Arsip Surat Keputusan (SK), Ijazah, Transkrip, KTP, KK, dan Sertifikat Kepegawaian"
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Dokumen Digital ({dokumenList.length})</h3>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-bold">Dokumen Digital ({dokumenList.length})</h3>
+        <div className="flex gap-3">
           <button onClick={loadDokumen} className="btn btn-outline btn-sm">
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
@@ -164,12 +164,12 @@ export default function DokumenPage() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: '1.25rem' }}>
+      <div className="card" className="p-5">
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Memuat berkas E-File...</div>
+          <div className="p-8 text-center text-slate-400">Memuat berkas E-File...</div>
         ) : dokumenList.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <FileText size={48} style={{ margin: '0 auto 1rem', opacity: 0.4 }} />
+          <div className="p-12 text-center text-slate-400">
+            <FileText size={48} className="mx-auto mb-4 opacity-40" />
             <p>Belum ada dokumen digital yang diunggah.</p>
           </div>
         ) : (
@@ -182,32 +182,32 @@ export default function DokumenPage() {
                   <th>Jenis Dokumen</th>
                   <th>Ukuran</th>
                   <th>Proteksi Keamanan</th>
-                  <th style={{ textAlign: 'right' }}>Aksi</th>
+                  <th className="text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {dokumenList.map((doc) => (
                   <tr key={doc.id}>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{doc.nama_dokumen}</td>
+                    <td className="font-bold">{doc.nama_dokumen}</td>
                     <td>{doc.pegawai?.nama_lengkap || `Pegawai ID ${doc.pegawai_id}`}</td>
                     <td>
-                      <span className="badge badge-purple" style={{ textTransform: 'uppercase' }}>
+                      <span className="badge badge-purple" className="uppercase">
                         {doc.jenis_dokumen}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{doc.file_size || '1.2 MB'}</td>
+                    <td className="text-slate-400 text-[0.8125rem]">{doc.file_size || '1.2 MB'}</td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: '0.75rem', fontWeight: 600 }}>
+                      <div className="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold">
                         <ShieldCheck size={14} /> Encrypted Watermark
                       </div>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="text-right">
                       <button onClick={() => handlePreviewSecure(doc.id)} className="btn btn-ghost btn-icon btn-sm" title="Pratinjau Terproteksi">
-                        <Eye size={16} color="#4f46e5" />
+                        <Eye size={16} color="var(--primary-600)" />
                       </button>
                       {canDelete && (
                         <button onClick={() => handleDelete(doc.id, doc.nama_dokumen)} className="btn btn-ghost btn-icon btn-sm" title="Hapus Dokumen">
-                          <Trash2 size={16} color="#ef4444" />
+                          <Trash2 size={16} color="var(--danger)" />
                         </button>
                       )}
                     </td>
@@ -232,7 +232,7 @@ export default function DokumenPage() {
             </>
           }
         >
-          <form onSubmit={handleUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <form onSubmit={handleUploadSubmit} className="flex flex-col gap-4">
             <Input
               label="Judul / Nama Dokumen"
               value={formUpload.nama_dokumen}
@@ -268,46 +268,17 @@ export default function DokumenPage() {
         footer={<Button variant="secondary" onClick={() => setShowModalPreview(false)}>Tutup Viewer</Button>}
       >
         {previewData && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>{previewData.nama_dokumen}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Status Keamanan: {previewData.security_status}</div>
+          <div className="flex flex-col gap-4">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <div className="font-bold mb-1">{previewData.nama_dokumen}</div>
+              <div className="text-xs text-slate-500">Status Keamanan: {previewData.security_status}</div>
             </div>
-            <div
-              style={{
-                position: 'relative',
-                height: 250,
-                background: '#1e293b',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                color: 'white',
-              }}
-            >
-              <div style={{ textAlign: 'center', zIndex: 2 }}>
-                <FileText size={48} style={{ opacity: 0.6, margin: '0 auto 0.5rem' }} />
-                <p style={{ fontSize: '0.875rem' }}>Pratinjau PDF Terenkripsi</p>
+            <div className="doc-preview">
+              <div className="text-center z-[2]">
+                <FileText size={48} className="opacity-60 mx-auto mb-2" />
+                <p className="text-sm">Pratinjau PDF Terenkripsi</p>
               </div>
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transform: 'rotate(-25deg)',
-                  fontSize: '0.95rem',
-                  fontWeight: 900,
-                  color: 'rgba(239, 68, 68, 0.25)',
-                  pointerEvents: 'none',
-                  whiteSpace: 'pre-wrap',
-                  textAlign: 'center',
-                  padding: '1rem',
-                  lineHeight: 1.6,
-                }}
-              >
+              <div className="doc-preview-watermark">
                 {previewData.watermark_overlay}
               </div>
             </div>
