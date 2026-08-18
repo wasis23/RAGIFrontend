@@ -194,7 +194,7 @@ export default function AdminPermissionsPage() {
   ];
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Manajemen Hak Akses (Permissions Table)"
         description="Daftar granular permission untuk setiap modul aplikasi (Tabel: permissions)"

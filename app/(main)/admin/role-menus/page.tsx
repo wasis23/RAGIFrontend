@@ -175,7 +175,7 @@ export default function AdminRoleMenusPage() {
   };
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Pemetaan Role ↔ Akses Menu"
         description="Atur menu navigasi apa saja yang dapat dilihat dan diakses oleh setiap role."
@@ -187,7 +187,7 @@ export default function AdminRoleMenusPage() {
       />
 
       {/* Filters Section */}
-      <div className="card" className="p-5">
+      <div className="card p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select
             label="Pilih Role Pengguna"
@@ -224,7 +224,7 @@ export default function AdminRoleMenusPage() {
 
             return (
               <div key={mod.id} className="card">
-                <div className="card-header" className="flex justify-between items-center bg-slate-50">
+                <div className="card-header flex justify-between items-center bg-slate-50">
                   <div className="flex items-center gap-3">
                     <span className="badge badge-blue">{mod.code.toUpperCase()}</span>
                     <h4 className="text-[1.0625rem] font-bold m-0">Menu Aplikasi {mod.name}</h4>

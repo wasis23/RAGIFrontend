@@ -89,7 +89,7 @@ export default function AdminAuditLogsPage() {
   ];
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Audit Log Keamanan (Audit Logs Table)"
         description="Jejak audit otomatis seluruh peristiwa autentikasi & perubahan data (Tabel: audit_logs)"

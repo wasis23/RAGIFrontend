@@ -138,7 +138,7 @@ export default function AdminSessionsPage() {
   ];
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Monitor Sesi Perangkat Global (Global Sessions Table)"
         description="Pantau seluruh sesi aktif di universitas dan lakukan Force Logout jika diperlukan (Tabel: user_sessions)"

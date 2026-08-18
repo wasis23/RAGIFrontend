@@ -125,12 +125,12 @@ export default function DokumenPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" className="flex flex-col gap-6">
+      <div className="animate-fade-in flex flex-col gap-6">
         <PageHeader
           title="Manajemen Dokumen E-File Digital"
           description="Arsip Surat Keputusan (SK), Ijazah, Transkrip, KTP, KK, dan Sertifikat Kepegawaian"
         />
-        <div className="card" className="p-12 text-center">
+        <div className="card p-12 text-center">
           <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
@@ -144,7 +144,7 @@ export default function DokumenPage() {
   }
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-6">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Manajemen Dokumen E-File Digital"
         description="Arsip Surat Keputusan (SK), Ijazah, Transkrip, KTP, KK, dan Sertifikat Kepegawaian"
@@ -164,7 +164,7 @@ export default function DokumenPage() {
         </div>
       </div>
 
-      <div className="card" className="p-5">
+      <div className="card p-5">
         {loading ? (
           <div className="p-8 text-center text-slate-400">Memuat berkas E-File...</div>
         ) : dokumenList.length === 0 ? (
@@ -191,7 +191,7 @@ export default function DokumenPage() {
                     <td className="font-bold">{doc.nama_dokumen}</td>
                     <td>{doc.pegawai?.nama_lengkap || `Pegawai ID ${doc.pegawai_id}`}</td>
                     <td>
-                      <span className="badge badge-purple" className="uppercase">
+                      <span className="badge badge-purple uppercase">
                         {doc.jenis_dokumen}
                       </span>
                     </td>

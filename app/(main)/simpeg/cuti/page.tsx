@@ -124,12 +124,12 @@ export default function CutiPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" className="flex flex-col gap-6">
+      <div className="animate-fade-in flex flex-col gap-6">
         <PageHeader
           title="Layanan & Pengajuan Cuti Pegawai"
           description="Permohonan Cuti Tahunan, Sakit, Alasan Penting, Melahirkan, dan Approval SDM"
         />
-        <div className="card" className="p-12 text-center">
+        <div className="card p-12 text-center">
           <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
@@ -143,7 +143,7 @@ export default function CutiPage() {
   }
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-6">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Layanan & Pengajuan Cuti Pegawai"
         description="Permohonan Cuti Tahunan, Sakit, Alasan Penting, Melahirkan, dan Approval SDM"
@@ -163,7 +163,7 @@ export default function CutiPage() {
         </div>
       </div>
 
-      <div className="card" className="p-5">
+      <div className="card p-5">
         {loading ? (
           <div className="p-8 text-center text-slate-400">Memuat permohonan cuti...</div>
         ) : cutiList.length === 0 ? (
@@ -192,7 +192,7 @@ export default function CutiPage() {
                       {cuti.pegawai?.nama_lengkap || `Pegawai ID ${cuti.pegawai_id}`}
                     </td>
                     <td>
-                      <span className="badge badge-purple" className="uppercase">
+                      <span className="badge badge-purple uppercase">
                         {(cuti.jenis_cuti || 'tahunan').replace('_', ' ')}
                       </span>
                     </td>
@@ -217,8 +217,7 @@ export default function CutiPage() {
                       <td className="text-right">
                         <button
                           onClick={() => handleOpenApprovalModal(cuti)}
-                          className="btn btn-outline btn-sm"
-                          className="text-xs"
+                          className="btn btn-outline btn-sm text-xs"
                         >
                           Proses SDM
                         </button>

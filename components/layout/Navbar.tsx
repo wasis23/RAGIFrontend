@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Menu, LogOut, User, Shield, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUiStore } from '@/store/uiStore';
-import { UserTypeBadge } from '@/components/ui/Badge';
 
 import { AppLauncher } from '@/components/layout/AppLauncher';
 

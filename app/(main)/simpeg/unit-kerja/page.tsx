@@ -130,12 +130,12 @@ export default function UnitKerjaPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" className="flex flex-col gap-6">
+      <div className="animate-fade-in flex flex-col gap-6">
         <PageHeader
           title="Manajemen Unit Kerja & SOTK Kampus"
           description="Kelola Struktur Organisasi (Rektorat, Fakultas, Prodi, Biro, & Lembaga)"
         />
-        <div className="card" className="p-12 text-center">
+        <div className="card p-12 text-center">
           <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
@@ -149,7 +149,7 @@ export default function UnitKerjaPage() {
   }
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-6">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Manajemen Unit Kerja & SOTK Kampus"
         description="Kelola Struktur Organisasi (Rektorat, Fakultas, Prodi, Biro, & Lembaga)"
@@ -170,7 +170,7 @@ export default function UnitKerjaPage() {
       </div>
 
       {/* Table Data */}
-      <div className="card" className="p-5">
+      <div className="card p-5">
         {loading ? (
           <div className="p-8 text-center text-slate-400">Memuat unit kerja...</div>
         ) : unitList.length === 0 ? (
@@ -197,7 +197,7 @@ export default function UnitKerjaPage() {
                     <td className="font-mono font-bold text-primary-600">{unit.kode}</td>
                     <td className="font-bold">{unit.nama}</td>
                     <td>
-                      <span className="badge badge-purple" className="uppercase">
+                      <span className="badge badge-purple uppercase">
                         {unit.tipe}
                       </span>
                     </td>

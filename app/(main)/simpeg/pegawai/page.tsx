@@ -180,12 +180,12 @@ export default function PegawaiPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" className="flex flex-col gap-6">
+      <div className="animate-fade-in flex flex-col gap-6">
         <PageHeader
           title="Data Pegawai (Dosen & Tendik)"
           description="Direktori Profil, NIP, NIDN, Jabatan, dan Status Kepegawaian Kampus"
         />
-        <div className="card" className="p-12 text-center">
+        <div className="card p-12 text-center">
           <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
@@ -199,7 +199,7 @@ export default function PegawaiPage() {
   }
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-6">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Data Pegawai (Dosen & Tendik)"
         description="Direktori Profil, NIP, NIDN, Jabatan, dan Status Kepegawaian Kampus"
@@ -261,7 +261,7 @@ export default function PegawaiPage() {
           </div>
 
           {/* Table Data for Admin */}
-          <div className="card" className="p-5">
+          <div className="card p-5">
             {loading ? (
               <div className="p-8 text-center text-slate-400">Memuat data pegawai...</div>
             ) : pegawaiList.length === 0 ? (
@@ -295,7 +295,7 @@ export default function PegawaiPage() {
                         </td>
                         <td>
                           <div className="flex flex-col gap-0.5">
-                            <span className={`badge ${peg.jenis_pegawai === 'dosen' ? 'badge-purple' : 'badge-blue'}`} className="uppercase w-fit">
+                            <span className={`badge uppercase w-fit ${peg.jenis_pegawai === 'dosen' ? 'badge-purple' : 'badge-blue'}`}>
                               {peg.jenis_pegawai}
                             </span>
                             <span className="text-xs text-slate-500">{peg.status_kepegawaian.replace('_', ' ')}</span>
@@ -337,11 +337,11 @@ export default function PegawaiPage() {
         /* Personal Biodata & Jabatan View for Non-Admin Dosen/Tendik (No Table, No Filters) */
         <div className="flex flex-col gap-6">
           {loading ? (
-            <div className="card" className="p-12 text-center text-slate-400">
+            <div className="card p-12 text-center text-slate-400">
               Memuat profil biodata Anda...
             </div>
           ) : pegawaiList.length === 0 ? (
-            <div className="card" className="p-12 text-center text-slate-400">
+            <div className="card p-12 text-center text-slate-400">
               Data pegawai belum terdaftar di sistem.
             </div>
           ) : (
@@ -369,8 +369,7 @@ export default function PegawaiPage() {
 
                       <button
                         onClick={() => handleOpenEditModal(peg)}
-                        className="btn btn-secondary btn-sm"
-                        className="bg-white text-primary-600 border-none font-bold"
+                        className="btn btn-secondary btn-sm bg-white text-primary-600 border-none font-bold"
                       >
                         <Edit2 size={16} /> Edit Kontak & Biodata
                       </button>
@@ -381,7 +380,7 @@ export default function PegawaiPage() {
                   <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6">
                     
                     {/* Card 1: Biodata & Identitas Utama */}
-                    <div className="card" className="p-6">
+                    <div className="card p-6">
                       <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
                         <Users size={20} color="var(--primary-600)" />
                         <h3 className="text-lg font-bold m-0">
@@ -454,7 +453,7 @@ export default function PegawaiPage() {
                     </div>
 
                     {/* Card 2: Riwayat Jabatan & Jabatan Fungsional (Jafung) */}
-                    <div className="card" className="p-6">
+                    <div className="card p-6">
                       <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
                         <Building2 size={20} color="var(--primary-600)" />
                         <h3 className="text-lg font-bold m-0">

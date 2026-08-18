@@ -272,7 +272,7 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Manajemen Pengguna (Users Table)"
         description="Kelola akun, role, dan hak akses pengguna ekosistem kampus (Tabel: users)"

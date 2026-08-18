@@ -162,7 +162,7 @@ export default function AdminUserRolesPage() {
           <span className="text-[0.8125rem] text-slate-400">Tanpa Role</span>
         ) : (
           row.roles.map((r) => (
-            <span key={r.id} className="badge badge-blue" className="inline-flex items-center gap-1">
+            <span key={r.id} className="badge badge-blue inline-flex items-center gap-1">
               <ShieldAlert size={12} /> {r.name}
             </span>
           ))
@@ -187,7 +187,7 @@ export default function AdminUserRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Penugasan Role Pengguna (User-Roles Table)"
         description="Hubungkan pengguna dengan satu atau lebih role sesuai wewenang (Tabel: user_roles)"

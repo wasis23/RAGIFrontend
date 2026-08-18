@@ -161,12 +161,12 @@ export default function JabatanPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" className="flex flex-col gap-6">
+      <div className="animate-fade-in flex flex-col gap-6">
         <PageHeader
           title="Manajemen Jabatan & Jafung Dosen"
           description="Kelola daftar Jabatan Struktural/Teknis serta Jabatan Fungsional Akademik Dosen"
         />
-        <div className="card" className="p-12 text-center">
+        <div className="card p-12 text-center">
           <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
@@ -180,7 +180,7 @@ export default function JabatanPage() {
   }
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-6">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Manajemen Jabatan & Jafung Dosen"
         description="Kelola daftar Jabatan Struktural/Teknis serta Jabatan Fungsional Akademik Dosen"
@@ -234,7 +234,7 @@ export default function JabatanPage() {
 
       {/* Tab 1: Jabatan */}
       {activeTab === 'jabatan' && (
-        <div className="card" className="p-5">
+        <div className="card p-5">
           {loading ? (
             <div className="p-8 text-center text-slate-400">Memuat data jabatan...</div>
           ) : (
@@ -255,7 +255,7 @@ export default function JabatanPage() {
                     <tr key={j.id}>
                       <td className="font-bold">{j.nama}</td>
                       <td>
-                        <span className="badge badge-purple" className="uppercase">
+                        <span className="badge badge-purple uppercase">
                           {j.tipe}
                         </span>
                       </td>
@@ -291,7 +291,7 @@ export default function JabatanPage() {
 
       {/* Tab 2: Jafung */}
       {activeTab === 'jafung' && (
-        <div className="card" className="p-5">
+        <div className="card p-5">
           {loading ? (
             <div className="p-8 text-center text-slate-400">Memuat master Jafung...</div>
           ) : (
@@ -310,7 +310,7 @@ export default function JabatanPage() {
                     <tr key={jf.id}>
                       <td className="font-bold">{jf.nama}</td>
                       <td>
-                        <span className="badge badge-blue" className="uppercase">
+                        <span className="badge badge-blue uppercase">
                           {jf.golongan.replace('_', ' ')}
                         </span>
                       </td>

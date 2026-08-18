@@ -86,12 +86,12 @@ export default function KinerjaPage() {
 
   if (!canRead) {
     return (
-      <div className="animate-fade-in" className="flex flex-col gap-6">
+      <div className="animate-fade-in flex flex-col gap-6">
         <PageHeader
           title="Penilaian Kinerja Pegawai (SKP & BKD)"
           description="Evaluasi Kinerja Tahunan SKP PNS/Non-PNS & Laporan Beban Kerja Dosen (BKD)"
         />
-        <div className="card" className="p-12 text-center">
+        <div className="card p-12 text-center">
           <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2 text-red-700">
             Akses Ditolak / Dibatasi
@@ -105,7 +105,7 @@ export default function KinerjaPage() {
   }
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-6">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Penilaian Kinerja Pegawai (SKP & BKD)"
         description="Evaluasi Kinerja Tahunan SKP PNS/Non-PNS & Laporan Beban Kerja Dosen (BKD)"
@@ -125,7 +125,7 @@ export default function KinerjaPage() {
         </div>
       </div>
 
-      <div className="card" className="p-5">
+      <div className="card p-5">
         {loading ? (
           <div className="p-8 text-center text-slate-400">Memuat evaluasi kinerja...</div>
         ) : kinerjaList.length === 0 ? (
@@ -158,7 +158,7 @@ export default function KinerjaPage() {
                     <td className="font-bold text-primary-600">{k.nilai_skp} / 100</td>
                     <td className="font-bold text-emerald-600">{k.nilai_bkd ? `${k.nilai_bkd} SKS` : '-'}</td>
                     <td>
-                      <span className="badge badge-green" className="uppercase">
+                      <span className="badge badge-green uppercase">
                         {k.predikat.replace('_', ' ')}
                       </span>
                     </td>

@@ -174,7 +174,7 @@ export default function AdminModulePage() {
   ];
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Master Modul Aplikasi"
         description="Mengelola modul aplikasi yang tersedia di ekosistem kampus (seperti SSO, SPMB, dll)."

@@ -198,7 +198,7 @@ export default function AdminRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in" className="flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-7">
       <PageHeader
         title="Manajemen Role Akses (Roles Table)"
         description="Definisikan struktur peran pengguna dalam ekosistem kampus (Tabel: roles)"
