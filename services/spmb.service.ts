@@ -63,32 +63,52 @@ export interface PendaftaranCalonMhs {
   telepon_wali?: string;
   status: 'draft' | 'submitted' | 'verified' | 'lulus_administrasi' | 'gagal_administrasi';
   gelombang_penerimaan?: GelombangPenerimaan;
+  dokumen_pendaftaran?: PendaftaranBerkas[];
+}
+
+export interface PendaftaranBerkas {
+  id: number;
+  pendaftaran_id: number;
+  jenis_dokumen: string;
+  file_path: string;
+  is_verified: boolean;
+  catatan?: string;
 }
 
 export const spmbService = {
   // Master Data
   getJalurMasuk: async () => {
-    const response = await api.get('/spmb/jalur-masuk');
+    const response = await api.get('/spmb/jalur');
+    return response.data;
+  },
+
+  getJalurMasukById: async (id: number) => {
+    const response = await api.get(`/spmb/jalur/${id}`);
     return response.data;
   },
 
   createJalurMasuk: async (data: Partial<JalurMasuk>) => {
-    const response = await api.post('/spmb/jalur-masuk', data);
+    const response = await api.post('/spmb/jalur', data);
     return response.data;
   },
 
   updateJalurMasuk: async (id: number, data: Partial<JalurMasuk>) => {
-    const response = await api.put(`/spmb/jalur-masuk/${id}`, data);
+    const response = await api.put(`/spmb/jalur/${id}`, data);
     return response.data;
   },
 
   deleteJalurMasuk: async (id: number) => {
-    const response = await api.delete(`/spmb/jalur-masuk/${id}`);
+    const response = await api.delete(`/spmb/jalur/${id}`);
     return response.data;
   },
   
   getGelombang: async () => {
     const response = await api.get('/spmb/gelombang');
+    return response.data;
+  },
+
+  getGelombangById: async (id: number) => {
+    const response = await api.get(`/spmb/gelombang/${id}`);
     return response.data;
   },
 
@@ -132,19 +152,24 @@ export const spmbService = {
     return response.data;
   },
 
-  // Admin Seleksi
-  getPendaftar: async (params?: { status?: string; gelombang_id?: number; page?: number }) => {
-    const response = await api.get('/spmb/pendaftar', { params });
+  // Admin Pendaftaran
+  getPendaftaran: async (params?: { search?: string; status?: string; order_by?: string; order_dir?: string; page?: number; per_page?: number }) => {
+    const response = await api.get('/spmb/pendaftaran', { params });
     return response.data;
   },
 
-  verifikasiPendaftar: async (id: number, data: { is_lulus: boolean; catatan?: string }) => {
-    const response = await api.post(`/spmb/pendaftar/${id}/verifikasi`, data);
+  getPendaftaranDetail: async (id: number) => {
+    const response = await api.get(`/spmb/pendaftaran/${id}`);
     return response.data;
   },
 
-  tetapkanKelulusan: async (id: number, data: { status: string; nilai_total: number; program_studi_diterima_id?: number; peringkat?: number; catatan?: string }) => {
-    const response = await api.post(`/spmb/pendaftar/${id}/kelulusan`, data);
+  verifyBerkasPendaftaran: async (id: number, data: { is_verified: boolean; catatan?: string }) => {
+    const response = await api.post(`/spmb/pendaftaran/berkas/${id}/verify`, data);
+    return response.data;
+  },
+
+  updateStatusPendaftaran: async (id: number, data: { status: string; catatan_verifikasi?: string }) => {
+    const response = await api.post(`/spmb/pendaftaran/${id}/status`, data);
     return response.data;
   },
 };

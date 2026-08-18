@@ -11,14 +11,13 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { useForm } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 
 export default function MasterGelombangPage() {
+  const router = useRouter();
   const [data, setData] = useState<GelombangPenerimaan[]>([]);
   const [jalurList, setJalurList] = useState<JalurMasuk[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [showFilter, setShowFilter] = useState(false);
   const [filterName, setFilterName] = useState('');
@@ -34,8 +33,6 @@ export default function MasterGelombangPage() {
     orderBy: 'id',
     orderDir: 'desc'
   });
-
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<Partial<GelombangPenerimaan>>();
 
   const fetchData = async () => {
     try {
@@ -62,51 +59,6 @@ export default function MasterGelombangPage() {
     fetchData();
     fetchJalur();
   }, []);
-
-  const openAddDrawer = () => {
-    setEditingId(null);
-    reset({
-      jalur_masuk_id: undefined,
-      tahun_akademik_id: 1, // Dummy default
-      nama: '',
-      tanggal_buka: '',
-      tanggal_tutup: '',
-      tanggal_ujian: '',
-      tanggal_pengumuman: '',
-      kuota_total: 100,
-      biaya_pendaftaran: 250000,
-      status: 'draft',
-    });
-    setIsDrawerOpen(true);
-  };
-
-  const openEditDrawer = (row: GelombangPenerimaan) => {
-    setEditingId(row.id);
-    reset({
-      ...row,
-      tanggal_buka: row.tanggal_buka ? row.tanggal_buka.substring(0, 10) : '',
-      tanggal_tutup: row.tanggal_tutup ? row.tanggal_tutup.substring(0, 10) : '',
-      tanggal_ujian: row.tanggal_ujian ? row.tanggal_ujian.substring(0, 10) : '',
-      tanggal_pengumuman: row.tanggal_pengumuman ? row.tanggal_pengumuman.substring(0, 10) : '',
-    });
-    setIsDrawerOpen(true);
-  };
-
-  const onSubmit = async (formData: Partial<GelombangPenerimaan>) => {
-    try {
-      if (editingId) {
-        await spmbService.updateGelombang(editingId, formData);
-        toast.success('Gelombang berhasil diperbarui');
-      } else {
-        await spmbService.createGelombang(formData);
-        toast.success('Gelombang berhasil ditambahkan');
-      }
-      setIsDrawerOpen(false);
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Gagal menyimpan data');
-    }
-  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Apakah Anda yakin ingin menghapus gelombang ini?')) return;
@@ -151,7 +103,7 @@ export default function MasterGelombangPage() {
         description="Kelola jadwal dan gelombang pendaftaran SPMB"
         action={
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <Button icon={<Plus size={16} />} onClick={openAddDrawer}>
+            <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/gelombang/create')}>
               Tambah Gelombang
             </Button>
             <Button 
@@ -170,116 +122,32 @@ export default function MasterGelombangPage() {
             loading={loading}
             columns={[
               { key: 'nama', label: 'Nama Gelombang', sortable: true },
-              { key: 'jalur', label: 'Jalur Masuk', render: (_, row) => row.jalur_masuk?.nama },
-              { key: 'tanggal', label: 'Periode Pendaftaran', render: (_, row) => (
+              { key: 'jalur', label: 'Jalur Masuk', render: (row) => row.jalur_masuk?.nama },
+              { key: 'tanggal', label: 'Periode Pendaftaran', render: (row) => (
                 <span className="text-sm">
                   {new Date(row.tanggal_buka).toLocaleDateString('id-ID')} - {new Date(row.tanggal_tutup).toLocaleDateString('id-ID')}
                 </span>
               )},
-              { key: 'kuota_total', label: 'Kuota', render: (val, row) => `${row.kuota_terisi || 0} / ${val}` },
-              { key: 'biaya_pendaftaran', label: 'Biaya', render: (val) => `Rp ${(Number(val) || 0).toLocaleString('id-ID')}` },
-              { key: 'status', label: 'Status', render: (val) => {
+              { key: 'kuota_total', label: 'Kuota', render: (row) => `${row.kuota_terisi || 0} / ${row.kuota_total}` },
+              { key: 'biaya_pendaftaran', label: 'Biaya', render: (row) => `Rp ${(Number(row.biaya_pendaftaran) || 0).toLocaleString('id-ID')}` },
+              { key: 'status', label: 'Status', render: (row) => {
                 const colors: any = {
                   'draft': { bg: 'var(--bg-light)', color: 'var(--text-secondary)' },
                   'aktif': { bg: 'var(--success-light)', color: 'var(--success-dark)' },
                   'ditutup': { bg: 'var(--warning-light)', color: 'var(--warning-dark)' },
                   'selesai': { bg: 'var(--primary-100)', color: 'var(--primary-700)' },
                 };
-                const style = colors[val] || colors['draft'];
-                return <span style={{ display: 'inline-block', background: style.bg, color: style.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{val}</span>;
+                const style = colors[row.status] || colors['draft'];
+                return <span style={{ display: 'inline-block', background: style.bg, color: style.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>{row.status}</span>;
               }},
-              { key: 'actions', label: 'Aksi', align: 'right', render: (_, row) => (
+              { key: 'actions', label: 'Aksi', align: 'right', render: (row) => (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <Button variant="ghost" size="sm" icon={<Edit size={14} />} onClick={() => openEditDrawer(row)} />
+                  <Button variant="ghost" size="sm" icon={<Edit size={14} />} onClick={() => router.push(`/spmb/master/gelombang/${row.id}/edit`)} />
                   <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => handleDelete(row.id)} />
                 </div>
               )}
             ]}
           />
-
-      <Drawer 
-        isOpen={isDrawerOpen} 
-        onClose={() => setIsDrawerOpen(false)} 
-        title={editingId ? 'Edit Gelombang' : 'Tambah Gelombang'}
-        position="right"
-        size="md"
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-4">
-          <div className="form-control">
-            <label className="label">Jalur Masuk *</label>
-            <select className="select select-bordered" {...register('jalur_masuk_id', { required: true })}>
-              <option value="">Pilih Jalur...</option>
-              {jalurList.map((j) => (
-                <option key={j.id} value={j.id}>{j.nama}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-control">
-            <label className="label">Nama Gelombang *</label>
-            <input 
-              type="text" 
-              className="input input-bordered" 
-              {...register('nama', { required: true })} 
-              placeholder="Contoh: Gelombang 1 - Prestasi"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="form-control">
-              <label className="label">Tgl Buka Pendaftaran *</label>
-              <input type="date" className="input input-bordered" {...register('tanggal_buka', { required: true })} />
-            </div>
-            <div className="form-control">
-              <label className="label">Tgl Tutup Pendaftaran *</label>
-              <input type="date" className="input input-bordered" {...register('tanggal_tutup', { required: true })} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="form-control">
-              <label className="label">Tgl Ujian</label>
-              <input type="date" className="input input-bordered" {...register('tanggal_ujian')} />
-            </div>
-            <div className="form-control">
-              <label className="label">Tgl Pengumuman</label>
-              <input type="date" className="input input-bordered" {...register('tanggal_pengumuman')} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="form-control">
-              <label className="label">Kuota Pendaftar *</label>
-              <input type="number" className="input input-bordered" {...register('kuota_total', { required: true, min: 1 })} />
-            </div>
-            <div className="form-control">
-              <label className="label">Biaya Pendaftaran (Rp) *</label>
-              <input type="number" className="input input-bordered" {...register('biaya_pendaftaran', { required: true, min: 0 })} />
-              <label className="label">
-                <span className="label-text-alt text-gray-500">Nilai ini digunakan sebagai tarif tagihan SPMB.</span>
-              </label>
-            </div>
-          </div>
-          
-          <div className="form-control">
-            <label className="label">Status</label>
-            <select className="select select-bordered" {...register('status', { required: true })}>
-              <option value="draft">Draft (Belum Dibuka)</option>
-              <option value="aktif">Aktif (Sedang Berjalan)</option>
-              <option value="ditutup">Ditutup (Pendaftaran Berakhir)</option>
-              <option value="selesai">Selesai (Sudah Pengumuman)</option>
-            </select>
-          </div>
-          
-          {/* Hidden academic year ID for now since we don't have Siakad integrated yet in this context */}
-          <input type="hidden" {...register('tahun_akademik_id')} value={1} />
-
-          <div className="flex justify-end gap-3 pt-6 border-t mt-8">
-            <button type="button" className="btn btn-ghost" onClick={() => setIsDrawerOpen(false)}>Batal</button>
-            <button type="submit" className="btn btn-primary">Simpan Gelombang</button>
-          </div>
-        </form>
-      </Drawer>
 
       <Drawer
         open={showFilter}

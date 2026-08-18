@@ -1,9 +1,42 @@
 'use client';
 
-import { Users, FileText, CheckCircle, XCircle, TrendingUp, Calendar, Award, ArrowRight, Activity, BookOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, FileText, CheckCircle, XCircle, TrendingUp, Calendar, Award, ArrowRight, Activity, BookOpen, Download } from 'lucide-react';
 import Link from 'next/link';
+import api from '@/lib/axios';
+import toast from 'react-hot-toast';
 
 export default function SPMBDashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get('/spmb/laporan/statistik');
+      setStats(res.data.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      const response = await api.get('/spmb/laporan/export-csv', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'Laporan_Pendaftar_SPMB.csv');
+      document.body.appendChild(link);
+      link.click();
+      toast.success('Laporan CSV berhasil diunduh!');
+    } catch (error) {
+      toast.error('Gagal mengunduh laporan CSV.');
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12 animate-fade-in">
       {/* Hero Banner with Gradient */}
@@ -26,9 +59,9 @@ export default function SPMBDashboardPage() {
             <Link href="/spmb/master/gelombang" className="btn bg-white text-indigo-700 hover:bg-sky-50 border-none shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6">
               Kelola Gelombang
             </Link>
-            <Link href="/spmb/master/jalur" className="btn bg-indigo-500/30 text-white hover:bg-indigo-500/50 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6">
-              Lihat Jalur Masuk
-            </Link>
+            <button onClick={handleExportCsv} className="btn bg-indigo-500/30 text-white hover:bg-indigo-500/50 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl px-6 flex items-center gap-2">
+              <Download size={18} /> Export Laporan CSV
+            </button>
           </div>
         </div>
       </div>

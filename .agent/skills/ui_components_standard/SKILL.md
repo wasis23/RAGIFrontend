@@ -36,6 +36,12 @@ Proyek ini **TIDAK** menggunakan pendekatan utility-first Tailwind murni (sepert
      - **Jangan pernah menggunakan tag `<select>` mentah** karena merusak standar desain dan tidak memiliki *search*.
      - Untuk data statis atau jumlah opsi yang sedikit, gunakan **`<Select>`** dari `components/ui/Select.tsx`. Komponen ini berbasis `react-select` sehingga mendukung pencarian ketikan bawaan dan memiliki UI modern. (Contoh prop: `options={[{value: 'id', label: 'Nama'}]}`)
      - Untuk data relasi dari API atau data dengan jumlah sangat banyak, wajib menggunakan **`<AsyncSelect>`** dari `components/ui/AsyncSelect.tsx`. Komponen ini secara cerdas melakukan *fetch* data dari backend seiring dengan *user* mengetikkan pencarian. (Contoh prop: `loadOptions={loadRoleOptions}`)
+     - **ATURAN KONSISTENSI VISUAL**: Saat membuat komponen *input* kustom (seperti wrapper `react-select` baru atau *datepicker* kustom), komponen tersebut **WAJIB** meniru gaya kelas `.input` secara *pixel-perfect*:
+       1. Menggunakan tinggi minimal yang setara (`minHeight: '44px'`).
+       2. Memiliki ketebalan garis batas yang sama (`borderWidth: '1.5px'`).
+       3. Menggunakan radius sudut yang sama (`borderRadius: 'var(--radius-md)'`).
+       4. Menggunakan ukuran font yang sama (`fontSize: '0.9375rem'`).
+       5. Meniru efek ring fokus yang sama persis (`boxShadow: 0 0 0 3px rgb(59 130 246 / 0.12)`) beserta warna garis `var(--border-focus)`.
 
 ## Contoh yang BENAR
 

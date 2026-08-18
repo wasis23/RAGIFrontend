@@ -28,30 +28,34 @@ Agar halaman form yang panjang tidak terlihat berantakan atau memakan terlalu ba
 - Pengecualian: Input yang memerlukan ruang sangat lebar seperti *Textarea* panjang, Peta (Maps), atau *Rich Text Editor* boleh menempati rentang penuh (`col-span-full`).
 
 ### B. Kewajiban Tombol Kembali (Back Button)
-Halaman form terpisah wajib memiliki tombol "Kembali" atau "Batal" yang diletakkan secara sangat jelas.
-- Tombol ini diletakkan baik di *Header* halaman (sebelah kiri judul) atau di deretan tombol *Action* di bagian bawah form (berdampingan dengan tombol "Simpan").
-- Tombol wajib menggunakan *router.push* atau *router.back* Next.js, atau Link untuk kembali ke halaman daftar data asalnya.
+Halaman form terpisah wajib memiliki tombol "Kembali" yang diletakkan secara sangat jelas.
+- Tombol ini **WAJIB** diletakkan di sebelah kanan Header halaman.
+- Untuk penempatan di sisi kanan Header, Anda **WAJIB** menggunakan komponen `<PageHeader />` dan menyisipkan tombol tersebut ke dalam prop `action`.
+- Tombol "Kembali" di Header **WAJIB** berwarna oren, contohnya menggunakan class Tailwind `bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm`.
+- Selain di Header, Anda juga tetap dapat menyediakan tombol "Batal" sekunder di deretan tombol form (berdampingan dengan tombol "Simpan").
 
 ## Contoh Struktur Halaman Terpisah:
 ```tsx
 import { ArrowLeft, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function CreateDataPage() {
   const router = useRouter();
 
   return (
     <div className="space-y-6">
-      {/* HEADER & BACK BUTTON */}
-      <div className="flex items-center gap-3">
-        <button 
-          onClick={() => router.back()} 
-          className="btn btn-ghost btn-sm"
-        >
-          <ArrowLeft size={18} /> Kembali
-        </button>
-        <h1 className="text-2xl font-bold">Tambah Data Lengkap</h1>
-      </div>
+      <PageHeader 
+        title="Tambah Data Lengkap" 
+        action={
+          <button 
+            onClick={() => router.back()} 
+            className="btn bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm"
+          >
+            <ArrowLeft size={16} className="mr-2" /> Kembali
+          </button>
+        }
+      />
 
       <div className="card">
         <div className="card-body">
@@ -59,30 +63,25 @@ export default function CreateDataPage() {
             {/* GRID LAYOUT MAKS 3 KOLOM */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Field 1 */}
-              <div className="form-control">
+              <div className="form-group">
                 <label className="label">Field 1</label>
                 <input type="text" className="input" />
               </div>
               {/* Field 2 */}
-              <div className="form-control">
+              <div className="form-group">
                 <label className="label">Field 2</label>
                 <input type="text" className="input" />
               </div>
               {/* Field 3 */}
-              <div className="form-control">
+              <div className="form-group">
                 <label className="label">Field 3</label>
-                <input type="text" className="input" />
-              </div>
-              {/* Field 4 dst... */}
-              <div className="form-control">
-                <label className="label">Field 4</label>
                 <input type="text" className="input" />
               </div>
             </div>
 
             {/* ACTION BUTTONS */}
-            <div className="flex justify-end gap-3 mt-8">
-               <button type="button" onClick={() => router.back()} className="btn btn-ghost">Batal</button>
+            <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
+               <button type="button" onClick={() => router.back()} className="btn btn-ghost text-slate-600">Batal</button>
                <button type="submit" className="btn btn-primary"><Save size={18} className="mr-2" /> Simpan</button>
             </div>
           </form>
