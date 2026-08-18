@@ -149,20 +149,20 @@ export default function AdminUserRolesPage() {
   };
 
   const columns: ColumnDef<UserRoleMapping>[] = [
-    { key: 'user_id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{index + 1}</span> },
+    { key: 'user_id', label: 'No', render: (row, index) => <span className="font-bold text-slate-400">{index + 1}</span> },
     { key: 'pengguna', label: 'Pengguna', render: (row) => (
       <div>
-        <div style={{ fontWeight: 700 }}>{row.username}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.email}</div>
+        <div className="font-bold">{row.username}</div>
+        <div className="text-xs text-slate-400">{row.email}</div>
       </div>
     )},
     { key: 'roles', label: 'Role Terpasang', render: (row) => (
-      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+      <div className="flex gap-1.5 flex-wrap">
         {row.roles.length === 0 ? (
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Tanpa Role</span>
+          <span className="text-[0.8125rem] text-slate-400">Tanpa Role</span>
         ) : (
           row.roles.map((r) => (
-            <span key={r.id} className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span key={r.id} className="badge badge-blue" className="inline-flex items-center gap-1">
               <ShieldAlert size={12} /> {r.name}
             </span>
           ))
@@ -170,7 +170,7 @@ export default function AdminUserRolesPage() {
       </div>
     )},
     { key: 'created_at', label: 'Tanggal Penugasan', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <span className="text-[0.8125rem] text-slate-400">
         {formatDate(row.created_at)}
       </span>
     )},
@@ -187,13 +187,13 @@ export default function AdminUserRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Penugasan Role Pengguna (User-Roles Table)"
         description="Hubungkan pengguna dengan satu atau lebih role sesuai wewenang (Tabel: user_roles)"
         action={
           <Button 
-            style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+            variant="outline" 
             icon={<Filter size={16} />} 
             onClick={() => setShowFilter(true)}
           >
@@ -214,7 +214,7 @@ export default function AdminUserRolesPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Pengguna"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -246,7 +246,7 @@ export default function AdminUserRolesPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Cari Pengguna"
             placeholder="Ketik username atau email..."
@@ -265,7 +265,7 @@ export default function AdminUserRolesPage() {
             ]}
           />
           
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 
@@ -303,12 +303,12 @@ export default function AdminUserRolesPage() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-slate-500">
             Pilih role yang ingin dipasangkan ke akun <strong>{editingUser?.email}</strong>:
           </p>
 
-          <div style={{ minHeight: '12rem' }}>
+          <div className="min-h-48">
             <Select
               isMulti
               placeholder="Cari dan pilih role..."

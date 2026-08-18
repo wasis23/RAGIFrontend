@@ -58,21 +58,21 @@ export default function AdminAuditLogsPage() {
   };
 
   const columns: ColumnDef<ExtendedAuditLog>[] = [
-    { key: 'id', label: 'ID', render: (row) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>#{row.id}</span> },
+    { key: 'id', label: 'ID', render: (row) => <span className="font-bold text-slate-400">#{row.id}</span> },
     { key: 'created_at', label: 'Waktu Kejadian', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+      <span className="text-[0.8125rem] text-slate-500">
         {formatDateTime(row.created_at)}
       </span>
     )},
-    { key: 'username', label: 'Pengguna', render: (row) => <span style={{ fontWeight: 700 }}>{row.username}</span> },
+    { key: 'username', label: 'Pengguna', render: (row) => <span className="font-bold">{row.username}</span> },
     { key: 'action', label: 'Aksi (Action)', render: (row) => getActionBadge(row.action) },
     { key: 'ip_address', label: 'IP Address', render: (row) => (
-      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem' }}>
+      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem]">
         {row.ip_address}
       </code>
     )},
     { key: 'payload', label: 'Payload JSON', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontFamily: 'monospace', maxWidth: 200, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span className="text-[0.8125rem] text-slate-400 font-mono max-w-[200px] inline-block overflow-hidden text-ellipsis whitespace-nowrap">
         {row.payload}
       </span>
     )},
@@ -89,13 +89,13 @@ export default function AdminAuditLogsPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Audit Log Keamanan (Audit Logs Table)"
         description="Jejak audit otomatis seluruh peristiwa autentikasi & perubahan data (Tabel: audit_logs)"
         action={
           <Button 
-            style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+            variant="outline" 
             icon={<Filter size={16} />} 
             onClick={() => setShowFilter(true)}
           >
@@ -116,7 +116,7 @@ export default function AdminAuditLogsPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Audit Logs"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -139,7 +139,7 @@ export default function AdminAuditLogsPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Pencarian Bebas"
             placeholder="Cari aksi, username, atau IP address..."
@@ -158,8 +158,8 @@ export default function AdminAuditLogsPage() {
         footer={<Button variant="secondary" onClick={() => setSelectedLog(null)}>Tutup</Button>}
       >
         {selectedLog && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div><strong>Pengguna:</strong> {selectedLog.username} (ID #{selectedLog.user_id})</div>
               <div><strong>IP Address:</strong> {selectedLog.ip_address}</div>
               <div><strong>Waktu:</strong> {formatDateTime(selectedLog.created_at)}</div>
@@ -167,15 +167,8 @@ export default function AdminAuditLogsPage() {
             </div>
 
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Payload Data (JSON):</div>
-              <pre style={{
-                background: 'var(--gray-900)',
-                color: '#38bdf8',
-                padding: '1rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.8125rem',
-                overflowX: 'auto',
-              }}>
+              <div className="font-bold text-sm mb-2">Payload Data (JSON):</div>
+              <pre className="json-pre">
                 {selectedLog.payload ? JSON.stringify(JSON.parse(selectedLog.payload), null, 2) : '{}'}
               </pre>
             </div>

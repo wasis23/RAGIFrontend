@@ -209,29 +209,29 @@ export default function AdminUsersPage() {
   };
 
   const columns: ColumnDef<User>[] = [
-    { key: 'id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{meta?.from ? meta.from + index : index + 1}</span> },
+    { key: 'id', label: 'No', render: (row, index) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + index : index + 1}</span> },
     { key: 'pengguna', label: 'Pengguna', render: (row) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="flex items-center gap-3">
         <div className="avatar avatar-sm">
           {row.username.slice(0, 2).toUpperCase()}
         </div>
         <div>
-          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.username}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.email}</div>
+          <div className="font-bold text-slate-900">{row.username}</div>
+          <div className="text-xs text-slate-400">{row.email}</div>
         </div>
       </div>
     )},
     { key: 'roles', label: 'Role(s)', render: (row) => (
       <>
         {row.roles?.map(r => (
-          <span key={r.id} style={{ display: 'inline-block', marginRight: '4px', background: 'var(--primary-100)', color: 'var(--primary-700)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 600 }}>{r.name || r.role?.name}</span>
+          <span key={r.id} className="dropdown-role-tag">{r.name || r.role?.name}</span>
         ))}
       </>
     )},
     { key: 'status', label: 'Status Akun', render: (row) => (
       <button
         onClick={() => handleToggleStatus(row)}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        className="bg-transparent border-none cursor-pointer p-0"
         title="Klik untuk mengubah status"
       >
         <StatusBadge active={row.is_active} />
@@ -239,22 +239,22 @@ export default function AdminUsersPage() {
     )},
     { key: 'verified', label: 'Terverifikasi', render: (row) => (
       row.is_verified ? (
-        <span style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', fontWeight: 600 }}>
+        <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-emerald-600">
           <CheckCircle size={14} /> Ya
         </span>
       ) : (
-        <span style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8125rem', fontWeight: 600 }}>
+        <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-red-500">
           <XCircle size={14} /> Belum
         </span>
       )
     )},
     { key: 'created_at', label: 'Tanggal Dibuat', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+      <span className="text-[0.8125rem] text-slate-500">
         {formatDate(row.created_at)}
       </span>
     )},
     { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+      <div className="flex justify-end gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -272,17 +272,17 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Manajemen Pengguna (Users Table)"
         description="Kelola akun, role, dan hak akses pengguna ekosistem kampus (Tabel: users)"
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
               Tambah Pengguna
             </Button>
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline" 
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -370,7 +370,7 @@ export default function AdminUsersPage() {
           </>
         }
       >
-        <p style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-slate-500">
           Apakah Anda yakin ingin menghapus pengguna <strong>{deletingUser?.username}</strong>? Tindakan ini tidak dapat dibatalkan.
         </p>
       </Modal>
@@ -381,7 +381,7 @@ export default function AdminUsersPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Pengguna"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -429,7 +429,7 @@ export default function AdminUsersPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Nama Pengguna"
             placeholder="Ketik nama pengguna..."
@@ -478,7 +478,7 @@ export default function AdminUsersPage() {
             ]}
           />
           
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 

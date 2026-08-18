@@ -157,30 +157,30 @@ export default function AdminRolesPage() {
   };
 
   const columns: ColumnDef<Role>[] = [
-    { key: 'id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{meta?.from ? meta.from + index : index + 1}</span> },
+    { key: 'id', label: 'No', render: (row, index) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + index : index + 1}</span> },
     { key: 'name', label: 'Nama Role', render: (row) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+      <div className="flex items-center gap-2 font-bold">
         <ShieldAlert size={16} color="var(--primary-600)" />
         {row.name}
       </div>
     )},
     { key: 'slug', label: 'Slug Identifier', render: (row) => (
-      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem', fontWeight: 700 }}>
+      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold">
         {row.slug}
       </code>
     )},
     { key: 'description', label: 'Deskripsi Akses', render: (row) => (
-      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+      <span className="text-sm text-slate-500">
         {row.description || '-'}
       </span>
     )},
     { key: 'created_at', label: 'Tanggal Dibuat', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <span className="text-[0.8125rem] text-slate-400">
         {formatDate(row.created_at)}
       </span>
     )},
     { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+      <div className="flex justify-end gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -198,17 +198,17 @@ export default function AdminRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Manajemen Role Akses (Roles Table)"
         description="Definisikan struktur peran pengguna dalam ekosistem kampus (Tabel: roles)"
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
               Tambah Role Baru
             </Button>
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline" 
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -233,7 +233,7 @@ export default function AdminRolesPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Role"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -268,7 +268,7 @@ export default function AdminRolesPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Nama / Slug Role"
             placeholder="Ketik kata kunci..."
@@ -276,7 +276,7 @@ export default function AdminRolesPage() {
             onChange={(e) => setFilterName(e.target.value)}
           />
           
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 
@@ -364,7 +364,7 @@ export default function AdminRolesPage() {
           </>
         }
       >
-        <p style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-slate-500">
           Hapus role <strong>{deletingRole?.name}</strong>? Pengguna dengan role ini akan kehilangan wewenang terkait.
         </p>
       </Modal>

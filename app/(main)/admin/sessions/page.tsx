@@ -93,35 +93,35 @@ export default function AdminSessionsPage() {
   });
 
   const columns: ColumnDef<ExtendedSession>[] = [
-    { key: 'id', label: 'ID', render: (row) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>#{row.id}</span> },
+    { key: 'id', label: 'ID', render: (row) => <span className="font-bold text-slate-400">#{row.id}</span> },
     { key: 'user', label: 'Pengguna', render: (row) => (
       <div>
-        <div style={{ fontWeight: 700 }}>{row.user?.username || '-'}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.user?.email || '-'}</div>
+        <div className="font-bold">{row.user?.username || '-'}</div>
+        <div className="text-xs text-slate-400">{row.user?.email || '-'}</div>
       </div>
     )},
     { key: 'device', label: 'Perangkat & Browser', render: (row) => {
       const { browser, os } = parseUserAgent(row.user_agent);
       const isMobile = os === 'Android' || os === 'iOS';
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="flex items-center gap-2">
           {isMobile ? <Smartphone size={16} color="var(--primary-600)" /> : <Monitor size={16} color="var(--primary-600)" />}
-          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{browser} ({os})</span>
+          <span className="font-semibold text-sm">{browser} ({os})</span>
         </div>
       );
     }},
     { key: 'ip_address', label: 'IP Address', render: (row) => (
-      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem' }}>
+      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem]">
         {row.ip_address}
       </code>
     )},
     { key: 'created_at', label: 'Waktu Login', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+      <span className="text-[0.8125rem] text-slate-500">
         {formatDateTime(row.created_at)}
       </span>
     )},
     { key: 'expires_at', label: 'Kadaluarsa', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+      <span className="text-[0.8125rem] text-slate-400">
         {formatDateTime(row.expires_at)}
       </span>
     )},
@@ -138,13 +138,13 @@ export default function AdminSessionsPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Monitor Sesi Perangkat Global (Global Sessions Table)"
         description="Pantau seluruh sesi aktif di universitas dan lakukan Force Logout jika diperlukan (Tabel: user_sessions)"
         action={
           <Button 
-            style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+            variant="outline" 
             icon={<Filter size={16} />} 
             onClick={() => setShowFilter(true)}
           >
@@ -153,9 +153,9 @@ export default function AdminSessionsPage() {
         }
       />
 
-      <div className="alert alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem', background: '#eff6ff', color: '#1d4ed8', borderRadius: '0.5rem' }}>
-        <ShieldAlert size={20} style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: '0.875rem' }}>
+      <div className="alert alert-info session-alert">
+        <ShieldAlert size={20} className="shrink-0" />
+        <span className="text-sm">
           <strong>Keamanan Terpusat:</strong> Admin dapat memutus sesi pengguna yang terindikasi mencurigakan secara instan di seluruh ekosistem kampus.
         </span>
       </div>
@@ -172,7 +172,7 @@ export default function AdminSessionsPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Sesi"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -201,7 +201,7 @@ export default function AdminSessionsPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Pencarian"
             placeholder="Cari pengguna, perangkat, atau IP..."
@@ -209,7 +209,7 @@ export default function AdminSessionsPage() {
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 
@@ -249,7 +249,7 @@ export default function AdminSessionsPage() {
           </>
         }
       >
-        <p style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-slate-500">
           Paksa keluar pengguna <strong>{selectedSession?.user?.username || '-'}</strong> pada perangkat {selectedSession?.user_agent ? parseUserAgent(selectedSession.user_agent).browser : ''}? Tiket token SSO di perangkat tersebut akan dibatalkan seketika.
         </p>
       </Modal>

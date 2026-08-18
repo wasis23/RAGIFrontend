@@ -152,7 +152,7 @@ export default function AdminRolePermissionsPage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Pemetaan Role ↔ Permission (Role-Permissions Table)"
         description="Atur matrix hak akses granular untuk setiap role dalam ekosistem SSO (Tabel: role_permissions)"
@@ -164,7 +164,7 @@ export default function AdminRolePermissionsPage() {
       />
 
       {/* Filters Section */}
-      <div className="card" style={{ padding: '1.25rem' }}>
+      <div className="card" className="p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select
             label="Pilih Role Pengguna"
@@ -183,13 +183,13 @@ export default function AdminRolePermissionsPage() {
             menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
           />
         </div>
-        <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+        <div className="mt-3 text-[0.8125rem] text-slate-400">
           Terdapat <strong>{currentAssigned.length}</strong> hak akses aktif dari total {activePermissions.length} permission.
         </div>
       </div>
 
       {/* Dynamic Module Permission Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="flex flex-col gap-5">
         {appModules.filter(mod => selectedModule === 'all' || mod.code === selectedModule).map((mod) => {
           const modulePerms = activePermissions.filter(
             (p) => isModuleCodeMatch(mod.code, p.module)
@@ -200,24 +200,24 @@ export default function AdminRolePermissionsPage() {
 
           return (
             <div key={mod.id} className="card">
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--gray-50)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="card-header" className="flex justify-between items-center bg-slate-50">
+                <div className="flex items-center gap-3">
                   <span className="badge badge-blue">{mod.code.toUpperCase()}</span>
-                  <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Modul: {mod.name}</h4>
+                  <h4 className="text-[1.0625rem] font-bold m-0">Modul: {mod.name}</h4>
                 </div>
 
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
                   onClick={() => handleToggleModuleAll(mod.code)}
-                  style={{ fontSize: '0.8125rem' }}
+                  className="text-[0.8125rem]"
                 >
                   {allModuleChecked ? 'Batalkan Semua' : 'Pilih Semua Modul Ini'}
                 </button>
               </div>
 
               <div className="card-body">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
                   {modulePerms.map((p) => {
                     const checked = currentAssigned.includes(p.id);
                     return (
@@ -245,7 +245,7 @@ export default function AdminRolePermissionsPage() {
                           <div style={{ fontSize: '0.875rem', fontWeight: 700, color: checked ? 'var(--primary-900)' : 'var(--text-primary)' }}>
                             {p.name}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                          <div className="text-xs text-slate-400 font-mono">
                             {p.slug}
                           </div>
                         </div>
@@ -267,11 +267,11 @@ export default function AdminRolePermissionsPage() {
 
           return (
             <div className="card">
-              <div className="card-header" style={{ background: 'var(--gray-50)' }}>
-                <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Permission Lainnya</h4>
+              <div className="card-header bg-slate-50">
+                <h4 className="text-[1.0625rem] font-bold m-0">Permission Lainnya</h4>
               </div>
               <div className="card-body">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.875rem' }}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
                   {otherPerms.map((p) => {
                     const checked = currentAssigned.includes(p.id);
                     return (
@@ -291,8 +291,8 @@ export default function AdminRolePermissionsPage() {
                       >
                         {checked ? <CheckSquare size={20} color="var(--primary-600)" /> : <Square size={20} color="var(--gray-400)" />}
                         <div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>{p.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{p.slug}</div>
+                          <div className="text-sm font-bold">{p.name}</div>
+                          <div className="text-xs text-slate-400 font-mono">{p.slug}</div>
                         </div>
                       </div>
                     );

@@ -128,29 +128,29 @@ export default function AdminMenuPage() {
   const columns: ColumnDef<FlattenedMenu>[] = [
     { key: 'name', label: 'Nama Menu', render: (row) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: `${row.level * 1.5}rem` }}>
-        {row.level > 0 && <span style={{ color: 'var(--gray-400)' }}>↳</span>}
+        {row.level > 0 && <span className="text-slate-400">↳</span>}
         <span style={{ fontWeight: row.level === 0 ? 700 : 500, color: row.level === 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
           {row.name}
         </span>
       </div>
     )},
     { key: 'url', label: 'URL', render: (row) => (
-      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem' }}>
+      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem]">
         {row.url}
       </code>
     )},
     { key: 'icon', label: 'Icon', render: (row) => (
-      <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{row.icon || '-'}</span>
+      <span className="text-sm text-slate-400">{row.icon || '-'}</span>
     )},
     { key: 'is_active', label: 'Status', render: (row) => (
       row.is_active ? (
-        <span className="badge badge-green"><CheckCircle2 size={12} style={{ marginRight: '0.25rem' }}/> Aktif</span>
+        <span className="badge badge-green"><CheckCircle2 size={12} className="mr-1"/> Aktif</span>
       ) : (
-        <span className="badge badge-red"><XCircle size={12} style={{ marginRight: '0.25rem' }}/> Nonaktif</span>
+        <span className="badge badge-red"><XCircle size={12} className="mr-1"/> Nonaktif</span>
       )
     )},
     { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+      <div className="flex justify-end gap-2">
         <Button
           variant={row.is_active ? 'outline-danger' : 'outline'}
           size="sm"
@@ -177,13 +177,13 @@ export default function AdminMenuPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Manajemen Menu"
         description="Mengelola menu navigasi dan status aktif/nonaktifnya untuk setiap modul."
         action={
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <div style={{ width: 220 }}>
+          <div className="flex gap-2 items-center">
+            <div className="w-[220px]">
               <Select
                 value={appModules.find(m => m.code === selectedModule) ? { value: selectedModule, label: `Modul: ${appModules.find(m => m.code === selectedModule)?.name.toUpperCase()}` } : null}
                 onChange={(v: any) => setSelectedModule(v?.value || 'sso')}
@@ -192,7 +192,7 @@ export default function AdminMenuPage() {
               />
             </div>
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline" 
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -220,7 +220,7 @@ export default function AdminMenuPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Menu"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -243,7 +243,7 @@ export default function AdminMenuPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Cari Menu"
             placeholder="Ketik nama atau URL menu..."

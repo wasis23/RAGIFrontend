@@ -154,18 +154,18 @@ export default function AdminRoleMenusPage() {
             ) : (
               <Square size={20} color="var(--gray-400)" />
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div className="flex items-center gap-2">
               {level > 0 && <ChevronRight size={16} color="var(--gray-400)" />}
               <span style={{ fontSize: '0.875rem', fontWeight: level === 0 ? 700 : 500, color: checked ? 'var(--primary-900)' : 'var(--text-primary)' }}>
                 {menu.name}
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginLeft: '0.5rem' }}>
+              <span className="text-xs text-slate-400 font-mono ml-2">
                 {menu.url}
               </span>
             </div>
           </div>
           {menu.children && menu.children.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div className="flex flex-col gap-2">
               {renderMenuItems(menu.children, level + 1)}
             </div>
           )}
@@ -175,7 +175,7 @@ export default function AdminRoleMenusPage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Pemetaan Role ↔ Akses Menu"
         description="Atur menu navigasi apa saja yang dapat dilihat dan diakses oleh setiap role."
@@ -187,7 +187,7 @@ export default function AdminRoleMenusPage() {
       />
 
       {/* Filters Section */}
-      <div className="card" style={{ padding: '1.25rem' }}>
+      <div className="card" className="p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select
             label="Pilih Role Pengguna"
@@ -206,17 +206,17 @@ export default function AdminRoleMenusPage() {
             menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
           />
         </div>
-        <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
+        <div className="mt-3 text-[0.8125rem] text-slate-400">
           Terdapat <strong>{assignedMenus.length}</strong> menu navigasi aktif untuk role ini.
         </div>
       </div>
 
       {isLoading ? (
-        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div className="p-8 text-center text-slate-400">
           Memuat data menu...
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           
           {appModules.filter(mod => selectedModule === 'all' || mod.code === selectedModule).map(mod => {
             const menus = menusByModule[mod.code] || [];
@@ -224,16 +224,16 @@ export default function AdminRoleMenusPage() {
 
             return (
               <div key={mod.id} className="card">
-                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--gray-50)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div className="card-header" className="flex justify-between items-center bg-slate-50">
+                  <div className="flex items-center gap-3">
                     <span className="badge badge-blue">{mod.code.toUpperCase()}</span>
-                    <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Menu Aplikasi {mod.name}</h4>
+                    <h4 className="text-[1.0625rem] font-bold m-0">Menu Aplikasi {mod.name}</h4>
                   </div>
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
                     onClick={() => handleToggleModuleAll(menus)}
-                    style={{ fontSize: '0.8125rem' }}
+                    className="text-[0.8125rem]"
                   >
                     {getFlatMenuIds(menus).every(id => assignedMenus.includes(id)) ? 'Batalkan Semua' : 'Pilih Semua Modul Ini'}
                   </button>

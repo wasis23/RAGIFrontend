@@ -127,17 +127,17 @@ export default function AdminModulePage() {
   };
 
   const columns: ColumnDef<AppModule>[] = [
-    { key: 'id', label: 'No', render: (row, index) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{index + 1}</span> },
+    { key: 'id', label: 'No', render: (row, index) => <span className="font-bold text-slate-400">{index + 1}</span> },
     { key: 'name', label: 'Nama Modul', render: (row) => (
-      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{row.name}</span>
+      <span className="font-bold text-slate-900">{row.name}</span>
     )},
     { key: 'code', label: 'Kode (Slug)', render: (row) => (
-      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem', fontWeight: 700 }}>
+      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold">
         {row.code}
       </code>
     )},
     { key: 'description', label: 'Deskripsi', render: (row) => (
-      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+      <span className="text-sm text-slate-500">
         {row.description || '-'}
       </span>
     )},
@@ -145,7 +145,7 @@ export default function AdminModulePage() {
       <button
         onClick={() => handleToggle(row.id, row.is_active)}
         disabled={togglingId === row.id}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        className="bg-transparent border-none cursor-pointer p-0"
         title="Klik untuk mengubah status"
       >
         {togglingId === row.id ? (
@@ -156,7 +156,7 @@ export default function AdminModulePage() {
       </button>
     )},
     { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+      <div className="flex justify-end gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -174,14 +174,14 @@ export default function AdminModulePage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Master Modul Aplikasi"
         description="Mengelola modul aplikasi yang tersedia di ekosistem kampus (seperti SSO, SPMB, dll)."
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline" 
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -209,7 +209,7 @@ export default function AdminModulePage() {
         onClose={() => setShowFilter(false)}
         title="Filter Modul"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -232,7 +232,7 @@ export default function AdminModulePage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Cari Modul"
             placeholder="Ketik nama atau kode modul..."

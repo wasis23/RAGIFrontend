@@ -152,15 +152,15 @@ export default function AdminPermissionsPage() {
   });
 
   const columns: ColumnDef<Permission>[] = [
-    { key: 'id', label: 'ID', render: (row) => <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>#{row.id}</span> },
+    { key: 'id', label: 'ID', render: (row) => <span className="font-bold text-slate-400">#{row.id}</span> },
     { key: 'name', label: 'Nama Permission', render: (row) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+      <div className="flex items-center gap-2 font-bold">
         <Key size={16} color="var(--primary-600)" />
         {row.name}
       </div>
     )},
     { key: 'slug', label: 'Slug Identifier', render: (row) => (
-      <code style={{ background: 'var(--gray-100)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.8125rem', fontWeight: 700, color: 'var(--primary-700)' }}>
+      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold text-primary-700">
         {row.slug}
       </code>
     )},
@@ -181,12 +181,12 @@ export default function AdminPermissionsPage() {
       );
     }},
     { key: 'description', label: 'Deskripsi', render: (row) => (
-      <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+      <span className="text-[0.8125rem] text-slate-500">
         {row.description || '-'}
       </span>
     )},
     { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+      <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" icon={<Edit2 size={14} />} onClick={() => handleOpenEdit(row)} />
         <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => setDeletingPermission(row)} />
       </div>
@@ -194,17 +194,17 @@ export default function AdminPermissionsPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" className="flex flex-col gap-7">
       <PageHeader
         title="Manajemen Hak Akses (Permissions Table)"
         description="Daftar granular permission untuk setiap modul aplikasi (Tabel: permissions)"
         action={
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="flex gap-2">
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
               Tambah Permission
             </Button>
             <Button 
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }} 
+              variant="outline" 
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -226,7 +226,7 @@ export default function AdminPermissionsPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Hak Akses"
         footer={
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <div className="flex justify-end gap-3">
             <Button 
               variant="secondary" 
               onClick={() => {
@@ -258,7 +258,7 @@ export default function AdminPermissionsPage() {
           </div>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div className="flex flex-col gap-5">
           <Input 
             label="Cari Permission"
             placeholder="Ketik nama atau slug..."
@@ -275,7 +275,7 @@ export default function AdminPermissionsPage() {
             ]}
           />
 
-          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 
@@ -324,8 +324,8 @@ export default function AdminPermissionsPage() {
           />
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
-              Modul Target <span style={{ color: 'var(--danger)' }}>*</span>
+            <label className="block text-sm font-semibold text-slate-500 mb-1.5">
+              Modul Target <span className="text-red-500">*</span>
             </label>
             <Select
               value={appModules.find(m => m.code === formData.module) ? { value: formData.module, label: appModules.find(m => m.code === formData.module)?.name } : null}
@@ -336,8 +336,8 @@ export default function AdminPermissionsPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
-              Action Type <span style={{ color: 'var(--danger)' }}>*</span>
+            <label className="block text-sm font-semibold text-slate-500 mb-1.5">
+              Action Type <span className="text-red-500">*</span>
             </label>
             <Select
               value={{ value: formData.action, label: formData.action }}
@@ -380,7 +380,7 @@ export default function AdminPermissionsPage() {
           </>
         }
       >
-        <p style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-slate-500">
           Hapus permission <code>{deletingPermission?.slug}</code>?
         </p>
       </Modal>
