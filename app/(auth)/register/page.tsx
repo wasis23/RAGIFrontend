@@ -53,7 +53,7 @@ export default function RegisterPage() {
     <div className="auth-centered">
       <div className="mb-8">
         <h1 className="auth-heading">Daftar Calon Mahasiswa</h1>
-        <p className="auth-subheading" className="mt-2">
+        <p className="auth-subheading mt-2">
           Buat akun untuk memulai pendaftaran SPMB Anda.
         </p>
       </div>

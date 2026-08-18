@@ -61,7 +61,7 @@ function VerifyEmailContent() {
         {cfg.icon}
       </div>
 
-      <h1 className="auth-heading" className="mb-3">{cfg.title}</h1>
+      <h1 className="auth-heading mb-3">{cfg.title}</h1>
       <p className="auth-subheading leading-7 mb-8">
         {cfg.desc}
       </p>

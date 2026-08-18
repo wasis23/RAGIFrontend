@@ -112,7 +112,7 @@ function ResetPasswordForm() {
           <CheckCircle2 size={36} color="#fff" />
         </div>
         <h1 className="auth-heading">Password Diperbarui!</h1>
-        <p className="auth-subheading" className="mb-8">
+        <p className="auth-subheading mb-8">
           Password Anda berhasil diperbarui. Silakan login dengan password baru Anda.
         </p>
         <Button full size="lg" onClick={() => router.push('/login')}>

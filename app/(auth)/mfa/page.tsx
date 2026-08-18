@@ -110,7 +110,7 @@ function MfaForm() {
       </div>
 
       <h1 className="auth-heading">Verifikasi Dua Faktor</h1>
-      <p className="auth-subheading" className="mb-2">
+      <p className="auth-subheading mb-2">
         Masukkan kode 6-digit dari aplikasi autentikator Anda
       </p>
       <p className="auth-muted-link text-[0.8125rem] mb-8">
