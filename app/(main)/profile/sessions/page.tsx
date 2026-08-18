@@ -86,7 +86,7 @@ export default function SessionsPage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="animate-fade-in space-y-8">
       <PageHeader
         title="Kelola Sesi Perangkat (Active Sessions)"
         description="Daftar perangkat yang saat ini memiliki akses aktif ke akun SSO Anda (Tabel: user_sessions)"
@@ -104,16 +104,15 @@ export default function SessionsPage() {
       />
 
       <div className="alert alert-info">
-        <ShieldAlert size={20} style={{ flexShrink: 0 }} />
+        <ShieldAlert size={20} className="shrink-0" />
         <div>
           <strong>Informasi Keamanan:</strong> Jika Anda melihat lokasi atau perangkat yang tidak Anda kenali, segera hentikan sesi tersebut dan ubah password akun SSO Anda.
         </div>
       </div>
 
-      {/* Sessions List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div className="space-y-4">
         {isLoading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="space-y-4">
             <Skeleton height="100px" />
             <Skeleton height="100px" />
           </div>
@@ -126,30 +125,19 @@ export default function SessionsPage() {
           sessions.map((sess, idx) => {
             const { browser, os } = parseUserAgent(sess.user_agent);
             const isMobile = os === 'Android' || os === 'iOS';
-            const isCurrent = idx === 0; // First item is current session
+            const isCurrent = idx === 0;
 
             return (
-              <div key={sess.id} className="card" style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 'var(--radius-lg)',
-                      background: isCurrent ? 'var(--primary-50)' : 'var(--gray-100)',
-                      border: `1px solid ${isCurrent ? 'var(--primary-200)' : 'var(--border-light)'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: isCurrent ? 'var(--primary-600)' : 'var(--gray-600)',
-                      flexShrink: 0,
-                    }}>
+              <div key={sess.id} className="card session-card">
+                <div className="session-card-inner">
+                  <div className="session-info">
+                    <div className={`session-icon${isCurrent ? ' current' : ''}`}>
                       {isMobile ? <Smartphone size={24} /> : <Monitor size={24} />}
                     </div>
 
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                        <h4 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>
+                      <div className="session-title-row">
+                        <h4 className="text-base font-bold m-0">
                           {browser} di {os}
                         </h4>
                         {isCurrent ? (
@@ -161,8 +149,8 @@ export default function SessionsPage() {
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.8125rem', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div className="session-meta">
+                        <span className="session-meta-item">
                           <Globe size={14} /> IP: {sess.ip_address}
                         </span>
                         <span>Aktif sejak: {formatDateTime(sess.created_at)}</span>
@@ -203,7 +191,7 @@ export default function SessionsPage() {
           </>
         }
       >
-        <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)' }}>
+        <p className="text-sm text-slate-500">
           Perangkat ini akan dipaksa keluar dari semua layanan SSO kampus. Pengguna di perangkat ini harus memasukkan credentials kembali untuk login.
         </p>
       </Modal>
@@ -223,7 +211,7 @@ export default function SessionsPage() {
           </>
         }
       >
-        <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)' }}>
+        <p className="text-sm text-slate-500">
           Semua sesi login di komputer atau smartphone lain akan dihentikan seketika. Hanya sesi di perangkat ini yang tetap aktif.
         </p>
       </Modal>

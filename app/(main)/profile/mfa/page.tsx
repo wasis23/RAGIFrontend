@@ -71,30 +71,22 @@ export default function MfaSetupPage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="animate-fade-in space-y-8">
       <PageHeader
         title="Pengaturan Autentikasi 2FA (TOTP)"
         description="Lindungi akun SSO Anda dengan lapisan keamanan tambahan berbasis Two-Factor Authentication"
       />
 
-      {/* Current Status Card */}
-      <div className="card" style={{ padding: '1.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: mfaEnabled ? 'var(--success-50, #f0fdf4)' : 'var(--gray-100)',
-              border: `2px solid ${mfaEnabled ? '#bbf7d0' : 'var(--border-light)'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: mfaEnabled ? '#16a34a' : 'var(--text-muted)',
-              flexShrink: 0,
-            }}>
+      <div className="card mfa-status-card">
+        <div className="mfa-status-inner">
+          <div className="mfa-status-left">
+            <div className={`mfa-status-icon${mfaEnabled ? ' active' : ''}`}>
               {mfaEnabled ? <ShieldCheck size={32} /> : <ShieldOff size={32} />}
             </div>
 
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
+              <div className="mfa-status-title-row">
+                <h3 className="text-xl font-extrabold m-0">
                   Autentikasi Dua Faktor (2FA)
                 </h3>
                 {mfaEnabled ? (
@@ -103,7 +95,7 @@ export default function MfaSetupPage() {
                   <span className="badge badge-gray">Nonaktif</span>
                 )}
               </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem', margin: 0 }}>
+              <p className="text-[0.9375rem] text-slate-500 m-0">
                 {mfaEnabled
                   ? 'Akun Anda dilindungi dengan TOTP (Google/Microsoft Authenticator).'
                   : 'Aktifkan 2FA untuk mencegah akses tanpa izin ke akun kampus Anda.'}
@@ -123,52 +115,37 @@ export default function MfaSetupPage() {
         </div>
       </div>
 
-      {/* Setup Wizard (If disabled or setup step 3) */}
       {!mfaEnabled && (
         <div className="card">
           <div className="card-header">
-            <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>
+            <h3 className="text-base font-bold m-0">
               Langkah Aktivasi 2FA
             </h3>
           </div>
 
-          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            {/* Step Indicators */}
-            <div style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: step >= 1 ? 1 : 0.4 }}>
+          <div className="card-body flex flex-col gap-8">
+            <div className="mfa-steps">
+              <div className={`mfa-step${step >= 1 ? ' active' : ''}`}>
                 <span className="badge badge-blue">Langkah 1</span>
-                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Scan QR Code</span>
+                <span className="text-sm font-semibold">Scan QR Code</span>
               </div>
-              <ArrowRight size={16} color="var(--text-muted)" style={{ marginTop: 4 }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: step >= 2 ? 1 : 0.4 }}>
+              <ArrowRight size={16} color="var(--text-muted)" className="mt-1" />
+              <div className={`mfa-step${step >= 2 ? ' active' : ''}`}>
                 <span className="badge badge-blue">Langkah 2</span>
-                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Verifikasi Kode</span>
+                <span className="text-sm font-semibold">Verifikasi Kode</span>
               </div>
             </div>
 
-            {/* Step 1 & 2 content */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', alignItems: 'center' }}>
-              {/* QR Code Container */}
-              <div style={{
-                background: 'var(--gray-50)',
-                border: '1px dashed var(--border-light)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '1.5rem',
-                textAlign: 'center',
-              }}>
-                <div style={{
-                  width: 180, height: 180, background: 'white', border: '1px solid var(--border-light)',
-                  margin: '0 auto 1rem auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 'var(--radius-md)', padding: 12,
-                }}>
-                  {/* Mock QR SVG representation */}
+            <div className="mfa-setup-grid">
+              <div className="mfa-qr-box">
+                <div className="mfa-qr-frame">
                   <QrCode size={150} color="var(--primary-900)" />
                 </div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                <div className="text-[0.8125rem] text-slate-500 mb-2">
                   Atau masukkan Kode Rahasia secara manual:
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <code style={{ background: 'white', padding: '0.375rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)', fontWeight: 700, letterSpacing: '0.1em' }}>
+                <div className="mfa-secret-row">
+                  <code className="mfa-secret-code">
                     {secretKey}
                   </code>
                   <Button variant="ghost" size="sm" icon={<Copy size={14} />} onClick={copySecret}>
@@ -177,22 +154,21 @@ export default function MfaSetupPage() {
                 </div>
               </div>
 
-              {/* Form Input OTP */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="flex flex-col gap-5">
                 <div>
-                  <h4 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  <h4 className="text-lg font-bold mb-2">
                     1. Pindai QR Code
                   </h4>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  <p className="text-sm text-slate-500">
                     Buka aplikasi <strong>Google Authenticator</strong> atau <strong>Microsoft Authenticator</strong> di HP Anda, pilih &quot;Tambah Akun&quot; dan pindai gambar QR di samping.
                   </p>
                 </div>
 
                 <div>
-                  <h4 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  <h4 className="text-lg font-bold mb-2">
                     2. Masukkan Kode 6-Digit
                   </h4>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  <p className="text-sm text-slate-500 mb-4">
                     Ketik kode 6 angka yang muncul di aplikasi autentikator untuk mengonfirmasi aktivasi.
                   </p>
 
@@ -201,7 +177,7 @@ export default function MfaSetupPage() {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     maxLength={6}
-                    style={{ fontSize: '1.25rem', letterSpacing: '0.2em', fontWeight: 700, textAlign: 'center' }}
+                    className="text-xl tracking-[0.2em] font-bold text-center"
                   />
                 </div>
 
@@ -219,35 +195,31 @@ export default function MfaSetupPage() {
         </div>
       )}
 
-      {/* Step 3: Backup Codes (Displayed after enabled) */}
       {mfaEnabled && (
         <div className="card">
-          <div className="card-header" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#16a34a' }}>
+          <div className="card-header mfa-backup-header">
+            <div className="flex items-center gap-2 text-emerald-600">
               <CheckCircle2 size={20} />
-              <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>
+              <h3 className="text-base font-bold m-0">
                 Kode Pemulihan Cadangan (Backup Recovery Codes)
               </h3>
             </div>
           </div>
 
-          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          <div className="card-body flex flex-col gap-5">
+            <p className="text-sm text-slate-500">
               Simpan kode darurat ini di tempat aman. Kode ini dapat digunakan jika Anda kehilangan akses ke HP/aplikasi autentikator Anda.
             </p>
 
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem',
-              background: 'var(--gray-50)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)',
-            }}>
+            <div className="mfa-backup-grid">
               {backupCodes.map((code, i) => (
-                <div key={i} style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.9375rem', color: 'var(--text-primary)', textAlign: 'center' }}>
+                <div key={i} className="mfa-backup-code">
                   {code}
                 </div>
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div className="flex gap-3">
               <Button variant="outline" icon={<Copy size={16} />} onClick={() => {
                 navigator.clipboard.writeText(backupCodes.join('\n'));
                 toast.success('Kode cadangan disalin!');
@@ -259,7 +231,6 @@ export default function MfaSetupPage() {
         </div>
       )}
 
-      {/* Modal Disable MFA */}
       <Modal
         open={showDisableModal}
         onClose={() => setShowDisableModal(false)}
@@ -274,9 +245,9 @@ export default function MfaSetupPage() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="flex flex-col gap-4">
           <div className="alert alert-warning">
-            <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+            <AlertTriangle size={18} className="shrink-0" />
             <span>Tindakan ini akan mengurangi tingkat keamanan akun Anda.</span>
           </div>
 

@@ -76,14 +76,14 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="animate-fade-in space-y-8">
       <PageHeader
         title="Pengaturan Profil Akun"
         description="Kelola informasi identitas dan kredensial keamanan akun SSO Anda"
       />
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem' }}>
+      <div className="profile-tabs">
         <button
           className={`btn ${activeTab === 'info' ? 'btn-primary' : 'btn-ghost'}`}
           onClick={() => setActiveTab('info')}
@@ -100,40 +100,35 @@ export default function ProfilePage() {
 
       {/* Tab Content: Info */}
       {activeTab === 'info' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+        <div className="profile-grid">
           {/* Card 1: Avatar & Status */}
           <div className="card">
-            <div className="card-body" style={{ textAlign: 'center', padding: '2rem' }}>
+            <div className="card-body profile-avatar-body">
               <div
-                className="avatar avatar-2xl"
-                style={{ margin: '0 auto 1rem auto', border: '4px solid var(--primary-100)' }}
+                className="avatar avatar-2xl profile-avatar"
               >
                 {displayUser.username ? displayUser.username.slice(0, 2).toUpperCase() : 'US'}
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.25rem' }}>
-                {displayUser.username}
-              </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              <h3 className="text-xl font-extrabold">{displayUser.username}</h3>
+              <p className="text-sm text-slate-500 mb-4">
                 {displayUser.email}
               </p>
 
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="flex justify-center gap-2 flex-wrap">
                 <UserTypeBadge type={displayUser.user_type} />
                 <StatusBadge active={displayUser.is_active} />
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border-light)', marginTop: '1.5rem', paddingTop: '1.25rem', textAlign: 'left' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '0.875rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Status Email:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="profile-meta">
+                <div className="profile-meta-row">
+                  <span className="text-slate-500">Status Email:</span>
+                  <span className="font-semibold text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 size={14} /> Terverifikasi
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Terdaftar Sejak:</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {formatDate(displayUser.created_at)}
-                  </span>
+                <div className="profile-meta-row">
+                  <span className="text-slate-500">Terdaftar Sejak:</span>
+                  <span className="font-semibold">{formatDate(displayUser.created_at)}</span>
                 </div>
               </div>
             </div>
@@ -142,10 +137,10 @@ export default function ProfilePage() {
           {/* Card 2: Detail Attributes (Form Read-only / Update) */}
           <div className="card">
             <div className="card-header">
-              <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Detail Pengguna (ERD Attributes)</h3>
+              <h3 className="text-base font-bold m-0">Detail Pengguna (ERD Attributes)</h3>
               <Shield size={18} color="var(--primary-600)" />
             </div>
-            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="card-body flex flex-col gap-5">
               <Input
                 label="Username"
                 value={displayUser.username}
@@ -175,7 +170,7 @@ export default function ProfilePage() {
                 prefixIcon={<Shield size={16} />}
               />
 
-              <div style={{ marginTop: '0.5rem' }}>
+              <div className="mt-2">
                 <Button variant="primary" icon={<Save size={16} />} onClick={() => toast.success('Data telepon berhasil disimpan!')}>
                   Simpan Perubahan
                 </Button>
@@ -187,12 +182,12 @@ export default function ProfilePage() {
 
       {/* Tab Content: Password */}
       {activeTab === 'password' && (
-        <div className="card" style={{ maxWidth: 600 }}>
+        <div className="card max-w-[600px]">
           <div className="card-header">
-            <h3 style={{ fontSize: '1.0625rem', fontWeight: 700, margin: 0 }}>Form Pembaruan Password</h3>
+            <h3 className="text-base font-bold m-0">Form Pembaruan Password</h3>
           </div>
           <div className="card-body">
-            <form onSubmit={handleSubmit(onChangePasswordSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <form onSubmit={handleSubmit(onChangePasswordSubmit)} className="flex flex-col gap-5">
               <Input
                 label="Password Saat Ini"
                 type={showCurrent ? 'text' : 'password'}
@@ -229,7 +224,7 @@ export default function ProfilePage() {
                 {...register('password_confirmation')}
               />
 
-              <div style={{ marginTop: '0.5rem' }}>
+              <div className="mt-2">
                 <Button type="submit" loading={isLoading} size="lg" icon={<Save size={16} />}>
                   Perbarui Password
                 </Button>
