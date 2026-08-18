@@ -132,25 +132,20 @@ export function Sidebar() {
     <aside className={`sidebar ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
       {/* Brand */}
       <div className="sidebar-brand" style={{ justifyContent: sidebar_open ? 'space-between' : 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="sidebar-brand-inner">
           <div className="sidebar-logo">
             <GraduationCap size={22} color="white" />
           </div>
           {sidebar_open && (
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1rem', color: 'white', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                SSO Campus
-              </div>
-              <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)' }}>
-                Auth Center v1.0
-              </div>
+              <div className="sidebar-brand-text">SSO Campus</div>
+              <div className="sidebar-brand-sub">Auth Center v1.0</div>
             </div>
           )}
         </div>
         <button
           onClick={toggleSidebar}
-          className="btn btn-ghost btn-icon btn-sm hide-mobile"
-          style={{ color: 'rgba(255,255,255,0.5)', padding: 4 }}
+          className="btn btn-ghost btn-icon btn-sm hide-mobile sidebar-toggle"
           title={sidebar_open ? 'Sembunyikan Sidebar' : 'Tampilkan Sidebar'}
         >
           {sidebar_open ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
@@ -161,24 +156,15 @@ export function Sidebar() {
       <div className="sidebar-nav">
         
         {sidebar_open && (
-          <div style={{ padding: '0.75rem 1rem 0.25rem' }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.4)' }} />
+          <div className="sidebar-search">
+            <div className="sidebar-search-wrap">
+              <Search size={14} className="sidebar-search-icon" />
               <input 
                 type="text" 
                 placeholder="Cari Menu..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'white',
-                  fontSize: '0.75rem',
-                  padding: '0.375rem 0.5rem 0.375rem 2rem',
-                  borderRadius: 'var(--radius-md)',
-                  outline: 'none',
-                }}
+                className="sidebar-search-input"
               />
             </div>
           </div>
@@ -226,8 +212,8 @@ export function Sidebar() {
           return (
             <div className="sidebar-section">
               {Object.entries(groups).map(([sectionName, items]) => (
-                <div key={sectionName} style={{ marginBottom: '1rem' }}>
-                  {sidebar_open && <div className="sidebar-section-label" style={{ marginBottom: '0.5rem' }}>{sectionName}</div>}
+                <div key={sectionName} className="sidebar-group">
+                  {sidebar_open && <div className="sidebar-section-label">{sectionName}</div>}
                   {items.map((item, idx) => {
                     const IconComponent = item.icon;
                     let isActive = false;
@@ -262,13 +248,13 @@ export function Sidebar() {
             {sidebar_open && <div className="sidebar-section-label">Menu Utama</div>}
             
             {loading ? (
-              <div style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)' }}>Loading menus...</div>
+              <div className="sidebar-loading">Loading menus...</div>
             ) : (
               dynamicMenus.map((menu) => {
                 if (menu.url.startsWith('#')) {
                   return (
                     <div key={menu.id}>
-                      <div style={{ marginTop: '1rem', marginBottom: '0.25rem', paddingLeft: '0.75rem', fontSize: '0.65rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div className="sidebar-group-title">
                         {sidebar_open && menu.name}
                       </div>
                       {menu.children && menu.children.length > 0 && (
@@ -301,14 +287,13 @@ export function Sidebar() {
                       {sidebar_open && <span>{menu.name}</span>}
                     </Link>
                     {menu.children && menu.children.length > 0 && sidebar_open && (
-                      <div style={{ paddingLeft: '1rem', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                      <div className="sidebar-submenu">
                         {menu.children.map(child => (
                           <Link
                             key={child.id}
                             href={child.url}
-                            className={`sidebar-item ${isMainActive(child.url) ? 'active' : ''}`}
+                            className={`sidebar-item sidebar-submenu-item ${isMainActive(child.url) ? 'active' : ''}`}
                             title={child.name}
-                            style={{ padding: '0.35rem 0.75rem', minHeight: '32px' }}
                           >
                             {getIcon(child.icon)}
                             <span>{child.name}</span>
@@ -357,25 +342,13 @@ export function Sidebar() {
       {/* Footer Info */}
       {sidebar_open && user && (
         <div className="sidebar-footer">
-          <div style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-          }}>
+          <div className="sidebar-user-card">
             <div className="avatar avatar-sm">
               {user.username ? user.username.slice(0, 2).toUpperCase() : 'US'}
             </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                {user.username}
-              </div>
-              <div style={{ fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', textTransform: 'capitalize' }}>
-                {user.roles?.[0]?.name || user.roles?.[0]?.role?.name || 'User'}
-              </div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{user.username}</div>
+              <div className="sidebar-user-role">{user.roles?.[0]?.name || user.roles?.[0]?.role?.name || 'User'}</div>
             </div>
           </div>
         </div>

@@ -945,6 +945,12 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.75rem;
 }
 
+.sidebar-brand-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .sidebar-logo {
   width: 36px;
   height: 36px;
@@ -1018,6 +1024,111 @@ h1, h2, h3, h4, h5, h6 {
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 
+.sidebar-search {
+  padding: 0.75rem 1rem 0.25rem;
+}
+
+.sidebar-search-wrap { position: relative; }
+
+.sidebar-search-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem 0.375rem 2rem;
+  border-radius: var(--radius-md);
+  outline: none;
+}
+.sidebar-search-input::placeholder { color: rgba(255,255,255,0.4); }
+
+.sidebar-loading {
+  padding: 1rem;
+  color: rgba(255,255,255,0.5);
+}
+
+.sidebar-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,0.4);
+}
+
+.sidebar-group { margin-bottom: 1rem; }
+
+.sidebar-submenu {
+  padding-left: 1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-group-title {
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  padding-left: 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-submenu {
+  padding-left: 1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-submenu-item {
+  padding: 0.35rem 0.75rem;
+  min-height: 32px;
+}
+
+.sidebar-user-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.sidebar-user-role {
+  font-size: 0.6875rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: capitalize;
+}
+
+.sidebar-user-info { overflow: hidden; }
+
+.sidebar-brand-text {
+  font-weight: 800;
+  font-size: 1rem;
+  color: white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.sidebar-brand-sub {
+  font-size: 0.6875rem;
+  color: rgba(255,255,255,0.4);
+}
+
+.sidebar-toggle {
+  color: rgba(255,255,255,0.5);
+  padding: 4px;
+}
+
 /* ============================================================
    TOPBAR / NAVBAR
    ============================================================ */
@@ -1033,6 +1144,111 @@ h1, h2, h3, h4, h5, h6 {
   top: 0;
   z-index: 40;
   box-shadow: var(--shadow-sm);
+}
+
+.topbar-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topbar-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.topbar-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.topbar-trigger:hover { background: var(--gray-100); }
+
+.topbar-user-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.topbar-user-email {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dropdown-menu-lg { width: 320px; }
+
+.topbar-user-menu { position: relative; }
+
+.topbar-bell { position: relative; }
+
+.topbar-user-text { text-align: left; }
+
+.topbar-roles { margin-top: 0.25rem; }
+
+.topbar-bell-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--danger);
+  border-radius: 50%;
+}
+
+.dropdown-role-tag {
+  display: inline-block;
+  margin-right: 4px;
+  background: var(--primary-100);
+  color: var(--primary-700);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.dropdown-item-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.app-launcher-active { color: var(--primary-600) !important; }
+
+.app-launcher-wrap { position: relative; }
+
+.app-launcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.app-launcher-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.app-launcher-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.app-launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
 }
 
 /* ============================================================
@@ -1617,4 +1833,249 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (min-width: 769px) {
   .hide-desktop { display: none !important; }
+}
+
+/* ============================================================
+   SIDEBAR — Komponen pendamping (brand, search, submenu, user)
+   ============================================================ */
+.sidebar-brand-open      { justify-content: space-between; }
+.sidebar-brand-collapsed { justify-content: center; }
+
+.sidebar-brand-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-brand-text {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+.sidebar-brand-sub {
+  font-size: 0.6875rem;
+  color: rgba(255,255,255,0.4);
+}
+
+.sidebar-toggle {
+  color: rgba(255,255,255,0.5);
+  padding: 4px;
+}
+.sidebar-toggle:hover {
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.06);
+}
+
+.sidebar-search {
+  position: relative;
+  margin: 0.75rem 1rem 0.25rem;
+}
+
+.sidebar-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,0.4);
+  pointer-events: none;
+}
+
+.sidebar-search-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #ffffff;
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem 0.375rem 2rem;
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.sidebar-search-input::placeholder { color: rgba(255,255,255,0.4); }
+.sidebar-search-input:focus {
+  border-color: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.08);
+}
+
+.sidebar-group { margin-bottom: 1rem; }
+.sidebar-group .sidebar-section-label { margin-bottom: 0.5rem; }
+
+.sidebar-note {
+  padding: 1rem;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8125rem;
+}
+
+.sidebar-category {
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  padding-left: 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-submenu {
+  padding-left: 1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+.sidebar-submenu .sidebar-item {
+  padding: 0.35rem 0.75rem;
+  min-height: 32px;
+}
+
+.sidebar-user-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-user-card-info { overflow: hidden; }
+
+.sidebar-user-card-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.sidebar-user-card-role {
+  font-size: 0.6875rem;
+  color: rgba(255,255,255,0.4);
+  text-transform: capitalize;
+}
+
+/* ============================================================
+   TOPBAR — Komponen pendamping navbar
+   ============================================================ */
+.topbar-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.topbar-title-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.topbar-bell { position: relative; }
+
+.topbar-bell-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--danger);
+  border-radius: 50%;
+}
+
+/* ============================================================
+   DROPDOWN — Trigger & kontainer (pendamping .dropdown-menu)
+   ============================================================ */
+.dropdown { position: relative; }
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+.dropdown-trigger:hover { background: var(--gray-100); }
+
+.dropdown-trigger-text { text-align: left; }
+
+.dropdown-trigger-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.dropdown-trigger-email {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.dropdown-header-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dropdown-header-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+/* ============================================================
+   APP LAUNCHER — Panel switcher modul (varian .dropdown-menu)
+   ============================================================ */
+.app-launcher-menu {
+  width: 320px;
+  padding: 1rem;
+  border-radius: var(--radius-xl);
+  z-index: 999;
+}
+
+.app-launcher-toggle.active { color: var(--primary-600); }
+
+.app-launcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.app-launcher-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.app-launcher-count {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.app-launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.module-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.375rem;
 }
