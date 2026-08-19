@@ -36,11 +36,14 @@ export default function LoginPage() {
   });
 
   const onSubmit = (data: LoginFormValues) => {
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get('redirect');
+
     login({
       identifier: data.identifier,
       password: data.password,
       remember_me: data.remember_me,
-    });
+    }, redirect);
   };
 
   return (

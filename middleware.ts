@@ -17,7 +17,7 @@ const ADMIN_ROUTES = [
   '/admin',
 ];
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get('host') || '';
   const isSpmb = hostname.startsWith('spmb.');
@@ -27,9 +27,7 @@ export function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
-    pathname.includes('.') ||
-    pathname.startsWith('/spmb') ||
-    pathname.startsWith('/simpeg')
+    pathname.includes('.')
   ) {
     return NextResponse.next();
   }

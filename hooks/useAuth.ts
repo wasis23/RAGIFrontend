@@ -36,7 +36,7 @@ export function useAuth() {
 
   // Login dengan Backend API Laravel Sanctum
   const login = useCallback(
-    async (payload: LoginRequest) => {
+    async (payload: LoginRequest, redirectPath?: string | null) => {
       setLoading(true);
       try {
         const res = await authService.login(payload);
@@ -49,7 +49,7 @@ export function useAuth() {
           setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
           setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
           toast.success(res?.message || `Selamat datang, ${userObj.username || 'Pengguna'}!`);
-          router.push(ROUTES.DASHBOARD);
+          router.push(redirectPath || ROUTES.DASHBOARD);
         } else {
           toast.error(res?.message || 'Gagal autentikasi dari server.');
         }
