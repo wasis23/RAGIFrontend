@@ -10,7 +10,7 @@ import { authService } from '@/services/auth.service';
 import { TOKEN_KEY } from '@/lib/constants';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { sidebar_open } = useUiStore();
+  const { sidebar_open, toggleSidebar } = useUiStore();
   const { setUser } = useAuthStore();
   const pathname = usePathname();
   const router = useRouter();
@@ -65,9 +65,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <Suspense fallback={<div style={{ width: 260 }} />}>
         <Sidebar />
       </Suspense>
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {sidebar_open && (
+        <div 
+          className="sidebar-overlay hide-desktop" 
+          onClick={toggleSidebar}
+        />
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
         <Navbar />
-        <main style={{ flex: 1, padding: '2rem', maxWidth: 1400, width: '100%', margin: '0 auto' }}>
+        <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-8">
           {children}
         </main>
       </div>

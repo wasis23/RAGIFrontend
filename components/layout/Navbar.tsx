@@ -25,8 +25,8 @@ export function Navbar() {
         </button>
 
         <div className="topbar-section">
-          <span className="topbar-title">Single Sign-On (SSO) Portal</span>
-          <span className="badge badge-blue">TERINTEGRASI</span>
+          <span className="topbar-title hide-mobile">Single Sign-On (SSO) Portal</span>
+          <span className="badge badge-blue hide-mobile">TERINTEGRASI</span>
         </div>
       </div>
 

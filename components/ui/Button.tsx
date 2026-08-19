@@ -32,6 +32,7 @@ export function Button({
     <button
       className={`${baseClass} ${variantClass} ${sizeClass} ${fullClass} ${className}`.trim()}
       disabled={disabled || isBusy}
+      suppressHydrationWarning
       {...props}
     >
       {isBusy ? (
