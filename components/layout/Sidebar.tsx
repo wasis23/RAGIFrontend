@@ -64,10 +64,22 @@ const getIcon = (iconName: string) => {
     'FaSitemap': Building2,
     'FaMoneyBillWave': DollarSign,
     'FaCalendarCheck': Calendar,
+    'FaBuilding': Building2,
+    'FaBoxes': List,
+    'FaWrench': Activity,
+    'FaShoppingCart': CheckSquare,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
 };
+
+const SINAPRA_FALLBACK_MENUS: Menu[] = [
+  { id: 901, parent_id: null, name: 'Gedung & Ruangan', url: '/sinapra/gedung-ruangan', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
+  { id: 902, parent_id: null, name: 'Inventaris Aset', url: '/sinapra/aset', icon: 'FaBoxes', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
+  { id: 903, parent_id: null, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
+  { id: 904, parent_id: null, name: 'Maintenance', url: '/sinapra/maintenance', icon: 'FaWrench', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
+  { id: 905, parent_id: null, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -89,12 +101,14 @@ export function Sidebar() {
     else if (pathname.startsWith('/sippm')) mod = 'sippm';
     else if (pathname.startsWith('/sikeu')) mod = 'sikeu';
     else if (pathname.startsWith('/spmb')) mod = 'spmb';
+    else if (pathname.startsWith('/sinapra')) mod = 'sinapra';
     else if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       if (hostname.startsWith('spmb.')) mod = 'spmb';
       else if (hostname.startsWith('simpeg.')) mod = 'simpeg';
       else if (hostname.startsWith('sippm.')) mod = 'sippm';
       else if (hostname.startsWith('sikeu.')) mod = 'sikeu';
+      else if (hostname.startsWith('sinapra.')) mod = 'sinapra';
     }
 
     if (typeof window !== 'undefined') {
@@ -112,16 +126,29 @@ export function Sidebar() {
     if (user) {
       const fetchMenus = async () => {
         try {
-          const menus = await menuService.getMyMenus(getModule());
-          setDynamicMenus(menus);
+          const mod = getModule();
+          const menus = await menuService.getMyMenus(mod);
+          if (menus && menus.length > 0) {
+            setDynamicMenus(menus);
+          } else if (mod === 'sinapra') {
+            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
+          } else {
+            setDynamicMenus([]);
+          }
         } catch (error) {
           console.error("Failed to load menus", error);
+          if (getModule() === 'sinapra') {
+            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
+          }
         } finally {
           setLoading(false);
         }
       };
       fetchMenus();
     } else {
+      if (getModule() === 'sinapra') {
+        setDynamicMenus(SINAPRA_FALLBACK_MENUS);
+      }
       setLoading(false);
     }
   }, [user, pathname]);

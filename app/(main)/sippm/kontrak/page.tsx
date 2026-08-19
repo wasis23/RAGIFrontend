@@ -181,7 +181,7 @@ export default function KontrakPage() {
       // 1. Issue SPK contract via backend
       await sippmService.storeKontrak(data.proposal_kegiatan_id, {
         nomor_kontrak: data.nomor_kontrak,
-        nominal_dana: data.nominal_disetujui,
+        dana_disetujui: data.nominal_disetujui,
         tgl_mulai: data.tgl_mulai,
         tgl_selesai: data.tgl_selesai,
       });

@@ -13,6 +13,7 @@ import {
   ArrowRight,
   TrendingUp,
   Sliders,
+  CheckCircle2,
 } from 'lucide-react';
 import { SippmHero } from '@/components/sippm/SippmHero';
 import { sippmService } from '@/services/sippm.service';
@@ -38,12 +39,49 @@ export default function SippmDashboardPage() {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Hero Banner */}
+      {/* Hero Banner (Ringkasan Ketercapaian IKU 5) */}
       <SippmHero
-        totalProposal={upmMetrics?.total_proposal || 12}
-        totalDanaDisetujui={upmMetrics?.total_dana_approved || 350000000}
+        capaianIku={upmMetrics?.capaian_iku || 118}
         totalPublikasi={upmMetrics?.total_publikasi_verified || 18}
+        totalDanaDisetujui={upmMetrics?.total_dana_approved || 350000000}
       />
+
+      {/* Active SIPPM Hibah Announcement Banner */}
+      <div className="bg-sippm-hero p-6 rounded-2xl shadow-xl relative overflow-hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="space-y-1 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-0.5 bg-amber-400/20 text-amber-300 text-xs font-extrabold rounded-full border border-amber-400/30">
+                PERIODE HIBAH INSTITUSI AKTIF
+              </span>
+              <span className="text-xs text-teal-200">T.A. 2026 • Politeknik Indonusa Surakarta</span>
+            </div>
+            <h3 className="text-lg font-extrabold mt-1" style={{ color: '#ffffff' }}>
+              Penerimaan Proposal PPM Hibah Institusi Tahun 2026 Telah Dibuka!
+            </h3>
+            <p className="text-xs text-slate-300">
+              Pengusulan proposal Penelitian & Pengabdian kepada Masyarakat (PPM) Hibah Institusi telah resmi dibuka. Dosen ber-NIDN maupun Dosen Tetap Yayasan dapat mengajukan proposal secara daring.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="http://localhost:8000/api/sippm/pengumuman/1/html-draft"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition backdrop-blur-md flex items-center gap-1.5"
+            >
+              <FileText size={14} /> Surat Pengumuman Scanned (PDF)
+            </a>
+            <Link
+              href="/sippm/proposal/create"
+              className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-extrabold text-xs rounded-xl shadow-lg hover:shadow-emerald-500/25 transition flex items-center gap-1.5"
+            >
+              <CheckCircle2 size={14} /> Buat & Pengajuan Proposal Sekarang →
+            </Link>
+          </div>
+        </div>
+      </div>
 
       {/* Main Menu Grid / Quick Access Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

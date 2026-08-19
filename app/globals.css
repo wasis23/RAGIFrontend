@@ -62,6 +62,11 @@
   --sippm-800: #115e59;
   --sippm-900: #134e4a;
 
+  /* Button Theme Defaults (SSO / Core) */
+  --btn-primary-bg: var(--primary-600);
+  --btn-primary-hover: var(--primary-700);
+  --btn-primary-shadow: rgba(37, 99, 235, 0.25);
+
   /* Neutral */
   --gray-50:  #f8fafc;
   --gray-100: #f1f5f9;
@@ -113,6 +118,25 @@
   --transition-fast:   150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow:   400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Module Theme Scopes */
+.theme-sippm {
+  --btn-primary-bg: var(--sippm-600);
+  --btn-primary-hover: var(--sippm-700);
+  --btn-primary-shadow: rgba(13, 148, 136, 0.25);
+}
+
+.theme-simpeg {
+  --btn-primary-bg: var(--accent-600);
+  --btn-primary-hover: var(--accent-700);
+  --btn-primary-shadow: rgba(79, 70, 229, 0.25);
+}
+
+.theme-sso {
+  --btn-primary-bg: var(--primary-600);
+  --btn-primary-hover: var(--primary-700);
+  --btn-primary-shadow: rgba(37, 99, 235, 0.25);
 }
 
 /* ============================================================
@@ -644,14 +668,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-primary {
-  background: var(--primary-600);
-  color: white;
-  border-color: var(--primary-600);
+  background-color: var(--btn-primary-bg) !important;
+  color: white !important;
+  border-color: var(--btn-primary-bg) !important;
 }
 .btn-primary:hover {
-  background: var(--primary-700);
-  border-color: var(--primary-700);
-  box-shadow: 0 4px 12px rgb(37 99 235 / 0.3);
+  background-color: var(--btn-primary-hover) !important;
+  border-color: var(--btn-primary-hover) !important;
+  box-shadow: 0 4px 12px var(--btn-primary-shadow);
   transform: translateY(-1px);
 }
 .btn-primary:active { transform: translateY(0); }

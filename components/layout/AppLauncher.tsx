@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Grid, Shield, Users, CreditCard, UserPlus, BookOpen, FlaskConical, LayoutGrid } from 'lucide-react';
+import { Grid, Shield, Users, CreditCard, UserPlus, BookOpen, FlaskConical, LayoutGrid, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { moduleService, AppModule } from '@/services/module.service';
 
@@ -30,6 +30,11 @@ const MODULE_META: Record<string, any> = {
   'siakad': {
     href: '/siakad',
     icon: BookOpen,
+  },
+  'sinapra': {
+    href: '/sinapra/gedung-ruangan',
+    color: '#e11d48',
+    icon: Building2,
   },
 };
 
@@ -69,6 +74,7 @@ export function AppLauncher() {
       case 'sippm': return isDosen || hasRole('reviewer');
       case 'sikeu': return isMahasiswa || isTendik;
       case 'siakad': return isDosen || isMahasiswa;
+      case 'sinapra': return isTendik || hasRole('admin_sarpras');
       case 'spmb': return true; // Publik/User Baru
       default: return true; // Untuk modul kustom lain
     }

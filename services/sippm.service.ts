@@ -1,5 +1,6 @@
 // ============================================================
 // SIPPM SERVICE — API Integration Layer for SIPPM Module
+// Standardized 1-to-1 matching with Laravel Backend API
 // ============================================================
 
 import apiClient from '@/lib/axios';
@@ -27,7 +28,10 @@ import type {
   CreateHkiPayload,
   RubrikIndikator,
   CreateRubrikPayload,
+  PengumumanHibah,
+  CreatePengumumanPayload,
 } from '@/types/sippm.types';
+
 
 export const sippmService = {
   // ------------------------------------------------------------
@@ -43,6 +47,16 @@ export const sippmService = {
     return data;
   },
 
+  updateSkema: async (id: number, payload: Partial<CreateSkemaPayload>): Promise<ApiResponse<SkemaKegiatan>> => {
+    const { data } = await apiClient.put<ApiResponse<SkemaKegiatan>>(`/sippm/skema/${id}`, payload);
+    return data;
+  },
+
+  destroySkema: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/sippm/skema/${id}`);
+    return data;
+  },
+
   indexPeriode: async (): Promise<ApiResponse<PeriodeHibah[]>> => {
     const { data } = await apiClient.get<ApiResponse<PeriodeHibah[]>>('/sippm/periode');
     return data;
@@ -50,6 +64,16 @@ export const sippmService = {
 
   storePeriode: async (payload: CreatePeriodePayload): Promise<ApiResponse<PeriodeHibah>> => {
     const { data } = await apiClient.post<ApiResponse<PeriodeHibah>>('/sippm/periode', payload);
+    return data;
+  },
+
+  updatePeriode: async (id: number, payload: Partial<CreatePeriodePayload>): Promise<ApiResponse<PeriodeHibah>> => {
+    const { data } = await apiClient.put<ApiResponse<PeriodeHibah>>(`/sippm/periode/${id}`, payload);
+    return data;
+  },
+
+  destroyPeriode: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/sippm/periode/${id}`);
     return data;
   },
 
@@ -66,26 +90,35 @@ export const sippmService = {
     return data;
   },
 
-  createProposal: async (payload: CreateProposalPayload): Promise<ApiResponse<ProposalKegiatan>> => {
-    const formData = new FormData();
-    formData.append('periode_hibah_id', payload.periode_hibah_id.toString());
-    formData.append('skema_kegiatan_id', payload.skema_kegiatan_id.toString());
-    formData.append('judul', payload.judul);
-    formData.append('abstrak', payload.abstrak);
-    formData.append('rumpun_ilmu', payload.rumpun_ilmu);
-    formData.append('dana_diusulkan', payload.dana_diusulkan.toString());
+  createProposal: async (payload: CreateProposalPayload | any): Promise<ApiResponse<ProposalKegiatan>> => {
+    // If payload contains file, use FormData, otherwise clean JSON
+    if (payload.file_proposal && typeof payload.file_proposal !== 'string') {
+      const formData = new FormData();
+      formData.append('periode_id', payload.periode_id.toString());
+      formData.append('skema_id', payload.skema_id.toString());
+      formData.append('ketua_pegawai_id', payload.ketua_pegawai_id.toString());
+      formData.append('judul', payload.judul);
+      formData.append('abstrak', payload.abstrak);
+      formData.append('rumpun_ilmu', payload.rumpun_ilmu);
+      formData.append('anggaran_diajukan', payload.anggaran_diajukan.toString());
 
-    if (payload.anggota && payload.anggota.length > 0) {
-      formData.append('anggota', JSON.stringify(payload.anggota));
-    }
+      if (payload.mitra_kerjasama_id) formData.append('mitra_kerjasama_id', payload.mitra_kerjasama_id.toString());
+      if (payload.mata_kuliah_id) formData.append('mata_kuliah_id', payload.mata_kuliah_id.toString());
+      if (payload.target_tkt) formData.append('target_tkt', payload.target_tkt.toString());
+      if (payload.anggota && payload.anggota.length > 0) {
+        formData.append('anggota', JSON.stringify(payload.anggota));
+      }
 
-    if (payload.file_proposal) {
       formData.append('file_proposal', payload.file_proposal);
+
+      const { data } = await apiClient.post<ApiResponse<ProposalKegiatan>>('/sippm/proposal', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
     }
 
-    const { data } = await apiClient.post<ApiResponse<ProposalKegiatan>>('/sippm/proposal', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // Clean JSON Request
+    const { data } = await apiClient.post<ApiResponse<ProposalKegiatan>>('/sippm/proposal', payload);
     return data;
   },
 
@@ -137,13 +170,34 @@ export const sippmService = {
 
   requestPencairan: async (kontrakId: number, payload: RequestPencairanPayload): Promise<ApiResponse<any>> => {
     const formData = new FormData();
-    formData.append('termin', payload.termin.toString());
+    formData.append('termin', (payload.termin_ke || (payload as any).termin || 1).toString());
     formData.append('nominal', payload.nominal.toString());
     if (payload.catatan_keuangan) formData.append('catatan_keuangan', payload.catatan_keuangan);
     if (payload.file_lpj) formData.append('file_lpj', payload.file_lpj);
 
     const { data } = await apiClient.post<ApiResponse<any>>(`/sippm/kontrak/${kontrakId}/pencairan`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  uploadSpkTtdBasah: async (kontrakId: number, fileSpkTtd: string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/sippm/kontrak/${kontrakId}/upload-spk-ttd`, {
+      file_spk_ttd: fileSpkTtd,
+    });
+    return data;
+  },
+
+  approveSpk: async (kontrakId: number, catatan?: string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/sippm/kontrak/${kontrakId}/approve-spk`, {
+      catatan,
+    });
+    return data;
+  },
+
+  uploadResiSikeu: async (pencairanId: number, buktiTransfer: string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/sippm/pencairan/${pencairanId}/upload-resi-sikeu`, {
+      bukti_transfer: buktiTransfer,
     });
     return data;
   },
@@ -171,6 +225,19 @@ export const sippmService = {
 
   storePublikasi: async (payload: CreatePublikasiPayload): Promise<ApiResponse<PublikasiIlmiah>> => {
     const { data } = await apiClient.post<ApiResponse<PublikasiIlmiah>>('/sippm/luaran/publikasi', payload);
+    return data;
+  },
+
+  fetchExternalPublikasi: async (source: string, identifier: string): Promise<ApiResponse<any[]>> => {
+    const { data } = await apiClient.post<ApiResponse<any[]>>('/sippm/luaran/fetch-external', {
+      source,
+      identifier,
+    });
+    return data;
+  },
+
+  importExternalPublikasi: async (payload: any): Promise<ApiResponse<PublikasiIlmiah>> => {
+    const { data } = await apiClient.post<ApiResponse<PublikasiIlmiah>>('/sippm/luaran/import-external', payload);
     return data;
   },
 
@@ -235,8 +302,71 @@ export const sippmService = {
     return data;
   },
 
+  // ------------------------------------------------------------
+  // Master Standar IKU 5 Prodi
+  // ------------------------------------------------------------
+  indexIku5Standards: async (params?: { search?: string; tahun_akademik?: string; unit_kerja_id?: number }): Promise<PaginatedResponse<any>> => {
+    const { data } = await apiClient.get<PaginatedResponse<any>>('/sippm/iku5-standards', { params });
+    return data;
+  },
+
+  storeIku5Standard: async (payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/sippm/iku5-standards', payload);
+    return data;
+  },
+
+  updateIku5Standard: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/sippm/iku5-standards/${id}`, payload);
+    return data;
+  },
+
   destroyRubrik: async (id: number): Promise<ApiResponse<void>> => {
     const { data } = await apiClient.delete<ApiResponse<void>>(`/sippm/rubrik/${id}`);
     return data;
   },
+
+  // ------------------------------------------------------------
+  // Pengumuman Penerimaan Proposal Hibah
+  // ------------------------------------------------------------
+  getActivePengumuman: async (): Promise<ApiResponse<PengumumanHibah>> => {
+    const { data } = await apiClient.get<ApiResponse<PengumumanHibah>>('/sippm/pengumuman/active');
+    return data;
+  },
+
+  indexPengumuman: async (params?: { tahun_anggaran?: string; status?: string }): Promise<ApiResponse<PaginatedResponse<PengumumanHibah>>> => {
+    const { data } = await apiClient.get<ApiResponse<PaginatedResponse<PengumumanHibah>>>('/sippm/pengumuman', { params });
+    return data;
+  },
+
+  storePengumuman: async (payload: CreatePengumumanPayload): Promise<ApiResponse<PengumumanHibah>> => {
+    const { data } = await apiClient.post<ApiResponse<PengumumanHibah>>('/sippm/pengumuman', payload);
+    return data;
+  },
+
+  uploadSignedPengumuman: async (id: number, file: File): Promise<ApiResponse<PengumumanHibah>> => {
+    const formData = new FormData();
+    formData.append('file_signed_pdf', file);
+
+    const { data } = await apiClient.post<ApiResponse<PengumumanHibah>>(`/sippm/pengumuman/${id}/upload-signed`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  uploadTemplatePengumuman: async (id: number, type: 'mitra_indo' | 'mitra_intl', file: File): Promise<ApiResponse<PengumumanHibah>> => {
+    const formData = new FormData();
+    formData.append('type', type);
+    formData.append('file_template', file);
+
+    const { data } = await apiClient.post<ApiResponse<PengumumanHibah>>(`/sippm/pengumuman/${id}/upload-template`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  publishPengumuman: async (id: number): Promise<ApiResponse<PengumumanHibah>> => {
+    const { data } = await apiClient.post<ApiResponse<PengumumanHibah>>(`/sippm/pengumuman/${id}/publish`);
+    return data;
+  },
 };
+

@@ -161,7 +161,7 @@ export default function HkiRegistryPage() {
               </tr>
             ) : (
               filteredList.map((item) => {
-                const judulHki = item.judul || item.judul_hki || 'HKI / Karya Terdaftar';
+                const judulHki = item.judul_hki || (item as any).judul || 'HKI / Karya Terdaftar';
                 const kategoriHki = (item.jenis_luaran || item.kategori_hki || 'hak_cipta').replace(/_/g, ' ');
                 const noSertifikat = item.nomor_pencatatan_isbn || item.nomor_sertifikat || item.nomor_pendaftaran || '-';
                 const displayTahun = item.tahun || (item.tgl_terbit_catat ? new Date(item.tgl_terbit_catat).getFullYear() : '2026');

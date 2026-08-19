@@ -53,6 +53,18 @@ export function formatRelativeTime(dateString: string | null | undefined): strin
 }
 
 // ============================================================
+// formatCurrency — Format angka menjadi Rupiah (Rp)
+// ============================================================
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) return 'Rp 0';
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+// ============================================================
 // truncate — Potong teks dengan ellipsis
 // ============================================================
 export function truncate(text: string, maxLength: number = 50): string {

@@ -21,6 +21,7 @@ import {
   Save,
 } from 'lucide-react';
 import { simpegService } from '@/services/simpeg.service';
+import { sippmService } from '@/services/sippm.service';
 import type { UnitKerja } from '@/types/simpeg.types';
 import type { Iku5StandardProdi } from '@/types/sippm.types';
 
@@ -76,68 +77,54 @@ export default function Iku5StandardsPage() {
     'D3 Sistem Informasi': { target_scopus: 2, target_sinta: 4, target_dikti: 2, target_internal: 3, target_hki: 4, min_capaian_iku: 85, tahun_akademik: '2025/2026' },
   };
 
-  const fetchBackendProdi = async () => {
+  const fetchBackendStandards = async () => {
     try {
       setLoading(true);
-      const res = await simpegService.getUnitKerjaList();
-      const rawUnits = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      // Fetch unit kerja prodi
+      const unitRes = await simpegService.getUnitKerjaList();
+      const rawUnits = Array.isArray(unitRes.data) ? unitRes.data : (unitRes.data as any)?.data || [];
       setUnitKerjaList(rawUnits);
 
-      // Filter only prodi unit kerja or fallback to default list
-      const prodiUnits = rawUnits.filter((u: any) => u.jenis === 'prodi' || (u.nama || '').toLowerCase().includes('s1') || (u.nama || '').toLowerCase().includes('d3'));
-      const activeUnits = prodiUnits.length > 0 ? prodiUnits : [
-        { id: 1, nama: 'S1 Teknik Informatika', jenis: 'prodi' },
-        { id: 2, nama: 'S1 Sistem Informasi', jenis: 'prodi' },
-        { id: 3, nama: 'S1 Desain Komunikasi Visual', jenis: 'prodi' },
-        { id: 4, nama: 'S1 Teknik Elektro', jenis: 'prodi' },
-        { id: 5, nama: 'S1 Manajemen Informatika', jenis: 'prodi' },
-        { id: 6, nama: 'D3 Sistem Informasi', jenis: 'prodi' },
-      ];
+      // Fetch IKU 5 standards from backend API
+      const ikuRes = await sippmService.indexIku5Standards({ tahun_akademik: '2025/2026' });
+      const rawData = ikuRes.data;
+      const backendItems: any[] = Array.isArray(rawData) ? rawData : (rawData as any)?.data || [];
 
-      // Load saved standards from localStorage if exists
-      const saved = localStorage.getItem('sippm_iku5_standards');
-      let savedStandards: Record<string, Iku5StandardProdi> = {};
-      if (saved) {
-        try { savedStandards = JSON.parse(saved); } catch (e) {}
-      }
+      // Map backend data to UI format
+      const prodiUnits = rawUnits.filter((u: any) => u.jenis === 'prodi' || (u.nama || '').toLowerCase().includes('s1') || (u.nama || '').toLowerCase().includes('d3'));
+      const activeUnits = prodiUnits.length > 0 ? prodiUnits : rawUnits;
 
       const mergedList: Iku5StandardProdi[] = activeUnits.map((unit: any, idx: number) => {
         const prodiName = unit.nama || unit.name || `Prodi ${idx + 1}`;
         const code = unit.kode || prodiName.split(' ').map((w: string) => w[0]).join('').toUpperCase();
-        
-        if (savedStandards[code]) {
-          return savedStandards[code];
-        }
 
-        const defaultVal = defaultStandardMap[prodiName] || {
-          target_scopus: 3,
-          target_sinta: 5,
-          target_dikti: 3,
-          target_internal: 3,
-          target_hki: 5,
-          min_capaian_iku: 100,
-          tahun_akademik: '2025/2026',
-        };
+        const foundDb = backendItems.find((b: any) => b.unit_kerja_id === unit.id || b.unit_kerja?.kode === code);
 
         return {
-          id: code,
+          id: foundDb ? String(foundDb.id) : code,
           unit_kerja_id: unit.id,
           nama_prodi: prodiName,
           fakultas: unit.parent?.nama || 'Fakultas Ilmu Komputer',
-          ...defaultVal,
+          target_scopus: foundDb ? foundDb.target_publikasi_scopus : 5,
+          target_sinta: foundDb ? foundDb.target_publikasi_sinta : 10,
+          target_dikti: foundDb ? foundDb.target_hki_paten : 4,
+          target_internal: foundDb ? foundDb.target_buku_isbn : 3,
+          target_hki: foundDb ? foundDb.target_hki_paten : 4,
+          min_capaian_iku: 100,
+          tahun_akademik: foundDb?.tahun_akademik || '2025/2026',
         };
       });
 
       setProdiStandards(mergedList);
     } catch (err) {
-      console.error('Failed to load prodi from backend', err);
+      console.error('Failed to load IKU 5 standards from backend', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBackendProdi();
+    fetchBackendStandards();
   }, []);
 
   const handleEditModal = (item: Iku5StandardProdi) => {
@@ -154,34 +141,24 @@ export default function Iku5StandardsPage() {
   };
 
   const onSubmit = async (data: IkuStandardFormValues) => {
+    if (!selectedProdi) return;
     try {
       setSubmitting(true);
       setFeedback(null);
 
-      const updated = prodiStandards.map((item) => {
-        if (item.id === data.prodi_id) {
-          return {
-            ...item,
-            target_scopus: data.target_scopus,
-            target_sinta: data.target_sinta,
-            target_dikti: data.target_dikti,
-            target_internal: data.target_internal,
-            target_hki: data.target_hki,
-            min_capaian_iku: data.min_capaian_iku,
-            tahun_akademik: data.tahun_akademik,
-          };
-        }
-        return item;
+      // Save/Upsert to Backend DB API
+      await sippmService.storeIku5Standard({
+        unit_kerja_id: selectedProdi.unit_kerja_id,
+        tahun_akademik: data.tahun_akademik,
+        target_publikasi_scopus: data.target_scopus,
+        target_publikasi_sinta: data.target_sinta,
+        target_hki_paten: data.target_hki,
+        target_buku_isbn: data.target_internal,
       });
 
-      setProdiStandards(updated);
+      await fetchBackendStandards();
 
-      // Persist to localStorage
-      const storageObj: Record<string, Iku5StandardProdi> = {};
-      updated.forEach((u) => { storageObj[u.id] = u; });
-      localStorage.setItem('sippm_iku5_standards', JSON.stringify(storageObj));
-
-      setFeedback({ type: 'success', message: `Standar IKU 5 untuk "${selectedProdi?.nama_prodi}" berhasil diperbarui!` });
+      setFeedback({ type: 'success', message: `Standar IKU 5 untuk "${selectedProdi?.nama_prodi}" berhasil disimpan ke Database Backend!` });
       setIsModalOpen(false);
     } catch (err: any) {
       setFeedback({ type: 'error', message: 'Gagal memperbarui standar IKU 5 prodi.' });
