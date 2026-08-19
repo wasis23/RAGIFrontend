@@ -328,10 +328,9 @@ export default function AdminPermissionsPage() {
               Modul Target <span className="text-red-500">*</span>
             </label>
             <Select
-              value={appModules.find(m => m.code === formData.module) ? { value: formData.module, label: appModules.find(m => m.code === formData.module)?.name } : null}
+              value={formData.module}
               onChange={(v: any) => setFormData({ ...formData, module: v?.value || '' })}
               options={appModules.map(m => ({ value: m.code, label: m.name }))}
-              menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
             />
           </div>
 
@@ -340,10 +339,9 @@ export default function AdminPermissionsPage() {
               Action Type <span className="text-red-500">*</span>
             </label>
             <Select
-              value={{ value: formData.action, label: formData.action }}
+              value={formData.action}
               onChange={(v: any) => setFormData({ ...formData, action: v?.value || 'read' })}
               options={PERMISSION_ACTIONS.map(a => ({ value: a, label: a }))}
-              menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
             />
           </div>
 

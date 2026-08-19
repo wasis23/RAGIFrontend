@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-type BadgeVariant = 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'indigo' | 'purple' | 'cyan' | 'orange' | 'simpeg' | 'spmb' | 'siakad' | 'sikeu' | 'lms' | 'sinapra' | 'kerjasama' | 'upm';
+type BadgeVariant = 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'indigo' | 'purple' | 'cyan' | 'orange' | 'simpeg' | 'spmb' | 'siakad' | 'sikeu' | 'lms' | 'sinapra' | 'kerjasama' | 'upm' | 'success' | 'danger' | 'warning' | 'info' | 'secondary';
 
 interface BadgeProps {
   variant?: BadgeVariant;

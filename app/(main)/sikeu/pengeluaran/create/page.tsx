@@ -30,10 +30,11 @@ export default function CreatePengeluaranPage() {
     const fetchUnitKas = async () => {
       try {
         const res = await sikeuService.getUnitKasList();
-        if (res.data) {
-          setUnitKasList(res.data);
-          if (res.data.length > 0) {
-            setFormData(prev => ({ ...prev, unit_kas_id: res.data[0].id.toString() }));
+        const unitKas = res.data;
+        if (unitKas) {
+          setUnitKasList(unitKas);
+          if (unitKas.length > 0) {
+            setFormData(prev => ({ ...prev, unit_kas_id: unitKas[0].id.toString() }));
           }
         }
       } catch (e) {

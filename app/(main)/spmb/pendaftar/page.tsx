@@ -47,7 +47,7 @@ export default function PendaftarPage() {
       if (appliedFilters.status !== '') params.status = appliedFilters.status;
       if (filterLimit !== '') params.limit = filterLimit;
 
-      const res: any = await spmbService.getPendaftar(params);
+      const res: any = await spmbService.getPendaftaran(params);
       let pendaftarList = [];
       let metaData = undefined;
 
@@ -101,9 +101,9 @@ export default function PendaftarPage() {
     }
 
     try {
-      await spmbService.verifikasiPendaftar(verifyingPendaftar.id, {
-        is_lulus: formData.is_lulus,
-        catatan: formData.catatan,
+      await spmbService.updateStatusPendaftaran(verifyingPendaftar.id, {
+        status: formData.is_lulus ? 'lulus_administrasi' : 'gagal_administrasi',
+        catatan_verifikasi: formData.catatan,
       });
       toast.success('Verifikasi berhasil disimpan!');
       fetchPendaftar();

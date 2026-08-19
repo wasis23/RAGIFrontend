@@ -128,7 +128,7 @@ export default function PesertaUjianPage() {
 
       <DataTable
         data={pendaftarData}
-        loading={loading}
+        isLoading={loading}
         columns={columns}
       />
 

@@ -41,7 +41,11 @@ export default function CreateGelombangPage() {
   const onSubmit = async (data: Partial<GelombangPenerimaan>) => {
     try {
       setLoading(true);
-      await spmbService.createGelombang(data);
+      const payload = {
+        ...data,
+        biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
+      };
+      await spmbService.createGelombang(payload as any);
       toast.success('Gelombang berhasil ditambahkan');
       router.push('/spmb/master/gelombang');
     } catch (error: any) {

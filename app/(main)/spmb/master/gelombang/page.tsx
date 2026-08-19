@@ -119,7 +119,7 @@ export default function MasterGelombangPage() {
 
       <DataTable 
             data={filteredData}
-            loading={loading}
+            isLoading={loading}
             columns={[
               { key: 'nama', label: 'Nama Gelombang', sortable: true },
               { key: 'jalur', label: 'Jalur Masuk', render: (row) => row.jalur_masuk?.nama },

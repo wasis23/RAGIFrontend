@@ -80,6 +80,7 @@ export default function MasterBiayaPage() {
     nama_kelompok: 'Kelompok 1 (Subsidi Penuh)',
     program_studi_id: 0,
     nominal: 3500000,
+    prodi: '',
   });
 
   const [isJenisBiayaModalOpen, setIsJenisBiayaModalOpen] = useState(false);
@@ -532,7 +533,7 @@ export default function MasterBiayaPage() {
               <button
                 onClick={() => {
                   setEditingTarif(null);
-                  setTarifForm({ jenis_biaya_id: 1, tahun_angkatan: selectedAngkatan, jalur_kelas: selectedJalur, prodi: 'Teknik Informatika', nama_kelompok: 'SPP Semester Teknik Informatika', program_studi_id: 0, nominal: 3500000 });
+                  setTarifForm({ jenis_biaya_id: 1, tahun_angkatan: selectedAngkatan, jalur_kelas: selectedJalur, kelompok_ukt: 1, prodi: 'Teknik Informatika', nama_kelompok: 'SPP Semester Teknik Informatika', program_studi_id: 0, nominal: 3500000 });
                   setIsTarifModalOpen(true);
                 }}
                 className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
@@ -786,7 +787,8 @@ export default function MasterBiayaPage() {
                             kelompok_ukt: 1,
                             nama_kelompok: t.nama_kelompok,
                             program_studi_id: 0,
-                            nominal: t.nominal
+                            nominal: t.nominal,
+                            prodi: t.prodi || 'Semua Prodi'
                           });
                           setIsTarifModalOpen(true);
                         }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg">

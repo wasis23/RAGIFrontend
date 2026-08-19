@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
@@ -62,7 +62,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className={`main-layout ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
-      <Sidebar />
+      <Suspense fallback={<div style={{ width: 260 }} />}>
+        <Sidebar />
+      </Suspense>
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <Navbar />
         <main style={{ flex: 1, padding: '2rem', maxWidth: 1400, width: '100%', margin: '0 auto' }}>

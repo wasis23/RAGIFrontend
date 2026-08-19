@@ -155,12 +155,12 @@ export default function DataPendaftarPage() {
 
       <DataTable 
         data={data}
-        loading={loading}
+        isLoading={loading}
         columns={[
           { key: 'no_pendaftaran', label: 'No Pendaftaran', sortable: true },
           { key: 'nama_lengkap', label: 'Nama Lengkap', sortable: true },
-          { key: 'program_studi', label: 'Program Studi Pilihan 1', render: (row) => row.program_studi?.nama || '-' },
-          { key: 'status', label: 'Status', render: (row) => renderStatus(row.status) },
+          { key: 'program_studi', label: 'Program Studi Pilihan 1', render: (row: any) => row.program_studi?.nama || '-' },
+          { key: 'status', label: 'Status', render: (row: any) => renderStatus(row.status) },
           { key: 'actions', label: 'Aksi', align: 'right', render: (row) => (
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" icon={<Eye size={16} />} onClick={() => handleOpenDetail(row)}>
@@ -270,7 +270,6 @@ export default function DataPendaftarPage() {
         open={isDetailDrawerOpen}
         onClose={() => setIsDetailDrawerOpen(false)}
         title="Detail & Verifikasi Pendaftaran"
-        size="lg"
       >
         {detailLoading || !selectedPendaftar ? (
           <div className="flex justify-center items-center h-48">

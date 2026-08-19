@@ -201,14 +201,13 @@ export default function CutiPage() {
                     <td className="text-[0.8125rem] text-slate-500">{cuti.alasan}</td>
                     <td>
                       <span
-                        className={`badge ${
+                        className={`badge uppercase ${
                           cuti.status_approval === 'approved'
                             ? 'badge-green'
                             : cuti.status_approval === 'rejected'
                             ? 'badge-red'
                             : 'badge-yellow'
                         }`}
-                        className="uppercase"
                       >
                         {cuti.status_approval}
                       </span>

@@ -69,7 +69,11 @@ export default function EditGelombangPage() {
   const onSubmit = async (data: Partial<GelombangPenerimaan>) => {
     try {
       setLoading(true);
-      await spmbService.updateGelombang(id, data);
+      const payload = {
+        ...data,
+        biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
+      };
+      await spmbService.updateGelombang(id, payload as any);
       toast.success('Gelombang berhasil diperbarui');
       router.push('/spmb/master/gelombang');
     } catch (error: any) {

@@ -225,10 +225,9 @@ export default function PegawaiPage() {
 
             <div className="flex gap-3 items-center">
               <select
-                className="input"
+                className="input w-auto text-sm"
                 value={selectedJenis}
                 onChange={(e) => setSelectedJenis(e.target.value)}
-                className="w-auto text-sm"
               >
                 <option value="">-- Semua Jenis --</option>
                 <option value="dosen">Dosen</option>
@@ -237,10 +236,9 @@ export default function PegawaiPage() {
               </select>
 
               <select
-                className="input"
+                className="input w-auto text-sm"
                 value={selectedUnit}
                 onChange={(e) => setSelectedUnit(e.target.value)}
-                className="w-auto text-sm"
               >
                 <option value="">-- Semua Unit --</option>
                 {unitList.map((u) => (

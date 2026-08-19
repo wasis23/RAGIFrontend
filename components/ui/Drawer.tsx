@@ -5,7 +5,8 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DrawerProps {
-  open: boolean;
+  open?: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
@@ -16,6 +17,7 @@ interface DrawerProps {
 
 export function Drawer({
   open,
+  isOpen,
   onClose,
   title,
   children,
@@ -23,28 +25,29 @@ export function Drawer({
   closeOnOverlay = true,
   width = '350px',
 }: DrawerProps) {
+  const isVisible = open ?? isOpen ?? false;
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) onClose();
+      if (e.key === 'Escape' && isVisible) onClose();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [isVisible, onClose]);
 
   // Lock body scroll
   useEffect(() => {
-    if (open) {
+    if (isVisible) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [open]);
+  }, [isVisible]);
 
-  if (!open) return null;
+  if (!isVisible) return null;
 
   return (
     <div

@@ -46,7 +46,7 @@ export default function UnitKasPage() {
   const [approveForm, setApproveForm] = useState({ catatan_kabag: '' });
 
   const [pengajuanForm, setPengajuanForm] = useState({
-    unit_pemohon: unitList[0].nama,
+    unit_pemohon: unitList[0]?.nama || '',
     jenis_pengajuan: 'Pengisian Uang Muka Operasional (Petty Cash)',
     jenis_pengajuan_manual: '',
     nominal: '5000000',
@@ -475,7 +475,7 @@ export default function UnitKasPage() {
             >
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Tujuan Kas Utama *</label>
-                <select className="select select-sm border-slate-300 w-full font-bold text-xs" readOnly>
+                <select className="select select-sm border-slate-300 w-full font-bold text-xs" value="1" disabled>
                   <option value={1}>Kas Kabag Keuangan (Kas Utama Kabag)</option>
                 </select>
               </div>

@@ -996,6 +996,11 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 0.125rem;
 }
 
+.main-layout.sidebar-collapsed .sidebar-item {
+  justify-content: center;
+  padding: 0.625rem 0;
+}
+
 .sidebar-item:hover {
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.9);
@@ -1025,7 +1030,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .sidebar-search {
-  padding: 0.75rem 1rem 0.25rem;
+  padding: 0 0.75rem 0.75rem;
 }
 
 .sidebar-search-wrap { position: relative; }

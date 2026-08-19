@@ -28,7 +28,11 @@ export default function CreateJalurPage() {
   const onSubmit = async (data: Partial<JalurMasuk>) => {
     try {
       setLoading(true);
-      await spmbService.createJalurMasuk(data);
+      const payload = {
+        ...data,
+        deskripsi: data.deskripsi === null ? undefined : data.deskripsi,
+      };
+      await spmbService.createJalurMasuk(payload as any);
       toast.success('Jalur masuk berhasil ditambahkan');
       router.push('/spmb/master/jalur');
     } catch (error: any) {

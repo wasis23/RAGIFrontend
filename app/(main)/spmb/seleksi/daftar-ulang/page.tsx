@@ -113,7 +113,7 @@ export default function DaftarUlangPage() {
 
       <DataTable
         data={data}
-        loading={loading}
+        isLoading={loading}
         columns={columns}
       />
 

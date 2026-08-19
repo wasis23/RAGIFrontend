@@ -52,7 +52,11 @@ export default function EditJalurPage() {
   const onSubmit = async (data: Partial<JalurMasuk>) => {
     try {
       setLoading(true);
-      await spmbService.updateJalurMasuk(id, data);
+      const payload = {
+        ...data,
+        deskripsi: data.deskripsi === null ? undefined : data.deskripsi,
+      };
+      await spmbService.updateJalurMasuk(id, payload as any);
       toast.success('Jalur masuk berhasil diperbarui');
       router.push('/spmb/master/jalur');
     } catch (error: any) {

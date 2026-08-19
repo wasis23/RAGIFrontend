@@ -110,7 +110,7 @@ export default function MasterJalurPage() {
 
       <DataTable 
             data={filteredData}
-            loading={loading}
+            isLoading={loading}
             columns={[
               { key: 'kode', label: 'Kode', sortable: true },
               { key: 'nama', label: 'Nama Jalur', sortable: true },

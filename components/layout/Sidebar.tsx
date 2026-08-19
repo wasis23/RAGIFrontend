@@ -131,7 +131,16 @@ export function Sidebar() {
   return (
     <aside className={`sidebar ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
       {/* Brand */}
-      <div className="sidebar-brand" style={{ justifyContent: sidebar_open ? 'space-between' : 'center' }}>
+      <div 
+        className="sidebar-brand" 
+        style={{ 
+          justifyContent: sidebar_open ? 'space-between' : 'center',
+          cursor: sidebar_open ? 'default' : 'pointer',
+          padding: sidebar_open ? '1.25rem 1.5rem' : '1.25rem 0'
+        }}
+        onClick={!sidebar_open ? toggleSidebar : undefined}
+        title={!sidebar_open ? 'Tampilkan Sidebar' : undefined}
+      >
         <div className="sidebar-brand-inner">
           <div className="sidebar-logo">
             <GraduationCap size={22} color="white" />
@@ -143,13 +152,15 @@ export function Sidebar() {
             </div>
           )}
         </div>
-        <button
-          onClick={toggleSidebar}
-          className="btn btn-ghost btn-icon btn-sm hide-mobile sidebar-toggle"
-          title={sidebar_open ? 'Sembunyikan Sidebar' : 'Tampilkan Sidebar'}
-        >
-          {sidebar_open ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-        </button>
+        {sidebar_open && (
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleSidebar(); }}
+            className="btn btn-ghost btn-icon btn-sm hide-mobile sidebar-toggle"
+            title="Sembunyikan Sidebar"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}

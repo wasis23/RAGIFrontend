@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 interface ModalProps {
-  open: boolean;
+  open?: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   title?: string;
   size?: ModalSize;
@@ -18,6 +19,7 @@ interface ModalProps {
 
 export function Modal({
   open,
+  isOpen,
   onClose,
   title,
   size = 'md',
@@ -25,28 +27,29 @@ export function Modal({
   footer,
   closeOnOverlay = true,
 }: ModalProps) {
+  const isVisible = open ?? isOpen ?? false;
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) onClose();
+      if (e.key === 'Escape' && isVisible) onClose();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [isVisible, onClose]);
 
   // Lock body scroll
   useEffect(() => {
-    if (open) {
+    if (isVisible) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [open]);
+  }, [isVisible]);
 
-  if (!open) return null;
+  if (!isVisible) return null;
 
   return (
     <div

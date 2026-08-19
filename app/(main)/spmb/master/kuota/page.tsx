@@ -97,7 +97,7 @@ export default function MasterKuotaProdiPage() {
 
       <DataTable
         data={data}
-        loading={loading}
+        isLoading={loading}
         columns={columns}
       />
 

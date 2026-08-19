@@ -183,14 +183,6 @@ export default function AdminMenuPage() {
         description="Mengelola menu navigasi dan status aktif/nonaktifnya untuk setiap modul."
         action={
           <div className="flex gap-2 items-center">
-            <div className="w-[220px]">
-              <Select
-                value={appModules.find(m => m.code === selectedModule) ? { value: selectedModule, label: `Modul: ${appModules.find(m => m.code === selectedModule)?.name.toUpperCase()}` } : null}
-                onChange={(v: any) => setSelectedModule(v?.value || 'sso')}
-                options={appModules.map(m => ({ value: m.code, label: `Modul: ${m.name.toUpperCase()}` }))}
-                menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
-              />
-            </div>
             <Button 
               variant="outline" 
               icon={<Filter size={16} />} 
@@ -244,6 +236,14 @@ export default function AdminMenuPage() {
         }
       >
         <div className="flex flex-col gap-5">
+          <div className="form-group">
+            <label className="form-label">Modul Aplikasi</label>
+            <Select
+              value={selectedModule}
+              onChange={(v: any) => setSelectedModule(v?.value || 'sso')}
+              options={appModules.map(m => ({ value: m.code, label: m.name.toUpperCase() }))}
+            />
+          </div>
           <Input 
             label="Cari Menu"
             placeholder="Ketik nama atau URL menu..."

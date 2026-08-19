@@ -1,4 +1,4 @@
-import { ApiResponse } from '@/types/api.types';
+import { ApiResponse, PaginationMeta } from '@/types/api.types';
 import {
   TagihanMahasiswa,
   DispensasiTagihan,
@@ -254,7 +254,7 @@ export const sikeuService = {
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
     if (params?.q) query.append('q', params.q);
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/master/mahasiswa-beasiswa?${query.toString()}`);
+    return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/mahasiswa-beasiswa?${query.toString()}`);
   },
 
   assignMahasiswaBeasiswa: async (payload: { mahasiswa_id: number; beasiswa_id: number; berlaku_mulai?: string; berlaku_sampai?: string }) => {
@@ -270,7 +270,7 @@ export const sikeuService = {
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
     if (params?.q) query.append('q', params.q);
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/master/student-billing-types?${query.toString()}`);
+    return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/student-billing-types?${query.toString()}`);
   },
 
   assignStudentBillingType: async (payload: { mahasiswa_id: number; nim?: string; nama_mahasiswa?: string; tahun_angkatan: number; jalur_kelas: string; kelompok_ukt: number; beasiswa_id?: number; catatan_perubahan?: string }) => {

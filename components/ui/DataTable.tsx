@@ -11,6 +11,7 @@ export interface ColumnDef<T> {
   label: string;
   align?: 'left' | 'center' | 'right';
   render?: (row: T, index: number) => React.ReactNode;
+  sortable?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -23,7 +24,7 @@ interface DataTableProps<T> {
   emptyMessage?: React.ReactNode;
 }
 
-export function DataTable<T extends { id?: number | string }>({
+export function DataTable<T extends object>({
   columns,
   data,
   isLoading = false,
@@ -64,7 +65,7 @@ export function DataTable<T extends { id?: number | string }>({
               </tr>
             ) : (
               data.map((row, rowIndex) => (
-                <tr key={row.id || rowIndex}>
+                <tr key={(row as { id?: number | string }).id || rowIndex}>
                   {columns.map((col, colIndex) => (
                     <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }}>
                       {col.render ? col.render(row, rowIndex) : (row as any)[col.key]}

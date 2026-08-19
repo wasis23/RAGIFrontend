@@ -195,7 +195,6 @@ export default function AdminRoleMenusPage() {
             onChange={(val: string) => setSelectedRoleId(parseInt(val) || 0)}
             options={roles.map((r) => ({ value: r.id.toString(), label: r.name }))}
             isDisabled={isLoading}
-            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
           />
           <Select
             label="Filter Modul Aplikasi"
@@ -203,7 +202,6 @@ export default function AdminRoleMenusPage() {
             onChange={(val: string) => setSelectedModule(val)}
             options={[{ value: 'all', label: 'Tampilkan Semua Modul' }, ...appModules.map(m => ({ value: m.code, label: `${m.name} (${m.code.toUpperCase()})` }))]}
             isDisabled={isLoading}
-            menuPortalTarget={typeof window !== 'undefined' ? document.body : null}
           />
         </div>
         <div className="mt-3 text-[0.8125rem] text-slate-400">
@@ -231,9 +229,8 @@ export default function AdminRoleMenusPage() {
                   </div>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm"
+                    className="btn btn-ghost btn-sm text-[0.8125rem]"
                     onClick={() => handleToggleModuleAll(menus)}
-                    className="text-[0.8125rem]"
                   >
                     {getFlatMenuIds(menus).every(id => assignedMenus.includes(id)) ? 'Batalkan Semua' : 'Pilih Semua Modul Ini'}
                   </button>

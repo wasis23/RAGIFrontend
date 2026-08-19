@@ -21,7 +21,7 @@ export default function RegistrasiSpmbPage() {
   const [loading, setLoading] = useState(false);
   const [tarif, setTarif] = useState(0);
   const [loadingTarif, setLoadingTarif] = useState(false);
-  const [suksesData, setSuksesData] = useState(null);
+  const [suksesData, setSuksesData] = useState<any>(null);
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
@@ -49,26 +49,26 @@ export default function RegistrasiSpmbPage() {
   const fetchJalur = async () => {
     try {
       const res = await spmbService.getJalurMasuk();
-      const options = res.data.map((j) => ({ value: j.id, label: j.nama }));
+      const options = res.data.map((j: any) => ({ value: j.id, label: j.nama }));
       setJalurOptions(options);
     } catch (error) {
       console.error(error);
     }
   };
 
-  const fetchGelombang = async (jalurId) => {
+  const fetchGelombang = async (jalurId: any) => {
     try {
       const res = await spmbService.getGelombang();
       const options = res.data
-        .filter((g) => g.jalur_masuk_id === Number(jalurId))
-        .map((g) => ({ value: g.id, label: g.nama }));
+        .filter((g: any) => g.jalur_masuk_id === Number(jalurId))
+        .map((g: any) => ({ value: g.id, label: g.nama }));
       setGelombangOptions(options);
     } catch (error) {
       console.error(error);
     }
   };
 
-  const fetchTarif = async (jalurId, gelombangId) => {
+  const fetchTarif = async (jalurId: any, gelombangId: any) => {
     setLoadingTarif(true);
     try {
       const res = await api.get('/v1/sikeu/spmb/tarif', {
@@ -83,7 +83,7 @@ export default function RegistrasiSpmbPage() {
     }
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: any) => {
     setLoading(true);
     try {
       // Hardcoded program_studi_id for now as we don't have prodi endpoint

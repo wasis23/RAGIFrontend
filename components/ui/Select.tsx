@@ -3,7 +3,7 @@ import ReactSelect from 'react-select';
 import { cn } from '@/lib/utils';
 
 export interface SelectOption {
-  value: string;
+  value: string | number;
   label: string;
 }
 
@@ -13,23 +13,25 @@ interface CustomSelectProps {
   hint?: string;
   required?: boolean;
   options: SelectOption[];
-  value?: string | string[];
+  value?: string | number | (string | number)[];
   onChange?: (val: any) => void;
   placeholder?: string;
   className?: string;
   id?: string;
   isClearable?: boolean;
   isMulti?: boolean;
+  isDisabled?: boolean;
+  disabled?: boolean;
 }
 
 export const Select = forwardRef<any, CustomSelectProps>(
-  ({ label, error, hint, required, options, value, onChange, placeholder, className, id, isClearable = false, isMulti = false, ...props }, ref) => {
+  ({ label, error, hint, required, options, value, onChange, placeholder, className, id, isClearable = false, isMulti = false, isDisabled = false, disabled = false, ...props }, ref) => {
     const reactId = useId();
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-') || reactId;
-    
+
     const selectedOption = isMulti
-      ? options.filter(o => (Array.isArray(value) ? value : []).includes(o.value))
-      : (options.find(o => o.value === value) || null);
+      ? options.filter(o => (Array.isArray(value) ? value : []).includes(o.value as any))
+      : (options.find(o => o.value === (value as any)) || null);
 
     const handleChange = (selected: any) => {
       if (onChange) {
@@ -92,6 +94,7 @@ export const Select = forwardRef<any, CustomSelectProps>(
             placeholder={placeholder || 'Pilih...'}
             isClearable={isClearable}
             isMulti={isMulti}
+            isDisabled={isDisabled || disabled}
             styles={customStyles}
             className={cn('react-select-container', className)}
             classNamePrefix="react-select"

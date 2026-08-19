@@ -70,7 +70,7 @@ export default function JadwalUjianPage() {
 
       <DataTable
         data={data}
-        loading={loading}
+        isLoading={loading}
         columns={columns}
       />
 
