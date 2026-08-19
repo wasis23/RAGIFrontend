@@ -209,3 +209,112 @@ export interface StatistikSpmb {
   per_gelombang?: { gelombang_id: number; nama_gelombang?: string; total: number }[];
   per_prodi?: { program_studi_id: number; nama_prodi?: string; total: number }[];
 }
+
+export type TipeSoalCat = 'pilihan_ganda' | 'esai' | 'true_false';
+export type StatusKelulusan = 'lulus' | 'tidak_lulus' | 'cadangan' | 'pending';
+
+export interface MataUji {
+  id: number;
+  gelombang_id: number;
+  kode: string;
+  nama: string;
+  deskripsi?: string | null;
+  bobot: number;
+  durasi_menit: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SoalCat {
+  id: number;
+  mata_uji_id?: number;
+  pertanyaan: string;
+  tipe: TipeSoalCat;
+  opsi?: Record<string, string> | null;
+  kunci_jawaban: string;
+  bobot: number;
+  urutan?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PaketSoal {
+  id: number;
+  nama?: string;
+  soal?: SoalCat[];
+}
+
+export interface HasilCat {
+  id: number;
+  peserta_ujian_id: number;
+  total_skor: number;
+  catatan?: string;
+  detail?: any;
+  created_at?: string;
+}
+
+export interface JadwalUjian {
+  id: number;
+  gelombang_id: number;
+  nama_sesi: string;
+  tipe_ujian: string;
+  tanggal: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  kapasitas: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PengawasUjian {
+  id: number;
+  jadwal_ujian_id: number;
+  user_id: number;
+  user?: {
+    id: number;
+    name?: string;
+    username?: string;
+  } | null;
+}
+
+export interface PesertaUjian {
+  id: number;
+  jadwal_ujian_id: number;
+  pendaftaran_id: number;
+  no_peserta?: string;
+  hadir?: boolean;
+  created_at?: string;
+}
+
+export interface PesertaLulusAdm {
+  id: number;
+  pendaftaran_id?: number;
+  no_pendaftaran: string;
+  nama_lengkap: string;
+  gelombang_id: number;
+}
+
+export interface RankingResponse {
+  ranking?: any[];
+  data?: any[];
+}
+
+export interface HasilSeleksi {
+  id: number;
+  pendaftaran_id: number;
+  status: StatusKelulusan;
+  nilai_total?: number;
+  catatan?: string;
+  created_at?: string;
+}
+
+export interface Pengumuman {
+  id: number;
+  gelombang_id?: number | null;
+  judul: string;
+  konten: string;
+  is_published?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}

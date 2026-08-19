@@ -414,7 +414,8 @@ export interface CreateKontrakPayload {
 }
 
 export interface RequestPencairanPayload {
-  termin_ke: number;
+  termin_ke?: number;
+  termin?: number;
   persen_pencairan?: number;
   nominal: number;
   catatan_keuangan?: string;
@@ -511,5 +512,6 @@ export interface CreatePengumumanPayload {
   kualifikasi_dosen?: string;
   kategori_pendanaan?: string;
   lampiran_jadwal?: JadwalItem[];
+  lampiran_alokasi_waktu?: JadwalItem[];
 }
 
