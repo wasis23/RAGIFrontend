@@ -343,6 +343,11 @@ export const sippmService = {
     return data;
   },
 
+  createPengumuman: async (payload: CreatePengumumanPayload): Promise<ApiResponse<PengumumanHibah>> => {
+    const { data } = await apiClient.post<ApiResponse<PengumumanHibah>>('/sippm/pengumuman', payload);
+    return data;
+  },
+
   uploadSignedPengumuman: async (id: number, file: File): Promise<ApiResponse<PengumumanHibah>> => {
     const formData = new FormData();
     formData.append('file_signed_pdf', file);

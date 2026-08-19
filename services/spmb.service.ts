@@ -76,7 +76,11 @@ export interface PendaftaranBerkas {
 }
 
 export const spmbService = {
-  // Master Data
+  getProgramStudi: async () => {
+    const response = await api.get('/spmb/prodi');
+    return response.data;
+  },
+
   getJalurMasuk: async () => {
     const response = await api.get('/spmb/jalur');
     return response.data;

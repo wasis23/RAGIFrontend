@@ -253,7 +253,7 @@ export default function ProposalListPage() {
                     <div className="text-[11px] text-slate-400 font-mono mt-0.5">{item.ketua?.nip || 'NIP Verified'}</div>
                   </td>
                   <td className="font-bold text-primary-700 text-sm">
-                    {formatRupiah(item.dana_diusulkan)}
+                    {formatRupiah(item.dana_diusulkan ?? item.anggaran_diajukan ?? 0)}
                   </td>
                   <td>
                     <SippmBadge status={item.status} />

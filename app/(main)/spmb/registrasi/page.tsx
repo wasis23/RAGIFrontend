@@ -49,6 +49,7 @@ export default function RegistrasiSpmbPage() {
     defaultValues: {
       jalur_id: '',
       gelombang_id: '',
+      program_studi_id: '',
       nama_lengkap: '',
       nik: '',
       tempat_lahir: '',
@@ -78,8 +79,10 @@ export default function RegistrasiSpmbPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [jalurRaw, setJalurRaw] = useState<any[]>([]);
   const [gelombangRaw, setGelombangRaw] = useState<any[]>([]);
+  const [prodiRaw, setProdiRaw] = useState<any[]>([]);
   const [jalurOptions, setJalurOptions] = useState<SelectOption[]>([]);
   const [gelombangOptions, setGelombangOptions] = useState<SelectOption[]>([]);
+  const [prodiOptions, setProdiOptions] = useState<SelectOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [tarif, setTarif] = useState(0);
   const [loadingTarif, setLoadingTarif] = useState(false);
@@ -88,13 +91,30 @@ export default function RegistrasiSpmbPage() {
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
+  const selectedProdi = watch('program_studi_id');
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     fetchJalur();
+    fetchProdi();
     checkExistingRegistration();
   }, []);
+
+  const fetchProdi = async () => {
+    try {
+      const res = await spmbService.getProgramStudi();
+      const list = res.data || [];
+      setProdiRaw(list);
+      const options = list.map((p: any) => ({
+        value: String(p.id),
+        label: `${p.nama} (${p.jenjang || 'S1'})`,
+      }));
+      setProdiOptions(options);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const checkExistingRegistration = async () => {
     try {
@@ -174,7 +194,7 @@ export default function RegistrasiSpmbPage() {
 
   const handleNextStep = async () => {
     let fieldsToValidate: string[] = [];
-    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id'];
+    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id'];
     else if (currentStep === 2) fieldsToValidate = ['nama_lengkap', 'nik', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin'];
     else if (currentStep === 3) fieldsToValidate = ['no_hp', 'provinsi', 'kota_kabupaten', 'kecamatan', 'alamat'];
     else if (currentStep === 4) fieldsToValidate = ['asal_sekolah', 'jurusan_sekolah', 'tahun_lulus'];
@@ -197,7 +217,7 @@ export default function RegistrasiSpmbPage() {
   const onSubmit = async (data: any) => {
     setLoading(true);
     try {
-      data.program_studi_id = data.program_studi_id || 1;
+      data.program_studi_id = data.program_studi_id ? Number(data.program_studi_id) : 1;
       const res = await spmbService.submitBiodata(data);
       if (res.status === 'success' || res.data) {
         toast.success(res.message || 'Pendaftaran Berhasil Dikirim!');
@@ -220,6 +240,7 @@ export default function RegistrasiSpmbPage() {
   const formValues = getValues();
   const selectedJalurObj = jalurRaw.find((j) => String(j.id) === String(selectedJalur));
   const selectedGelombangObj = gelombangRaw.find((g) => String(g.id) === String(selectedGelombang));
+  const selectedProdiObj = prodiRaw.find((p) => String(p.id) === String(selectedProdi));
   const progressPct = Math.round((currentStep / STEPS.length) * 100);
 
   // ── Success State View ──────────────────────────────────────────────────
@@ -227,7 +248,8 @@ export default function RegistrasiSpmbPage() {
     const { pendaftaran, tagihan } = suksesData;
     const vaNumber = tagihan?.virtual_account?.va_number || '88019283746501';
     const bankCode = tagihan?.virtual_account?.bank_code || 'BNI';
-    const totalBayar = tagihan?.tagihan?.total_bayar || tarif || 250000;
+    const rawTotal = Number(tagihan?.tagihan?.total_bayar ?? 0);
+    const totalBayar = rawTotal > 0 ? rawTotal : (tarif > 0 ? tarif : 250000);
 
     return (
       <div className="animate-fade-in space-y-6 max-w-3xl mx-auto py-4">
@@ -462,6 +484,24 @@ export default function RegistrasiSpmbPage() {
                       placeholder="-- Pilih Gelombang --"
                       disabled={!selectedJalur}
                       hint={!selectedJalur ? 'Pilih Jalur Pendaftaran terlebih dahulu' : 'Gelombang aktif yang dapat didaftar.'}
+                    />
+                  )}
+                />
+              </div>
+
+              <div>
+                <Controller
+                  name="program_studi_id"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Select
+                      label="Pilihan Program Studi Utama *"
+                      options={prodiOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="-- Pilih Program Studi Pilihan --"
+                      hint="Pilih program studi jenjang S1/D3 yang ingin Anda tuju."
                     />
                   )}
                 />
@@ -768,9 +808,10 @@ export default function RegistrasiSpmbPage() {
                       <Edit3 size={12} /> Edit
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div><span className="text-slate-400">Jalur:</span> <span className="font-semibold text-slate-800">{selectedJalurObj?.nama || '-'}</span></div>
                     <div><span className="text-slate-400">Gelombang:</span> <span className="font-semibold text-slate-800">{selectedGelombangObj?.nama || '-'}</span></div>
+                    <div className="sm:col-span-2"><span className="text-slate-400">Prodi Pilihan:</span> <span className="font-semibold text-slate-800">{selectedProdiObj?.nama || '-'}</span></div>
                   </div>
                 </div>
 

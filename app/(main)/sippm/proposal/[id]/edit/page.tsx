@@ -42,7 +42,7 @@ export default function EditProposalPage({ params }: { params: Promise<{ id: str
         if (res.data) {
           setValue('judul', res.data.judul);
           setValue('rumpun_ilmu', res.data.rumpun_ilmu);
-          setValue('dana_diusulkan', res.data.dana_diusulkan);
+          setValue('dana_diusulkan', res.data.dana_diusulkan ?? res.data.anggaran_diajukan ?? 0);
           setValue('abstrak', res.data.abstrak);
         }
       } catch (err) {

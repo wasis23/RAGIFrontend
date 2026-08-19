@@ -40,6 +40,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={!!error}
             aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
             {...props}
+            onClick={(e) => {
+              if (props.type === 'date') {
+                try {
+                  (e.currentTarget as any).showPicker?.();
+                } catch {}
+              }
+              props.onClick?.(e);
+            }}
           />
           {suffixIcon && (
             <span

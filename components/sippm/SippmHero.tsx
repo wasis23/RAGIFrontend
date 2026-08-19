@@ -21,6 +21,7 @@ interface SippmHeroProps {
   totalPublikasi?: number;
   activePeriodeName?: string;
   showActions?: boolean;
+  capaianIku?: number;
 }
 
 export function SippmHero({
