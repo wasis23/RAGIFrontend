@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 const loginSchema = z.object({
   identifier: z
     .string()
-    .min(1, 'Email atau username wajib diisi')
+    .min(1, 'Identitas login wajib diisi')
     .max(255, 'Maksimal 255 karakter'),
   password: z
     .string()
@@ -80,11 +80,11 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="login-form">
         {/* Email */}
         <div className="login-field">
-          <label htmlFor="login-identifier" className="login-label">Email</label>
+          <label htmlFor="login-identifier" className="login-label">Email / Username / NIM / NIDN</label>
           <input
             id="login-identifier"
             type="text"
-            placeholder="nama@kampus.ac.id"
+            placeholder="Masukkan Email, Username, NIM, atau NIDN"
             autoComplete="username"
             className={`login-input${errors.identifier ? ' login-input-error' : ''}`}
             {...register('identifier')}

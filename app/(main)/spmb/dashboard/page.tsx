@@ -1,185 +1,503 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Users, FileText, CheckCircle, XCircle, TrendingUp, Calendar, Award, ArrowRight, Activity, BookOpen, Download, UserPlus, ClipboardCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import api from '@/lib/axios';
+import {
+  UserCheck,
+  FileText,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Calendar,
+  ArrowRight,
+  GraduationCap,
+  UploadCloud,
+  FileCheck,
+  Award,
+  ExternalLink,
+  ShieldCheck,
+  Sparkles,
+  HelpCircle,
+  ChevronRight,
+  AlertTriangle,
+  RefreshCw,
+  BookOpen,
+  LayoutGrid,
+  Info,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Hero } from '@/components/ui/Hero';
-import { StatCard } from '@/components/ui/StatCard';
+import { useAuth } from '@/hooks/useAuth';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { StatusBadge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/lib/utils';
+import { spmbService, PendaftaranCalonMhs, GelombangPenerimaan } from '@/services/spmb.service';
 
 export default function SPMBDashboardPage() {
-  const [stats, setStats] = useState<any>(null);
+  const { user } = useAuth();
+  const [pendaftaran, setPendaftaran] = useState<PendaftaranCalonMhs | null>(null);
+  const [gelombangList, setGelombangList] = useState<GelombangPenerimaan[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchStats();
+    fetchData();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchData = async () => {
+    setIsLoading(true);
     try {
-      const res = await api.get('/spmb/laporan/statistik');
-      setStats(res.data.data);
+      const [pendaftaranRes, gelombangRes] = await Promise.all([
+        spmbService.getMyPendaftaran().catch(() => null),
+        spmbService.getGelombang().catch(() => null),
+      ]);
+
+      if (pendaftaranRes?.data?.pendaftaran) {
+        setPendaftaran(pendaftaranRes.data.pendaftaran);
+      } else if (pendaftaranRes?.data && !pendaftaranRes.data.pendaftaran && pendaftaranRes.data.id) {
+        setPendaftaran(pendaftaranRes.data);
+      }
+
+      if (gelombangRes?.data) {
+        const list = Array.isArray(gelombangRes.data)
+          ? gelombangRes.data
+          : gelombangRes.data.data || [];
+        setGelombangList(list);
+      }
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleExportCsv = async () => {
-    try {
-      const response = await api.get('/spmb/laporan/export-csv', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'Laporan_Pendaftar_SPMB.csv');
-      document.body.appendChild(link);
-      link.click();
-      toast.success('Laporan CSV berhasil diunduh!');
-    } catch (error) {
-      toast.error('Gagal mengunduh laporan CSV.');
-    }
+  const displayUser = user || {
+    username: 'Calon Mahasiswa',
+    email: 'calon@kampus.ac.id',
   };
 
-  // Helper to extract sum
-  const getStatusTotal = (statusList: string[]) => {
-    if (!stats?.per_status) return 0;
-    return stats.per_status
-      .filter((s: any) => statusList.includes(s.status))
-      .reduce((acc: number, curr: any) => acc + (curr.total || 0), 0);
+  // ── Determine Status & Progress State ─────────────────────────────
+  const status = pendaftaran?.status || 'none';
+
+  let statusConfig = {
+    badgeText: 'Belum Mendaftar',
+    badgeClass: 'badge-gray',
+    title: 'Pendaftaran Belum Dimulai',
+    desc: 'Anda belum memiliki pendaftaran aktif. Silakan pilih gelombang pendaftaran yang tersedia untuk mulai mendaftar.',
+    progressPct: 0,
+    completedSteps: 0,
+    ctaText: 'Mulai Pendaftaran Sekarang',
+    ctaLink: '/spmb/registrasi',
+    variant: 'neutral',
   };
 
-  const totalPendaftar = stats?.per_status ? stats.per_status.reduce((acc: number, curr: any) => acc + (curr.total || 0), 0) : 0;
-  const menungguVerifikasi = getStatusTotal(['submitted']);
-  const terverifikasi = getStatusTotal(['verified', 'lulus_administrasi']);
-  const gagal = getStatusTotal(['gagal_administrasi']);
-  const totalLulusSeleksi = stats?.lulus_per_prodi ? stats.lulus_per_prodi.reduce((acc: number, curr: any) => acc + (curr.total_lulus || 0), 0) : 0;
+  if (status === 'draft') {
+    statusConfig = {
+      badgeText: 'Draft / Belum Lengkap',
+      badgeClass: 'badge-yellow',
+      title: 'Pendaftaran Belum Di-Finalisasi',
+      desc: 'Biodata Anda telah tersimpan sebagai draft. Silakan lengkapi berkas dan lakukan finalisasi pendaftaran.',
+      progressPct: 40,
+      completedSteps: 2,
+      ctaText: 'Lengkapi & Finalisasi Pendaftaran',
+      ctaLink: '/spmb/registrasi',
+      variant: 'warning',
+    };
+  } else if (status === 'submitted') {
+    statusConfig = {
+      badgeText: 'Menunggu Verifikasi',
+      badgeClass: 'badge-cyan',
+      title: 'Berkas Sedang Diverifikasi Panitia',
+      desc: 'Pendaftaran Anda telah dikirim dan sedang diperiksa oleh panitia SPMB. Harap periksa status secara berkala.',
+      progressPct: 66,
+      completedSteps: 3,
+      ctaText: 'Lihat Detail Pendaftaran',
+      ctaLink: '/spmb/pendaftaran',
+      variant: 'info',
+    };
+  } else if (status === 'verified' || status === 'lulus_administrasi') {
+    statusConfig = {
+      badgeText: 'Lulus Administrasi',
+      badgeClass: 'badge-green',
+      title: 'Selamat! Berkas Terverifikasi',
+      desc: 'Persyaratan administrasi Anda telah memenuhi syarat. Silakan cek jadwal tes/seleksi masuk Anda.',
+      progressPct: 83,
+      completedSteps: 4,
+      ctaText: 'Cek Jadwal & Ujian',
+      ctaLink: '/spmb/ujian',
+      variant: 'success',
+    };
+  } else if (status === 'gagal_administrasi') {
+    statusConfig = {
+      badgeText: 'Berkas Perlu Perbaikan',
+      badgeClass: 'badge-red',
+      title: 'Verifikasi Berkas Memerlukan Perbaikan',
+      desc: 'Beberapa dokumen pendaftaran Anda tidak sesuai dengan ketentuan. Silakan unggah ulang dokumen yang diminta.',
+      progressPct: 50,
+      completedSteps: 2,
+      ctaText: 'Perbaiki Berkas Pendaftaran',
+      ctaLink: '/spmb/registrasi',
+      variant: 'danger',
+    };
+  }
+
+  // Active wave info
+  const activeGelombang = pendaftaran?.gelombang_penerimaan || gelombangList.find(g => g.status === 'aktif') || gelombangList[0];
+
+  // Document uploaded count
+  const uploadedDocs = pendaftaran?.dokumen_pendaftaran || [];
+  const verifiedDocsCount = uploadedDocs.filter(d => d.is_verified).length;
+
+  // Workflow steps definition
+  const steps = [
+    { label: 'Biodata', key: 'biodata', done: !!pendaftaran?.nama_lengkap },
+    { label: 'Berkas', key: 'berkas', done: uploadedDocs.length > 0 },
+    { label: 'Finalisasi', key: 'finalize', done: status !== 'draft' && status !== 'none' },
+    { label: 'Verifikasi', key: 'verifikasi', done: status === 'verified' || status === 'lulus_administrasi' },
+    { label: 'Ujian / Seleksi', key: 'seleksi', done: false },
+    { label: 'Pengumuman', key: 'pengumuman', done: false },
+  ];
 
   return (
-    <div className="space-y-8 pb-12 animate-fade-in">
-      <Hero
-        badge={
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-sm font-medium">
-            <Activity size={16} className="text-sky-200" />
-            <span className="text-sky-50">Tahun Akademik berjalan</span>
-          </span>
-        }
-        title={
-          <>
-            Dashboard <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-200 to-white">SPMB</span>
-          </>
-        }
-        description="Pantau ringkasan statistik penerimaan mahasiswa baru, verifikasi berkas pendaftar, dan kelola gelombang pendaftaran secara real-time."
-        actions={
-          <div className="flex flex-wrap gap-4">
-            <Link href="/spmb/master/gelombang" className="btn hero-btn-white">
-              Kelola Gelombang
-            </Link>
-            <button onClick={handleExportCsv} className="btn hero-btn-glass flex items-center gap-2">
-              <Download size={18} /> Export Laporan CSV
-            </button>
-          </div>
-        }
+    <div className="spmb-app-page animate-fade-in">
+      {/* ── Page Header ────────────────────────────────────────────── */}
+      <PageHeader
+        title="Portal Pendaftaran SPMB"
+        description="Pantau status pendaftaran, progress kelengkapan berkas, dan tahapan penerimaan Anda"
       />
 
-      {/* Main Stat Cards */}
-      <div className="kpi-grid">
-        <StatCard
-          label="Total Pendaftar"
-          value={stats ? totalPendaftar : "..."}
-          icon={<Users size={24} />}
-          iconVariant="blue"
-          footer="Semua status pendaftaran"
-        />
-        <StatCard
-          label="Berkas Terverifikasi"
-          value={stats ? terverifikasi : "..."}
-          icon={<ClipboardCheck size={24} />}
-          iconVariant="green"
-        />
-        <StatCard
-          label="Lulus Seleksi"
-          value={stats ? totalLulusSeleksi : "..."}
-          icon={<Award size={24} />}
-          iconVariant="amber"
-          footer="Total diterima prodi"
-        />
-        <StatCard
-          label="Menunggu Verifikasi"
-          value={stats ? menungguVerifikasi : "..."}
-          icon={<FileText size={24} />}
-          iconVariant="indigo"
-          footer="Perlu tindakan admin"
-        />
-      </div>
+      {/* ── Welcome & Status Hero Card ─────────────────────────────── */}
+      <div className={`spmb-hero-card spmb-hero-${statusConfig.variant}`}>
+        <div className="spmb-hero-blob spmb-hero-blob-1" aria-hidden />
+        <div className="spmb-hero-blob spmb-hero-blob-2" aria-hidden />
 
-      {/* Two Column Layout for Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Prodi Terfavorit (Dinamis dari Lulus) */}
-        <div className="card bg-white shadow-sm border border-slate-100 rounded-2xl overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg">
-                <Award size={20} />
+        <div className="spmb-hero-content">
+          <div className="spmb-hero-main">
+            <div className="spmb-hero-badge-row">
+              <span className={`badge ${statusConfig.badgeClass} spmb-status-pill`}>
+                <span className="spmb-pill-dot" />
+                {statusConfig.badgeText}
+              </span>
+              {pendaftaran?.no_pendaftaran && (
+                <span className="spmb-nopend-badge">
+                  No. Reg: {pendaftaran.no_pendaftaran}
+                </span>
+              )}
+            </div>
+
+            <h2 className="spmb-hero-title">
+              Halo, {pendaftaran?.nama_lengkap || displayUser.username}! 👋
+            </h2>
+            <p className="spmb-hero-desc">{statusConfig.desc}</p>
+
+            {/* Progress Bar inside Hero */}
+            <div className="spmb-hero-progress-box">
+              <div className="spmb-hero-progress-header">
+                <span>Progress Pendaftaran</span>
+                <span className="font-bold">{statusConfig.progressPct}%</span>
               </div>
-              <h3 className="font-bold text-lg text-slate-800">Lulus per Program Studi</h3>
+              <div className="spmb-hero-progress-track">
+                <div
+                  className="spmb-hero-progress-bar"
+                  style={{ width: `${statusConfig.progressPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Hero CTA Button */}
+            <div className="spmb-hero-cta-wrap">
+              <Link href={statusConfig.ctaLink} className="spmb-hero-btn-primary">
+                <span>{statusConfig.ctaText}</span>
+                <ArrowRight size={16} />
+              </Link>
             </div>
           </div>
-          <div className="p-6 space-y-6">
-            {!stats ? (
-              <div className="animate-pulse flex flex-col gap-4">
-                <div className="h-10 bg-slate-100 rounded-md"></div>
-                <div className="h-10 bg-slate-100 rounded-md"></div>
-              </div>
-            ) : stats.lulus_per_prodi?.length === 0 ? (
-              <div className="text-center py-6 text-slate-500">Belum ada data kelulusan seleksi.</div>
-            ) : (
-              stats.lulus_per_prodi?.map((prodi: any, index: number) => {
-                const percentage = totalLulusSeleksi > 0 ? (prodi.total_lulus / totalLulusSeleksi) * 100 : 0;
-                return (
-                  <div key={index}>
-                    <div className="flex justify-between items-end mb-2">
-                      <div>
-                        <h4 className="font-bold text-slate-800 text-base">Prodi ID: {prodi.program_studi_diterima_id}</h4>
-                      </div>
-                      <span className="font-black text-indigo-600 text-lg">{prodi.total_lulus} <span className="text-xs text-slate-400 font-medium">Mahasiswa</span></span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5">
-                      <div className="bg-gradient-to-r from-indigo-500 to-blue-500 h-2.5 rounded-full" style={{ width: `${percentage}%` }}></div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+        </div>
+      </div>
+
+      {/* ── Personal Applicant KPI Summary Cards ─────────────────────── */}
+      <div className="spmb-kpi-grid">
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Status Pendaftaran</span>
+            <div className="spmb-kpi-icon stat-icon-blue">
+              <ShieldCheck size={18} />
+            </div>
+          </div>
+          <div className="spmb-kpi-value">{statusConfig.badgeText}</div>
+          <div className="spmb-kpi-sub">
+            {pendaftaran ? `ID Pendaftaran: #${pendaftaran.id}` : 'Belum membuat draf'}
           </div>
         </div>
 
-        {/* Gelombang Aktif */}
-        <div className="card bg-white shadow-sm border border-slate-100 rounded-2xl overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
-                <Calendar size={20} />
-              </div>
-              <h3 className="font-bold text-lg text-slate-800">Status Gelombang</h3>
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Kelengkapan Berkas</span>
+            <div className="spmb-kpi-icon stat-icon-green">
+              <FileCheck size={18} />
             </div>
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
           </div>
-          
-          <div className="p-6 flex-1 flex flex-col justify-center items-center text-center">
-            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mb-4 text-emerald-600">
-              <BookOpen size={36} />
+          <div className="spmb-kpi-value">
+            {uploadedDocs.length} Dokumen
+          </div>
+          <div className="spmb-kpi-sub">
+            {verifiedDocsCount} dokumen terverifikasi
+          </div>
+        </div>
+
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Gelombang Penerimaan</span>
+            <div className="spmb-kpi-icon stat-icon-amber">
+              <Calendar size={18} />
             </div>
-            <h4 className="text-2xl font-black text-slate-900 mb-2">Gelombang Pendaftaran</h4>
-            <p className="text-slate-500 font-medium mb-6">Penerimaan mahasiswa baru terintegrasi.</p>
-            
-            <Link href="/spmb/master/gelombang" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 group">
-              Kelola Gelombang Penerimaan 
-              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+          </div>
+          <div className="spmb-kpi-value">
+            {activeGelombang?.nama || 'Gelombang 1'}
+          </div>
+          <div className="spmb-kpi-sub">
+            {activeGelombang?.status === 'aktif' ? 'Sedang Dibuka' : 'Status: Off'}
+          </div>
+        </div>
+
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Program Studi Pilihan</span>
+            <div className="spmb-kpi-icon stat-icon-indigo">
+              <GraduationCap size={18} />
+            </div>
+          </div>
+          <div className="spmb-kpi-value">
+            {pendaftaran?.program_studi_id ? `Prodi #${pendaftaran.program_studi_id}` : 'Belum Dipilih'}
+          </div>
+          <div className="spmb-kpi-sub">Pilihan Utama</div>
+        </div>
+      </div>
+
+      {/* ── Stepper / Progress Flow Section ───────────────────────────── */}
+      <div className="card spmb-stepper-card">
+        <div className="card-header border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} className="text-primary-600" />
+            <h3 className="font-bold text-slate-900 text-base">Alur &amp; Tahapan Pendaftaran</h3>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">
+            {statusConfig.completedSteps} dari 6 Tahap Selesai
+          </span>
+        </div>
+
+        <div className="card-body">
+          <div className="spmb-stepper-track">
+            {steps.map((step, idx) => (
+              <div
+                key={step.key}
+                className={`spmb-stepper-item ${
+                  step.done ? 'is-done' : idx === statusConfig.completedSteps ? 'is-current' : 'is-pending'
+                }`}
+              >
+                <div className="spmb-stepper-circle">
+                  {step.done ? (
+                    <CheckCircle2 size={16} />
+                  ) : (
+                    <span>{idx + 1}</span>
+                  )}
+                </div>
+                <span className="spmb-stepper-label">{step.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Grid (Content & Sidebar) ────────────────────────────── */}
+      <div className="spmb-main-grid">
+
+        {/* ── Left / Main Content ────────────────────────────────────── */}
+        <div className="spmb-main-col">
+
+          {/* Action / Next Steps Detailed Banner */}
+          <div className="card p-5 border-l-4 border-l-primary-600 bg-white">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-primary-50 text-primary-600 rounded-xl flex-shrink-0 mt-0.5">
+                <Info size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-slate-900 text-base mb-1">
+                  Langkah Selanjutnya untuk Anda
+                </h4>
+                <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                  {status === 'none' && 'Segera buat akun pendaftaran dan isi data diri awal Anda untuk mendapatkan Nomor Registrasi Pendaftaran.'}
+                  {status === 'draft' && 'Lengkapi form biodata diri, data orang tua/wali, serta pastikan Anda telah mengunggah dokumen persyaratan.'}
+                  {status === 'submitted' && 'Tim administrasi sedang memeriksa kelengkapan berkas Anda. Pantau halaman ini secara berkala.'}
+                  {(status === 'verified' || status === 'lulus_administrasi') && 'Berkas Anda sudah Lulus Administrasi! Cetak kartu ujian atau bersiap mengikuti tes seleksi sesuai jadwal.'}
+                  {status === 'gagal_administrasi' && 'Periksa catatan perbaikan berkas di bawah, perbaiki dokumen yang ditolak, lalu simpan ulang.'}
+                </p>
+                <Link href={statusConfig.ctaLink} className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 hover:text-primary-700">
+                  <span>{statusConfig.ctaText}</span>
+                  <ChevronRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Document Status Section */}
+          <div className="card overflow-hidden">
+            <div className="card-header border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-primary-600" />
+                <h3 className="font-bold text-slate-900 text-base">Berkas Pendaftaran Saya</h3>
+              </div>
+              <Link href="/spmb/registrasi" className="text-xs font-semibold text-primary-600 hover:underline">
+                Kelola Berkas →
+              </Link>
+            </div>
+
+            <div className="card-body p-0">
+              {uploadedDocs.length === 0 ? (
+                <div className="p-6 text-center text-slate-500">
+                  <UploadCloud size={32} className="mx-auto mb-2 text-slate-400" />
+                  <p className="font-semibold text-slate-700 text-sm">Belum Ada Berkas Diunggah</p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    Silakan unggah dokumen persyaratan seperti KTP/Kartu Pelajar, Pas Foto, dan Ijazah.
+                  </p>
+                  <Link href="/spmb/registrasi" className="btn btn-outline btn-sm mt-4 inline-flex items-center gap-1.5">
+                    <UploadCloud size={14} />
+                    Unggah Berkas Sekarang
+                  </Link>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {uploadedDocs.map((doc) => (
+                    <div key={doc.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`p-2 rounded-lg ${doc.is_verified ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                          <FileText size={18} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate capitalize">
+                            {doc.jenis_dokumen.replace(/_/g, ' ')}
+                          </p>
+                          {doc.catatan && (
+                            <p className="text-xs text-rose-500 mt-0.5">Catatan: {doc.catatan}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {doc.is_verified ? (
+                          <span className="badge badge-green text-xs">Terverifikasi</span>
+                        ) : (
+                          <span className="badge badge-yellow text-xs">Dalam Pemeriksaan</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right / Sidebar Column ─────────────────────────────────── */}
+        <div className="spmb-side-col">
+
+          {/* Gelombang & Important Dates Card */}
+          <div className="card overflow-hidden">
+            <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar size={18} className="text-sky-400" />
+                <span className="font-bold text-sm">Informasi Gelombang</span>
+              </div>
+              <span className="badge badge-cyan text-xs">
+                {activeGelombang?.status === 'aktif' ? 'Aktif' : 'Tutup'}
+              </span>
+            </div>
+
+            <div className="card-body space-y-4 text-sm">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                  Nama Gelombang
+                </span>
+                <p className="font-bold text-slate-900 text-base">
+                  {activeGelombang?.nama || 'Gelombang 1 Reguler'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div>
+                  <span className="text-xs text-slate-400 block">Tanggal Buka</span>
+                  <span className="font-semibold text-slate-700 text-xs">
+                    {activeGelombang?.tanggal_buka ? formatDate(activeGelombang.tanggal_buka) : '1 Agu 2026'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">Tanggal Tutup</span>
+                  <span className="font-semibold text-slate-700 text-xs">
+                    {activeGelombang?.tanggal_tutup ? formatDate(activeGelombang.tanggal_tutup) : '30 Sep 2026'}
+                  </span>
+                </div>
+              </div>
+
+              {(activeGelombang?.tanggal_ujian || activeGelombang?.tanggal_pengumuman) && (
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                  {activeGelombang.tanggal_ujian && (
+                    <div>
+                      <span className="text-xs text-slate-400 block">Pelaksanaan Ujian</span>
+                      <span className="font-semibold text-slate-700 text-xs">
+                        {formatDate(activeGelombang.tanggal_ujian)}
+                      </span>
+                    </div>
+                  )}
+                  {activeGelombang.tanggal_pengumuman && (
+                    <div>
+                      <span className="text-xs text-slate-400 block">Pengumuman</span>
+                      <span className="font-semibold text-slate-700 text-xs">
+                        {formatDate(activeGelombang.tanggal_pengumuman)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions Grid */}
+          <div className="card p-4">
+            <h4 className="font-bold text-slate-900 text-sm mb-3">Menu Cepat Pendaftar</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/spmb/registrasi" className="p-3 bg-slate-50 hover:bg-primary-50 hover:border-primary-200 border border-slate-100 rounded-xl flex flex-col items-center text-center transition-all group">
+                <FileText size={20} className="text-slate-600 group-hover:text-primary-600 mb-1.5" />
+                <span className="text-xs font-semibold text-slate-800">Form Biodata</span>
+              </Link>
+
+              <Link href="/spmb/registrasi" className="p-3 bg-slate-50 hover:bg-primary-50 hover:border-primary-200 border border-slate-100 rounded-xl flex flex-col items-center text-center transition-all group">
+                <UploadCloud size={20} className="text-slate-600 group-hover:text-primary-600 mb-1.5" />
+                <span className="text-xs font-semibold text-slate-800">Upload Berkas</span>
+              </Link>
+
+              <Link href="/spmb/ujian" className="p-3 bg-slate-50 hover:bg-primary-50 hover:border-primary-200 border border-slate-100 rounded-xl flex flex-col items-center text-center transition-all group">
+                <BookOpen size={20} className="text-slate-600 group-hover:text-primary-600 mb-1.5" />
+                <span className="text-xs font-semibold text-slate-800">Kartu Ujian</span>
+              </Link>
+
+              <Link href="/spmb/seleksi" className="p-3 bg-slate-50 hover:bg-primary-50 hover:border-primary-200 border border-slate-100 rounded-xl flex flex-col items-center text-center transition-all group">
+                <Award size={20} className="text-slate-600 group-hover:text-primary-600 mb-1.5" />
+                <span className="text-xs font-semibold text-slate-800">Hasil Seleksi</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Integrated Portal Quick Jump */}
+          <div className="card p-4 bg-slate-900 text-white flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-sky-400 uppercase tracking-wider block">SSO Campus</span>
+              <span className="text-xs text-slate-300">Kembali ke Dashboard SSO</span>
+            </div>
+            <Link href="/dashboard" className="btn btn-sm btn-outline text-white border-slate-700 hover:bg-slate-800">
+              <ExternalLink size={14} />
+              Portal SSO
             </Link>
           </div>
+
         </div>
 
       </div>

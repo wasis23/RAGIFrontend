@@ -75,6 +75,47 @@ export function useAuth() {
     [setAuth, setLoading, router]
   );
 
+  const registerAndLogin = useCallback(
+    async (payload: any, redirectPath?: string | null) => {
+      setLoading(true);
+      try {
+        const res = await authService.register(payload);
+        
+        // Parsing response Laravel Sanctum
+        const tokenStr = res?.access_token || res?.data?.access_token || res?.token;
+        const userObj: User = res?.data?.id ? res.data : res?.data?.user || res?.user;
+
+        if (tokenStr && userObj) {
+          setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
+          setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
+          toast.success(res?.message || `Pendaftaran berhasil, selamat datang ${userObj.username}!`);
+          router.push(redirectPath || ROUTES.DASHBOARD);
+        } else {
+          // Fallback if backend doesn't return token
+          toast.success('Pendaftaran berhasil! Silakan login.');
+          router.push(ROUTES.LOGIN);
+        }
+      } catch (err: unknown) {
+        const error = err as AxiosError<{ message?: string; errors?: Record<string, string[]> }>;
+        
+        const validationErr = error.response?.data?.errors;
+        let apiMessage = error.response?.data?.message;
+
+        if (validationErr) {
+          const firstKey = Object.keys(validationErr)[0];
+          if (firstKey && validationErr[firstKey]?.[0]) {
+            apiMessage = validationErr[firstKey][0];
+          }
+        }
+
+        toast.error(apiMessage || 'Gagal mendaftar. Silakan coba lagi.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [setAuth, setLoading, router]
+  );
+
   const logout = useCallback(async () => {
     try {
       await authService.logout();
@@ -150,6 +191,7 @@ export function useAuth() {
     isMahasiswa,
     isAdminSimpeg,
     login,
+    registerAndLogin,
     logout,
     hasRole,
     hasPermission,

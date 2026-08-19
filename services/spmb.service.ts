@@ -172,4 +172,9 @@ export const spmbService = {
     const response = await api.post(`/spmb/pendaftaran/${id}/status`, data);
     return response.data;
   },
+
+  tetapkanKelulusan: async (id: number, data: { status: string; program_studi_diterima_id?: number; nilai_total?: number; catatan?: string; is_published?: boolean }) => {
+    const response = await api.post(`/spmb/pendaftar/${id}/kelulusan`, data);
+    return response.data;
+  },
 };
