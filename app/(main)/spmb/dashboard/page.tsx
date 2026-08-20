@@ -34,6 +34,7 @@ import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils';
 import { spmbService, PendaftaranCalonMhs, GelombangPenerimaan } from '@/services/spmb.service';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 
 export default function SPMBDashboardPage() {
   const { user, isSuperAdmin, isAdmin } = useAuth();
@@ -648,6 +649,62 @@ function SPMBAdminDashboardView({
     (p) => p.status === 'verified' || p.status === 'lulus_administrasi'
   ).length;
   const activeGelombang = gelombangList.find((g) => g.status === 'aktif') || gelombangList[0];
+  const columns: ColumnDef<PendaftaranCalonMhs>[] = [
+    {
+      key: 'nama_lengkap',
+      label: 'CALON MAHASISWA',
+      render: (p) => (
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
+            {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-slate-900 truncate">{p.nama_lengkap || 'Calon Mahasiswa'}</p>
+            <p className="text-2xs font-mono text-slate-500">#{p.no_pendaftaran || p.id}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI',
+      render: (p) => {
+        const prodiNama =
+          p.program_studi?.nama ||
+          prodiList.find((pr) => String(pr.id) === String(p.program_studi_id))?.nama ||
+          'Belum Dipilih';
+        return <span className="font-medium text-slate-800 text-xs line-clamp-1">{prodiNama}</span>;
+      },
+    },
+    {
+      key: 'status_pembayaran',
+      label: 'STATUS BAYAR',
+      render: (p) =>
+        p.status_pembayaran === 'lunas' ? (
+          <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+            <CheckCircle2 size={12} /> Lunas
+          </span>
+        ) : (
+          <span className="badge badge-yellow text-xs font-bold inline-flex items-center gap-1">
+            <Clock size={12} /> Belum Bayar
+          </span>
+        ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (p) => (
+        <Link
+          href={`/spmb/pendaftaran/${p.id}`}
+          className="btn btn-ghost btn-xs text-primary-600 hover:bg-primary-50 font-bold min-h-[36px] px-3 inline-flex items-center gap-1"
+        >
+          <span>Detail</span>
+          <ChevronRight size={14} />
+        </Link>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
@@ -800,130 +857,74 @@ function SPMBAdminDashboardView({
               </Link>
             </div>
 
-            <div className="card-body p-0">
+            {/* Desktop View using official Atomic Component <DataTable> */}
+            <div className="hidden sm:block border-t border-slate-100">
+              <DataTable
+                columns={columns}
+                data={adminPendaftarList.slice(0, 6)}
+                isLoading={isLoading}
+                emptyMessage={
+                  <div className="py-8 text-center text-slate-500 space-y-2">
+                    <Users size={32} className="mx-auto text-slate-300" />
+                    <p className="font-bold text-sm">Belum Ada Data Pendaftar</p>
+                    <p className="text-xs text-slate-400">Data pendaftaran calon mahasiswa baru akan muncul di sini.</p>
+                  </div>
+                }
+              />
+            </div>
+
+            {/* Mobile View (sm:hidden) */}
+            <div className="block sm:hidden divide-y divide-slate-100">
               {isLoading ? (
                 <div className="p-8 text-center text-slate-400 space-y-2">
                   <RefreshCw size={24} className="animate-spin mx-auto text-primary-500" />
                   <p className="text-sm font-medium">Memuat data pendaftar...</p>
                 </div>
               ) : adminPendaftarList.length === 0 ? (
-                <div className="p-10 text-center text-slate-500 space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                    <Users size={28} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-sm">Belum Ada Data Pendaftar</h4>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-                      Data pendaftaran calon mahasiswa baru yang masuk ke sistem akan ditampilkan di sini.
-                    </p>
-                  </div>
+                <div className="p-8 text-center text-slate-500 space-y-2">
+                  <Users size={32} className="mx-auto text-slate-300" />
+                  <p className="font-bold text-sm">Belum Ada Data Pendaftar</p>
                 </div>
               ) : (
-                <>
-                  {/* Desktop Table View (hidden on small mobile) */}
-                  <div className="hidden sm:block overflow-x-auto">
-                    <table className="w-full text-left text-xs sm:text-sm">
-                      <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-2xs tracking-wider border-b border-slate-100">
-                        <tr>
-                          <th className="py-3.5 px-4">Calon Mahasiswa</th>
-                          <th className="py-3.5 px-4">Program Studi</th>
-                          <th className="py-3.5 px-4">Status Bayar</th>
-                          <th className="py-3.5 px-4 text-right">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-700">
-                        {adminPendaftarList.slice(0, 6).map((p) => {
-                          const prodiNama =
-                            p.program_studi?.nama ||
-                            prodiList.find((pr) => String(pr.id) === String(p.program_studi_id))?.nama ||
-                            'Belum Dipilih';
+                adminPendaftarList.slice(0, 6).map((p) => {
+                  const prodiNama =
+                    p.program_studi?.nama ||
+                    prodiList.find((pr) => String(pr.id) === String(p.program_studi_id))?.nama ||
+                    'Belum Dipilih';
 
-                          return (
-                            <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
-                              <td className="py-3.5 px-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
-                                    {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="font-bold text-slate-900 truncate">{p.nama_lengkap || 'Calon Mahasiswa'}</p>
-                                    <p className="text-2xs font-mono text-slate-500">#{p.no_pendaftaran || p.id}</p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-3.5 px-4">
-                                <span className="font-medium text-slate-800 text-xs line-clamp-1">{prodiNama}</span>
-                              </td>
-                              <td className="py-3.5 px-4">
-                                {p.status_pembayaran === 'lunas' ? (
-                                  <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
-                                    <CheckCircle2 size={12} /> Lunas
-                                  </span>
-                                ) : (
-                                  <span className="badge badge-yellow text-xs font-bold inline-flex items-center gap-1">
-                                    <Clock size={12} /> Belum Bayar
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-3.5 px-4 text-right">
-                                <Link
-                                  href={`/spmb/pendaftaran/${p.id}`}
-                                  className="btn btn-ghost btn-xs text-primary-600 hover:bg-primary-50 font-bold min-h-[36px] px-3 inline-flex items-center gap-1"
-                                >
-                                  <span>Detail</span>
-                                  <ChevronRight size={14} />
-                                </Link>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile Card List View (sm:hidden) */}
-                  <div className="block sm:hidden divide-y divide-slate-100">
-                    {adminPendaftarList.slice(0, 6).map((p) => {
-                      const prodiNama =
-                        p.program_studi?.nama ||
-                        prodiList.find((pr) => String(pr.id) === String(p.program_studi_id))?.nama ||
-                        'Belum Dipilih';
-
-                      return (
-                        <div key={p.id} className="p-4 space-y-3 hover:bg-slate-50/60 transition-colors">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
-                                {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-bold text-slate-900 text-sm truncate">{p.nama_lengkap || 'Calon Mahasiswa'}</p>
-                                <p className="text-2xs font-mono text-slate-500">No: #{p.no_pendaftaran || p.id}</p>
-                              </div>
-                            </div>
-
-                            {p.status_pembayaran === 'lunas' ? (
-                              <span className="badge badge-green text-xs font-bold shrink-0">Lunas</span>
-                            ) : (
-                              <span className="badge badge-yellow text-xs font-bold shrink-0">Belum Bayar</span>
-                            )}
+                  return (
+                    <div key={p.id} className="p-4 space-y-3 hover:bg-slate-50/60 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
+                            {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
                           </div>
-
-                          <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-600">
-                            <span className="truncate font-medium text-slate-700">{prodiNama}</span>
-                            <Link
-                              href={`/spmb/pendaftaran/${p.id}`}
-                              className="btn btn-outline btn-xs font-bold text-primary-600 min-h-[40px] px-3 shrink-0 ml-2 inline-flex items-center gap-1"
-                            >
-                              <span>Buka Detail</span>
-                              <ChevronRight size={14} />
-                            </Link>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 text-sm truncate">{p.nama_lengkap || 'Calon Mahasiswa'}</p>
+                            <p className="text-2xs font-mono text-slate-500">No: #{p.no_pendaftaran || p.id}</p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </>
+
+                        {p.status_pembayaran === 'lunas' ? (
+                          <span className="badge badge-green text-xs font-bold shrink-0">Lunas</span>
+                        ) : (
+                          <span className="badge badge-yellow text-xs font-bold shrink-0">Belum Bayar</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-600">
+                        <span className="truncate font-medium text-slate-700">{prodiNama}</span>
+                        <Link
+                          href={`/spmb/pendaftaran/${p.id}`}
+                          className="btn btn-outline btn-xs font-bold text-primary-600 min-h-[40px] px-3 shrink-0 ml-2 inline-flex items-center gap-1"
+                        >
+                          <span>Buka Detail</span>
+                          <ChevronRight size={14} />
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
