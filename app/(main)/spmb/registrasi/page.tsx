@@ -670,6 +670,15 @@ export default function RegistrasiSpmbPage() {
             </button>
           </div>
 
+          {/* ── UNGGAH BERKAS / DOKUMEN PENDAFTARAN (DI ATAS RINCIAN PEMBAYARAN) ── */}
+          <div className="card p-5 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs mb-6 text-left">
+            <DokumenUploadPanel
+              uploadedBerkas={uploadedBerkas}
+              onUpload={handleFileUpload}
+              uploadingState={uploadingState}
+            />
+          </div>
+
           {/* Payment Card (Production Ready & Premium) */}
           <div className="card p-5 sm:p-7 text-left border-primary-200/80 bg-gradient-to-b from-primary-50/50 via-white to-white mb-6 shadow-sm rounded-2xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-5">
@@ -782,15 +791,6 @@ export default function RegistrasiSpmbPage() {
               </Button>
             </div>
           )}
-
-          {/* ── UNGGAH BERKAS / DOKUMEN PENDAFTARAN ────────────────────── */}
-          <div className="card p-5 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs mb-6 text-left">
-            <DokumenUploadPanel
-              uploadedBerkas={uploadedBerkas}
-              onUpload={handleFileUpload}
-              uploadingState={uploadingState}
-            />
-          </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Button 
