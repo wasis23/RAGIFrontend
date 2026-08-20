@@ -230,6 +230,12 @@ export const sikeuService = {
     });
   },
 
+  deleteJenisBiaya: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/jenis-biaya/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Master & Mapping Beasiswa Mahasiswa
   getBeasiswaList: async () => {
     return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/beasiswa');
@@ -246,6 +252,12 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/beasiswa/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
+    });
+  },
+
+  deleteBeasiswa: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/beasiswa/${id}`, {
+      method: 'DELETE',
     });
   },
 
