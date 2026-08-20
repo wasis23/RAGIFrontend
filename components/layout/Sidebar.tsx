@@ -68,6 +68,11 @@ const getIcon = (iconName: string) => {
     'FaBoxes': List,
     'FaWrench': Activity,
     'FaShoppingCart': CheckSquare,
+    'FaUser': User,
+    'FaSmartphone': Smartphone,
+    'FaShieldCheck': ShieldCheck,
+    'FaLock': Lock,
+    'FaKey': Key,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -87,21 +92,21 @@ export function Sidebar() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Determine module based on pathname or hostname
+  // Determine module based on pathname or hostname dynamically without hardcoding
   const getModule = () => {
     let mod = 'sso';
-    if (pathname.startsWith('/simpeg')) mod = 'simpeg';
-    else if (pathname.startsWith('/sippm')) mod = 'sippm';
-    else if (pathname.startsWith('/sikeu')) mod = 'sikeu';
-    else if (pathname.startsWith('/spmb')) mod = 'spmb';
-    else if (pathname.startsWith('/sinapra')) mod = 'sinapra';
-    else if (typeof window !== 'undefined') {
+    
+    if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname.startsWith('spmb.')) mod = 'spmb';
-      else if (hostname.startsWith('simpeg.')) mod = 'simpeg';
-      else if (hostname.startsWith('sippm.')) mod = 'sippm';
-      else if (hostname.startsWith('sikeu.')) mod = 'sikeu';
-      else if (hostname.startsWith('sinapra.')) mod = 'sinapra';
+      const parts = hostname.split('.');
+      if (parts.length > 2 && parts[0] !== 'www') {
+        mod = parts[0];
+      }
+    }
+
+    const firstSegment = pathname.split('/')[1];
+    if (firstSegment && firstSegment !== 'profile' && firstSegment !== 'admin' && firstSegment !== 'dashboard') {
+      mod = firstSegment;
     }
 
     if (typeof window !== 'undefined') {
@@ -292,35 +297,6 @@ export function Sidebar() {
             </div>
           );
         })()}
-
-        {/* Profile & Security Section */}
-        <div className="sidebar-section">
-          {sidebar_open && <div className="sidebar-section-label">Akun & Keamanan</div>}
-          <Link
-            href="/profile"
-            className={`sidebar-item ${pathname === '/profile' ? 'active' : ''}`}
-            title="Profil Saya"
-          >
-            <User className="sidebar-item-icon" />
-            {sidebar_open && <span>Profil Saya</span>}
-          </Link>
-          <Link
-            href="/profile/sessions"
-            className={`sidebar-item ${isMainActive('/profile/sessions') ? 'active' : ''}`}
-            title="Sesi Aktif"
-          >
-            <Smartphone className="sidebar-item-icon" />
-            {sidebar_open && <span>Sesi Perangkat</span>}
-          </Link>
-          <Link
-            href="/profile/mfa"
-            className={`sidebar-item ${isMainActive('/profile/mfa') ? 'active' : ''}`}
-            title="2FA / MFA"
-          >
-            <ShieldCheck className="sidebar-item-icon" />
-            {sidebar_open && <span>Autentikasi 2FA</span>}
-          </Link>
-        </div>
 
       </div>
 
