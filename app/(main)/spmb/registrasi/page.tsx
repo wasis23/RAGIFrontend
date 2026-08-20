@@ -681,27 +681,14 @@ export default function RegistrasiSpmbPage() {
 
           {/* Payment Card (Production Ready & Premium) */}
           <div className="card p-5 sm:p-7 text-left border-primary-200/80 bg-gradient-to-b from-primary-50/50 via-white to-white mb-6 shadow-sm rounded-2xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-5">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-primary-600 text-white rounded-xl shadow-sm">
-                  <CreditCard size={22} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">Instruksi Pembayaran</h3>
-                  <p className="text-xs text-slate-500">Virtual Account Pendaftaran SPMB Kampus</p>
-                </div>
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-100 mb-5">
+              <div className="p-2.5 bg-primary-600 text-white rounded-xl shadow-sm">
+                <CreditCard size={22} />
               </div>
-
-              {pendaftaran?.status_pembayaran === 'lunas' ? (
-                <span className="badge badge-green self-start sm:self-auto py-1 px-3">
-                  ✓ Pembayaran Lunas
-                </span>
-              ) : (
-                <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full self-start sm:self-auto">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                  <span>Menunggu Pembayaran (Real-Time Check 🟢)</span>
-                </div>
-              )}
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Instruksi &amp; Rincian Pembayaran</h3>
+                <p className="text-xs text-slate-500">Virtual Account Pendaftaran SPMB Kampus</p>
+              </div>
             </div>
 
             <div className="space-y-4 text-sm">
@@ -759,38 +746,69 @@ export default function RegistrasiSpmbPage() {
             </div>
           </div>
 
-          {pendaftaran?.status_pembayaran === 'lunas' ? (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl mb-6 flex items-center justify-center gap-2 text-emerald-800 text-sm font-bold animate-fade-in">
-              <ShieldCheck size={20} className="text-emerald-600" />
-              <span>Pembayaran Berhasil Dilunasi &amp; Terverifikasi oleh SIKEU!</span>
+          {/* ── 3. STATUS PEMBAYARAN (DI PALING BAWAH) ── */}
+          <div className="card p-5 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs mb-6 text-left space-y-4">
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <ShieldCheck size={18} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Status Pembayaran Tagihan</h4>
+                  <p className="text-2xs text-slate-500">Status verifikasi real-time dari sistem keuangan SIKEU</p>
+                </div>
+              </div>
+
+              <div>
+                {pendaftaran?.status_pembayaran === 'lunas' ? (
+                  <span className="badge badge-green text-xs font-extrabold px-3 py-1">
+                    ✓ LUNAS
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                    Menunggu Pembayaran
+                  </span>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="mb-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="md"
-                isLoading={loadingReset}
-                onClick={async () => {
-                  setLoadingReset(true);
-                  try {
-                    const res = await spmbService.reissueVa();
-                    toast.success('Nomor Virtual Account berhasil diperbarui!');
-                    if (res.data) {
-                      setSuksesData(res.data);
+
+            {pendaftaran?.status_pembayaran === 'lunas' ? (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-800 text-xs font-bold">
+                <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                <span>Pembayaran Berhasil Dilunasi &amp; Terverifikasi oleh SIKEU!</span>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                <p className="text-xs text-slate-500">
+                  Belum menyelesaikan pembayaran? Anda dapat menerbitkan ulang Virtual Account jika kode VA kadaluarsa.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  isLoading={loadingReset}
+                  onClick={async () => {
+                    setLoadingReset(true);
+                    try {
+                      const res = await spmbService.reissueVa();
+                      toast.success('Nomor Virtual Account berhasil diperbarui!');
+                      if (res.data) {
+                        setSuksesData(res.data);
+                      }
+                    } catch (err: any) {
+                      toast.error(err.response?.data?.message || 'Gagal memperbarui nomor Virtual Account');
+                    } finally {
+                      setLoadingReset(false);
                     }
-                  } catch (err: any) {
-                    toast.error(err.response?.data?.message || 'Gagal memperbarui nomor Virtual Account');
-                  } finally {
-                    setLoadingReset(false);
-                  }
-                }}
-                className="w-full sm:w-auto bg-white border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold shadow-xs min-h-[44px]"
-              >
-                🔄 Terbitkan Ulang Nomor VA
-              </Button>
-            </div>
-          )}
+                  }}
+                  className="w-full sm:w-auto bg-white border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold shrink-0"
+                >
+                  🔄 Terbitkan Ulang VA
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Button 
