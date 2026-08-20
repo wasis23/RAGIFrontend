@@ -1,396 +1,294 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  ShieldCheck,
-  CheckCircle,
-  XCircle,
-  Clock,
-  ArrowLeft,
-  AlertCircle,
-  FileText,
-  User,
-  Wallet,
-  Receipt,
-  TrendingDown,
-  Building2,
-  CheckCircle2,
-  ArrowRightLeft
+  ShieldCheck, CheckCircle2, XCircle, Clock, Filter, Loader2, Save, Eye
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Drawer } from '@/components/ui/Drawer';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
+import { useForm } from 'react-hook-form';
+
+interface ApprovalItem {
+  id: number;
+  type: 'dispensasi' | 'tagihan' | 'kas';
+  title: string;
+  pemohon: string;
+  nominal: number;
+  tanggal: string;
+  keterangan: string;
+}
+
+interface DecisionFormValues {
+  catatan: string;
+}
+
+const formatRupiah = (val: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export default function SikeuApprovalPage() {
-  // 4 Distinct Approval Categories (Separate Cards)
-  const [dispensasiList, setDispensasiList] = useState<any[]>([]);
-  const [kasKabagList, setKasKabagList] = useState<any[]>([]);
-  const [operasionalList, setOperasionalList] = useState<any[]>([]);
-  const [tagihanList, setTagihanList] = useState<any[]>([]);
+  const [data, setData] = useState<ApprovalItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [modalAction, setModalAction] = useState<{
-    category: 'dispensasi' | 'kas' | 'operasional' | 'tagihan';
-    action: 'approve' | 'reject';
-    id: number;
-    title: string;
-  } | null>(null);
+  // Filter Drawer State — 2-stage
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', type: 'all' });
 
-  const [catatan, setCatatan] = useState('');
-  const [processing, setProcessing] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // Action Modal State
+  const [activeItem, setActiveItem] = useState<ApprovalItem | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject'>('approve');
+  const [submitting, setSubmitting] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<DecisionFormValues>({
+    defaultValues: { catatan: '' },
+  });
+
+  const fetchData = async () => {
     try {
-      // Mock data for each synchronized approval category
-      setDispensasiList([
-        { id: 201, mahasiswa_nama: 'Budi Santoso', nim: '2024010042', prodi: 'Teknik Informatika', angkatan: 2024, tipe: 'Cicilan UKT 50%', jatuh_tempo_baru: '2026-09-15', sisa_tagihan: 3500000, alasan: 'Kendala keuangan keluarga terdampar musibah, memohon izin mencicil 2x.' },
-        { id: 202, mahasiswa_nama: 'Siti Rahmawati', nim: '2025010018', prodi: 'Sistem Informasi', angkatan: 2025, tipe: 'Penundaan Pembayaran', jatuh_tempo_baru: '2026-09-30', sisa_tagihan: 4000000, alasan: 'Menunggu pencairan beasiswa pemerintah daerah bulan depan.' },
-      ]);
+      setLoading(true);
+      const res = await sikeuService.getPendingApprovals();
+      const rawTagihan = res.data?.tagihan_pending || [];
+      const rawDispensasi = res.data?.dispensasi_pending || [];
 
-      setKasKabagList([
-        { id: 301, kode_mutasi: 'MUT-KAS-202608-01', unit_asal: 'Kas Utama Kabag Keuangan', unit_tujuan: 'Kas Operasional SPMB', nominal: 15000000, peruntukan: 'Pengisian kas tunai operasional pendaftaran SPMB Gelombang 2', pemohon: 'Kabag Keuangan' },
-        { id: 302, kode_mutasi: 'MUT-KAS-202608-02', unit_asal: 'Kas Bank BNI Kampus', unit_tujuan: 'Kas Bank Mandiri Payroll', nominal: 45000000, peruntukan: 'Transfer mutasi likuiditas persediaan gaji dosen & pegawai', pemohon: 'Kabag Keuangan' },
-      ]);
+      const mappedTagihan: ApprovalItem[] = rawTagihan.map((t: any) => ({
+        id: t.id,
+        type: 'tagihan',
+        title: `Penerbitan Invoice Tagihan #${t.id}`,
+        pemohon: t.nim ? `Mahasiswa NIM ${t.nim}` : 'SIAKAD',
+        nominal: t.total_tagihan || 3500000,
+        tanggal: t.created_at || '2026-08-01',
+        keterangan: t.alasan || 'Tagihan khusus semester aktif',
+      }));
 
-      setOperasionalList([
-        { id: 401, nomor_pengajuan: 'EXP-OPR-202608-01', unit: 'Laboratorium Komputer TI', nama_pengeluaran: 'Pembelian Router & Switch Core CISCO Lab TI', nominal: 18500000, tanggal: '2026-08-02', pemohon: 'Ka. Lab Komputer' },
-        { id: 402, nomor_pengajuan: 'EXP-OPR-202608-02', unit: 'Bagian Kemahasiswaan', nama_pengeluaran: 'Dana Hibah Kompetisi PKM & Robotika Nasional', nominal: 12000000, tanggal: '2026-08-03', pemohon: 'Wakil Rektor III' },
-      ]);
+      const mappedDispensasi: ApprovalItem[] = rawDispensasi.map((d: any) => ({
+        id: d.id,
+        type: 'dispensasi',
+        title: `Permohonan Dispensasi #${d.id}`,
+        pemohon: d.nama_mahasiswa || `Mahasiswa #${d.mahasiswa_id}`,
+        nominal: d.nominal_per_cicilan || 1500000,
+        tanggal: d.created_at || '2026-08-01',
+        keterangan: d.alasan || 'Permohonan penundaan / cicilan tagihan',
+      }));
 
-      setTagihanList([
-        { id: 101, nomor_tagihan: 'INV-EXT-202608-01', mahasiswa_nama: 'Ahmad Fauzi', nim: '2023010088', source: 'SIAKAD', nominal: 5500000, jatuh_tempo: '2026-08-31', alasan: 'Penerbitan invoice khusus kelas eksekutif' },
-      ]);
-    } catch (err) {
-      console.error('Failed to load pending approvals', err);
+      setData([...mappedTagihan, ...mappedDispensasi]);
+    } catch {
+      setData([]);
+      toast.error('Gagal memuat daftar pengajuan approval');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    fetchData();
   }, []);
 
-  const handleConfirmAction = async () => {
-    if (!modalAction) return;
-    setProcessing(true);
-    try {
-      const decisionText = modalAction.action === 'approve' ? 'DISETUJUI' : 'DITOLAK';
-      setFeedback({
-        type: 'success',
-        message: `Pengajuan #${modalAction.id} (${modalAction.title}) telah berhasil ${decisionText} oleh Pimpinan. Keputusan dan jurnal otomatis telah diperbarui.`,
-      });
+  const handleOpenAction = (item: ApprovalItem, action: 'approve' | 'reject') => {
+    setActiveItem(item);
+    setActionType(action);
+    reset({ catatan: '' });
+  };
 
-      // Update local state list
-      if (modalAction.category === 'dispensasi') {
-        setDispensasiList(prev => prev.filter(item => item.id !== modalAction.id));
-      } else if (modalAction.category === 'kas') {
-        setKasKabagList(prev => prev.filter(item => item.id !== modalAction.id));
-      } else if (modalAction.category === 'operasional') {
-        setOperasionalList(prev => prev.filter(item => item.id !== modalAction.id));
+  const onSubmitDecision = async (formData: DecisionFormValues) => {
+    if (!activeItem) return;
+    setSubmitting(true);
+    try {
+      if (activeItem.type === 'dispensasi') {
+        if (actionType === 'approve') {
+          await sikeuService.approveDispensasi(activeItem.id, formData.catatan);
+        } else {
+          await sikeuService.rejectDispensasi(activeItem.id, formData.catatan);
+        }
       } else {
-        setTagihanList(prev => prev.filter(item => item.id !== modalAction.id));
+        if (actionType === 'approve') {
+          await sikeuService.approveTagihan(activeItem.id, formData.catatan);
+        } else {
+          await sikeuService.rejectTagihan(activeItem.id, formData.catatan);
+        }
       }
 
-      setModalAction(null);
-      setCatatan('');
-    } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Gagal memproses keputusan approval' });
+      toast.success(
+        `Pengajuan "${activeItem.title}" berhasil di-${actionType === 'approve' ? 'setujui' : 'tolak'}`
+      );
+      setActiveItem(null);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Gagal memproses keputusan approval');
     } finally {
-      setProcessing(false);
+      setSubmitting(false);
     }
   };
 
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+  const handleApplyFilter = () => {
+    setAppliedFilters({ search: filterSearch, type: filterType });
+    setShowFilter(false);
   };
 
-  const totalPendingCount = dispensasiList.length + kasKabagList.length + operasionalList.length + tagihanList.length;
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setFilterType('all');
+    setAppliedFilters({ search: '', type: 'all' });
+    setShowFilter(false);
+  };
+
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
+        if (!item.title?.toLowerCase().includes(q) && !item.pemohon?.toLowerCase().includes(q) && !item.keterangan?.toLowerCase().includes(q)) return false;
+      }
+      if (appliedFilters.type !== 'all' && item.type !== appliedFilters.type) return false;
+      return true;
+    });
+  }, [data, appliedFilters]);
+
+  const columns: ColumnDef<ApprovalItem>[] = [
+    {
+      key: 'title',
+      label: 'PENGAJUAN & KETERANGAN',
+      render: (row) => (
+        <div>
+          <p className="font-bold text-slate-900 text-sm">{row.title}</p>
+          <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{row.keterangan}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      label: 'KATEGORI',
+      render: (row) => (
+        <span className="badge badge-purple text-xs font-bold uppercase">{row.type}</span>
+      ),
+    },
+    {
+      key: 'pemohon',
+      label: 'PEMOHON',
+      render: (row) => (
+        <span className="font-semibold text-slate-700 text-xs">{row.pemohon}</span>
+      ),
+    },
+    {
+      key: 'nominal',
+      label: 'NOMINAL',
+      render: (row) => (
+        <span className="font-bold text-slate-900 tabular-nums text-sm">
+          {formatRupiah(row.nominal || 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'KEPUTUSAN PIMPINAN',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleOpenAction(row, 'approve')}
+            icon={<CheckCircle2 size={14} className="text-emerald-600" />}
+            className="font-bold text-emerald-700 hover:bg-emerald-50"
+          >
+            Setujui
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleOpenAction(row, 'reject')}
+            icon={<XCircle size={14} className="text-rose-600" />}
+            className="font-bold text-rose-700 hover:bg-rose-50"
+          >
+            Tolak
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between card p-6">
-        <div className="flex items-center gap-3">
-          <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Portal Approval Pimpinan</h1>
-            <p className="text-xs text-slate-500">Persetujuan Terpisah per Kategori: Dispensasi Pembayaran, Kas Kabag Keuangan, & Pengeluaran Operasional</p>
+    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+      <PageHeader
+        title="Portal Persetujuan Pimpinan (Approval)"
+        description="Verifikasi dan persetujuan bertingkat untuk pengajuan kas, dispensasi tagihan, dan pencairan anggaran."
+        action={
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold min-h-[40px]"
+            >
+              Filter
+            </Button>
           </div>
+        }
+      />
+
+      <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada antrean pengajuan persetujuan." />
+
+      {/* Modal Decision */}
+      <Modal isOpen={Boolean(activeItem)} onClose={() => setActiveItem(null)}
+        title={actionType === 'approve' ? 'Konfirmasi Persetujuan (Approve)' : 'Konfirmasi Penolakan (Reject)'}>
+        <form onSubmit={handleSubmit(onSubmitDecision)} className="space-y-5">
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <p className="text-xs font-bold text-slate-900">{activeItem?.title}</p>
+            <p className="text-2xs text-slate-500">Pemohon: {activeItem?.pemohon}</p>
+            <p className="text-sm font-extrabold text-emerald-700">{formatRupiah(activeItem?.nominal || 0)}</p>
+          </div>
+
+          <Textarea label="Catatan Pimpinan (Opsional)" placeholder="Tuliskan alasan atau instruksi tambahan..."
+            {...register('catatan')} />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button type="button" variant="ghost" onClick={() => setActiveItem(null)} disabled={submitting} className="font-bold text-slate-600">
+              Batal
+            </Button>
+            <Button type="submit" variant={actionType === 'approve' ? 'primary' : 'outline'} disabled={submitting}
+              icon={submitting ? <Loader2 size={18} className="animate-spin" /> : actionType === 'approve' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
+              className={`font-bold shadow-md ${actionType === 'reject' ? 'border-rose-300 text-rose-700 hover:bg-rose-50' : ''}`}>
+              {submitting ? 'Memproses...' : actionType === 'approve' ? 'Setujui Pengajuan' : 'Tolak Pengajuan'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Filter Drawer */}
+      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Approval" width="420px"
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" variant="outline" onClick={handleResetFilter} className="font-bold text-slate-600 min-h-[42px] px-4">
+              Reset
+            </Button>
+            <Button type="button" variant="primary" onClick={handleApplyFilter} className="font-bold min-h-[42px] px-5 shadow-md">
+              Terapkan Filter
+            </Button>
+          </div>
+        }>
+        <div className="space-y-5">
+          <Input label="Cari Judul / Pemohon / Keterangan" placeholder="Ketik kata kunci..."
+            value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
+
+          <Select label="Kategori Pengajuan"
+            value={filterType}
+            onChange={(val) => setFilterType(val as string)}
+            options={[
+              { value: 'all', label: 'Semua Kategori' },
+              { value: 'dispensasi', label: 'Dispensasi Tagihan' },
+              { value: 'tagihan', label: 'Penerbitan Invoice Special' },
+              { value: 'kas', label: 'Pencairan Kas Operasional' },
+            ]} />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="px-3 py-1.5 bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-2xs">
-            <Clock size={16} /> Total Pending: {totalPendingCount} Pengajuan
-          </span>
-        </div>
-      </div>
-
-      {feedback && (
-        <div
-          className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${
-            feedback.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
-          }`}
-        >
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
-
-      {/* CARD CATEGORY 1: PERMOHONAN DISPENSASI PEMBAYARAN MAHASISWA */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
-          <div className="flex items-center gap-2">
-            <User size={20} className="text-amber-600" />
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900">1. Card Approval Dispensasi Pembayaran Mahasiswa</h2>
-              <p className="text-xs text-slate-500">Persetujuan cicilan / penundaan bayar (Otomatis membuka kuncian KRS di SIAKAD)</p>
-            </div>
-          </div>
-          <span className="badge badge-yellow">
-            {dispensasiList.length} Antrean
-          </span>
-        </div>
-
-        {dispensasiList.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-400 font-medium">Tidak ada permohonan dispensasi pembayaran yang pending.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dispensasiList.map((d) => (
-              <div key={d.id} className="p-4 rounded-xl border border-amber-200 bg-amber-50/40 space-y-3 text-xs flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-900 text-sm">{d.mahasiswa_nama}</span>
-                    <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-white text-slate-700 border border-slate-200">
-                      NIM: {d.nim}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-600 font-medium">Prodi: {d.prodi} (Angkatan {d.angkatan})</div>
-                  <div className="p-2.5 bg-white rounded-lg border border-amber-200 text-[11px] text-slate-700 font-medium">
-                    &ldquo;{d.alasan}&rdquo;
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] pt-1">
-                    <span className="text-slate-600">Jatuh Tempo Baru: <strong className="text-slate-900">{d.jatuh_tempo_baru}</strong></span>
-                    <span className="font-mono font-extrabold text-emerald-800">{formatRupiah(d.sisa_tagihan)}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-amber-200/60">
-                  <button
-                    onClick={() => setModalAction({ category: 'dispensasi', action: 'reject', id: d.id, title: `Tolak Dispensasi ${d.mahasiswa_nama}` })}
-                    className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 font-bold"
-                  >
-                    <XCircle size={14} /> Tolak
-                  </button>
-                  <button
-                    onClick={() => setModalAction({ category: 'dispensasi', action: 'approve', id: d.id, title: `Setujui Dispensasi ${d.mahasiswa_nama}` })}
-                    className="btn btn-primary btn-xs font-bold border-none"
-                  >
-                    <CheckCircle size={14} /> Setujui Dispensasi
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* CARD CATEGORY 2: PERIZINAN MUTASI & PENGELOLAAN KAS KABAG KEUANGAN */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
-          <div className="flex items-center gap-2">
-            <Wallet size={20} className="text-primary-600" />
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900">2. Card Approval Perizinan Kas Kabag Keuangan & Mutasi Unit</h2>
-              <p className="text-xs text-slate-500">Persetujuan transfer dana antar unit kas (Otomatis mencatat Jurnal Umum Debet/Kredit)</p>
-            </div>
-          </div>
-          <span className="badge badge-teal-pill">
-            {kasKabagList.length} Antrean
-          </span>
-        </div>
-
-        {kasKabagList.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-400 font-medium">Tidak ada permohonan mutasi kas yang pending.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {kasKabagList.map((k) => (
-              <div key={k.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3 text-xs flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-slate-700">{k.kode_mutasi}</span>
-                    <span className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(k.nominal)}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-700 font-bold bg-white p-2 rounded-lg border border-slate-200">
-                    <span>{k.unit_asal}</span>
-                    <ArrowRightLeft size={12} className="text-primary-600 shrink-0" />
-                    <span>{k.unit_tujuan}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600">Peruntukan: <strong>{k.peruntukan}</strong></p>
-                  <div className="text-[10px] text-slate-500 font-semibold">Pemohon: {k.pemohon}</div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200/60">
-                  <button
-                    onClick={() => setModalAction({ category: 'kas', action: 'reject', id: k.id, title: `Tolak Mutasi ${k.kode_mutasi}` })}
-                    className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 font-bold"
-                  >
-                    <XCircle size={14} /> Tolak
-                  </button>
-                  <button
-                    onClick={() => setModalAction({ category: 'kas', action: 'approve', id: k.id, title: `Setujui Mutasi ${k.kode_mutasi}` })}
-                    className="btn btn-primary btn-xs font-bold border-none"
-                  >
-                    <CheckCircle size={14} /> Setujui Mutasi Kas
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* CARD CATEGORY 3: PENGELUARAN OPERASIONAL UNIT & PRODI */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
-          <div className="flex items-center gap-2">
-            <TrendingDown size={20} className="text-purple-600" />
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900">3. Card Approval Pengeluaran Operasional Unit & Prodi</h2>
-              <p className="text-xs text-slate-500">Persetujuan pencairan anggaran belanja operasional & kegiatan laboratorium/prodi</p>
-            </div>
-          </div>
-          <span className="badge badge-purple">
-            {operasionalList.length} Antrean
-          </span>
-        </div>
-
-        {operasionalList.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-400 font-medium">Tidak ada permohonan pengeluaran operasional yang pending.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {operasionalList.map((o) => (
-              <div key={o.id} className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-3 text-xs flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-900 text-sm">{o.nama_pengeluaran}</span>
-                    <span className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(o.nominal)}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-600 font-medium">Unit: <strong>{o.unit}</strong> • Tanggal: {o.tanggal}</div>
-                  <div className="text-[10px] font-mono text-purple-800 bg-white p-2 rounded-lg border border-purple-200">
-                    No Pengajuan: {o.nomor_pengajuan} (Pemohon: {o.pemohon})
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-purple-200/60">
-                  <button
-                    onClick={() => setModalAction({ category: 'operasional', action: 'reject', id: o.id, title: `Tolak Pengeluaran ${o.nomor_pengajuan}` })}
-                    className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 font-bold"
-                  >
-                    <XCircle size={14} /> Tolak
-                  </button>
-                  <button
-                    onClick={() => setModalAction({ category: 'operasional', action: 'approve', id: o.id, title: `Setujui Pengeluaran ${o.nomor_pengajuan}` })}
-                    className="btn btn-primary btn-xs font-bold border-none"
-                  >
-                    <CheckCircle size={14} /> Setujui Pencairan
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* CARD CATEGORY 4: TAGIHAN EKSTERNAL LINTAS SISTEM */}
-      <div className="card p-6 space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
-          <div className="flex items-center gap-2">
-            <FileText size={20} className="text-indigo-600" />
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900">4. Card Approval Tagihan Eksternal (SIAKAD / SPMB)</h2>
-              <p className="text-xs text-slate-500">Persetujuan khusus invoice baru yang memerlukan persetujuan pimpinan</p>
-            </div>
-          </div>
-          <span className="badge badge-indigo">
-            {tagihanList.length} Antrean
-          </span>
-        </div>
-
-        {tagihanList.length === 0 ? (
-          <div className="text-center py-6 text-xs text-slate-400 font-medium">Tidak ada permohonan tagihan eksternal yang pending.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {tagihanList.map((t) => (
-              <div key={t.id} className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/40 space-y-3 text-xs flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-indigo-700">{t.nomor_tagihan}</span>
-                    <span className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(t.nominal)}</span>
-                  </div>
-                  <div className="text-slate-800 font-bold">{t.mahasiswa_nama} (NIM: {t.nim})</div>
-                  <p className="text-[11px] text-slate-600">{t.alasan}</p>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-indigo-200/60">
-                  <button
-                    onClick={() => setModalAction({ category: 'tagihan', action: 'reject', id: t.id, title: `Tolak Tagihan ${t.nomor_tagihan}` })}
-                    className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 font-bold"
-                  >
-                    <XCircle size={14} /> Tolak
-                  </button>
-                  <button
-                    onClick={() => setModalAction({ category: 'tagihan', action: 'approve', id: t.id, title: `Setujui Tagihan ${t.nomor_tagihan}` })}
-                    className="btn btn-primary btn-xs font-bold border-none"
-                  >
-                    <CheckCircle size={14} /> Setujui Invoice
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Confirmation Modal */}
-      {modalAction && (
-        <div className="modal-overlay">
-          <div className="modal modal-sm">
-            <h3 className="text-base font-extrabold text-slate-900">{modalAction.title}</h3>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Catatan Pimpinan (Opsional)</label>
-              <textarea
-                value={catatan}
-                onChange={(e) => setCatatan(e.target.value)}
-                placeholder="Tuliskan catatan atau instruksi persetujuan..."
-                className="textarea textarea-sm w-full"
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <button
-                onClick={() => setModalAction(null)}
-                className="btn btn-ghost btn-sm font-bold"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleConfirmAction}
-                disabled={processing}
-                className={`btn btn-sm font-bold ${
-                  modalAction.action === 'approve' ? 'btn-primary' : 'btn-danger'
-                }`}
-              >
-                {processing ? 'Memproses...' : modalAction.action === 'approve' ? 'Konfirmasi Approve' : 'Konfirmasi Tolak'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Drawer>
     </div>
   );
 }
