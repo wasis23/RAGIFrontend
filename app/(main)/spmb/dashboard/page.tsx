@@ -657,50 +657,51 @@ function SPMBAdminDashboardView({
         description="Portal pusat pemantauan pendaftaran mahasiswa baru, verifikasi formulir, dan penetapan hasil seleksi"
       />
 
-      {/* ── 2. Executive Hero Banner ───────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 md:p-10 border border-indigo-800/40 shadow-xl">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
-        <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-2xl pointer-events-none -z-0" />
+      {/* ── 2. Executive Hero Banner (Vibrant Royal Blue & Indigo) ── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white p-6 sm:p-8 md:p-10 border border-blue-600 shadow-xl">
+        {/* Glow Effects */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-400/20 rounded-full blur-3xl pointer-events-none -z-0" />
+        <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-indigo-400/20 rounded-full blur-2xl pointer-events-none -z-0" />
 
         <div className="relative z-10 space-y-4 max-w-4xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold tracking-wide">
-            <ShieldCheck size={14} className="shrink-0" />
-            <span>Panel Administrasi &amp; Panitia SPMB Kampus</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/30 text-white text-xs font-bold tracking-wide backdrop-blur-md">
+            <ShieldCheck size={15} className="shrink-0 text-sky-200" />
+            <span className="!text-white">Panel Administrasi &amp; Panitia SPMB Kampus</span>
           </div>
 
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold !text-white tracking-tight leading-tight drop-shadow-sm">
               Penerimaan Mahasiswa Baru
             </h1>
-            <p className="text-slate-300 text-xs sm:text-sm md:text-base leading-relaxed font-medium max-w-3xl">
+            <p className="text-blue-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium max-w-3xl">
               Pantau arus calon pendaftar, status kelulusan berkas administrasi, konfirmasi pembayaran formulir, dan jalannya ujian seleksi secara terintegrasi.
             </p>
           </div>
 
-          {/* Action Links (Mobile-first Touch Target >= 44px) */}
+          {/* Action Links (High Contrast White & Opaque Glass Buttons) */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3">
             <Link
               href="/spmb/pendaftaran"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary-600 hover:bg-primary-500 active:bg-primary-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all min-h-[44px]"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-blue-700 hover:bg-blue-50 active:bg-blue-100 font-extrabold text-sm shadow-lg hover:shadow-xl transition-all min-h-[44px]"
             >
-              <Users size={18} />
-              <span>Kelola Data Pendaftar ({totalCount})</span>
+              <Users size={18} className="text-blue-700" />
+              <span className="text-blue-700 font-extrabold">Kelola Data Pendaftar ({totalCount})</span>
             </Link>
 
             <Link
               href="/spmb/pembayaran"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white font-bold text-sm border border-white/20 transition-all min-h-[44px]"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-900/40 hover:bg-blue-900/60 active:bg-blue-900/80 text-white font-bold text-sm border border-white/30 transition-all min-h-[44px] backdrop-blur-md"
             >
-              <CreditCard size={18} />
-              <span>Verifikasi Pembayaran</span>
+              <CreditCard size={18} className="text-sky-200" />
+              <span className="!text-white font-bold">Verifikasi Pembayaran</span>
             </Link>
 
             <Link
               href="/spmb/ujian/jadwal"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white font-bold text-sm border border-white/20 transition-all min-h-[44px]"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-900/40 hover:bg-blue-900/60 active:bg-blue-900/80 text-white font-bold text-sm border border-white/30 transition-all min-h-[44px] backdrop-blur-md"
             >
-              <Calendar size={18} />
-              <span>Jadwal Ujian CAT</span>
+              <Calendar size={18} className="text-sky-200" />
+              <span className="!text-white font-bold">Jadwal Ujian CAT</span>
             </Link>
           </div>
         </div>
