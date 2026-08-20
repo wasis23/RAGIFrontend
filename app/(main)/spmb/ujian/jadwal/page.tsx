@@ -11,10 +11,15 @@ import toast from 'react-hot-toast';
 import api from '@/lib/axios';
 import Link from 'next/link';
 
+import { AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
 export default function JadwalUjianPage() {
+  const router = useRouter();
   const [data, setData] = useState([]);
   const [gelombangOptions, setGelombangOptions] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isForbidden, setIsForbidden] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const [filterGelombang, setFilterGelombang] = useState('');
@@ -44,6 +49,7 @@ export default function JadwalUjianPage() {
 
   const fetchData = async () => {
     setLoading(true);
+    setIsForbidden(false);
     try {
       const res = await api.get('/spmb/jadwal-ujian', {
         params: {
@@ -54,8 +60,12 @@ export default function JadwalUjianPage() {
       });
       const rawData = res.data?.data?.data || res.data?.data || res.data || [];
       setData(rawData);
-    } catch (error) {
-      toast.error('Gagal mengambil data jadwal.');
+    } catch (error: any) {
+      if (error?.response?.status === 403 || error?.response?.status === 404 || error?.status === 403) {
+        setIsForbidden(true);
+      } else {
+        toast.error('Gagal mengambil data jadwal.');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,6 +118,24 @@ export default function JadwalUjianPage() {
       ),
     },
   ];
+
+  if (isForbidden) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
+        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 border border-red-100 shadow-2xs">
+          <AlertCircle size={32} />
+        </div>
+        <h1 className="text-4xl font-black text-slate-800 mb-1">404</h1>
+        <h2 className="text-lg font-bold text-slate-700 mb-2">Halaman Tidak Ditemukan</h2>
+        <p className="text-slate-500 text-sm max-w-md mb-6">
+          Halaman ini tidak tersedia atau Anda tidak memiliki hak akses yang dikonfigurasikan untuk role Anda.
+        </p>
+        <Button variant="primary" onClick={() => router.push('/spmb/dashboard')}>
+          Kembali ke Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
