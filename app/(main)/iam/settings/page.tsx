@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Select, type SelectOption } from '@/components/ui/Select';
-import { Save, Settings, Users, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { Save, Settings, Users, CheckCircle2, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/axios';
 
@@ -22,6 +22,8 @@ export default function SystemSettingsPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [defaultRole, setDefaultRole] = useState('calon_mhs');
   const [originalRole, setOriginalRole] = useState('calon_mhs');
+  const [superadminRole, setSuperadminRole] = useState('superadmin');
+  const [originalSuperadminRole, setOriginalSuperadminRole] = useState('superadmin');
 
   useEffect(() => {
     fetchData();
@@ -43,6 +45,10 @@ export default function SystemSettingsPage() {
         setDefaultRole(settingsData.default_register_role.value);
         setOriginalRole(settingsData.default_register_role.value);
       }
+      if (settingsData?.superadmin_role?.value) {
+        setSuperadminRole(settingsData.superadmin_role.value);
+        setOriginalSuperadminRole(settingsData.superadmin_role.value);
+      }
     } catch {
       toast.error('Gagal memuat pengaturan sistem.');
     } finally {
@@ -55,11 +61,15 @@ export default function SystemSettingsPage() {
     setSaveSuccess(false);
     try {
       await apiClient.post('/admin/system-settings', {
-        settings: [{ key: 'default_register_role', value: defaultRole }],
+        settings: [
+          { key: 'default_register_role', value: defaultRole },
+          { key: 'superadmin_role', value: superadminRole },
+        ],
       });
       setOriginalRole(defaultRole);
+      setOriginalSuperadminRole(superadminRole);
       setSaveSuccess(true);
-      toast.success('Konfigurasi berhasil disimpan.');
+      toast.success('Konfigurasi sistem berhasil disimpan.');
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
       toast.error('Gagal menyimpan pengaturan.');
@@ -68,24 +78,25 @@ export default function SystemSettingsPage() {
     }
   };
 
-  const isDirty = defaultRole !== originalRole;
+  const isDirty = defaultRole !== originalRole || superadminRole !== originalSuperadminRole;
   const selectedRole = roles.find((r) => r.slug === defaultRole);
+  const selectedSuperadminRole = roles.find((r) => r.slug === superadminRole);
 
   return (
     <div className="animate-fade-in space-y-6">
       {/* Page Header */}
       <PageHeader
         title="Pengaturan Sistem"
-        description="Konfigurasi inti untuk SSO Campus dan mapping role otomatis"
+        description="Konfigurasi inti untuk SSO Campus, Otoritas Superadmin, dan mapping role otomatis"
       />
 
       {/* Settings Grid */}
       <div className="settings-page-grid">
 
         {/* ── Left: Settings Sections ── */}
-        <div className="settings-sections">
+        <div className="settings-sections space-y-6">
 
-          {/* Section: Registrasi Akun Baru */}
+          {/* Section 1: Registrasi Akun Baru */}
           <div className="settings-section-card card">
             {/* Section Header */}
             <div className="settings-section-header">
@@ -139,6 +150,59 @@ export default function SystemSettingsPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Section 2: Role Superadmin Utama */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-indigo-50 text-indigo-600">
+                <ShieldAlert size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Otoritas Role Superadmin (Sistem)</h2>
+                <p className="settings-section-desc">
+                  Tentukan Role yang bertindak sebagai Superadmin utama di sistem. Sistem akan secara dinamis memberikan hak akses penuh tanpa batas ke semua modul bagi pengguna dengan role ini.
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                </div>
+              ) : (
+                <Select
+                  label="System Superadmin Role"
+                  options={roles.map((r): SelectOption => ({
+                    value: r.slug,
+                    label: `${r.name} (${r.slug})`,
+                  }))}
+                  value={superadminRole}
+                  onChange={(val: string) => {
+                    setSuperadminRole(val);
+                    setSaveSuccess(false);
+                  }}
+                  placeholder="Pilih role superadmin..."
+                  isClearable={false}
+                  hint="Role yang dipilih akan dikenali secara dinamis oleh backend & frontend SSO sebagai Superadmin utama tanpa tergantung nilai hardcode."
+                />
+              )}
+
+              {!isLoading && selectedSuperadminRole && (
+                <div className="settings-role-preview bg-indigo-50/70 border-indigo-200">
+                  <div className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                  <span className="settings-role-preview-label font-bold text-indigo-900">Role Superadmin Aktif:</span>
+                  <span className="settings-role-preview-value text-indigo-700">{selectedSuperadminRole.name}</span>
+                  {selectedSuperadminRole.description && (
+                    <span className="settings-role-preview-desc text-indigo-600">— {selectedSuperadminRole.description}</span>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Footer Action */}
             <div className="settings-section-footer">
@@ -161,7 +225,11 @@ export default function SystemSettingsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => { setDefaultRole(originalRole); setSaveSuccess(false); }}
+                    onClick={() => {
+                      setDefaultRole(originalRole);
+                      setSuperadminRole(originalSuperadminRole);
+                      setSaveSuccess(false);
+                    }}
                     disabled={isSaving}
                   >
                     Batalkan
@@ -185,18 +253,25 @@ export default function SystemSettingsPage() {
           <div className="settings-info-card card card-body">
             <div className="flex items-center gap-2 mb-3">
               <Settings size={15} className="text-primary-600" />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tentang Pengaturan Ini</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tentang Konfigurasi SSO</span>
             </div>
             <p className="text-sm text-slate-600 leading-relaxed mb-4">
-              Pengaturan ini menentukan role default yang akan disematkan secara otomatis kepada setiap pengguna yang baru mendaftar melalui halaman registrasi publik.
+              Konfigurasi ini menentukan perilaku dinamis SSO Campus untuk pendaftaran publik dan penentuan otoritas Superadmin sistem.
             </p>
             <div className="settings-info-divider" />
-            <p className="text-sm text-slate-600 leading-relaxed mt-4">
-              Setelah role dipilih, seluruh izin (permissions) yang terikat pada role tersebut akan menentukan modul apa saja yang dapat diakses oleh pendaftar baru di Dashboard SSO.
-            </p>
+            <div className="space-y-3 mt-4 text-xs text-slate-600 leading-relaxed">
+              <div className="flex items-start gap-2">
+                <Users size={14} className="text-primary-600 shrink-0 mt-0.5" />
+                <span><strong>Default Register Role:</strong> Role otomatis saat user baru melakukan registrasi mandiri.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ShieldCheck size={14} className="text-indigo-600 shrink-0 mt-0.5" />
+                <span><strong>Superadmin Role:</strong> Role yang dikonfigurasi sebagai pemegang akses penuh tanpa batas ke seluruh modul sistem.</span>
+              </div>
+            </div>
             <button
               onClick={fetchData}
-              className="settings-refresh-btn"
+              className="settings-refresh-btn mt-4"
               title="Muat ulang pengaturan"
             >
               <RefreshCw size={13} />
