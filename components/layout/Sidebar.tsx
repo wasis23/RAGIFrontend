@@ -281,70 +281,91 @@ export function Sidebar() {
         })()}
 
         {/* Dynamic Menus from Database */}
-        {!pathname.startsWith('/sikeu') && (
-          <div className="sidebar-section">
-            {sidebar_open && <div className="sidebar-section-label">Menu Utama</div>}
-            
-            {loading ? (
-              <div className="sidebar-loading">Loading menus...</div>
-            ) : (
-              dynamicMenus.map((menu) => {
-                if (menu.url.startsWith('#')) {
-                  return (
-                    <div key={menu.id}>
-                      <div className="sidebar-group-title">
-                        {sidebar_open && menu.name}
-                      </div>
-                      {menu.children && menu.children.length > 0 && (
-                        <>
-                          {menu.children.map(child => (
-                            <Link
-                              key={child.id}
-                              href={child.url}
-                              className={`sidebar-item ${isMainActive(child.url) ? 'active' : ''}`}
-                              title={child.name}
-                            >
-                              {getIcon(child.icon)}
-                              {sidebar_open && <span>{child.name}</span>}
-                            </Link>
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  );
-                }
+        {!pathname.startsWith('/sikeu') && (() => {
+          const filterMenuChildren = (children?: Menu[]) => {
+            if (!children) return [];
+            if (!searchQuery) return children;
+            return children.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+          };
 
-                return (
-                  <div key={menu.id}>
-                    <Link
-                      href={menu.url}
-                      className={`sidebar-item ${isMainActive(menu.url) ? 'active' : ''}`}
-                      title={menu.name}
-                    >
-                      {getIcon(menu.icon)}
-                      {sidebar_open && <span>{menu.name}</span>}
-                    </Link>
-                    {menu.children && menu.children.length > 0 && sidebar_open && (
-                      <div className="sidebar-submenu">
-                        {menu.children.map(child => (
+          const activeDynamicMenus = dynamicMenus.filter(menu => {
+            if (menu.url.startsWith('#')) {
+              return filterMenuChildren(menu.children).length > 0;
+            }
+            if (!searchQuery) return true;
+            return menu.name.toLowerCase().includes(searchQuery.toLowerCase()) || filterMenuChildren(menu.children).length > 0;
+          });
+
+          if (!loading && activeDynamicMenus.length === 0) {
+            return null;
+          }
+
+          return (
+            <div className="sidebar-section">
+              {sidebar_open && <div className="sidebar-section-label">Menu Utama</div>}
+              
+              {loading ? (
+                <div className="sidebar-loading">Loading menus...</div>
+              ) : (
+                activeDynamicMenus.map((menu) => {
+                  if (menu.url.startsWith('#')) {
+                    const validChildren = filterMenuChildren(menu.children);
+                    if (validChildren.length === 0) return null;
+
+                    return (
+                      <div key={menu.id}>
+                        <div className="sidebar-group-title">
+                          {sidebar_open && menu.name}
+                        </div>
+                        {validChildren.map(child => (
                           <Link
                             key={child.id}
                             href={child.url}
-                            className={`sidebar-item sidebar-submenu-item ${isMainActive(child.url) ? 'active' : ''}`}
+                            className={`sidebar-item ${isMainActive(child.url) ? 'active' : ''}`}
                             title={child.name}
                           >
                             {getIcon(child.icon)}
-                            <span>{child.name}</span>
+                            {sidebar_open && <span>{child.name}</span>}
                           </Link>
                         ))}
                       </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
+                    );
+                  }
+
+                  const validSubChildren = filterMenuChildren(menu.children);
+
+                  return (
+                    <div key={menu.id}>
+                      <Link
+                        href={menu.url}
+                        className={`sidebar-item ${isMainActive(menu.url) ? 'active' : ''}`}
+                        title={menu.name}
+                      >
+                        {getIcon(menu.icon)}
+                        {sidebar_open && <span>{menu.name}</span>}
+                      </Link>
+                      {validSubChildren.length > 0 && sidebar_open && (
+                        <div className="sidebar-submenu">
+                          {validSubChildren.map(child => (
+                            <Link
+                              key={child.id}
+                              href={child.url}
+                              className={`sidebar-item sidebar-submenu-item ${isMainActive(child.url) ? 'active' : ''}`}
+                              title={child.name}
+                            >
+                              {getIcon(child.icon)}
+                              <span>{child.name}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          );
+        })()}
 
         {/* Profile & Security Section */}
         <div className="sidebar-section">
