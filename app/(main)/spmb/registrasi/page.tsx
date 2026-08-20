@@ -26,13 +26,55 @@ import {
   GraduationCap,
   Calendar,
   AlertTriangle,
+  ExternalLink,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectOption } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
-import { spmbService } from '@/services/spmb.service';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
+import { useSpmbStore } from '@/store/spmbStore';
 import api from '@/lib/axios';
+
+import { XenditCheckoutModal } from '@/components/sikeu/payment-gateway/XenditCheckoutModal';
+
+const spmbRegistrasiSchema = z.object({
+  jalur_id: z.string().min(1, 'Jalur Pendaftaran wajib dipilih'),
+  gelombang_id: z.string().min(1, 'Gelombang Penerimaan wajib dipilih'),
+  program_studi_id: z.string().min(1, 'Program Studi Utama wajib dipilih'),
+  
+  nama_lengkap: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
+  nik: z.string().regex(/^[0-9]{16}$/, 'NIK wajib 16 digit angka'),
+  tempat_lahir: z.string().min(2, 'Tempat lahir wajib diisi'),
+  tanggal_lahir: z.string().min(1, 'Tanggal lahir wajib diisi'),
+  jenis_kelamin: z.string().min(1, 'Jenis kelamin wajib dipilih'),
+  agama: z.string().optional(),
+  kewarganegaraan: z.string().optional(),
+  
+  no_hp: z.string().min(10, 'Nomor HP/WA minimal 10 digit').regex(/^[0-9\-\+\s]+$/, 'Format nomor HP tidak valid'),
+  provinsi: z.string().min(2, 'Provinsi domisili wajib diisi'),
+  kota_kabupaten: z.string().min(2, 'Kota/Kabupaten wajib diisi'),
+  kecamatan: z.string().min(2, 'Kecamatan wajib diisi'),
+  kode_pos: z.string().optional(),
+  alamat: z.string().min(5, 'Alamat rumah lengkap minimal 5 karakter'),
+  
+  asal_sekolah: z.string().min(3, 'Nama sekolah asal minimal 3 karakter'),
+  npsn_sekolah: z.string().optional(),
+  jurusan_sekolah: z.string().min(2, 'Jurusan sekolah wajib diisi'),
+  tahun_lulus: z.string().min(4, 'Tahun lulus wajib diisi (contoh: 2025)'),
+  nilai_rata_rapor: z.string().optional(),
+  
+  nama_ayah: z.string().min(2, 'Nama ayah kandung wajib diisi'),
+  pekerjaan_ayah: z.string().optional(),
+  nama_ibu: z.string().min(2, 'Nama ibu kandung wajib diisi'),
+  pekerjaan_ibu: z.string().optional(),
+  penghasilan_ortu: z.string().optional(),
+});
+
+type SpmbFormValues = z.infer<typeof spmbRegistrasiSchema>;
 
 const STEPS = [
   { id: 1, title: 'Jalur Masuk', short: 'Jalur', icon: MapPin },
@@ -45,7 +87,8 @@ const STEPS = [
 
 export default function RegistrasiSpmbPage() {
   const router = useRouter();
-  const { register, handleSubmit, control, watch, trigger, getValues } = useForm({
+  const { register, handleSubmit, control, watch, trigger, getValues, setValue, formState: { errors } } = useForm<SpmbFormValues>({
+    resolver: zodResolver(spmbRegistrasiSchema),
     defaultValues: {
       jalur_id: '',
       gelombang_id: '',
@@ -86,19 +129,31 @@ export default function RegistrasiSpmbPage() {
   const [loading, setLoading] = useState(false);
   const [tarif, setTarif] = useState(0);
   const [loadingTarif, setLoadingTarif] = useState(false);
-  const [suksesData, setSuksesData] = useState<any>(null);
+  const [isEditingBiodata, setIsEditingBiodata] = useState(false);
   const [copiedVa, setCopiedVa] = useState(false);
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(true);
+  const [loadingSimulasi, setLoadingSimulasi] = useState(false);
+  const [loadingReset, setLoadingReset] = useState(false);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
   const selectedProdi = watch('program_studi_id');
-  const [isMounted, setIsMounted] = useState(false);
+  const { activeGelombang, fetchActiveGelombang } = useSpmbStore();
 
   useEffect(() => {
     setIsMounted(true);
     fetchJalur();
     fetchProdi();
     checkExistingRegistration();
+    fetchActiveGelombang().then((active) => {
+      if (active) {
+        setValue('gelombang_id', String(active.id));
+        setValue('jalur_id', String(active.jalur_masuk_id || '1'));
+        fetchGelombang(active.jalur_masuk_id || 1);
+        fetchTarif(active.jalur_masuk_id || 1, active.id);
+      }
+    });
   }, []);
 
   const fetchProdi = async () => {
@@ -117,16 +172,120 @@ export default function RegistrasiSpmbPage() {
   };
 
   const checkExistingRegistration = async () => {
+    setIsCheckingRegistration(true);
     try {
       const res = await spmbService.getMyPendaftaran();
       if (res.data && res.data.pendaftaran) {
         const { pendaftaran, tagihan } = res.data;
+        const p = pendaftaran;
+        if (p.gelombang_penerimaan?.jalur_masuk_id) setValue('jalur_id', String(p.gelombang_penerimaan.jalur_masuk_id));
+        if (p.gelombang_id) setValue('gelombang_id', String(p.gelombang_id));
+        if (p.program_studi_id) setValue('program_studi_id', String(p.program_studi_id));
+        if (p.program_studi_pilihan2_id) setValue('program_studi_pilihan2_id', String(p.program_studi_pilihan2_id));
+        if (p.nama_lengkap) setValue('nama_lengkap', p.nama_lengkap);
+        if (p.nik) setValue('nik', p.nik);
+        if (p.tanggal_lahir) setValue('tanggal_lahir', p.tanggal_lahir.split('T')[0]);
+        if (p.tempat_lahir) setValue('tempat_lahir', p.tempat_lahir);
+        if (p.jenis_kelamin) setValue('jenis_kelamin', p.jenis_kelamin);
+        if (p.agama) setValue('agama', p.agama);
+        if (p.kewarganegaraan) setValue('kewarganegaraan', p.kewarganegaraan);
+        if (p.no_hp) setValue('no_hp', p.no_hp);
+        if (p.alamat) setValue('alamat', p.alamat);
+        if (p.provinsi) setValue('provinsi', p.provinsi);
+        if (p.kota_kabupaten) setValue('kota_kabupaten', p.kota_kabupaten);
+        if (p.kecamatan) setValue('kecamatan', p.kecamatan);
+        if (p.kode_pos) setValue('kode_pos', p.kode_pos);
+        if (p.asal_sekolah) setValue('asal_sekolah', p.asal_sekolah);
+        if (p.jurusan_sekolah) setValue('jurusan_sekolah', p.jurusan_sekolah);
+        if (p.npsn_sekolah) setValue('npsn_sekolah', p.npsn_sekolah);
+        if (p.tahun_lulus) setValue('tahun_lulus', p.tahun_lulus);
+        if (p.nilai_rata_rapor) setValue('nilai_rata_rapor', String(p.nilai_rata_rapor));
+        if (p.nama_ayah) setValue('nama_ayah', p.nama_ayah);
+        if (p.pekerjaan_ayah) setValue('pekerjaan_ayah', p.pekerjaan_ayah);
+        if (p.nama_ibu) setValue('nama_ibu', p.nama_ibu);
+        if (p.pekerjaan_ibu) setValue('pekerjaan_ibu', p.pekerjaan_ibu);
+        if (p.penghasilan_ortu) setValue('penghasilan_ortu', p.penghasilan_ortu);
+        if (p.nama_wali) setValue('nama_wali', p.nama_wali);
+        if (p.telepon_wali) setValue('telepon_wali', p.telepon_wali);
+
         setSuksesData({ pendaftaran, tagihan });
       }
     } catch {
       // Belum ada pendaftaran, lanjutkan wizard
+    } finally {
+      setIsCheckingRegistration(false);
     }
   };
+
+  const [suksesData, setSuksesData] = useState<any>(null);
+
+  const handleStartEditBiodata = () => {
+    if (suksesData?.pendaftaran) {
+      const p = suksesData.pendaftaran;
+      setValue('jalur_id', String(p.gelombang_penerimaan?.jalur_masuk_id || '1'));
+      setValue('gelombang_id', String(p.gelombang_id || '1'));
+      setValue('program_studi_id', String(p.program_studi_id || '1'));
+      if (p.program_studi_pilihan2_id) {
+        setValue('program_studi_pilihan2_id', String(p.program_studi_pilihan2_id));
+      }
+      setValue('nama_lengkap', p.nama_lengkap || '');
+      setValue('nik', p.nik || '');
+      if (p.tanggal_lahir) {
+        setValue('tanggal_lahir', p.tanggal_lahir.split('T')[0]);
+      }
+      setValue('tempat_lahir', p.tempat_lahir || '');
+      setValue('jenis_kelamin', p.jenis_kelamin || 'L');
+      setValue('agama', p.agama || '');
+      setValue('kewarganegaraan', p.kewarganegaraan || 'WNI');
+      setValue('no_hp', p.no_hp || '');
+      setValue('alamat', p.alamat || '');
+      setValue('provinsi', p.provinsi || '');
+      setValue('kota_kabupaten', p.kota_kabupaten || '');
+      setValue('kecamatan', p.kecamatan || '');
+      setValue('kode_pos', p.kode_pos || '');
+      setValue('asal_sekolah', p.asal_sekolah || '');
+      setValue('jurusan_sekolah', p.jurusan_sekolah || '');
+      setValue('npsn_sekolah', p.npsn_sekolah || '');
+      setValue('tahun_lulus', p.tahun_lulus || '');
+      setValue('nilai_rata_rapor', p.nilai_rata_rapor ? String(p.nilai_rata_rapor) : '');
+      setValue('nama_ayah', p.nama_ayah || '');
+      setValue('pekerjaan_ayah', p.pekerjaan_ayah || '');
+      setValue('nama_ibu', p.nama_ibu || '');
+      setValue('pekerjaan_ibu', p.pekerjaan_ibu || '');
+      setValue('penghasilan_ortu', p.penghasilan_ortu || '');
+      setValue('nama_wali', p.nama_wali || '');
+      setValue('telepon_wali', p.telepon_wali || '');
+
+      setIsEditingBiodata(true);
+      setCurrentStep(1);
+    }
+  };
+
+  useEffect(() => {
+    if (!suksesData) return;
+    const isLunas = suksesData.pendaftaran?.status_pembayaran === 'lunas' || suksesData.tagihan?.tagihan?.status === 'lunas';
+    if (isLunas) return;
+
+    // Auto-polling payment status every 3 seconds
+    const interval = setInterval(async () => {
+      try {
+        const res = await spmbService.getMyPendaftaran();
+        if (res.data && res.data.pendaftaran) {
+          const { pendaftaran, tagihan } = res.data;
+          const checkLunas = pendaftaran?.status_pembayaran === 'lunas' || tagihan?.tagihan?.status === 'lunas';
+          if (checkLunas) {
+            setSuksesData({ pendaftaran, tagihan });
+            toast.success('🎉 Pembayaran Berhasil Terverifikasi Real-Time! Status Anda telah otomatis diperbarui.');
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        // Silent polling error handling
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [suksesData]);
 
   useEffect(() => {
     if (selectedJalur) {
@@ -192,6 +351,8 @@ export default function RegistrasiSpmbPage() {
     }
   };
 
+  const [savingStepLoading, setSavingStepLoading] = useState(false);
+
   const handleNextStep = async () => {
     let fieldsToValidate: string[] = [];
     if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id'];
@@ -202,6 +363,19 @@ export default function RegistrasiSpmbPage() {
 
     const isValid = await trigger(fieldsToValidate as any);
     if (isValid) {
+      // Auto-save step data to backend immediately
+      setSavingStepLoading(true);
+      try {
+        const values = getValues();
+        values.program_studi_id = values.program_studi_id ? Number(values.program_studi_id) : 1;
+        await spmbService.submitBiodata(values);
+        toast.success(`Draft Langkah ${currentStep} tersimpan`, { duration: 1500 });
+      } catch (err) {
+        console.warn('Auto-save step warning:', err);
+      } finally {
+        setSavingStepLoading(false);
+      }
+
       setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
@@ -243,8 +417,23 @@ export default function RegistrasiSpmbPage() {
   const selectedProdiObj = prodiRaw.find((p) => String(p.id) === String(selectedProdi));
   const progressPct = Math.round((currentStep / STEPS.length) * 100);
 
+  // ── Initial Check Loading State ──────────────────────────────────────────
+  if (isCheckingRegistration) {
+    return (
+      <div className="animate-fade-in space-y-6 max-w-2xl mx-auto py-16 text-center">
+        <div className="p-8 bg-white border border-slate-200/80 rounded-2xl shadow-sm space-y-4 flex flex-col items-center justify-center">
+          <Loader2 size={36} className="animate-spin text-primary-600 mb-1" />
+          <div className="space-y-1">
+            <h3 className="font-bold text-slate-800 text-base">Memeriksa Status Pendaftaran...</h3>
+            <p className="text-xs text-slate-500">Mohon tunggu sebentar, kami sedang memuat data Anda.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Success State View ──────────────────────────────────────────────────
-  if (suksesData) {
+  if (suksesData && !isEditingBiodata) {
     const { pendaftaran, tagihan } = suksesData;
     const vaNumber = tagihan?.virtual_account?.va_number || '88019283746501';
     const bankCode = tagihan?.virtual_account?.bank_code || 'BNI';
@@ -258,73 +447,154 @@ export default function RegistrasiSpmbPage() {
           description="Terima kasih, data pendaftaran Anda telah berhasil tercatat dalam sistem SPMB."
         />
 
-        <div className="card p-6 sm:p-8 border-emerald-200 bg-white text-center">
-          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-200 shadow-sm">
+        <div className="card p-6 sm:p-8 border border-slate-200/80 bg-white text-center shadow-md rounded-2xl">
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100 shadow-sm">
             <CheckCircle2 size={36} />
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-2">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-1">
             Pendaftaran Berhasil Dikirim!
           </h2>
-          <p className="text-slate-600 text-sm max-w-md mx-auto mb-6">
+          <p className="text-slate-500 text-sm max-w-md mx-auto mb-5">
             Nomor Registrasi Pendaftaran Anda:
           </p>
 
-          <div className="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 px-4 py-2 rounded-xl text-lg font-mono font-bold text-slate-900 mb-8">
+          <div className="inline-flex items-center gap-3 bg-slate-50 border border-slate-200/90 px-4 py-2 rounded-xl text-base sm:text-lg font-mono font-bold text-slate-900 mb-8 shadow-inner">
             <span>{pendaftaran?.no_pendaftaran || 'REG-2026-SPMB-001'}</span>
+            <button
+              type="button"
+              onClick={() => copyToClipboard(pendaftaran?.no_pendaftaran || '')}
+              className="text-xs text-primary-600 font-semibold hover:underline flex items-center gap-1 border-l border-slate-200 pl-2"
+            >
+              <Copy size={14} /> Salin
+            </button>
           </div>
 
-          {/* Payment Card */}
-          <div className="card p-5 sm:p-6 text-left border-primary-100 bg-primary-50/40 mb-8">
-            <div className="flex items-center gap-3 pb-3 border-b border-primary-100 mb-4">
-              <div className="p-2 bg-primary-100 text-primary-700 rounded-lg">
-                <CreditCard size={20} />
+          {/* Payment Card (Production Ready & Premium) */}
+          <div className="card p-5 sm:p-7 text-left border-primary-200/80 bg-gradient-to-b from-primary-50/50 via-white to-white mb-6 shadow-sm rounded-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary-600 text-white rounded-xl shadow-sm">
+                  <CreditCard size={22} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Instruksi Pembayaran</h3>
+                  <p className="text-xs text-slate-500">Virtual Account Pendaftaran SPMB Kampus</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Instruksi Pembayaran</h3>
-                <p className="text-xs text-slate-500">Virtual Account Pendaftaran SPMB</p>
-              </div>
+
+              {pendaftaran?.status_pembayaran === 'lunas' ? (
+                <span className="badge badge-green self-start sm:self-auto py-1 px-3">
+                  ✓ Pembayaran Lunas
+                </span>
+              ) : (
+                <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold px-3 py-1.5 rounded-full self-start sm:self-auto">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  <span>Menunggu Pembayaran (Real-Time Check 🟢)</span>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                <span className="text-slate-500">Bank Tujuan</span>
-                <span className="font-bold text-slate-800 uppercase">{bankCode} Virtual Account</span>
+            <div className="space-y-4 text-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-slate-100 gap-1">
+                <span className="text-slate-500 font-medium">Bank Tujuan</span>
+                <span className="font-extrabold text-slate-800 uppercase tracking-wide bg-slate-100 px-3 py-1 rounded-lg border border-slate-200/60 text-xs sm:text-sm self-start sm:self-auto">
+                  {bankCode} VIRTUAL ACCOUNT
+                </span>
               </div>
 
-              <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                <span className="text-slate-500">Nomor Virtual Account</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-extrabold text-primary-700 text-base sm:text-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-slate-100 gap-2">
+                <span className="text-slate-500 font-medium">Nomor Virtual Account</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono font-black text-primary-700 text-xl sm:text-2xl tracking-wider">
                     {vaNumber}
                   </span>
                   <button
                     type="button"
                     onClick={() => copyToClipboard(vaNumber)}
-                    className="p-1.5 hover:bg-primary-100 text-primary-600 rounded-md transition-colors"
-                    title="Salin VA"
+                    className="inline-flex items-center gap-1.5 bg-primary-50 border border-primary-200 hover:bg-primary-100 text-primary-700 font-bold px-2.5 py-1.5 rounded-lg text-xs transition-colors shadow-sm"
+                    title="Salin Nomor VA"
                   >
-                    <Copy size={16} />
+                    <Copy size={14} />
+                    <span>Salin</span>
                   </button>
                 </div>
               </div>
 
-              <div className="flex justify-between items-center py-2">
-                <span className="text-slate-500">Total Tagihan</span>
-                <span className="font-bold text-slate-900 text-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-slate-100 gap-1">
+                <span className="text-slate-500 font-medium flex items-center gap-1.5">
+                  <Clock size={15} className="text-amber-600" /> Batas Waktu Pembayaran (VA Active)
+                </span>
+                <span className="font-bold text-amber-900 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200/80 text-xs sm:text-sm self-start sm:self-auto">
+                  {(() => {
+                    const vaObj = suksesData?.tagihan?.virtual_account || suksesData?.virtual_account;
+                    const rawExp = vaObj?.expired_at || suksesData?.tagihan?.tagihan?.jatuh_tempo || suksesData?.tagihan?.jatuh_tempo;
+                    if (!rawExp) return '30 Hari Sejak Diterbitkan';
+                    return new Date(rawExp).toLocaleDateString('id-ID', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }) + ' WIB';
+                  })()}
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2 gap-1">
+                <span className="text-slate-500 font-medium">Total Tagihan</span>
+                <span className="font-black text-slate-900 text-xl sm:text-2xl text-primary-900">
                   Rp {new Intl.NumberFormat('id-ID').format(totalBayar)}
                 </span>
               </div>
             </div>
           </div>
 
-          <p className="text-xs text-slate-500 mb-8 max-w-lg mx-auto leading-relaxed">
-            Lakukan pembayaran via ATM, Mobile Banking, atau Internet Banking sebelum batas waktu berakhir.
-            Setelah pembayaran terverifikasi, Anda dapat melanjutkan ke tahap unggah berkas.
-          </p>
+          {pendaftaran?.status_pembayaran === 'lunas' ? (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl mb-6 flex items-center justify-center gap-2 text-emerald-800 text-sm font-bold animate-fade-in">
+              <ShieldCheck size={20} className="text-emerald-600" />
+              <span>Pembayaran Berhasil Dilunasi &amp; Terverifikasi oleh SIKEU!</span>
+            </div>
+          ) : (
+            <div className="mb-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                isLoading={loadingReset}
+                onClick={async () => {
+                  setLoadingReset(true);
+                  try {
+                    const res = await spmbService.reissueVa();
+                    toast.success('Nomor Virtual Account berhasil diperbarui!');
+                    if (res.data) {
+                      setSuksesData(res.data);
+                    }
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.message || 'Gagal memperbarui nomor Virtual Account');
+                  } finally {
+                    setLoadingReset(false);
+                  }
+                }}
+                className="w-full sm:w-auto bg-white border-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-bold shadow-xs min-h-[44px]"
+              >
+                🔄 Terbitkan Ulang Nomor VA
+              </Button>
+            </div>
+          )}
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button onClick={() => router.push('/spmb/dashboard')} size="lg" className="w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="lg" 
+              onClick={handleStartEditBiodata} 
+              className="w-full sm:w-auto font-bold border-slate-300 text-slate-700 hover:bg-slate-50 min-h-[46px]"
+              icon={<Edit3 size={16} />}
+            >
+              Edit / Perbarui Biodata
+            </Button>
+            <Button onClick={() => router.push('/spmb/dashboard')} size="lg" className="w-full sm:w-auto min-h-[46px] font-extrabold">
               Ke Dashboard SPMB <ArrowRight size={16} />
             </Button>
           </div>
@@ -341,6 +611,24 @@ export default function RegistrasiSpmbPage() {
         title="Form Registrasi SPMB"
         description="Lengkapi 6 tahapan pendaftaran di bawah ini untuk mendaftar sebagai Calon Mahasiswa Baru"
       />
+
+      {isEditingBiodata && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3 text-amber-900 text-sm font-bold shadow-2xs animate-fade-in">
+          <div className="flex items-center gap-2">
+            <Edit3 size={18} className="text-amber-600 shrink-0" />
+            <span>Mode Edit / Perbarui Biodata Pendaftaran</span>
+          </div>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsEditingBiodata(false)}
+            className="text-amber-800 hover:bg-amber-100 text-xs font-bold shrink-0"
+          >
+            Batal Edit / Kembali
+          </Button>
+        </div>
+      )}
 
       {/* ── Compact Banner Header ───────────────────────────────────── */}
       <div
@@ -458,7 +746,6 @@ export default function RegistrasiSpmbPage() {
                 <Controller
                   name="jalur_id"
                   control={control}
-                  rules={{ required: true }}
                   render={({ field }) => (
                     <Select
                       label="Jalur Pendaftaran *"
@@ -466,34 +753,38 @@ export default function RegistrasiSpmbPage() {
                       value={field.value}
                       onChange={field.onChange}
                       placeholder="-- Pilih Jalur Masuk --"
+                      error={errors.jalur_id?.message}
                       hint="Pilih salah satu jalur pendaftaran yang sesuai kualifikasi Anda."
                     />
                   )}
                 />
 
-                <Controller
-                  name="gelombang_id"
-                  control={control}
-                  rules={{ required: true }}
-                  render={({ field }) => (
-                    <Select
-                      label="Gelombang Penerimaan *"
-                      options={gelombangOptions}
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="-- Pilih Gelombang --"
-                      disabled={!selectedJalur}
-                      hint={!selectedJalur ? 'Pilih Jalur Pendaftaran terlebih dahulu' : 'Gelombang aktif yang dapat didaftar.'}
-                    />
-                  )}
-                />
+                {/* Gelombang Penerimaan (Terikat permanen pada pendaftaran calon mahasiswa) */}
+                <div className="flex flex-col">
+                  <label className="text-xs font-bold text-slate-700 mb-1">
+                    Gelombang Penerimaan <span className="text-slate-400 font-normal">(Terikat Permanen Pada Pendaftaran)</span>
+                  </label>
+                  <div className="p-3 bg-gradient-to-br from-primary-50/80 via-white to-blue-50/40 border border-primary-200 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
+                    <div className="flex items-center gap-2">
+                      <Clock size={16} className="text-primary-600 shrink-0" />
+                      <span className="text-xs font-black text-slate-900">
+                        {suksesData?.pendaftaran?.gelombang_penerimaan?.nama || activeGelombang?.nama || 'Gelombang 1 Penerimaan SPMB'}
+                      </span>
+                    </div>
+                    <Badge variant="green" className="text-2xs font-extrabold px-2.5 py-0.5 shrink-0">
+                      ✓ Terdaftar &amp; Terunci
+                    </Badge>
+                  </div>
+                  <span className="text-2xs text-slate-500 font-medium mt-1">
+                    Gelombang pendaftaran Anda telah terikat permanen di database dan tidak akan terdampak jika Admin membuka gelombang baru.
+                  </span>
+                </div>
               </div>
 
               <div>
                 <Controller
                   name="program_studi_id"
                   control={control}
-                  rules={{ required: true }}
                   render={({ field }) => (
                     <Select
                       label="Pilihan Program Studi Utama *"
@@ -501,6 +792,7 @@ export default function RegistrasiSpmbPage() {
                       value={field.value}
                       onChange={field.onChange}
                       placeholder="-- Pilih Program Studi Pilihan --"
+                      error={errors.program_studi_id?.message}
                       hint="Pilih program studi jenjang S1/D3 yang ingin Anda tuju."
                     />
                   )}
@@ -540,13 +832,15 @@ export default function RegistrasiSpmbPage() {
                 <Input
                   label="Nama Lengkap *"
                   placeholder="Sesuai ijazah tanpa gelar"
-                  {...register('nama_lengkap', { required: true })}
+                  error={errors.nama_lengkap?.message}
+                  {...register('nama_lengkap')}
                 />
                 <Input
                   label="NIK (Nomor Induk Kependudukan) *"
                   placeholder="16 digit NIK sesuai KTP/KK"
                   maxLength={16}
-                  {...register('nik', { required: true })}
+                  error={errors.nik?.message}
+                  {...register('nik')}
                 />
               </div>
 
@@ -554,17 +848,18 @@ export default function RegistrasiSpmbPage() {
                 <Input
                   label="Tempat Lahir *"
                   placeholder="Kota/Kabupaten lahir"
-                  {...register('tempat_lahir', { required: true })}
+                  error={errors.tempat_lahir?.message}
+                  {...register('tempat_lahir')}
                 />
                 <Input
                   type="date"
                   label="Tanggal Lahir *"
-                  {...register('tanggal_lahir', { required: true })}
+                  error={errors.tanggal_lahir?.message}
+                  {...register('tanggal_lahir')}
                 />
                 <Controller
                   name="jenis_kelamin"
                   control={control}
-                  rules={{ required: true }}
                   render={({ field }) => (
                     <Select
                       label="Jenis Kelamin *"
@@ -575,6 +870,7 @@ export default function RegistrasiSpmbPage() {
                       value={field.value}
                       onChange={field.onChange}
                       placeholder="-- Pilih --"
+                      error={errors.jenis_kelamin?.message}
                     />
                   )}
                 />
@@ -628,13 +924,15 @@ export default function RegistrasiSpmbPage() {
                   label="Nomor WhatsApp / HP *"
                   type="tel"
                   placeholder="Contoh: 081234567890"
+                  error={errors.no_hp?.message}
                   hint="Nomor aktif yang dapat dihubungi via WhatsApp"
-                  {...register('no_hp', { required: true })}
+                  {...register('no_hp')}
                 />
                 <Input
                   label="Provinsi Domisili *"
                   placeholder="Nama Provinsi"
-                  {...register('provinsi', { required: true })}
+                  error={errors.provinsi?.message}
+                  {...register('provinsi')}
                 />
               </div>
 
@@ -642,12 +940,14 @@ export default function RegistrasiSpmbPage() {
                 <Input
                   label="Kota / Kabupaten *"
                   placeholder="Nama Kota/Kabupaten"
-                  {...register('kota_kabupaten', { required: true })}
+                  error={errors.kota_kabupaten?.message}
+                  {...register('kota_kabupaten')}
                 />
                 <Input
                   label="Kecamatan *"
                   placeholder="Nama Kecamatan"
-                  {...register('kecamatan', { required: true })}
+                  error={errors.kecamatan?.message}
+                  {...register('kecamatan')}
                 />
                 <Input
                   label="Kode Pos"
@@ -660,7 +960,8 @@ export default function RegistrasiSpmbPage() {
                 label="Alamat Lengkap Jalan / RT / RW *"
                 placeholder="Jalan, No. Rumah, RT/RW, Kelurahan/Desa"
                 rows={3}
-                {...register('alamat', { required: true })}
+                error={errors.alamat?.message}
+                {...register('alamat')}
               />
             </div>
           )}
@@ -682,7 +983,8 @@ export default function RegistrasiSpmbPage() {
                 <Input
                   label="Nama Sekolah Asal *"
                   placeholder="Contoh: SMAN 1 Jakarta / SMKN 2 Bandung"
-                  {...register('asal_sekolah', { required: true })}
+                  error={errors.asal_sekolah?.message}
+                  {...register('asal_sekolah')}
                 />
                 <Input
                   label="NPSN Sekolah (Opsional)"
@@ -695,12 +997,14 @@ export default function RegistrasiSpmbPage() {
                 <Input
                   label="Jurusan Sekolah *"
                   placeholder="IPA / IPS / RPL / TKJ"
-                  {...register('jurusan_sekolah', { required: true })}
+                  error={errors.jurusan_sekolah?.message}
+                  {...register('jurusan_sekolah')}
                 />
                 <Input
                   label="Tahun Lulus *"
                   placeholder="2024 / 2025"
-                  {...register('tahun_lulus', { required: true })}
+                  error={errors.tahun_lulus?.message}
+                  {...register('tahun_lulus')}
                 />
                 <Input
                   label="Nilai Rata-Rapor (Opsional)"
@@ -734,7 +1038,8 @@ export default function RegistrasiSpmbPage() {
                   <Input
                     label="Nama Ayah *"
                     placeholder="Nama lengkap Ayah kandung"
-                    {...register('nama_ayah', { required: true })}
+                    error={errors.nama_ayah?.message}
+                    {...register('nama_ayah')}
                   />
                   <Input
                     label="Pekerjaan Ayah"
@@ -750,7 +1055,8 @@ export default function RegistrasiSpmbPage() {
                   <Input
                     label="Nama Ibu *"
                     placeholder="Nama lengkap Ibu kandung"
-                    {...register('nama_ibu', { required: true })}
+                    error={errors.nama_ibu?.message}
+                    {...register('nama_ibu')}
                   />
                   <Input
                     label="Pekerjaan Ibu"
@@ -878,9 +1184,15 @@ export default function RegistrasiSpmbPage() {
             </Button>
 
             {currentStep < STEPS.length ? (
-              <Button type="button" variant="primary" onClick={handleNextStep}>
-                <span>Lanjut</span>
-                <ArrowRight size={16} />
+              <Button 
+                type="button" 
+                variant="primary" 
+                onClick={handleNextStep}
+                loading={savingStepLoading}
+                disabled={savingStepLoading}
+              >
+                <span>{savingStepLoading ? 'Menyimpan...' : 'Lanjut'}</span>
+                {!savingStepLoading && <ArrowRight size={16} />}
               </Button>
             ) : (
               <Button

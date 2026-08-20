@@ -16,6 +16,7 @@ export default function CreateGelombangPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [jalurList, setJalurList] = useState<JalurMasuk[]>([]);
+  const [sikeuTarifOptions, setSikeuTarifOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   const { register, handleSubmit, control, formState: { errors } } = useForm<Partial<GelombangPenerimaan>>({
     defaultValues: {
@@ -27,15 +28,28 @@ export default function CreateGelombangPage() {
   });
 
   useEffect(() => {
-    const fetchJalur = async () => {
+    const fetchMasterData = async () => {
       try {
-        const res = await spmbService.getJalurMasuk();
-        setJalurList(res.data.filter((j: any) => j.is_active));
+        const [jalurRes, sikeuRes] = await Promise.all([
+          spmbService.getJalurMasuk(),
+          spmbService.getSikeuTarifList().catch(() => null),
+        ]);
+
+        setJalurList(jalurRes.data.filter((j: any) => j.is_active));
+
+        const rawTarifList = sikeuRes?.data || [];
+        if (Array.isArray(rawTarifList) && rawTarifList.length > 0) {
+          const mapped = rawTarifList.map((t: any) => ({
+            value: Math.round(Number(t.nominal || t.nominal_tarif)).toString(),
+            label: `${t.jenis_biaya?.kode || t.kode || 'SIKEU'} - ${t.nama || t.jenis_biaya?.nama || 'Tarif SPMB'} (Rp ${new Intl.NumberFormat('id-ID').format(Number(t.nominal || t.nominal_tarif || 0))})`
+          }));
+          setSikeuTarifOptions(mapped);
+        }
       } catch (error) {
-        console.error('Failed to load jalur masuk', error);
+        console.error('Failed to load master data', error);
       }
     };
-    fetchJalur();
+    fetchMasterData();
   }, []);
 
   const onSubmit = async (data: Partial<GelombangPenerimaan>) => {
@@ -108,10 +122,20 @@ export default function CreateGelombangPage() {
               </div>
               
               <div className="form-group">
-                <Input 
-                  type="number"
-                  label="Biaya Pendaftaran (Rp) *"
-                  {...register('biaya_pendaftaran', { required: true, min: 0 })} 
+                <Controller
+                  name="biaya_pendaftaran"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <Select
+                      label="Tarif Biaya Pendaftaran (Mapping SIKEU) *"
+                      placeholder="-- Pilih Master Tarif Keuangan SIKEU --"
+                      options={sikeuTarifOptions}
+                      value={field.value?.toString() || '250000'}
+                      onChange={(val) => field.onChange(val ? Number(val) : 250000)}
+                      hint="Pilih opsi tarif yang berasal dari Master Tarif Modul Keuangan SIKEU."
+                    />
+                  )}
                 />
               </div>
 

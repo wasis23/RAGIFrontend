@@ -30,8 +30,8 @@ export const Select = forwardRef<any, CustomSelectProps>(
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-') || reactId;
 
     const selectedOption = isMulti
-      ? options.filter(o => (Array.isArray(value) ? value : []).includes(o.value as any))
-      : (options.find(o => o.value === (value as any)) || null);
+      ? options.filter(o => (Array.isArray(value) ? value : []).map(String).includes(String(o.value)))
+      : (options.find(o => String(o.value) === String(value) || (value !== null && value !== undefined && value !== '' && !isNaN(Number(value)) && Math.round(Number(o.value)) === Math.round(Number(value)))) || null);
 
     const handleChange = (selected: any) => {
       if (onChange) {

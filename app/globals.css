@@ -1938,13 +1938,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* ============================================================
    RESPONSIVE UTILITIES
    ============================================================ */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .hide-mobile { display: none !important; }
   .card-body   { padding: 1rem; }
   .topbar      { padding: 0 1rem; }
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .hide-desktop { display: none !important; }
 }
 

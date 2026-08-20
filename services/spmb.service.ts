@@ -36,6 +36,7 @@ export interface PendaftaranCalonMhs {
   program_studi_id: number;
   program_studi_pilihan2_id?: number;
   no_pendaftaran: string;
+  nim?: string;
   nama_lengkap: string;
   nik: string;
   tanggal_lahir: string;
@@ -61,8 +62,30 @@ export interface PendaftaranCalonMhs {
   penghasilan_ortu?: string;
   nama_wali?: string;
   telepon_wali?: string;
-  status: 'draft' | 'submitted' | 'verified' | 'lulus_administrasi' | 'gagal_administrasi';
+  status: 'draft' | 'submitted' | 'verified' | 'lulus_administrasi' | 'gagal_administrasi' | string;
+  status_pembayaran?: 'belum_bayar' | 'sebagian' | 'lunas' | 'gratis' | string;
+  catatan_verifikasi?: string;
+  created_at?: string;
+  updated_at?: string;
   gelombang_penerimaan?: GelombangPenerimaan;
+  program_studi?: {
+    id: number;
+    kode_prodi?: string;
+    nama: string;
+    jenjang?: string;
+  };
+  program_studi_pilihan2?: {
+    id: number;
+    kode_prodi?: string;
+    nama: string;
+    jenjang?: string;
+  };
+  user?: {
+    id: number;
+    username: string;
+    email: string;
+    phone?: string;
+  };
   dokumen_pendaftaran?: PendaftaranBerkas[];
 }
 
@@ -137,6 +160,16 @@ export const spmbService = {
     return response.data;
   },
 
+  resetPendaftaran: async () => {
+    const response = await api.post('/spmb/pendaftaran/reset');
+    return response.data;
+  },
+
+  reissueVa: async () => {
+    const response = await api.post('/spmb/pendaftaran/reissue-va');
+    return response.data;
+  },
+
   submitBiodata: async (data: Partial<PendaftaranCalonMhs>) => {
     const response = await api.post('/spmb/pendaftaran/biodata', data);
     return response.data;
@@ -180,5 +213,14 @@ export const spmbService = {
   tetapkanKelulusan: async (id: number, data: { status: string; program_studi_diterima_id?: number; nilai_total?: number; catatan?: string; is_published?: boolean }) => {
     const response = await api.post(`/spmb/pendaftar/${id}/kelulusan`, data);
     return response.data;
+  },
+
+  getSikeuTarifList: async () => {
+    try {
+      const response = await api.get('/sikeu/master/tarif-spmb');
+      return response.data;
+    } catch {
+      return { status: 'success', data: [] };
+    }
   },
 };

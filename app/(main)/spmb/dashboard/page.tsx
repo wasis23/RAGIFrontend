@@ -147,15 +147,53 @@ export default function SPMBDashboardPage() {
   const uploadedDocs = pendaftaran?.dokumen_pendaftaran || [];
   const verifiedDocsCount = uploadedDocs.filter(d => d.is_verified).length;
 
-  // Workflow steps definition
+  const isPembayaranLunas = pendaftaran?.status_pembayaran === 'lunas' || pendaftaran?.status_pembayaran === 'gratis';
+  const isBiodataFilled = !!pendaftaran?.nama_lengkap;
+  const isDokumenUploaded = uploadedDocs.length > 0;
+  const isSubmitted = status === 'submitted' || status === 'verified' || status === 'lulus_administrasi';
+  const isVerified = status === 'verified' || status === 'lulus_administrasi';
+
+  // Workflow steps definition (6 Tahap Utama Calon Mahasiswa)
   const steps = [
-    { label: 'Biodata', key: 'biodata', done: !!pendaftaran?.nama_lengkap },
-    { label: 'Berkas', key: 'berkas', done: uploadedDocs.length > 0 },
-    { label: 'Finalisasi', key: 'finalize', done: status !== 'draft' && status !== 'none' },
-    { label: 'Verifikasi', key: 'verifikasi', done: status === 'verified' || status === 'lulus_administrasi' },
-    { label: 'Ujian / Seleksi', key: 'seleksi', done: false },
+    { label: 'Biodata', key: 'biodata', done: isBiodataFilled },
+    { label: 'Pembayaran', key: 'pembayaran', done: isPembayaranLunas },
+    { label: 'Unggah Berkas', key: 'berkas', done: isDokumenUploaded || isSubmitted },
+    { label: 'Finalisasi', key: 'finalize', done: isSubmitted },
+    { label: 'Verifikasi & Ujian', key: 'verifikasi', done: isVerified },
     { label: 'Pengumuman', key: 'pengumuman', done: false },
   ];
+
+  const completedCount = steps.filter(s => s.done).length;
+  const currentStepIdx = steps.findIndex(s => !s.done);
+  const activeStepIdx = currentStepIdx === -1 ? 5 : currentStepIdx;
+
+  if (status === 'draft') {
+    if (!isPembayaranLunas) {
+      statusConfig = {
+        badgeText: 'Belum Bayar Formulir',
+        badgeClass: 'badge-yellow',
+        title: 'Silakan Lakukan Pembayaran Biaya Pendaftaran',
+        desc: 'Biodata Anda telah tersimpan. Silakan lakukan pembayaran biaya pendaftaran via Virtual Account agar dapat mengunggah berkas & memfinalisasi pendaftaran.',
+        progressPct: 20,
+        completedSteps: completedCount,
+        ctaText: 'Bayar Biaya Pendaftaran / Lihat VA',
+        ctaLink: '/spmb/registrasi',
+        variant: 'warning',
+      };
+    } else {
+      statusConfig = {
+        badgeText: 'Pembayaran Lunas (Draft)',
+        badgeClass: 'badge-cyan',
+        title: 'Pembayaran Lunas — Unggah Berkas & Finalisasi',
+        desc: 'Pembayaran biaya pendaftaran Anda telah dikonfirmasi lunas. Silakan unggah dokumen persyaratan dan selesaikan finalisasi pendaftaran.',
+        progressPct: 40,
+        completedSteps: completedCount,
+        ctaText: 'Unggah Berkas & Finalisasi',
+        ctaLink: '/spmb/registrasi',
+        variant: 'info',
+      };
+    }
+  }
 
   return (
     <div className="spmb-app-page animate-fade-in">
@@ -281,29 +319,32 @@ export default function SPMBDashboardPage() {
             <h3 className="font-bold text-slate-900 text-base">Alur &amp; Tahapan Pendaftaran</h3>
           </div>
           <span className="text-xs font-semibold text-slate-500">
-            {statusConfig.completedSteps} dari 6 Tahap Selesai
+            {completedCount} dari 6 Tahap Selesai
           </span>
         </div>
 
         <div className="card-body">
           <div className="spmb-stepper-track">
-            {steps.map((step, idx) => (
-              <div
-                key={step.key}
-                className={`spmb-stepper-item ${
-                  step.done ? 'is-done' : idx === statusConfig.completedSteps ? 'is-current' : 'is-pending'
-                }`}
-              >
-                <div className="spmb-stepper-circle">
-                  {step.done ? (
-                    <CheckCircle2 size={16} />
-                  ) : (
-                    <span>{idx + 1}</span>
-                  )}
+            {steps.map((step, idx) => {
+              const isCurrent = idx === activeStepIdx;
+              return (
+                <div
+                  key={step.key}
+                  className={`spmb-stepper-item ${
+                    step.done ? 'is-done' : isCurrent ? 'is-current' : 'is-pending'
+                  }`}
+                >
+                  <div className="spmb-stepper-circle">
+                    {step.done ? (
+                      <CheckCircle2 size={16} />
+                    ) : (
+                      <span>{idx + 1}</span>
+                    )}
+                  </div>
+                  <span className="spmb-stepper-label">{step.label}</span>
                 </div>
-                <span className="spmb-stepper-label">{step.label}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

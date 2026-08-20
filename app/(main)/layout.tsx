@@ -30,7 +30,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               
               // Dynamic RBAC Guard
               let hasSuperAccess = false;
-              const allowedModules = new Set<string>(['dashboard', 'profile']); // Base modules
+              const allowedModules = new Set<string>(['dashboard', 'profile', 'checkout', 'pembayaran']); // Base modules
 
               userData.roles?.forEach((r: any) => {
                 const roleSlug = r.slug || r.role?.slug;

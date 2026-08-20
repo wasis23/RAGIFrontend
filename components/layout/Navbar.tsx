@@ -18,10 +18,10 @@ export function Navbar() {
       <div className="topbar-section">
         <button
           onClick={toggleSidebar}
-          className="btn btn-ghost btn-icon hide-desktop"
+          className="btn btn-ghost btn-icon hide-desktop flex items-center justify-center p-2 rounded-lg text-slate-700 hover:bg-slate-100"
           aria-label="Toggle Navigation"
         >
-          <Menu size={20} />
+          <Menu size={22} />
         </button>
 
         <div className="topbar-section">
