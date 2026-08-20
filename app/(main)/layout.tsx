@@ -44,9 +44,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           const userData = res?.data?.id ? res.data : res?.data?.user || res?.user || res?.data || res;
           if (userData && (userData.id || userData.username || userData.email)) {
             setUser(userData);
-            const primaryRole = userData.roles?.[0]?.role?.slug || userData.roles?.[0]?.slug;
-            if (primaryRole) {
-              document.cookie = `sso_user_role=${primaryRole}; path=/; max-age=3600; SameSite=Lax`;
+            const userRoleSlugs = (userData.roles || []).map((r: any) =>
+              (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
+            );
+            const primaryRole = userRoleSlugs[0] || 'user';
+            document.cookie = `sso_user_role=${primaryRole}; path=/; max-age=3600; SameSite=Lax`;
+
+            const isSuperOrAdmin = userRoleSlugs.some((s: string) => ['admin', 'superadmin', 'super-admin'].includes(s));
+            if (isSuperOrAdmin) {
+              setIsNotFound(false);
+              return;
             }
 
             // Ambil seluruh menu yang dipetakan untuk user dari DB (semua modul)
@@ -55,7 +62,24 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               const allowedUrls = extractUrls(myMenus || []);
               
               // Base routes yang selalu diizinkan untuk pengguna terautentikasi
-              const baseAllowed = ['/dashboard', '/profile', '/profile/sessions', '/profile/mfa', '/checkout'];
+              const baseAllowed = [
+                '/dashboard',
+                '/profile',
+                '/profile/sessions',
+                '/profile/mfa',
+                '/checkout',
+                '/siakad',
+                '/siakad/dashboard',
+                '/siakad/krs',
+                '/siakad/perkuliahan/kelas',
+                '/siakad/nilai',
+                '/siakad/obe',
+                '/sikeu/mahasiswa/tagihan',
+                '/spmb/dashboard',
+                '/spmb/registrasi',
+                '/spmb/ujian',
+                '/spmb/seleksi'
+              ];
               
               const currentPath = pathname.replace(/\/$/, '');
               
@@ -63,6 +87,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               const isAllowed = 
                 (PUBLIC_ROUTES as readonly string[]).includes(currentPath) ||
                 baseAllowed.includes(currentPath) ||
+                baseAllowed.some((b) => currentPath === b || currentPath.startsWith(b + '/')) ||
                 allowedUrls.some((url) => {
                   const normUrl = url.replace(/\/$/, '');
                   return currentPath === normUrl || currentPath.startsWith(normUrl + '/');
@@ -75,6 +100,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               }
             } catch (err) {
               console.error('Gagal memverifikasi otorisasi menu:', err);
+              setIsNotFound(false);
             }
           }
         })

@@ -34,7 +34,9 @@ import {
   Home,
   UserPlus,
   PieChart,
-  Search
+  Search,
+  RefreshCw,
+  BookOpen
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -73,10 +75,88 @@ const getIcon = (iconName: string) => {
     'FaShieldCheck': ShieldCheck,
     'FaLock': Lock,
     'FaKey': Key,
+    'FaGraduationCap': GraduationCap,
+    'FaUserGraduate': GraduationCap,
+    'FaChalkboardTeacher': Users,
+    'FaExchangeAlt': RefreshCw,
+    'FaPen': FileText,
+    'FaSyncAlt': RefreshCw,
+    'FaCloudUploadAlt': RefreshCw,
+    'FaDatabase': List,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
 };
+
+// Menus SIAKAD untuk Mahasiswa (Portal Mahasiswa Mandiri)
+const SIAKAD_MAHASISWA_MENUS: Menu[] = [
+  { id: 710, parent_id: null, name: 'Dashboard Mahasiswa', url: '/siakad', icon: 'FaChartPie', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+  { id: 711, parent_id: null, name: 'KRS Semester Aktif', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+  { id: 712, parent_id: null, name: 'Jadwal Kuliah & RPS', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+  { id: 713, parent_id: null, name: 'KHS & Transkrip Nilai', url: '/siakad/nilai', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+  { id: 714, parent_id: null, name: 'Tagihan SPP (SIKEU)', url: '/sikeu/mahasiswa/tagihan', icon: 'FaCreditCard', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
+];
+
+// Menus SIAKAD untuk Dosen (Portal Dosen Pengajar / Wali)
+const SIAKAD_DOSEN_MENUS: Menu[] = [
+  { id: 720, parent_id: null, name: 'Dashboard Dosen', url: '/siakad', icon: 'FaChartPie', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+  { id: 721, parent_id: null, name: 'Jadwal Mengajar & RPS', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+  { id: 722, parent_id: null, name: 'Bimbingan & Approval KRS', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+  { id: 723, parent_id: null, name: 'Input & Rekap Nilai', url: '/siakad/nilai', icon: 'FaPen', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+  { id: 724, parent_id: null, name: 'Mahasiswa Bimbingan', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
+  { id: 725, parent_id: null, name: 'Kurikulum & RPS (OBE)', url: '/siakad/obe', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
+];
+
+// Menus SIAKAD untuk Administrator / BAAK
+const SIAKAD_ADMIN_MENUS: Menu[] = [
+  { id: 701, parent_id: null, name: 'Dashboard Akademik', url: '/siakad', icon: 'FaGraduationCap', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+  { 
+    id: 702, parent_id: null, name: 'MASTER DATA', url: '#master_siakad', icon: 'FaDatabase', module: 'siakad', permission_id: null, order_index: 2, is_active: true,
+    children: [
+      { id: 7021, parent_id: 702, name: 'Fakultas & Prodi', url: '/siakad/master/fakultas', icon: 'FaBuilding', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+      { id: 7022, parent_id: 702, name: 'Kurikulum', url: '/siakad/master/kurikulum', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+      { id: 7023, parent_id: 702, name: 'Mata Kuliah', url: '/siakad/master/matakuliah', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+    ]
+  },
+  {
+    id: 703, parent_id: null, name: 'CIVITAS AKADEMIKA', url: '#civitas_siakad', icon: 'FaUsers', module: 'siakad', permission_id: null, order_index: 3, is_active: true,
+    children: [
+      { id: 7031, parent_id: 703, name: 'Mahasiswa', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+      { id: 7032, parent_id: 703, name: 'Konversi Transfer', url: '/siakad/civitas/konversi', icon: 'FaExchangeAlt', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+      { id: 7033, parent_id: 703, name: 'Dosen', url: '/siakad/civitas/dosen', icon: 'FaChalkboardTeacher', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+    ]
+  },
+  {
+    id: 704, parent_id: null, name: 'PERKULIAHAN & OBE', url: '#perkuliahan_siakad', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 4, is_active: true,
+    children: [
+      { id: 7041, parent_id: 704, name: 'Kelas & Jadwal', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+      { id: 7042, parent_id: 704, name: 'KRS Mahasiswa', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+      { id: 7043, parent_id: 704, name: 'Input Nilai OBE', url: '/siakad/nilai', icon: 'FaPen', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+      { id: 7044, parent_id: 704, name: 'Kurikulum & RPS (OBE)', url: '/siakad/obe', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+    ]
+  },
+  {
+    id: 705, parent_id: null, name: 'INTEGRASI DIKTI', url: '#feeder_siakad', icon: 'FaSyncAlt', module: 'siakad', permission_id: null, order_index: 5, is_active: true,
+    children: [
+      { id: 7051, parent_id: 705, name: 'Sync Neo Feeder', url: '/siakad/feeder-sync', icon: 'FaCloudUploadAlt', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+    ]
+  }
+];
+
+const SINAPRA_FALLBACK_MENUS: Menu[] = [
+  { id: 901, parent_id: null, name: 'Gedung & Ruangan', url: '/sinapra/gedung-ruangan', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
+  { id: 902, parent_id: null, name: 'Inventaris Aset', url: '/sinapra/aset', icon: 'FaBoxes', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
+  { id: 903, parent_id: null, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
+  { id: 904, parent_id: null, name: 'Maintenance', url: '/sinapra/maintenance', icon: 'FaWrench', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
+  { id: 905, parent_id: null, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
+];
+
+const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [
+  { id: 801, parent_id: null, name: 'Dashboard SPMB', url: '/spmb/dashboard', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
+  { id: 802, parent_id: null, name: 'Formulir Registrasi', url: '/spmb/registrasi', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
+  { id: 803, parent_id: null, name: 'Kartu & Jadwal Ujian', url: '/spmb/ujian', icon: 'FaFileAlt', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
+  { id: 804, parent_id: null, name: 'Hasil Seleksi', url: '/spmb/seleksi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -84,7 +164,21 @@ export function Sidebar() {
   const currentTab = searchParams.get('tab');
   
   const { sidebar_open, toggleSidebar } = useUiStore();
-  const { user } = useAuth();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
+
+  const userRoleSlugs = (user?.roles || []).map((r: any) =>
+    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
+  );
+
+  const isMahasiswaRole = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
+  const isDosenRole = userRoleSlugs.includes('dosen') && !isSuperAdmin && !isAdmin;
+
+  const isPanitiaAdmin =
+    isSuperAdmin ||
+    isAdmin ||
+    userRoleSlugs.some((slug) =>
+      ['admin', 'superadmin', 'super-admin', 'admin_spmb', 'panitia_spmb', 'operator_spmb', 'admin_iam'].includes(slug)
+    );
 
   const [ssoPanelOpen, setSsoPanelOpen] = useState(pathname.startsWith('/admin'));
   
@@ -95,18 +189,20 @@ export function Sidebar() {
   // Determine module based on pathname or hostname dynamically without hardcoding
   const getModule = () => {
     let mod = 'sso';
-    
-    if (typeof window !== 'undefined') {
+    if (pathname.startsWith('/simpeg')) mod = 'simpeg';
+    else if (pathname.startsWith('/sippm')) mod = 'sippm';
+    else if (pathname.startsWith('/sikeu')) mod = 'sikeu';
+    else if (pathname.startsWith('/spmb')) mod = 'spmb';
+    else if (pathname.startsWith('/sinapra')) mod = 'sinapra';
+    else if (pathname.startsWith('/siakad')) mod = 'siakad';
+    else if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      const parts = hostname.split('.');
-      if (parts.length > 2 && parts[0] !== 'www') {
-        mod = parts[0];
-      }
-    }
-
-    const firstSegment = pathname.split('/')[1];
-    if (firstSegment && firstSegment !== 'profile' && firstSegment !== 'admin' && firstSegment !== 'dashboard') {
-      mod = firstSegment;
+      if (hostname.startsWith('spmb.')) mod = 'spmb';
+      else if (hostname.startsWith('simpeg.')) mod = 'simpeg';
+      else if (hostname.startsWith('sippm.')) mod = 'sippm';
+      else if (hostname.startsWith('sikeu.')) mod = 'sikeu';
+      else if (hostname.startsWith('sinapra.')) mod = 'sinapra';
+      else if (hostname.startsWith('siakad.')) mod = 'siakad';
     }
 
     if (typeof window !== 'undefined') {
@@ -126,16 +222,53 @@ export function Sidebar() {
         try {
           const mod = getModule();
           const menus = await menuService.getMyMenus(mod);
-          setDynamicMenus(menus || []);
+          if (menus && menus.length > 0) {
+            setDynamicMenus(menus);
+          } else if (mod === 'spmb' && !isPanitiaAdmin) {
+            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
+          } else if (mod === 'sinapra') {
+            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
+          } else if (mod === 'siakad') {
+            if (isMahasiswaRole) {
+              setDynamicMenus(SIAKAD_MAHASISWA_MENUS);
+            } else if (isDosenRole) {
+              setDynamicMenus(SIAKAD_DOSEN_MENUS);
+            } else {
+              setDynamicMenus(SIAKAD_ADMIN_MENUS);
+            }
+          } else {
+            setDynamicMenus([]);
+          }
         } catch (error) {
           console.error("Failed to load menus", error);
-          setDynamicMenus([]);
+          const mod = getModule();
+          if (mod === 'spmb' && !isPanitiaAdmin) {
+            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
+          } else if (mod === 'sinapra') {
+            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
+          } else if (mod === 'siakad') {
+            if (isMahasiswaRole) {
+              setDynamicMenus(SIAKAD_MAHASISWA_MENUS);
+            } else if (isDosenRole) {
+              setDynamicMenus(SIAKAD_DOSEN_MENUS);
+            } else {
+              setDynamicMenus(SIAKAD_ADMIN_MENUS);
+            }
+          }
         } finally {
           setLoading(false);
         }
       };
       fetchMenus();
     } else {
+      const mod = getModule();
+      if (mod === 'spmb' && !isPanitiaAdmin) {
+        setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
+      } else if (mod === 'sinapra') {
+        setDynamicMenus(SINAPRA_FALLBACK_MENUS);
+      } else if (mod === 'siakad') {
+        setDynamicMenus(SIAKAD_ADMIN_MENUS);
+      }
       setLoading(false);
     }
   }, [user, pathname]);
@@ -162,7 +295,9 @@ export function Sidebar() {
           {sidebar_open && (
             <div>
               <div className="sidebar-brand-text">SSO Campus</div>
-              <div className="sidebar-brand-sub">Auth Center v1.0</div>
+              <div className="sidebar-brand-sub">
+                {isMahasiswaRole ? 'Portal Mahasiswa' : isDosenRole ? 'Portal Dosen' : 'SIAKAD Utama'}
+              </div>
             </div>
           )}
         </div>
@@ -195,7 +330,7 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Dynamic Menus from Database (for all modules including SIKEU) */}
+        {/* Dynamic Menus from Database / Fallback */}
         {(() => {
           const filterMenuChildren = (children?: Menu[]) => {
             if (!children) return [];
@@ -233,7 +368,11 @@ export function Sidebar() {
 
           return (
             <div className="sidebar-section">
-              {sidebar_open && <div className="sidebar-section-label">Menu Utama</div>}
+              {sidebar_open && (
+                <div className="sidebar-section-label">
+                  {isMahasiswaRole ? 'Portal Akademik Mahasiswa' : isDosenRole ? 'Portal Akademik Dosen' : 'Menu Utama'}
+                </div>
+              )}
               
               {loading ? (
                 <div className="sidebar-loading">Loading menus...</div>

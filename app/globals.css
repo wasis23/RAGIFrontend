@@ -3637,4 +3637,88 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   flex-shrink: 0;
 }
 
+/* ============================================================
+   PRINT MEDIA STYLES — Standar Cetak Dokumen Resmi Akademik (KRS, KHS, Transkrip, Invoice)
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 8mm 10mm;
+  }
 
+  *, *::before, *::after {
+    box-sizing: border-box !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* 1. Sembunyikan SEMUA elemen di halaman secara default */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* 2. Tampilkan HANYA elemen yang memiliki class .printable-document beserta anak-anaknya */
+  .printable-document,
+  .printable-document * {
+    visibility: visible !important;
+  }
+
+  /* 3. Letakkan dokumen cetak tepat di posisi (0,0) lembar kertas */
+  .printable-document {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 999999 !important;
+  }
+
+  /* 4. Sembunyikan tombol, banner, header, navbar, sidebar secara fisik */
+  header, nav, aside, .sidebar, .navbar, .sidebar-overlay, .page-header,
+  button, .btn, .print\:hidden, .hide-print, [role="banner"], [role="navigation"] {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  th, td {
+    color: #000000 !important;
+    border-color: #333333 !important;
+  }
+}
