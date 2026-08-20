@@ -15,6 +15,24 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined' && window.performance && window.performance.measure) {
+                const origMeasure = window.performance.measure.bind(window.performance);
+                window.performance.measure = function(name, startOrMeasureOptions, endMark) {
+                  try {
+                    return origMeasure(name, startOrMeasureOptions, endMark);
+                  } catch (e) {
+                    // Ignore stale Turbopack dev HMR timing measurement errors
+                  }
+                };
+              }
+            `,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         {children}
         <Toaster
