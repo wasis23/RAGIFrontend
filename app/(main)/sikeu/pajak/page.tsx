@@ -1,59 +1,68 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, AlertCircle, CheckCircle, FileText, Download, Filter, RefreshCw, CheckCircle2, Search, Home, ChevronRight, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  FileText, Filter, CheckCircle2, XCircle, Loader2, Save, Download
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
-import { Drawer } from '@/components/ui/Drawer';
+import { Select } from '@/components/ui/Select';
+import { useForm } from 'react-hook-form';
+
+interface TaxItem {
+  id: number;
+  nomor: string;
+  jenis: string;
+  deskripsi: string;
+  vendor?: string;
+  nominal_pajak: number;
+  status: 'disetor' | 'terutang' | string;
+  ntpn?: string;
+  tanggal_setor?: string;
+}
+
+interface SetorFormValues {
+  ntpn: string;
+}
+
+const formatRupiah = (val: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export default function TaxReportPage() {
-  const [taxData, setTaxData] = useState<any[]>([]);
+  const [data, setData] = useState<TaxItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterJenis, setFilterJenis] = useState<string>('semua');
-  const [filterStatus, setFilterStatus] = useState<string>('semua');
-  const [search, setSearch] = useState<string>('');
+
+  // Filter Drawer State — 2-stage
   const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterJenis, setFilterJenis] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', jenis: 'all', status: 'all' });
 
-  // Temp filter states (di dalam Drawer sebelum Terapkan)
-  const [tempJenis, setTempJenis] = useState<string>('semua');
-  const [tempStatus, setTempStatus] = useState<string>('semua');
+  // Modal Setor State
+  const [activeItem, setActiveItem] = useState<TaxItem | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [summary, setSummary] = useState({
-    total_terutang: 0,
-    total_disetor: 0,
-    total_keseluruhan: 0,
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<SetorFormValues>({
+    defaultValues: { ntpn: '' },
   });
-
-  // Modal Setor Pajak
-  const [isSetorModalOpen, setIsSetorModalOpen] = useState(false);
-  const [selectedTax, setSelectedTax] = useState<any | null>(null);
-  const [ntpnInput, setNtpnInput] = useState('');
-  const [submittingSetor, setSubmittingSetor] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   const fetchTaxes = async () => {
     try {
       setLoading(true);
-      const res = await sikeuService.getPajakList({
-        search: search || undefined,
-        jenis: filterJenis !== 'semua' ? filterJenis : undefined,
-        status: filterStatus !== 'semua' ? filterStatus : undefined,
-      });
-
-      if (res.data) {
-        setTaxData(Array.isArray(res.data) ? res.data : []);
-      }
-      if ((res as any).summary) {
-        setSummary((res as any).summary);
-      }
-    } catch (e) {
-      console.error('Failed to load tax records', e);
+      const res = await sikeuService.getPajakList();
+      const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      setData(list);
+    } catch {
+      setData([]);
+      toast.error('Gagal memuat data kewajiban pajak');
     } finally {
       setLoading(false);
     }
@@ -61,358 +70,251 @@ export default function TaxReportPage() {
 
   useEffect(() => {
     fetchTaxes();
-  }, [filterJenis, filterStatus]);
+  }, []);
 
-  const handleSetorPajak = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTax || !ntpnInput.trim()) return;
+  const handleOpenSetor = (item: TaxItem) => {
+    setActiveItem(item);
+    reset({ ntpn: '' });
+  };
 
+  const onSubmitSetor = async (formData: SetorFormValues) => {
+    if (!activeItem) return;
+    setSubmitting(true);
     try {
-      setSubmittingSetor(true);
-      await sikeuService.setorPajak(selectedTax.id, { ntpn: ntpnInput.trim() });
-      setFeedback(`Penyetoran Pajak ${selectedTax.nomor} dengan NTPN ${ntpnInput.trim()} berhasil dicatat.`);
-      setIsSetorModalOpen(false);
-      setSelectedTax(null);
-      setNtpnInput('');
+      await sikeuService.setorPajak(activeItem.id, { ntpn: formData.ntpn });
+      toast.success(`Bukti setor NTPN ${formData.ntpn} berhasil dicatat`);
+      setActiveItem(null);
       fetchTaxes();
-    } catch (err: any) {
-      alert('Gagal mencatat penyetoran: ' + (err.message || 'Error'));
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Gagal menginput NTPN');
     } finally {
-      setSubmittingSetor(false);
+      setSubmitting(false);
     }
   };
 
-  const formatRupiah = (val: number) =>
-    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+  const handleApplyFilter = () => {
+    setAppliedFilters({ search: filterSearch, jenis: filterJenis, status: filterStatus });
+    setShowFilter(false);
+  };
 
-  const hasActiveFilter = filterJenis !== 'semua' || filterStatus !== 'semua';
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setFilterJenis('all');
+    setFilterStatus('all');
+    setAppliedFilters({ search: '', jenis: 'all', status: 'all' });
+    setShowFilter(false);
+  };
 
-  const filteredData = taxData.filter((t) => {
-    const matchSearch =
-      !search ||
-      t.nomor?.toLowerCase().includes(search.toLowerCase()) ||
-      t.deskripsi?.toLowerCase().includes(search.toLowerCase()) ||
-      t.vendor?.toLowerCase().includes(search.toLowerCase());
-    return matchSearch;
-  });
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
+        if (!item.nomor?.toLowerCase().includes(q) && !item.deskripsi?.toLowerCase().includes(q) && !item.ntpn?.toLowerCase().includes(q)) return false;
+      }
+      if (appliedFilters.jenis !== 'all' && item.jenis !== appliedFilters.jenis) return false;
+      if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
+      return true;
+    });
+  }, [data, appliedFilters]);
+
+  const totalTerutang = useMemo(() => {
+    return filteredData
+      .filter((t) => t.status === 'terutang')
+      .reduce((sum, t) => sum + (t.nominal_pajak || 0), 0);
+  }, [filteredData]);
+
+  const totalDisetor = useMemo(() => {
+    return filteredData
+      .filter((t) => t.status === 'disetor')
+      .reduce((sum, t) => sum + (t.nominal_pajak || 0), 0);
+  }, [filteredData]);
+
+  const columns: ColumnDef<TaxItem>[] = [
+    {
+      key: 'nomor',
+      label: 'NOMOR & DESKRIPSI',
+      render: (row) => (
+        <div>
+          <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
+            {row.nomor || `TAX-${row.id}`}
+          </span>
+          <p className="text-xs text-slate-600 font-medium mt-1 line-clamp-1">{row.deskripsi}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'jenis',
+      label: 'JENIS PAJAK',
+      render: (row) => (
+        <span className="badge badge-purple text-xs font-bold uppercase">{row.jenis || 'PPh 21'}</span>
+      ),
+    },
+    {
+      key: 'nominal_pajak',
+      label: 'NOMINAL PAJAK (RP)',
+      render: (row) => (
+        <span className="font-bold text-slate-900 tabular-nums text-sm">
+          {formatRupiah(row.nominal_pajak || 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'ntpn',
+      label: 'NTPN BUKTI SETOR',
+      render: (row) =>
+        row.ntpn ? (
+          <span className="font-mono text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-md">
+            {row.ntpn}
+          </span>
+        ) : (
+          <span className="text-2xs text-slate-400 font-semibold">— Belum Disetor</span>
+        ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) =>
+        row.status === 'disetor' ? (
+          <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+            <CheckCircle2 size={12} /> Sudah Disetor
+          </span>
+        ) : (
+          <span className="badge badge-red text-xs font-bold inline-flex items-center gap-1">
+            <XCircle size={12} /> Terutang
+          </span>
+        ),
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          {row.status !== 'disetor' ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleOpenSetor(row)}
+              className="font-bold text-primary-600 hover:bg-primary-50"
+            >
+              Input NTPN
+            </Button>
+          ) : (
+            <span className="text-2xs text-slate-400 font-semibold">Tuntas</span>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Standard SSO PageHeader with integrated Breadcrumbs */}
+    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
       <PageHeader
-        title="Laporan & Rekapitulasi Pajak Kampus"
-        description="Monitoring Pemotongan & Penyetoran Pajak PPh 21, PPh 23, dan PPN 11% Terintegrasi"
-        breadcrumb={
-          <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-            <Link href="/dashboard" className="flex items-center gap-1 hover:text-primary-600 transition">
-              <Home size={13} />
-              <span>SSO Dashboard</span>
-            </Link>
-            <ChevronRight size={12} className="text-slate-400" />
-            <Link href="/sikeu" className="hover:text-primary-600 transition">SIKEU</Link>
-            <ChevronRight size={12} className="text-slate-400" />
-            <span className="text-slate-800 font-semibold">Pajak &amp; Potongan</span>
-          </nav>
-        }
+        title="Rekapitulasi Kewajiban Pajak Kampus"
+        description="Pencatatan pemotongan PPh 21, PPh 23, PPN & pelaporan bukti setor NTPN ke kas negara."
         action={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              icon={<Download size={16} />}
-              onClick={() => window.print()}
-            >
-              Cetak Rekap
-            </Button>
+          <div className="flex items-center gap-2.5 flex-wrap">
             <Button
               variant="outline"
               icon={<Filter size={16} />}
-              onClick={() => { setTempJenis(filterJenis); setTempStatus(filterStatus); setShowFilter(true); }}
+              onClick={() => setShowFilter(true)}
+              className="font-bold min-h-[40px]"
             >
               Filter
-              {hasActiveFilter && (
-                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-primary-600 text-white rounded-full">!</span>
-              )}
             </Button>
           </div>
         }
       />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardBody>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <AlertCircle size={20} className="text-amber-600" />
-              </div>
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Pajak Terutang</div>
-                <div className="text-base font-extrabold text-slate-900 font-mono">{formatRupiah(summary.total_terutang)}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <CheckCircle2 size={20} className="text-emerald-600" />
-              </div>
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Sudah Disetor</div>
-                <div className="text-base font-extrabold text-slate-900 font-mono">{formatRupiah(summary.total_disetor)}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <FileText size={20} className="text-blue-600" />
-              </div>
-              <div>
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Keseluruhan</div>
-                <div className="text-base font-extrabold text-slate-900 font-mono">{formatRupiah(summary.total_keseluruhan)}</div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      {feedback && (
-        <div className="p-4 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-2">
-          <CheckCircle2 size={18} /> {feedback}
-        </div>
-      )}
-
-      {/* Tax Table Card */}
-      <Card>
-        <CardHeader>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
           <div>
-            <h2 className="font-bold text-slate-900">Daftar Kewajiban Pajak</h2>
-            <p className="text-xs text-slate-500">
-              {hasActiveFilter && (
-                <span className="text-primary-600 font-semibold mr-2">Filter aktif •</span>
-              )}
-              {filteredData.length} rekord pajak
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Pajak Terutang</p>
+            <p className="text-xl font-extrabold text-rose-700 mt-1 tabular-nums">
+              {formatRupiah(totalTerutang)}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Search Bar with proper wrapper */}
-            <div className="search-input-wrapper">
-              <Search size={14} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Cari no. ref, vendor..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="input input-sm input-icon-left input-icon-right text-xs w-56 bg-white"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  className="input-suffix-icon"
-                  title="Hapus pencarian"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-            <button
-              onClick={fetchTaxes}
-              disabled={loading}
-              className="btn btn-ghost btn-icon btn-sm"
-              title="Refresh"
-            >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <FileText size={20} />
           </div>
-        </CardHeader>
-
-        <CardBody className="p-0">
-          {loading ? (
-            <div className="text-center py-12 text-slate-400 text-xs">Memuat data pajak...</div>
-          ) : filteredData.length === 0 ? (
-            <div className="text-center py-12 px-4">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
-                <FileText size={22} />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">Tidak Ada Data Pajak</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                {hasActiveFilter ? 'Tidak ada rekord pajak yang sesuai dengan filter yang diterapkan.' : 'Belum ada kewajiban pajak yang tercatat.'}
-              </p>
-            </div>
-          ) : (
-            <div className="table-container border-0 rounded-none">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>No. Ref Pajak</th>
-                    <th>Jenis Pajak</th>
-                    <th>Uraian / Vendor</th>
-                    <th className="text-right">Nominal</th>
-                    <th>Batas Setor</th>
-                    <th>NTPN / Bukti</th>
-                    <th>Status</th>
-                    <th className="text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((t) => (
-                    <tr key={t.id}>
-                      <td className="font-mono font-bold text-amber-700">{t.nomor}</td>
-                      <td className="font-bold text-slate-900">{t.jenis}</td>
-                      <td>
-                        <div className="font-semibold text-slate-800">{t.deskripsi}</div>
-                        <div className="text-[10px] text-slate-400">Vendor: {t.vendor} | NPWP: {t.npwp}</div>
-                      </td>
-                      <td className="text-right font-mono font-extrabold text-slate-900">{formatRupiah(t.nominal)}</td>
-                      <td className="font-mono text-slate-600 text-xs">{t.jatuhTempo}</td>
-                      <td className="font-mono font-bold text-indigo-700 text-xs">{t.ntpn || '-'}</td>
-                      <td>
-                        {t.status === 'disetor' ? (
-                          <Badge variant="green" dot>Sudah Disetor</Badge>
-                        ) : (
-                          <Badge variant="red" dot>Terutang</Badge>
-                        )}
-                      </td>
-                      <td className="text-right">
-                        {t.status === 'terutang' ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedTax(t);
-                              setNtpnInput('');
-                              setIsSetorModalOpen(true);
-                            }}
-                          >
-                            Input NTPN
-                          </Button>
-                        ) : (
-                          <span className="text-slate-400 text-xs font-medium">Selesai</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* Modal Input NTPN Penyetoran Pajak */}
-      <Modal
-        open={isSetorModalOpen && !!selectedTax}
-        onClose={() => setIsSetorModalOpen(false)}
-        title="Input NTPN / Bukti Penyetoran Pajak"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsSetorModalOpen(false)}>Batal</Button>
-            <Button variant="primary" disabled={submittingSetor} onClick={handleSetorPajak}>
-              {submittingSetor ? 'Menyimpan...' : 'Simpan Bukti Setor'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          {selectedTax && (
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
-              <div><span className="font-bold text-slate-600">No. Ref Pajak:</span> <span className="font-mono font-bold text-slate-900">{selectedTax.nomor}</span></div>
-              <div><span className="font-bold text-slate-600">Jenis Pajak:</span> <span className="font-bold text-slate-900">{selectedTax.jenis}</span></div>
-              <div><span className="font-bold text-slate-600">Nominal Setoran:</span> <span className="font-mono font-extrabold text-amber-700">{formatRupiah(selectedTax.nominal)}</span></div>
-            </div>
-          )}
-          <Input
-            label="Nomor Transaksi Penerimaan Negara (NTPN)"
-            required
-            placeholder="Masukkan kode NTPN resmi (16 karakter)..."
-            value={ntpnInput}
-            onChange={(e) => setNtpnInput(e.target.value)}
-          />
         </div>
+
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Pajak Disetor (NTPN)</p>
+            <p className="text-xl font-extrabold text-emerald-700 mt-1 tabular-nums">
+              {formatRupiah(totalDisetor)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <CheckCircle2 size={20} />
+          </div>
+        </div>
+      </div>
+
+      <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data rekapan pajak." />
+
+      {/* Modal Input NTPN */}
+      <Modal isOpen={Boolean(activeItem)} onClose={() => setActiveItem(null)} title="Input Bukti Setor NTPN Pajak">
+        <form onSubmit={handleSubmit(onSubmitSetor)} className="space-y-5">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <p className="text-xs font-bold text-slate-900">{activeItem?.nomor}</p>
+            <p className="text-xs text-slate-600 mt-0.5">{activeItem?.deskripsi}</p>
+            <p className="text-sm font-extrabold text-slate-900 mt-1">{formatRupiah(activeItem?.nominal_pajak || 0)}</p>
+          </div>
+
+          <Input label="Kode NTPN (Nomor Transaksi Penerimaan Negara) *" placeholder="Contoh: 81092830192830"
+            {...register('ntpn', { required: 'Kode NTPN wajib diisi' })}
+            error={errors.ntpn?.message} />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button type="button" variant="ghost" onClick={() => setActiveItem(null)} disabled={submitting} className="font-bold text-slate-600">
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" disabled={submitting}
+              icon={submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              className="font-bold shadow-md">
+              {submitting ? 'Menyimpan...' : 'Simpan Bukti Setor'}
+            </Button>
+          </div>
+        </form>
       </Modal>
 
       {/* Filter Drawer */}
-      <Drawer
-        open={showFilter}
-        onClose={() => setShowFilter(false)}
-        title="Filter Pajak & Potongan"
-        width="360px"
+      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Pajak Kampus" width="420px"
         footer={
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setTempJenis('semua');
-                setTempStatus('semua');
-                setFilterJenis('semua');
-                setFilterStatus('semua');
-                setShowFilter(false);
-              }}
-            >
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" variant="outline" onClick={handleResetFilter} className="font-bold text-slate-600 min-h-[42px] px-4">
               Reset
             </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setFilterJenis(tempJenis);
-                setFilterStatus(tempStatus);
-                setShowFilter(false);
-              }}
-            >
-              Terapkan
+            <Button type="button" variant="primary" onClick={handleApplyFilter} className="font-bold min-h-[42px] px-5 shadow-md">
+              Terapkan Filter
             </Button>
           </div>
-        }
-      >
-        <div className="flex flex-col gap-5">
-          <div className="form-group">
-            <label className="form-label">Jenis Pajak</label>
-            <select
-              value={tempJenis}
-              onChange={(e) => setTempJenis(e.target.value)}
-              className="select w-full"
-            >
-              <option value="semua">Semua Jenis Pajak</option>
-              <option value="pph_21">PPh 21 (Honorarium SDM)</option>
-              <option value="pph_23">PPh 23 (Jasa Vendor)</option>
-              <option value="ppn_11">PPN 11% (Barang/Jasa)</option>
-            </select>
-            {tempJenis !== 'semua' && (
-              <p className="text-xs text-primary-600 font-semibold mt-1">
-                ✓ Filter aktif: <strong>{tempJenis.replace('_', ' ').toUpperCase()}</strong>
-              </p>
-            )}
-          </div>
+        }>
+        <div className="space-y-5">
+          <Input label="Cari Nomor / NTPN / Deskripsi" placeholder="Ketik kata kunci..."
+            value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
 
-          <div className="form-group">
-            <label className="form-label">Status Penyetoran</label>
-            <select
-              value={tempStatus}
-              onChange={(e) => setTempStatus(e.target.value)}
-              className="select w-full"
-            >
-              <option value="semua">Semua Status</option>
-              <option value="terutang">Terutang (Belum Setor)</option>
-              <option value="disetor">Sudah Disetor (Ada NTPN)</option>
-            </select>
-            {tempStatus !== 'semua' && (
-              <p className="text-xs text-primary-600 font-semibold mt-1">
-                ✓ Filter aktif: <strong>{tempStatus}</strong>
-              </p>
-            )}
-          </div>
+          <Select label="Jenis Pajak"
+            value={filterJenis}
+            onChange={(val) => setFilterJenis(val as string)}
+            options={[
+              { value: 'all', label: 'Semua Jenis Pajak' },
+              { value: 'pph21', label: 'PPh Pasal 21 (Gaji)' },
+              { value: 'pph23', label: 'PPh Pasal 23 (Jasa/Sewa)' },
+              { value: 'ppn', label: 'PPN 11%' },
+            ]} />
 
-          <hr className="border-t border-slate-200" />
-
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
-            <span className="font-semibold">Catatan:</span> Filter akan diterapkan ke data pajak setelah klik &quot;Terapkan&quot;.
-          </div>
+          <Select label="Status Penyetoran"
+            value={filterStatus}
+            onChange={(val) => setFilterStatus(val as string)}
+            options={[
+              { value: 'all', label: 'Semua Status' },
+              { value: 'disetor', label: 'Sudah Disetor (Ada NTPN)' },
+              { value: 'terutang', label: 'Belum Disetor (Terutang)' },
+            ]} />
         </div>
       </Drawer>
     </div>
