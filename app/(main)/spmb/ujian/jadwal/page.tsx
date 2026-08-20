@@ -6,14 +6,14 @@ import { DataTable } from '@/components/ui/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Drawer } from '@/components/ui/Drawer';
-import { Filter } from 'lucide-react';
+import { Filter, Calendar, Plus, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/axios';
-
 import Link from 'next/link';
 
 export default function JadwalUjianPage() {
   const [data, setData] = useState([]);
+  const [gelombangOptions, setGelombangOptions] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -23,13 +23,37 @@ export default function JadwalUjianPage() {
 
   useEffect(() => {
     fetchData();
+    fetchGelombang();
   }, []);
+
+  const fetchGelombang = async () => {
+    try {
+      const res = await api.get('/spmb/gelombang');
+      const list = res.data?.data?.data || res.data?.data || res.data || [];
+      const options = Array.isArray(list)
+        ? list.map((g: any) => ({
+            value: String(g.id),
+            label: g.nama,
+          }))
+        : [];
+      setGelombangOptions(options);
+    } catch {
+      // Ignore fallback
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/spmb/jadwal-ujian');
-      setData(res.data.data);
+      const res = await api.get('/spmb/jadwal-ujian', {
+        params: {
+          gelombang_id: filterGelombang || undefined,
+          order_by: filterOrderBy,
+          order_dir: filterOrderDir,
+        },
+      });
+      const rawData = res.data?.data?.data || res.data?.data || res.data || [];
+      setData(rawData);
     } catch (error) {
       toast.error('Gagal mengambil data jadwal.');
     } finally {
@@ -42,78 +66,151 @@ export default function JadwalUjianPage() {
     fetchData();
   };
 
+  const resetFilters = () => {
+    setFilterGelombang('');
+    setFilterOrderBy('tanggal');
+    setFilterOrderDir('desc');
+    setIsFilterOpen(false);
+    fetchData();
+  };
+
   const columns = [
-    { key: 'nama_sesi', label: 'Nama Sesi' },
-    { key: 'gelombang_penerimaan', label: 'Gelombang', render: (row: any) => row.gelombang_penerimaan?.nama },
-    { key: 'tipe_ujian', label: 'Tipe Ujian', render: (row: any) => <span className="capitalize">{row.tipe_ujian}</span> },
-    { key: 'tanggal', label: 'Tanggal Ujian' },
-    { key: 'waktu', label: 'Waktu', render: (row: any) => `${row.jam_mulai} - ${row.jam_selesai}` },
-    { key: 'kapasitas', label: 'Kapasitas' },
+    { key: 'nama_sesi', label: 'NAMA SESI' },
+    {
+      key: 'gelombang_penerimaan',
+      label: 'GELOMBANG',
+      render: (row: any) => row.gelombang_penerimaan?.nama || `Gelombang #${row.gelombang_id}`,
+    },
+    {
+      key: 'tipe_ujian',
+      label: 'TIPE UJIAN',
+      render: (row: any) => (
+        <span className="badge badge-indigo capitalize text-xs font-bold">
+          {row.tipe_ujian === 'tulis' ? 'Ujian Tulis (CBT)' : row.tipe_ujian}
+        </span>
+      ),
+    },
+    { key: 'tanggal', label: 'TANGGAL UJIAN' },
+    {
+      key: 'waktu',
+      label: 'WAKTU',
+      render: (row: any) => (
+        <span className="font-mono text-xs text-slate-700">
+          {row.jam_mulai} - {row.jam_selesai}
+        </span>
+      ),
+    },
+    {
+      key: 'kapasitas',
+      label: 'KAPASITAS',
+      render: (row: any) => (
+        <span className="font-bold text-slate-900">{row.kapasitas} Peserta</span>
+      ),
+    },
   ];
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader 
-        title="Jadwal Ujian / CBT" 
-        description="Kelola jadwal ujian dan kapasitas ruangan untuk ujian masuk."
+      <PageHeader
+        title="Jadwal Ujian / CBT"
+        description="Kelola jadwal ujian dan kapasitas ruangan untuk ujian seleksi masuk"
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsFilterOpen(true)}>
-              <Filter size={16} className="mr-2" /> Filter
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setIsFilterOpen(true)}
+              icon={<Filter size={16} />}
+              className="font-bold min-h-[40px]"
+            >
+              Filter &amp; Urutkan
             </Button>
-            <Link href="/spmb/ujian/jadwal/create" className="btn btn-primary">
-              Buat Jadwal Ujian
+            <Link
+              href="/spmb/ujian/jadwal/create"
+              className="btn btn-primary inline-flex items-center gap-2 font-bold min-h-[40px] px-4 shadow-sm"
+            >
+              <Plus size={16} />
+              <span>Buat Jadwal Ujian</span>
             </Link>
           </div>
         }
       />
 
-      <DataTable
-        data={data}
-        isLoading={loading}
-        columns={columns}
-      />
+      <DataTable data={data} isLoading={loading} columns={columns} />
 
+      {/* ── Filter Drawer (Sesuai admin_filter_standard & Spacious Layout) ── */}
       <Drawer
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
-        title="Filter & Urutkan"
+        title="Filter & Urutkan Jadwal"
+        width="420px"
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetFilters}
+              className="font-bold text-slate-600 min-h-[42px] px-4"
+            >
+              Reset Filter
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={applyFilters}
+              className="font-bold min-h-[42px] px-5 shadow-md"
+            >
+              Terapkan Filter
+            </Button>
+          </div>
+        }
       >
-        <div className="space-y-6 p-4">
-          <Select 
-            label="Gelombang"
-            value={filterGelombang}
-            onChange={(val) => setFilterGelombang(val as string)}
-            options={[
-              { value: '', label: 'Semua Gelombang' }
-            ]}
-          />
-
-          <hr className="border-t border-slate-200 my-2" />
-          
-          <div className="grid grid-cols-2 gap-4">
-            <Select 
-              label="Urut Berdasarkan"
-              value={filterOrderBy}
-              onChange={(val) => setFilterOrderBy(val as string)}
+        <div className="space-y-6">
+          {/* Section 1: Filter Parameter */}
+          <div className="space-y-4">
+            <h4 className="text-2xs font-extrabold uppercase tracking-wider text-slate-400">
+              Parameter Filter
+            </h4>
+            <Select
+              label="Gelombang Penerimaan"
+              value={filterGelombang}
+              onChange={(val) => setFilterGelombang(val as string)}
               options={[
-                { value: 'id', label: 'ID' },
-                { value: 'tanggal', label: 'Tanggal Ujian' }
-              ]}
-            />
-            <Select 
-              label="Arah"
-              value={filterOrderDir}
-              onChange={(val) => setFilterOrderDir(val as string)}
-              options={[
-                { value: 'asc', label: 'Lama ke Baru' },
-                { value: 'desc', label: 'Baru ke Lama' }
+                { value: '', label: 'Semua Gelombang Penerimaan' },
+                ...gelombangOptions,
               ]}
             />
           </div>
 
-          <div className="pt-4 flex justify-end border-t border-slate-100">
-            <Button variant="primary" onClick={applyFilters}>Terapkan Filter</Button>
+          <hr className="border-t border-slate-200" />
+
+          {/* Section 2: Sorting Parameter (Spacious Select Controls) */}
+          <div className="space-y-4">
+            <h4 className="text-2xs font-extrabold uppercase tracking-wider text-slate-400">
+              Pengurutan Data
+            </h4>
+            <div className="space-y-4">
+              <Select
+                label="Urut Berdasarkan"
+                value={filterOrderBy}
+                onChange={(val) => setFilterOrderBy(val as string)}
+                options={[
+                  { value: 'tanggal', label: 'Tanggal Pelaksanaan Ujian' },
+                  { value: 'id', label: 'ID Jadwal Ujian' },
+                  { value: 'nama_sesi', label: 'Nama Sesi Ujian' },
+                  { value: 'kapasitas', label: 'Kapasitas Ruangan' },
+                ]}
+              />
+
+              <Select
+                label="Arah Urutan Data"
+                value={filterOrderDir}
+                onChange={(val) => setFilterOrderDir(val as string)}
+                options={[
+                  { value: 'desc', label: 'Terbaru ke Terlama (Z - A)' },
+                  { value: 'asc', label: 'Terlama ke Terbaru (A - Z)' },
+                ]}
+              />
+            </div>
           </div>
         </div>
       </Drawer>
