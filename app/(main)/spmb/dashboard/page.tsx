@@ -393,47 +393,78 @@ export default function SPMBDashboardPage() {
             </div>
 
             <div className="card-body p-0">
-              {uploadedDocs.length === 0 ? (
-                <div className="p-6 text-center text-slate-500">
-                  <UploadCloud size={32} className="mx-auto mb-2 text-slate-400" />
-                  <p className="font-semibold text-slate-700 text-sm">Belum Ada Berkas Diunggah</p>
-                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                    Silakan unggah dokumen persyaratan seperti KTP/Kartu Pelajar, Pas Foto, dan Ijazah.
-                  </p>
-                  <Link href="/spmb/registrasi" className="btn btn-outline btn-sm mt-4 inline-flex items-center gap-1.5">
-                    <UploadCloud size={14} />
-                    Unggah Berkas Sekarang
-                  </Link>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {uploadedDocs.map((doc) => (
-                    <div key={doc.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
+              <div className="divide-y divide-slate-100">
+                {[
+                  { key: 'pas_foto', label: 'Pas Foto Resmi (3x4)', required: true },
+                  { key: 'ktp', label: 'KTP / Kartu Pelajar', required: true },
+                  { key: 'kk', label: 'Kartu Keluarga (KK)', required: true },
+                  { key: 'ijazah', label: 'Ijazah / SKL', required: true },
+                  { key: 'rapor', label: 'Transkrip Nilai / Rapor', required: false },
+                ].map((masterItem) => {
+                  const uploaded = uploadedDocs.find(
+                    (d) => (d.jenis_berkas || d.jenis_dokumen) === masterItem.key
+                  );
+                  const isUploaded = Boolean(uploaded);
+
+                  return (
+                    <div
+                      key={masterItem.key}
+                      className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
+                    >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`p-2 rounded-lg ${doc.is_verified ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                        <div
+                          className={`p-2 rounded-lg shrink-0 ${
+                            uploaded?.is_verified
+                              ? 'bg-emerald-50 text-emerald-600'
+                              : isUploaded
+                              ? 'bg-amber-50 text-amber-600'
+                              : 'bg-slate-100 text-slate-400'
+                          }`}
+                        >
                           <FileText size={18} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-800 truncate capitalize">
-                            {(doc.jenis_berkas || doc.jenis_dokumen || 'dokumen').replace(/_/g, ' ')}
+                          <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
+                            {masterItem.label}
+                            {masterItem.required && (
+                              <span className="text-red-500 font-bold ml-1">*</span>
+                            )}
                           </p>
-                          {doc.catatan && (
-                            <p className="text-xs text-rose-500 mt-0.5">Catatan: {doc.catatan}</p>
+                          {uploaded?.catatan ? (
+                            <p className="text-2xs text-rose-500 mt-0.5">
+                              Catatan: {uploaded.catatan}
+                            </p>
+                          ) : (
+                            <p className="text-2xs text-slate-400 font-medium">
+                              {isUploaded ? 'Dokumen tersimpan' : 'Belum diunggah'}
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {doc.is_verified ? (
-                          <span className="badge badge-green text-xs">Terverifikasi</span>
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        {isUploaded ? (
+                          uploaded?.is_verified ? (
+                            <span className="badge badge-green text-xs">✓ Terverifikasi</span>
+                          ) : (
+                            <span className="badge badge-yellow text-xs">Dalam Pemeriksaan</span>
+                          )
                         ) : (
-                          <span className="badge badge-yellow text-xs">Dalam Pemeriksaan</span>
+                          <div className="flex items-center gap-2">
+                            <span className="badge badge-gray text-xs text-slate-400">Belum Diunggah</span>
+                            <Link
+                              href="/spmb/registrasi"
+                              className="text-2xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 px-2 py-1 rounded-md border border-primary-200"
+                            >
+                              Unggah
+                            </Link>
+                          </div>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
