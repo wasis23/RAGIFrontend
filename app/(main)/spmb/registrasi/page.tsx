@@ -28,6 +28,12 @@ import {
   AlertTriangle,
   ExternalLink,
   Clock,
+  UploadCloud,
+  FileCheck,
+  Camera,
+  FileText,
+  Award,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -84,6 +90,143 @@ const STEPS = [
   { id: 5, title: 'Data Ortu', short: 'Ortu', icon: Users },
   { id: 6, title: 'Konfirmasi', short: 'Review', icon: CheckSquare },
 ];
+
+interface DokumenItemConfig {
+  key: string;
+  label: string;
+  required: boolean;
+  hint: string;
+  icon: any;
+}
+
+const REQUIRED_DOCUMENTS: DokumenItemConfig[] = [
+  { key: 'pas_foto', label: 'Pas Foto Resmi (3x4)', required: true, hint: 'Format PDF/JPG/PNG, latar merah/biru, maks 5MB', icon: Camera },
+  { key: 'ktp', label: 'KTP / Kartu Identitas / Kartu Pelajar', required: true, hint: 'Format PDF/JPG/PNG, NIK terlihat jelas', icon: CreditCard },
+  { key: 'kk', label: 'Kartu Keluarga (KK)', required: true, hint: 'Format PDF/JPG/PNG, lembar KK asli/legalisir', icon: FileText },
+  { key: 'ijazah', label: 'Ijazah / Surat Keterangan Lulus (SKL)', required: true, hint: 'Format PDF/JPG/PNG, lembar nilai & stempel', icon: Award },
+  { key: 'rapor', label: 'Transkrip Nilai / Rapor Semester 1-5', required: false, hint: 'Format PDF/JPG/PNG, gabungan halaman nilai rapor', icon: FileSpreadsheet },
+];
+
+function DokumenUploadPanel({
+  uploadedBerkas = {},
+  onUpload,
+  uploadingState = {}
+}: {
+  uploadedBerkas?: Record<string, any>;
+  onUpload: (jenisBerkas: string, file: File) => void;
+  uploadingState?: Record<string, boolean>;
+}) {
+  const safeUploaded = uploadedBerkas || {};
+  const safeUploading = uploadingState || {};
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+        <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+          <UploadCloud size={20} />
+        </div>
+        <div>
+          <h3 className="font-bold text-slate-900 text-base">Unggah Berkas &amp; Dokumen Pendaftaran</h3>
+          <p className="text-xs text-slate-500">Unggah dokumen kelengkapan berkas pendaftaran calon mahasiswa (Format: PDF, JPG, PNG, Maks 5MB).</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+        {REQUIRED_DOCUMENTS.map((doc) => {
+          const IconComp = doc.icon;
+          const berkas = safeUploaded[doc.key];
+          const isUploading = Boolean(safeUploading[doc.key]);
+          const isUploaded = Boolean(berkas?.file_path || berkas?.file_url);
+
+          return (
+            <div
+              key={doc.key}
+              className={`p-4 rounded-xl border transition-all space-y-3 ${
+                isUploaded
+                  ? 'bg-emerald-50/50 border-emerald-200'
+                  : 'bg-slate-50/70 border-slate-200 hover:border-primary-300'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isUploaded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/70 text-slate-600'}`}>
+                    <IconComp size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
+                      {doc.label}
+                      {doc.required && <span className="text-red-500 text-xs">*</span>}
+                    </h4>
+                    <p className="text-2xs text-slate-500 font-medium">{doc.hint}</p>
+                  </div>
+                </div>
+                <div>
+                  {isUploaded ? (
+                    <span className="text-2xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                      ✓ Terunggah
+                    </span>
+                  ) : (
+                    <span className="text-2xs font-semibold text-slate-500 bg-slate-200/80 px-2 py-0.5 rounded-full shrink-0">
+                      Belum Diunggah
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/60">
+                {isUploaded ? (
+                  <a
+                    href={berkas.file_url || (berkas.file_path ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/storage/${berkas.file_path.replace(/^public\//, '')}` : '#')}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 hover:text-emerald-800 bg-white border border-emerald-200 px-2.5 py-1.5 rounded-lg shadow-2xs"
+                  >
+                    <FileCheck size={14} /> Lihat Dokumen
+                  </a>
+                ) : (
+                  <span className="text-2xs text-slate-400 font-medium">Format: PDF/JPG/PNG</span>
+                )}
+
+                <label className={`inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs ${
+                  isUploading
+                    ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                    : isUploaded
+                    ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                    : 'bg-primary-600 text-white hover:bg-primary-700'
+                }`}>
+                  {isUploading ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Mengunggah...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud size={14} />
+                      <span>{isUploaded ? 'Ganti File' : 'Unggah File'}</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    disabled={isUploading}
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        onUpload(doc.key, file);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function RegistrasiSpmbPage() {
   const router = useRouter();
@@ -208,6 +351,20 @@ export default function RegistrasiSpmbPage() {
         if (p.nama_wali) setValue('nama_wali', p.nama_wali);
         if (p.telepon_wali) setValue('telepon_wali', p.telepon_wali);
 
+        if (p.dokumen_pendaftaran && Array.isArray(p.dokumen_pendaftaran)) {
+          const berkasMap: Record<string, any> = {};
+          p.dokumen_pendaftaran.forEach((b: any) => {
+            const fileUrl = b.file_url || (b.file_path ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/storage/${b.file_path.replace(/^public\//, '')}` : '');
+            berkasMap[b.jenis_berkas] = {
+              id: b.id,
+              file_path: b.file_path,
+              file_url: fileUrl,
+              is_verified: b.is_verified,
+            };
+          });
+          setUploadedBerkas(berkasMap);
+        }
+
         setSuksesData({ pendaftaran, tagihan });
       }
     } catch {
@@ -218,6 +375,37 @@ export default function RegistrasiSpmbPage() {
   };
 
   const [suksesData, setSuksesData] = useState<any>(null);
+  const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
+  const [uploadedBerkas, setUploadedBerkas] = useState<Record<string, any>>({});
+
+  const handleFileUpload = async (jenisBerkas: string, file: File) => {
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('jenis_berkas', jenisBerkas);
+
+    setUploadingState((prev) => ({ ...prev, [jenisBerkas]: true }));
+    try {
+      const res = await spmbService.uploadBerkas(formData);
+      toast.success(`Dokumen ${jenisBerkas.toUpperCase()} berhasil diunggah!`);
+      if (res.data) {
+        setUploadedBerkas((prev) => ({
+          ...prev,
+          [jenisBerkas]: res.data,
+        }));
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengunggah dokumen');
+    } finally {
+      setUploadingState((prev) => ({ ...prev, [jenisBerkas]: false }));
+    }
+  };
 
   const handleStartEditBiodata = () => {
     if (suksesData?.pendaftaran) {
@@ -582,6 +770,15 @@ export default function RegistrasiSpmbPage() {
               </Button>
             </div>
           )}
+
+          {/* ── UNGGAH BERKAS / DOKUMEN PENDAFTARAN ────────────────────── */}
+          <div className="card p-5 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs mb-6 text-left">
+            <DokumenUploadPanel
+              uploadedBerkas={uploadedBerkas}
+              onUpload={handleFileUpload}
+              uploadingState={uploadingState}
+            />
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
             <Button 
@@ -1084,6 +1281,14 @@ export default function RegistrasiSpmbPage() {
                       placeholder="-- Pilih Range Penghasilan --"
                     />
                   )}
+                />
+              </div>
+
+              <div className="pt-4 border-t border-slate-100">
+                <DokumenUploadPanel
+                  uploadedBerkas={uploadedBerkas}
+                  onUpload={handleFileUpload}
+                  uploadingState={uploadingState}
                 />
               </div>
             </div>
