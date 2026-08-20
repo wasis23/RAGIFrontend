@@ -634,10 +634,12 @@ export default function RegistrasiSpmbPage() {
 
   // ── Success State View ──────────────────────────────────────────────────
   if (suksesData && !isEditingBiodata) {
-    const { pendaftaran, tagihan } = suksesData;
-    const vaNumber = tagihan?.virtual_account?.va_number || '88019283746501';
-    const bankCode = tagihan?.virtual_account?.bank_code || 'BNI';
-    const rawTotal = Number(tagihan?.tagihan?.total_bayar ?? 0);
+    const { pendaftaran, tagihan } = suksesData || {};
+    const vaObj = tagihan?.virtual_account || tagihan?.tagihan?.virtual_account || suksesData?.virtual_account;
+    const vaNumber = vaObj?.va_number || '';
+    const rawBank = vaObj?.bank_kode || vaObj?.bank_code || vaObj?.bank_nama || '';
+    const bankCode = rawBank ? rawBank.replace(/^Bank\s+/i, '').trim().toUpperCase() : '';
+    const rawTotal = Number(tagihan?.tagihan?.total_bayar ?? tagihan?.total_bayar ?? 0);
     const totalBayar = rawTotal > 0 ? rawTotal : (tarif > 0 ? tarif : 250000);
 
     return (
@@ -695,7 +697,7 @@ export default function RegistrasiSpmbPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-slate-100 gap-1">
                 <span className="text-slate-500 font-medium">Bank Tujuan</span>
                 <span className="font-extrabold text-slate-800 uppercase tracking-wide bg-slate-100 px-3 py-1 rounded-lg border border-slate-200/60 text-xs sm:text-sm self-start sm:self-auto">
-                  {bankCode} VIRTUAL ACCOUNT
+                  {bankCode ? `${bankCode} VIRTUAL ACCOUNT` : 'VIRTUAL ACCOUNT'}
                 </span>
               </div>
 
