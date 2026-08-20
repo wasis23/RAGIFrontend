@@ -735,7 +735,7 @@ export default function DataPendaftarPage() {
                         <div className="flex items-center gap-2">
                           <FileText size={16} className="text-primary-600 shrink-0" />
                           <span className="font-bold text-slate-900 text-xs capitalize">
-                            {berkas.jenis_dokumen.replace(/_/g, ' ')}
+                            {(berkas.jenis_berkas || berkas.jenis_dokumen || 'dokumen').replace(/_/g, ' ')}
                           </span>
                         </div>
                         {berkas.is_verified ? (

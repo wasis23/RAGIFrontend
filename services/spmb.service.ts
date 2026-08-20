@@ -92,7 +92,8 @@ export interface PendaftaranCalonMhs {
 export interface PendaftaranBerkas {
   id: number;
   pendaftaran_id: number;
-  jenis_dokumen: string;
+  jenis_berkas?: string;
+  jenis_dokumen?: string;
   file_path: string;
   is_verified: boolean;
   catatan?: string;

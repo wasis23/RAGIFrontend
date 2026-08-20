@@ -308,7 +308,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                       <div className="flex items-center gap-2.5">
                         <FileText size={18} className="text-primary-600 shrink-0" />
                         <span className="font-bold text-slate-900 text-sm capitalize">
-                          {berkas.jenis_dokumen.replace(/_/g, ' ')}
+                          {(berkas.jenis_berkas || berkas.jenis_dokumen || 'dokumen').replace(/_/g, ' ')}
                         </span>
                       </div>
                       {berkas.is_verified ? (

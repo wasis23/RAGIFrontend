@@ -415,7 +415,7 @@ export default function SPMBDashboardPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-800 truncate capitalize">
-                            {doc.jenis_dokumen.replace(/_/g, ' ')}
+                            {(doc.jenis_berkas || doc.jenis_dokumen || 'dokumen').replace(/_/g, ' ')}
                           </p>
                           {doc.catatan && (
                             <p className="text-xs text-rose-500 mt-0.5">Catatan: {doc.catatan}</p>
