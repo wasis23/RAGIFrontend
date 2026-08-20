@@ -165,17 +165,31 @@ export function useAuth() {
     [user]
   );
 
-  const isAdmin = useMemo(() => hasRole('admin') || hasRole('superadmin'), [hasRole]);
-  const isSuperAdmin = useMemo(() => hasRole('superadmin'), [hasRole]);
+  const isSuperAdmin = useMemo(() => {
+    if (!user) return false;
+    if ((user as any).is_superadmin !== undefined) {
+      return Boolean((user as any).is_superadmin);
+    }
+    return hasRole('superadmin') || hasRole('admin');
+  }, [user, hasRole]);
+
+  const isAdmin = useMemo(() => {
+    if (!user) return false;
+    if ((user as any).is_admin !== undefined) {
+      return Boolean((user as any).is_admin);
+    }
+    return isSuperAdmin || hasRole('admin');
+  }, [user, isSuperAdmin, hasRole]);
+
   const isDosen = useMemo(() => hasRole('dosen'), [hasRole]);
   const isTendik = useMemo(() => hasRole('tendik'), [hasRole]);
   const isMahasiswa = useMemo(() => hasRole('mahasiswa'), [hasRole]);
 
   const isAdminSimpeg = useMemo(() => {
     if (!user) return false;
-    if (hasRole('admin') || hasRole('superadmin')) return true;
+    if (isAdmin || isSuperAdmin) return true;
     return hasRole('admin_simpeg');
-  }, [user, hasRole]);
+  }, [user, isAdmin, isSuperAdmin, hasRole]);
 
   return {
     user,
