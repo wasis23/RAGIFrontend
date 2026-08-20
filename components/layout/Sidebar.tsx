@@ -233,70 +233,8 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* SIKEU Navigation Sidebar */}
-        {pathname.startsWith('/sikeu') && (() => {
-          const sikeuMenus = [
-            // 1. Dashboard & Portal Overview
-            { name: 'Dashboard Keuangan', url: '/sikeu', icon: LayoutDashboard, section: 'Overview Keuangan' },
-            { name: 'Portal Kabag Keuangan', url: '/sikeu/kabag', icon: ShieldCheck, section: 'Overview Keuangan' },
-            { name: 'Approval Pimpinan', url: '/sikeu/approval', icon: CheckSquare, section: 'Overview Keuangan' },
-
-            // 2. Master Data Keuangan
-            { name: 'Master Biaya', url: '/sikeu/master', icon: Building2, section: 'Master Data Keuangan' },
-            { name: 'Kas Unit & Rekening', url: '/sikeu/unit-kas', icon: DollarSign, section: 'Master Data Keuangan' },
-            { name: 'Payment Gateway', url: '/sikeu/payment-gateway', icon: Key, section: 'Master Data Keuangan' },
-
-            // 3. Transaksi Pembayaran Mahasiswa
-            { name: 'Tagihan & Invoice', url: '/sikeu/tagihan', icon: FileText, section: 'Pembayaran Mahasiswa' },
-            { name: 'Histori Pembayaran', url: '/sikeu/pembayaran', icon: List, section: 'Pembayaran Mahasiswa' },
-            { name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: User, section: 'Pembayaran Mahasiswa' },
-
-            // 4. Pengeluaran & Akuntansi
-            { name: 'Pengeluaran Operasional', url: '/sikeu/pengeluaran', icon: Clock, section: 'Pengeluaran & Akuntansi' },
-            { name: 'Pemasukan Non-Akademik', url: '/sikeu/pemasukan', icon: TrendingUp, section: 'Pengeluaran & Akuntansi' },
-            { name: 'Akuntansi & Jurnal', url: '/sikeu/akuntansi', icon: PieChart, section: 'Pengeluaran & Akuntansi' },
-            { name: 'Pajak & Potongan', url: '/sikeu/pajak', icon: Award, section: 'Pengeluaran & Akuntansi' },
-          ];
-
-          const filteredMenus = sikeuMenus.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()));
-          
-          const groups = filteredMenus.reduce((acc, curr) => {
-            if (!acc[curr.section]) acc[curr.section] = [];
-            acc[curr.section].push(curr);
-            return acc;
-          }, {} as Record<string, typeof sikeuMenus>);
-
-          return (
-            <div className="sidebar-section">
-              {Object.entries(groups).map(([sectionName, items]) => (
-                <div key={sectionName} className="sidebar-group">
-                  {sidebar_open && <div className="sidebar-section-label">{sectionName}</div>}
-                  {items.map((item, idx) => {
-                    const IconComponent = item.icon;
-                    const isActive = item.url === '/sikeu'
-                      ? pathname === '/sikeu'
-                      : pathname === item.url || pathname.startsWith(item.url + '/');
-
-                    return (
-                      <Link
-                        key={idx}
-                        href={item.url}
-                        className={`sidebar-item ${isActive ? 'active' : ''}`}
-                        title={item.name}
-                      >
-                        <IconComponent className="sidebar-item-icon" />
-                        {sidebar_open && <span>{item.name}</span>}
-                      </Link>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-
-        {/* Dynamic Menus from Database */}
-        {!pathname.startsWith('/sikeu') && (() => {
+        {/* Dynamic Menus from Database (for all modules including SIKEU) */}
+        {(() => {
           const filterMenuChildren = (children?: Menu[]) => {
             if (!children) return [];
             if (!searchQuery) return children;
