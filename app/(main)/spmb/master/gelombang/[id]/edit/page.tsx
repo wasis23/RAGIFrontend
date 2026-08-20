@@ -315,14 +315,14 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                       label="Tarif Biaya Pendaftaran (Mapping SIKEU) *"
                       placeholder="-- Pilih Master Tarif Keuangan SIKEU --"
                       options={sikeuTarifOptions}
-                      value={field.value !== undefined && field.value !== null ? Math.round(Number(field.value)).toString() : ''}
-                      onChange={(val) => field.onChange(val ? Number(val) : 250000)}
+                      value={field.value !== undefined && field.value !== null && field.value !== 0 ? Math.round(Number(field.value)).toString() : ''}
+                      onChange={(val) => field.onChange(val ? Number(val) : undefined)}
                       error={errors.biaya_pendaftaran?.message}
                       hint="Pilih opsi tarif yang berasal dari Master Tarif Modul Keuangan SIKEU."
                     />
                   )}
                 />
-                {selectedBiaya !== undefined && !isNaN(Number(selectedBiaya)) && (
+                {selectedBiaya !== undefined && selectedBiaya !== null && selectedBiaya !== 0 && !isNaN(Number(selectedBiaya)) && (
                   <div className="p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
                     <div className="flex items-center gap-2">
                       <DollarSign size={16} className="text-emerald-600 shrink-0" />
