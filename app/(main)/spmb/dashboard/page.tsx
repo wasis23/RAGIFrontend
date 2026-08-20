@@ -746,14 +746,6 @@ function SPMBAdminDashboardView({
             </Link>
 
             <Link
-              href="/spmb/pembayaran"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-900/40 hover:bg-blue-900/60 active:bg-blue-900/80 text-white font-bold text-sm border border-white/30 transition-all min-h-[44px] backdrop-blur-md"
-            >
-              <CreditCard size={18} className="text-sky-200" />
-              <span className="!text-white font-bold">Verifikasi Pembayaran</span>
-            </Link>
-
-            <Link
               href="/spmb/ujian/jadwal"
               className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-900/40 hover:bg-blue-900/60 active:bg-blue-900/80 text-white font-bold text-sm border border-white/30 transition-all min-h-[44px] backdrop-blur-md"
             >
