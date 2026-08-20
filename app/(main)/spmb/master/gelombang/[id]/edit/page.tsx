@@ -105,12 +105,12 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [jalurList, setJalurList] = useState<JalurMasuk[]>([]);
+  const [tahunAkademikOptions, setTahunAkademikOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [sikeuTarifOptions, setSikeuTarifOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<Partial<GelombangPenerimaan>>({
     defaultValues: {
-      tahun_akademik_id: 1,
       kuota_total: 100,
-      biaya_pendaftaran: 250000,
       status: 'draft',
     }
   });
@@ -120,18 +120,26 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
   const tglBuka = watch('tanggal_buka');
   const tglTutup = watch('tanggal_tutup');
 
-  const [sikeuTarifOptions, setSikeuTarifOptions] = useState<Array<{ value: string; label: string }>>([]);
-
-  // Load Jalur Masuk & SIKEU Master Tariffs dynamically from API
+  // Load Jalur Masuk, Tahun Akademik & SIKEU Master Tariffs dynamically from API
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [jalurRes, modules] = await Promise.all([
+        const [jalurRes, modules, tahunRes] = await Promise.all([
           spmbService.getJalurMasuk(),
           moduleService.getAllModules().catch(() => []),
+          spmbService.getTahunAkademikList().catch(() => null),
         ]);
 
         setJalurList(jalurRes.data.filter((j: any) => j.is_active));
+
+        const rawTahunList = tahunRes?.data || [];
+        if (Array.isArray(rawTahunList) && rawTahunList.length > 0) {
+          const mappedTahun = rawTahunList.map((t: any) => ({
+            value: t.id.toString(),
+            label: t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`
+          }));
+          setTahunAkademikOptions(mappedTahun);
+        }
 
         // Find SPMB module dynamically from DB modules list by code
         const spmbModule = (modules || []).find((m: any) => m.code.toLowerCase() === 'spmb');
@@ -166,29 +174,31 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
         setFetching(true);
         const res = await spmbService.getGelombangById(id);
         const row = res.data;
-        const rowNominal = Math.round(Number(row.biaya_pendaftaran || 250000));
+        const rowNominal = Math.round(Number(row.biaya_pendaftaran || 0));
         
         // Dynamically append existing nominal to options if not present
         setSikeuTarifOptions((prev) => {
           const exists = prev.some((o) => Math.round(Number(o.value)) === rowNominal);
-          if (!exists) {
+          if (!exists && rowNominal > 0) {
             return [
               ...prev,
-              {
-                value: rowNominal.toString(),
-                label: `SPMB_ADM - Tarif Pendaftaran SPMB (Rp ${new Intl.NumberFormat('id-ID').format(rowNominal)})`
-              }
+              { value: rowNominal.toString(), label: `Master Tarif SIKEU (Rp ${new Intl.NumberFormat('id-ID').format(rowNominal)})` }
             ];
           }
           return prev;
         });
 
         reset({
-          ...row,
-          tanggal_buka: row.tanggal_buka ? row.tanggal_buka.substring(0, 10) : '',
-          tanggal_tutup: row.tanggal_tutup ? row.tanggal_tutup.substring(0, 10) : '',
-          tanggal_ujian: row.tanggal_ujian ? row.tanggal_ujian.substring(0, 10) : '',
-          tanggal_pengumuman: row.tanggal_pengumuman ? row.tanggal_pengumuman.substring(0, 10) : '',
+          nama: row.nama,
+          jalur_masuk_id: row.jalur_masuk_id,
+          tahun_akademik_id: row.tahun_akademik_id || 1,
+          kuota_total: row.kuota_total,
+          biaya_pendaftaran: rowNominal,
+          status: row.status,
+          tanggal_buka: row.tanggal_buka ? new Date(row.tanggal_buka).toISOString().split('T')[0] : '',
+          tanggal_tutup: row.tanggal_tutup ? new Date(row.tanggal_tutup).toISOString().split('T')[0] : '',
+          tanggal_ujian: row.tanggal_ujian ? new Date(row.tanggal_ujian).toISOString().split('T')[0] : '',
+          tanggal_pengumuman: row.tanggal_pengumuman ? new Date(row.tanggal_pengumuman).toISOString().split('T')[0] : '',
         });
       } catch (error: any) {
         toast.error('Gagal memuat data gelombang');
@@ -276,6 +286,24 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 pt-1">
               
+              {/* Tahun Akademik (Dynamic from DB) */}
+              <Controller
+                name="tahun_akademik_id"
+                control={control}
+                rules={{ required: 'Tahun akademik wajib dipilih' }}
+                render={({ field }) => (
+                  <Select
+                    label="Tahun Akademik *"
+                    placeholder="Pilih Tahun Akademik..."
+                    options={tahunAkademikOptions}
+                    value={field.value?.toString()}
+                    onChange={(val) => field.onChange(val ? Number(val) : '')}
+                    error={errors.tahun_akademik_id?.message}
+                    hint="Tahun akademik penerimaan mahasiswa."
+                  />
+                )}
+              />
+
               {/* Jalur Masuk */}
               <Controller
                 name="jalur_masuk_id"
@@ -426,9 +454,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
 
             </div>
           </div>
-
-          {/* Hidden Academic Year Field */}
-          <input type="hidden" {...register('tahun_akademik_id')} value={1} />
 
           {/* SECTION III: ACTION AREA (DESKTOP INLINE / MOBILE STICKY BOTTOM) */}
           <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3">

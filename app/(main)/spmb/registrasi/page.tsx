@@ -548,7 +548,7 @@ export default function RegistrasiSpmbPage() {
     } catch {
       // Fallback lookup from gelombang data
       const g = gelombangRaw.find((x) => String(x.id) === String(gelombangId));
-      setTarif(g?.biaya_pendaftaran || 250000);
+      setTarif(Number(g?.biaya_pendaftaran || 0));
     } finally {
       setLoadingTarif(false);
     }
