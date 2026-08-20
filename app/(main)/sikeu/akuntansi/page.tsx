@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import {
-  BookOpen, Plus, Calculator, Table, Filter, Loader2, Save, CheckCircle2, PieChart, RefreshCw
+  BookOpen, Plus, Calculator, Table, Filter, Loader2, Save, CheckCircle2, TrendingUp, TrendingDown, Wallet, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -31,8 +31,10 @@ interface JurnalItem {
   tanggal_jurnal: string;
   jenis_sumber: string;
   keterangan: string;
-  total_debet: number;
-  total_kredit: number;
+  uang_masuk: number;   // Debet / Inflow
+  uang_keluar: number;  // Kredit / Outflow
+  saldo_running?: number;
+  nama_akun_terkait?: string;
   status_posting?: string;
 }
 
@@ -45,19 +47,17 @@ interface CoaFormValues {
 
 interface JurnalFormValues {
   tanggal_jurnal: string;
-  jenis_sumber: string;
+  tipe_transaksi: 'pemasukan' | 'pengeluaran' | 'penyesuaian';
+  nominal: number;
+  akun_kas_id: number;
   keterangan: string;
-  akun_debet_id: number;
-  nominal_debet: number;
-  akun_kredit_id: number;
-  nominal_kredit: number;
 }
 
 const formatRupiah = (val: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export default function AkuntansiPage() {
-  const [activeTab, setActiveTab] = useState<'jurnal' | 'buku-besar' | 'coa'>('jurnal');
+  const [activeTab, setActiveTab] = useState<'jurnal' | 'coa'>('jurnal');
   const [loading, setLoading] = useState(true);
 
   const [coaList, setCoaList] = useState<CoaItem[]>([]);
@@ -66,7 +66,8 @@ export default function AkuntansiPage() {
   // Filter Drawer State — 2-stage
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterTipe, setFilterTipe] = useState('all');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', tipe: 'all' });
 
   // Modals State
   const [isCoaModalOpen, setIsCoaModalOpen] = useState(false);
@@ -80,14 +81,14 @@ export default function AkuntansiPage() {
   const jurnalForm = useForm<JurnalFormValues>({
     defaultValues: {
       tanggal_jurnal: new Date().toISOString().split('T')[0],
-      jenis_sumber: 'penyesuaian',
+      tipe_transaksi: 'pemasukan',
+      nominal: 1000000,
+      akun_kas_id: 1,
       keterangan: '',
-      akun_debet_id: 1,
-      nominal_debet: 1000000,
-      akun_kredit_id: 2,
-      nominal_kredit: 1000000,
     },
   });
+
+  const tipeTxWatch = jurnalForm.watch('tipe_transaksi');
 
   const fetchCoa = async () => {
     try {
@@ -104,10 +105,38 @@ export default function AkuntansiPage() {
       setLoading(true);
       const res = await sikeuService.getJurnalList();
       const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-      setJurnalList(list);
+
+      // Map raw entries into clean Inflow (Uang Masuk) vs Outflow (Uang Keluar)
+      let currentRunningBalance = 0;
+      const mapped: JurnalItem[] = list.map((item: any) => {
+        const debet = item.total_debet || item.debet || 0;
+        const kredit = item.total_kredit || item.kredit || 0;
+        
+        // Determine whether this transaction represents money coming in or going out
+        const isMasuk = debet >= kredit;
+        const uangMasuk = isMasuk ? debet : 0;
+        const uangKeluar = !isMasuk ? kredit : 0;
+        
+        currentRunningBalance += (uangMasuk - uangKeluar);
+
+        return {
+          id: item.id,
+          nomor_jurnal: item.nomor_jurnal || `JRN-2026-${String(item.id).padStart(4, '0')}`,
+          tanggal_jurnal: item.tanggal_jurnal || '2026-08-01',
+          jenis_sumber: item.jenis_sumber || (isMasuk ? 'pemasukan' : 'pengeluaran'),
+          keterangan: item.keterangan || 'Transaksi Keuangan Kampus',
+          uang_masuk: uangMasuk,
+          uang_keluar: uangKeluar,
+          saldo_running: currentRunningBalance,
+          nama_akun_terkait: isMasuk ? 'Kas Penerimaan' : 'Kas Operasional',
+          status_posting: item.status_posting || 'posted',
+        };
+      });
+
+      setJurnalList(mapped);
     } catch {
       setJurnalList([]);
-      toast.error('Gagal memuat data jurnal akuntansi');
+      toast.error('Gagal memuat data jurnal keuangan');
     } finally {
       setLoading(false);
     }
@@ -133,90 +162,113 @@ export default function AkuntansiPage() {
   };
 
   const onSubmitJurnal = async (formData: JurnalFormValues) => {
-    if (formData.nominal_debet !== formData.nominal_kredit) {
-      toast.error('Jurnal Unbalanced! Total Debet harus sama dengan Total Kredit');
-      return;
-    }
     setSubmitting(true);
     try {
+      const isPemasukan = formData.tipe_transaksi === 'pemasukan';
       await sikeuService.storeJurnal({
         tanggal_jurnal: formData.tanggal_jurnal,
-        jenis_sumber: formData.jenis_sumber,
+        jenis_sumber: formData.tipe_transaksi,
         keterangan: formData.keterangan,
         details: [
-          { akun_id: formData.akun_debet_id, debet: formData.nominal_debet, kredit: 0, keterangan: formData.keterangan },
-          { akun_id: formData.akun_kredit_id, debet: 0, kredit: formData.nominal_kredit, keterangan: formData.keterangan },
+          { akun_id: formData.akun_kas_id, debet: isPemasukan ? formData.nominal : 0, kredit: isPemasukan ? 0 : formData.nominal, keterangan: formData.keterangan },
+          { akun_id: 2, debet: isPemasukan ? 0 : formData.nominal, kredit: isPemasukan ? formData.nominal : 0, keterangan: formData.keterangan },
         ],
       });
-      toast.success('Jurnal penyesuaian berhasil dicatat');
+
+      toast.success(`Catatan ${isPemasukan ? 'Uang Masuk' : 'Uang Keluar'} berhasil disimpan!`);
       setIsJurnalModalOpen(false);
       fetchJurnal();
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Gagal menyimpan Jurnal');
+      toast.error(error?.response?.data?.message || 'Gagal mencatat transaksi');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleApplyFilter = () => {
+    setAppliedFilters({ search: filterSearch, tipe: filterTipe });
+    setShowFilter(false);
+  };
+
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setFilterTipe('all');
+    setAppliedFilters({ search: '', tipe: 'all' });
+    setShowFilter(false);
+  };
+
   const filteredJurnal = useMemo(() => {
-    if (!appliedSearch) return jurnalList;
-    const q = appliedSearch.toLowerCase();
-    return jurnalList.filter((j) =>
-      j.nomor_jurnal?.toLowerCase().includes(q) || j.keterangan?.toLowerCase().includes(q)
-    );
-  }, [jurnalList, appliedSearch]);
+    return jurnalList.filter((j) => {
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
+        if (!j.nomor_jurnal?.toLowerCase().includes(q) && !j.keterangan?.toLowerCase().includes(q) && !j.jenis_sumber?.toLowerCase().includes(q)) return false;
+      }
+      if (appliedFilters.tipe === 'masuk' && j.uang_masuk <= 0) return false;
+      if (appliedFilters.tipe === 'keluar' && j.uang_keluar <= 0) return false;
+      return true;
+    });
+  }, [jurnalList, appliedFilters]);
 
   const filteredCoa = useMemo(() => {
-    if (!appliedSearch) return coaList;
-    const q = appliedSearch.toLowerCase();
+    if (!appliedFilters.search) return coaList;
+    const q = appliedFilters.search.toLowerCase();
     return coaList.filter((c) =>
       c.kode_akun?.toLowerCase().includes(q) || c.nama_akun?.toLowerCase().includes(q) || c.kelompok?.toLowerCase().includes(q)
     );
-  }, [coaList, appliedSearch]);
+  }, [coaList, appliedFilters]);
+
+  // Total Summaries
+  const totalUangMasuk = useMemo(() => filteredJurnal.reduce((sum, j) => sum + j.uang_masuk, 0), [filteredJurnal]);
+  const totalUangKeluar = useMemo(() => filteredJurnal.reduce((sum, j) => sum + j.uang_keluar, 0), [filteredJurnal]);
+  const netMutasiKas = totalUangMasuk - totalUangKeluar;
 
   const jurnalColumns: ColumnDef<JurnalItem>[] = [
     {
-      key: 'nomor_jurnal',
-      label: 'NOMOR JURNAL & TANGGAL',
+      key: 'tanggal_jurnal',
+      label: 'TANGGAL & NO JURNAL',
       render: (row) => (
         <div>
           <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
-            {row.nomor_jurnal || `JRN-${row.id}`}
+            {row.nomor_jurnal}
           </span>
-          <span className="text-2xs block text-slate-400 font-semibold mt-1">{row.tanggal_jurnal || '-'}</span>
+          <span className="text-2xs block text-slate-500 font-semibold mt-1">{row.tanggal_jurnal}</span>
         </div>
       ),
     },
     {
-      key: 'jenis_sumber',
-      label: 'SUMBER TRANSAKSI',
-      render: (row) => (
-        <span className="badge badge-purple text-xs font-bold uppercase">{row.jenis_sumber || 'SIAKAD'}</span>
-      ),
-    },
-    {
       key: 'keterangan',
-      label: 'KETERANGAN BUKTI JURNAL',
+      label: 'SUMBER & URAIAN TRANSAKSI',
       render: (row) => (
-        <span className="font-medium text-slate-800 text-xs line-clamp-1">{row.keterangan || '-'}</span>
+        <div>
+          <span className="badge badge-purple text-xs font-bold uppercase">{row.jenis_sumber}</span>
+          <p className="text-xs text-slate-800 font-semibold mt-1 line-clamp-1">{row.keterangan}</p>
+        </div>
       ),
     },
     {
-      key: 'total_debet',
-      label: 'DEBET (RP)',
+      key: 'uang_masuk',
+      label: 'UANG MASUK (+RP)',
       render: (row) => (
-        <span className="font-bold text-emerald-700 tabular-nums text-sm">
-          {formatRupiah(row.total_debet || 0)}
-        </span>
+        row.uang_masuk > 0 ? (
+          <span className="font-bold text-emerald-600 text-sm tabular-nums">
+            + {formatRupiah(row.uang_masuk)}
+          </span>
+        ) : (
+          <span className="text-slate-300 font-mono text-xs">—</span>
+        )
       ),
     },
     {
-      key: 'total_kredit',
-      label: 'KREDIT (RP)',
+      key: 'uang_keluar',
+      label: 'UANG KELUAR (-RP)',
       render: (row) => (
-        <span className="font-bold text-slate-900 tabular-nums text-sm">
-          {formatRupiah(row.total_kredit || 0)}
-        </span>
+        row.uang_keluar > 0 ? (
+          <span className="font-bold text-rose-600 text-sm tabular-nums">
+            - {formatRupiah(row.uang_keluar)}
+          </span>
+        ) : (
+          <span className="text-slate-300 font-mono text-xs">—</span>
+        )
       ),
     },
     {
@@ -224,7 +276,7 @@ export default function AkuntansiPage() {
       label: 'STATUS',
       render: () => (
         <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
-          <CheckCircle2 size={12} /> Posted
+          <CheckCircle2 size={12} /> Lunas / Posted
         </span>
       ),
     },
@@ -266,8 +318,8 @@ export default function AkuntansiPage() {
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
       <PageHeader
-        title="Akuntansi Keuangan & Buku Besar"
-        description="Pencatatan Jurnal Umum, Penyesuaian, Chart of Accounts (COA), dan Laporan Keuangan Standar."
+        title="Jurnal Keuangan & Mutasi Kas Kampus"
+        description="Pencatatan arus Uang Masuk (Inflow), Uang Keluar (Outflow), dan Master Kode Akun COA."
         action={
           <div className="flex items-center gap-2.5 flex-wrap">
             <Button
@@ -286,7 +338,7 @@ export default function AkuntansiPage() {
                 onClick={() => setIsJurnalModalOpen(true)}
                 className="font-bold min-h-[40px] px-4 shadow-sm"
               >
-                Entry Jurnal Penyesuaian
+                Catat Transaksi Kas Baru
               </Button>
             )}
 
@@ -304,6 +356,45 @@ export default function AkuntansiPage() {
         }
       />
 
+      {/* Summary Cards: Uang Masuk, Uang Keluar, Saldo Net */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Uang Masuk (+)</p>
+            <p className="text-xl font-extrabold text-emerald-600 mt-1 tabular-nums">
+              + {formatRupiah(totalUangMasuk)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <TrendingUp size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Uang Keluar (-)</p>
+            <p className="text-xl font-extrabold text-rose-600 mt-1 tabular-nums">
+              - {formatRupiah(totalUangKeluar)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <TrendingDown size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Net Mutasi Saldo Kas</p>
+            <p className={`text-xl font-extrabold mt-1 tabular-nums ${netMutasiKas >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
+              {formatRupiah(netMutasiKas)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
+            <Wallet size={20} />
+          </div>
+        </div>
+      </div>
+
       {/* Tabs Bar */}
       <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto pb-1">
         <button
@@ -313,7 +404,7 @@ export default function AkuntansiPage() {
           }`}
         >
           <BookOpen size={15} />
-          Jurnal Umum & Penyesuaian
+          Jurnal Uang Masuk & Keluar
         </button>
 
         <button
@@ -328,7 +419,7 @@ export default function AkuntansiPage() {
       </div>
 
       {activeTab === 'jurnal' && (
-        <DataTable data={filteredJurnal} isLoading={loading} columns={jurnalColumns} emptyMessage="Belum ada data jurnal akuntansi." />
+        <DataTable data={filteredJurnal} isLoading={loading} columns={jurnalColumns} emptyMessage="Belum ada data jurnal keuangan." />
       )}
 
       {activeTab === 'coa' && (
@@ -381,47 +472,37 @@ export default function AkuntansiPage() {
         </form>
       </Modal>
 
-      {/* Modal Entry Jurnal */}
-      <Modal isOpen={isJurnalModalOpen} onClose={() => setIsJurnalModalOpen(false)} title="Entry Jurnal Penyesuaian Baru">
+      {/* Modal Entry Transaksi Kas Baru */}
+      <Modal isOpen={isJurnalModalOpen} onClose={() => setIsJurnalModalOpen(false)} title="Catat Transaksi Keuangan Kas Baru">
         <form onSubmit={jurnalForm.handleSubmit(onSubmitJurnal)} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input type="date" label="Tanggal Jurnal *"
-              {...jurnalForm.register('tanggal_jurnal', { required: 'Tanggal wajib diisi' })} />
-            <Select label="Jenis Sumber Transaksi *"
+            <Select label="Jenis Transaksi *"
               options={[
-                { value: 'penyesuaian', label: 'Jurnal Penyesuaian' },
-                { value: 'operasional', label: 'Jurnal Operasional' },
-                { value: 'koreksi', label: 'Jurnal Koreksi' },
+                { value: 'pemasukan', label: '🟢 Uang Masuk (Inflow / Penerimaan)' },
+                { value: 'pengeluaran', label: '🔴 Uang Keluar (Outflow / Belanja)' },
+                { value: 'penyesuaian', label: '🔵 Jurnal Penyesuaian Akuntansi' },
               ]}
-              value={jurnalForm.watch('jenis_sumber')}
-              onChange={(val) => jurnalForm.setValue('jenis_sumber', val as string)} />
+              value={tipeTxWatch}
+              onChange={(val) => jurnalForm.setValue('tipe_transaksi', val as any)} />
+
+            <Input type="date" label="Tanggal Transaksi *"
+              {...jurnalForm.register('tanggal_jurnal', { required: 'Tanggal wajib diisi' })} />
           </div>
 
-          <Textarea label="Keterangan Jurnal *" placeholder="Penjelasan transaksi jurnal..."
-            {...jurnalForm.register('keterangan', { required: 'Keterangan wajib diisi' })} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input type="number" label="Nominal Uang (Rp) *" placeholder="1000000"
+              {...jurnalForm.register('nominal', { required: 'Nominal wajib diisi', valueAsNumber: true, min: { value: 1, message: 'Nominal harus lebih dari 0' } })}
+              error={jurnalForm.formState.errors.nominal?.message} />
 
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
-            <p className="text-xs font-bold text-slate-800">Entri Pasangan Debet & Kredit (Balanced):</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select label="Akun Debet *"
-                options={coaList.map(c => ({ value: c.id.toString(), label: `[${c.kode_akun}] ${c.nama_akun}` }))}
-                value={jurnalForm.watch('akun_debet_id')?.toString() || '1'}
-                onChange={(val) => jurnalForm.setValue('akun_debet_id', Number(val))} />
-
-              <Input type="number" label="Nominal Debet (Rp) *" placeholder="1000000"
-                {...jurnalForm.register('nominal_debet', { required: true, valueAsNumber: true })} />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select label="Akun Kredit *"
-                options={coaList.map(c => ({ value: c.id.toString(), label: `[${c.kode_akun}] ${c.nama_akun}` }))}
-                value={jurnalForm.watch('akun_kredit_id')?.toString() || '2'}
-                onChange={(val) => jurnalForm.setValue('akun_kredit_id', Number(val))} />
-
-              <Input type="number" label="Nominal Kredit (Rp) *" placeholder="1000000"
-                {...jurnalForm.register('nominal_kredit', { required: true, valueAsNumber: true })} />
-            </div>
+            <Select label="Rekening / Kas Terkait *"
+              options={coaList.map(c => ({ value: c.id.toString(), label: `[${c.kode_akun}] ${c.nama_akun}` }))}
+              value={jurnalForm.watch('akun_kas_id')?.toString() || '1'}
+              onChange={(val) => jurnalForm.setValue('akun_kas_id', Number(val))} />
           </div>
+
+          <Textarea label="Keterangan & Peruntukan Uang *" placeholder="Contoh: Penerimaan pembayaran sewa kantin semester ganjil..."
+            {...jurnalForm.register('keterangan', { required: 'Keterangan wajib diisi' })}
+            error={jurnalForm.formState.errors.keterangan?.message} />
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
             <Button type="button" variant="ghost" onClick={() => setIsJurnalModalOpen(false)} disabled={submitting} className="font-bold text-slate-600">
@@ -430,27 +511,36 @@ export default function AkuntansiPage() {
             <Button type="submit" variant="primary" disabled={submitting}
               icon={submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
               className="font-bold shadow-md">
-              {submitting ? 'Simpan Jurnal...' : 'Post Jurnal Penyesuaian'}
+              {submitting ? 'Menyimpan...' : 'Simpan Transaksi Kas'}
             </Button>
           </div>
         </form>
       </Modal>
 
       {/* Filter Drawer */}
-      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Akuntansi" width="420px"
+      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Jurnal Keuangan" width="420px"
         footer={
           <div className="flex items-center justify-between gap-3">
-            <Button type="button" variant="outline" onClick={() => { setFilterSearch(''); setAppliedSearch(''); setShowFilter(false); }} className="font-bold text-slate-600 min-h-[42px] px-4">
+            <Button type="button" variant="outline" onClick={handleResetFilter} className="font-bold text-slate-600 min-h-[42px] px-4">
               Reset
             </Button>
-            <Button type="button" variant="primary" onClick={() => { setAppliedSearch(filterSearch); setShowFilter(false); }} className="font-bold min-h-[42px] px-5 shadow-md">
+            <Button type="button" variant="primary" onClick={handleApplyFilter} className="font-bold min-h-[42px] px-5 shadow-md">
               Terapkan Filter
             </Button>
           </div>
         }>
         <div className="space-y-5">
-          <Input label="Cari Nomor Jurnal / Kode Akun / Keterangan" placeholder="Ketik kata kunci..."
+          <Input label="Cari Nomor Jurnal / Keterangan" placeholder="Ketik kata kunci..."
             value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
+
+          <Select label="Filter Tipe Transaksi"
+            value={filterTipe}
+            onChange={(val) => setFilterTipe(val as string)}
+            options={[
+              { value: 'all', label: 'Semua Transaksi' },
+              { value: 'masuk', label: 'Hanya Uang Masuk (+)' },
+              { value: 'keluar', label: 'Hanya Uang Keluar (-)' },
+            ]} />
         </div>
       </Drawer>
     </div>
