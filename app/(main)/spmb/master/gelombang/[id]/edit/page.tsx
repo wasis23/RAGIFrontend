@@ -134,10 +134,15 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
 
         const rawTarifList = sikeuRes?.data || [];
         if (Array.isArray(rawTarifList)) {
-          const mapped = rawTarifList.map((t: any) => ({
-            value: Math.round(Number(t.nominal || t.nominal_tarif)).toString(),
-            label: `${t.jenis_biaya?.kode || t.kode || 'SIKEU'} - ${t.nama || t.jenis_biaya?.nama || 'Biaya Pendaftaran SPMB'} (Rp ${new Intl.NumberFormat('id-ID').format(Number(t.nominal || t.nominal_tarif || 0))})`
-          }));
+          const mapped = rawTarifList.map((t: any) => {
+            const nominal = Number(t.nominal_standar ?? t.nominal ?? t.nominal_tarif ?? 0);
+            const kode = t.kode || t.jenis_biaya?.kode || 'SIKEU';
+            const nama = t.nama || t.jenis_biaya?.nama || 'Biaya Pendaftaran SPMB';
+            return {
+              value: Math.round(nominal).toString(),
+              label: `[${kode}] ${nama} (Rp ${new Intl.NumberFormat('id-ID').format(nominal)})`
+            };
+          });
           setSikeuTarifOptions(mapped);
         }
       } catch (error) {

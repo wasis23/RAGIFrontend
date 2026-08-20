@@ -218,8 +218,12 @@ export const spmbService = {
 
   getSikeuTarifList: async () => {
     try {
-      const response = await api.get('/sikeu/master/tarif-spmb');
-      return response.data;
+      const response = await api.get('/sikeu/master/jenis-biaya?module=spmb');
+      if (response.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
+        return response.data;
+      }
+      const fallback = await api.get('/sikeu/master/tarif-spmb');
+      return fallback.data;
     } catch {
       return { status: 'success', data: [] };
     }
