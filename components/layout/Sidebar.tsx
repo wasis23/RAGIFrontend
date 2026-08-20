@@ -73,39 +73,13 @@ const getIcon = (iconName: string) => {
   return <IconComponent className="sidebar-item-icon" />;
 };
 
-const SINAPRA_FALLBACK_MENUS: Menu[] = [
-  { id: 901, parent_id: null, name: 'Gedung & Ruangan', url: '/sinapra/gedung-ruangan', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
-  { id: 902, parent_id: null, name: 'Inventaris Aset', url: '/sinapra/aset', icon: 'FaBoxes', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
-  { id: 903, parent_id: null, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
-  { id: 904, parent_id: null, name: 'Maintenance', url: '/sinapra/maintenance', icon: 'FaWrench', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
-  { id: 905, parent_id: null, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
-];
-
-const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [
-  { id: 801, parent_id: null, name: 'Dashboard Saya', url: '/spmb/dashboard', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
-  { id: 802, parent_id: null, name: 'Formulir Pendaftaran', url: '/spmb/registrasi', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
-  { id: 803, parent_id: null, name: 'Kartu & Jadwal Ujian', url: '/spmb/registrasi', icon: 'FaFileCheck', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
-  { id: 804, parent_id: null, name: 'Pengumuman Seleksi', url: '/spmb/registrasi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab');
   
   const { sidebar_open, toggleSidebar } = useUiStore();
-  const { user, isSuperAdmin, isAdmin } = useAuth();
-
-  const userRoleSlugs = (user?.roles || []).map((r: any) =>
-    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
-  );
-
-  const isPanitiaAdmin =
-    isSuperAdmin ||
-    isAdmin ||
-    userRoleSlugs.some((slug) =>
-      ['admin', 'superadmin', 'super-admin', 'admin_spmb', 'panitia_spmb', 'operator_spmb', 'admin_iam'].includes(slug)
-    );
+  const { user } = useAuth();
 
   const [ssoPanelOpen, setSsoPanelOpen] = useState(pathname.startsWith('/admin'));
   
@@ -146,40 +120,20 @@ export function Sidebar() {
       const fetchMenus = async () => {
         try {
           const mod = getModule();
-          if (mod === 'spmb' && !isPanitiaAdmin) {
-            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
-            return;
-          }
-
           const menus = await menuService.getMyMenus(mod);
-          if (menus && menus.length > 0) {
-            setDynamicMenus(menus);
-          } else if (mod === 'sinapra') {
-            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
-          } else {
-            setDynamicMenus([]);
-          }
+          setDynamicMenus(menus || []);
         } catch (error) {
           console.error("Failed to load menus", error);
-          if (getModule() === 'spmb' && !isPanitiaAdmin) {
-            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
-          } else if (getModule() === 'sinapra') {
-            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
-          }
+          setDynamicMenus([]);
         } finally {
           setLoading(false);
         }
       };
       fetchMenus();
     } else {
-      if (getModule() === 'spmb' && !isPanitiaAdmin) {
-        setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
-      } else if (getModule() === 'sinapra') {
-        setDynamicMenus(SINAPRA_FALLBACK_MENUS);
-      }
       setLoading(false);
     }
-  }, [user, pathname, isPanitiaAdmin]);
+  }, [user, pathname]);
 
   const isMainActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 
