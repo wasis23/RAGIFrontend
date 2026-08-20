@@ -1,281 +1,215 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Calculator } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { useForm } from 'react-hook-form';
+
+interface UnitKas {
+  id: number;
+  nama_kas: string;
+}
+
+interface FormValues {
+  kategori: string;
+  nominal: number;
+  tanggal_transaksi: string;
+  nama_vendor: string;
+  npwp_vendor: string;
+  jenis_pajak: string;
+  tarif_pajak_persen: number;
+  unit_kas_id: number;
+  keterangan: string;
+}
+
+const formatRupiah = (val: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export default function CreatePengeluaranPage() {
   const router = useRouter();
+  const [unitKasList, setUnitKasList] = useState<UnitKas[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
-    kategori: 'operasional',
-    nominal: '',
-    tanggal_transaksi: new Date().toISOString().split('T')[0],
-    nama_vendor: '',
-    npwp_vendor: '',
-    jenis_pajak: 'tanpa_pajak',
-    tarif_pajak_persen: '0',
-    unit_kas_id: '',
-    keterangan: '',
-    file_bukti_bayar: '',
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
+    defaultValues: {
+      kategori: 'operasional',
+      nominal: 5000000,
+      tanggal_transaksi: new Date().toISOString().split('T')[0],
+      nama_vendor: '',
+      npwp_vendor: '',
+      jenis_pajak: 'tanpa_pajak',
+      tarif_pajak_persen: 0,
+      unit_kas_id: 1,
+      keterangan: '',
+    },
   });
 
-  const [unitKasList, setUnitKasList] = useState<any[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const nominalVal = watch('nominal') || 0;
+  const jenisPajakVal = watch('jenis_pajak');
+  const tarifPajakVal = watch('tarif_pajak_persen') || 0;
+
+  const nominalPajak = (nominalVal * tarifPajakVal) / 100;
+  const netDibayarkan = (jenisPajakVal === 'pph_21' || jenisPajakVal === 'pph_23')
+    ? nominalVal - nominalPajak
+    : nominalVal;
 
   useEffect(() => {
     const fetchUnitKas = async () => {
       try {
         const res = await sikeuService.getUnitKasList();
-        const unitKas = res.data;
-        if (unitKas) {
-          setUnitKasList(unitKas);
-          if (unitKas.length > 0) {
-            setFormData(prev => ({ ...prev, unit_kas_id: unitKas[0].id.toString() }));
-          }
+        const list = Array.isArray(res.data) ? res.data : [];
+        setUnitKasList(list);
+        if (list.length > 0) {
+          setValue('unit_kas_id', list[0].id);
         }
-      } catch (e) {
-        console.error('Failed to load unit kas', e);
+      } catch {
+        setUnitKasList([]);
       }
     };
     fetchUnitKas();
-  }, []);
+  }, [setValue]);
 
-  const nominalVal = Number(formData.nominal) || 0;
-  const tarifVal = Number(formData.tarif_pajak_persen) || 0;
-  const nominalPajak = (nominalVal * tarifVal) / 100;
-  const netDibayarkan = (formData.jenis_pajak === 'pph_21' || formData.jenis_pajak === 'pph_23')
-    ? nominalVal - nominalPajak
-    : nominalVal;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const onSubmitForm = async (formData: FormValues) => {
     setSubmitting(true);
-
     try {
       await sikeuService.storePengeluaran({
         kategori: formData.kategori,
-        nominal: nominalVal,
+        nominal: formData.nominal,
         tanggal_transaksi: formData.tanggal_transaksi,
         nama_vendor: formData.nama_vendor,
         npwp_vendor: formData.npwp_vendor || undefined,
         jenis_pajak: formData.jenis_pajak,
-        unit_kas_id: formData.unit_kas_id ? Number(formData.unit_kas_id) : undefined,
+        unit_kas_id: formData.unit_kas_id,
         keterangan: formData.keterangan || undefined,
       });
-
+      toast.success('Transaksi pengeluaran kampus berhasil dicatat!');
       router.push('/sikeu/pengeluaran');
-    } catch (err: any) {
-      setError(err.message || 'Gagal menyimpan transaksi pengeluaran');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Gagal menyimpan transaksi pengeluaran');
+    } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Header & Back Button */}
-      <div className="flex items-center justify-between card p-6">
-        <div className="flex items-center gap-3">
-          <Link href="/sikeu/pengeluaran" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition" title="Kembali">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="badge badge-red">
-                Form Pengeluaran Baru
-              </span>
-              <span className="badge badge-gray">
-                Auto Debet Kas & Balanced Journal
-              </span>
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+      <PageHeader
+        title="Input Transaksi Pengeluaran Kampus"
+        description="Pencatatan beban operasional, vendor, honorarium & perhitungan pajak PPh/PPN."
+        action={
+          <Button
+            variant="outline"
+            icon={<ArrowLeft size={16} />}
+            onClick={() => router.push('/sikeu/pengeluaran')}
+            className="font-bold min-h-[40px]"
+          >
+            Kembali
+          </Button>
+        }
+      />
+
+      <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-6">
+        <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Kategori Pengeluaran *"
+              options={[
+                { value: 'operasional', label: 'Operasional Kantor / Fakultas' },
+                { value: 'gaji', label: 'Payroll Gaji / Honorarium' },
+                { value: 'pembelian', label: 'Pembelian Aset & Alat Kampus' },
+                { value: 'praktikum', label: 'Bahan Laboratorium / Praktikum' },
+              ]}
+              value={watch('kategori')}
+              onChange={(val) => setValue('kategori', val as string)}
+            />
+
+            <Select
+              label="Sumber Kas / Rekening Pembayar *"
+              options={unitKasList.map(u => ({ value: u.id.toString(), label: u.nama_kas }))}
+              value={watch('unit_kas_id')?.toString() || '1'}
+              onChange={(val) => setValue('unit_kas_id', Number(val))}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input type="number" label="Nominal Gross Pengeluaran (Rp) *" placeholder="5000000"
+              {...register('nominal', { required: 'Nominal wajib diisi', valueAsNumber: true, min: { value: 1, message: 'Nominal harus lebih dari 0' } })}
+              error={errors.nominal?.message} />
+
+            <Input type="date" label="Tanggal Transaksi *"
+              {...register('tanggal_transaksi', { required: 'Tanggal wajib diisi' })}
+              error={errors.tanggal_transaksi?.message} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Nama Vendor / Penerima *" placeholder="Contoh: PT Mediatama Digital"
+              {...register('nama_vendor', { required: 'Nama vendor wajib diisi' })}
+              error={errors.nama_vendor?.message} />
+
+            <Input label="NPWP Vendor (Opsional)" placeholder="Contoh: 01.234.567.8-012.000"
+              {...register('npwp_vendor')} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Jenis Potongan Pajak *"
+              options={[
+                { value: 'tanpa_pajak', label: 'Tanpa Potongan Pajak' },
+                { value: 'pph_21', label: 'PPh Pasal 21 (Gaji/Honor)' },
+                { value: 'pph_23', label: 'PPh Pasal 23 (Jasa/Sewa)' },
+                { value: 'ppn_11', label: 'PPN 11%' },
+              ]}
+              value={jenisPajakVal}
+              onChange={(val) => setValue('jenis_pajak', val as string)}
+            />
+
+            <Input type="number" label="Tarif Pajak (%)" placeholder="0"
+              {...register('tarif_pajak_persen', { valueAsNumber: true })} />
+          </div>
+
+          {/* Tax Calculation Live Box */}
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+              <Calculator size={16} className="text-primary-600" />
+              <span>Rincian Kalkulasi Pajak & Net Pembayaran:</span>
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Input Transaksi Pengeluaran Kampus</h1>
-            <p className="text-xs text-slate-500">
-              Pencatatan beban operasional, pemeliharaan, barang/jasa, vendor & perhitungan pajak PPh/PPN
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-xs font-semibold flex items-center gap-2">
-          <AlertCircle size={16} /> {error}
-        </div>
-      )}
-
-      {/* Form with 3-Column Grid per crud-ui-standard */}
-      <form onSubmit={handleSubmit} className="card p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Input 1: Kategori Pengeluaran */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Kategori Pengeluaran <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={formData.kategori}
-              onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-              className="select select-sm"
-              required
-            >
-              <option value="operasional">Beban Operasional Kampus</option>
-              <option value="pemeliharaan">Beban Pemeliharaan Sarana/Lab</option>
-              <option value="laboratorium">Beban Alat & Praktikum Lab</option>
-              <option value="kegiatan">Beban Kegiatan & Acara</option>
-              <option value="honorarium">Honorarium Dosen/Narasumber</option>
-              <option value="lainnya">Pengeluaran Lainnya</option>
-            </select>
-          </div>
-
-          {/* Input 2: Nominal Transaksi */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Gross Nominal (Rp) <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="number"
-              value={formData.nominal}
-              onChange={(e) => setFormData({ ...formData, nominal: e.target.value })}
-              placeholder="Contoh: 15000000"
-              className="w-full text-xs font-mono font-bold border border-slate-200 rounded-xl p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
-              required
-              min={1000}
-            />
-          </div>
-
-          {/* Input 3: Tanggal Transaksi */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Tanggal Transaksi <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="date"
-              value={formData.tanggal_transaksi}
-              onChange={(e) => setFormData({ ...formData, tanggal_transaksi: e.target.value })}
-              className="select select-sm"
-              required
-            />
-          </div>
-
-          {/* Input 4: Jenis Pajak */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Jenis Potongan Pajak
-            </label>
-            <select
-              value={formData.jenis_pajak}
-              onChange={(e) => {
-                const jenis = e.target.value;
-                let tarif = '0';
-                if (jenis === 'pph_21') tarif = '5';
-                if (jenis === 'pph_23') tarif = '2';
-                if (jenis === 'ppn_11') tarif = '11';
-                setFormData({ ...formData, jenis_pajak: jenis, tarif_pajak_persen: tarif });
-              }}
-              className="select select-sm"
-            >
-              <option value="tanpa_pajak">Tanpa Pajak</option>
-              <option value="pph_21">PPh 21 (Honorarium SDM - 5%)</option>
-              <option value="pph_23">PPh 23 (Jasa Vendor - 2%)</option>
-              <option value="ppn_11">PPN (11%)</option>
-            </select>
-          </div>
-
-          {/* Input 5: Unit Kas Sumber Dana */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Sumber Unit Kas
-            </label>
-            <select
-              value={formData.unit_kas_id}
-              onChange={(e) => setFormData({ ...formData, unit_kas_id: e.target.value })}
-              className="select select-sm"
-            >
-              {unitKasList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nama_kas} (Saldo: Rp {Number(k.saldo_saat_ini || 0).toLocaleString('id-ID')})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Input 6: Nama Vendor */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Nama Rekanan / Vendor <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.nama_vendor}
-              onChange={(e) => setFormData({ ...formData, nama_vendor: e.target.value })}
-              placeholder="PT Solusi Lab Utama / Nama Dosen"
-              className="select select-sm"
-              required
-            />
-          </div>
-
-          {/* Input 7: NPWP Vendor */}
-          <div className="lg:col-span-1">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              NPWP Rekanan (Opsional)
-            </label>
-            <input
-              type="text"
-              value={formData.npwp_vendor}
-              onChange={(e) => setFormData({ ...formData, npwp_vendor: e.target.value })}
-              placeholder="01.234.567.8-901.000"
-              className="select select-sm"
-            />
-          </div>
-
-          {/* Input 8: Keterangan (Span 2 Columns) */}
-          <div className="lg:col-span-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Uraian Rinci Pengeluaran
-            </label>
-            <input
-              type="text"
-              value={formData.keterangan}
-              onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
-              placeholder="Pembelian Router Cisco Core & Kabel UTP Cat6 Lab TI..."
-              className="select select-sm"
-            />
-          </div>
-
-          {/* Tax Calculation Box (Span 3 Columns) */}
-          <div className="lg:col-span-3 p-4 bg-amber-50 rounded-2xl border border-amber-200 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-              <span className="text-xs font-extrabold text-amber-800 uppercase tracking-wider">Kalkulasi Pemotongan Pajak Otomatis</span>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Potongan Pajak: <strong className="text-amber-800 font-mono">Rp {nominalPajak.toLocaleString('id-ID')} ({formData.tarif_pajak_persen}%)</strong> &mdash; otomatis tercatat di modul Perpajakan SIKEU.
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs font-semibold text-slate-600">Net Pengeluaran Kas:</span>
-              <div className="text-xl font-extrabold text-slate-900 font-mono">
-                Rp {netDibayarkan.toLocaleString('id-ID')}
+            <div className="grid grid-cols-3 gap-2 pt-1 text-xs">
+              <div>
+                <p className="text-2xs text-slate-500">Gross Nominal:</p>
+                <p className="font-bold text-slate-900 tabular-nums">{formatRupiah(nominalVal)}</p>
+              </div>
+              <div>
+                <p className="text-2xs text-slate-500">Nilai Pajak Terutang:</p>
+                <p className="font-bold text-rose-600 tabular-nums">{formatRupiah(nominalPajak)}</p>
+              </div>
+              <div>
+                <p className="text-2xs text-slate-500">Net Dibayarkan ke Vendor:</p>
+                <p className="font-bold text-emerald-700 tabular-nums">{formatRupiah(netDibayarkan)}</p>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-          <Link
-            href="/sikeu/pengeluaran"
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition"
-          >
-            Batal
-          </Link>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="btn btn-primary disabled:opacity-50"
-          >
-            <Save size={16} /> {submitting ? 'Menyimpan Transaksi...' : 'Simpan Transaksi Pengeluaran'}
-          </button>
+          <Textarea label="Deskripsi Transaksi & Keterangan *" placeholder="Penjelasan mengenai peruntukan pengeluaran..."
+            {...register('keterangan', { required: 'Keterangan wajib diisi' })}
+            error={errors.keterangan?.message} />
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button type="button" variant="ghost" onClick={() => router.push('/sikeu/pengeluaran')} disabled={submitting} className="font-bold text-slate-600">
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" disabled={submitting}
+              icon={submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              className="font-bold shadow-md min-h-[44px] px-6">
+              {submitting ? 'Menyimpan...' : 'Simpan Transaksi Pengeluaran'}
+            </Button>
+          </div>
         </div>
       </form>
     </div>
