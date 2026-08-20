@@ -209,10 +209,13 @@ export default function DataPendaftarPage() {
 
   const [paginationMeta, setPaginationMeta] = useState<any>(null);
 
+  const [isForbidden, setIsForbidden] = useState(false);
+
   // Fetch Pendaftaran list with server-side pagination
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setIsForbidden(false);
       const queryParams: any = {
         page,
         per_page: perPage,
@@ -259,7 +262,11 @@ export default function DataPendaftarPage() {
         });
       }
     } catch (error: any) {
-      toast.error(error.message || 'Gagal memuat data pendaftar');
+      if (error?.response?.status === 403 || error?.response?.status === 404 || error?.status === 403) {
+        setIsForbidden(true);
+      } else {
+        toast.error(error.message || 'Gagal memuat data pendaftar');
+      }
     } finally {
       setLoading(false);
     }
@@ -322,6 +329,24 @@ export default function DataPendaftarPage() {
       setUpdateStatusLoading(false);
     }
   };
+
+  if (isForbidden) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center p-6 animate-fade-in">
+        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4 border border-red-100 shadow-2xs">
+          <AlertCircle size={32} />
+        </div>
+        <h1 className="text-4xl font-black text-slate-800 mb-1">404</h1>
+        <h2 className="text-lg font-bold text-slate-700 mb-2">Halaman Tidak Ditemukan</h2>
+        <p className="text-slate-500 text-sm max-w-md mb-6">
+          Halaman ini tidak tersedia atau Anda tidak memiliki hak akses yang dikonfigurasikan untuk role Anda.
+        </p>
+        <Button variant="primary" onClick={() => router.push('/spmb/dashboard')}>
+          Kembali ke Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in space-y-6 max-w-7xl mx-auto pb-12">
