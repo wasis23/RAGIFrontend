@@ -288,7 +288,23 @@ export function Sidebar() {
             return children.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
           };
 
-          const activeDynamicMenus = dynamicMenus.filter(menu => {
+          // Deduplicate menus by normalized URL or Name
+          const uniqueDynamicMenus: Menu[] = [];
+          const seenKeys = new Set<string>();
+
+          for (const menu of dynamicMenus) {
+            const normalizedUrl = menu.url.replace(/\/$/, '');
+            const key = menu.url.startsWith('#')
+              ? `header|${menu.name.toLowerCase().trim()}`
+              : `link|${menu.name.toLowerCase().trim()}|${normalizedUrl.replace('/dashboard', '')}`;
+            
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              uniqueDynamicMenus.push(menu);
+            }
+          }
+
+          const activeDynamicMenus = uniqueDynamicMenus.filter(menu => {
             if (menu.url.startsWith('#')) {
               return filterMenuChildren(menu.children).length > 0;
             }
