@@ -37,6 +37,7 @@ export default function SPMBDashboardPage() {
   const { user } = useAuth();
   const [pendaftaran, setPendaftaran] = useState<PendaftaranCalonMhs | null>(null);
   const [gelombangList, setGelombangList] = useState<GelombangPenerimaan[]>([]);
+  const [prodiList, setProdiList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -46,9 +47,10 @@ export default function SPMBDashboardPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [pendaftaranRes, gelombangRes] = await Promise.all([
+      const [pendaftaranRes, gelombangRes, prodiRes] = await Promise.all([
         spmbService.getMyPendaftaran().catch(() => null),
         spmbService.getGelombang().catch(() => null),
+        spmbService.getProgramStudi().catch(() => null),
       ]);
 
       if (pendaftaranRes?.data?.pendaftaran) {
@@ -62,6 +64,13 @@ export default function SPMBDashboardPage() {
           ? gelombangRes.data
           : gelombangRes.data.data || [];
         setGelombangList(list);
+      }
+
+      if (prodiRes?.data) {
+        const pList = Array.isArray(prodiRes.data)
+          ? prodiRes.data
+          : prodiRes.data.data || [];
+        setProdiList(pList);
       }
     } catch (e) {
       console.error(e);
@@ -304,8 +313,18 @@ export default function SPMBDashboardPage() {
               <GraduationCap size={18} />
             </div>
           </div>
-          <div className="spmb-kpi-value">
-            {pendaftaran?.program_studi_id ? `Prodi #${pendaftaran.program_studi_id}` : 'Belum Dipilih'}
+          <div className="spmb-kpi-value text-sm sm:text-base font-bold text-slate-900 truncate" title={
+            (pendaftaran as any)?.program_studi?.nama ||
+            (pendaftaran as any)?.program_studi?.nama_prodi ||
+            prodiList.find((p) => String(p.id) === String(pendaftaran?.program_studi_id))?.nama ||
+            ''
+          }>
+            {
+              (pendaftaran as any)?.program_studi?.nama ||
+              (pendaftaran as any)?.program_studi?.nama_prodi ||
+              prodiList.find((p) => String(p.id) === String(pendaftaran?.program_studi_id))?.nama ||
+              (pendaftaran?.program_studi_id ? `Prodi #${pendaftaran.program_studi_id}` : 'Belum Dipilih')
+            }
           </div>
           <div className="spmb-kpi-sub">Pilihan Utama</div>
         </div>
