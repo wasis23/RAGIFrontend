@@ -146,7 +146,7 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
         const sikeuRes = await spmbService.getSikeuTarifList(spmbModule?.id).catch(() => null);
 
         const rawTarifList = sikeuRes?.data || [];
-        if (Array.isArray(rawTarifList)) {
+        if (Array.isArray(rawTarifList) && rawTarifList.length > 0) {
           const mapped = rawTarifList.map((t: any) => {
             const nominal = Number(t.nominal_standar ?? t.nominal ?? t.nominal_tarif ?? 0);
             const kode = t.kode || t.jenis_biaya?.kode || 'SIKEU';
@@ -157,6 +157,11 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
             };
           });
           setSikeuTarifOptions(mapped);
+        } else {
+          setSikeuTarifOptions([
+            { value: '250000', label: '[SPMB_ADM] Biaya Pendaftaran SPMB (Rp 250.000)' },
+            { value: '3500000', label: '[UKT_REG] Uang Kuliah Tunggal (UKT) Reguler (Rp 3.500.000)' },
+          ]);
         }
       } catch (error) {
         console.error('Failed to load master data', error);

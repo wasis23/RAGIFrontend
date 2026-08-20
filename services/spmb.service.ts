@@ -223,6 +223,10 @@ export const spmbService = {
       if (response.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
         return response.data;
       }
+      const allBiaya = await api.get('/sikeu/master/jenis-biaya');
+      if (allBiaya.data && Array.isArray(allBiaya.data.data) && allBiaya.data.data.length > 0) {
+        return allBiaya.data;
+      }
       const fallback = await api.get('/sikeu/master/tarif-spmb');
       return fallback.data;
     } catch {
