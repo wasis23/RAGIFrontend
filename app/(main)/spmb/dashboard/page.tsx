@@ -643,220 +643,385 @@ function SPMBAdminDashboardView({
   isLoading: boolean;
 }) {
   const totalCount = adminPendaftarList.length;
-  const lunasCount = adminPendaftarList.filter(p => p.status_pembayaran === 'lunas').length;
-  const verifiedCount = adminPendaftarList.filter(p => p.status === 'verified' || p.status === 'lulus_administrasi').length;
-  const activeGelombang = gelombangList.find(g => g.status === 'aktif') || gelombangList[0];
+  const lunasCount = adminPendaftarList.filter((p) => p.status_pembayaran === 'lunas').length;
+  const verifiedCount = adminPendaftarList.filter(
+    (p) => p.status === 'verified' || p.status === 'lulus_administrasi'
+  ).length;
+  const activeGelombang = gelombangList.find((g) => g.status === 'aktif') || gelombangList[0];
 
   return (
-    <div className="space-y-6">
-      {/* Hero Banner Panitia Admin */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-indigo-800/40 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -z-0 pointer-events-none" />
-        
-        <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold">
-            <ShieldCheck size={14} /> Panel Administrasi SPMB Kampus
+    <div className="space-y-6 sm:space-y-8 animate-fade-in">
+      {/* ── 1. Page Header Enterprise ─────────────────────────────── */}
+      <PageHeader
+        title="Dashboard Eksekutif SPMB"
+        description="Portal pusat pemantauan pendaftaran mahasiswa baru, verifikasi formulir, dan penetapan hasil seleksi"
+      />
+
+      {/* ── 2. Executive Hero Banner ───────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 md:p-10 border border-indigo-800/40 shadow-xl">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-0" />
+        <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-2xl pointer-events-none -z-0" />
+
+        <div className="relative z-10 space-y-4 max-w-4xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold tracking-wide">
+            <ShieldCheck size={14} className="shrink-0" />
+            <span>Panel Administrasi &amp; Panitia SPMB Kampus</span>
           </div>
 
-          <div className="space-y-1.5">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Dashboard Eksekutif Panitia &amp; Admin SPMB
+          <div className="space-y-2">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              Penerimaan Mahasiswa Baru
             </h1>
-            <p className="text-slate-300 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed">
-              Pantau arus pendaftaran penerimaan mahasiswa baru, status pembayaran formulir, verifikasi kelengkapan berkas, dan penetapan hasil seleksi secara real-time.
+            <p className="text-slate-300 text-xs sm:text-sm md:text-base leading-relaxed font-medium max-w-3xl">
+              Pantau arus calon pendaftar, status kelulusan berkas administrasi, konfirmasi pembayaran formulir, dan jalannya ujian seleksi secara terintegrasi.
             </p>
           </div>
 
-          <div className="flex items-center gap-3 pt-2 flex-wrap">
+          {/* Action Links (Mobile-first Touch Target >= 44px) */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3">
             <Link
               href="/spmb/pendaftaran"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary-600 hover:bg-primary-500 active:bg-primary-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all min-h-[44px]"
             >
-              <Users size={16} /> Kelola Pendaftar ({totalCount})
+              <Users size={18} />
+              <span>Kelola Data Pendaftar ({totalCount})</span>
             </Link>
+
             <Link
               href="/spmb/pembayaran"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white font-bold text-sm border border-white/20 transition-all min-h-[44px]"
             >
-              <CreditCard size={16} /> Verifikasi Pembayaran
+              <CreditCard size={18} />
+              <span>Verifikasi Pembayaran</span>
             </Link>
+
             <Link
               href="/spmb/ujian/jadwal"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition-all"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 text-white font-bold text-sm border border-white/20 transition-all min-h-[44px]"
             >
-              <Calendar size={16} /> Jadwal Ujian CAT
+              <Calendar size={18} />
+              <span>Jadwal Ujian CAT</span>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="spmb-kpi-card card">
-          <div className="spmb-kpi-top">
-            <span className="spmb-kpi-label">Total Calon Pendaftar</span>
-            <div className="spmb-kpi-icon stat-icon-blue">
-              <Users size={18} />
+      {/* ── 3. KPI Statistics Grid ─────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        {/* KPI Card 1 */}
+        <div className="card p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Calon Pendaftar</span>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <Users size={20} />
             </div>
           </div>
-          <div className="spmb-kpi-value">{totalCount} Calon Mhs</div>
-          <div className="spmb-kpi-sub">Terdaftar di Sistem SPMB</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {isLoading ? <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-md" /> : `${totalCount} Mhs`}
+          </div>
+          <p className="text-2xs sm:text-xs text-slate-500 font-medium mt-1">
+            Terdaftar di sistem SPMB kampus
+          </p>
         </div>
 
-        <div className="spmb-kpi-card card">
-          <div className="spmb-kpi-top">
-            <span className="spmb-kpi-label">Verifikasi Pembayaran</span>
-            <div className="spmb-kpi-icon stat-icon-green">
-              <CreditCard size={18} />
+        {/* KPI Card 2 */}
+        <div className="card p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Formulir Lunas</span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <CreditCard size={20} />
             </div>
           </div>
-          <div className="spmb-kpi-value">{lunasCount} Formulir Lunas</div>
-          <div className="spmb-kpi-sub">{totalCount - lunasCount} Menunggu Pembayaran</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {isLoading ? <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-md" /> : `${lunasCount} Lunas`}
+          </div>
+          <p className="text-2xs sm:text-xs text-slate-500 font-medium mt-1">
+            {totalCount - lunasCount} calon mhs belum bayar
+          </p>
         </div>
 
-        <div className="spmb-kpi-card card">
-          <div className="spmb-kpi-top">
-            <span className="spmb-kpi-label">Verifikasi Administrasi</span>
-            <div className="spmb-kpi-icon stat-icon-amber">
-              <FileCheck size={18} />
+        {/* KPI Card 3 */}
+        <div className="card p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Lulus Berkas</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <FileCheck size={20} />
             </div>
           </div>
-          <div className="spmb-kpi-value">{verifiedCount} Lulus Berkas</div>
-          <div className="spmb-kpi-sub">Dari total pendaftar aktif</div>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {isLoading ? <div className="h-8 w-24 bg-slate-100 animate-pulse rounded-md" /> : `${verifiedCount} Verifikasi`}
+          </div>
+          <p className="text-2xs sm:text-xs text-slate-500 font-medium mt-1">
+            Berkas administrasi disetujui
+          </p>
         </div>
 
-        <div className="spmb-kpi-card card">
-          <div className="spmb-kpi-top">
-            <span className="spmb-kpi-label">Gelombang Penerimaan</span>
-            <div className="spmb-kpi-icon stat-icon-indigo">
-              <Calendar size={18} />
+        {/* KPI Card 4 */}
+        <div className="card p-5 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Gelombang Aktif</span>
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <Calendar size={20} />
             </div>
           </div>
-          <div className="spmb-kpi-value truncate" title={activeGelombang?.nama || 'Gelombang 1'}>
-            {activeGelombang?.nama || 'Gelombang 1'}
+          <div className="text-lg sm:text-xl font-bold text-slate-900 truncate" title={activeGelombang?.nama || 'Gelombang 1'}>
+            {isLoading ? <div className="h-7 w-28 bg-slate-100 animate-pulse rounded-md" /> : activeGelombang?.nama || 'Gelombang 1'}
           </div>
-          <div className="spmb-kpi-sub">Status: {activeGelombang?.status === 'aktif' ? 'Sedang Dibuka' : 'Off'}</div>
+          <p className="text-2xs sm:text-xs text-slate-500 font-medium mt-1">
+            Status: {activeGelombang?.status === 'aktif' ? 'Sedang Dibuka' : 'Off / Belum Dibuka'}
+          </p>
         </div>
       </div>
 
-      {/* Main Row: Recent Applicants + Admin Shortcuts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Applicants (2 Columns) */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* ── 4. Main Section: Table Pendaftar Terbaru + Sidebar Shortcuts ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        
+        {/* Left 2-Columns: Data Table / Mobile Card List */}
+        <div className="lg:col-span-2 space-y-6">
           <div className="card overflow-hidden">
-            <div className="card-header border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users size={18} className="text-primary-600" />
-                <h3 className="font-bold text-slate-900 text-base">Pendaftar Terbaru</h3>
+            <div className="card-header border-b border-slate-100 p-4 sm:p-5 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-primary-50 text-primary-600">
+                  <Users size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Pendaftar SPMB Terbaru</h3>
+                  <p className="text-2xs text-slate-500">Calon mahasiswa baru yang mendaftar di sistem</p>
+                </div>
               </div>
-              <Link href="/spmb/pendaftaran" className="text-xs font-semibold text-primary-600 hover:underline">
-                Lihat Semua ({totalCount}) →
+
+              <Link
+                href="/spmb/pendaftaran"
+                className="text-xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg border border-primary-200 transition-colors inline-flex items-center gap-1.5"
+              >
+                <span>Lihat Semua ({totalCount})</span>
+                <ArrowRight size={14} />
               </Link>
             </div>
 
             <div className="card-body p-0">
               {isLoading ? (
-                <div className="p-8 text-center text-slate-400 text-sm">Memuat data pendaftar...</div>
+                <div className="p-8 text-center text-slate-400 space-y-2">
+                  <RefreshCw size={24} className="animate-spin mx-auto text-primary-500" />
+                  <p className="text-sm font-medium">Memuat data pendaftar...</p>
+                </div>
               ) : adminPendaftarList.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 space-y-2">
-                  <Users size={36} className="mx-auto text-slate-300" />
-                  <p className="font-semibold text-sm">Belum Ada Data Pendaftar</p>
-                  <p className="text-xs text-slate-400">Pendaftaran calon mahasiswa baru yang masuk akan muncul di sini.</p>
+                <div className="p-10 text-center text-slate-500 space-y-3">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                    <Users size={28} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-sm">Belum Ada Data Pendaftar</h4>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                      Data pendaftaran calon mahasiswa baru yang masuk ke sistem akan ditampilkan di sini.
+                    </p>
+                  </div>
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100">
-                  {adminPendaftarList.slice(0, 5).map((p) => {
-                    const prodiNama = p.program_studi?.nama || prodiList.find(pr => String(pr.id) === String(p.program_studi_id))?.nama || 'Belum Dipilih';
+                <>
+                  {/* Desktop Table View (hidden on small mobile) */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-xs sm:text-sm">
+                      <thead className="bg-slate-50/80 text-slate-500 font-bold uppercase text-2xs tracking-wider border-b border-slate-100">
+                        <tr>
+                          <th className="py-3.5 px-4">Calon Mahasiswa</th>
+                          <th className="py-3.5 px-4">Program Studi</th>
+                          <th className="py-3.5 px-4">Status Bayar</th>
+                          <th className="py-3.5 px-4 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {adminPendaftarList.slice(0, 6).map((p) => {
+                          const prodiNama =
+                            p.program_studi?.nama ||
+                            prodiList.find((pr) => String(pr.id) === String(p.program_studi_id))?.nama ||
+                            'Belum Dipilih';
 
-                    return (
-                      <div key={p.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
-                            {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
-                          </div>
-                          <div className="min-w-0 space-y-0.5">
-                            <p className="text-sm font-bold text-slate-900 truncate">
-                              {p.nama_lengkap || 'Calon Mahasiswa'}
-                            </p>
-                            <div className="flex items-center gap-2 text-2xs text-slate-500 font-medium">
-                              <span className="font-semibold text-primary-600">#{p.no_pendaftaran || p.id}</span>
-                              <span>•</span>
-                              <span className="truncate">{prodiNama}</span>
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
+                                    {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-slate-900 truncate">{p.nama_lengkap || 'Calon Mahasiswa'}</p>
+                                    <p className="text-2xs font-mono text-slate-500">#{p.no_pendaftaran || p.id}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span className="font-medium text-slate-800 text-xs line-clamp-1">{prodiNama}</span>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {p.status_pembayaran === 'lunas' ? (
+                                  <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+                                    <CheckCircle2 size={12} /> Lunas
+                                  </span>
+                                ) : (
+                                  <span className="badge badge-yellow text-xs font-bold inline-flex items-center gap-1">
+                                    <Clock size={12} /> Belum Bayar
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4 text-right">
+                                <Link
+                                  href={`/spmb/pendaftaran/${p.id}`}
+                                  className="btn btn-ghost btn-xs text-primary-600 hover:bg-primary-50 font-bold min-h-[36px] px-3 inline-flex items-center gap-1"
+                                >
+                                  <span>Detail</span>
+                                  <ChevronRight size={14} />
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card List View (sm:hidden) */}
+                  <div className="block sm:hidden divide-y divide-slate-100">
+                    {adminPendaftarList.slice(0, 6).map((p) => {
+                      const prodiNama =
+                        p.program_studi?.nama ||
+                        prodiList.find((pr) => String(pr.id) === String(p.program_studi_id))?.nama ||
+                        'Belum Dipilih';
+
+                      return (
+                        <div key={p.id} className="p-4 space-y-3 hover:bg-slate-50/60 transition-colors">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
+                                {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 text-sm truncate">{p.nama_lengkap || 'Calon Mahasiswa'}</p>
+                                <p className="text-2xs font-mono text-slate-500">No: #{p.no_pendaftaran || p.id}</p>
+                              </div>
                             </div>
+
+                            {p.status_pembayaran === 'lunas' ? (
+                              <span className="badge badge-green text-xs font-bold shrink-0">Lunas</span>
+                            ) : (
+                              <span className="badge badge-yellow text-xs font-bold shrink-0">Belum Bayar</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs text-slate-600">
+                            <span className="truncate font-medium text-slate-700">{prodiNama}</span>
+                            <Link
+                              href={`/spmb/pendaftaran/${p.id}`}
+                              className="btn btn-outline btn-xs font-bold text-primary-600 min-h-[40px] px-3 shrink-0 ml-2 inline-flex items-center gap-1"
+                            >
+                              <span>Buka Detail</span>
+                              <ChevronRight size={14} />
+                            </Link>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          {p.status_pembayaran === 'lunas' ? (
-                            <span className="badge badge-green text-xs font-bold">Lunas</span>
-                          ) : (
-                            <span className="badge badge-yellow text-xs font-bold">Belum Bayar</span>
-                          )}
-                          <Link
-                            href={`/spmb/pendaftaran/${p.id}`}
-                            className="btn btn-ghost btn-xs text-primary-600 hover:bg-primary-50 font-bold"
-                          >
-                            Detail
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar: Shortcuts */}
+        {/* Right Column: Shortcuts & Quick Admin Actions */}
         <div className="space-y-6">
           <div className="card overflow-hidden">
-            <div className="card-header border-b border-slate-100 flex items-center justify-between">
+            <div className="card-header border-b border-slate-100 p-4 flex items-center justify-between">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                <LayoutGrid size={18} className="text-primary-600" /> Pintasan Modul SPMB
+                <LayoutGrid size={18} className="text-primary-600" />
+                <span>Pintasan Modul SPMB</span>
               </h3>
             </div>
+
             <div className="card-body p-3 space-y-2">
-              <Link href="/spmb/master/gelombang" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                  <Calendar size={16} />
+              <Link
+                href="/spmb/master/gelombang"
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors border border-slate-100 min-h-[48px] group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Calendar size={18} />
                 </div>
-                <div className="min-w-0">
-                  <h4 className="font-bold text-slate-800 text-xs">Jalur &amp; Gelombang</h4>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-slate-800 text-xs group-hover:text-primary-600 transition-colors">
+                    Jalur &amp; Gelombang
+                  </h4>
                   <p className="text-2xs text-slate-500">Atur periode &amp; tarif pendaftaran</p>
                 </div>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
               </Link>
 
-              <Link href="/spmb/master/kuota" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-                  <Users size={16} />
+              <Link
+                href="/spmb/master/kuota"
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors border border-slate-100 min-h-[48px] group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Users size={18} />
                 </div>
-                <div className="min-w-0">
-                  <h4 className="font-bold text-slate-800 text-xs">Kuota Program Studi</h4>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-slate-800 text-xs group-hover:text-primary-600 transition-colors">
+                    Kuota Program Studi
+                  </h4>
                   <p className="text-2xs text-slate-500">Batas daya tampung penerimaan</p>
                 </div>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
               </Link>
 
-              <Link href="/spmb/ujian/peserta" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <FileCheck size={16} />
+              <Link
+                href="/spmb/ujian/peserta"
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors border border-slate-100 min-h-[48px] group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FileCheck size={18} />
                 </div>
-                <div className="min-w-0">
-                  <h4 className="font-bold text-slate-800 text-xs">Plotting Ujian CAT</h4>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-slate-800 text-xs group-hover:text-primary-600 transition-colors">
+                    Plotting Ujian CAT
+                  </h4>
                   <p className="text-2xs text-slate-500">Jadwal &amp; nomor peserta tes</p>
                 </div>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
               </Link>
 
-              <Link href="/spmb/seleksi" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                  <Award size={16} />
+              <Link
+                href="/spmb/seleksi"
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors border border-slate-100 min-h-[48px] group"
+              >
+                <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Award size={18} />
                 </div>
-                <div className="min-w-0">
-                  <h4 className="font-bold text-slate-800 text-xs">Hasil Seleksi &amp; Kelulusan</h4>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-slate-800 text-xs group-hover:text-primary-600 transition-colors">
+                    Hasil Seleksi &amp; Kelulusan
+                  </h4>
                   <p className="text-2xs text-slate-500">Penetapan status lulus calon mhs</p>
                 </div>
+                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
               </Link>
             </div>
+          </div>
+
+          {/* Quick SSO Campus Jump Card */}
+          <div className="card p-4 sm:p-5 bg-gradient-to-br from-slate-900 to-indigo-950 text-white flex items-center justify-between gap-3 shadow-md">
+            <div>
+              <span className="text-2xs font-extrabold text-sky-400 uppercase tracking-widest block">
+                SSO Campus Platform
+              </span>
+              <span className="text-xs font-semibold text-slate-200 block mt-0.5">
+                Kembali ke Dashboard Utama SSO
+              </span>
+            </div>
+            <Link
+              href="/dashboard"
+              className="btn btn-sm btn-outline text-white border-white/20 hover:bg-white/10 shrink-0 font-bold min-h-[40px]"
+            >
+              <ExternalLink size={14} />
+              Portal SSO
+            </Link>
           </div>
         </div>
       </div>
