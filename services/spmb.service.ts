@@ -230,6 +230,15 @@ export const spmbService = {
     }
   },
 
+  getTahunAkademikList: async () => {
+    try {
+      const response = await api.get('/spmb/tahun-akademik');
+      return response.data;
+    } catch {
+      return { status: 'success', data: [] };
+    }
+  },
+
   // Master Tipe Ujian
   getTipeUjian: async (params?: { search?: string; is_active?: boolean }) => {
     const response = await api.get('/spmb/master/tipe-ujian', { params });

@@ -101,11 +101,11 @@ export default function CreateGelombangPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [jalurList, setJalurList] = useState<JalurMasuk[]>([]);
+  const [tahunAkademikOptions, setTahunAkademikOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [sikeuTarifOptions, setSikeuTarifOptions] = useState<Array<{ value: string; label: string }>>([]);
 
   const { register, handleSubmit, control, watch, formState: { errors } } = useForm<Partial<GelombangPenerimaan>>({
     defaultValues: {
-      tahun_akademik_id: 1,
       kuota_total: 100,
       status: 'draft',
     }
@@ -119,12 +119,22 @@ export default function CreateGelombangPage() {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [jalurRes, modules] = await Promise.all([
+        const [jalurRes, modules, tahunRes] = await Promise.all([
           spmbService.getJalurMasuk(),
           moduleService.getAllModules().catch(() => []),
+          spmbService.getTahunAkademikList().catch(() => null),
         ]);
 
         setJalurList(jalurRes.data.filter((j: any) => j.is_active));
+
+        const rawTahunList = tahunRes?.data || [];
+        if (Array.isArray(rawTahunList) && rawTahunList.length > 0) {
+          const mappedTahun = rawTahunList.map((t: any) => ({
+            value: t.id.toString(),
+            label: t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`
+          }));
+          setTahunAkademikOptions(mappedTahun);
+        }
 
         // Find SPMB module dynamically from DB modules list by code
         const spmbModule = (modules || []).find((m: any) => m.code.toLowerCase() === 'spmb');
@@ -160,6 +170,7 @@ export default function CreateGelombangPage() {
       setLoading(true);
       const payload = {
         ...data,
+        tahun_akademik_id: data.tahun_akademik_id ? Number(data.tahun_akademik_id) : 1,
         biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
       };
       await spmbService.createGelombang(payload as any);
@@ -202,12 +213,30 @@ export default function CreateGelombangPage() {
           <div className="space-y-5">
             <SectionHeader 
               title="Informasi Umum"
-              description="Atur nama, jalur masuk, kuota pendaftar, biaya, dan status keaktifan gelombang."
+              description="Atur nama, tahun akademik, jalur masuk, kuota pendaftar, biaya, dan status keaktifan gelombang."
               icon={Layers}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 pt-1">
               
+              {/* Tahun Akademik (Dynamic from DB) */}
+              <Controller
+                name="tahun_akademik_id"
+                control={control}
+                rules={{ required: 'Tahun akademik wajib dipilih' }}
+                render={({ field }) => (
+                  <Select
+                    label="Tahun Akademik *"
+                    placeholder="Pilih Tahun Akademik..."
+                    options={tahunAkademikOptions}
+                    value={field.value?.toString()}
+                    onChange={(val) => field.onChange(val ? Number(val) : '')}
+                    error={errors.tahun_akademik_id?.message}
+                    hint="Tahun akademik penerimaan mahasiswa."
+                  />
+                )}
+              />
+
               {/* Jalur Masuk */}
               <Controller
                 name="jalur_masuk_id"
