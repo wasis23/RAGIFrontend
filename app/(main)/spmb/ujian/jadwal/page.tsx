@@ -51,7 +51,7 @@ export default function JadwalUjianPage() {
     setLoading(true);
     setIsForbidden(false);
     try {
-      const res = await api.get('/spmb/jadwal-ujian', {
+      const res = await api.get('/spmb/ujian/jadwal', {
         params: {
           gelombang_id: filterGelombang || undefined,
           order_by: filterOrderBy,
