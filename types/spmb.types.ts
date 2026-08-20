@@ -12,6 +12,16 @@ export interface JalurMasuk {
   updated_at: string;
 }
 
+export interface TipeUjianMaster {
+  id: number;
+  kode: string;
+  nama: string;
+  deskripsi: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface GelombangPenerimaan {
   id: number;
   jalur_masuk_id: number;

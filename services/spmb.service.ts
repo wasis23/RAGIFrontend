@@ -224,4 +224,25 @@ export const spmbService = {
       return { status: 'success', data: [] };
     }
   },
+
+  // Master Tipe Ujian
+  getTipeUjian: async (params?: { search?: string; is_active?: boolean }) => {
+    const response = await api.get('/spmb/master/tipe-ujian', { params });
+    return response.data;
+  },
+
+  createTipeUjian: async (data: { kode: string; nama: string; deskripsi?: string; is_active: boolean }) => {
+    const response = await api.post('/spmb/master/tipe-ujian', data);
+    return response.data;
+  },
+
+  updateTipeUjian: async (id: number, data: { kode: string; nama: string; deskripsi?: string; is_active: boolean }) => {
+    const response = await api.put(`/spmb/master/tipe-ujian/${id}`, data);
+    return response.data;
+  },
+
+  deleteTipeUjian: async (id: number) => {
+    const response = await api.delete(`/spmb/master/tipe-ujian/${id}`);
+    return response.data;
+  },
 };

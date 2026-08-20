@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { useForm, Controller } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import api from '@/lib/axios';
+import { spmbService } from '@/services/spmb.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 interface FormValues {
@@ -24,6 +25,7 @@ interface FormValues {
 export default function CreateJadwalUjianPage() {
   const router = useRouter();
   const [gelombangOptions, setGelombangOptions] = useState<{ value: string | number; label: string }[]>([]);
+  const [tipeUjianOptions, setTipeUjianOptions] = useState<{ value: string; label: string }[]>([]);
   const [isFetching, setIsFetching] = useState(true);
   const [loading, setLoading] = useState(false);
 
@@ -40,23 +42,40 @@ export default function CreateJadwalUjianPage() {
   });
 
   useEffect(() => {
-    fetchGelombang();
+    fetchInitialData();
   }, []);
 
-  const fetchGelombang = async () => {
+  const fetchInitialData = async () => {
     setIsFetching(true);
     try {
-      const res = await api.get('/spmb/gelombang');
-      const list = res.data?.data?.data || res.data?.data || res.data || [];
-      const options = Array.isArray(list)
-        ? list.map((g: any) => ({
+      const [gelRes, tipeRes] = await Promise.all([
+        api.get('/spmb/gelombang'),
+        spmbService.getTipeUjian({ is_active: true }),
+      ]);
+
+      const gelList = gelRes.data?.data?.data || gelRes.data?.data || gelRes.data || [];
+      const gelOptions = Array.isArray(gelList)
+        ? gelList.map((g: any) => ({
             value: String(g.id),
             label: `${g.nama} (${g.status === 'aktif' ? 'Aktif' : 'Non-Aktif'})`,
           }))
         : [];
-      setGelombangOptions(options);
+      setGelombangOptions(gelOptions);
+
+      const tipeList = tipeRes.data?.data || tipeRes.data || [];
+      const tipeOpts = Array.isArray(tipeList) && tipeList.length > 0
+        ? tipeList.map((t: any) => ({
+            value: t.kode,
+            label: t.nama,
+          }))
+        : [
+            { value: 'tulis', label: 'Ujian Tulis Komputer (CBT)' },
+            { value: 'praktik', label: 'Ujian Praktik / Keterampilan' },
+            { value: 'wawancara', label: 'Wawancara / Wawancara Online' },
+          ];
+      setTipeUjianOptions(tipeOpts);
     } catch {
-      toast.error('Gagal mengambil data gelombang penerimaan');
+      toast.error('Gagal mengambil data master gelombang / tipe ujian');
     } finally {
       setIsFetching(false);
     }
@@ -144,7 +163,7 @@ export default function CreateJadwalUjianPage() {
                 />
               </div>
 
-              {/* Tipe Ujian */}
+              {/* Tipe Ujian (Dynamic Master) */}
               <div className="space-y-1.5 md:col-span-2 lg:col-span-1">
                 <Controller
                   name="tipe_ujian"
@@ -153,13 +172,10 @@ export default function CreateJadwalUjianPage() {
                   render={({ field }) => (
                     <Select
                       label="Tipe Pelaksanaan Ujian *"
-                      options={[
-                        { value: 'tulis', label: 'Ujian Tulis Komputer (CBT)' },
-                        { value: 'praktik', label: 'Ujian Praktik / Keterampilan' },
-                        { value: 'wawancara', label: 'Wawancara / Wawancara Online' },
-                      ]}
+                      options={tipeUjianOptions}
                       value={field.value}
                       onChange={field.onChange}
+                      disabled={isFetching}
                       error={errors.tipe_ujian?.message}
                     />
                   )}

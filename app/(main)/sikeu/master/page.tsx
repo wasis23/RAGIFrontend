@@ -211,14 +211,9 @@ export default function MasterBiayaPage() {
   const fetchJenisBiaya = async () => {
     try {
       const res = await sikeuService.getJenisBiayaList();
-      if (res.data) setJenisBiayaList(res.data);
+      setJenisBiayaList(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
-      setJenisBiayaList([
-        { id: 1, kode: 'UKT_REG', nama: 'Uang Kuliah Tunggal (UKT) Reguler', tipe: 'ukt', nominal_standar: 3500000, is_active: true },
-        { id: 2, kode: 'SPMB_ADM', nama: 'Biaya Pendaftaran SPMB', tipe: 'spmb_adm', nominal_standar: 350000, is_active: true },
-        { id: 3, kode: 'WISUDA_FEE', nama: 'Biaya Kelulusan & Wisuda', tipe: 'wisuda', nominal_standar: 1750000, is_active: true },
-        { id: 4, kode: 'GEDUNG', nama: 'Sumbangan Biaya Pengembangan / Gedung', tipe: 'lainnya', nominal_standar: 5000000, is_active: true },
-      ]);
+      setJenisBiayaList([]);
     }
   };
 

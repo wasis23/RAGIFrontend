@@ -133,10 +133,10 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
         setJalurList(jalurRes.data.filter((j: any) => j.is_active));
 
         const rawTarifList = sikeuRes?.data || [];
-        if (Array.isArray(rawTarifList) && rawTarifList.length > 0) {
+        if (Array.isArray(rawTarifList)) {
           const mapped = rawTarifList.map((t: any) => ({
             value: Math.round(Number(t.nominal || t.nominal_tarif)).toString(),
-            label: `${t.jenis_biaya?.kode || t.kode || 'SIKEU'} - ${t.nama || t.jenis_biaya?.nama || 'Tarif SPMB'} (Rp ${new Intl.NumberFormat('id-ID').format(Number(t.nominal || t.nominal_tarif || 0))})`
+            label: `${t.jenis_biaya?.kode || t.kode || 'SIKEU'} - ${t.nama || t.jenis_biaya?.nama || 'Biaya Pendaftaran SPMB'} (Rp ${new Intl.NumberFormat('id-ID').format(Number(t.nominal || t.nominal_tarif || 0))})`
           }));
           setSikeuTarifOptions(mapped);
         }
@@ -238,30 +238,19 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-28 md:pb-12 animate-fade-in">
       
-      {/* 1. BREADCRUMB & PAGE HEADER */}
-      <div className="space-y-2">
-        {/* Desktop Breadcrumb */}
-        <nav className="hidden md:flex items-center gap-2 text-xs font-semibold text-slate-500">
-          <span className="hover:text-slate-800 cursor-pointer" onClick={() => router.push('/spmb/dashboard')}>SPMB</span>
-          <ChevronRight size={12} className="text-slate-400" />
-          <span className="hover:text-slate-800 cursor-pointer" onClick={() => router.push('/spmb/master/gelombang')}>Master Gelombang</span>
-          <ChevronRight size={12} className="text-slate-400" />
-          <span className="text-primary-600 font-bold">Edit Gelombang</span>
-        </nav>
-
-        <PageHeader 
-          title="Edit Gelombang"
-          description="Perbarui informasi, biaya, status, dan jadwal gelombang pendaftaran SPMB."
-          action={
-            <button 
-              onClick={() => router.push('/spmb/master/gelombang')} 
-              className="btn bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm font-bold text-xs flex items-center gap-1.5 px-4 py-2 rounded-lg"
-            >
-              <ArrowLeft size={16} /> Kembali
-            </button>
-          }
-        />
-      </div>
+      {/* 1. PAGE HEADER */}
+      <PageHeader 
+        title="Edit Gelombang"
+        description="Perbarui informasi, biaya, status, dan jadwal gelombang pendaftaran SPMB."
+        action={
+          <button 
+            onClick={() => router.push('/spmb/master/gelombang')} 
+            className="btn bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm font-bold text-xs flex items-center gap-1.5 px-4 py-2 rounded-lg"
+          >
+            <ArrowLeft size={16} /> Kembali
+          </button>
+        }
+      />
 
       {/* 2. FORM CONTAINER (SINGLE CLEAN PRIMARY SURFACE) */}
       <div className="card p-5 sm:p-7 md:p-8 bg-white border border-slate-200/90 shadow-2xs rounded-2xl">
