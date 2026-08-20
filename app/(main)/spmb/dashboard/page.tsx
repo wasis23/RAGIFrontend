@@ -24,6 +24,8 @@ import {
   BookOpen,
   LayoutGrid,
   Info,
+  CreditCard,
+  Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -34,23 +36,36 @@ import { formatDate } from '@/lib/utils';
 import { spmbService, PendaftaranCalonMhs, GelombangPenerimaan } from '@/services/spmb.service';
 
 export default function SPMBDashboardPage() {
-  const { user } = useAuth();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
   const [pendaftaran, setPendaftaran] = useState<PendaftaranCalonMhs | null>(null);
   const [gelombangList, setGelombangList] = useState<GelombangPenerimaan[]>([]);
   const [prodiList, setProdiList] = useState<any[]>([]);
+  const [adminPendaftarList, setAdminPendaftarList] = useState<PendaftaranCalonMhs[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const userRoleSlugs = (user?.roles || []).map((r: any) =>
+    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
+  );
+
+  const isPanitiaAdmin =
+    isSuperAdmin ||
+    isAdmin ||
+    userRoleSlugs.some((slug) =>
+      ['admin', 'superadmin', 'super-admin', 'admin_spmb', 'panitia_spmb', 'operator_spmb', 'admin_iam'].includes(slug)
+    );
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [pendaftaranRes, gelombangRes, prodiRes] = await Promise.all([
+      const [pendaftaranRes, gelombangRes, prodiRes, adminPendaftarRes] = await Promise.all([
         spmbService.getMyPendaftaran().catch(() => null),
         spmbService.getGelombang().catch(() => null),
         spmbService.getProgramStudi().catch(() => null),
+        isPanitiaAdmin ? spmbService.getPendaftaran({ per_page: 20 }).catch(() => null) : Promise.resolve(null),
       ]);
 
       if (pendaftaranRes?.data?.pendaftaran) {
@@ -71,6 +86,13 @@ export default function SPMBDashboardPage() {
           ? prodiRes.data
           : prodiRes.data.data || [];
         setProdiList(pList);
+      }
+
+      if (adminPendaftarRes?.data) {
+        const pList = Array.isArray(adminPendaftarRes.data)
+          ? adminPendaftarRes.data
+          : adminPendaftarRes.data.data || [];
+        setAdminPendaftarList(pList);
       }
     } catch (e) {
       console.error(e);
@@ -202,6 +224,19 @@ export default function SPMBDashboardPage() {
         variant: 'info',
       };
     }
+  }
+
+  if (isPanitiaAdmin) {
+    return (
+      <div className="spmb-app-page animate-fade-in">
+        <SPMBAdminDashboardView
+          adminPendaftarList={adminPendaftarList}
+          gelombangList={gelombangList}
+          prodiList={prodiList}
+          isLoading={isLoading}
+        />
+      </div>
+    );
   }
 
   return (
@@ -591,6 +626,239 @@ export default function SPMBDashboardPage() {
 
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+function SPMBAdminDashboardView({
+  adminPendaftarList = [],
+  gelombangList = [],
+  prodiList = [],
+  isLoading = false,
+}: {
+  adminPendaftarList: PendaftaranCalonMhs[];
+  gelombangList: GelombangPenerimaan[];
+  prodiList: any[];
+  isLoading: boolean;
+}) {
+  const totalCount = adminPendaftarList.length;
+  const lunasCount = adminPendaftarList.filter(p => p.status_pembayaran === 'lunas').length;
+  const verifiedCount = adminPendaftarList.filter(p => p.status === 'verified' || p.status === 'lulus_administrasi').length;
+  const activeGelombang = gelombangList.find(g => g.status === 'aktif') || gelombangList[0];
+
+  return (
+    <div className="space-y-6">
+      {/* Hero Banner Panitia Admin */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-indigo-800/40 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -z-0 pointer-events-none" />
+        
+        <div className="relative z-10 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-bold">
+            <ShieldCheck size={14} /> Panel Administrasi SPMB Kampus
+          </div>
+
+          <div className="space-y-1.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Dashboard Eksekutif Panitia &amp; Admin SPMB
+            </h1>
+            <p className="text-slate-300 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed">
+              Pantau arus pendaftaran penerimaan mahasiswa baru, status pembayaran formulir, verifikasi kelengkapan berkas, dan penetapan hasil seleksi secara real-time.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 pt-2 flex-wrap">
+            <Link
+              href="/spmb/pendaftaran"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all"
+            >
+              <Users size={16} /> Kelola Pendaftar ({totalCount})
+            </Link>
+            <Link
+              href="/spmb/pembayaran"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition-all"
+            >
+              <CreditCard size={16} /> Verifikasi Pembayaran
+            </Link>
+            <Link
+              href="/spmb/ujian/jadwal"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition-all"
+            >
+              <Calendar size={16} /> Jadwal Ujian CAT
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Total Calon Pendaftar</span>
+            <div className="spmb-kpi-icon stat-icon-blue">
+              <Users size={18} />
+            </div>
+          </div>
+          <div className="spmb-kpi-value">{totalCount} Calon Mhs</div>
+          <div className="spmb-kpi-sub">Terdaftar di Sistem SPMB</div>
+        </div>
+
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Verifikasi Pembayaran</span>
+            <div className="spmb-kpi-icon stat-icon-green">
+              <CreditCard size={18} />
+            </div>
+          </div>
+          <div className="spmb-kpi-value">{lunasCount} Formulir Lunas</div>
+          <div className="spmb-kpi-sub">{totalCount - lunasCount} Menunggu Pembayaran</div>
+        </div>
+
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Verifikasi Administrasi</span>
+            <div className="spmb-kpi-icon stat-icon-amber">
+              <FileCheck size={18} />
+            </div>
+          </div>
+          <div className="spmb-kpi-value">{verifiedCount} Lulus Berkas</div>
+          <div className="spmb-kpi-sub">Dari total pendaftar aktif</div>
+        </div>
+
+        <div className="spmb-kpi-card card">
+          <div className="spmb-kpi-top">
+            <span className="spmb-kpi-label">Gelombang Penerimaan</span>
+            <div className="spmb-kpi-icon stat-icon-indigo">
+              <Calendar size={18} />
+            </div>
+          </div>
+          <div className="spmb-kpi-value truncate" title={activeGelombang?.nama || 'Gelombang 1'}>
+            {activeGelombang?.nama || 'Gelombang 1'}
+          </div>
+          <div className="spmb-kpi-sub">Status: {activeGelombang?.status === 'aktif' ? 'Sedang Dibuka' : 'Off'}</div>
+        </div>
+      </div>
+
+      {/* Main Row: Recent Applicants + Admin Shortcuts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Applicants (2 Columns) */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="card overflow-hidden">
+            <div className="card-header border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users size={18} className="text-primary-600" />
+                <h3 className="font-bold text-slate-900 text-base">Pendaftar Terbaru</h3>
+              </div>
+              <Link href="/spmb/pendaftaran" className="text-xs font-semibold text-primary-600 hover:underline">
+                Lihat Semua ({totalCount}) →
+              </Link>
+            </div>
+
+            <div className="card-body p-0">
+              {isLoading ? (
+                <div className="p-8 text-center text-slate-400 text-sm">Memuat data pendaftar...</div>
+              ) : adminPendaftarList.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 space-y-2">
+                  <Users size={36} className="mx-auto text-slate-300" />
+                  <p className="font-semibold text-sm">Belum Ada Data Pendaftar</p>
+                  <p className="text-xs text-slate-400">Pendaftaran calon mahasiswa baru yang masuk akan muncul di sini.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {adminPendaftarList.slice(0, 5).map((p) => {
+                    const prodiNama = p.program_studi?.nama || prodiList.find(pr => String(pr.id) === String(p.program_studi_id))?.nama || 'Belum Dipilih';
+
+                    return (
+                      <div key={p.id} className="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
+                            {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
+                          </div>
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {p.nama_lengkap || 'Calon Mahasiswa'}
+                            </p>
+                            <div className="flex items-center gap-2 text-2xs text-slate-500 font-medium">
+                              <span className="font-semibold text-primary-600">#{p.no_pendaftaran || p.id}</span>
+                              <span>•</span>
+                              <span className="truncate">{prodiNama}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {p.status_pembayaran === 'lunas' ? (
+                            <span className="badge badge-green text-xs font-bold">Lunas</span>
+                          ) : (
+                            <span className="badge badge-yellow text-xs font-bold">Belum Bayar</span>
+                          )}
+                          <Link
+                            href={`/spmb/pendaftaran/${p.id}`}
+                            className="btn btn-ghost btn-xs text-primary-600 hover:bg-primary-50 font-bold"
+                          >
+                            Detail
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar: Shortcuts */}
+        <div className="space-y-6">
+          <div className="card overflow-hidden">
+            <div className="card-header border-b border-slate-100 flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <LayoutGrid size={18} className="text-primary-600" /> Pintasan Modul SPMB
+              </h3>
+            </div>
+            <div className="card-body p-3 space-y-2">
+              <Link href="/spmb/master/gelombang" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <Calendar size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-slate-800 text-xs">Jalur &amp; Gelombang</h4>
+                  <p className="text-2xs text-slate-500">Atur periode &amp; tarif pendaftaran</p>
+                </div>
+              </Link>
+
+              <Link href="/spmb/master/kuota" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                  <Users size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-slate-800 text-xs">Kuota Program Studi</h4>
+                  <p className="text-2xs text-slate-500">Batas daya tampung penerimaan</p>
+                </div>
+              </Link>
+
+              <Link href="/spmb/ujian/peserta" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <FileCheck size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-slate-800 text-xs">Plotting Ujian CAT</h4>
+                  <p className="text-2xs text-slate-500">Jadwal &amp; nomor peserta tes</p>
+                </div>
+              </Link>
+
+              <Link href="/spmb/seleksi" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors border border-slate-100">
+                <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <Award size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-slate-800 text-xs">Hasil Seleksi &amp; Kelulusan</h4>
+                  <p className="text-2xs text-slate-500">Penetapan status lulus calon mhs</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
