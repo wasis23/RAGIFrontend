@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { moduleService, AppModule } from '@/services/module.service';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { useForm } from 'react-hook-form';
 
 interface JenisBiaya {
@@ -24,6 +25,7 @@ interface JenisBiaya {
   deskripsi?: string;
   is_active?: boolean;
   is_recurring?: boolean;
+  module_codes?: string[];
 }
 
 interface FormValues {
@@ -53,6 +55,9 @@ export function JenisBiayaTab() {
   const [data, setData] = useState<JenisBiaya[]>([]);
   const [loading, setLoading] = useState(false);
   const [appModules, setAppModules] = useState<AppModule[]>([]);
+
+  // Selected module codes for multi-selection form
+  const [selectedModuleCodes, setSelectedModuleCodes] = useState<string[]>(['sikeu']);
 
   // Filter Drawer — 2-stage
   const [showFilter, setShowFilter] = useState(false);
@@ -101,12 +106,14 @@ export function JenisBiayaTab() {
 
   const handleOpenAdd = () => {
     setEditingItem(null);
+    setSelectedModuleCodes(['sikeu']);
     reset({ kode: '', nama: '', tipe: 'ukt', nominal_standar: 0, deskripsi: '', is_active: true, is_recurring: true });
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (item: JenisBiaya) => {
     setEditingItem(item);
+    setSelectedModuleCodes(item.module_codes && item.module_codes.length > 0 ? item.module_codes : ['sikeu']);
     reset({
       kode: item.kode,
       nama: item.nama,
@@ -117,6 +124,17 @@ export function JenisBiayaTab() {
       is_recurring: item.is_recurring !== false,
     });
     setIsModalOpen(true);
+  };
+
+  const toggleModuleSelection = (code: string) => {
+    setSelectedModuleCodes((prev) => {
+      if (prev.includes(code)) {
+        if (prev.length === 1) return prev; // Keep at least one
+        return prev.filter((c) => c !== code);
+      } else {
+        return [...prev, code];
+      }
+    });
   };
 
   const handleDelete = async (id: number, nama: string) => {
@@ -133,11 +151,16 @@ export function JenisBiayaTab() {
   const onSubmit = async (formData: FormValues) => {
     setSubmitting(true);
     try {
+      const payload = {
+        ...formData,
+        module_codes: selectedModuleCodes,
+      };
+
       if (editingItem) {
-        await sikeuService.updateJenisBiaya(editingItem.id, formData);
-        toast.success('Komponen biaya berhasil diperbarui');
+        await sikeuService.updateJenisBiaya(editingItem.id, payload);
+        toast.success('Komponen biaya & delegasi modul berhasil diperbarui');
       } else {
-        await sikeuService.storeJenisBiaya(formData);
+        await sikeuService.storeJenisBiaya(payload);
         toast.success('Komponen biaya baru berhasil ditambahkan');
       }
       setIsModalOpen(false);
@@ -169,6 +192,10 @@ export function JenisBiayaTab() {
         if (!item.nama?.toLowerCase().includes(q) && !item.kode?.toLowerCase().includes(q) && !item.deskripsi?.toLowerCase().includes(q)) return false;
       }
       if (appliedFilters.tipe && item.tipe !== appliedFilters.tipe) return false;
+      if (appliedFilters.module) {
+        const codes = item.module_codes || ['sikeu'];
+        if (!codes.includes(appliedFilters.module)) return false;
+      }
       return true;
     });
   }, [data, appliedFilters]);
@@ -194,11 +221,27 @@ export function JenisBiayaTab() {
       ),
     },
     {
+      key: 'modules',
+      label: 'MODUL TERDELEGASI',
+      render: (row) => {
+        const codes = row.module_codes && row.module_codes.length > 0 ? row.module_codes : ['sikeu'];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {codes.map((c) => (
+              <Badge key={c} variant="blue" className="text-2xs font-extrabold uppercase px-2 py-0.5">
+                {c}
+              </Badge>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
       key: 'tipe',
       label: 'TIPE',
       render: (row) => {
         const label = TIPE_OPTIONS.find(t => t.value === row.tipe)?.label || row.tipe;
-        return <span className="badge badge-blue text-xs font-semibold">{label}</span>;
+        return <span className="badge badge-purple text-xs font-semibold">{label}</span>;
       },
     },
     {
@@ -246,8 +289,8 @@ export function JenisBiayaTab() {
   return (
     <>
       <PageHeader
-        title="Komponen Biaya"
-        description="Kelola jenis-jenis komponen biaya yang digunakan di seluruh modul kampus."
+        title="Komponen Biaya & Delegasi Modul"
+        description="Kelola komponen biaya dan delegasi penggunaannya ke beberapa modul aplikasi terintegrasi."
         action={
           <div className="flex items-center gap-2.5 flex-wrap">
             <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[40px]">
@@ -264,16 +307,46 @@ export function JenisBiayaTab() {
 
       {/* Modal Create / Edit */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
-        title={editingItem ? 'Edit Komponen Biaya' : 'Tambah Komponen Biaya Baru'}>
+        title={editingItem ? 'Edit Komponen Biaya & Delegasi' : 'Tambah Komponen Biaya Baru'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Kode Biaya *" placeholder="Contoh: sikeu.ukt3"
               {...register('kode', { required: 'Kode wajib diisi' })}
               error={errors.kode?.message}
-              hint="Gunakan format modul.tipe (huruf kecil)" />
+              hint="Kode komponen biaya (unik)" />
             <Input label="Nama Komponen Biaya *" placeholder="Contoh: UKT Golongan 3 (Reguler)"
               {...register('nama', { required: 'Nama wajib diisi' })}
               error={errors.nama?.message} />
+          </div>
+
+          {/* Multi-Module Delegation Selection Checkboxes */}
+          <div className="space-y-2.5 p-4 bg-slate-50 border border-slate-200/80 rounded-xl">
+            <div className="flex items-center gap-2">
+              <Layers size={16} className="text-primary-600" />
+              <span className="text-xs font-bold text-slate-900">Delegasi ke Modul Aplikasi (Bisa Lebih dari 1) *</span>
+            </div>
+            <p className="text-2xs text-slate-500">Pilih modul aplikasi yang berhak mengonsumsi dan menerbitkan komponen biaya ini.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+              {appModules.map((m) => {
+                const isChecked = selectedModuleCodes.includes(m.code);
+                return (
+                  <div
+                    key={m.code}
+                    className={`p-2.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                      isChecked
+                        ? 'bg-primary-50/80 border-primary-300 text-primary-900 shadow-2xs'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <Checkbox
+                      label={m.code.toUpperCase()}
+                      checked={isChecked}
+                      onChange={() => toggleModuleSelection(m.code)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -339,6 +412,13 @@ export function JenisBiayaTab() {
             value={filterTipe}
             onChange={(val) => setFilterTipe(val as string)}
             options={[{ value: '', label: 'Semua Tipe' }, ...TIPE_OPTIONS]} />
+          <Select label="Filter Modul Terdelegasi"
+            value={filterModule}
+            onChange={(val) => setFilterModule(val as string)}
+            options={[
+              { value: '', label: 'Semua Modul' },
+              ...appModules.map((m) => ({ value: m.code, label: `${m.code.toUpperCase()} (${m.name})` })),
+            ]} />
         </div>
       </Drawer>
     </>
