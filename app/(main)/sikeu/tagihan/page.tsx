@@ -1,137 +1,96 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  Plus, ArrowLeft, Clock, CheckCircle, AlertCircle, FileText, Filter,
-  Calendar, Layers, Sparkles, CreditCard, CheckCircle2, RefreshCw,
-  CheckSquare, Square, Search, Home, ChevronRight, X, RotateCcw
+  Plus, Sparkles, CreditCard, Filter, CheckCircle2, AlertCircle, XCircle, Clock, Search, Edit, Eye, Loader2, Save
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
-import { Drawer } from '@/components/ui/Drawer';
+import { Select } from '@/components/ui/Select';
+import { useForm } from 'react-hook-form';
+
+interface TagihanItem {
+  id: number;
+  nomor: string;
+  nim: string;
+  nama: string;
+  angkatan: number;
+  jalur: string;
+  kelompok_ukt: string;
+  prodi: string;
+  total: number;
+  status: 'lunas' | 'belum_bayar' | 'pending_approval' | string;
+  jatuhTempo: string;
+  source: string;
+}
+
+interface MassFormValues {
+  target_angkatan: string;
+  target_jalur: string;
+  target_kelompok: string;
+  semester_aktif: string;
+  jatuh_tempo: string;
+}
+
+const formatRupiah = (val: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export default function TagihanListPage() {
-  const [tagihanList, setTagihanList] = useState<any[]>([]);
+  const [data, setData] = useState<TagihanItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Search & Filter states
-  const [search, setSearch] = useState<string>('');
-  const [selectedAngkatan, setSelectedAngkatan] = useState<string>('all');
-  const [selectedProdi, setSelectedProdi] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  // Filter Drawer State — 2-stage
   const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterAngkatan, setFilterAngkatan] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', angkatan: 'all', status: 'all' });
 
-  // Temp filter states in Drawer
-  const [tempAngkatan, setTempAngkatan] = useState<string>('all');
-  const [tempProdi, setTempProdi] = useState<string>('all');
-  const [tempStatus, setTempStatus] = useState<string>('all');
-
-  // Modal Mass Active Billing Activation with Master Data Component Checklist
+  // Mass Modal State
   const [isMassModalOpen, setIsMassModalOpen] = useState(false);
-  const [massForm, setMassForm] = useState({
-    target_angkatan: '2024',
-    target_jalur: 'Reguler',
-    target_kelompok: '3',
-    target_prodi: 'all',
-    semester_aktif: 'Semester Ganjil 2026/2027',
-    jatuh_tempo: '2026-08-31',
+  const [submitting, setSubmitting] = useState(false);
+
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<MassFormValues>({
+    defaultValues: {
+      target_angkatan: '2025',
+      target_jalur: 'Reguler',
+      target_kelompok: '3',
+      semester_aktif: 'Semester Ganjil 2026/2027',
+      jatuh_tempo: '2026-08-31',
+    },
   });
-
-  // Reference fee components loaded from Master Data based on selected Angkatan, Jalur, & Kelompok
-  const [masterComponents, setMasterComponents] = useState<any[]>([
-    { kode: 'UKT_REG', nama: 'UKT Reguler / SPP Semester', nominal: 3500000, defaultSelected: true },
-    { kode: 'PRAKTIKUM', nama: 'Biaya Laboratorium & Praktikum', nominal: 750000, defaultSelected: true },
-    { kode: 'SPMB_ADM', nama: 'Biaya Pendaftaran SPMB', nominal: 350000, defaultSelected: false },
-    { kode: 'WISUDA_FEE', nama: 'Biaya Wisuda & Kelulusan', nominal: 1750000, defaultSelected: false },
-    { kode: 'GEDUNG', nama: 'Sumbangan Biaya Gedung / SPI', nominal: 5000000, defaultSelected: false },
-  ]);
-
-  const [selectedComponentKodes, setSelectedComponentKodes] = useState<string[]>(['UKT_REG', 'PRAKTIKUM']);
-  const [massSubmitting, setMassSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  // Update component list when angkatan/jalur/kelompok changes in mass modal
-  useEffect(() => {
-    const angkatan = Number(massForm.target_angkatan) || 2024;
-    const kelompok = Number(massForm.target_kelompok) || 3;
-    const isKaryawan = massForm.target_jalur === 'Karyawan';
-
-    let baseUkt = 3500000;
-    if (kelompok === 1) baseUkt = 500000;
-    else if (kelompok === 2) baseUkt = 1500000;
-    else if (kelompok === 4) baseUkt = isKaryawan ? 7500000 : 5500000;
-    else if (kelompok === 5) baseUkt = 8500000;
-    else baseUkt = isKaryawan ? 5500000 : 3500000;
-
-    setMasterComponents([
-      { kode: 'UKT_REG', nama: `UKT Reguler (Angkatan ${angkatan} - Level ${kelompok})`, nominal: baseUkt, defaultSelected: true },
-      { kode: 'PRAKTIKUM', nama: 'Biaya Laboratorium & Praktikum TI', nominal: 750000, defaultSelected: true },
-      { kode: 'SPMB_ADM', nama: 'Biaya Pendaftaran SPMB', nominal: 350000, defaultSelected: false },
-      { kode: 'WISUDA_FEE', nama: 'Biaya Wisuda & Kelulusan', nominal: 1750000, defaultSelected: false },
-      { kode: 'GEDUNG', nama: 'Sumbangan Biaya Gedung / SPI', nominal: 5000000, defaultSelected: false },
-    ]);
-  }, [massForm.target_angkatan, massForm.target_jalur, massForm.target_kelompok]);
-
-  const toggleComponentKode = (kode: string) => {
-    if (selectedComponentKodes.includes(kode)) {
-      setSelectedComponentKodes(selectedComponentKodes.filter((k) => k !== kode));
-    } else {
-      setSelectedComponentKodes([...selectedComponentKodes, kode]);
-    }
-  };
-
-  const toggleSelectAllMasterComponents = () => {
-    if (selectedComponentKodes.length === masterComponents.length) {
-      setSelectedComponentKodes([]);
-    } else {
-      setSelectedComponentKodes(masterComponents.map((c) => c.kode));
-    }
-  };
-
-  const calculateMassSubtotal = () => {
-    return masterComponents
-      .filter((c) => selectedComponentKodes.includes(c.kode))
-      .reduce((acc, c) => acc + c.nominal, 0);
-  };
 
   const fetchTagihan = async () => {
     setLoading(true);
     try {
-      const res = await sikeuService.getStudentBillingTypes({ page: 1, per_page: 20 });
-      if (res.data && res.data.length > 0) {
-        setTagihanList(res.data.map((item: any) => ({
-          id: item.id,
-          nomor: `INV-SIAKAD-2026-${String(item.id).padStart(3, '0')}`,
-          nim: item.nim,
-          nama: item.nama_mahasiswa,
-          angkatan: item.tahun_angkatan,
-          jalur: item.jalur_kelas,
-          kelompok_ukt: `Level ${item.kelompok_ukt}`,
-          prodi: 'Teknik Informatika',
-          total: item.kelompok_ukt === 4 ? 5500000 : item.kelompok_ukt === 1 ? 500000 : 3500000,
-          status: item.beasiswa ? 'lunas' : 'belum_bayar',
-          jatuhTempo: '2026-08-31',
-          source: item.status_pendaftaran || 'SIAKAD',
-        })));
-      } else {
-        setTagihanList([
-          { id: 1, nomor: 'INV-SIAKAD-2026-001', nim: '2024010042', nama: 'Budi Santoso', angkatan: 2024, jalur: 'Reguler', kelompok_ukt: 'Level 3 (Reguler)', prodi: 'Teknik Informatika', total: 3500000, status: 'lunas', jatuhTempo: '2026-08-31', source: 'SIAKAD' },
-          { id: 2, nomor: 'INV-SPMB-2026-002', nim: '2025010018', nama: 'Siti Rahmawati', angkatan: 2025, jalur: 'Reguler', kelompok_ukt: 'Level 3 (Reguler)', prodi: 'Sistem Informasi', total: 3500000, status: 'belum_bayar', jatuhTempo: '2026-08-31', source: 'SPMB' },
-          { id: 3, nomor: 'INV-SIAKAD-2026-003', nim: '2023010088', nama: 'Ahmad Fauzi', angkatan: 2023, jalur: 'Karyawan', kelompok_ukt: 'Level 4 (Mandiri)', prodi: 'Manajemen Informatika', total: 5500000, status: 'pending_approval', jatuhTempo: '2026-08-31', source: 'SIAKAD' },
-        ]);
-      }
-    } catch (e) {
-      setTagihanList([
-        { id: 1, nomor: 'INV-SIAKAD-2026-001', nim: '2024010042', nama: 'Budi Santoso', angkatan: 2024, jalur: 'Reguler', kelompok_ukt: 'Level 3 (Reguler)', prodi: 'Teknik Informatika', total: 3500000, status: 'lunas', jatuhTempo: '2026-08-31', source: 'SIAKAD' },
-        { id: 2, nomor: 'INV-SPMB-2026-002', nim: '2025010018', nama: 'Siti Rahmawati', angkatan: 2025, jalur: 'Reguler', kelompok_ukt: 'Level 3 (Reguler)', prodi: 'Sistem Informasi', total: 3500000, status: 'belum_bayar', jatuhTempo: '2026-08-31', source: 'SPMB' },
-        { id: 3, nomor: 'INV-SIAKAD-2026-003', nim: '2023010088', nama: 'Ahmad Fauzi', angkatan: 2023, jalur: 'Karyawan', kelompok_ukt: 'Level 4 (Mandiri)', prodi: 'Manajemen Informatika', total: 5500000, status: 'pending_approval', jatuhTempo: '2026-08-31', source: 'SIAKAD' },
-      ]);
+      const res = await sikeuService.getStudentBillingTypes({ page: 1, per_page: 50 });
+      const raw = Array.isArray(res.data) ? res.data : [];
+      const mapped = raw.map((item: any) => ({
+        id: item.id,
+        nomor: `INV-SIAKAD-2026-${String(item.id).padStart(3, '0')}`,
+        nim: item.nim || '-',
+        nama: item.nama_mahasiswa || 'Mahasiswa',
+        angkatan: item.tahun_angkatan || 2025,
+        jalur: item.jalur_kelas || 'Reguler',
+        kelompok_ukt: `Level ${item.kelompok_ukt || 3}`,
+        prodi: 'Teknik Informatika',
+        total: item.kelompok_ukt === 4 ? 5500000 : item.kelompok_ukt === 1 ? 500000 : 3500000,
+        status: item.beasiswa ? 'lunas' : 'belum_bayar',
+        jatuhTempo: '2026-08-31',
+        source: item.status_pendaftaran || 'SIAKAD',
+      }));
+      setData(mapped);
+    } catch {
+      setData([]);
+      toast.error('Gagal memuat data tagihan mahasiswa');
     } finally {
       setLoading(false);
     }
@@ -141,504 +100,247 @@ export default function TagihanListPage() {
     fetchTagihan();
   }, []);
 
-  const handleActivateMassBilling = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedComponentKodes.length === 0) {
-      alert('Pilih minimal 1 komponen tagihan master yang wajib dilunasi s/d bulan ini!');
-      return;
-    }
-    setMassSubmitting(true);
+  const onSubmitMassTagihan = async (formData: MassFormValues) => {
+    setSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setFeedback({
-        type: 'success',
-        message: `Berhasil mengaktifkan & menerbitkan tagihan masal ${massForm.semester_aktif} (Angkatan ${massForm.target_angkatan}, Jalur ${massForm.target_jalur}, Level ${massForm.target_kelompok}) dengan ${selectedComponentKodes.length} komponen wajib (${formatRupiah(calculateMassSubtotal())}/mhs).`,
-      });
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      toast.success(`Berhasil mengaktifkan & menerbitkan tagihan masal ${formData.semester_aktif} (Angkatan ${formData.target_angkatan})`);
       setIsMassModalOpen(false);
       fetchTagihan();
-    } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Gagal mengaktifkan tagihan masal' });
+    } catch {
+      toast.error('Gagal menerbitkan tagihan masal');
     } finally {
-      setMassSubmitting(false);
+      setSubmitting(false);
     }
   };
 
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+  const handleApplyFilter = () => {
+    setAppliedFilters({ search: filterSearch, angkatan: filterAngkatan, status: filterStatus });
+    setShowFilter(false);
   };
 
-  const hasActiveFilter = selectedAngkatan !== 'all' || selectedProdi !== 'all' || selectedStatus !== 'all';
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setFilterAngkatan('all');
+    setFilterStatus('all');
+    setAppliedFilters({ search: '', angkatan: 'all', status: 'all' });
+    setShowFilter(false);
+  };
 
-  const filteredList = tagihanList.filter((item) => {
-    const matchSearch =
-      !search ||
-      item.nama?.toLowerCase().includes(search.toLowerCase()) ||
-      item.nim?.toLowerCase().includes(search.toLowerCase()) ||
-      item.nomor?.toLowerCase().includes(search.toLowerCase());
-    const matchAngkatan = selectedAngkatan === 'all' || String(item.angkatan) === selectedAngkatan;
-    const matchProdi = selectedProdi === 'all' || item.prodi === selectedProdi;
-    const matchStatus = selectedStatus === 'all' || item.status === selectedStatus;
-    return matchSearch && matchAngkatan && matchProdi && matchStatus;
-  });
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
+        if (!item.nama?.toLowerCase().includes(q) && !item.nim?.toLowerCase().includes(q) && !item.nomor?.toLowerCase().includes(q)) return false;
+      }
+      if (appliedFilters.angkatan !== 'all' && String(item.angkatan) !== appliedFilters.angkatan) return false;
+      if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
+      return true;
+    });
+  }, [data, appliedFilters]);
+
+  const columns: ColumnDef<TagihanItem>[] = [
+    {
+      key: 'nomor',
+      label: 'NOMOR TAGIHAN',
+      render: (row) => (
+        <div>
+          <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
+            {row.nomor}
+          </span>
+          <span className="text-2xs block text-slate-400 font-semibold mt-1">Sumber: {row.source}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'nama',
+      label: 'MAHASISWA',
+      render: (row) => (
+        <div>
+          <p className="font-bold text-slate-900 text-sm">{row.nama}</p>
+          <p className="font-mono text-xs text-slate-500">NIM: {row.nim}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'angkatan',
+      label: 'ANGKATAN & PRODI',
+      render: (row) => (
+        <div>
+          <p className="text-xs font-semibold text-slate-700">{row.prodi}</p>
+          <p className="text-2xs text-slate-500">Angkatan {row.angkatan} • {row.jalur}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'total',
+      label: 'TOTAL TAGIHAN',
+      render: (row) => (
+        <span className="font-bold text-slate-900 tabular-nums text-sm">
+          {formatRupiah(row.total)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => {
+        if (row.status === 'lunas') {
+          return (
+            <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+              <CheckCircle2 size={12} /> Lunas
+            </span>
+          );
+        }
+        if (row.status === 'pending_approval') {
+          return (
+            <span className="badge badge-blue text-xs font-bold inline-flex items-center gap-1">
+              <Clock size={12} /> Menunggu Verifikasi
+            </span>
+          );
+        }
+        return (
+          <span className="badge badge-red text-xs font-bold inline-flex items-center gap-1">
+            <XCircle size={12} /> Belum Bayar
+          </span>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/sikeu/tagihan/${row.id}`}>
+            <Button size="sm" variant="ghost" icon={<Eye size={14} />}
+              className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
+              Detail
+            </Button>
+          </Link>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Standard SSO PageHeader with integrated Breadcrumbs */}
+    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
       <PageHeader
         title="Set Tagihan & Invoice Semester Aktif"
         description="Aktivasi tagihan masal per Angkatan/Prodi & Layanan Pembayaran Loket / VA Mahasiswa."
-        breadcrumb={
-          <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-            <Link href="/dashboard" className="flex items-center gap-1 hover:text-primary-600 transition">
-              <Home size={13} />
-              <span>SSO Dashboard</span>
-            </Link>
-            <ChevronRight size={12} className="text-slate-400" />
-            <Link href="/sikeu" className="hover:text-primary-600 transition">
-              SIKEU
-            </Link>
-            <ChevronRight size={12} className="text-slate-400" />
-            <span className="text-slate-800 font-semibold">Set Tagihan &amp; Invoice</span>
-          </nav>
-        }
         action={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold min-h-[40px]"
+            >
+              Filter
+            </Button>
             <Button
               variant="primary"
               icon={<Sparkles size={16} />}
               onClick={() => setIsMassModalOpen(true)}
+              className="font-bold min-h-[40px] px-4 shadow-sm"
             >
               Aktifkan Tagihan Masal
-            </Button>
-            <Link href="/sikeu/tagihan/create" className="btn btn-secondary">
-              <CreditCard size={16} /> Bayar Loket / Terbitkan VA
-            </Link>
-            <Button
-              variant="outline"
-              icon={<Filter size={16} />}
-              onClick={() => {
-                setTempAngkatan(selectedAngkatan);
-                setTempProdi(selectedProdi);
-                setTempStatus(selectedStatus);
-                setShowFilter(true);
-              }}
-            >
-              Filter
-              {hasActiveFilter && (
-                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-primary-600 text-white rounded-full">
-                  !
-                </span>
-              )}
             </Button>
           </div>
         }
       />
 
-      {feedback && (
-        <div
-          className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${
-            feedback.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
-          }`}
-        >
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
+      <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data tagihan semester aktif." />
 
-      {/* Table Card */}
-      <Card>
-        <CardHeader>
-          <div>
-            <h2 className="font-bold text-slate-900">Daftar Tagihan &amp; Invoice Mahasiswa</h2>
-            <p className="text-xs text-slate-500">
-              {hasActiveFilter && <span className="text-primary-600 font-semibold mr-1">Filter aktif •</span>}
-              {filteredList.length} invoice ditemukan
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Quick Live Search with proper search-input-wrapper */}
-            <div className="search-input-wrapper">
-              <Search size={14} className="search-icon" />
-              <input
-                type="text"
-                placeholder="Cari no. invoice, nama, NIM..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="input input-sm input-icon-left input-icon-right text-xs w-64 bg-white"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  className="input-suffix-icon"
-                  title="Hapus pencarian"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-            <button
-              onClick={fetchTagihan}
-              disabled={loading}
-              className="btn btn-ghost btn-icon btn-sm"
-              title="Refresh"
-            >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
-          </div>
-        </CardHeader>
+      {/* Modal Mass Tagihan */}
+      <Modal isOpen={isMassModalOpen} onClose={() => setIsMassModalOpen(false)} title="Aktivasi Tagihan Semester Masal">
+        <form onSubmit={handleSubmit(onSubmitMassTagihan)} className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Target Angkatan *"
+              options={[
+                { value: '2023', label: 'Angkatan 2023' },
+                { value: '2024', label: 'Angkatan 2024' },
+                { value: '2025', label: 'Angkatan 2025' },
+                { value: '2026', label: 'Angkatan 2026' },
+              ]}
+              value={watch('target_angkatan')}
+              onChange={(val) => register('target_angkatan').onChange({ target: { value: val } })}
+            />
 
-        <CardBody className="p-0">
-          {loading ? (
-            <div className="text-center py-12 text-slate-400 text-xs">Memuat data tagihan...</div>
-          ) : filteredList.length === 0 ? (
-            <div className="text-center py-12 px-4">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3 text-slate-400">
-                <FileText size={22} />
-              </div>
-              <h3 className="text-sm font-bold text-slate-800">Tagihan Tidak Ditemukan</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                {hasActiveFilter
-                  ? 'Tidak ada tagihan yang cocok dengan filter yang dipilih.'
-                  : 'Belum ada data tagihan mahasiswa yang terbit.'}
-              </p>
-              {hasActiveFilter && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={<RotateCcw size={13} />}
-                  className="mt-3"
-                  onClick={() => {
-                    setSelectedAngkatan('all');
-                    setSelectedProdi('all');
-                    setSelectedStatus('all');
-                    setSearch('');
-                  }}
-                >
-                  Reset Filter
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="table-container border-0 rounded-none">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>No. Invoice</th>
-                    <th>Mahasiswa &amp; NIM</th>
-                    <th>Angkatan &amp; Prodi</th>
-                    <th>Kelompok UKT</th>
-                    <th className="text-right">Total Tagihan</th>
-                    <th>Jatuh Tempo</th>
-                    <th className="text-center">Status Bayar</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredList.map((item) => (
-                    <tr key={item.id}>
-                      <td className="font-mono font-bold text-indigo-700">{item.nomor}</td>
-                      <td>
-                        <div className="font-bold text-slate-900">{item.nama}</div>
-                        <div className="text-[10px] font-mono text-slate-500">NIM: {item.nim}</div>
-                      </td>
-                      <td>
-                        <div className="font-bold text-slate-700">Angkatan {item.angkatan}</div>
-                        <div className="text-[10px] font-semibold text-slate-500">{item.prodi}</div>
-                      </td>
-                      <td className="font-semibold text-slate-800">{item.kelompok_ukt}</td>
-                      <td className="text-right font-mono font-extrabold text-emerald-800 text-sm">
-                        {formatRupiah(item.total)}
-                      </td>
-                      <td className="font-mono text-xs text-slate-600 font-medium">{item.jatuhTempo}</td>
-                      <td className="text-center">
-                        {item.status === 'lunas' ? (
-                          <Badge variant="green" dot>
-                            Lunas (KRS Aktif)
-                          </Badge>
-                        ) : item.status === 'pending_approval' ? (
-                          <Badge variant="gray" dot>
-                            Pending Approval
-                          </Badge>
-                        ) : (
-                          <Badge variant="red" dot>
-                            Belum Bayar
-                          </Badge>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* FILTER DRAWER — Standar SSO */}
-      <Drawer
-        open={showFilter}
-        onClose={() => setShowFilter(false)}
-        title="Filter Tagihan & Invoice"
-        width="360px"
-        footer={
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setTempAngkatan('all');
-                setTempProdi('all');
-                setTempStatus('all');
-                setSelectedAngkatan('all');
-                setSelectedProdi('all');
-                setSelectedStatus('all');
-                setShowFilter(false);
-              }}
-            >
-              Reset
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setSelectedAngkatan(tempAngkatan);
-                setSelectedProdi(tempProdi);
-                setSelectedStatus(tempStatus);
-                setShowFilter(false);
-              }}
-            >
-              Terapkan
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-5">
-          <div className="form-group">
-            <label className="form-label">Tahun Angkatan</label>
-            <select
-              value={tempAngkatan}
-              onChange={(e) => setTempAngkatan(e.target.value)}
-              className="select w-full"
-            >
-              <option value="all">Semua Angkatan</option>
-              <option value="2023">Angkatan 2023</option>
-              <option value="2024">Angkatan 2024</option>
-              <option value="2025">Angkatan 2025</option>
-              <option value="2026">Angkatan 2026</option>
-            </select>
-            {tempAngkatan !== 'all' && (
-              <p className="text-xs text-primary-600 font-semibold mt-1">
-                ✓ Filter aktif: <strong>Angkatan {tempAngkatan}</strong>
-              </p>
-            )}
+            <Select
+              label="Target Jalur Kelas *"
+              options={[
+                { value: 'Reguler', label: 'Reguler' },
+                { value: 'Karyawan', label: 'Karyawan / Eksekutif' },
+                { value: 'Internasional', label: 'Internasional' },
+              ]}
+              value={watch('target_jalur')}
+              onChange={(val) => register('target_jalur').onChange({ target: { value: val } })}
+            />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Program Studi</label>
-            <select
-              value={tempProdi}
-              onChange={(e) => setTempProdi(e.target.value)}
-              className="select w-full"
-            >
-              <option value="all">Semua Program Studi</option>
-              <option value="Teknik Informatika">Teknik Informatika</option>
-              <option value="Sistem Informasi">Sistem Informasi</option>
-              <option value="Manajemen Informatika">Manajemen Informatika</option>
-            </select>
-            {tempProdi !== 'all' && (
-              <p className="text-xs text-primary-600 font-semibold mt-1">
-                ✓ Filter aktif: <strong>{tempProdi}</strong>
-              </p>
-            )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Semester Aktif *" placeholder="Contoh: Semester Ganjil 2026/2027"
+              {...register('semester_aktif', { required: 'Semester aktif wajib diisi' })}
+              error={errors.semester_aktif?.message} />
+
+            <Input type="date" label="Batas Jatuh Tempo *"
+              {...register('jatuh_tempo', { required: 'Jatuh tempo wajib diisi' })}
+              error={errors.jatuh_tempo?.message} />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Status Pembayaran</label>
-            <select
-              value={tempStatus}
-              onChange={(e) => setTempStatus(e.target.value)}
-              className="select w-full"
-            >
-              <option value="all">Semua Status</option>
-              <option value="lunas">Lunas (KRS Aktif)</option>
-              <option value="pending_approval">Pending Approval</option>
-              <option value="belum_bayar">Belum Bayar</option>
-            </select>
-            {tempStatus !== 'all' && (
-              <p className="text-xs text-primary-600 font-semibold mt-1">
-                ✓ Filter aktif: <strong>{tempStatus.replace('_', ' ').toUpperCase()}</strong>
-              </p>
-            )}
-          </div>
-
-          <hr className="border-t border-slate-200" />
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
-            <span className="font-semibold">Catatan:</span> Klik &quot;Terapkan&quot; untuk menyaring data invoice pada tabel.
-          </div>
-        </div>
-      </Drawer>
-
-      {/* MODAL AKTIFKAN TAGIHAN MASAL SEMESTER AKTIF */}
-      <Modal
-        open={isMassModalOpen}
-        onClose={() => setIsMassModalOpen(false)}
-        title="Setting & Aktifkan Tagihan Semester Masal"
-        size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsMassModalOpen(false)}>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button type="button" variant="ghost" onClick={() => setIsMassModalOpen(false)} disabled={submitting} className="font-bold text-slate-600">
               Batal
             </Button>
-            <Button
-              variant="primary"
-              disabled={massSubmitting || selectedComponentKodes.length === 0}
-              onClick={handleActivateMassBilling}
-            >
-              {massSubmitting ? 'Memproses...' : 'Terbitkan Tagihan Masal'}
+            <Button type="submit" variant="primary" disabled={submitting}
+              icon={submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              className="font-bold shadow-md">
+              {submitting ? 'Mengaktifkan...' : 'Terbitkan Tagihan Masal'}
             </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleActivateMassBilling} className="space-y-4">
-          {/* STEP 1: FILTERS ANGKATAN & JALUR KELAS */}
-          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3 text-xs">
-            <div className="font-bold text-slate-800">1. Filter Target Mahasiswa dari Master Data:</div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="form-group">
-                <label className="form-label text-[11px]">Tahun Angkatan</label>
-                <select
-                  value={massForm.target_angkatan}
-                  onChange={(e) => setMassForm({ ...massForm, target_angkatan: e.target.value })}
-                  className="select w-full font-bold bg-white"
-                >
-                  <option value="2023">Angkatan 2023</option>
-                  <option value="2024">Angkatan 2024</option>
-                  <option value="2025">Angkatan 2025</option>
-                  <option value="2026">Angkatan 2026</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label text-[11px]">Jalur / Kelas</label>
-                <select
-                  value={massForm.target_jalur}
-                  onChange={(e) => setMassForm({ ...massForm, target_jalur: e.target.value })}
-                  className="select w-full font-bold bg-white"
-                >
-                  <option value="Reguler">Reguler</option>
-                  <option value="Karyawan">Karyawan</option>
-                  <option value="Internasional">Internasional</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label text-[11px]">Program Studi</label>
-              <select
-                value={massForm.target_prodi}
-                onChange={(e) => setMassForm({ ...massForm, target_prodi: e.target.value })}
-                className="select w-full font-bold bg-white"
-              >
-                <option value="all">Semua Program Studi</option>
-                <option value="ti">Teknik Informatika</option>
-                <option value="si">Sistem Informasi</option>
-                <option value="mi">Manajemen Informatika</option>
-              </select>
-            </div>
-          </div>
-
-          {/* STEP 2: CHECKLIST KOMPONEN TAGIHAN MASTER */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-800">
-                2. Centang Komponen Master yang Wajib Dilunasi:
-              </label>
-              <button
-                type="button"
-                onClick={toggleSelectAllMasterComponents}
-                className="text-[11px] font-bold text-primary-600 hover:underline"
-              >
-                {selectedComponentKodes.length === masterComponents.length ? 'Batal Semua' : 'Pilih Semua'}
-              </button>
-            </div>
-
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {masterComponents.map((c) => {
-                const isChecked = selectedComponentKodes.includes(c.kode);
-                return (
-                  <div
-                    key={c.kode}
-                    onClick={() => toggleComponentKode(c.kode)}
-                    className={`p-2.5 rounded-xl border cursor-pointer text-xs flex justify-between items-center transition-all ${
-                      isChecked
-                        ? 'bg-primary-50/50 border-primary-600 ring-1 ring-primary-600/30 font-bold'
-                        : 'bg-slate-50/60 border-slate-200 text-slate-500 hover:bg-slate-100'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {isChecked ? (
-                        <CheckSquare size={16} className="text-primary-700 shrink-0" />
-                      ) : (
-                        <Square size={16} className="text-slate-300 shrink-0" />
-                      )}
-                      <span className={isChecked ? 'text-slate-900' : 'text-slate-600'}>{c.nama}</span>
-                    </div>
-                    <span className={`font-mono ${isChecked ? 'text-emerald-800 font-extrabold' : 'text-slate-400'}`}>
-                      {formatRupiah(c.nominal)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs flex items-center justify-between">
-              <span className="font-bold text-emerald-950">Subtotal Tagihan per Mahasiswa:</span>
-              <span className="font-mono text-base font-extrabold text-emerald-800">
-                {formatRupiah(calculateMassSubtotal())}
-              </span>
-            </div>
-          </div>
-
-          {/* STEP 3: SETTING JATUH TEMPO */}
-          <div className="form-group">
-            <div className="flex items-center justify-between mb-1">
-              <label className="form-label mb-0">Batas Tanggal Jatuh Tempo *</label>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 30);
-                    setMassForm({ ...massForm, jatuh_tempo: d.toISOString().split('T')[0] });
-                  }}
-                  className="text-[10px] font-bold text-primary-600 hover:underline"
-                >
-                  +30 Hari
-                </button>
-                <span className="text-slate-300">•</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 60);
-                    setMassForm({ ...massForm, jatuh_tempo: d.toISOString().split('T')[0] });
-                  }}
-                  className="text-[10px] font-bold text-primary-600 hover:underline"
-                >
-                  +60 Hari
-                </button>
-              </div>
-            </div>
-            <Input
-              type="date"
-              required
-              value={massForm.jatuh_tempo}
-              onChange={(e) => setMassForm({ ...massForm, jatuh_tempo: e.target.value })}
-            />
           </div>
         </form>
       </Modal>
+
+      {/* Filter Drawer */}
+      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Tagihan Mahasiswa" width="420px"
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" variant="outline" onClick={handleResetFilter} className="font-bold text-slate-600 min-h-[42px] px-4">
+              Reset
+            </Button>
+            <Button type="button" variant="primary" onClick={handleApplyFilter} className="font-bold min-h-[42px] px-5 shadow-md">
+              Terapkan Filter
+            </Button>
+          </div>
+        }>
+        <div className="space-y-5">
+          <Input label="Cari Nomor Invoice / Nama / NIM" placeholder="Ketik kata kunci..."
+            value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
+
+          <Select label="Tahun Angkatan"
+            value={filterAngkatan}
+            onChange={(val) => setFilterAngkatan(val as string)}
+            options={[
+              { value: 'all', label: 'Semua Angkatan' },
+              { value: '2023', label: '2023' },
+              { value: '2024', label: '2024' },
+              { value: '2025', label: '2025' },
+              { value: '2026', label: '2026' },
+            ]} />
+
+          <Select label="Status Pembayaran"
+            value={filterStatus}
+            onChange={(val) => setFilterStatus(val as string)}
+            options={[
+              { value: 'all', label: 'Semua Status' },
+              { value: 'lunas', label: 'Lunas' },
+              { value: 'belum_bayar', label: 'Belum Bayar' },
+              { value: 'pending_approval', label: 'Menunggu Verifikasi' },
+            ]} />
+        </div>
+      </Drawer>
     </div>
   );
 }
