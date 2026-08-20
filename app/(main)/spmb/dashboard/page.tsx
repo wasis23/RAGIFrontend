@@ -151,12 +151,24 @@ export default function SPMBDashboardPage() {
       badgeText: 'Lulus Administrasi',
       badgeClass: 'badge-green',
       title: 'Selamat! Berkas Terverifikasi',
-      desc: 'Persyaratan administrasi Anda telah memenuhi syarat. Silakan cek jadwal tes/seleksi masuk Anda.',
-      progressPct: 83,
+      desc: 'Persyaratan administrasi Anda telah memenuhi syarat. Silakan cetak kartu & ikuti tes seleksi/ujian sesuai jadwal.',
+      progressPct: 67,
       completedSteps: 4,
       ctaText: 'Cek Jadwal & Ujian',
-      ctaLink: '/spmb/ujian',
+      ctaLink: '/spmb/ujian/jadwal',
       variant: 'success',
+    };
+  } else if (status === 'sudah_ujian') {
+    statusConfig = {
+      badgeText: 'Sudah Mengikuti Ujian',
+      badgeClass: 'badge-indigo',
+      title: 'Ujian Seleksi Selesai',
+      desc: 'Anda telah menyelesaikan sesi ujian seleksi masuk. Pengumuman hasil seleksi akan diinformasikan sesuai jadwal.',
+      progressPct: 83,
+      completedSteps: 5,
+      ctaText: 'Lihat Pengumuman Hasil',
+      ctaLink: '/spmb/seleksi',
+      variant: 'info',
     };
   } else if (status === 'gagal_administrasi') {
     statusConfig = {
@@ -182,17 +194,19 @@ export default function SPMBDashboardPage() {
   const isPembayaranLunas = pendaftaran?.status_pembayaran === 'lunas' || pendaftaran?.status_pembayaran === 'gratis';
   const isBiodataFilled = !!pendaftaran?.nama_lengkap;
   const isDokumenUploaded = uploadedDocs.length > 0;
-  const isSubmitted = status === 'submitted' || status === 'verified' || status === 'lulus_administrasi';
-  const isVerified = status === 'verified' || status === 'lulus_administrasi';
+  const isSubmitted = status === 'submitted' || status === 'verified' || status === 'lulus_administrasi' || status === 'sudah_ujian' || status === 'lulus_seleksi' || status === 'diterima';
+  const isVerifiedAdmin = status === 'verified' || status === 'lulus_administrasi' || status === 'sudah_ujian' || status === 'lulus_seleksi' || status === 'diterima';
+  const isUjianDone = status === 'sudah_ujian' || status === 'lulus_seleksi' || status === 'diterima' || status === 'lulus' || !!(pendaftaran as any)?.nilai_ujian || !!(pendaftaran as any)?.peserta_ujian?.length;
+  const isPengumumanDone = status === 'lulus_seleksi' || status === 'diterima' || status === 'tidak_lulus' || status === 'ditolak';
 
   // Workflow steps definition (6 Tahap Utama Calon Mahasiswa)
   const steps = [
     { label: 'Biodata', key: 'biodata', done: isBiodataFilled },
     { label: 'Pembayaran', key: 'pembayaran', done: isPembayaranLunas },
     { label: 'Unggah Berkas', key: 'berkas', done: isDokumenUploaded || isSubmitted },
-    { label: 'Finalisasi', key: 'finalize', done: isSubmitted },
-    { label: 'Verifikasi & Ujian', key: 'verifikasi', done: isVerified },
-    { label: 'Pengumuman', key: 'pengumuman', done: false },
+    { label: 'Finalisasi & Verifikasi', key: 'finalize', done: isVerifiedAdmin },
+    { label: 'Ujian Seleksi (CBT)', key: 'ujian', done: isUjianDone },
+    { label: 'Pengumuman', key: 'pengumuman', done: isPengumumanDone },
   ];
 
   const completedCount = steps.filter(s => s.done).length;
