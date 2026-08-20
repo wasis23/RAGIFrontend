@@ -1,21 +1,30 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import {
-  BookOpen, Plus, Calculator, Table, Filter, Loader2, Save, CheckCircle2, TrendingUp, TrendingDown, Wallet, Search
-} from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Loader2, Save, AlertCircle, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { sikeuService } from '@/services/sikeu.service';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
-import { Drawer } from '@/components/ui/Drawer';
+
+// Atomic Design Components
+import { JournalHeader } from '@/components/sikeu/akuntansi/organisms/JournalHeader';
+import { FinancialMetricCard } from '@/components/sikeu/akuntansi/molecules/FinancialMetricCard';
+import { JournalFilterBar } from '@/components/sikeu/akuntansi/organisms/JournalFilterBar';
+import { JournalTable } from '@/components/sikeu/akuntansi/organisms/JournalTable';
+import { JournalMobileList } from '@/components/sikeu/akuntansi/organisms/JournalMobileList';
+import { TransactionDetailDrawer } from '@/components/sikeu/akuntansi/organisms/TransactionDetailDrawer';
+import { FilterSheet } from '@/components/sikeu/akuntansi/organisms/FilterSheet';
+import { JournalItemData } from '@/components/sikeu/akuntansi/molecules/JournalRow';
+
+// UI Kit
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { Button } from '@/components/ui/Button';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { useForm } from 'react-hook-form';
+
+// Service
+import { sikeuService } from '@/services/sikeu.service';
 
 interface CoaItem {
   id: number;
@@ -23,19 +32,6 @@ interface CoaItem {
   nama_akun: string;
   kelompok: string;
   saldo_normal: string;
-}
-
-interface JurnalItem {
-  id: number;
-  nomor_jurnal: string;
-  tanggal_jurnal: string;
-  jenis_sumber: string;
-  keterangan: string;
-  uang_masuk: number;   // Debet / Inflow
-  uang_keluar: number;  // Kredit / Outflow
-  saldo_running?: number;
-  nama_akun_terkait?: string;
-  status_posting?: string;
 }
 
 interface CoaFormValues {
@@ -53,21 +49,24 @@ interface JurnalFormValues {
   keterangan: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
-
-export default function AkuntansiPage() {
+export default function AccountingJournalPage() {
   const [activeTab, setActiveTab] = useState<'jurnal' | 'coa'>('jurnal');
   const [loading, setLoading] = useState(true);
+  const [errorState, setErrorState] = useState<string | null>(null);
 
   const [coaList, setCoaList] = useState<CoaItem[]>([]);
-  const [jurnalList, setJurnalList] = useState<JurnalItem[]>([]);
+  const [jurnalList, setJurnalList] = useState<JournalItemData[]>([]);
 
-  // Filter Drawer State — 2-stage
-  const [showFilter, setShowFilter] = useState(false);
-  const [filterSearch, setFilterSearch] = useState('');
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterTipe, setFilterTipe] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', tipe: 'all' });
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
+  // Detail Drawer State
+  const [selectedTransaction, setSelectedTransaction] = useState<JournalItemData | null>(null);
 
   // Modals State
   const [isCoaModalOpen, setIsCoaModalOpen] = useState(false);
@@ -101,23 +100,19 @@ export default function AkuntansiPage() {
   };
 
   const fetchJurnal = async () => {
+    setErrorState(null);
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await sikeuService.getJurnalList();
       const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
 
-      // Map raw entries into clean Inflow (Uang Masuk) vs Outflow (Uang Keluar)
-      let currentRunningBalance = 0;
-      const mapped: JurnalItem[] = list.map((item: any) => {
-        const debet = item.total_debet || item.debet || 0;
-        const kredit = item.total_kredit || item.kredit || 0;
-        
-        // Determine whether this transaction represents money coming in or going out
+      const mapped: JournalItemData[] = list.map((item: any) => {
+        const debet = Number(item.total_debet || item.debet) || 0;
+        const kredit = Number(item.total_kredit || item.kredit) || 0;
+
         const isMasuk = debet >= kredit;
         const uangMasuk = isMasuk ? debet : 0;
         const uangKeluar = !isMasuk ? kredit : 0;
-        
-        currentRunningBalance += (uangMasuk - uangKeluar);
 
         return {
           id: item.id,
@@ -127,7 +122,7 @@ export default function AkuntansiPage() {
           keterangan: item.keterangan || 'Transaksi Keuangan Kampus',
           uang_masuk: uangMasuk,
           uang_keluar: uangKeluar,
-          saldo_running: currentRunningBalance,
+          kode_coa: item.kode_coa || '1101',
           nama_akun_terkait: isMasuk ? 'Kas Penerimaan' : 'Kas Operasional',
           status_posting: item.status_posting || 'posted',
         };
@@ -136,7 +131,7 @@ export default function AkuntansiPage() {
       setJurnalList(mapped);
     } catch {
       setJurnalList([]);
-      toast.error('Gagal memuat data jurnal keuangan');
+      setErrorState('Terjadi masalah saat mengambil data transaksi.');
     } finally {
       setLoading(false);
     }
@@ -185,102 +180,52 @@ export default function AkuntansiPage() {
     }
   };
 
-  const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, tipe: filterTipe });
-    setShowFilter(false);
-  };
+  // Filter Computation
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filterTipe !== 'all') count++;
+    if (filterStatus !== 'all') count++;
+    if (startDate) count++;
+    if (endDate) count++;
+    return count;
+  }, [filterTipe, filterStatus, startDate, endDate]);
 
-  const handleResetFilter = () => {
-    setFilterSearch('');
+  const handleClearFilters = () => {
+    setSearchQuery('');
     setFilterTipe('all');
-    setAppliedFilters({ search: '', tipe: 'all' });
-    setShowFilter(false);
+    setFilterStatus('all');
+    setStartDate('');
+    setEndDate('');
   };
 
   const filteredJurnal = useMemo(() => {
     return jurnalList.filter((j) => {
-      if (appliedFilters.search) {
-        const q = appliedFilters.search.toLowerCase();
-        if (!j.nomor_jurnal?.toLowerCase().includes(q) && !j.keterangan?.toLowerCase().includes(q) && !j.jenis_sumber?.toLowerCase().includes(q)) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!j.nomor_jurnal?.toLowerCase().includes(q) &&
+            !j.keterangan?.toLowerCase().includes(q) &&
+            !j.jenis_sumber?.toLowerCase().includes(q) &&
+            !j.nama_akun_terkait?.toLowerCase().includes(q)) return false;
       }
-      if (appliedFilters.tipe === 'masuk' && j.uang_masuk <= 0) return false;
-      if (appliedFilters.tipe === 'keluar' && j.uang_keluar <= 0) return false;
+      if (filterTipe === 'masuk' && j.uang_masuk <= 0) return false;
+      if (filterTipe === 'keluar' && j.uang_keluar <= 0) return false;
+      if (filterStatus !== 'all' && (j.status_posting || 'posted').toLowerCase() !== filterStatus) return false;
       return true;
     });
-  }, [jurnalList, appliedFilters]);
+  }, [jurnalList, searchQuery, filterTipe, filterStatus]);
 
   const filteredCoa = useMemo(() => {
-    if (!appliedFilters.search) return coaList;
-    const q = appliedFilters.search.toLowerCase();
+    if (!searchQuery) return coaList;
+    const q = searchQuery.toLowerCase();
     return coaList.filter((c) =>
       c.kode_akun?.toLowerCase().includes(q) || c.nama_akun?.toLowerCase().includes(q) || c.kelompok?.toLowerCase().includes(q)
     );
-  }, [coaList, appliedFilters]);
+  }, [coaList, searchQuery]);
 
-  // Total Summaries
-  const totalUangMasuk = useMemo(() => filteredJurnal.reduce((sum, j) => sum + j.uang_masuk, 0), [filteredJurnal]);
-  const totalUangKeluar = useMemo(() => filteredJurnal.reduce((sum, j) => sum + j.uang_keluar, 0), [filteredJurnal]);
+  // Financial Summaries
+  const totalUangMasuk = useMemo(() => filteredJurnal.reduce((sum, j) => sum + (j.uang_masuk || 0), 0), [filteredJurnal]);
+  const totalUangKeluar = useMemo(() => filteredJurnal.reduce((sum, j) => sum + (j.uang_keluar || 0), 0), [filteredJurnal]);
   const netMutasiKas = totalUangMasuk - totalUangKeluar;
-
-  const jurnalColumns: ColumnDef<JurnalItem>[] = [
-    {
-      key: 'tanggal_jurnal',
-      label: 'TANGGAL & NO JURNAL',
-      render: (row) => (
-        <div>
-          <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
-            {row.nomor_jurnal}
-          </span>
-          <span className="text-2xs block text-slate-500 font-semibold mt-1">{row.tanggal_jurnal}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'keterangan',
-      label: 'SUMBER & URAIAN TRANSAKSI',
-      render: (row) => (
-        <div>
-          <span className="badge badge-purple text-xs font-bold uppercase">{row.jenis_sumber}</span>
-          <p className="text-xs text-slate-800 font-semibold mt-1 line-clamp-1">{row.keterangan}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'uang_masuk',
-      label: 'UANG MASUK (+RP)',
-      render: (row) => (
-        row.uang_masuk > 0 ? (
-          <span className="font-bold text-emerald-600 text-sm tabular-nums">
-            + {formatRupiah(row.uang_masuk)}
-          </span>
-        ) : (
-          <span className="text-slate-300 font-mono text-xs">—</span>
-        )
-      ),
-    },
-    {
-      key: 'uang_keluar',
-      label: 'UANG KELUAR (-RP)',
-      render: (row) => (
-        row.uang_keluar > 0 ? (
-          <span className="font-bold text-rose-600 text-sm tabular-nums">
-            - {formatRupiah(row.uang_keluar)}
-          </span>
-        ) : (
-          <span className="text-slate-300 font-mono text-xs">—</span>
-        )
-      ),
-    },
-    {
-      key: 'status',
-      label: 'STATUS',
-      render: () => (
-        <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
-          <CheckCircle2 size={12} /> Lunas / Posted
-        </span>
-      ),
-    },
-  ];
 
   const coaColumns: ColumnDef<CoaItem>[] = [
     {
@@ -316,115 +261,125 @@ export default function AkuntansiPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
-      <PageHeader
-        title="Jurnal Keuangan & Mutasi Kas Kampus"
-        description="Pencatatan arus Uang Masuk (Inflow), Uang Keluar (Outflow), dan Master Kode Akun COA."
-        action={
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              variant="outline"
-              icon={<Filter size={16} />}
-              onClick={() => setShowFilter(true)}
-              className="font-bold min-h-[40px]"
-            >
-              Filter
-            </Button>
-
-            {activeTab === 'jurnal' && (
-              <Button
-                variant="primary"
-                icon={<Plus size={16} />}
-                onClick={() => setIsJurnalModalOpen(true)}
-                className="font-bold min-h-[40px] px-4 shadow-sm"
-              >
-                Catat Transaksi Kas Baru
-              </Button>
-            )}
-
-            {activeTab === 'coa' && (
-              <Button
-                variant="primary"
-                icon={<Plus size={16} />}
-                onClick={() => setIsCoaModalOpen(true)}
-                className="font-bold min-h-[40px] px-4 shadow-sm"
-              >
-                Tambah Akun COA
-              </Button>
-            )}
-          </div>
-        }
+    <div className="space-y-5 animate-fade-in max-w-7xl mx-auto px-1 sm:px-4 py-2">
+      {/* 1. Header Section */}
+      <JournalHeader
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onOpenFilter={() => setIsFilterSheetOpen(true)}
+        onOpenCreateModal={() => {
+          if (activeTab === 'jurnal') setIsJurnalModalOpen(true);
+          else setIsCoaModalOpen(true);
+        }}
       />
 
-      {/* Summary Cards: Uang Masuk, Uang Keluar, Saldo Net */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Uang Masuk (+)</p>
-            <p className="text-xl font-extrabold text-emerald-600 mt-1 tabular-nums">
-              + {formatRupiah(totalUangMasuk)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <TrendingUp size={20} />
-          </div>
-        </div>
+      {/* 2. Financial Summary Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <FinancialMetricCard
+          title="TOTAL UANG MASUK"
+          amount={totalUangMasuk}
+          type="inflow"
+          countInfo={`↑ ${filteredJurnal.filter(j => j.uang_masuk > 0).length} transaksi`}
+          loading={loading}
+        />
 
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Uang Keluar (-)</p>
-            <p className="text-xl font-extrabold text-rose-600 mt-1 tabular-nums">
-              - {formatRupiah(totalUangKeluar)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-            <TrendingDown size={20} />
-          </div>
-        </div>
+        <FinancialMetricCard
+          title="TOTAL UANG KELUAR"
+          amount={totalUangKeluar}
+          type="outflow"
+          countInfo={`↓ ${filteredJurnal.filter(j => j.uang_keluar > 0).length} transaksi`}
+          loading={loading}
+        />
 
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Net Mutasi Saldo Kas</p>
-            <p className={`text-xl font-extrabold mt-1 tabular-nums ${netMutasiKas >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
-              {formatRupiah(netMutasiKas)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
-            <Wallet size={20} />
-          </div>
-        </div>
+        <FinancialMetricCard
+          title="NET MUTASI KAS"
+          amount={netMutasiKas}
+          type="balance"
+          countInfo="Saldo berjalan periode ini"
+          loading={loading}
+        />
       </div>
 
-      {/* Tabs Bar */}
-      <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto pb-1">
-        <button
-          onClick={() => setActiveTab('jurnal')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'jurnal' ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <BookOpen size={15} />
-          Jurnal Uang Masuk & Keluar
-        </button>
-
-        <button
-          onClick={() => setActiveTab('coa')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'coa' ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Calculator size={15} />
-          Master Chart of Accounts (COA)
-        </button>
-      </div>
-
-      {activeTab === 'jurnal' && (
-        <DataTable data={filteredJurnal} isLoading={loading} columns={jurnalColumns} emptyMessage="Belum ada data jurnal keuangan." />
+      {/* Error Banner */}
+      {errorState && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs font-medium text-rose-800">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="text-rose-600 shrink-0" />
+            <span>Gagal memuat jurnal keuangan: {errorState}</span>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<RefreshCw size={14} />}
+            onClick={fetchJurnal}
+            className="font-bold text-rose-700 border-rose-300"
+          >
+            Tampilkan Lagi
+          </Button>
+        </div>
       )}
 
-      {activeTab === 'coa' && (
+      {/* 3. Search & Filter Bar */}
+      <JournalFilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filterTipe={filterTipe}
+        onTipeChange={setFilterTipe}
+        filterStatus={filterStatus}
+        onStatusChange={setFilterStatus}
+        onOpenFilterSheet={() => setIsFilterSheetOpen(true)}
+        activeFilterCount={activeFilterCount}
+        onClearFilters={handleClearFilters}
+      />
+
+      {/* 4. Journal Content Section */}
+      {activeTab === 'jurnal' ? (
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <JournalTable
+              data={filteredJurnal}
+              loading={loading}
+              onSelect={setSelectedTransaction}
+              onResetSearch={handleClearFilters}
+            />
+          </div>
+
+          {/* Mobile Card List View */}
+          <div className="md:hidden">
+            <JournalMobileList
+              data={filteredJurnal}
+              loading={loading}
+              onSelect={setSelectedTransaction}
+              onResetSearch={handleClearFilters}
+            />
+          </div>
+        </>
+      ) : (
         <DataTable data={filteredCoa} isLoading={loading} columns={coaColumns} emptyMessage="Belum ada kode akun COA." />
       )}
+
+      {/* Detail Drawer */}
+      <TransactionDetailDrawer
+        item={selectedTransaction}
+        onClose={() => setSelectedTransaction(null)}
+      />
+
+      {/* Mobile Filter Sheet */}
+      <FilterSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        filterTipe={filterTipe}
+        onTipeChange={setFilterTipe}
+        filterStatus={filterStatus}
+        onStatusChange={setFilterStatus}
+        startDate={startDate}
+        onStartDateChange={setStartDate}
+        endDate={endDate}
+        onEndDateChange={setEndDate}
+        onApply={() => setIsFilterSheetOpen(false)}
+        onReset={handleClearFilters}
+      />
 
       {/* Modal Add COA */}
       <Modal isOpen={isCoaModalOpen} onClose={() => setIsCoaModalOpen(false)} title="Tambah Kode Akun (COA) Baru">
@@ -472,7 +427,7 @@ export default function AkuntansiPage() {
         </form>
       </Modal>
 
-      {/* Modal Entry Transaksi Kas Baru */}
+      {/* Modal Catat Transaksi Baru */}
       <Modal isOpen={isJurnalModalOpen} onClose={() => setIsJurnalModalOpen(false)} title="Catat Transaksi Keuangan Kas Baru">
         <form onSubmit={jurnalForm.handleSubmit(onSubmitJurnal)} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -516,33 +471,6 @@ export default function AkuntansiPage() {
           </div>
         </form>
       </Modal>
-
-      {/* Filter Drawer */}
-      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Jurnal Keuangan" width="420px"
-        footer={
-          <div className="flex items-center justify-between gap-3">
-            <Button type="button" variant="outline" onClick={handleResetFilter} className="font-bold text-slate-600 min-h-[42px] px-4">
-              Reset
-            </Button>
-            <Button type="button" variant="primary" onClick={handleApplyFilter} className="font-bold min-h-[42px] px-5 shadow-md">
-              Terapkan Filter
-            </Button>
-          </div>
-        }>
-        <div className="space-y-5">
-          <Input label="Cari Nomor Jurnal / Keterangan" placeholder="Ketik kata kunci..."
-            value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
-
-          <Select label="Filter Tipe Transaksi"
-            value={filterTipe}
-            onChange={(val) => setFilterTipe(val as string)}
-            options={[
-              { value: 'all', label: 'Semua Transaksi' },
-              { value: 'masuk', label: 'Hanya Uang Masuk (+)' },
-              { value: 'keluar', label: 'Hanya Uang Keluar (-)' },
-            ]} />
-        </div>
-      </Drawer>
     </div>
   );
 }
