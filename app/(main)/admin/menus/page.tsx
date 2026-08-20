@@ -118,7 +118,7 @@ export default function AdminMenuPage() {
   };
 
   const allFlattenedMenus = flattenMenus(menus);
-  
+
   const filteredFlattenedMenus = allFlattenedMenus.filter(m => {
     if (!appliedFilterName) return true;
     const lowerQ = appliedFilterName.toLowerCase();
@@ -126,54 +126,64 @@ export default function AdminMenuPage() {
   });
 
   const columns: ColumnDef<FlattenedMenu>[] = [
-    { key: 'name', label: 'Nama Menu', render: (row) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: `${row.level * 1.5}rem` }}>
-        {row.level > 0 && <span className="text-slate-400">↳</span>}
-        <span style={{ fontWeight: row.level === 0 ? 700 : 500, color: row.level === 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-          {row.name}
-        </span>
-      </div>
-    )},
-    { key: 'url', label: 'URL', render: (row) => (
-      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem]">
-        {row.url}
-      </code>
-    )},
-    { key: 'icon', label: 'Icon', render: (row) => (
-      <span className="text-sm text-slate-400">{row.icon || '-'}</span>
-    )},
-    { key: 'is_active', label: 'Status', render: (row) => (
-      row.is_active ? (
-        <span className="badge badge-green"><CheckCircle2 size={12} className="mr-1"/> Aktif</span>
-      ) : (
-        <span className="badge badge-red"><XCircle size={12} className="mr-1"/> Nonaktif</span>
+    {
+      key: 'name', label: 'Nama Menu', render: (row) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: `${row.level * 1.5}rem` }}>
+          {row.level > 0 && <span className="text-slate-400">↳</span>}
+          <span style={{ fontWeight: row.level === 0 ? 700 : 500, color: row.level === 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+            {row.name}
+          </span>
+        </div>
       )
-    )},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        <Button
-          variant={row.is_active ? 'outline-danger' : 'outline'}
-          size="sm"
-          icon={togglingId === row.id ? <RefreshCw size={14} className="animate-spin" /> : (row.is_active ? <XCircle size={14} /> : <CheckCircle2 size={14} />)}
-          onClick={() => handleToggle(row.id, row.is_active)}
-          disabled={togglingId === row.id}
-        >
-          {row.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          icon={<Pencil size={14} />}
-          onClick={() => openEditModal(row)}
-        />
-        <Button
-          variant="outline-danger"
-          size="sm"
-          icon={<Trash2 size={14} />}
-          onClick={() => handleDelete(row.id, row.name)}
-        />
-      </div>
-    )},
+    },
+    {
+      key: 'url', label: 'URL', render: (row) => (
+        <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem]">
+          {row.url}
+        </code>
+      )
+    },
+    {
+      key: 'icon', label: 'Icon', render: (row) => (
+        <span className="text-sm text-slate-400">{row.icon || '-'}</span>
+      )
+    },
+    {
+      key: 'is_active', label: 'Status', render: (row) => (
+        row.is_active ? (
+          <span className="badge badge-green"><CheckCircle2 size={12} className="mr-1" /> Aktif</span>
+        ) : (
+          <span className="badge badge-red"><XCircle size={12} className="mr-1" /> Nonaktif</span>
+        )
+      )
+    },
+    {
+      key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
+        <div className="flex justify-end gap-2">
+          <Button
+            variant={row.is_active ? 'outline-danger' : 'outline'}
+            size="sm"
+            icon={togglingId === row.id ? <RefreshCw size={14} className="animate-spin" /> : (row.is_active ? <XCircle size={14} /> : <CheckCircle2 size={14} />)}
+            onClick={() => handleToggle(row.id, row.is_active)}
+            disabled={togglingId === row.id}
+          >
+            {row.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Pencil size={14} />}
+            onClick={() => openEditModal(row)}
+          />
+          <Button
+            variant="outline-danger"
+            size="sm"
+            icon={<Trash2 size={14} />}
+            onClick={() => handleDelete(row.id, row.name)}
+          />
+        </div>
+      )
+    },
   ];
 
   return (
@@ -183,9 +193,9 @@ export default function AdminMenuPage() {
         description="Mengelola menu navigasi dan status aktif/nonaktifnya untuk setiap modul."
         action={
           <div className="flex gap-2 items-center">
-            <Button 
-              variant="outline" 
-              icon={<Filter size={16} />} 
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
               onClick={() => setShowFilter(true)}
             >
               Filter
@@ -213,8 +223,8 @@ export default function AdminMenuPage() {
         title="Filter Menu"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={() => {
                 setFilterName('');
                 setAppliedFilterName('');
@@ -223,8 +233,8 @@ export default function AdminMenuPage() {
             >
               Reset
             </Button>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={() => {
                 setAppliedFilterName(filterName);
                 setShowFilter(false);
@@ -244,7 +254,7 @@ export default function AdminMenuPage() {
               options={appModules.map(m => ({ value: m.code, label: m.name.toUpperCase() }))}
             />
           </div>
-          <Input 
+          <Input
             label="Cari Menu"
             placeholder="Ketik nama atau URL menu..."
             value={filterName}
