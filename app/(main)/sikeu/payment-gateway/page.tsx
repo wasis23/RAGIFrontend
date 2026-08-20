@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
+import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PaymentGatewayConfigTemplate } from '@/components/sikeu/payment-gateway/templates/PaymentGatewayConfigTemplate';
 import { GatewayConfigData } from '@/components/sikeu/payment-gateway/organisms/GatewayConfigFormPanel';
@@ -10,7 +11,6 @@ export default function PaymentGatewayConfigPage() {
   const [configs, setConfigs] = useState<Record<string, GatewayConfigData>>({});
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const [gatewayBalance, setGatewayBalance] = useState({
     available_balance: 0,
@@ -49,7 +49,6 @@ export default function PaymentGatewayConfigPage() {
         });
       }
 
-      // Defaults if not exists in DB yet
       const defaultGateways = ['xendit', 'duitku'];
       defaultGateways.forEach((g) => {
         if (!configMap[g]) {
@@ -68,7 +67,7 @@ export default function PaymentGatewayConfigPage() {
 
       setConfigs(configMap);
     } catch (error: any) {
-      setFeedback({ type: 'error', message: 'Gagal mengambil konfigurasi: ' + error.message });
+      toast.error('Gagal mengambil konfigurasi: ' + (error.message || 'Error API'));
     } finally {
       setLoading(false);
     }
@@ -81,8 +80,8 @@ export default function PaymentGatewayConfigPage() {
       if (res.data) {
         setGatewayBalance(res.data);
       }
-    } catch (error: any) {
-      setFeedback({ type: 'error', message: 'Gagal sinkronisasi saldo: ' + error.message });
+    } catch {
+      // Quiet fallback for balance sync
     } finally {
       setLoadingBalance(false);
     }
@@ -94,13 +93,9 @@ export default function PaymentGatewayConfigPage() {
     try {
       const payload = configs[activeTab];
       await sikeuService.updatePaymentGateway(activeTab.toLowerCase(), payload);
-      setFeedback({
-        type: 'success',
-        message: `Konfigurasi ${activeTab.toUpperCase()} berhasil disimpan.`,
-      });
-      fetchConfigs(); // Refresh to reflect active state single-source of truth
+      toast.success(`Konfigurasi ${activeTab.toUpperCase()} berhasil disimpan!`);
     } catch (error: any) {
-      setFeedback({ type: 'error', message: 'Gagal menyimpan: ' + error.message });
+      toast.error('Gagal menyimpan konfigurasi: ' + (error.message || 'Error API'));
     } finally {
       setSavingConfig(false);
     }
@@ -116,7 +111,7 @@ export default function PaymentGatewayConfigPage() {
     }));
   };
 
-  const defaultConfig: GatewayConfigData = {
+  const currentConfig: GatewayConfigData = configs[activeTab] || {
     environment: 'sandbox',
     api_key: '',
     public_key: '',
@@ -127,15 +122,10 @@ export default function PaymentGatewayConfigPage() {
     is_active: false,
   };
 
-  const currentConfig = configs[activeTab] || defaultConfig;
-
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto py-16 px-6 text-center space-y-4">
-        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">
-          Memuat Konfigurasi Payment Gateway...
-        </p>
+      <div className="p-8 text-center text-xs text-slate-400">
+        Memuat konfigurasi Payment Gateway...
       </div>
     );
   }
@@ -153,7 +143,7 @@ export default function PaymentGatewayConfigPage() {
       onFormChange={handleFormChange}
       onSaveConfig={handleSaveConfig}
       savingConfig={savingConfig}
-      feedback={feedback}
+      feedback={null}
     />
   );
 }
