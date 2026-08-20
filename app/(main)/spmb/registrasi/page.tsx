@@ -125,18 +125,19 @@ function DokumenUploadPanel({
   const safeUploading = uploadingState || {};
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-        <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-          <UploadCloud size={20} />
+        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 shadow-xs">
+          <UploadCloud size={22} />
         </div>
         <div>
           <h3 className="font-bold text-slate-900 text-base">Unggah Berkas &amp; Dokumen Pendaftaran</h3>
-          <p className="text-xs text-slate-500">Unggah dokumen kelengkapan berkas pendaftaran calon mahasiswa (Format: PDF, JPG, PNG, Maks 5MB).</p>
+          <p className="text-xs text-slate-500">Unggah dokumen kelengkapan berkas pendaftaran calon mahasiswa (Format: PDF, JPG, PNG, Maks 5MB per file).</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+      {/* Vertical Single-Column List (Ke bawah) */}
+      <div className="space-y-3 pt-1">
         {REQUIRED_DOCUMENTS.map((doc) => {
           const IconComp = doc.icon;
           const berkas = safeUploaded[doc.key];
@@ -146,53 +147,61 @@ function DokumenUploadPanel({
           return (
             <div
               key={doc.key}
-              className={`p-4 rounded-xl border transition-all space-y-3 ${
+              className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                 isUploaded
-                  ? 'bg-emerald-50/50 border-emerald-200'
-                  : 'bg-slate-50/70 border-slate-200 hover:border-primary-300'
+                  ? 'bg-emerald-50/40 border-emerald-200/90 hover:border-emerald-300'
+                  : 'bg-slate-50/70 border-slate-200/90 hover:border-primary-300'
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isUploaded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/70 text-slate-600'}`}>
-                    <IconComp size={18} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
-                      {doc.label}
-                      {doc.required && <span className="text-red-500 text-xs">*</span>}
-                    </h4>
-                    <p className="text-2xs text-slate-500 font-medium">{doc.hint}</p>
-                  </div>
+              {/* Document Info Left */}
+              <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  isUploaded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/80 text-slate-600'
+                }`}>
+                  <IconComp size={20} />
                 </div>
-                <div>
-                  {isUploaded ? (
-                    <span className="text-2xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
-                      ✓ Terunggah
-                    </span>
-                  ) : (
-                    <span className="text-2xs font-semibold text-slate-500 bg-slate-200/80 px-2 py-0.5 rounded-full shrink-0">
-                      Belum Diunggah
-                    </span>
-                  )}
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-bold text-slate-900 text-sm sm:text-base">
+                      {doc.label}
+                    </h4>
+                    {doc.required ? (
+                      <span className="text-2xs font-extrabold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                        Wajib
+                      </span>
+                    ) : (
+                      <span className="text-2xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                        Opsional
+                      </span>
+                    )}
+                    {isUploaded ? (
+                      <span className="text-2xs font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                        ✓ Terunggah
+                      </span>
+                    ) : (
+                      <span className="text-2xs font-semibold text-slate-500 bg-slate-200/70 px-2.5 py-0.5 rounded-full">
+                        Belum Diunggah
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">{doc.hint}</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100/60">
-                {isUploaded ? (
+              {/* Document Action Right */}
+              <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                {isUploaded && (
                   <a
                     href={berkas.file_url || (berkas.file_path ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/storage/${berkas.file_path.replace(/^public\//, '')}` : '#')}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 hover:text-emerald-800 bg-white border border-emerald-200 px-2.5 py-1.5 rounded-lg shadow-2xs"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-white border border-emerald-200 px-3 py-2 rounded-xl shadow-2xs transition-colors"
                   >
-                    <FileCheck size={14} /> Lihat Dokumen
+                    <FileCheck size={15} /> Lihat File
                   </a>
-                ) : (
-                  <span className="text-2xs text-slate-400 font-medium">Format: PDF/JPG/PNG</span>
                 )}
 
-                <label className={`inline-flex items-center gap-1.5 cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs ${
+                <label className={`inline-flex items-center gap-1.5 cursor-pointer px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs ${
                   isUploading
                     ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                     : isUploaded
@@ -201,12 +210,12 @@ function DokumenUploadPanel({
                 }`}>
                   {isUploading ? (
                     <>
-                      <Loader2 size={14} className="animate-spin" />
+                      <Loader2 size={15} className="animate-spin" />
                       <span>Mengunggah...</span>
                     </>
                   ) : (
                     <>
-                      <UploadCloud size={14} />
+                      <UploadCloud size={15} />
                       <span>{isUploaded ? 'Ganti File' : 'Unggah File'}</span>
                     </>
                   )}
