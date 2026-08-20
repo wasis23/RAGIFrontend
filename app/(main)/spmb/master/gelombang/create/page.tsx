@@ -170,7 +170,7 @@ export default function CreateGelombangPage() {
       setLoading(true);
       const payload = {
         ...data,
-        tahun_akademik_id: data.tahun_akademik_id ? Number(data.tahun_akademik_id) : 1,
+        tahun_akademik_id: Number(data.tahun_akademik_id),
         biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
       };
       await spmbService.createGelombang(payload as any);

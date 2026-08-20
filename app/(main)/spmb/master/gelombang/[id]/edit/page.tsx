@@ -191,7 +191,7 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
         reset({
           nama: row.nama,
           jalur_masuk_id: row.jalur_masuk_id,
-          tahun_akademik_id: row.tahun_akademik_id || 1,
+          tahun_akademik_id: row.tahun_akademik_id,
           kuota_total: row.kuota_total,
           biaya_pendaftaran: rowNominal,
           status: row.status,
