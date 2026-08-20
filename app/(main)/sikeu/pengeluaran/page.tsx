@@ -1,37 +1,52 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, ArrowLeft, TrendingDown, CheckCircle, Search, RefreshCw, Filter, FileText } from 'lucide-react';
+import { Plus, Filter, TrendingDown, RefreshCw, Eye, FileText, CheckCircle2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Drawer } from '@/components/ui/Drawer';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+
+interface PengeluaranItem {
+  id: number;
+  kode: string;
+  tanggal: string;
+  kategori: string;
+  keterangan: string;
+  kas_asal: string;
+  nominal_gross: number;
+  nominal_pajak: number;
+  nominal_net: number;
+}
+
+const formatRupiah = (val: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export default function PengeluaranListPage() {
-  const [pengeluaranList, setPengeluaranList] = useState<any[]>([]);
+  const [data, setData] = useState<PengeluaranItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterKategori, setFilterKategori] = useState('semua');
-  const [summary, setSummary] = useState({
-    total_nominal: 0,
-    total_pajak: 0,
-    total_net: 0,
-  });
+
+  // Filter Drawer — 2-stage
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterKategori, setFilterKategori] = useState('all');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', kategori: 'all' });
 
   const fetchPengeluaran = async () => {
     try {
       setLoading(true);
-      const res = await sikeuService.getPengeluaranList({
-        search: search || undefined,
-        kategori: filterKategori !== 'semua' ? filterKategori : undefined,
-      });
-
-      if (res.data) {
-        setPengeluaranList(Array.isArray(res.data) ? res.data : []);
-      }
-      if ((res as any).summary) {
-        setSummary((res as any).summary);
-      }
-    } catch (e) {
-      console.error('Failed to load pengeluaran list', e);
+      const res = await sikeuService.getPengeluaranList();
+      const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      setData(list);
+    } catch {
+      setData([]);
+      toast.error('Gagal memuat data pengeluaran');
     } finally {
       setLoading(false);
     }
@@ -39,185 +54,165 @@ export default function PengeluaranListPage() {
 
   useEffect(() => {
     fetchPengeluaran();
-  }, [filterKategori]);
+  }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchPengeluaran();
+  const handleApplyFilter = () => {
+    setAppliedFilters({ search: filterSearch, kategori: filterKategori });
+    setShowFilter(false);
   };
 
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setFilterKategori('all');
+    setAppliedFilters({ search: '', kategori: 'all' });
+    setShowFilter(false);
+  };
+
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
+        if (!item.kode?.toLowerCase().includes(q) && !item.keterangan?.toLowerCase().includes(q) && !item.kategori?.toLowerCase().includes(q)) return false;
+      }
+      if (appliedFilters.kategori !== 'all' && item.kategori !== appliedFilters.kategori) return false;
+      return true;
+    });
+  }, [data, appliedFilters]);
+
+  const totalGross = useMemo(() => filteredData.reduce((acc, i) => acc + (i.nominal_gross || 0), 0), [filteredData]);
+  const totalNet = useMemo(() => filteredData.reduce((acc, i) => acc + (i.nominal_net || 0), 0), [filteredData]);
+
+  const columns: ColumnDef<PengeluaranItem>[] = [
+    {
+      key: 'kode',
+      label: 'KODE & TANGGAL',
+      render: (row) => (
+        <div>
+          <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
+            {row.kode || `EXP-${row.id}`}
+          </span>
+          <span className="text-2xs block text-slate-400 font-semibold mt-1">{row.tanggal || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'kategori',
+      label: 'KATEGORI & KETERANGAN',
+      render: (row) => (
+        <div>
+          <span className="badge badge-purple text-xs font-bold uppercase">{row.kategori || 'Operasional'}</span>
+          <p className="text-xs text-slate-700 font-medium mt-1 line-clamp-1">{row.keterangan}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'kas_asal',
+      label: 'KAS / REKENING ASAL',
+      render: (row) => (
+        <span className="font-semibold text-slate-700 text-xs">{row.kas_asal || 'Kas Utama Rektorat'}</span>
+      ),
+    },
+    {
+      key: 'nominal_gross',
+      label: 'GROSS (RP)',
+      render: (row) => (
+        <span className="font-bold text-slate-900 tabular-nums text-sm">
+          {formatRupiah(row.nominal_gross || 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'nominal_net',
+      label: 'NET BIAYA (RP)',
+      render: (row) => (
+        <span className="font-bold text-emerald-700 tabular-nums text-sm">
+          {formatRupiah(row.nominal_net || 0)}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
-        <div className="flex items-center gap-3">
-          <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="badge badge-red">
-                Pengeluaran & Belanja Kampus
-              </span>
-              <span className="badge badge-gray">
-                Auto-Journal Balanced
-              </span>
-            </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Pengeluaran Kampus</h1>
-            <p className="text-xs text-slate-500">
-              Pencatatan transaksi pengeluaran operasional, vendor, honorarium & potongan pajak PPh/PPN
-            </p>
+    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+      <PageHeader
+        title="Daftar Pengeluaran & Beban Kampus"
+        description="Pencatatan transaksi pengeluaran operasional, vendor, honorarium & potongan pajak PPh/PPN."
+        action={
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold min-h-[40px]"
+            >
+              Filter
+            </Button>
+            <Link href="/sikeu/pengeluaran/create">
+              <Button variant="primary" icon={<Plus size={16} />} className="font-bold min-h-[40px] px-4 shadow-sm">
+                Input Pengeluaran Baru
+              </Button>
+            </Link>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchPengeluaran}
-            disabled={loading}
-            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition"
-            title="Refresh Data"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-          <Link
-            href="/sikeu/pengeluaran/create"
-            className="btn btn-primary"
-          >
-            <Plus size={16} /> Input Pengeluaran Baru
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card p-5">
-          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Total Gross Pengeluaran</span>
-          <div className="text-xl font-mono font-extrabold text-slate-900 mt-1">
-            Rp {Number(summary.total_nominal || 0).toLocaleString('id-ID')}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Gross Pengeluaran</p>
+            <p className="text-xl font-extrabold text-slate-900 mt-1 tabular-nums">
+              {formatRupiah(totalGross)}
+            </p>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Akumulasi seluruh transaksi beban</p>
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <TrendingDown size={20} />
+          </div>
         </div>
 
-        <div className="card p-5">
-          <span className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">Total Potongan Pajak</span>
-          <div className="text-xl font-mono font-extrabold text-amber-600 mt-1">
-            Rp {Number(summary.total_pajak || 0).toLocaleString('id-ID')}
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Net (Sesudah Pajak)</p>
+            <p className="text-xl font-extrabold text-slate-900 mt-1 tabular-nums">
+              {formatRupiah(totalNet)}
+            </p>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">PPh 21, PPh 23, & PPN 11%</p>
-        </div>
-
-        <div className="card p-5">
-          <span className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider">Total Net Dibayarkan</span>
-          <div className="text-xl font-mono font-extrabold text-rose-700 mt-1">
-            Rp {Number(summary.total_net || 0).toLocaleString('id-ID')}
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <CheckCircle2 size={20} />
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Kas riil yang keluar dari unit kas</p>
         </div>
       </div>
 
-      {/* Filters & Table */}
-      <div className="card p-6 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 max-w-md">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="Cari no transaksi, vendor, uraian..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-              />
-            </div>
-            <button type="submit" className="px-3.5 py-2.5 bg-slate-800 text-white rounded-xl text-xs font-bold">
-              Cari
-            </button>
-          </form>
+      <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data pengeluaran." />
 
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-slate-400" />
-            <select
-              value={filterKategori}
-              onChange={(e) => setFilterKategori(e.target.value)}
-              className="select select-sm"
-            >
-              <option value="semua">Semua Kategori</option>
-              <option value="operasional">Operasional</option>
-              <option value="pemeliharaan">Pemeliharaan</option>
-              <option value="laboratorium">Laboratorium</option>
-              <option value="kegiatan">Kegiatan</option>
-              <option value="honorarium">Honorarium</option>
-            </select>
+      {/* Filter Drawer */}
+      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Pengeluaran Kampus" width="420px"
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" variant="outline" onClick={handleResetFilter} className="font-bold text-slate-600 min-h-[42px] px-4">
+              Reset
+            </Button>
+            <Button type="button" variant="primary" onClick={handleApplyFilter} className="font-bold min-h-[42px] px-5 shadow-md">
+              Terapkan Filter
+            </Button>
           </div>
-        </div>
+        }>
+        <div className="space-y-5">
+          <Input label="Cari Kode Transaksi / Keterangan" placeholder="Ketik kata kunci..."
+            value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-600">
-            <thead className="bg-slate-50 text-slate-700 font-extrabold uppercase border-y border-slate-200">
-              <tr>
-                <th className="px-4 py-3">No. Transaksi</th>
-                <th className="px-4 py-3">Kategori</th>
-                <th className="px-4 py-3">Vendor / Rekanan</th>
-                <th className="px-4 py-3 text-right">Gross Nominal</th>
-                <th className="px-4 py-3">Pajak</th>
-                <th className="px-4 py-3 text-right">Net Dibayarkan</th>
-                <th className="px-4 py-3">Tanggal</th>
-                <th className="px-4 py-3 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-8 text-slate-400">
-                    Memuat data pengeluaran...
-                  </td>
-                </tr>
-              ) : pengeluaranList.length > 0 ? (
-                pengeluaranList.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono font-bold text-rose-700">{item.nomor_transaksi}</td>
-                    <td className="px-4 py-3 capitalize">
-                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded">
-                        {item.kategori}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">
-                      <div>{item.nama_vendor}</div>
-                      {item.keterangan && <div className="text-[10px] text-slate-400 truncate max-w-xs">{item.keterangan}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-900 font-mono">
-                      Rp {Number(item.nominal).toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.jenis_pajak !== 'tanpa_pajak' ? (
-                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded">
-                          {item.jenis_pajak.toUpperCase()} (Rp {Number(item.nominal_pajak).toLocaleString('id-ID')})
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right font-extrabold text-rose-700 font-mono">
-                      Rp {Number(item.net_dibayarkan).toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3 font-mono">{item.tanggal_transaksi}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center gap-1 badge badge-green">
-                        <CheckCircle size={12} /> {item.status_pembayaran?.toUpperCase() || 'LUNAS'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="text-center py-8 text-slate-400">
-                    Belum ada data transaksi pengeluaran kampus.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <Select label="Kategori Pengeluaran"
+            value={filterKategori}
+            onChange={(val) => setFilterKategori(val as string)}
+            options={[
+              { value: 'all', label: 'Semua Kategori' },
+              { value: 'operasional', label: 'Operasional Kantor' },
+              { value: 'gaji', label: 'Payroll / Gaji Staf' },
+              { value: 'pembelian', label: 'Pembelian Aset / Alat' },
+              { value: 'praktikum', label: 'Bahan Praktikum' },
+            ]} />
         </div>
-      </div>
+      </Drawer>
     </div>
   );
 }
