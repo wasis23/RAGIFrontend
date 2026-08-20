@@ -36,6 +36,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectOption } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
@@ -51,6 +52,7 @@ const spmbRegistrasiSchema = z.object({
   jalur_id: z.string().min(1, 'Jalur Pendaftaran wajib dipilih'),
   gelombang_id: z.string().min(1, 'Gelombang Penerimaan wajib dipilih'),
   program_studi_id: z.string().min(1, 'Program Studi Utama wajib dipilih'),
+  program_studi_pilihan2_id: z.string().optional(),
   
   nama_lengkap: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
   nik: z.string().regex(/^[0-9]{16}$/, 'NIK wajib 16 digit angka'),
@@ -78,6 +80,8 @@ const spmbRegistrasiSchema = z.object({
   nama_ibu: z.string().min(2, 'Nama ibu kandung wajib diisi'),
   pekerjaan_ibu: z.string().optional(),
   penghasilan_ortu: z.string().optional(),
+  nama_wali: z.string().optional(),
+  telepon_wali: z.string().optional(),
 });
 
 type SpmbFormValues = z.infer<typeof spmbRegistrasiSchema>;
@@ -278,6 +282,7 @@ export default function RegistrasiSpmbPage() {
   const [loadingSimulasi, setLoadingSimulasi] = useState(false);
   const [loadingReset, setLoadingReset] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
@@ -554,9 +559,16 @@ export default function RegistrasiSpmbPage() {
       // Auto-save step data to backend immediately
       setSavingStepLoading(true);
       try {
-        const values = getValues();
-        values.program_studi_id = values.program_studi_id ? Number(values.program_studi_id) : 1;
-        await spmbService.submitBiodata(values);
+        const rawValues = getValues();
+        const payload: any = {
+          ...rawValues,
+          program_studi_id: rawValues.program_studi_id ? Number(rawValues.program_studi_id) : 1,
+          gelombang_id: rawValues.gelombang_id ? Number(rawValues.gelombang_id) : 1,
+        };
+        if (rawValues.program_studi_pilihan2_id) {
+          payload.program_studi_pilihan2_id = Number(rawValues.program_studi_pilihan2_id);
+        }
+        await spmbService.submitBiodata(payload);
         toast.success(`Draft Langkah ${currentStep} tersimpan`, { duration: 1500 });
       } catch (err) {
         console.warn('Auto-save step warning:', err);
