@@ -81,6 +81,13 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
   { id: 905, parent_id: null, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
 ];
 
+const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [
+  { id: 801, parent_id: null, name: 'Dashboard SPMB', url: '/spmb/dashboard', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
+  { id: 802, parent_id: null, name: 'Formulir Registrasi', url: '/spmb/registrasi', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
+  { id: 803, parent_id: null, name: 'Kartu & Jadwal Ujian', url: '/spmb/ujian', icon: 'FaFileAlt', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
+  { id: 804, parent_id: null, name: 'Hasil Seleksi', url: '/spmb/seleksi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -88,6 +95,18 @@ export function Sidebar() {
   
   const { sidebar_open, toggleSidebar } = useUiStore();
   const { user, isSuperAdmin, isAdmin } = useAuth();
+
+  const userRoleSlugs = (user?.roles || []).map((r: any) =>
+    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
+  );
+
+  const isPanitiaAdmin =
+    isSuperAdmin ||
+    isAdmin ||
+    userRoleSlugs.some((slug) =>
+      ['admin', 'superadmin', 'super-admin', 'admin_spmb', 'panitia_spmb', 'operator_spmb', 'admin_iam'].includes(slug)
+    );
+
   const [ssoPanelOpen, setSsoPanelOpen] = useState(pathname.startsWith('/admin'));
   
   const [dynamicMenus, setDynamicMenus] = useState<Menu[]>([]);
@@ -130,6 +149,8 @@ export function Sidebar() {
           const menus = await menuService.getMyMenus(mod);
           if (menus && menus.length > 0) {
             setDynamicMenus(menus);
+          } else if (mod === 'spmb' && !isPanitiaAdmin) {
+            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
           } else if (mod === 'sinapra') {
             setDynamicMenus(SINAPRA_FALLBACK_MENUS);
           } else {
@@ -137,7 +158,9 @@ export function Sidebar() {
           }
         } catch (error) {
           console.error("Failed to load menus", error);
-          if (getModule() === 'sinapra') {
+          if (getModule() === 'spmb' && !isPanitiaAdmin) {
+            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
+          } else if (getModule() === 'sinapra') {
             setDynamicMenus(SINAPRA_FALLBACK_MENUS);
           }
         } finally {
@@ -146,7 +169,9 @@ export function Sidebar() {
       };
       fetchMenus();
     } else {
-      if (getModule() === 'sinapra') {
+      if (getModule() === 'spmb' && !isPanitiaAdmin) {
+        setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
+      } else if (getModule() === 'sinapra') {
         setDynamicMenus(SINAPRA_FALLBACK_MENUS);
       }
       setLoading(false);
