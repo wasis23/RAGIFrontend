@@ -92,7 +92,8 @@ const STEPS = [
   { id: 3, title: 'Data Kontak', short: 'Kontak', icon: MapPin },
   { id: 4, title: 'Akademik', short: 'Sekolah', icon: BookOpen },
   { id: 5, title: 'Data Ortu', short: 'Ortu', icon: Users },
-  { id: 6, title: 'Konfirmasi', short: 'Review', icon: CheckSquare },
+  { id: 6, title: 'Unggah Berkas', short: 'Berkas', icon: UploadCloud },
+  { id: 7, title: 'Konfirmasi', short: 'Review', icon: CheckSquare },
 ];
 
 interface DokumenItemConfig {
@@ -553,6 +554,7 @@ export default function RegistrasiSpmbPage() {
     else if (currentStep === 3) fieldsToValidate = ['no_hp', 'provinsi', 'kota_kabupaten', 'kecamatan', 'alamat'];
     else if (currentStep === 4) fieldsToValidate = ['asal_sekolah', 'jurusan_sekolah', 'tahun_lulus'];
     else if (currentStep === 5) fieldsToValidate = ['nama_ayah', 'nama_ibu'];
+    else if (currentStep === 6) fieldsToValidate = [];
 
     const isValid = await trigger(fieldsToValidate as any);
     if (isValid) {
@@ -1315,19 +1317,22 @@ export default function RegistrasiSpmbPage() {
                   )}
                 />
               </div>
-
-              <div className="pt-4 border-t border-slate-100">
-                <DokumenUploadPanel
-                  uploadedBerkas={uploadedBerkas}
-                  onUpload={handleFileUpload}
-                  uploadingState={uploadingState}
-                />
-              </div>
             </div>
           )}
 
-          {/* ── STEP 6: REVIEW KONFIRMASI ────────────────────────────────── */}
+          {/* ── STEP 6: UNGGAH BERKAS DOKUMEN PENDAFTARAN ───────────────── */}
           {currentStep === 6 && (
+            <div className="space-y-5 animate-fade-in">
+              <DokumenUploadPanel
+                uploadedBerkas={uploadedBerkas}
+                onUpload={handleFileUpload}
+                uploadingState={uploadingState}
+              />
+            </div>
+          )}
+
+          {/* ── STEP 7: REVIEW KONFIRMASI ────────────────────────────────── */}
+          {currentStep === 7 && (
             <div className="space-y-5 animate-fade-in">
               <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
                 <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
@@ -1335,7 +1340,7 @@ export default function RegistrasiSpmbPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">Konfirmasi Review Pendaftaran</h3>
-                  <p className="text-xs text-slate-500">Periksa kembali seluruh rangkuman data Anda sebelum dikirim.</p>
+                  <p className="text-xs text-slate-500">Periksa kembali seluruh rangkuman data dan berkas Anda sebelum dikirim.</p>
                 </div>
               </div>
 
@@ -1390,6 +1395,30 @@ export default function RegistrasiSpmbPage() {
                     <div><span className="text-slate-400">No. WhatsApp:</span> <span className="font-semibold text-slate-800">{formValues.no_hp || '-'}</span></div>
                     <div><span className="text-slate-400">Sekolah Asal:</span> <span className="font-semibold text-slate-800">{formValues.asal_sekolah || '-'}</span></div>
                     <div className="sm:col-span-2"><span className="text-slate-400">Alamat:</span> <span className="font-semibold text-slate-800">{formValues.alamat}, {formValues.kecamatan}, {formValues.kota_kabupaten}</span></div>
+                  </div>
+                </div>
+
+                {/* Step 6 Review: Berkas */}
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                      6. Berkas Pendaftaran
+                    </span>
+                    <button type="button" onClick={() => setCurrentStep(6)} className="text-xs text-primary-600 font-semibold hover:underline flex items-center gap-1">
+                      <Edit3 size={12} /> Edit Berkas
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                    {REQUIRED_DOCUMENTS.map((doc) => {
+                      const isUp = Boolean(uploadedBerkas[doc.key]?.file_path || uploadedBerkas[doc.key]?.file_url);
+                      return (
+                        <div key={doc.key} className="flex items-center gap-1.5 font-medium">
+                          <span className={isUp ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
+                            {isUp ? '✓' : '○'} {doc.label.split(' ')[0]}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
