@@ -118,29 +118,26 @@ export default function PembayaranPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium -mb-2">
-        <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-primary-600 transition">
-          <Home size={14} />
-          <span>SSO Dashboard</span>
-        </Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <Link href="/sikeu" className="hover:text-primary-600 transition">
-          SIKEU
-        </Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <span className="text-slate-900 font-bold">Riwayat Pembayaran &amp; VA</span>
-      </nav>
-
-      {/* Standard SSO PageHeader */}
+      {/* Standard SSO PageHeader with integrated Breadcrumbs */}
       <PageHeader
         title="Riwayat Pembayaran & Virtual Account"
         description="Monitoring log mutasi transaksi pembayaran mahasiswa, virtual account, dan payment gateway."
+        breadcrumb={
+          <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+            <Link href="/dashboard" className="flex items-center gap-1 hover:text-primary-600 transition">
+              <Home size={13} />
+              <span>SSO Dashboard</span>
+            </Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <Link href="/sikeu" className="hover:text-primary-600 transition">
+              SIKEU
+            </Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <span className="text-slate-800 font-semibold">Riwayat Pembayaran &amp; VA</span>
+          </nav>
+        }
         action={
           <div className="flex items-center gap-2">
-            <Link href="/sikeu" className="btn btn-secondary">
-              <ArrowLeft size={16} /> Kembali ke SIKEU
-            </Link>
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -217,20 +214,22 @@ export default function PembayaranPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Live Search */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Live Search with proper prefix/suffix icon positioning */}
+            <div className="search-input-wrapper">
+              <Search size={14} className="search-icon" />
               <input
                 type="text"
                 placeholder="Cari TRX, VA, invoice, NIM..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="input input-sm pl-8 pr-7 text-xs w-64 bg-white"
+                className="input input-sm input-icon-left input-icon-right text-xs w-64 bg-white"
               />
               {search && (
                 <button
+                  type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="input-suffix-icon"
+                  title="Hapus pencarian"
                 >
                   <X size={13} />
                 </button>

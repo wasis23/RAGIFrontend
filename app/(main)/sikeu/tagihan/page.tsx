@@ -183,28 +183,35 @@ export default function TagihanListPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium -mb-2">
-        <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-primary-600 transition">
-          <Home size={14} />
-          <span>SSO Dashboard</span>
-        </Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <Link href="/sikeu" className="hover:text-primary-600 transition">
-          SIKEU
-        </Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <span className="text-slate-900 font-bold">Set Tagihan &amp; Invoice</span>
-      </nav>
-
-      {/* Standard SSO PageHeader */}
+      {/* Standard SSO PageHeader with integrated Breadcrumbs */}
       <PageHeader
         title="Set Tagihan & Invoice Semester Aktif"
         description="Aktivasi tagihan masal per Angkatan/Prodi & Layanan Pembayaran Loket / VA Mahasiswa."
+        breadcrumb={
+          <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+            <Link href="/dashboard" className="flex items-center gap-1 hover:text-primary-600 transition">
+              <Home size={13} />
+              <span>SSO Dashboard</span>
+            </Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <Link href="/sikeu" className="hover:text-primary-600 transition">
+              SIKEU
+            </Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <span className="text-slate-800 font-semibold">Set Tagihan &amp; Invoice</span>
+          </nav>
+        }
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/sikeu" className="btn btn-secondary">
-              <ArrowLeft size={16} /> Kembali ke SIKEU
+            <Button
+              variant="primary"
+              icon={<Sparkles size={16} />}
+              onClick={() => setIsMassModalOpen(true)}
+            >
+              Aktifkan Tagihan Masal
+            </Button>
+            <Link href="/sikeu/tagihan/create" className="btn btn-secondary">
+              <CreditCard size={16} /> Bayar Loket / Terbitkan VA
             </Link>
             <Button
               variant="outline"
@@ -223,16 +230,6 @@ export default function TagihanListPage() {
                 </span>
               )}
             </Button>
-            <Button
-              variant="primary"
-              icon={<Sparkles size={16} />}
-              onClick={() => setIsMassModalOpen(true)}
-            >
-              Aktifkan Tagihan Masal
-            </Button>
-            <Link href="/sikeu/tagihan/create" className="btn btn-secondary">
-              <CreditCard size={16} /> Bayar Loket / Terbitkan VA
-            </Link>
           </div>
         }
       />
@@ -261,20 +258,22 @@ export default function TagihanListPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Quick Live Search */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Quick Live Search with proper search-input-wrapper */}
+            <div className="search-input-wrapper">
+              <Search size={14} className="search-icon" />
               <input
                 type="text"
                 placeholder="Cari no. invoice, nama, NIM..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="input input-sm pl-8 pr-7 text-xs w-64 bg-white"
+                className="input input-sm input-icon-left input-icon-right text-xs w-64 bg-white"
               />
               {search && (
                 <button
+                  type="button"
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="input-suffix-icon"
+                  title="Hapus pencarian"
                 >
                   <X size={13} />
                 </button>

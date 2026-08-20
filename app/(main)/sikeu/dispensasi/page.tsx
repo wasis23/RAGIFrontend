@@ -256,27 +256,33 @@ export default function DispensasiListPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium -mb-2">
-        <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-primary-600 transition">
-          <Home size={14} />
-          <span>SSO Dashboard</span>
-        </Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <Link href="/sikeu" className="hover:text-primary-600 transition">SIKEU</Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <span className="text-slate-900 font-bold">Dispensasi Pembayaran</span>
-      </nav>
-
-      {/* PageHeader */}
+      {/* Standard SSO PageHeader with integrated Breadcrumbs */}
       <PageHeader
         title="Portal Dispensasi Pembayaran"
         description="Pengajuan dispensasi, evaluasi tunggakan sebelumnya, riwayat pembayaran tagihan dispensasi, & cetak Bukti Dispensasi Resmi."
+        breadcrumb={
+          <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+            <Link href="/dashboard" className="flex items-center gap-1 hover:text-primary-600 transition">
+              <Home size={13} />
+              <span>SSO Dashboard</span>
+            </Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <Link href="/sikeu" className="hover:text-primary-600 transition">SIKEU</Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <span className="text-slate-800 font-semibold">Dispensasi Pembayaran</span>
+          </nav>
+        }
         action={
           <div className="flex items-center gap-2">
-            <Link href="/sikeu" className="btn btn-secondary">
-              <ArrowLeft size={16} /> Kembali ke SIKEU
-            </Link>
+            {activeTab === 'dispensasi' && (
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={() => setShowModal(true)}
+              >
+                Pengajuan Baru
+              </Button>
+            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -295,15 +301,6 @@ export default function DispensasiListPage() {
                 <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-primary-600 text-white rounded-full">!</span>
               )}
             </Button>
-            {activeTab === 'dispensasi' && (
-              <Button
-                variant="primary"
-                icon={<Plus size={16} />}
-                onClick={() => setShowModal(true)}
-              >
-                Pengajuan Baru
-              </Button>
-            )}
           </div>
         }
       />
@@ -342,17 +339,22 @@ export default function DispensasiListPage() {
                 {filteredDispensasi.length} permohonan
               </p>
             </div>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="search-input-wrapper">
+              <Search size={14} className="search-icon" />
               <input
                 type="text"
                 placeholder="Cari nama mahasiswa, NIM..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input input-sm pl-8 pr-7 text-xs w-60 bg-white"
+                className="input input-sm input-icon-left input-icon-right text-xs w-60 bg-white"
               />
               {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="input-suffix-icon"
+                  title="Hapus pencarian"
+                >
                   <X size={13} />
                 </button>
               )}
@@ -452,17 +454,22 @@ export default function DispensasiListPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="search-input-wrapper">
+                <Search size={14} className="search-icon" />
                 <input
                   type="text"
                   placeholder="Cari mahasiswa, NIM, no. dispensasi..."
                   value={riwayatSearch}
                   onChange={(e) => setRiwayatSearch(e.target.value)}
-                  className="input input-sm pl-8 pr-7 text-xs w-72 bg-white"
+                  className="input input-sm input-icon-left input-icon-right text-xs w-72 bg-white"
                 />
                 {riwayatSearch && (
-                  <button onClick={() => setRiwayatSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  <button
+                    type="button"
+                    onClick={() => setRiwayatSearch('')}
+                    className="input-suffix-icon"
+                    title="Hapus pencarian"
+                  >
                     <X size={13} />
                   </button>
                 )}

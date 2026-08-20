@@ -98,27 +98,31 @@ export default function TaxReportPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 font-medium -mb-2">
-        <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-primary-600 transition">
-          <Home size={14} />
-          <span>SSO Dashboard</span>
-        </Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <Link href="/sikeu" className="hover:text-primary-600 transition">SIKEU</Link>
-        <ChevronRight size={12} className="text-slate-400" />
-        <span className="text-slate-900 font-bold">Pajak & Potongan</span>
-      </nav>
-
-      {/* PageHeader */}
+      {/* Standard SSO PageHeader with integrated Breadcrumbs */}
       <PageHeader
         title="Laporan & Rekapitulasi Pajak Kampus"
         description="Monitoring Pemotongan & Penyetoran Pajak PPh 21, PPh 23, dan PPN 11% Terintegrasi"
+        breadcrumb={
+          <nav className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+            <Link href="/dashboard" className="flex items-center gap-1 hover:text-primary-600 transition">
+              <Home size={13} />
+              <span>SSO Dashboard</span>
+            </Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <Link href="/sikeu" className="hover:text-primary-600 transition">SIKEU</Link>
+            <ChevronRight size={12} className="text-slate-400" />
+            <span className="text-slate-800 font-semibold">Pajak &amp; Potongan</span>
+          </nav>
+        }
         action={
           <div className="flex items-center gap-2">
-            <Link href="/sikeu" className="btn btn-secondary">
-              <ArrowLeft size={16} /> Kembali ke SIKEU
-            </Link>
+            <Button
+              variant="secondary"
+              icon={<Download size={16} />}
+              onClick={() => window.print()}
+            >
+              Cetak Rekap
+            </Button>
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -128,13 +132,6 @@ export default function TaxReportPage() {
               {hasActiveFilter && (
                 <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-primary-600 text-white rounded-full">!</span>
               )}
-            </Button>
-            <Button
-              variant="secondary"
-              icon={<Download size={16} />}
-              onClick={() => window.print()}
-            >
-              Cetak Rekap
             </Button>
           </div>
         }
@@ -202,18 +199,23 @@ export default function TaxReportPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Search Bar with proper wrapper */}
+            <div className="search-input-wrapper">
+              <Search size={14} className="search-icon" />
               <input
                 type="text"
                 placeholder="Cari no. ref, vendor..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="input input-sm pl-8 pr-7 text-xs w-56 bg-white"
+                className="input input-sm input-icon-left input-icon-right text-xs w-56 bg-white"
               />
               {search && (
-                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="input-suffix-icon"
+                  title="Hapus pencarian"
+                >
                   <X size={13} />
                 </button>
               )}
