@@ -82,10 +82,10 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
 ];
 
 const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [
-  { id: 801, parent_id: null, name: 'Dashboard SPMB', url: '/spmb/dashboard', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
-  { id: 802, parent_id: null, name: 'Formulir Registrasi', url: '/spmb/registrasi', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
-  { id: 803, parent_id: null, name: 'Kartu & Jadwal Ujian', url: '/spmb/ujian', icon: 'FaFileAlt', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
-  { id: 804, parent_id: null, name: 'Hasil Seleksi', url: '/spmb/seleksi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
+  { id: 801, parent_id: null, name: 'Dashboard Saya', url: '/spmb/dashboard', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
+  { id: 802, parent_id: null, name: 'Formulir Pendaftaran', url: '/spmb/registrasi', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
+  { id: 803, parent_id: null, name: 'Kartu & Jadwal Ujian', url: '/spmb/registrasi', icon: 'FaFileCheck', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
+  { id: 804, parent_id: null, name: 'Pengumuman Seleksi', url: '/spmb/registrasi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
 ];
 
 export function Sidebar() {
@@ -146,11 +146,14 @@ export function Sidebar() {
       const fetchMenus = async () => {
         try {
           const mod = getModule();
+          if (mod === 'spmb' && !isPanitiaAdmin) {
+            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
+            return;
+          }
+
           const menus = await menuService.getMyMenus(mod);
           if (menus && menus.length > 0) {
             setDynamicMenus(menus);
-          } else if (mod === 'spmb' && !isPanitiaAdmin) {
-            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
           } else if (mod === 'sinapra') {
             setDynamicMenus(SINAPRA_FALLBACK_MENUS);
           } else {
@@ -176,7 +179,7 @@ export function Sidebar() {
       }
       setLoading(false);
     }
-  }, [user, pathname]);
+  }, [user, pathname, isPanitiaAdmin]);
 
   const isMainActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
 
