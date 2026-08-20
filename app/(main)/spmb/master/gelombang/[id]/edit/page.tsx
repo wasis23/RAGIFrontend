@@ -18,6 +18,7 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { spmbService } from '@/services/spmb.service';
+import { moduleService } from '@/services/module.service';
 import { GelombangPenerimaan, JalurMasuk } from '@/types/spmb.types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -125,12 +126,16 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const [jalurRes, sikeuRes] = await Promise.all([
+        const [jalurRes, modules] = await Promise.all([
           spmbService.getJalurMasuk(),
-          spmbService.getSikeuTarifList().catch(() => null),
+          moduleService.getAllModules().catch(() => []),
         ]);
 
         setJalurList(jalurRes.data.filter((j: any) => j.is_active));
+
+        // Find SPMB module dynamically from DB modules list by code
+        const spmbModule = (modules || []).find((m: any) => m.code.toLowerCase() === 'spmb');
+        const sikeuRes = await spmbService.getSikeuTarifList(spmbModule?.id).catch(() => null);
 
         const rawTarifList = sikeuRes?.data || [];
         if (Array.isArray(rawTarifList)) {

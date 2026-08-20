@@ -216,9 +216,10 @@ export const spmbService = {
     return response.data;
   },
 
-  getSikeuTarifList: async () => {
+  getSikeuTarifList: async (moduleId?: number) => {
     try {
-      const response = await api.get('/sikeu/master/jenis-biaya?module=spmb');
+      const url = moduleId ? `/sikeu/master/jenis-biaya?module_id=${moduleId}` : '/sikeu/master/jenis-biaya?module=spmb';
+      const response = await api.get(url);
       if (response.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
         return response.data;
       }
