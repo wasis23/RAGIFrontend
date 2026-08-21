@@ -19,6 +19,7 @@ Sebelum mengeksekusi tugas apapun, Anda WAJIB memeriksa daftar skill di bawah in
 | `form-validation-standard` | `.agent/skills/form_validation_standard/SKILL.md` | Membuat form baru atau menambahkan validasi input. |
 | `nextjs-routing-standard` | `.agent/skills/nextjs_routing_standard/SKILL.md` | Membuat halaman/route baru, middleware, atau server/client components. |
 | `crud-ui-standard` | `.agent/skills/crud_ui_standard/SKILL.md` | Diminta membuat halaman/form CRUD, dengan aturan form terpisah (> 5 input) dan layout grid yang rapi. |
+| `admin-crud-reviewer-standard` | `.agent/skills/admin_crud_reviewer_standard/SKILL.md` | Diminta merancang, membuat, atau mereview halaman Admin CRUD (Atomic Design, DataTable, Pagination, Sorting, Filter Drawer). |
 | `rbac-refactoring-standard` | `.agent/skills/rbac_refactoring_standard/SKILL.md` | Melakukan refaktor komponen, perbaikan UI, atau mendesain pengecekan akses (RBAC) tanpa mengandalkan tipe user statis. |
 | `module-management-standard`| `../RAGIBackend/.agent/skills/module_management_standard/SKILL.md` | Merancang, menambah, atau memodifikasi modul aplikasi (Master Modul) di ekosistem kampus terintegrasi. |
 
@@ -43,3 +44,18 @@ Hardcode adalah suatu metode atau cara pengambilan data, pengiriman data, atau p
 1. **Minimal Hardcode**: Sistem yang baik harus meminimalkan hardcode hingga 0%.
 2. **Referensi ID Wajib**: Seluruh relasi, filter, dan query wajib menggunakan **referensi ID entitas** (seperti `module.id`, `jenis_biaya.id`, dsb.) yang diambil dari database, bukan berupa label string atau hardcode nama.
 </RULE[no_hardcode_definition]>
+
+<RULE[admin_crud_reviewer]>
+# Admin CRUD & Table Reviewer Policy
+
+## Aturan Wajib Halaman Admin CRUD:
+1. **Atomic Design Architecture**: Wajib memisahkan elemen UI ke `@/components/ui/` (`Button`, `Input`, `Select`, `Modal`, `Drawer`, `DataTable`, `Badge`) dan layout ke `@/components/layout/` (`PageHeader`). Dilarang memakai elemen HTML mentah tanpa style standar.
+2. **Mandatory DataTable & Server-Side Pagination**: Halaman list/tabel data WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`. Dilarang memakai tag HTML manual `<table>`. Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`.
+3. **Sort By & Sort Direction (Default Name/Label)**: WAJIB menyediakan filter pengurutan `sort_by` / `orderBy` (default berbasis `name` / `label` / `id`) dan `sort_dir` / `orderDir` (`asc` / `desc`) dalam layout grid 2 kolom di Drawer filter.
+4. **Tombol Filter Outline Biru & Drawer Slide Kanan-ke-Kiri**: Tombol Filter di `PageHeader` WAJIB bertipe outline biru (`variant="outline"` / `btn-outline-blue` / ikon `<Filter size={16} />`). Diklik memunculkan `<Drawer />` dari kanan ke kiri (standard SSO/IAM).
+5. **UI & Form Consistency**:
+   - Form <= 5 inputs: Gunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
+   - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali Oranye (`bg-orange-500 text-white`) di `PageHeader`.
+   - Gunakan prop `label` pada `<Input>` / `<Select>` langsung di Drawer.
+</RULE[admin_crud_reviewer]>
+
