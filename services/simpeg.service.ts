@@ -138,9 +138,9 @@ export const simpegService = {
 
   // ── ENTERPRISE FEATURES ─────────────────────────────────────
   // Dokumen E-File
-  getDokumenList: async (pegawaiId?: number): Promise<ApiResponse<DokumenPegawai[]>> => {
-    const { data } = await apiClient.get<ApiResponse<DokumenPegawai[]>>('/simpeg/dokumen', {
-      params: pegawaiId ? { pegawai_id: pegawaiId } : undefined,
+  getDokumenList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/dokumen', {
+      params: typeof params === 'number' ? { pegawai_id: params } : params,
     });
     return data;
   },
