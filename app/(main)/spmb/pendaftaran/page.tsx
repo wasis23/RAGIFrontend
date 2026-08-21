@@ -29,6 +29,7 @@ import {
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
 import toast from 'react-hot-toast';
 import { DataTable } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Drawer } from '@/components/ui/Drawer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -197,16 +198,6 @@ export default function DataPendaftarPage() {
     orderDir: 'desc'
   });
 
-  // Detail Drawer state
-  const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
-  const [selectedPendaftar, setSelectedPendaftar] = useState<PendaftaranCalonMhs | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  // Status update state
-  const [updateStatusLoading, setUpdateStatusLoading] = useState(false);
-  const [newStatus, setNewStatus] = useState('');
-  const [catatanVerifikasi, setCatatanVerifikasi] = useState('');
-
   const [paginationMeta, setPaginationMeta] = useState<any>(null);
 
   const [isForbidden, setIsForbidden] = useState(false);
@@ -276,58 +267,10 @@ export default function DataPendaftarPage() {
     fetchData();
   }, [fetchData]);
 
-  // Fetch Detail Pendaftaran by ID
-  const fetchDetail = async (id: number) => {
-    try {
-      setDetailLoading(true);
-      const res = await spmbService.getPendaftaranDetail(id);
-      const pData = res.data?.id ? res.data : res.data?.data || res;
-      setSelectedPendaftar(pData);
-      setNewStatus(pData.status || 'draft');
-      setCatatanVerifikasi(pData.catatan_verifikasi || '');
-    } catch (error: any) {
-      toast.error(error.message || 'Gagal memuat detail pendaftar');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
   const router = useRouter();
 
   const handleOpenDetail = (row: PendaftaranCalonMhs) => {
     router.push(`/spmb/pendaftaran/${row.id}`);
-  };
-
-  // Document Verification Handler
-  const handleVerifyBerkas = async (berkasId: number, isVerified: boolean) => {
-    try {
-      await spmbService.verifyBerkasPendaftaran(berkasId, { is_verified: isVerified });
-      toast.success(`Berkas ditandai sebagai ${isVerified ? 'Valid' : 'Belum Valid'}`);
-      if (selectedPendaftar) {
-        fetchDetail(selectedPendaftar.id);
-      }
-    } catch (error: any) {
-      toast.error(error.message || 'Gagal memverifikasi berkas');
-    }
-  };
-
-  // Administration Decision Update Handler
-  const handleUpdateStatus = async () => {
-    if (!selectedPendaftar) return;
-    try {
-      setUpdateStatusLoading(true);
-      await spmbService.updateStatusPendaftaran(selectedPendaftar.id, { 
-        status: newStatus, 
-        catatan_verifikasi: catatanVerifikasi 
-      });
-      toast.success('Keputusan pendaftaran berhasil disimpan');
-      fetchData();
-      fetchDetail(selectedPendaftar.id);
-    } catch (error: any) {
-      toast.error(error.message || 'Gagal menyimpan keputusan pendaftaran');
-    } finally {
-      setUpdateStatusLoading(false);
-    }
   };
 
   if (isForbidden) {
@@ -434,15 +377,15 @@ export default function DataPendaftarPage() {
               label: 'Aksi', 
               align: 'right', 
               render: (row) => (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  icon={<Eye size={15} />} 
-                  onClick={() => handleOpenDetail(row)}
-                  className="text-primary-600 hover:bg-primary-50 font-bold"
-                >
-                  Verifikasi
-                </Button>
+                <DropdownMenu
+                  items={[
+                    {
+                      label: 'Verifikasi',
+                      icon: <Eye size={15} />,
+                      onClick: () => handleOpenDetail(row)
+                    }
+                  ]}
+                />
               )
             }
           ]}
@@ -638,234 +581,6 @@ export default function DataPendaftarPage() {
             />
           </div>
         </div>
-      </Drawer>
-
-      {/* DETAIL & VERIFIKASI PANEL (PREMIUM HIGH-CONTRAST REDESIGN) */}
-      <Drawer
-        open={isDetailDrawerOpen}
-        onClose={() => setIsDetailDrawerOpen(false)}
-        title="Detail & Verifikasi Pendaftaran"
-        width="540px"
-      >
-        {detailLoading || !selectedPendaftar ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3">
-            <div className="spinner spinner-primary"></div>
-            <span className="text-xs font-semibold text-slate-500">Memuat detail pendaftaran...</span>
-          </div>
-        ) : (
-          <div className="space-y-5 pb-20 md:pb-6">
-            
-            {/* 1. VISUAL ANCHOR HEADER (CRYSTAL CLEAR HIGH CONTRAST) */}
-            <div className="p-4 rounded-xl bg-white border border-slate-200 border-l-4 border-l-primary-600 shadow-2xs flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <span className="text-2xs font-extrabold text-slate-400 uppercase tracking-widest block">NAMA PENDAFTAR</span>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight leading-tight">
-                    {selectedPendaftar.nama_lengkap}
-                  </h3>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <SpmbStatusBadge status={selectedPendaftar.status} />
-                  <SpmbPaymentBadge status={selectedPendaftar.status_pembayaran} />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-                <div className="flex items-center gap-1.5 bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md border border-slate-200 font-mono font-bold">
-                  <Hash size={13} className="text-slate-400 shrink-0" />
-                  <span>{selectedPendaftar.no_pendaftaran}</span>
-                </div>
-                <div className="flex items-center gap-1 text-slate-500 font-semibold">
-                  <CreditCard size={13} className="text-slate-400 shrink-0" />
-                  <span>NIK: {selectedPendaftar.nik || '-'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. PROGRESSIVE DISCLOSURE SECTIONS (CLEAN DEFINITION GRIDS) */}
-
-            {/* SECTION A: BIODATA & IDENTITAS */}
-            <DetailSection title="Identitas & Biodata Pendaftar" icon={User} defaultOpen={true}>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1">
-                <MetadataItem label="Tempat, Tgl Lahir" value={`${selectedPendaftar.tempat_lahir || '-'}, ${selectedPendaftar.tanggal_lahir ? new Date(selectedPendaftar.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}`} />
-                <MetadataItem label="Jenis Kelamin" value={selectedPendaftar.jenis_kelamin === 'L' ? 'Laki-laki' : selectedPendaftar.jenis_kelamin === 'P' ? 'Perempuan' : '-'} />
-                <MetadataItem label="Agama" value={selectedPendaftar.agama} />
-                <MetadataItem label="Kewarganegaraan" value={selectedPendaftar.kewarganegaraan} />
-                <MetadataItem label="No. Handphone" value={selectedPendaftar.no_hp || selectedPendaftar.user?.phone} />
-                <MetadataItem label="Email Account" value={selectedPendaftar.user?.email || selectedPendaftar.user?.username} />
-              </div>
-              <div className="pt-2">
-                <MetadataItem label="Alamat Lengkap" value={selectedPendaftar.alamat} />
-              </div>
-            </DetailSection>
-
-            {/* SECTION B: INFORMASI AKADEMIK & PRODI */}
-            <DetailSection title="Informasi Akademik & Prodi" icon={GraduationCap} defaultOpen={true}>
-              <div className="space-y-3 pt-1">
-                {/* Highlight Card for Program Studi */}
-                <div className="p-3.5 bg-gradient-to-br from-primary-50/80 to-blue-50/40 border border-primary-200/80 rounded-xl space-y-1">
-                  <span className="text-2xs font-extrabold text-primary-700 uppercase tracking-widest block">PROGRAM STUDI PILIHAN</span>
-                  <div className="text-sm font-black text-slate-900">
-                    1. {selectedPendaftar.program_studi?.nama || '-'} <span className="text-xs font-semibold text-primary-700">({selectedPendaftar.program_studi?.jenjang || 'S1'})</span>
-                  </div>
-                  {selectedPendaftar.program_studi_pilihan2?.nama && (
-                    <div className="text-xs font-bold text-slate-700">
-                      2. {selectedPendaftar.program_studi_pilihan2.nama} <span className="text-2xs text-slate-500">({selectedPendaftar.program_studi_pilihan2.jenjang || 'S1'})</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1">
-                  <MetadataItem label="Asal Sekolah" value={selectedPendaftar.asal_sekolah} />
-                  <MetadataItem label="Jurusan Sekolah" value={selectedPendaftar.jurusan_sekolah} />
-                  <MetadataItem label="Tahun Lulus" value={selectedPendaftar.tahun_lulus} />
-                  <MetadataItem label="NPSN Sekolah" value={selectedPendaftar.npsn_sekolah} />
-                  <MetadataItem label="Nilai Rata Rapor" value={selectedPendaftar.nilai_rata_rapor ? String(selectedPendaftar.nilai_rata_rapor) : '-'} />
-                  <MetadataItem label="Gelombang Penerimaan" value={selectedPendaftar.gelombang_penerimaan?.nama || 'Gelombang 1'} />
-                </div>
-              </div>
-            </DetailSection>
-
-            {/* SECTION C: DATA ORANG TUA / WALI */}
-            <DetailSection title="Data Orang Tua & Wali" icon={Users} defaultOpen={false}>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-1">
-                <MetadataItem label="Nama Ayah" value={selectedPendaftar.nama_ayah} />
-                <MetadataItem label="Pekerjaan Ayah" value={selectedPendaftar.pekerjaan_ayah} />
-                <MetadataItem label="Nama Ibu" value={selectedPendaftar.nama_ibu} />
-                <MetadataItem label="Pekerjaan Ibu" value={selectedPendaftar.pekerjaan_ibu} />
-                <MetadataItem label="Penghasilan Ortu" value={selectedPendaftar.penghasilan_ortu} />
-                <MetadataItem label="Wali / Telepon" value={selectedPendaftar.nama_wali ? `${selectedPendaftar.nama_wali} (${selectedPendaftar.telepon_wali || '-'})` : '-'} />
-              </div>
-            </DetailSection>
-
-            {/* SECTION D: DOCUMENT VERIFICATION */}
-            <DetailSection 
-              title="Berkas Pendukung" 
-              icon={FileCheck} 
-              defaultOpen={true}
-              badgeCount={selectedPendaftar.dokumen_pendaftaran?.length || 0}
-            >
-              {(!selectedPendaftar.dokumen_pendaftaran || selectedPendaftar.dokumen_pendaftaran.length === 0) ? (
-                <EmptyState
-                  icon={<FileText size={32} className="text-slate-400" />}
-                  title="Belum ada berkas terunggah"
-                  description="Calon mahasiswa ini belum mengunggah berkas persyaratan pendaftaran."
-                  className="py-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl"
-                />
-              ) : (
-                <div className="space-y-3 pt-1">
-                  {selectedPendaftar.dokumen_pendaftaran.map((berkas: PendaftaranBerkas) => (
-                    <div key={berkas.id} className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-primary-300 shadow-2xs transition-all space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <FileText size={16} className="text-primary-600 shrink-0" />
-                          <span className="font-bold text-slate-900 text-xs capitalize">
-                            {(berkas.jenis_berkas || berkas.jenis_dokumen || 'dokumen').replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                        {berkas.is_verified ? (
-                          <Badge variant="green" className="text-2xs font-bold px-2.5 py-0.5">
-                            <Check size={11} className="mr-1" /> Valid
-                          </Badge>
-                        ) : (
-                          <Badge variant="yellow" className="text-2xs font-bold px-2.5 py-0.5">
-                            <Clock size={11} className="mr-1" /> Belum Valid
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                        <a 
-                          href={`http://localhost:8000/storage/${berkas.file_path}`} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-800 font-bold hover:underline"
-                        >
-                          <ExternalLink size={13} />
-                          Lihat Dokumen
-                        </a>
-                        <div className="flex items-center gap-1.5">
-                          <Button 
-                            size="sm" 
-                            variant={berkas.is_verified ? "primary" : "outline"}
-                            onClick={() => handleVerifyBerkas(berkas.id, true)}
-                            className="text-2xs py-1 px-3 h-7 font-extrabold"
-                          >
-                            Set Valid
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant={!berkas.is_verified ? "danger" : "outline"}
-                            onClick={() => handleVerifyBerkas(berkas.id, false)}
-                            className="text-2xs py-1 px-3 h-7 font-extrabold"
-                          >
-                            Tidak Valid
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </DetailSection>
-
-            {/* SECTION E: KEPUTUSAN ADMINISTRASI (HIGH PRIORITY ACTION CARD) */}
-            <div className="p-4.5 rounded-xl border border-slate-200 bg-white shadow-xs space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 border-b border-slate-100 pb-2.5">
-                <ShieldCheck size={20} className="text-primary-600" />
-                <h4 className="font-black text-sm uppercase tracking-wide">Keputusan Administrasi</h4>
-              </div>
-
-              <div className="space-y-4">
-                <Select
-                  label="Status Pendaftaran"
-                  value={newStatus}
-                  onChange={(val) => setNewStatus(val)}
-                  options={[
-                    { value: 'draft', label: 'Draft (Pengisian)' },
-                    { value: 'submitted', label: 'Submitted (Menunggu Verifikasi)' },
-                    { value: 'verified', label: 'Verified (Berkas Terverifikasi)' },
-                    { value: 'lulus_administrasi', label: 'Lulus Administrasi (Lanjut Tes/Pengumuman)' },
-                    { value: 'gagal_administrasi', label: 'Gagal Administrasi (Ditolak)' }
-                  ]}
-                />
-
-                {/* HELPER TEXT BASED ON SELECTED DECISION */}
-                {newStatus === 'gagal_administrasi' && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-800 text-xs">
-                    <AlertCircle size={15} className="text-red-600 shrink-0 mt-0.5" />
-                    <span><strong>Perhatian:</strong> Mohon jelaskan alasan penolakan secara spesifik pada catatan verifikasi di bawah.</span>
-                  </div>
-                )}
-                {newStatus === 'lulus_administrasi' && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2 text-emerald-800 text-xs">
-                    <CheckCircle2 size={15} className="text-emerald-600 shrink-0 mt-0.5" />
-                    <span>Calon mahasiswa akan mendapatkan status LUNAS Administrasi dan berhak mengikuti seleksi berikutnya.</span>
-                  </div>
-                )}
-
-                <Textarea
-                  label="Catatan Verifikasi (Tampil ke Calon Mhs)"
-                  value={catatanVerifikasi}
-                  onChange={(e) => setCatatanVerifikasi(e.target.value)}
-                  placeholder="Contoh: Berkas Ijazah belum terunggah dengan jelas, mohon unggah ulang..."
-                  rows={3}
-                />
-
-                <Button 
-                  onClick={handleUpdateStatus} 
-                  isLoading={updateStatusLoading}
-                  variant="primary"
-                  icon={<Save size={16} />}
-                  className="w-full font-black shadow-md min-h-[44px] text-sm"
-                >
-                  {updateStatusLoading ? 'Menyimpan Keputusan...' : 'Simpan Keputusan'}
-                </Button>
-              </div>
-            </div>
-
-          </div>
-        )}
       </Drawer>
     </div>
   );

@@ -251,7 +251,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
           <DetailSection title="Informasi Akademik & Prodi" icon={GraduationCap} defaultOpen={true}>
             <div className="space-y-4 pt-1">
               {/* Highlight Card for Program Studi */}
-              <div className="p-4 bg-gradient-to-br from-primary-50/80 to-blue-50/40 border border-primary-200/80 rounded-xl space-y-1">
+              <div className="p-4 bg-gradient-to-br from-primary-50/80 to-primary-50/40 border border-primary-200/80 rounded-xl space-y-1">
                 <span className="text-2xs font-extrabold text-primary-700 uppercase tracking-widest block">PROGRAM STUDI PILIHAN</span>
                 <div className="text-base font-black text-slate-900">
                   1. {pendaftar.program_studi?.nama || '-'} <span className="text-xs font-semibold text-primary-700">({pendaftar.program_studi?.jenjang || 'S1'})</span>
