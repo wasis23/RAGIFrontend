@@ -6,8 +6,10 @@ import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
 import { moduleService, AppModule } from '@/services/module.service';
 import { adminService } from '@/services/admin.service';
+import type { Permission } from '@/types/auth.types';
 
 interface PermissionItem {
   id: number;
@@ -15,28 +17,6 @@ interface PermissionItem {
   slug: string;
   module: string;
 }
-
-const MOCK_ROLES = [
-  { id: 1, name: 'Super Admin (admin)', slug: 'admin' },
-  { id: 2, name: 'Dosen Pengajar (dosen)', slug: 'dosen' },
-  { id: 3, name: 'Mahasiswa Reguler (mahasiswa)', slug: 'mahasiswa' },
-  { id: 4, name: 'Staf Keuangan (staf_keuangan)', slug: 'staf_keuangan' },
-];
-
-const MOCK_PERMISSIONS: PermissionItem[] = [
-  { id: 1, name: 'Kelola Seluruh Pengguna', slug: 'iam.users.manage', module: 'iam' },
-  { id: 2, name: 'Kelola Role & Hak Akses', slug: 'iam.roles.manage', module: 'iam' },
-  { id: 3, name: 'Lihat Nilai & KHS', slug: 'siakad.grades.read', module: 'siakad' },
-  { id: 4, name: 'Input & Edit Nilai Dosen', slug: 'siakad.grades.update', module: 'siakad' },
-  { id: 5, name: 'Cetak Kartu Ujian (KPU)', slug: 'siakad.kpu.print', module: 'siakad' },
-  { id: 6, name: 'Verifikasi Lunas UKT', slug: 'sikeu.billing.update', module: 'sikeu' },
-  { id: 7, name: 'Generate Invoice Tagihan', slug: 'sikeu.billing.create', module: 'sikeu' },
-  { id: 8, name: 'Kelola Kurikulum OBE', slug: 'obe.curriculum.manage', module: 'obe' },
-  { id: 9, name: 'Akses Ruang Kelas LMS', slug: 'lms.courses.read', module: 'lms' },
-  { id: 10, name: 'Upload Tugas & Quiz', slug: 'lms.assignments.create', module: 'lms' },
-  { id: 11, name: 'Verifikasi Berkas Calon MHS', slug: 'spmb.documents.verify', module: 'spmb' },
-  { id: 12, name: 'Kelola Publikasi & Penelitian', slug: 'simpi.research.manage', module: 'simpi' },
-];
 
 export default function AdminRolePermissionsPage() {
   const [roles, setRoles] = useState<{ id: number; name: string; slug: string }[]>([]);
@@ -76,12 +56,16 @@ export default function AdminRolePermissionsPage() {
           const permList = Array.isArray(res?.data)
             ? res.data
             : (res?.data as { items?: PermissionItem[] })?.items ?? [];
-          setPermissions(permList.map((p) => ({ id: p.id, name: p.name, slug: p.slug, module: p.module })));
+          setPermissions(
+            permList.map((p) => ({ id: (p as any).id, name: (p as any).name, slug: (p as any).slug, module: (p as any).module }))
+          );
         }
 
         if (rolePermsRes.status === 'fulfilled') {
           const res = rolePermsRes.value;
-          const rolePermsList = Array.isArray(res?.data) ? res.data : ((res?.data as unknown as { items?: unknown[] })?.items ?? []);
+          const rolePermsList = Array.isArray(res?.data)
+            ? res.data
+            : ((res?.data as unknown as { items?: unknown[] })?.items ?? []);
           if (rolePermsList.length) {
             const map: Record<number, number[]> = {};
             (rolePermsList as any[]).forEach((item) => {
@@ -103,7 +87,6 @@ export default function AdminRolePermissionsPage() {
   }, []);
 
   const currentAssigned = assignedMap[selectedRoleId] || [];
-  const activePermissions = permissions.length > 0 ? permissions : MOCK_PERMISSIONS;
 
   const handleToggle = (permId: number) => {
     const isChecked = currentAssigned.includes(permId);
@@ -111,10 +94,7 @@ export default function AdminRolePermissionsPage() {
       ? currentAssigned.filter((id) => id !== permId)
       : [...currentAssigned, permId];
 
-    setAssignedMap({
-      ...assignedMap,
-      [selectedRoleId]: updated,
-    });
+    setAssignedMap({ ...assignedMap, [selectedRoleId]: updated });
   };
 
   const isModuleCodeMatch = (modCode: string, permModule: string) => {
@@ -126,15 +106,14 @@ export default function AdminRolePermissionsPage() {
   };
 
   const handleToggleModuleAll = (moduleCode: string) => {
-    const modulePerms = activePermissions.filter((p) => isModuleCodeMatch(moduleCode, p.module)).map((p) => p.id);
+    const modulePerms = permissions
+      .filter((p) => isModuleCodeMatch(moduleCode, p.module))
+      .map((p) => p.id);
     const allChecked = modulePerms.every((id) => currentAssigned.includes(id));
 
-    let updated: number[];
-    if (allChecked) {
-      updated = currentAssigned.filter((id) => !modulePerms.includes(id));
-    } else {
-      updated = Array.from(new Set([...currentAssigned, ...modulePerms]));
-    }
+    const updated = allChecked
+      ? currentAssigned.filter((id) => !modulePerms.includes(id))
+      : Array.from(new Set([...currentAssigned, ...modulePerms]));
 
     setAssignedMap({ ...assignedMap, [selectedRoleId]: updated });
   };
@@ -149,6 +128,34 @@ export default function AdminRolePermissionsPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const renderPermissionCard = (p: PermissionItem) => {
+    const checked = currentAssigned.includes(p.id);
+    return (
+      <div
+        key={p.id}
+        onClick={() => handleToggle(p.id)}
+        className={[
+          'flex items-center gap-3 px-4 py-3 rounded-md cursor-pointer transition-all',
+          checked
+            ? 'bg-primary-50 border border-primary-300'
+            : 'bg-white border border-slate-200 hover:border-slate-300',
+        ].join(' ')}
+      >
+        {checked ? (
+          <CheckSquare size={20} className="text-primary-600 shrink-0" />
+        ) : (
+          <Square size={20} className="text-slate-400 shrink-0" />
+        )}
+        <div className="min-w-0">
+          <div className={`text-sm font-bold truncate ${checked ? 'text-primary-900' : 'text-slate-700'}`}>
+            {p.name}
+          </div>
+          <div className="text-xs text-slate-400 font-mono">{p.slug}</div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -177,128 +184,75 @@ export default function AdminRolePermissionsPage() {
             label="Filter Modul Aplikasi"
             value={selectedModule}
             onChange={(val: string) => setSelectedModule(val)}
-            options={[{ value: 'all', label: 'Tampilkan Semua Modul' }, ...appModules.map(m => ({ value: m.code, label: `${m.name} (${m.code.toUpperCase()})` }))]}
+            options={[
+              { value: 'all', label: 'Tampilkan Semua Modul' },
+              ...appModules.map((m) => ({ value: m.code, label: `${m.name} (${m.code.toUpperCase()})` })),
+            ]}
             isDisabled={isLoading}
           />
         </div>
-        <div className="mt-3 text-[0.8125rem] text-slate-400">
-          Terdapat <strong>{currentAssigned.length}</strong> hak akses aktif dari total {activePermissions.length} permission.
-        </div>
+        <p className="mt-3 text-[0.8125rem] text-slate-400">
+          Terdapat <strong>{currentAssigned.length}</strong> hak akses aktif dari total{' '}
+          {permissions.length} permission.
+        </p>
       </div>
 
       {/* Dynamic Module Permission Cards */}
       <div className="flex flex-col gap-5">
-        {appModules.filter(mod => selectedModule === 'all' || mod.code === selectedModule).map((mod) => {
-          const modulePerms = activePermissions.filter(
-            (p) => isModuleCodeMatch(mod.code, p.module)
-          );
-          if (modulePerms.length === 0) return null;
+        {appModules
+          .filter((mod) => selectedModule === 'all' || mod.code === selectedModule)
+          .map((mod) => {
+            const modulePerms = permissions.filter((p) => isModuleCodeMatch(mod.code, p.module));
+            if (modulePerms.length === 0) return null;
 
-          const allModuleChecked = modulePerms.every((p) => currentAssigned.includes(p.id));
+            const allModuleChecked = modulePerms.every((p) => currentAssigned.includes(p.id));
 
-          return (
-            <div key={mod.id} className="card">
-              <div className="card-header flex justify-between items-center bg-slate-50">
-                <div className="flex items-center gap-3">
-                  <span className="badge badge-blue">{mod.code.toUpperCase()}</span>
-                  <h4 className="text-[1.0625rem] font-bold m-0">Modul: {mod.name}</h4>
+            return (
+              <div key={mod.id} className="card">
+                <div className="card-header flex justify-between items-center bg-slate-50">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="blue">{mod.code.toUpperCase()}</Badge>
+                    <h4 className="text-[1.0625rem] font-bold m-0">Modul: {mod.name}</h4>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleModuleAll(mod.code)}
+                  >
+                    {allModuleChecked ? 'Batalkan Semua' : 'Pilih Semua Modul Ini'}
+                  </Button>
                 </div>
 
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm text-[0.8125rem]"
-                  onClick={() => handleToggleModuleAll(mod.code)}
-                >
-                  {allModuleChecked ? 'Batalkan Semua' : 'Pilih Semua Modul Ini'}
-                </button>
-              </div>
-
-              <div className="card-body">
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
-                  {modulePerms.map((p) => {
-                    const checked = currentAssigned.includes(p.id);
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => handleToggle(p.id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.75rem',
-                          padding: '0.75rem 1rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: `1.5px solid ${checked ? 'var(--primary-300)' : 'var(--border-light)'}`,
-                          background: checked ? 'var(--primary-50)' : 'white',
-                          cursor: 'pointer',
-                          transition: 'all var(--transition-fast)',
-                        }}
-                      >
-                        {checked ? (
-                          <CheckSquare size={20} color="var(--primary-600)" />
-                        ) : (
-                          <Square size={20} color="var(--gray-400)" />
-                        )}
-                        <div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 700, color: checked ? 'var(--primary-900)' : 'var(--text-primary)' }}>
-                            {p.name}
-                          </div>
-                          <div className="text-xs text-slate-400 font-mono">
-                            {p.slug}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="card-body">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {modulePerms.map((p) => renderPermissionCard(p))}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
         {/* Fallback Section for permissions with modules not in appModules */}
-        {selectedModule === 'all' && (() => {
-          const otherPerms = activePermissions.filter(
-            (p) => !p.module || !appModules.some((m) => isModuleCodeMatch(m.code, p.module))
-          );
-          if (otherPerms.length === 0) return null;
+        {selectedModule === 'all' &&
+          (() => {
+            const otherPerms = permissions.filter(
+              (p) => !p.module || !appModules.some((m) => isModuleCodeMatch(m.code, p.module))
+            );
+            if (otherPerms.length === 0) return null;
 
-          return (
-            <div className="card">
-              <div className="card-header bg-slate-50">
-                <h4 className="text-[1.0625rem] font-bold m-0">Permission Lainnya</h4>
-              </div>
-              <div className="card-body">
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
-                  {otherPerms.map((p) => {
-                    const checked = currentAssigned.includes(p.id);
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => handleToggle(p.id)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.75rem',
-                          padding: '0.75rem 1rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: `1.5px solid ${checked ? 'var(--primary-300)' : 'var(--border-light)'}`,
-                          background: checked ? 'var(--primary-50)' : 'white',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {checked ? <CheckSquare size={20} color="var(--primary-600)" /> : <Square size={20} color="var(--gray-400)" />}
-                        <div>
-                          <div className="text-sm font-bold">{p.name}</div>
-                          <div className="text-xs text-slate-400 font-mono">{p.slug}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
+            return (
+              <div className="card">
+                <div className="card-header bg-slate-50">
+                  <h4 className="text-[1.0625rem] font-bold m-0">Permission Lainnya</h4>
+                </div>
+                <div className="card-body">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {otherPerms.map((p) => renderPermissionCard(p))}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
 import { adminService } from '@/services/admin.service';
 import { menuService } from '@/services/menu.service';
 import { moduleService, AppModule } from '@/services/module.service';
@@ -24,7 +25,7 @@ export default function AdminRoleMenusPage() {
   // Helper untuk mendapatkan list ID dari hierarki menu
   const getFlatMenuIds = (menuList: Menu[]): number[] => {
     let ids: number[] = [];
-    menuList.forEach(m => {
+    menuList.forEach((m) => {
       ids.push(m.id);
       if (m.children && m.children.length > 0) {
         ids = ids.concat(getFlatMenuIds(m.children));
@@ -56,7 +57,7 @@ export default function AdminRoleMenusPage() {
 
         let modulesData: AppModule[] = [];
         if (modulesRes.status === 'fulfilled') {
-          modulesData = modulesRes.value.filter(m => m.is_active);
+          modulesData = modulesRes.value.filter((m) => m.is_active);
           setAppModules(modulesData);
         }
 
@@ -67,13 +68,12 @@ export default function AdminRoleMenusPage() {
             try {
               const menus = await menuService.getAllMenus(mod.code);
               menusMap[mod.code] = menus;
-            } catch (err) {
+            } catch {
               console.error(`Failed to fetch menus for module ${mod.code}`);
             }
           })
         );
         setMenusByModule(menusMap);
-
       } finally {
         setIsLoading(false);
       }
@@ -84,13 +84,13 @@ export default function AdminRoleMenusPage() {
   // Fetch assigned menus when selected role changes
   useEffect(() => {
     if (selectedRoleId === 0) return;
-    
+
     const fetchRoleMenus = async () => {
       try {
         const res = await adminService.getRoleMenus(selectedRoleId);
         const menusData = Array.isArray(res?.data) ? res.data : [];
         setAssignedMenus(menusData.map((m: any) => m.id));
-      } catch (err) {
+      } catch {
         toast.error('Gagal memuat akses menu untuk role ini.');
       }
     };
@@ -100,7 +100,7 @@ export default function AdminRoleMenusPage() {
   const handleToggle = (menuId: number) => {
     const isChecked = assignedMenus.includes(menuId);
     if (isChecked) {
-      setAssignedMenus(assignedMenus.filter(id => id !== menuId));
+      setAssignedMenus(assignedMenus.filter((id) => id !== menuId));
     } else {
       setAssignedMenus([...assignedMenus, menuId]);
     }
@@ -121,7 +121,7 @@ export default function AdminRoleMenusPage() {
     setIsSaving(true);
     try {
       await adminService.assignMenusToRole(selectedRoleId, assignedMenus);
-      toast.success(`Akses menu untuk role berhasil disimpan!`);
+      toast.success('Akses menu untuk role berhasil disimpan!');
     } catch {
       toast.error('Gagal menyimpan akses menu. Periksa koneksi ke server.');
     } finally {
@@ -130,36 +130,29 @@ export default function AdminRoleMenusPage() {
   };
 
   const renderMenuItems = (menuList: Menu[], level = 0) => {
-    return menuList.map(menu => {
+    return menuList.map((menu) => {
       const checked = assignedMenus.includes(menu.id);
       return (
-        <div key={menu.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: level === 0 ? '0.75rem' : '0' }}>
+        <div key={menu.id} className="flex flex-col gap-2">
           <div
             onClick={() => handleToggle(menu.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.75rem 1rem',
-              marginLeft: `${level * 1.5}rem`,
-              borderRadius: 'var(--radius-md)',
-              border: `1.5px solid ${checked ? 'var(--primary-300)' : 'var(--border-light)'}`,
-              background: checked ? 'var(--primary-50)' : 'white',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
-            }}
+            className={[
+              'flex items-center gap-3 px-4 py-3 rounded-md cursor-pointer transition-all',
+              checked ? 'bg-primary-50 border border-primary-300' : 'bg-white border border-slate-200 hover:border-slate-300',
+              level > 0 ? 'ml-6' : '',
+            ].join(' ')}
           >
             {checked ? (
-              <CheckSquare size={20} color="var(--primary-600)" />
+              <CheckSquare size={20} className="text-primary-600 shrink-0" />
             ) : (
-              <Square size={20} color="var(--gray-400)" />
+              <Square size={20} className="text-slate-400 shrink-0" />
             )}
-            <div className="flex items-center gap-2">
-              {level > 0 && <ChevronRight size={16} color="var(--gray-400)" />}
-              <span style={{ fontSize: '0.875rem', fontWeight: level === 0 ? 700 : 500, color: checked ? 'var(--primary-900)' : 'var(--text-primary)' }}>
+            <div className="flex items-center gap-2 min-w-0">
+              {level > 0 && <ChevronRight size={16} className="text-slate-400 shrink-0" />}
+              <span className={`text-sm truncate ${checked ? 'text-primary-900 font-bold' : 'text-slate-700'} ${level === 0 ? 'font-bold' : 'font-medium'}`}>
                 {menu.name}
               </span>
-              <span className="text-xs text-slate-400 font-mono ml-2">
+              <span className="text-xs text-slate-400 font-mono ml-2 shrink-0">
                 {menu.url}
               </span>
             </div>
@@ -200,48 +193,51 @@ export default function AdminRoleMenusPage() {
             label="Filter Modul Aplikasi"
             value={selectedModule}
             onChange={(val: string) => setSelectedModule(val)}
-            options={[{ value: 'all', label: 'Tampilkan Semua Modul' }, ...appModules.map(m => ({ value: m.code, label: `${m.name} (${m.code.toUpperCase()})` }))]}
+            options={[
+              { value: 'all', label: 'Tampilkan Semua Modul' },
+              ...appModules.map((m) => ({ value: m.code, label: `${m.name} (${m.code.toUpperCase()})` })),
+            ]}
             isDisabled={isLoading}
           />
         </div>
-        <div className="mt-3 text-[0.8125rem] text-slate-400">
+        <p className="mt-3 text-[0.8125rem] text-slate-400">
           Terdapat <strong>{assignedMenus.length}</strong> menu navigasi aktif untuk role ini.
-        </div>
+        </p>
       </div>
 
       {isLoading ? (
-        <div className="p-8 text-center text-slate-400">
-          Memuat data menu...
-        </div>
+        <div className="p-8 text-center text-slate-400">Memuat data menu...</div>
       ) : (
         <div className="flex flex-col gap-5">
-          
-          {appModules.filter(mod => selectedModule === 'all' || mod.code === selectedModule).map(mod => {
-            const menus = menusByModule[mod.code] || [];
-            if (menus.length === 0) return null;
+          {appModules
+            .filter((mod) => selectedModule === 'all' || mod.code === selectedModule)
+            .map((mod) => {
+              const menus = menusByModule[mod.code] || [];
+              if (menus.length === 0) return null;
 
-            return (
-              <div key={mod.id} className="card">
-                <div className="card-header flex justify-between items-center bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <span className="badge badge-blue">{mod.code.toUpperCase()}</span>
-                    <h4 className="text-[1.0625rem] font-bold m-0">Menu Aplikasi {mod.name}</h4>
+              return (
+                <div key={mod.id} className="card">
+                  <div className="card-header flex justify-between items-center bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="blue">{mod.code.toUpperCase()}</Badge>
+                      <h4 className="text-[1.0625rem] font-bold m-0">Menu Aplikasi {mod.name}</h4>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleModuleAll(menus)}
+                    >
+                      {getFlatMenuIds(menus).every((id) => assignedMenus.includes(id))
+                        ? 'Batalkan Semua'
+                        : 'Pilih Semua Modul Ini'}
+                    </Button>
                   </div>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm text-[0.8125rem]"
-                    onClick={() => handleToggleModuleAll(menus)}
-                  >
-                    {getFlatMenuIds(menus).every(id => assignedMenus.includes(id)) ? 'Batalkan Semua' : 'Pilih Semua Modul Ini'}
-                  </button>
+                  <div className="card-body flex flex-col gap-3">
+                    {renderMenuItems(menus)}
+                  </div>
                 </div>
-                <div className="card-body">
-                  {renderMenuItems(menus)}
-                </div>
-              </div>
-            );
-          })}
-          
+              );
+            })}
         </div>
       )}
     </div>
