@@ -102,9 +102,10 @@ export function DataTable<T extends object>({
               <span>Tampilkan:</span>
               <div style={{ width: '80px' }}>
                 <Select 
-                  value={meta.per_page.toString()}
+                  value={(meta.per_page ?? 10).toString()}
                   onChange={(val) => onLimitChange?.(Number(val))}
                   options={[
+                    { value: '10', label: '10' },
                     { value: '15', label: '15' },
                     { value: '25', label: '25' },
                     { value: '50', label: '50' },

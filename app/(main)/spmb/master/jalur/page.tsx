@@ -21,7 +21,14 @@ export default function MasterJalurPage() {
   const searchParams = useSearchParams();
   
   const [data, setData] = useState<JalurMasuk[]>([]);
-  const [meta, setMeta] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [meta, setMeta] = useState<{
+    current_page: number;
+    last_page: number;
+    total: number;
+    per_page: number;
+    from?: number;
+    to?: number;
+  }>({ current_page: 1, last_page: 1, total: 0, per_page: 10 });
   const [loading, setLoading] = useState(false);
 
   // Filter drawer state
