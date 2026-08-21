@@ -161,9 +161,9 @@ export const simpegService = {
   },
 
   // Cuti Online
-  getCutiList: async (pegawaiId?: number): Promise<ApiResponse<PengajuanCuti[]>> => {
-    const { data } = await apiClient.get<ApiResponse<PengajuanCuti[]>>('/simpeg/cuti', {
-      params: pegawaiId ? { pegawai_id: pegawaiId } : undefined,
+  getCutiList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/cuti', {
+      params: typeof params === 'number' ? { pegawai_id: params } : params,
     });
     return data;
   },
