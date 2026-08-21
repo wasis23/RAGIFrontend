@@ -37,8 +37,8 @@ export const sippmService = {
   // ------------------------------------------------------------
   // Master Skema & Periode
   // ------------------------------------------------------------
-  indexSkema: async (): Promise<ApiResponse<SkemaKegiatan[]>> => {
-    const { data } = await apiClient.get<ApiResponse<SkemaKegiatan[]>>('/sippm/skema');
+  indexSkema: async (params?: Record<string, any>): Promise<ApiResponse<SkemaKegiatan[]>> => {
+    const { data } = await apiClient.get<ApiResponse<SkemaKegiatan[]>>('/sippm/skema', { params });
     return data;
   },
 

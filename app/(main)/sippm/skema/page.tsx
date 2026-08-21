@@ -1,14 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Plus, Filter, Layers, ShieldAlert, Edit, Trash2, FileText } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Layers, Plus, Search, CheckCircle2, XCircle, FileText } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Drawer } from '@/components/ui/Drawer';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { sippmService } from '@/services/sippm.service';
-import type { SkemaKegiatan, JenisKegiatan, KategoriSkema } from '@/types/sippm.types';
+import type { SkemaKegiatan } from '@/types/sippm.types';
+import type { PaginationMeta } from '@/types/api.types';
+import { useAuth } from '@/hooks/useAuth';
 
-// Zod Schema (<= 5 input modal form)
 const skemaSchema = z.object({
   nama_skema: z.string().min(3, 'Nama skema minimal 3 karakter'),
   kode_skema: z.string().min(2, 'Kode skema minimal 2 karakter'),
@@ -20,20 +31,38 @@ const skemaSchema = z.object({
 type SkemaFormValues = z.infer<typeof skemaSchema>;
 
 export default function MasterSkemaPage() {
-  const [skemaList, setSkemaList] = useState<SkemaKegiatan[]>([]);
+  const { hasPermission } = useAuth();
+  const canRead = hasPermission('sippm.skema.read') || hasPermission('sippm.skema.manage');
+  const canCreate = hasPermission('sippm.skema.create') || hasPermission('sippm.skema.manage');
+
   const [loading, setLoading] = useState(true);
+  const [skemaList, setSkemaList] = useState<SkemaKegiatan[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>();
+
+  // Filter Drawer & Pagination state
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterJenis, setFilterJenis] = useState('');
+  const [filterKategori, setFilterKategori] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('created_at');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<SkemaKegiatan | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<SkemaFormValues>({
-    resolver: zodResolver(skemaSchema) as any,
+    resolver: zodResolver(skemaSchema),
     defaultValues: {
       nama_skema: '',
       kode_skema: '',
@@ -43,214 +72,399 @@ export default function MasterSkemaPage() {
     },
   });
 
-  const fetchSkema = async () => {
+  const fetchSkema = useCallback(async () => {
+    if (!canRead) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await sippmService.indexSkema();
-      const list = Array.isArray(res.data)
-        ? res.data
-        : (res?.data as any)?.items || (res?.data as any)?.data || [];
-      setSkemaList(list);
-    } catch (err) {
-      console.error('Failed to fetch skema', err);
+      const params: Record<string, any> = {
+        page,
+        limit,
+        search: search || undefined,
+        jenis_kegiatan: filterJenis || undefined,
+        kategori_skema: filterKategori || undefined,
+        orderBy: filterOrderBy,
+        orderDir: filterOrderDir,
+      };
+
+      const res: any = await sippmService.indexSkema(params);
+      if (res?.data) {
+        const dataItems = Array.isArray(res.data.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : (res.data as any)?.items || [];
+        setSkemaList(dataItems);
+        if (res.data.meta) setMeta(res.data.meta);
+        else if (res.meta) setMeta(res.meta);
+      } else if (Array.isArray(res)) {
+        setSkemaList(res);
+      } else {
+        setSkemaList([]);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal memuat skema kegiatan');
       setSkemaList([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canRead, page, limit, search, filterJenis, filterKategori, filterOrderBy, filterOrderDir]);
 
   useEffect(() => {
     fetchSkema();
-  }, []);
+  }, [fetchSkema]);
+
+  const handleOpenCreateModal = () => {
+    setEditingItem(null);
+    reset({
+      nama_skema: '',
+      kode_skema: '',
+      jenis_kegiatan: 'penelitian',
+      kategori_skema: 'terapan',
+      maksimal_dana: 25000000,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (item: SkemaKegiatan) => {
+    setEditingItem(item);
+    reset({
+      nama_skema: item.nama || item.nama_skema || '',
+      kode_skema: item.kode || item.kode_skema || '',
+      jenis_kegiatan: (item.tipe || item.jenis_kegiatan || 'penelitian') as any,
+      kategori_skema: (item.sumber_dana || item.kategori_skema || 'terapan') as any,
+      maksimal_dana: Number(item.maksimal_anggaran || item.maksimal_dana || 25000000),
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus skema kegiatan ini?')) return;
+    try {
+      await sippmService.destroySkema(id);
+      toast.success('Skema kegiatan berhasil dihapus');
+      fetchSkema();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus skema kegiatan');
+    }
+  };
 
   const onSubmit = async (data: SkemaFormValues) => {
+    if (!canCreate) {
+      toast.error('Akses Ditolak: Anda tidak memiliki permission mengelola skema.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      setFeedback(null);
-      await sippmService.storeSkema(data);
-      setFeedback({ type: 'success', message: 'Skema baru berhasil ditambahkan' });
+      if (editingItem) {
+        await sippmService.updateSkema(editingItem.id, data);
+        toast.success('Skema kegiatan berhasil diperbarui');
+      } else {
+        await sippmService.storeSkema(data);
+        toast.success('Skema kegiatan baru berhasil ditambahkan');
+      }
       setIsModalOpen(false);
       reset();
       fetchSkema();
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.response?.data?.message || 'Gagal menyimpan skema' });
+      toast.error(err.response?.data?.message || 'Gagal menyimpan skema kegiatan');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const safeList = Array.isArray(skemaList) ? skemaList : [];
-  const filteredList = safeList.filter(
-    (item) =>
-      (item.nama_skema || '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.kode_skema || '').toLowerCase().includes(search.toLowerCase())
-  );
-
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-sippm">Master Data SIPPM</span>
+  const columns: ColumnDef<SkemaKegiatan>[] = [
+    {
+      key: 'kode_skema',
+      label: 'Kode',
+      render: (row) => (
+        <span className="font-mono text-xs font-bold">{row.kode || row.kode_skema || 'SKM'}</span>
+      ),
+    },
+    {
+      key: 'nama_skema',
+      label: 'Nama Skema',
+      render: (row) => <span className="font-bold">{row.nama || row.nama_skema || '-'}</span>,
+    },
+    {
+      key: 'jenis_kegiatan',
+      label: 'Jenis Kegiatan',
+      render: (row) => {
+        const jenis = row.tipe || row.jenis_kegiatan || 'penelitian';
+        return (
+          <Badge variant={jenis === 'penelitian' ? 'blue' : 'success'}>
+            {jenis.toUpperCase()}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'kategori_skema',
+      label: 'Kategori',
+      render: (row) => {
+        const kat = row.sumber_dana || row.kategori_skema || 'internal';
+        return <span className="capitalize font-medium opacity-80">{kat.replace(/_/g, ' ')}</span>;
+      },
+    },
+    {
+      key: 'maksimal_dana',
+      label: 'Maksimal Dana',
+      render: (row) => (
+        <span className="font-bold">{formatRupiah(Number(row.maksimal_anggaran || row.maksimal_dana || 0))}</span>
+      ),
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (row) => (
+        <Badge variant={row.is_active !== false ? 'success' : 'gray'}>
+          {row.is_active !== false ? 'Aktif' : 'Non-Aktif'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        const menuItems: DropdownMenuItem[] = [
+          {
+            label: 'Edit Skema',
+            icon: <Edit size={14} />,
+            onClick: () => handleOpenEditModal(row),
+          },
+          {
+            label: 'Hapus Skema',
+            icon: <Trash2 size={14} />,
+            variant: 'danger',
+            onClick: () => handleDelete(row.id),
+          },
+        ];
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu items={menuItems} />
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Master Skema Kegiatan</h1>
-          <p className="text-slate-500 text-sm">Kelola skema hibah penelitian & pengabdian masyarakat beserta pagu maksimal dana.</p>
+        );
+      },
+    },
+  ];
+
+  if (!canRead) {
+    return (
+      <div className="animate-fade-in space-y-6">
+        <PageHeader
+          title="Master Skema Kegiatan"
+          description="Kelola skema hibah penelitian & pengabdian masyarakat beserta pagu maksimal dana"
+        />
+        <div className="card p-6 text-center">
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">Akses Ditolak / Dibatasi</h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
+            Peran Anda saat ini tidak memiliki permission untuk melihat Master Skema Kegiatan.
+          </p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-sm">
-          <Plus size={18} /> Tambah Skema Baru
-        </button>
       </div>
+    );
+  }
 
-      {feedback && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
+  return (
+    <div className="animate-fade-in space-y-6">
+      <PageHeader
+        title="Master Skema Kegiatan"
+        description="Kelola skema hibah penelitian & pengabdian masyarakat beserta pagu maksimal dana"
+        action={
+          <div className="flex gap-2">
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+                Tambah Skema Baru
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Filter Card */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="input-wrapper w-full md:w-80">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari skema / kode..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+      {/* Main DataTable */}
+      <DataTable
+        columns={columns}
+        data={skemaList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        emptyMessage={
+          <div className="py-8 text-center opacity-70">
+            <Layers size={48} className="mx-auto mb-4 opacity-40" />
+            <p>Belum ada skema kegiatan terdaftar.</p>
+          </div>
+        }
+      />
+
+      {/* Filter Drawer Slide Right-to-Left */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Skema Kegiatan"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Pencarian Skema / Kode"
+            placeholder="Cari skema atau kode..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <Select
+            label="Filter Jenis Kegiatan"
+            value={filterJenis}
+            onChange={(val) => {
+              setFilterJenis(val);
+              setPage(1);
+            }}
+            options={[
+              { value: '', label: 'Semua Jenis' },
+              { value: 'penelitian', label: 'Penelitian' },
+              { value: 'pengabdian', label: 'Pengabdian Masyarakat' },
+            ]}
+          />
+
+          <Select
+            label="Filter Kategori Skema"
+            value={filterKategori}
+            onChange={(val) => {
+              setFilterKategori(val);
+              setPage(1);
+            }}
+            options={[
+              { value: '', label: 'Semua Kategori' },
+              { value: 'dasar', label: 'Dasar' },
+              { value: 'terapan', label: 'Terapan' },
+              { value: 'pengembangan', label: 'Pengembangan' },
+            ]}
+          />
+
+          <hr className="my-2" />
+
+          {/* Grid 2 Kolom Sorting */}
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'kode_skema', label: 'Kode Skema' },
+                { value: 'nama_skema', label: 'Nama Skema' },
+                { value: 'maksimal_dana', label: 'Maksimal Dana' },
+              ]}
+            />
+
+            <Select
+              label="Arah Pengurutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'desc', label: 'Mundur (DESC)' },
+                { value: 'asc', label: 'Maju (ASC)' },
+              ]}
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Total {filteredList.length} Skema Terdaftar
-          </div>
         </div>
-      </div>
+      </Drawer>
 
-      {/* Data Table */}
-      <div className="table-container bg-white">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Kode</th>
-              <th>Nama Skema</th>
-              <th>Jenis Kegiatan</th>
-              <th>Kategori</th>
-              <th>Maksimal Dana</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-8 text-slate-400">Memuat skema kegiatan...</td>
-              </tr>
-            ) : filteredList.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-8 text-slate-400">Belum ada skema kegiatan terdaftar.</td>
-              </tr>
-            ) : (
-              filteredList.map((item) => {
-                const kodeSkema = item.kode || item.kode_skema || 'SKM';
-                const namaSkema = item.nama || item.nama_skema || 'Skema Kegiatan';
-                const jenisKegiatan = item.tipe || item.jenis_kegiatan || 'penelitian';
-                const kategoriSkema = item.sumber_dana || item.kategori_skema || 'internal';
-                const maksAnggaran = Number(item.maksimal_anggaran || item.maksimal_dana || 0);
+      {/* Modal Form <= 5 inputs (Grid 2 Kolom per Admin CRUD Rule 8) */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingItem ? 'Edit Skema Kegiatan' : 'Tambah Skema Kegiatan Baru'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleSubmit(onSubmit)}
+              loading={submitting}
+              disabled={submitting}
+            >
+              {editingItem ? 'Simpan Perubahan' : 'Simpan Skema'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Kode Skema"
+              required
+              placeholder="Misal: SKM-PD"
+              error={errors.kode_skema?.message}
+              {...register('kode_skema')}
+            />
 
-                return (
-                  <tr key={item.id}>
-                    <td className="font-mono text-xs font-bold text-primary-700">{kodeSkema}</td>
-                    <td className="font-bold text-slate-800">{namaSkema}</td>
-                    <td>
-                      <span className={`badge ${jenisKegiatan === 'penelitian' ? 'badge-blue' : 'badge-green'}`}>
-                        {jenisKegiatan.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="capitalize text-slate-600 font-medium">{kategoriSkema.replace(/_/g, ' ')}</td>
-                    <td className="font-bold text-primary-700">{formatRupiah(maksAnggaran)}</td>
-                    <td>
-                      <span className={`badge ${item.is_active !== false ? 'badge-green badge-dot' : 'badge-gray'}`}>
-                        {item.is_active !== false ? 'Aktif' : 'Non-Aktif'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Modal <= 5 Input Form (Grid 2 Kolom per crud-ui-standard) */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg modal-body">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <Layers className="text-primary-600" size={20} /> Tambah Skema Kegiatan
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
-            </div>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Grid 2 Kolom */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Kode Skema <span className="required">*</span></label>
-                  <input type="text" className={`input ${errors.kode_skema ? 'error' : ''}`} placeholder="Misal: SKM-PD" {...register('kode_skema')} />
-                  {errors.kode_skema && <span className="form-error">{errors.kode_skema.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Maksimal Dana (Rp) <span className="required">*</span></label>
-                  <input type="number" className={`input ${errors.maksimal_dana ? 'error' : ''}`} placeholder="25000000" {...register('maksimal_dana')} />
-                  {errors.maksimal_dana && <span className="form-error">{errors.maksimal_dana.message}</span>}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Nama Skema Kegiatan <span className="required">*</span></label>
-                <input type="text" className={`input ${errors.nama_skema ? 'error' : ''}`} placeholder="Misal: Penelitian Dasar Dosen Pemula" {...register('nama_skema')} />
-                {errors.nama_skema && <span className="form-error">{errors.nama_skema.message}</span>}
-              </div>
-
-              {/* Grid 2 Kolom untuk Select */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Jenis Kegiatan <span className="required">*</span></label>
-                  <select className="input" {...register('jenis_kegiatan')}>
-                    <option value="penelitian">Penelitian</option>
-                    <option value="pengabdian">Pengabdian Masyarakat</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Kategori Skema <span className="required">*</span></label>
-                  <select className="input" {...register('kategori_skema')}>
-                    <option value="dasar">Dasar</option>
-                    <option value="terapan">Terapan</option>
-                    <option value="pengembangan">Pengembangan</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
-                  Batal
-                </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none">
-                  {submitting ? 'Menyimpan...' : 'Simpan Skema'}
-                </button>
-              </div>
-            </form>
+            <Input
+              label="Maksimal Dana (Rp)"
+              type="number"
+              required
+              placeholder="25000000"
+              error={errors.maksimal_dana?.message}
+              {...register('maksimal_dana', { valueAsNumber: true })}
+            />
           </div>
-        </div>
-      )}
+
+          <Input
+            label="Nama Skema Kegiatan"
+            required
+            placeholder="Misal: Penelitian Dasar Dosen Pemula"
+            error={errors.nama_skema?.message}
+            {...register('nama_skema')}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Jenis Kegiatan"
+              required
+              value={watch('jenis_kegiatan')}
+              onChange={(val) => setValue('jenis_kegiatan', val as any)}
+              options={[
+                { value: 'penelitian', label: 'Penelitian' },
+                { value: 'pengabdian', label: 'Pengabdian Masyarakat' },
+              ]}
+              error={errors.jenis_kegiatan?.message}
+            />
+
+            <Select
+              label="Kategori Skema"
+              required
+              value={watch('kategori_skema')}
+              onChange={(val) => setValue('kategori_skema', val as any)}
+              options={[
+                { value: 'dasar', label: 'Dasar' },
+                { value: 'terapan', label: 'Terapan' },
+                { value: 'pengembangan', label: 'Pengembangan' },
+              ]}
+              error={errors.kategori_skema?.message}
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
