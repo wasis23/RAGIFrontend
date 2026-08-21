@@ -388,7 +388,7 @@ export default function RegistrasiSpmbPage() {
   const loadJalurKelas = async (inputValue: string) => {
     try {
       const res = await spmbService.getMasterJalurKelas();
-      const mapped = (res.data || []).map((k: any) => ({ value: String(k.id), label: k.nama }));
+      const mapped = (res.data || []).map((k: any) => ({ value: String(k.id), label: k.nama_jalur || k.nama }));
       if (inputValue) return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
       return mapped;
     } catch (e) { return []; }

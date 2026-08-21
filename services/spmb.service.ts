@@ -271,11 +271,11 @@ export const spmbService = {
 
 
   getMasterTipeJalur: async () => {
-    const response = await api.get("/master/tipe-jalur");
+    const response = await api.get('/spmb/master-tipe-jalur');
     return response.data;
   },
   getMasterJalurKelas: async () => {
-    const response = await api.get("/master/jalur-kelas");
+    const response = await api.get('/spmb/master-jalur-kelas');
     return response.data;
   },
   getReferensi: async (tipe: string) => {
