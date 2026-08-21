@@ -1,66 +1,108 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import toast from 'react-hot-toast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { Textarea } from '@/components/ui/Textarea';
 import { simpegService } from '@/services/simpeg.service';
-import type { UnitKerja, JenisPegawai, StatusKepegawaian, StatusPegawai } from '@/types/simpeg.types';
+
+const pegawaiSchema = z.object({
+  nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
+  nip: z.string().optional().nullable(),
+  nik: z.string().optional().nullable(),
+  unit_kerja_id: z.string().optional().nullable(),
+  jenis_pegawai: z.enum(['dosen', 'tendik', 'honorer'], {
+    required_error: 'Jenis Pegawai wajib dipilih',
+  }),
+  status_kepegawaian: z.enum(['pns', 'non_pns', 'kontrak', 'tetap_yayasan'], {
+    required_error: 'Status Kepegawaian wajib dipilih',
+  }),
+  status: z.enum(['aktif', 'non_aktif', 'pensiun'], {
+    required_error: 'Status Keaktifan wajib dipilih',
+  }),
+  tempat_lahir: z.string().optional().nullable(),
+  tanggal_lahir: z.string().optional().nullable(),
+  jenis_kelamin: z.enum(['L', 'P'], {
+    required_error: 'Jenis Kelamin wajib dipilih',
+  }),
+  telepon: z.string().optional().nullable(),
+  alamat: z.string().optional().nullable(),
+});
+
+type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
 
 export default function CreatePegawaiPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [unitList, setUnitList] = useState<UnitKerja[]>([]);
 
-  const [formData, setFormData] = useState({
-    unit_kerja_id: '',
-    nip: '',
-    nik: '',
-    nama_lengkap: '',
-    tempat_lahir: '',
-    tanggal_lahir: '',
-    jenis_kelamin: 'L' as 'L' | 'P',
-    jenis_pegawai: 'dosen' as JenisPegawai,
-    status_kepegawaian: 'tetap_yayasan' as StatusKepegawaian,
-    status: 'aktif' as StatusPegawai,
-    telepon: '',
-    alamat: '',
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<PegawaiFormValues>({
+    resolver: zodResolver(pegawaiSchema),
+    defaultValues: {
+      nama_lengkap: '',
+      nip: '',
+      nik: '',
+      unit_kerja_id: '',
+      jenis_pegawai: 'dosen',
+      status_kepegawaian: 'tetap_yayasan',
+      status: 'aktif',
+      tempat_lahir: '',
+      tanggal_lahir: '',
+      jenis_kelamin: 'L',
+      telepon: '',
+      alamat: '',
+    },
   });
 
-  useEffect(() => {
-    const fetchUnitList = async () => {
-      try {
-        const res = await simpegService.getUnitKerjaList();
-        setUnitList(res.data || []);
-      } catch (err) {
-        console.error('Gagal memuat unit kerja');
-      }
-    };
-    fetchUnitList();
+  // Server-side async loader for Unit Kerja AsyncSelect
+  const loadUnitKerjaOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getUnitKerjaList();
+      const units = res.data || [];
+      const filtered = units.filter(
+        (u) =>
+          u.nama.toLowerCase().includes(inputValue.toLowerCase()) ||
+          u.kode.toLowerCase().includes(inputValue.toLowerCase())
+      );
+      return filtered.map((u) => ({
+        value: u.id.toString(),
+        label: `[${u.kode}] ${u.nama}`,
+      }));
+    } catch (err) {
+      console.error('Gagal memuat opsi unit kerja', err);
+      return [];
+    }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.nama_lengkap) {
-      toast.error('Nama Lengkap wajib diisi');
-      return;
-    }
-
+  const onSubmit = async (values: PegawaiFormValues) => {
     setIsSubmitting(true);
     try {
       const payload = {
-        unit_kerja_id: formData.unit_kerja_id ? Number(formData.unit_kerja_id) : null,
-        nip: formData.nip || null,
-        nik: formData.nik || null,
-        nama_lengkap: formData.nama_lengkap,
-        tempat_lahir: formData.tempat_lahir || null,
-        tanggal_lahir: formData.tanggal_lahir || null,
-        jenis_kelamin: formData.jenis_kelamin,
-        jenis_pegawai: formData.jenis_pegawai,
-        status_kepegawaian: formData.status_kepegawaian,
-        status: formData.status,
-        telepon: formData.telepon || null,
-        alamat: formData.alamat || null,
+        unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : null,
+        nip: values.nip || null,
+        nik: values.nik || null,
+        nama_lengkap: values.nama_lengkap,
+        tempat_lahir: values.tempat_lahir || null,
+        tanggal_lahir: values.tanggal_lahir || null,
+        jenis_kelamin: values.jenis_kelamin,
+        jenis_pegawai: values.jenis_pegawai,
+        status_kepegawaian: values.status_kepegawaian,
+        status: values.status,
+        telepon: values.telepon || null,
+        alamat: values.alamat || null,
       };
 
       await simpegService.createPegawai(payload);
@@ -75,193 +117,191 @@ export default function CreatePegawaiPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.back()}
-          className="btn btn-ghost btn-sm"
-          title="Kembali"
-        >
-          <ArrowLeft size={18} /> Kembali
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            Tambah Pegawai Baru
-          </h1>
-          <p className="text-gray-500 mt-1">Daftarkan dosen atau tenaga kependidikan baru ke SIMPEG</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Tambah Pegawai Baru"
+        description="Daftarkan dosen atau tenaga kependidikan baru ke SIMPEG"
+        action={
+          <Button
+            onClick={() => router.back()}
+            className="bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm"
+            icon={<ArrowLeft size={16} />}
+          >
+            Kembali
+          </Button>
+        }
+      />
 
       <div className="card">
-        <div className="card-body">
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="card-body p-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
-              <div className="form-control">
-                <label className="label font-medium">Nama Lengkap & Gelar *</label>
-                <input
-                  type="text"
-                  className="input"
-                  required
-                  value={formData.nama_lengkap}
-                  onChange={(e) => setFormData({ ...formData, nama_lengkap: e.target.value })}
-                  placeholder="Contoh: Dr. Wasis Utama, M.Kom."
+              <Input
+                label="Nama Lengkap & Gelar"
+                required
+                placeholder="Contoh: Dr. Wasis Utama, M.Kom."
+                error={errors.nama_lengkap?.message}
+                {...register('nama_lengkap')}
+              />
+
+              <Input
+                label="NIP (Nomor Induk Pegawai)"
+                placeholder="Contoh: 199001012022011001"
+                error={errors.nip?.message}
+                {...register('nip')}
+              />
+
+              <Input
+                label="NIK (KTP)"
+                placeholder="Contoh: 327101..."
+                error={errors.nik?.message}
+                {...register('nik')}
+              />
+
+              <Controller
+                name="jenis_pegawai"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Jenis Pegawai"
+                    required
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.jenis_pegawai?.message}
+                    options={[
+                      { value: 'dosen', label: 'Dosen Pengajar' },
+                      { value: 'tendik', label: 'Tenaga Kependidikan' },
+                      { value: 'honorer', label: 'Honorer' },
+                    ]}
+                  />
+                )}
+              />
+
+              <Controller
+                name="status_kepegawaian"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Status Kepegawaian"
+                    required
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.status_kepegawaian?.message}
+                    options={[
+                      { value: 'tetap_yayasan', label: 'Tetap Yayasan / Kampus' },
+                      { value: 'pns', label: 'PNS DPK' },
+                      { value: 'non_pns', label: 'Non-PNS' },
+                      { value: 'kontrak', label: 'Kontrak' },
+                    ]}
+                  />
+                )}
+              />
+
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Status Keaktifan"
+                    required
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.status?.message}
+                    options={[
+                      { value: 'aktif', label: 'Aktif' },
+                      { value: 'non_aktif', label: 'Non-Aktif' },
+                      { value: 'pensiun', label: 'Pensiun' },
+                    ]}
+                  />
+                )}
+              />
+
+              <div className="lg:col-span-3">
+                <Controller
+                  name="unit_kerja_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Unit Kerja Tempat Bertugas"
+                      placeholder="Cari Unit Kerja (contoh: Fakultas / Biro / Prodi)..."
+                      loadOptions={loadUnitKerjaOptions}
+                      value={field.value ? { value: field.value, label: field.value } : null}
+                      onChange={(opt) => field.onChange(opt ? opt.value : '')}
+                      isClearable
+                      error={errors.unit_kerja_id?.message}
+                    />
+                  )}
                 />
               </div>
 
-              <div className="form-control">
-                <label className="label font-medium">NIP (Nomor Induk Pegawai)</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={formData.nip}
-                  onChange={(e) => setFormData({ ...formData, nip: e.target.value })}
-                  placeholder="Contoh: 199001012022011001"
-                />
-              </div>
+              <Input
+                label="Tempat Lahir"
+                placeholder="Contoh: Bandung"
+                error={errors.tempat_lahir?.message}
+                {...register('tempat_lahir')}
+              />
 
-              <div className="form-control">
-                <label className="label font-medium">NIK (KTP)</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={formData.nik}
-                  onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
-                  placeholder="Contoh: 327101..."
-                />
-              </div>
+              <Input
+                type="date"
+                label="Tanggal Lahir"
+                error={errors.tanggal_lahir?.message}
+                {...register('tanggal_lahir')}
+              />
 
-              <div className="form-control">
-                <label className="label font-medium">Jenis Pegawai</label>
-                <select
-                  className="input"
-                  value={formData.jenis_pegawai}
-                  onChange={(e) => setFormData({ ...formData, jenis_pegawai: e.target.value as JenisPegawai })}
-                >
-                  <option value="dosen">Dosen Pengajar</option>
-                  <option value="tendik">Tenaga Kependidikan</option>
-                  <option value="honorer">Honorer</option>
-                </select>
-              </div>
+              <Controller
+                name="jenis_kelamin"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    label="Jenis Kelamin"
+                    required
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.jenis_kelamin?.message}
+                    options={[
+                      { value: 'L', label: 'Laki-Laki' },
+                      { value: 'P', label: 'Perempuan' },
+                    ]}
+                  />
+                )}
+              />
 
-              <div className="form-control">
-                <label className="label font-medium">Status Kepegawaian</label>
-                <select
-                  className="input"
-                  value={formData.status_kepegawaian}
-                  onChange={(e) => setFormData({ ...formData, status_kepegawaian: e.target.value as StatusKepegawaian })}
-                >
-                  <option value="tetap_yayasan">Tetap Yayasan / Kampus</option>
-                  <option value="pns">PNS DPK</option>
-                  <option value="non_pns">Non-PNS</option>
-                  <option value="kontrak">Kontrak</option>
-                </select>
-              </div>
+              <Input
+                label="Nomor Telepon / WA"
+                placeholder="Contoh: 081234567890"
+                error={errors.telepon?.message}
+                {...register('telepon')}
+              />
 
-              <div className="form-control">
-                <label className="label font-medium">Status Keaktifan</label>
-                <select
-                  className="input"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as StatusPegawai })}
-                >
-                  <option value="aktif">Aktif</option>
-                  <option value="cuti">Cuti</option>
-                  <option value="non_aktif">Non-Aktif</option>
-                  <option value="pensiun">Pensiun</option>
-                </select>
-              </div>
-
-              <div className="form-control lg:col-span-3">
-                <label className="label font-medium">Unit Kerja Tempat Bertugas</label>
-                <select
-                  className="input"
-                  value={formData.unit_kerja_id}
-                  onChange={(e) => setFormData({ ...formData, unit_kerja_id: e.target.value })}
-                >
-                  <option value="">-- Tanpa Unit / Top Level --</option>
-                  {unitList.map((u) => (
-                    <option key={u.id} value={u.id}>[{u.kode}] {u.nama}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label font-medium">Tempat Lahir</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={formData.tempat_lahir}
-                  onChange={(e) => setFormData({ ...formData, tempat_lahir: e.target.value })}
-                  placeholder="Bandung"
-                />
-              </div>
-
-              <div className="form-control">
-                <label className="label font-medium">Tanggal Lahir</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={formData.tanggal_lahir}
-                  onChange={(e) => setFormData({ ...formData, tanggal_lahir: e.target.value })}
-                />
-              </div>
-
-              <div className="form-control">
-                <label className="label font-medium">Jenis Kelamin</label>
-                <select
-                  className="input"
-                  value={formData.jenis_kelamin}
-                  onChange={(e) => setFormData({ ...formData, jenis_kelamin: e.target.value as 'L' | 'P' })}
-                >
-                  <option value="L">Laki-Laki</option>
-                  <option value="P">Perempuan</option>
-                </select>
-              </div>
-
-              <div className="form-control">
-                <label className="label font-medium">Nomor Telepon / WA</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={formData.telepon}
-                  onChange={(e) => setFormData({ ...formData, telepon: e.target.value })}
-                  placeholder="081234567890"
-                />
-              </div>
-
-              <div className="form-control lg:col-span-2">
-                <label className="label font-medium">Alamat Domisili Lengkap</label>
-                <textarea
-                  className="input"
-                  rows={2}
-                  value={formData.alamat}
-                  onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
+              <div className="lg:col-span-2">
+                <Textarea
+                  label="Alamat Domisili Lengkap"
                   placeholder="Jl. Kampus Utama No. 12, Bandung"
+                  rows={2}
+                  error={errors.alamat?.message}
+                  {...register('alamat')}
                 />
               </div>
 
             </div>
 
             <div className="flex justify-end gap-3 mt-8 border-t pt-6">
-              <button
+              <Button
                 type="button"
-                className="btn btn-ghost"
+                variant="outline"
                 onClick={() => router.back()}
                 disabled={isSubmitting}
               >
                 Batal
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="btn btn-primary"
+                loading={isSubmitting}
                 disabled={isSubmitting}
+                icon={<Save size={16} />}
               >
-                {isSubmitting ? (
-                  <><RefreshCw size={18} className="animate-spin mr-2" /> Menyimpan...</>
-                ) : (
-                  <><Save size={18} className="mr-2" /> Simpan Data Pegawai</>
-                )}
-              </button>
+                Simpan Data Pegawai
+              </Button>
             </div>
           </form>
         </div>
