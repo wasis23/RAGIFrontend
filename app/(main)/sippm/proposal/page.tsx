@@ -1,91 +1,114 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  FilePlus,
-  Search,
-  Filter,
-  Eye,
-  Edit,
-  Send,
-  Download,
-  BookOpen,
-  DollarSign,
-  User,
-  FlaskConical,
-  Shield,
-  UserCheck,
-  CheckCircle2,
-  XCircle,
-  Users,
-} from 'lucide-react';
+import { FilePlus, Filter, Search, Eye, Edit, Send, Users, ShieldAlert, User, Shield, UserCheck, FlaskConical } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Drawer } from '@/components/ui/Drawer';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { SippmBadge } from '@/components/sippm/SippmBadge';
 import { sippmService } from '@/services/sippm.service';
 import { simpegService } from '@/services/simpeg.service';
-import { useAuth } from '@/hooks/useAuth';
 import type { ProposalKegiatan, StatusProposal, JenisKegiatan } from '@/types/sippm.types';
+import type { PaginationMeta } from '@/types/api.types';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function ProposalListPage() {
   const router = useRouter();
-  const { user, hasRole, isAdmin } = useAuth();
-  
-  // Strict RBAC check (per rbac-refactoring-standard)
-  const isLppmAdmin = isAdmin || hasRole('admin_lppm') || hasRole('superadmin');
-  
-  const [proposals, setProposals] = useState<ProposalKegiatan[]>([]);
-  const [dosenList, setDosenList] = useState<any[]>([]);
+  const { user, hasPermission } = useAuth();
+
+  // Pure RBAC checks (per rbac-refactoring-standard)
+  const canRead = hasPermission('sippm.proposal.read') || hasPermission('sippm.proposal.manage');
+  const canCreate = hasPermission('sippm.proposal.create') || hasPermission('sippm.proposal.manage');
+  const isLppmAdmin = hasPermission('sippm.proposal.manage') || hasPermission('sippm.reviewer.assign');
+
   const [loading, setLoading] = useState(true);
+  const [proposals, setProposals] = useState<ProposalKegiatan[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>();
 
-  // Filters
+  // Filter Drawer & Pagination state
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
-  const [jenisFilter, setJenisFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dosenFilter, setDosenFilter] = useState<string>('all');
+  const [filterJenis, setFilterJenis] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterDosen, setFilterDosen] = useState<string>('all');
+  const [selectedDosenOption, setSelectedDosenOption] = useState<any>(null);
+  const [filterOrderBy, setFilterOrderBy] = useState('created_at');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
 
-  const fetchProposals = async () => {
+  const fetchProposals = useCallback(async () => {
+    if (!canRead) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await sippmService.getProposals({
+      const params: any = {
+        page,
+        per_page: limit,
         search: search || undefined,
-        jenis_kegiatan: jenisFilter !== 'all' ? (jenisFilter as JenisKegiatan) : undefined,
-        status: statusFilter !== 'all' ? (statusFilter as StatusProposal) : undefined,
-      });
+        jenis_kegiatan: filterJenis !== 'all' ? (filterJenis as JenisKegiatan) : undefined,
+        status: filterStatus !== 'all' ? (filterStatus as StatusProposal) : undefined,
+        sort_by: filterOrderBy,
+        sort_dir: filterOrderDir,
+      };
 
-      if (res.data) {
-        const items = Array.isArray(res.data) ? res.data : (res.data as any).items || (res.data as any).data || [];
-        setProposals(items);
+      const res: any = await sippmService.getProposals(params);
+      if (res?.data) {
+        const dataItems = Array.isArray(res.data.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : (res.data as any)?.items || [];
+        setProposals(dataItems);
+        if (res.data.meta) setMeta(res.data.meta);
+        else if (res.meta) setMeta(res.meta);
+      } else if (Array.isArray(res)) {
+        setProposals(res);
+      } else {
+        setProposals([]);
       }
-    } catch (err) {
-      console.error('Failed to fetch proposals', err);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal memuat daftar proposal');
+      setProposals([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canRead, page, limit, search, filterJenis, filterStatus, filterOrderBy, filterOrderDir]);
 
   useEffect(() => {
     fetchProposals();
-    if (isLppmAdmin) {
-      simpegService.getPegawaiList({ jenis_pegawai: 'dosen' }).then((res) => {
-        const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-        setDosenList(list);
-      }).catch(() => {});
-    }
-  }, [jenisFilter, statusFilter, isLppmAdmin]);
+  }, [fetchProposals]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchProposals();
-  };
+  const loadDosenOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getPegawaiList({ search: inputValue || undefined, jenis_pegawai: 'dosen' });
+      const list = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+      return [
+        { value: 'all', label: 'Semua Dosen Pengusul' },
+        ...list.map((d: any) => ({
+          value: d.id.toString(),
+          label: `${d.nama_lengkap || d.name} (${d.unit_kerja?.nama || 'Dosen'})`,
+        })),
+      ];
+    } catch (err) {
+      return [{ value: 'all', label: 'Semua Dosen Pengusul' }];
+    }
+  }, []);
 
   const handleSubmitProposal = async (id: number) => {
     if (!confirm('Apakah Anda yakin ingin mengajukan proposal ini? Proposal yang telah diajukan tidak dapat diubah kembali.')) return;
     try {
       await sippmService.submitProposal(id);
+      toast.success('Proposal berhasil diajukan ke LPPM');
       fetchProposals();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Gagal mengajukan proposal');
+      toast.error(err?.response?.data?.message || 'Gagal mengajukan proposal');
     }
   };
 
@@ -93,9 +116,8 @@ export default function ProposalListPage() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   };
 
-  // Filter based on Role & Selected Dosen
+  // Scoped list filtering (dosen mode vs admin mode)
   const displayedProposals = proposals.filter((p) => {
-    // 1. Role-based scoping: If Dosen, show only own proposals
     if (!isLppmAdmin) {
       const isMine =
         p.dosen_ketua_id === user?.id ||
@@ -104,209 +126,260 @@ export default function ProposalListPage() {
       if (!isMine) return false;
     }
 
-    // 2. Admin Dosen Filter
-    if (isLppmAdmin && dosenFilter !== 'all') {
+    if (isLppmAdmin && filterDosen !== 'all') {
       const matchesDosen =
-        p.dosen_ketua_id === Number(dosenFilter) ||
-        p.ketua?.nama_lengkap === dosenFilter;
+        p.dosen_ketua_id === Number(filterDosen) ||
+        p.ketua?.nama_lengkap === filterDosen;
       if (!matchesDosen) return false;
     }
 
     return true;
   });
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+  const columns: ColumnDef<ProposalKegiatan>[] = [
+    {
+      key: 'judul',
+      label: 'Judul Proposal & Skema',
+      render: (row) => (
         <div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-sippm">Modul Proposal SIPPM</span>
-            {isLppmAdmin ? (
-              <span className="badge badge-cyan flex items-center gap-1 font-bold">
-                <Shield size={12} /> Access: Admin LPPM (Semua Data Dosen)
-              </span>
-            ) : (
-              <span className="badge badge-blue flex items-center gap-1 font-bold">
-                <UserCheck size={12} /> Access: Mode Dosen Pengusul
-              </span>
-            )}
+          <div className="font-bold text-slate-900 line-clamp-1">{row.judul}</div>
+          <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+            <span className="font-medium text-primary-700">{row.skema?.nama_skema || row.skema?.nama || 'Skema Riset'}</span>
+            <span>•</span>
+            <span className="capitalize">{row.rumpun_ilmu}</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
-            Proposal Usulan Riset & PkM
-          </h1>
-          <p className="text-slate-500 text-sm">
-            {isLppmAdmin
-              ? 'Panel Admin LPPM untuk mengelola, meninjau, dan memplot reviewer proposal seluruh dosen.'
-              : 'Daftar pengajuan proposal usulan hibah penelitian dan pengabdian masyarakat milik Anda.'}
+        </div>
+      ),
+    },
+    {
+      key: 'ketua',
+      label: 'Ketua Pengusul',
+      render: (row) => (
+        <div>
+          <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+            <User size={14} className="text-slate-400" />
+            {row.ketua?.nama_lengkap || 'Dosen Pengusul'}
+          </div>
+          <div className="text-[11px] text-slate-400 font-mono mt-0.5">{row.ketua?.nip || 'NIP Verified'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'anggaran_diajukan',
+      label: 'Dana Diusulkan',
+      render: (row) => (
+        <span className="font-bold text-primary-700 text-sm">
+          {formatRupiah(row.anggaran_diajukan ?? row.dana_diusulkan ?? 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => <SippmBadge status={row.status} />,
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        const menuItems: DropdownMenuItem[] = [
+          {
+            label: 'Detail Proposal',
+            icon: <Eye size={14} />,
+            onClick: () => router.push(`/sippm/proposal/${row.id}`),
+          },
+        ];
+
+        if (isLppmAdmin && row.status === 'submitted') {
+          menuItems.push({
+            label: 'Plot Reviewer',
+            icon: <Users size={14} />,
+            onClick: () => router.push(`/sippm/reviewer`),
+          });
+        }
+
+        if (row.status === 'draft') {
+          menuItems.push({
+            label: 'Edit Proposal',
+            icon: <Edit size={14} />,
+            onClick: () => router.push(`/sippm/proposal/${row.id}/edit`),
+          });
+          menuItems.push({
+            label: 'Ajukan ke LPPM',
+            icon: <Send size={14} />,
+            onClick: () => handleSubmitProposal(row.id),
+          });
+        }
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu items={menuItems} />
+          </div>
+        );
+      },
+    },
+  ];
+
+  if (!canRead) {
+    return (
+      <div className="animate-fade-in space-y-6">
+        <PageHeader
+          title="Proposal Usulan Riset & PkM"
+          description="Daftar pengajuan proposal usulan hibah penelitian dan pengabdian masyarakat"
+        />
+        <div className="card p-6 text-center">
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">Akses Ditolak / Dibatasi</h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
+            Peran Anda saat ini tidak memiliki permission untuk melihat Modul Proposal SIPPM.
           </p>
         </div>
-
-        {/* Create Proposal Button */}
-        <Link href="/sippm/proposal/create" className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-sm font-bold">
-          <FilePlus size={18} /> Buat Proposal Baru
-        </Link>
       </div>
+    );
+  }
 
-      {/* Filter Card 1 Baris Presisi */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col xl:flex-row items-center justify-between gap-3">
-          <form onSubmit={handleSearchSubmit} className="input-wrapper w-full xl:flex-1 max-w-lg">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari judul proposal / ketua pengusul..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </form>
-
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full xl:w-auto shrink-0">
-            {/* Filter Dosen (Khusus Admin) */}
-            {isLppmAdmin && (
-              <select
-                className="input text-xs w-full sm:w-56 bg-primary-50/50 border-primary-200 font-semibold"
-                value={dosenFilter}
-                onChange={(e) => setDosenFilter(e.target.value)}
-              >
-                <option value="all">Semua Dosen Pengusul</option>
-                {dosenList.map((d: any) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nama_lengkap || d.name} ({d.unit_kerja?.nama || 'Dosen'})
-                  </option>
-                ))}
-              </select>
+  return (
+    <div className="animate-fade-in space-y-6">
+      <PageHeader
+        title="Proposal Usulan Riset & PkM"
+        description={
+          isLppmAdmin
+            ? 'Panel Admin LPPM untuk mengelola, meninjau, dan memplot reviewer proposal seluruh dosen.'
+            : 'Daftar pengajuan proposal usulan hibah penelitian dan pengabdian masyarakat milik Anda.'
+        }
+        action={
+          <div className="flex gap-2">
+            {canCreate && (
+              <Button icon={<FilePlus size={16} />} onClick={() => router.push('/sippm/proposal/create')}>
+                Buat Proposal Baru
+              </Button>
             )}
-
-            {/* Filter Jenis */}
-            <select
-              className="input text-xs w-full sm:w-48"
-              value={jenisFilter}
-              onChange={(e) => setJenisFilter(e.target.value)}
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
             >
-              <option value="all">Semua Jenis Kegiatan</option>
-              <option value="penelitian">Penelitian</option>
-              <option value="pengabdian">Pengabdian Masyarakat</option>
-            </select>
+              Filter
+            </Button>
+          </div>
+        }
+      />
 
-            {/* Filter Status */}
-            <select
-              className="input text-xs w-full sm:w-40"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">Semua Status</option>
-              <option value="draft">Draft</option>
-              <option value="submitted">Diajukan</option>
-              <option value="under_review">Dalam Review</option>
-              <option value="approved">Disetujui</option>
-              <option value="rejected">Ditolak</option>
-              <option value="contracted">Kontrak Hibah</option>
-            </select>
+      {/* Main DataTable */}
+      <DataTable
+        columns={columns}
+        data={displayedProposals}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        emptyMessage={
+          <div className="py-8 text-center opacity-70">
+            <FlaskConical size={48} className="mx-auto mb-4 opacity-40" />
+            <p>Tidak ada proposal usulan yang cocok.</p>
+          </div>
+        }
+      />
+
+      {/* Filter Drawer Slide Right-to-Left */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Proposal"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Pencarian Judul / Pengusul"
+            placeholder="Cari proposal..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          {isLppmAdmin && (
+            <AsyncSelect
+              label="Filter Dosen Pengusul"
+              placeholder="Cari & pilih dosen pengusul..."
+              loadOptions={loadDosenOptions}
+              value={
+                filterDosen === 'all'
+                  ? { value: 'all', label: 'Semua Dosen Pengusul' }
+                  : selectedDosenOption
+              }
+              onChange={(val: any) => {
+                setFilterDosen(val ? val.value : 'all');
+                setSelectedDosenOption(val);
+                setPage(1);
+              }}
+              isClearable
+            />
+          )}
+
+          <Select
+            label="Filter Jenis Kegiatan"
+            value={filterJenis}
+            onChange={(val) => {
+              setFilterJenis(val);
+              setPage(1);
+            }}
+            options={[
+              { value: 'all', label: 'Semua Jenis Kegiatan' },
+              { value: 'penelitian', label: 'Penelitian' },
+              { value: 'pengabdian', label: 'Pengabdian Masyarakat' },
+            ]}
+          />
+
+          <Select
+            label="Filter Status Proposal"
+            value={filterStatus}
+            onChange={(val) => {
+              setFilterStatus(val);
+              setPage(1);
+            }}
+            options={[
+              { value: 'all', label: 'Semua Status' },
+              { value: 'draft', label: 'Draft' },
+              { value: 'submitted', label: 'Diajukan' },
+              { value: 'under_review', label: 'Dalam Review' },
+              { value: 'approved', label: 'Disetujui' },
+              { value: 'rejected', label: 'Ditolak' },
+              { value: 'contracted', label: 'Kontrak Hibah' },
+            ]}
+          />
+
+          <hr className="my-2" />
+
+          {/* Grid 2 Kolom Sorting */}
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'judul', label: 'Judul Proposal' },
+                { value: 'anggaran_diajukan', label: 'Dana Diusulkan' },
+              ]}
+            />
+
+            <Select
+              label="Arah Pengurutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'desc', label: 'Mundur (DESC)' },
+                { value: 'asc', label: 'Maju (ASC)' },
+              ]}
+            />
           </div>
         </div>
-      </div>
-
-      {/* Data Table */}
-      <div className="table-container bg-white">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Judul Proposal & Skema</th>
-              <th>Ketua Pengusul</th>
-              <th>Dana Diusulkan</th>
-              <th>Status</th>
-              <th className="text-right">Aksi {isLppmAdmin ? 'Admin' : 'Dosen'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400">Memuat daftar proposal...</td>
-              </tr>
-            ) : displayedProposals.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <FlaskConical size={32} className="text-slate-300" />
-                    <span>Tidak ada proposal usulan yang cocok.</span>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              displayedProposals.map((item) => (
-                <tr key={item.id} className="hover:bg-primary-50/40 transition-colors">
-                  <td>
-                    <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                      <span className="font-medium text-primary-700">{item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}</span>
-                      <span>•</span>
-                      <span className="capitalize">{item.rumpun_ilmu}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                      <User size={14} className="text-slate-400" />
-                      {item.ketua?.nama_lengkap || 'Dosen Pengusul'}
-                    </div>
-                    <div className="text-[11px] text-slate-400 font-mono mt-0.5">{item.ketua?.nip || 'NIP Verified'}</div>
-                  </td>
-                  <td className="font-bold text-primary-700 text-sm">
-                    {formatRupiah(item.dana_diusulkan ?? item.anggaran_diajukan ?? 0)}
-                  </td>
-                  <td>
-                    <SippmBadge status={item.status} />
-                  </td>
-                  <td>
-                    <div className="flex items-center justify-end gap-2">
-                      <Link
-                        href={`/sippm/proposal/${item.id}`}
-                        className="btn btn-ghost btn-sm text-primary-700 hover:bg-primary-50"
-                        title="Lihat Detail"
-                      >
-                        <Eye size={16} /> Detail
-                      </Link>
-
-                      {/* Admin-only Plot Reviewer button */}
-                      {isLppmAdmin && item.status === 'submitted' && (
-                        <Link
-                          href={`/sippm/reviewer`}
-                          className="btn btn-ghost btn-sm text-purple-700 hover:bg-purple-50 font-semibold"
-                          title="Plot Reviewer"
-                        >
-                          <Users size={14} /> Plot Reviewer
-                        </Link>
-                      )}
-
-                      {/* Dosen-only Edit & Submit button */}
-                      {item.status === 'draft' && (
-                        <>
-                          <Link
-                            href={`/sippm/proposal/${item.id}/edit`}
-                            className="btn btn-ghost btn-sm text-amber-700 hover:bg-amber-50"
-                            title="Edit Proposal"
-                          >
-                            <Edit size={16} /> Edit
-                          </Link>
-
-                          <button
-                            onClick={() => handleSubmitProposal(item.id)}
-                            className="btn btn-ghost btn-sm text-blue-600 hover:bg-blue-50"
-                            title="Ajukan ke LPPM"
-                          >
-                            <Send size={16} /> Ajukan
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      </Drawer>
     </div>
   );
 }
