@@ -37,6 +37,11 @@ export const adminService = {
     return data;
   },
 
+  changeUserPassword: async (id: number, payload: { password: string; password_confirmation: string }): Promise<ApiResponse<User>> => {
+    const { data } = await apiClient.put<ApiResponse<User>>(`/admin/users/${id}/password`, payload);
+    return data;
+  },
+
   // ── ROLES ──────────────────────────────────────────────────
   getRoles: async (params?: PaginationParams): Promise<PaginatedResponse<Role>> => {
     const { data } = await apiClient.get<PaginatedResponse<Role>>('/admin/roles', { params });

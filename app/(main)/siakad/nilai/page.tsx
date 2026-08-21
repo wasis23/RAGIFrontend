@@ -546,6 +546,167 @@ export default function InputNilaiPage() {
     },
   ];
 
+  const studentKhsColumns: ColumnDef<any>[] = [
+    {
+      key: 'mata_kuliah',
+      label: 'KODE & MATA KULIAH',
+      render: (row) => {
+        const mk = row.krs_detail?.kelas?.mata_kuliah;
+        return (
+          <div>
+            <span className="font-extrabold text-slate-900 block">{mk?.nama || 'Mata Kuliah'}</span>
+            <span className="text-2xs text-slate-400 font-mono">{mk?.kode_mk || 'MK'}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'sks',
+      label: 'SKS',
+      align: 'center',
+      render: (row) => (
+        <span className="font-bold font-mono text-slate-800">
+          {row.krs_detail?.kelas?.mata_kuliah?.total_sks || 3} SKS
+        </span>
+      ),
+    },
+    {
+      key: 'tugas',
+      label: 'TUGAS (20%)',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono text-xs">{Number(row.nilai_harian || 0).toFixed(1)}</span>
+      ),
+    },
+    {
+      key: 'kuis',
+      label: 'KUIS (15%)',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono text-xs">{Number(row.nilai_praktik || 0).toFixed(1)}</span>
+      ),
+    },
+    {
+      key: 'uts',
+      label: 'UTS (30%)',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono text-xs">{Number(row.nilai_uts || 0).toFixed(1)}</span>
+      ),
+    },
+    {
+      key: 'uas',
+      label: 'PROYEK/UAS (35%)',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono text-xs">{Number(row.nilai_uas || 0).toFixed(1)}</span>
+      ),
+    },
+    {
+      key: 'nilai_akhir',
+      label: 'NILAI AKHIR',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono font-black text-slate-900 text-xs">
+          {Number(row.nilai_akhir || 0).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      key: 'nilai_huruf',
+      label: 'HURUF',
+      align: 'center',
+      render: (row) => {
+        const variant =
+          row.nilai_huruf === 'A' || row.nilai_huruf === 'A-'
+            ? 'green'
+            : row.nilai_huruf === 'B+' || row.nilai_huruf === 'B'
+            ? 'blue'
+            : row.nilai_huruf === 'C+' || row.nilai_huruf === 'C'
+            ? 'amber'
+            : 'gray';
+        return <Badge variant={variant as any}>{row.nilai_huruf || '-'}</Badge>;
+      },
+    },
+    {
+      key: 'bobot_mutu',
+      label: 'MUTU',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono font-bold text-emerald-700 text-xs">
+          {Number(row.bobot_mutu || 0).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS KELULUSAN',
+      align: 'center',
+      render: (row) => {
+        const isLulus = row.nilai_huruf !== 'E' && row.nilai_huruf !== 'D';
+        return (
+          <Badge variant={isLulus ? 'green' : 'rose'} className="text-2xs font-bold">
+            {isLulus ? '✓ Lulus (Tercapai)' : '✗ Belum Lulus'}
+          </Badge>
+        );
+      },
+    },
+  ];
+
+  const transkripColumns: ColumnDef<any>[] = [
+    {
+      key: 'mata_kuliah',
+      label: 'KODE & MATA KULIAH',
+      render: (item) => (
+        <div>
+          <span className="font-bold text-slate-900 block font-sans">{item.nama_mk}</span>
+          <span className="text-2xs text-slate-400 font-mono">{item.kode_mk}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'semester',
+      label: 'SEMESTER / TIPE',
+      render: (item) => (
+        <Badge variant={item.is_transfer ? 'purple' : 'blue'} className="text-2xs font-bold">
+          {item.semester_label}
+        </Badge>
+      ),
+    },
+    {
+      key: 'sks',
+      label: 'SKS (K)',
+      align: 'center',
+      render: (item) => <span className="font-mono font-bold text-slate-800">{item.sks}</span>,
+    },
+    {
+      key: 'nilai_huruf',
+      label: 'NILAI (N)',
+      align: 'center',
+      render: (item) => (
+        <Badge variant={item.nilai_huruf === 'A' || item.nilai_huruf === 'A-' ? 'green' : 'blue'}>
+          {item.nilai_huruf}
+        </Badge>
+      ),
+    },
+    {
+      key: 'bobot_mutu',
+      label: 'MUTU (M)',
+      align: 'center',
+      render: (item) => (
+        <span className="font-mono font-bold text-slate-700">{Number(item.bobot_mutu).toFixed(2)}</span>
+      ),
+    },
+    {
+      key: 'mutu_x_sks',
+      label: 'K X M',
+      align: 'center',
+      render: (item) => (
+        <span className="font-mono font-black text-slate-900">{Number(item.mutu_x_sks).toFixed(2)}</span>
+      ),
+    },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Konten Halaman Utama (disembunyikan saat mencetak) */}
@@ -582,7 +743,13 @@ export default function InputNilaiPage() {
                     }}
                     className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
                   >
-                    {tahunAkademiks.map((ta) => (
+                    {(isMahasiswa && transkripData?.mahasiswa?.angkatan
+                      ? tahunAkademiks.filter((ta) => {
+                          const startYear = ta.tahun_mulai || Number(String(ta.kode).slice(0, 4));
+                          return startYear >= Number(transkripData.mahasiswa.angkatan) || ta.is_active;
+                        })
+                      : tahunAkademiks
+                    ).map((ta) => (
                       <option key={ta.id} value={ta.id}>
                         {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
                       </option>
@@ -952,71 +1119,45 @@ export default function InputNilaiPage() {
               )
             ) : (
               /* VIEW UNTUK MAHASISWA (KHS SEMESTER AKTIF BERBASIS OBE) */
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div>
-                    <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                      <BookOpen size={16} className="text-primary-600" />
-                      Kartu Hasil Studi (KHS) Semester Aktif & Capaian Pembelajaran
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Rincian nilai mata kuliah, bobot mutu, dan status ketercapaian capaian pembelajaran (OBE).
-                    </p>
-                  </div>
-                </div>
+              <div className="space-y-4">
+                <DataTable
+                  columns={studentKhsColumns}
+                  data={nilaiList}
+                  isLoading={loading}
+                  emptyMessage="Belum ada nilai atau KHS yang diterbitkan pada semester ini."
+                />
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                      <tr>
-                        <th className="py-3 px-4">KODE & MATA KULIAH</th>
-                        <th className="py-3 px-4 text-center">SKS</th>
-                        <th className="py-3 px-4 text-center">TUGAS (20%)</th>
-                        <th className="py-3 px-4 text-center">KUIS (15%)</th>
-                        <th className="py-3 px-4 text-center">UTS (30%)</th>
-                        <th className="py-3 px-4 text-center">PROYEK / UAS (35%)</th>
-                        <th className="py-3 px-4 text-center">NILAI AKHIR</th>
-                        <th className="py-3 px-4 text-center">HURUF</th>
-                        <th className="py-3 px-4 text-center">MUTU</th>
-                        <th className="py-3 px-4 text-center">STATUS KELULUSAN</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                      {loading ? (
-                        <tr><td colSpan={10} className="py-8 text-center text-slate-400">Memuat KHS mahasiswa...</td></tr>
-                      ) : nilaiList.length === 0 ? (
-                        <tr><td colSpan={10} className="py-8 text-center text-slate-400">Belum ada nilai yang diterbitkan pada semester ini</td></tr>
-                      ) : (
-                        nilaiList.map((n) => {
-                          const mk = n.krs_detail?.kelas?.mata_kuliah;
-                          const sks = mk?.total_sks || 3;
-                          const isLulus = n.nilai_huruf !== 'E' && n.nilai_huruf !== 'D';
-                          return (
-                            <tr key={n.id} className="hover:bg-slate-50/80 transition">
-                              <td className="py-3.5 px-4">
-                                <span className="font-extrabold text-slate-900 block">{mk?.nama || 'Mata Kuliah'}</span>
-                                <span className="text-2xs text-slate-400 font-mono">{mk?.kode_mk || 'MK'}</span>
-                              </td>
-                              <td className="py-3.5 px-4 text-center font-bold">{sks}</td>
-                              <td className="py-3.5 px-4 text-center font-mono">{Number(n.nilai_harian || 0).toFixed(1)}</td>
-                              <td className="py-3.5 px-4 text-center font-mono">{Number(n.nilai_praktik || 0).toFixed(1)}</td>
-                              <td className="py-3.5 px-4 text-center font-mono">{Number(n.nilai_uts || 0).toFixed(1)}</td>
-                              <td className="py-3.5 px-4 text-center font-mono">{Number(n.nilai_uas || 0).toFixed(1)}</td>
-                              <td className="py-3.5 px-4 text-center font-mono font-black text-slate-900">{Number(n.nilai_akhir || 0).toFixed(2)}</td>
-                              <td className="py-3.5 px-4 text-center font-black text-primary-700">{n.nilai_huruf || 'A'}</td>
-                              <td className="py-3.5 px-4 text-center font-mono font-bold text-emerald-700">{Number(n.bobot_mutu || 4).toFixed(2)}</td>
-                              <td className="py-3.5 px-4 text-center">
-                                <span className={`badge text-2xs font-bold ${isLulus ? 'badge-green' : 'badge-red'}`}>
-                                  {isLulus ? '✓ LULUS (Capaian Tercapai)' : '✗ TIDAK LULUS'}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                {/* Ringkasan Indeks Prestasi Semester (IPS) Mahasiswa */}
+                {nilaiList.length > 0 && (
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-6 text-xs text-slate-600">
+                      <div>
+                        <span className="text-slate-400 block text-2xs uppercase font-bold">Total SKS Semester</span>
+                        <strong className="text-slate-900 text-sm font-mono">
+                          {nilaiList.reduce((acc, curr) => acc + (curr.krs_detail?.kelas?.mata_kuliah?.total_sks || 3), 0)} SKS
+                        </strong>
+                      </div>
+                      <div className="h-8 w-px bg-slate-200" />
+                      <div>
+                        <span className="text-slate-400 block text-2xs uppercase font-bold">Mata Kuliah Lulus</span>
+                        <strong className="text-emerald-700 text-sm">
+                          {nilaiList.filter((n) => n.nilai_huruf !== 'E' && n.nilai_huruf !== 'D').length} / {nilaiList.length} MK
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-slate-700">Indeks Prestasi Semester (IPS):</span>
+                      <span className="text-base font-mono font-black text-primary-700 bg-primary-50 px-4 py-1.5 rounded-xl border border-primary-200 shadow-2xs">
+                        {(() => {
+                          const totalSks = nilaiList.reduce((acc, curr) => acc + (curr.krs_detail?.kelas?.mata_kuliah?.total_sks || 3), 0);
+                          const totalBobot = nilaiList.reduce((acc, curr) => acc + ((curr.bobot_mutu || 0) * (curr.krs_detail?.kelas?.mata_kuliah?.total_sks || 3)), 0);
+                          return totalSks > 0 ? (totalBobot / totalSks).toFixed(2) : '0.00';
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1251,69 +1392,38 @@ export default function InputNilaiPage() {
               )
             )}
 
-            {/* Tabel Transkrip */}
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                <div>
-                  <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Award size={16} className="text-primary-600" />
-                    Transkrip Nilai Akademik Kumulatif
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Daftar seluruh mata kuliah yang telah diselesaikan beserta rekonsiliasi nilai transfer.
-                  </p>
-                </div>
-              </div>
+            {/* Tabel Transkrip (Standard DataTable) */}
+            <div className="space-y-4">
+              <DataTable
+                columns={transkripColumns}
+                data={transkripData?.items || []}
+                isLoading={loadingTranskrip}
+                emptyMessage="Belum ada rekaman transkrip nilai akademik."
+              />
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                    <tr>
-                      <th className="py-3 px-4">KODE & MATA KULIAH</th>
-                      <th className="py-3 px-4">SEMESTER / TIPE</th>
-                      <th className="py-3 px-4 text-center">SKS (K)</th>
-                      <th className="py-3 px-4 text-center">NILAI (N)</th>
-                      <th className="py-3 px-4 text-center">MUTU (M)</th>
-                      <th className="py-3 px-4 text-center">K X M</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {loadingTranskrip ? (
-                      <tr><td colSpan={6} className="py-8 text-center text-slate-400">Memuat transkrip nilai...</td></tr>
-                    ) : !transkripData?.items || transkripData.items.length === 0 ? (
-                      <tr><td colSpan={6} className="py-8 text-center text-slate-400">Belum ada rekaman transkrip nilai</td></tr>
-                    ) : (
-                      transkripData.items.map((item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-50/80 transition">
-                          <td className="py-3 px-4 font-mono">
-                            <span className="font-bold text-slate-900 block font-sans">{item.nama_mk}</span>
-                            <span className="text-2xs text-slate-400">{item.kode_mk}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`badge text-2xs font-bold ${item.is_transfer ? 'badge-purple' : 'badge-blue'}`}>
-                              {item.semester_label}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-center font-bold">{item.sks}</td>
-                          <td className="py-3 px-4 text-center font-bold text-primary-700">{item.nilai_huruf}</td>
-                          <td className="py-3 px-4 text-center font-mono font-bold text-slate-800">{Number(item.bobot_mutu).toFixed(2)}</td>
-                          <td className="py-3 px-4 text-center font-mono font-black text-slate-900">{Number(item.mutu_x_sks).toFixed(2)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  {transkripData?.ringkasan && (
-                    <tfoot className="bg-slate-50 font-bold border-t-2 border-slate-300">
-                      <tr>
-                        <td colSpan={2} className="py-3 px-4 text-right uppercase text-xs">Total SKS & Mutu:</td>
-                        <td className="py-3 px-4 text-center font-mono text-sm">{transkripData.ringkasan.total_sks_lulus}</td>
-                        <td colSpan={2}></td>
-                        <td className="py-3 px-4 text-center font-mono text-sm">{transkripData.ringkasan.total_mutu}</td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
+              {/* Ringkasan IPK dan Total SKS Transkrip */}
+              {transkripData?.ringkasan && (
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-6 text-xs text-slate-600">
+                    <div>
+                      <span className="text-slate-400 block text-2xs uppercase font-bold">Total SKS Lulus</span>
+                      <strong className="text-slate-900 text-sm font-mono">{transkripData.ringkasan.total_sks_lulus} SKS</strong>
+                    </div>
+                    <div className="h-8 w-px bg-slate-200" />
+                    <div>
+                      <span className="text-slate-400 block text-2xs uppercase font-bold">Total Angka Mutu</span>
+                      <strong className="text-slate-900 text-sm font-mono">{transkripData.ringkasan.total_mutu}</strong>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-700">Indeks Prestasi Kumulatif (IPK):</span>
+                    <span className="text-base font-mono font-black text-emerald-700 bg-emerald-50 px-4 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
+                      {transkripData.ringkasan.ipk}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

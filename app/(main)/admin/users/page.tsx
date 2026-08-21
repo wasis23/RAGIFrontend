@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit2, Trash2, Mail, CheckCircle, XCircle, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, CheckCircle, XCircle, Filter, Key } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -63,6 +63,11 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Change Password States
+  const [passwordUser, setPasswordUser] = useState<User | null>(null);
+  const [passwordValues, setPasswordValues] = useState({ password: '', password_confirmation: '' });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // React Hook Form + Zod Setup
   const {
@@ -222,6 +227,38 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleOpenChangePassword = (user: User) => {
+    setPasswordUser(user);
+    setPasswordValues({ password: '', password_confirmation: '' });
+  };
+
+  const onSubmitChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordUser) return;
+
+    if (!passwordValues.password || passwordValues.password.length < 6) {
+      toast.error('Password minimal 6 karakter.');
+      return;
+    }
+
+    if (passwordValues.password !== passwordValues.password_confirmation) {
+      toast.error('Konfirmasi password tidak cocok.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await adminService.changeUserPassword(passwordUser.id, passwordValues);
+      toast.success(`Password untuk pengguna ${passwordUser.username} berhasil diubah!`);
+      setPasswordUser(null);
+      setPasswordValues({ password: '', password_confirmation: '' });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal mengubah password.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const columns: ColumnDef<User>[] = [
     {
       key: 'id',
@@ -302,6 +339,11 @@ export default function AdminUsersPage() {
                 label: 'Edit Pengguna',
                 icon: <Edit2 size={14} />,
                 onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Ganti Password',
+                icon: <Key size={14} />,
+                onClick: () => handleOpenChangePassword(row),
               },
               {
                 label: 'Hapus Pengguna',
@@ -422,6 +464,56 @@ export default function AdminUsersPage() {
           Apakah Anda yakin ingin menghapus pengguna <strong>{deletingUser?.username}</strong>? Tindakan ini
           tidak dapat dibatalkan.
         </p>
+      </Modal>
+
+      {/* Modal Ganti Password */}
+      <Modal
+        open={!!passwordUser}
+        onClose={() => setPasswordUser(null)}
+        title="Ganti Password Pengguna"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPasswordUser(null)} disabled={isChangingPassword}>
+              Batal
+            </Button>
+            <Button variant="primary" icon={<Key size={14} />} onClick={onSubmitChangePassword} disabled={isChangingPassword}>
+              {isChangingPassword ? 'Menyimpan...' : 'Simpan Password Baru'}
+            </Button>
+          </>
+        }
+      >
+        {passwordUser && (
+          <form onSubmit={onSubmitChangePassword} className="space-y-4">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center gap-3">
+              <div className="avatar avatar-sm">{passwordUser.username.slice(0, 2).toUpperCase()}</div>
+              <div>
+                <div className="font-bold text-slate-900 text-sm">{passwordUser.username}</div>
+                <div className="text-xs text-slate-500">{passwordUser.email}</div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Input
+                label="Password Baru"
+                type="password"
+                required
+                placeholder="Minimal 6 karakter"
+                value={passwordValues.password}
+                onChange={(e) => setPasswordValues({ ...passwordValues, password: e.target.value })}
+              />
+
+              <Input
+                label="Konfirmasi Password Baru"
+                type="password"
+                required
+                placeholder="Ketik ulang password baru"
+                value={passwordValues.password_confirmation}
+                onChange={(e) => setPasswordValues({ ...passwordValues, password_confirmation: e.target.value })}
+              />
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Filter Drawer */}

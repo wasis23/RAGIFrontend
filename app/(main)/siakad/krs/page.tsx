@@ -398,6 +398,83 @@ export default function KrsMahasiswaPage() {
     },
   ];
 
+  const studentKrsColumns: ColumnDef<any>[] = [
+    {
+      key: 'kode_mk',
+      label: 'KODE MK',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-900">
+          {row.kelas?.mata_kuliah?.kode_mk || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'mata_kuliah',
+      label: 'MATA KULIAH & KELAS',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 block">{row.kelas?.mata_kuliah?.nama}</span>
+          <span className="text-2xs text-slate-400">Kelas {row.kelas?.nama_kelas}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'sks',
+      label: 'SKS',
+      align: 'center',
+      render: (row) => (
+        <span className="font-bold text-slate-900 font-mono">
+          {row.kelas?.mata_kuliah?.total_sks || 3} SKS
+        </span>
+      ),
+    },
+    {
+      key: 'dosen',
+      label: 'DOSEN PENGAMPU',
+      render: (row) => (
+        <span className="font-medium text-slate-700 text-xs">
+          {row.kelas?.dosen_pengampu?.[0]?.dosen?.nama_lengkap || 'Dosen Pengampu'}
+        </span>
+      ),
+    },
+    {
+      key: 'jadwal',
+      label: 'JADWAL & WAKTU',
+      render: (row) => (
+        <span className="font-bold text-slate-800 capitalize flex items-center gap-1 text-2xs">
+          <Clock size={12} className="text-primary-600 shrink-0" />
+          {row.kelas?.hari ? `${row.kelas.hari}, ${row.kelas.jam_mulai?.slice(0, 5)} - ${row.kelas.jam_selesai?.slice(0, 5)}` : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'ruangan',
+      label: 'RUANGAN (SINAPRA)',
+      render: (row) => (
+        <Badge variant="blue" className="text-2xs font-bold inline-flex items-center gap-1">
+          <MapPin size={10} /> {row.kelas?.ruangan?.nama || 'Ruang Kuliah'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <Button
+          variant="outline"
+          icon={<Trash2 size={13} className="text-rose-600" />}
+          className="text-2xs py-1 px-2.5 h-auto hover:bg-rose-50 font-bold text-rose-700 border-rose-200"
+          onClick={() => handleDropClass(row.id)}
+          disabled={activeKrs?.status === 'disetujui'}
+          title={activeKrs?.status === 'disetujui' ? 'KRS sudah disetujui, tidak dapat dibatalkan' : 'Batalkan mata kuliah ini'}
+        >
+          Drop
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Konten Halaman Utama (disembunyikan saat mencetak) */}
@@ -431,7 +508,13 @@ export default function KrsMahasiswaPage() {
                   onChange={(e) => setSelectedTaId(Number(e.target.value))}
                   className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
                 >
-                  {tahunAkademiks.map((ta) => (
+                  {(isMahasiswa && studentKrsData?.mahasiswa?.angkatan
+                    ? tahunAkademiks.filter((ta) => {
+                        const startYear = ta.tahun_mulai || Number(String(ta.kode).slice(0, 4));
+                        return startYear >= Number(studentKrsData.mahasiswa.angkatan) || ta.is_active;
+                      })
+                    : tahunAkademiks
+                  ).map((ta) => (
                     <option key={ta.id} value={ta.id}>
                       {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
                     </option>
@@ -530,7 +613,9 @@ export default function KrsMahasiswaPage() {
                     </span>
                   )}
                 </div>
-                <h2 className="text-xl font-black mt-2.5">{mhs?.nama_lengkap || user?.username}</h2>
+                <h2 className="text-xl md:text-2xl font-black mt-2.5 text-white">
+                  {mhs?.nama_lengkap || user?.username}
+                </h2>
                 <p className="text-xs text-slate-300 font-mono mt-0.5">
                   NIM: {mhs?.nim || '2301001001'} • {mhs?.program_studi?.nama || 'S1 Teknik Informatika'} ({mhs?.program_studi?.jenjang || 'S1'})
                 </p>
@@ -584,123 +669,47 @@ export default function KrsMahasiswaPage() {
             )}
           </div>
 
-          {/* Daftar Mata Kuliah yang Diambil */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900">Mata Kuliah Terpilih Semester Ini</h3>
-                <p className="text-xs text-slate-500">Daftar kelas perkuliahan yang telah masuk dalam rencana studi periode {selectedTaObj?.nama}.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  icon={<Printer size={14} />}
-                  className="text-xs font-bold"
-                  onClick={() => setIsPrintModalOpen(true)}
-                  disabled={!activeKrs || activeKrs.krs_details?.length === 0}
-                >
-                  Cetak Form KRS
-                </Button>
-                <Button
-                  variant="primary"
-                  icon={<Plus size={14} />}
-                  className="text-xs font-bold shadow-xs"
-                  onClick={openClassPicker}
-                >
-                  + Tambah Mata Kuliah
-                </Button>
-              </div>
-            </div>
+          {/* Daftar Mata Kuliah yang Diambil (Full-Bleed DataTable) */}
+          <div className="space-y-4">
+            <DataTable
+              columns={studentKrsColumns}
+              data={activeKrs?.krs_details || []}
+              isLoading={loading}
+              emptyMessage={
+                <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3 py-6">
+                  <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center">
+                    <BookOpen size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900">Rencana Studi Masih Kosong</h4>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      Anda belum memilih mata kuliah untuk periode <strong>{selectedTaObj?.nama || 'semester ini'}</strong>.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    icon={<Plus size={14} />}
+                    className="font-bold text-xs shadow-xs"
+                    onClick={openClassPicker}
+                  >
+                    Ambil Mata Kuliah
+                  </Button>
+                </div>
+              }
+            />
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                  <tr>
-                    <th className="py-3 px-4">KODE MK</th>
-                    <th className="py-3 px-4">NAMA MATA KULIAH</th>
-                    <th className="py-3 px-4 text-center">SKS</th>
-                    <th className="py-3 px-4">DOSEN PENGAMPU</th>
-                    <th className="py-3 px-4">JADWAL & WAKTU</th>
-                    <th className="py-3 px-4">RUANGAN (SINAPRA)</th>
-                    <th className="py-3 px-4 text-right">AKSI</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {loading ? (
-                    <tr><td colSpan={7} className="py-8 text-center text-slate-400">Memuat rencana studi...</td></tr>
-                  ) : !activeKrs?.krs_details || activeKrs.krs_details.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center">
-                        <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
-                          <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center">
-                            <BookOpen size={24} />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-black text-slate-900">Rencana Studi Masih Kosong</h4>
-                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                              Anda belum memilih mata kuliah untuk periode <strong>{selectedTaObj?.nama}</strong>. Silakan pilih kelas perkuliahan sekarang.
-                            </p>
-                          </div>
-                          <Button
-                            variant="primary"
-                            icon={<Plus size={14} />}
-                            className="font-bold text-xs shadow-xs"
-                            onClick={openClassPicker}
-                          >
-                            Buka Katalog & Ambil Mata Kuliah
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    activeKrs?.krs_details?.map((detail: any) => (
-                      <tr key={detail.id} className="hover:bg-slate-50/80 transition">
-                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{detail.kelas?.mata_kuliah?.kode_mk}</td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-bold text-slate-900">{detail.kelas?.mata_kuliah?.nama}</span>
-                          <span className="text-2xs text-slate-400 block">Kelas {detail.kelas?.nama_kelas}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-bold">{detail.kelas?.mata_kuliah?.total_sks} SKS</td>
-                        <td className="py-3.5 px-4 text-slate-700">
-                          {detail.kelas?.dosen_pengampu?.[0]?.dosen?.nama_lengkap || 'Dr. Ir. Ahmad Santoso, M.Kom'}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-bold text-slate-800 capitalize flex items-center gap-1">
-                            <Clock size={12} className="text-primary-600" />
-                            {detail.kelas?.hari}, {detail.kelas?.jam_mulai?.slice(0, 5)} - {detail.kelas?.jam_selesai?.slice(0, 5)}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="badge badge-blue text-2xs font-bold inline-flex items-center gap-1">
-                            <MapPin size={10} /> {detail.kelas?.ruangan?.nama || 'Aula Utama Nusantara'}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <Button
-                            variant="outline"
-                            icon={<Trash2 size={13} className="text-rose-600" />}
-                            className="text-2xs py-1 px-2.5 h-auto hover:bg-rose-50 font-bold text-rose-700"
-                            onClick={() => handleDropClass(detail.id)}
-                          >
-                            Drop
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Total Footer */}
+            {/* Total Footer Ringkasan Beban SKS */}
             {activeKrs?.krs_details?.length > 0 && (
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
-                <span className="text-slate-500 font-medium">
-                  Jumlah Mata Kuliah: <strong>{activeKrs.krs_details.length} Kelas</strong>
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between flex-wrap gap-3 text-xs">
+                <span className="text-slate-600 font-medium">
+                  Jumlah Mata Kuliah Terpilih: <strong className="text-slate-900">{activeKrs.krs_details.length} Kelas</strong>
                 </span>
-                <span className="text-slate-900 font-extrabold text-sm">
-                  Total Beban: {activeKrs.total_sks_diambil} SKS
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-600 font-medium">Total Beban Studi:</span>
+                  <span className="font-mono font-black text-sm text-primary-700 bg-primary-50 px-3 py-1 rounded-lg border border-primary-200">
+                    {activeKrs.total_sks_diambil || 0} / 24 SKS
+                  </span>
+                </div>
               </div>
             )}
           </div>

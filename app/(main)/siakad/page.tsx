@@ -168,72 +168,93 @@ export default function SiakadDashboardPage() {
           </div>
         </div>
 
-        {/* Metrik Indeks Prestasi Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="card p-5 flex flex-col justify-between gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Indeks Prestasi Semester (IPS)
-              </span>
-              <div className="p-2 rounded-xl text-primary-700 bg-primary-50">
-                <Award size={18} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-2xl font-bold text-slate-900 font-mono">3.85</div>
-              <div className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                <TrendingUp size={13} /> Sangat Memuaskan
-              </div>
-            </div>
-          </div>
+        {/* Metrik Indeks Prestasi Grid (Sinkron Data Riil) */}
+        {(() => {
+          const akademik = studentData?.akademik_summary || {
+            ipk: '0.00',
+            ips: '0.00',
+            total_sks_lulus: 0,
+            total_sks_diambil: krs?.total_sks_diambil || 0,
+          };
+          const ipkNum = parseFloat(akademik.ipk) || 0;
+          const ipsNum = parseFloat(akademik.ips) || 0;
 
-          <div className="card p-5 flex flex-col justify-between gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                IPK Kumulatif
-              </span>
-              <div className="p-2 rounded-xl text-emerald-700 bg-emerald-50">
-                <GraduationCap size={18} />
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="card p-5 flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Indeks Prestasi Semester (IPS)
+                  </span>
+                  <div className="p-2 rounded-xl text-primary-700 bg-primary-50">
+                    <Award size={18} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="text-2xl font-bold text-slate-900 font-mono">{akademik.ips}</div>
+                  <div className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                    {ipsNum > 0 ? (
+                      <>
+                        <TrendingUp size={13} /> {ipsNum >= 3.51 ? 'Dengan Pujian' : ipsNum >= 3.0 ? 'Sangat Memuaskan' : 'Memuaskan'}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-normal">Belum Ada Nilai Terbit</span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-2xl font-bold text-slate-900 font-mono">3.85</div>
-              <div className="text-xs text-slate-500 font-medium">Skala 4.00 (SN-DIKTI)</div>
-            </div>
-          </div>
 
-          <div className="card p-5 flex flex-col justify-between gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Beban SKS Semester
-              </span>
-              <div className="p-2 rounded-xl text-blue-700 bg-blue-50">
-                <BookOpen size={18} />
+              <div className="card p-5 flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    IPK Kumulatif
+                  </span>
+                  <div className="p-2 rounded-xl text-emerald-700 bg-emerald-50">
+                    <GraduationCap size={18} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="text-2xl font-bold text-slate-900 font-mono">{akademik.ipk}</div>
+                  <div className="text-xs text-slate-500 font-medium">
+                    {ipkNum > 0 ? 'Skala 4.00 (SN-DIKTI)' : 'Mahasiswa Baru (Semester 1)'}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-2xl font-bold text-slate-900 font-mono">{krs?.total_sks_diambil || 20} SKS</div>
-              <div className="text-xs text-slate-500 font-medium">Maksimal Beban: 24 SKS</div>
-            </div>
-          </div>
 
-          <div className="card p-5 flex flex-col justify-between gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Total SKS Lulus
-              </span>
-              <div className="p-2 rounded-xl text-purple-700 bg-purple-50">
-                <CheckCircle2 size={18} />
+              <div className="card p-5 flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Beban SKS Semester
+                  </span>
+                  <div className="p-2 rounded-xl text-blue-700 bg-blue-50">
+                    <BookOpen size={18} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="text-2xl font-bold text-slate-900 font-mono">{krs?.total_sks_diambil || 0} SKS</div>
+                  <div className="text-xs text-slate-500 font-medium">Maksimal Beban: 24 SKS</div>
+                </div>
+              </div>
+
+              <div className="card p-5 flex flex-col justify-between gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Total SKS Lulus
+                  </span>
+                  <div className="p-2 rounded-xl text-purple-700 bg-purple-50">
+                    <CheckCircle2 size={18} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="text-2xl font-bold text-slate-900 font-mono">{akademik.total_sks_lulus || 0} SKS</div>
+                  <div className="text-xs text-emerald-600 font-semibold">
+                    {isTransfer ? 'Termasuk SKS Penyetaraan' : 'Target: 144 SKS Kelulusan'}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-2xl font-bold text-slate-900 font-mono">{isTransfer ? 44 : 20} SKS</div>
-              <div className="text-xs text-emerald-600 font-semibold">
-                {isTransfer ? 'Termasuk 24 SKS Konversi' : 'Target: 144 SKS Kelulusan'}
-              </div>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Quick Menu Shortcuts */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
