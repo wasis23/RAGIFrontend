@@ -1,13 +1,18 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, FlaskConical, XCircle } from 'lucide-react';
+import { Save, FlaskConical, ShieldAlert, ArrowLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { sippmService } from '@/services/sippm.service';
-import type { ProposalKegiatan } from '@/types/sippm.types';
+import { useAuth } from '@/hooks/useAuth';
 
 const editSchema = z.object({
   judul: z.string().min(10, 'Judul proposal minimal 10 karakter'),
@@ -21,9 +26,13 @@ type EditFormValues = z.infer<typeof editSchema>;
 export default function EditProposalPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const { hasPermission } = useAuth();
+
+  // Pure RBAC check (per rbac-refactoring-standard)
+  const canEdit = hasPermission('sippm.proposal.create') || hasPermission('sippm.proposal.manage');
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const {
     register,
@@ -35,6 +44,7 @@ export default function EditProposalPage({ params }: { params: Promise<{ id: str
   });
 
   useEffect(() => {
+    if (!canEdit) return;
     const fetchProposal = async () => {
       try {
         setLoading(true);
@@ -45,96 +55,148 @@ export default function EditProposalPage({ params }: { params: Promise<{ id: str
           setValue('dana_diusulkan', res.data.dana_diusulkan ?? res.data.anggaran_diajukan ?? 0);
           setValue('abstrak', res.data.abstrak);
         }
-      } catch (err) {
-        console.error('Failed to load proposal', err);
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || 'Gagal memuat data proposal');
       } finally {
         setLoading(false);
       }
     };
     fetchProposal();
-  }, [resolvedParams.id, setValue]);
+  }, [canEdit, resolvedParams.id, setValue]);
 
   const onSubmit = async (data: EditFormValues) => {
     try {
       setSubmitting(true);
-      setErrorMsg(null);
       await sippmService.updateProposal(Number(resolvedParams.id), data);
+      toast.success('Proposal berhasil diperbarui');
       router.push(`/sippm/proposal/${resolvedParams.id}`);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Gagal memperbarui proposal');
+      toast.error(err?.response?.data?.message || 'Gagal memperbarui proposal');
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (!canEdit) {
+    return (
+      <div className="animate-fade-in space-y-6">
+        <PageHeader
+          title="Edit Proposal Usulan"
+          description="Perbarui rincian usulan proposal riset atau pengabdian masyarakat"
+          action={
+            <Button variant="outline" size="sm" onClick={() => router.back()}>
+              Kembali
+            </Button>
+          }
+        />
+        <div className="card p-6 text-center">
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40 text-rose-500" />
+          <h2 className="text-xl font-bold mb-2">Akses Ditolak / Dibatasi</h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
+            Peran Anda saat ini tidak memiliki permission untuk mengedit proposal SIPPM.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
-    return <div className="p-12 text-center text-slate-400">Memuat data proposal...</div>;
+    return (
+      <div className="animate-fade-in space-y-6 max-w-5xl mx-auto pb-12">
+        <PageHeader
+          title="Edit Proposal Usulan"
+          description="Memuat data proposal..."
+          action={
+            <Button variant="outline" size="sm" onClick={() => router.back()}>
+              Kembali
+            </Button>
+          }
+        />
+        <div className="card p-12 text-center text-slate-400">
+          Memuat data proposal...
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* HEADER & BACK BUTTON (crud-ui-standard) */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="btn btn-ghost btn-sm">
-          <ArrowLeft size={18} /> Kembali
-        </button>
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Edit Proposal Usulan</h1>
-          <p className="text-slate-500 text-xs mt-0.5">Perbarui rincian usulan proposal riset atau pengabdian masyarakat.</p>
-        </div>
-      </div>
-
-      {errorMsg && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium flex items-center gap-2">
-          <XCircle size={18} /> {errorMsg}
-        </div>
-      )}
+    <div className="animate-fade-in space-y-6 max-w-5xl mx-auto pb-12">
+      <PageHeader
+        title="Edit Proposal Usulan"
+        description="Perbarui rincian usulan proposal riset atau pengabdian masyarakat."
+        action={
+          <Button variant="outline" size="sm" onClick={() => router.back()}>
+            Kembali
+          </Button>
+        }
+      />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="card">
-          <div className="card-header bg-slate-50">
+          <div className="card-header border-b px-6 py-4">
             <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
               <FlaskConical size={18} className="text-primary-600" /> Form Perubahan Data Proposal
             </h2>
           </div>
-          <div className="card-body">
-            {/* GRID LAYOUT MAKS 3 KOLOM (crud-ui-standard) */}
+          <div className="card-body p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="form-group md:col-span-2">
-                <label className="form-label">Judul Proposal <span className="required">*</span></label>
-                <input type="text" className={`input ${errors.judul ? 'error' : ''}`} {...register('judul')} />
-                {errors.judul && <span className="form-error">{errors.judul.message}</span>}
+              <div className="md:col-span-2">
+                <Input
+                  label="Judul Proposal"
+                  required
+                  placeholder="Judul proposal usulan..."
+                  error={errors.judul?.message}
+                  {...register('judul')}
+                />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Rumpun Ilmu <span className="required">*</span></label>
-                <input type="text" className={`input ${errors.rumpun_ilmu ? 'error' : ''}`} {...register('rumpun_ilmu')} />
-                {errors.rumpun_ilmu && <span className="form-error">{errors.rumpun_ilmu.message}</span>}
-              </div>
+              <Input
+                label="Rumpun Ilmu"
+                required
+                placeholder="Rumpun ilmu..."
+                error={errors.rumpun_ilmu?.message}
+                {...register('rumpun_ilmu')}
+              />
 
-              <div className="form-group">
-                <label className="form-label">Dana Diusulkan (Rp) <span className="required">*</span></label>
-                <input type="number" className={`input ${errors.dana_diusulkan ? 'error' : ''}`} {...register('dana_diusulkan')} />
-                {errors.dana_diusulkan && <span className="form-error">{errors.dana_diusulkan.message}</span>}
-              </div>
+              <Input
+                label="Dana Diusulkan (Rp)"
+                type="number"
+                required
+                placeholder="Dana diusulkan..."
+                error={errors.dana_diusulkan?.message}
+                {...register('dana_diusulkan', { valueAsNumber: true })}
+              />
 
-              <div className="form-group col-span-full">
-                <label className="form-label">Abstrak Proposal <span className="required">*</span></label>
-                <textarea rows={6} className={`input ${errors.abstrak ? 'error' : ''}`} {...register('abstrak')} />
-                {errors.abstrak && <span className="form-error">{errors.abstrak.message}</span>}
+              <div className="col-span-full">
+                <Textarea
+                  label="Abstrak Proposal"
+                  required
+                  rows={6}
+                  placeholder="Tuliskan latar belakang masalah, urgensi riset/pengabdian, metode, serta target luaran..."
+                  error={errors.abstrak?.message}
+                  {...register('abstrak')}
+                />
               </div>
             </div>
           </div>
         </div>
 
-        {/* ACTION BUTTONS (crud-ui-standard) */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-          <button type="button" onClick={() => router.back()} className="btn btn-secondary font-semibold">
+        {/* ACTION BUTTONS */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+          >
             Batal
-          </button>
-          <button type="submit" disabled={submitting} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none font-bold">
-            <Save size={18} /> {submitting ? 'Menyimpan...' : 'Simpan Perubahan'}
-          </button>
+          </Button>
+          <Button
+            type="submit"
+            isLoading={submitting}
+            icon={<Save size={18} />}
+          >
+            Simpan Perubahan
+          </Button>
         </div>
       </form>
     </div>
