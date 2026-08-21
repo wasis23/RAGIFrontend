@@ -29,6 +29,18 @@ export interface GelombangPenerimaan {
   jalur_masuk?: JalurMasuk;
 }
 
+export interface BerkasRequirement {
+  id: number;
+  jalur_masuk_id: number;
+  jenis_dokumen: string;
+  label: string;
+  wajib: boolean;
+  urutan: number;
+  is_active: boolean;
+  created_at?: string;
+  jalur_masuk?: JalurMasuk;
+}
+
 export interface PendaftaranCalonMhs {
   id: number;
   gelombang_id: number;
@@ -282,6 +294,32 @@ export const spmbService = {
   },
   getReferensi: async (tipe: string) => {
     const response = await api.get(`/master/referensi/${tipe}`);
+    return response.data;
+  },
+
+  // Berkas Requirement
+  getBerkasRequirements: async (params?: { search?: string; jalur_masuk_id?: number; page?: number; limit?: number }) => {
+    const response = await api.get('/master/berkas-requirement', { params });
+    return response.data;
+  },
+
+  getBerkasRequirementById: async (id: number) => {
+    const response = await api.get(`/master/berkas-requirement/${id}`);
+    return response.data;
+  },
+
+  createBerkasRequirement: async (data: Partial<BerkasRequirement>) => {
+    const response = await api.post('/master/berkas-requirement', data);
+    return response.data;
+  },
+
+  updateBerkasRequirement: async (id: number, data: Partial<BerkasRequirement>) => {
+    const response = await api.put(`/master/berkas-requirement/${id}`, data);
+    return response.data;
+  },
+
+  deleteBerkasRequirement: async (id: number) => {
+    const response = await api.delete(`/master/berkas-requirement/${id}`);
     return response.data;
   },
 };

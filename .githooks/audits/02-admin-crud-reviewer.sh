@@ -68,7 +68,7 @@ rm -f "$PROMPT_FILE"
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
     echo "❌ [Audit Admin CRUD Standard] REJECTED!"
-    echo "$RESULT" | grep -i "REJECTED"
+    echo "$RESULT"
     exit 1
 else
     echo "✅ [Audit Admin CRUD Standard] PASSED."
