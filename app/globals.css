@@ -706,6 +706,17 @@ p.text-white, span.text-white, div.text-white {
   transform: translateY(-1px);
 }
 
+.btn-warning {
+  background: var(--warning, #f97316);
+  color: white;
+  border-color: var(--warning, #f97316);
+}
+.btn-warning:hover {
+  background: #ea580c;
+  box-shadow: 0 4px 12px rgb(249 115 22 / 0.3);
+  transform: translateY(-1px);
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--gray-600);

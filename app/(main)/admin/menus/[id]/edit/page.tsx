@@ -2,31 +2,66 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { ArrowLeft, Save, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { menuService } from '@/services/menu.service';
-import { moduleService, AppModule } from '@/services/module.service';
-import { UpdateMenuPayload, Menu } from '@/types/menu';
+import { moduleService } from '@/services/module.service';
+import { Menu } from '@/types/menu';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
+
+const menuFormSchema = z.object({
+  name: z.string().min(1, 'Nama menu wajib diisi').max(100, 'Nama menu maksimal 100 karakter'),
+  url: z.string().min(1, 'URL route wajib diisi'),
+  icon: z.string().optional(),
+  module: z.string().min(1, 'Modul aplikasi wajib dipilih'),
+  parent_id: z.number().nullable().optional(),
+  order_index: z.number().min(0, 'Urutan minimal 0'),
+  is_active: z.boolean(),
+});
+
+type MenuFormValues = z.infer<typeof menuFormSchema>;
 
 export default function EditMenuPage() {
   const router = useRouter();
   const params = useParams();
   const menuId = parseInt(params.id as string, 10);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [appModules, setAppModules] = useState<AppModule[]>([]);
-  const [parentMenus, setParentMenus] = useState<Menu[]>([]);
-  
-  const [formData, setFormData] = useState<UpdateMenuPayload>({
-    name: '',
-    url: '',
-    icon: '',
-    module: '',
-    parent_id: null,
-    order_index: 0,
-    is_active: true
+
+  const [moduleObj, setModuleObj] = useState<{ value: string; label: string } | null>(null);
+  const [parentObj, setParentObj] = useState<{ value: string; label: string } | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm<MenuFormValues>({
+    resolver: zodResolver(menuFormSchema),
+    defaultValues: {
+      name: '',
+      url: '',
+      icon: '',
+      module: '',
+      parent_id: null,
+      order_index: 0,
+      is_active: true,
+    },
   });
+
+  const selectedModule = watch('module');
 
   useEffect(() => {
     if (isNaN(menuId)) {
@@ -39,215 +74,211 @@ export default function EditMenuPage() {
       setIsLoading(true);
       try {
         const modulesData = await moduleService.getAllModules();
-        setAppModules(modulesData);
-        
-        // Normally there would be a getMenuById endpoint, but for now we fetch all and filter
-        // In a real app you'd call menuService.getMenuById(menuId)
-        // Since we don't know the module beforehand, we might have to fetch menus from all active modules
-        // For this demo, let's assume we can fetch by module, but let's fetch first module's menus as fallback
-        
+
         let foundMenu: Menu | null = null;
         for (const mod of modulesData) {
-            const allMenusInModule = await menuService.getAllMenus(mod.code);
-            // Recursive search function
-            const findMenuInTree = (menus: Menu[], id: number): Menu | null => {
-               for (const m of menus) {
-                 if (m.id === id) return m;
-                 if (m.children) {
-                   const found = findMenuInTree(m.children, id);
-                   if (found) return found;
-                 }
-               }
-               return null;
-            };
-            foundMenu = findMenuInTree(allMenusInModule, menuId);
-            if (foundMenu) break;
+          const allMenusInModule = await menuService.getAllMenus(mod.code);
+          const findMenuInTree = (menusList: Menu[], id: number): Menu | null => {
+            for (const m of menusList) {
+              if (m.id === id) return m;
+              if (m.children) {
+                const found = findMenuInTree(m.children, id);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          foundMenu = findMenuInTree(allMenusInModule, menuId);
+          if (foundMenu) break;
         }
 
         if (foundMenu) {
-            setFormData({
-                name: foundMenu.name,
-                url: foundMenu.url,
-                icon: foundMenu.icon || '',
-                module: foundMenu.module,
-                parent_id: foundMenu.parent_id,
-                order_index: foundMenu.order_index,
-                is_active: foundMenu.is_active
-            });
-            // Fetch parent menus for this module
-            const parentsData = await menuService.getAllMenus(foundMenu.module);
-            // exclude itself from being its own parent
-            setParentMenus(parentsData.filter(m => m.id !== menuId));
-        } else {
-            toast.error('Data menu tidak ditemukan');
-            router.push('/admin/menus');
-        }
+          reset({
+            name: foundMenu.name,
+            url: foundMenu.url,
+            icon: foundMenu.icon || '',
+            module: foundMenu.module,
+            parent_id: foundMenu.parent_id,
+            order_index: foundMenu.order_index,
+            is_active: foundMenu.is_active,
+          });
 
-      } catch (err) {
-        toast.error('Gagal memuat data');
+          const matchedMod = modulesData.find((m) => m.code === foundMenu?.module);
+          if (matchedMod) {
+            setModuleObj({ value: matchedMod.code, label: matchedMod.name.toUpperCase() });
+          }
+
+          if (foundMenu.parent_id) {
+            const parentsData = await menuService.getAllMenus(foundMenu.module);
+            const parentMenu = parentsData.find((pm) => pm.id === foundMenu?.parent_id);
+            if (parentMenu) {
+              setParentObj({ value: parentMenu.id.toString(), label: parentMenu.name });
+            }
+          }
+        } else {
+          toast.error('Data menu tidak ditemukan');
+          router.push('/admin/menus');
+        }
+      } catch {
+        toast.error('Gagal memuat data menu');
       } finally {
         setIsLoading(false);
       }
     };
     fetchInitialData();
-  }, [menuId, router]);
+  }, [menuId, reset, router]);
 
-  const handleModuleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newModule = e.target.value;
-    setFormData(prev => ({ ...prev, module: newModule, parent_id: null }));
+  const loadModuleOptions = async (query: string) => {
     try {
-      const parentsData = await menuService.getAllMenus(newModule);
-      setParentMenus(parentsData.filter(m => m.id !== menuId));
-    } catch (err) {
-      console.error('Failed to fetch parent menus');
+      const modulesData = await moduleService.getAllModules();
+      const filtered = modulesData.filter(
+        (m) => m.name.toLowerCase().includes(query.toLowerCase()) || m.code.toLowerCase().includes(query.toLowerCase())
+      );
+      return filtered.map((m) => ({ value: m.code, label: m.name.toUpperCase() }));
+    } catch {
+      return [];
     }
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const loadParentMenuOptions = async (query: string) => {
+    if (!selectedModule) return [];
+    try {
+      const data = await menuService.getAllMenus(selectedModule);
+      const filtered = data.filter((m) => m.id !== menuId && m.name.toLowerCase().includes(query.toLowerCase()));
+      return filtered.map((pm) => ({ value: pm.id.toString(), label: pm.name }));
+    } catch {
+      return [];
+    }
+  };
+
+  const handleModuleSelectChange = (selected: any) => {
+    setModuleObj(selected);
+    const code = selected ? selected.value : '';
+    setValue('module', code);
+    setParentObj(null);
+    setValue('parent_id', null);
+  };
+
+  const handleParentSelectChange = (selected: any) => {
+    setParentObj(selected);
+    setValue('parent_id', selected && selected.value ? parseInt(selected.value, 10) : null);
+  };
+
+  const onSaveMenu = async (values: MenuFormValues) => {
     setIsSubmitting(true);
     try {
-      await menuService.updateMenu(menuId, formData);
+      await menuService.updateMenu(menuId, values as any);
       toast.success('Menu berhasil diperbarui');
       router.push('/admin/menus');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Terjadi kesalahan saat menyimpan menu');
+      toast.error(error.response?.data?.message || 'Terjadi kesalahan saat memperbarui menu');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-gray-500">Memuat data...</div>;
+    return (
+      <div className="animate-fade-in flex flex-col gap-6">
+        <Skeleton className="w-1/3 h-10 rounded-xl" />
+        <div className="card p-6 flex flex-col gap-4">
+          <Skeleton className="w-full h-12 rounded" />
+          <Skeleton className="w-full h-12 rounded" />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <button 
-          onClick={() => router.back()} 
-          className="btn btn-ghost btn-sm"
-          title="Kembali"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            Edit Menu
-          </h1>
-          <p className="text-gray-500 mt-1">Perbarui informasi menu navigasi</p>
-        </div>
-      </div>
+    <div className="animate-fade-in flex flex-col gap-6">
+      <PageHeader
+        title="Edit Menu Navigasi"
+        description="Perbarui informasi menu navigasi ekosistem kampus"
+        action={
+          <Button
+            variant="warning"
+            icon={<ArrowLeft size={16} />}
+            onClick={() => router.push('/admin/menus')}
+          >
+            Kembali ke Daftar Menu
+          </Button>
+        }
+      />
 
-      <div className="card">
-        <div className="card-body">
-          <form onSubmit={handleFormSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              
-              <div className="form-control">
-                <label className="label">Nama Menu</label>
-                <input 
-                  type="text" 
-                  className="input" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              
-              <div className="form-control">
-                <label className="label">URL Route</label>
-                <input 
-                  type="text" 
-                  className="input" 
-                  required
-                  value={formData.url}
-                  onChange={(e) => setFormData({...formData, url: e.target.value})}
-                />
-              </div>
+      <div className="card p-6 border border-slate-200 shadow-xs">
+        <form onSubmit={handleSubmit(onSaveMenu)} className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <Input
+              label="Nama Menu"
+              required
+              error={errors.name?.message}
+              {...register('name')}
+            />
 
-              <div className="form-control">
-                <label className="label">Icon (Teks)</label>
-                <input 
-                  type="text" 
-                  className="input" 
-                  value={formData.icon || ''}
-                  onChange={(e) => setFormData({...formData, icon: e.target.value})}
-                />
-              </div>
+            <Input
+              label="URL Route"
+              required
+              error={errors.url?.message}
+              {...register('url')}
+            />
 
-              <div className="form-control">
-                <label className="label">Modul</label>
-                <select 
-                  className="input"
-                  value={formData.module}
-                  onChange={handleModuleChange}
-                >
-                  {appModules.map(mod => (
-                    <option key={mod.id} value={mod.code}>{mod.name}</option>
-                  ))}
-                </select>
-              </div>
+            <Input
+              label="Icon (Lucide Icon)"
+              error={errors.icon?.message}
+              {...register('icon')}
+            />
 
-              <div className="form-control">
-                <label className="label">Urutan (Order)</label>
-                <input 
-                  type="number" 
-                  className="input" 
-                  value={formData.order_index}
-                  onChange={(e) => setFormData({...formData, order_index: parseInt(e.target.value) || 0})}
-                />
-              </div>
+            <AsyncSelect
+              label="Modul Aplikasi"
+              required
+              value={moduleObj}
+              onChange={handleModuleSelectChange}
+              loadOptions={loadModuleOptions}
+              placeholder="Cari modul..."
+              error={errors.module?.message}
+            />
 
-              <div className="form-control">
-                <label className="label">Kategori / Parent Menu</label>
-                <select 
-                  className="input"
-                  value={formData.parent_id || ''}
-                  onChange={(e) => setFormData({...formData, parent_id: e.target.value ? parseInt(e.target.value) : null})}
-                >
-                  <option value="">-- Menu Utama (Tidak Punya Parent) --</option>
-                  {parentMenus.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
+            <Input
+              label="Urutan (Order Index)"
+              type="number"
+              error={errors.order_index?.message}
+              {...register('order_index', { valueAsNumber: true })}
+            />
 
-              <div className="form-control flex-row items-center gap-3 mt-2 lg:col-span-3">
-                <input 
-                  type="checkbox" 
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-600"
-                />
-                <label htmlFor="is_active" className="cursor-pointer font-medium text-gray-700">Aktif</label>
-              </div>
-            </div>
+            <AsyncSelect
+              label="Kategori / Parent Menu"
+              key={selectedModule}
+              value={parentObj}
+              onChange={handleParentSelectChange}
+              loadOptions={loadParentMenuOptions}
+              placeholder="Pilih menu induk (opsional)..."
+              isClearable
+            />
 
-            <div className="flex justify-end gap-3 mt-8 border-t pt-6">
-              <button 
-                type="button" 
-                className="btn btn-ghost" 
-                onClick={() => router.back()}
-                disabled={isSubmitting}
-              >
-                Batal
-              </button>
-              <button 
-                type="submit" 
-                className="btn btn-primary"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <><RefreshCw size={18} className="animate-spin mr-2" /> Menyimpan...</>
-                ) : (
-                  <><Save size={18} className="mr-2" /> Simpan Perubahan</>
+            <div className="lg:col-span-3 pt-2">
+              <Controller
+                name="is_active"
+                control={control}
+                render={({ field }) => (
+                  <Checkbox
+                    label="Aktifkan Menu Ini"
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                  />
                 )}
-              </button>
+              />
             </div>
-          </form>
-        </div>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+            <Button variant="secondary" onClick={() => router.push('/admin/menus')} disabled={isSubmitting}>
+              Batal
+            </Button>
+            <Button variant="primary" type="submit" disabled={isSubmitting} icon={isSubmitting ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}>
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );
