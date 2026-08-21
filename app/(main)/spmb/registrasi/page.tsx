@@ -44,6 +44,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
 import { useSpmbStore } from '@/store/spmbStore';
+import { useUiStore } from '@/store/uiStore';
 import api from '@/lib/axios';
 
 import { XenditCheckoutModal } from '@/components/sikeu/payment-gateway/XenditCheckoutModal';
@@ -127,7 +128,7 @@ function DokumenUploadPanel({
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 shadow-xs">
+        <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0 shadow-xs">
           <UploadCloud size={22} />
         </div>
         <div>
@@ -298,12 +299,15 @@ export default function RegistrasiSpmbPage() {
   const selectedGelombang = watch('gelombang_id');
   const selectedProdi = watch('program_studi_id');
   const { activeGelombang, fetchActiveGelombang } = useSpmbStore();
+  const { module_color: moduleColor, fetchModuleColor } = useUiStore();
 
   useEffect(() => {
     setIsMounted(true);
     fetchJalur();
     fetchProdi();
     checkExistingRegistration();
+    const currentModuleCode = window.location.pathname.split('/')[1] || '';
+    fetchModuleColor(currentModuleCode);
     fetchActiveGelombang().then((active) => {
       if (active) {
         setValue('gelombang_id', String(active.id));
@@ -628,10 +632,39 @@ export default function RegistrasiSpmbPage() {
   const selectedProdiObj = prodiRaw.find((p) => String(p.id) === String(selectedProdi));
   const progressPct = Math.round((currentStep / STEPS.length) * 100);
 
+  const mixLight = (base: string, pct: number) => `color-mix(in srgb, ${base} ${pct}%, white)`;
+  const mixDark = (base: string, pct: number) => `color-mix(in srgb, ${base} ${pct}%, black)`;
+
+  const dynamicStyles = moduleColor
+    ? ({
+        '--primary-50': mixLight(moduleColor, 10),
+        '--primary-100': mixLight(moduleColor, 20),
+        '--primary-200': mixLight(moduleColor, 40),
+        '--primary-300': mixLight(moduleColor, 60),
+        '--primary-400': mixLight(moduleColor, 80),
+        '--primary-500': moduleColor,
+        '--primary-600': mixDark(moduleColor, 80),
+        '--primary-700': mixDark(moduleColor, 60),
+        '--primary-800': mixDark(moduleColor, 40),
+        '--primary-900': mixDark(moduleColor, 20),
+        
+        '--color-primary-50': mixLight(moduleColor, 10),
+        '--color-primary-100': mixLight(moduleColor, 20),
+        '--color-primary-200': mixLight(moduleColor, 40),
+        '--color-primary-300': mixLight(moduleColor, 60),
+        '--color-primary-400': mixLight(moduleColor, 80),
+        '--color-primary-500': moduleColor,
+        '--color-primary-600': mixDark(moduleColor, 80),
+        '--color-primary-700': mixDark(moduleColor, 60),
+        '--color-primary-800': mixDark(moduleColor, 40),
+        '--color-primary-900': mixDark(moduleColor, 20),
+      } as React.CSSProperties)
+    : {};
+
   // ── Initial Check Loading State ──────────────────────────────────────────
   if (isCheckingRegistration) {
     return (
-      <div className="animate-fade-in space-y-6 max-w-2xl mx-auto py-16 text-center">
+      <div className="animate-fade-in space-y-6 max-w-2xl mx-auto py-16 text-center" style={dynamicStyles}>
         <div className="p-8 bg-white border border-slate-200/80 rounded-2xl shadow-sm space-y-4 flex flex-col items-center justify-center">
           <Loader2 size={36} className="animate-spin text-primary-600 mb-1" />
           <div className="space-y-1">
@@ -654,7 +687,7 @@ export default function RegistrasiSpmbPage() {
     const totalBayar = rawTotal > 0 ? rawTotal : (tarif > 0 ? tarif : 250000);
 
     return (
-      <div className="animate-fade-in space-y-6 max-w-3xl mx-auto py-4">
+      <div className="animate-fade-in space-y-6 max-w-3xl mx-auto py-4" style={dynamicStyles}>
         <PageHeader
           title="Pendaftaran Berhasil"
           description="Terima kasih, data pendaftaran Anda telah berhasil tercatat dalam sistem SPMB."
@@ -845,7 +878,7 @@ export default function RegistrasiSpmbPage() {
 
   // ── Wizard View ──────────────────────────────────────────────────────────
   return (
-    <div className="animate-fade-in space-y-6 max-w-4xl mx-auto pb-16">
+    <div className="animate-fade-in space-y-6 max-w-4xl mx-auto pb-16" style={dynamicStyles}>
       {/* ── Page Header ────────────────────────────────────────────── */}
       <PageHeader
         title="Form Registrasi SPMB"
@@ -1004,7 +1037,7 @@ export default function RegistrasiSpmbPage() {
                   <label className="text-xs font-bold text-slate-700 mb-1">
                     Gelombang Penerimaan <span className="text-slate-400 font-normal">(Terikat Permanen Pada Pendaftaran)</span>
                   </label>
-                  <div className="p-3 bg-gradient-to-br from-primary-50/80 via-white to-blue-50/40 border border-primary-200 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
+                  <div className="p-3 bg-gradient-to-br from-primary-50/80 via-white to-primary-50/40 border border-primary-200 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
                     <div className="flex items-center gap-2">
                       <Clock size={16} className="text-primary-600 shrink-0" />
                       <span className="text-xs font-black text-slate-900">
@@ -1210,7 +1243,7 @@ export default function RegistrasiSpmbPage() {
           {currentStep === 4 && (
             <div className="space-y-5 animate-fade-in">
               <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-                <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
                   <BookOpen size={20} />
                 </div>
                 <div>

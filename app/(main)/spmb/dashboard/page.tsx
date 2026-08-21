@@ -28,12 +28,14 @@ import {
   Users,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils';
 import { spmbService, PendaftaranCalonMhs, GelombangPenerimaan } from '@/services/spmb.service';
+import { moduleService } from '@/services/module.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 
 export default function SPMBDashboardPage() {
@@ -43,6 +45,7 @@ export default function SPMBDashboardPage() {
   const [prodiList, setProdiList] = useState<any[]>([]);
   const [adminPendaftarList, setAdminPendaftarList] = useState<PendaftaranCalonMhs[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { module_color: moduleColor, fetchModuleColor } = useUiStore();
 
   const userRoleSlugs = (user?.roles || []).map((r: any) =>
     (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
@@ -68,6 +71,9 @@ export default function SPMBDashboardPage() {
         spmbService.getProgramStudi().catch(() => null),
         isPanitiaAdmin ? spmbService.getPendaftaran({ per_page: 20 }).catch(() => null) : Promise.resolve(null),
       ]);
+
+      const currentModuleCode = window.location.pathname.split('/')[1] || '';
+      await fetchModuleColor(currentModuleCode);
 
       if (pendaftaranRes?.data?.pendaftaran) {
         setPendaftaran(pendaftaranRes.data.pendaftaran);
@@ -241,9 +247,38 @@ export default function SPMBDashboardPage() {
     }
   }
 
+  const mixLight = (base: string, pct: number) => `color-mix(in srgb, ${base} ${pct}%, white)`;
+  const mixDark = (base: string, pct: number) => `color-mix(in srgb, ${base} ${pct}%, black)`;
+
+  const dynamicStyles = moduleColor
+    ? ({
+        '--primary-50': mixLight(moduleColor, 10),
+        '--primary-100': mixLight(moduleColor, 20),
+        '--primary-200': mixLight(moduleColor, 40),
+        '--primary-300': mixLight(moduleColor, 60),
+        '--primary-400': mixLight(moduleColor, 80),
+        '--primary-500': moduleColor,
+        '--primary-600': mixDark(moduleColor, 80),
+        '--primary-700': mixDark(moduleColor, 60),
+        '--primary-800': mixDark(moduleColor, 40),
+        '--primary-900': mixDark(moduleColor, 20),
+        
+        '--color-primary-50': mixLight(moduleColor, 10),
+        '--color-primary-100': mixLight(moduleColor, 20),
+        '--color-primary-200': mixLight(moduleColor, 40),
+        '--color-primary-300': mixLight(moduleColor, 60),
+        '--color-primary-400': mixLight(moduleColor, 80),
+        '--color-primary-500': moduleColor,
+        '--color-primary-600': mixDark(moduleColor, 80),
+        '--color-primary-700': mixDark(moduleColor, 60),
+        '--color-primary-800': mixDark(moduleColor, 40),
+        '--color-primary-900': mixDark(moduleColor, 20),
+      } as React.CSSProperties)
+    : {};
+
   if (isPanitiaAdmin) {
     return (
-      <div className="spmb-app-page animate-fade-in">
+      <div className="spmb-app-page animate-fade-in" style={dynamicStyles}>
         <SPMBAdminDashboardView
           adminPendaftarList={adminPendaftarList}
           gelombangList={gelombangList}
@@ -255,7 +290,7 @@ export default function SPMBDashboardPage() {
   }
 
   return (
-    <div className="spmb-app-page animate-fade-in">
+    <div className="spmb-app-page animate-fade-in" style={dynamicStyles}>
       {/* ── Page Header ────────────────────────────────────────────── */}
       <PageHeader
         title="Portal Pendaftaran SPMB"
