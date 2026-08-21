@@ -24,6 +24,7 @@ Sebelum mengeksekusi tugas apapun, Anda WAJIB memeriksa daftar skill di bawah in
 | `state-management-reviewer-standard` | `.agent/skills/state_management_reviewer_standard/SKILL.md` | Diminta merancang, membuat, atau mereview state management (Zustand, Type-Safe Stores, Persist Middleware). |
 | `icon-standard-reviewer` | `.agent/skills/icon_standard_reviewer/SKILL.md` | Diminta merancang, membuat, atau mereview penggunaan ikon (Mandatory Lucide-React Library, Dilarang SVG Mentah & Icon Unstandardized). |
 | `spacing-standard-reviewer` | `.agent/skills/spacing_standard_reviewer/SKILL.md` | Diminta merancang, membuat, atau mereview ukuran margin, padding, gap, dan alignment layout (No Arbitrary Pixels, Compact Padding, Grid Gap Consistency). |
+| `module-color-theme-reviewer` | `.agent/skills/module_color_theme_reviewer/SKILL.md` | Diminta merancang, membuat, atau mereview penggunaan warna primary modul dan keselarasan tema menu modul. |
 | `rbac-refactoring-standard` | `.agent/skills/rbac_refactoring_standard/SKILL.md` | Melakukan refaktor komponen, perbaikan UI, atau mendesain pengecekan akses (RBAC) tanpa mengandalkan tipe user statis. |
 | `module-management-standard`| `../RAGIBackend/.agent/skills/module_management_standard/SKILL.md` | Merancang, menambah, atau memodifikasi modul aplikasi (Master Modul) di ekosistem kampus terintegrasi. |
 
@@ -100,4 +101,14 @@ Hardcode adalah suatu metode atau cara pengambilan data, pengiriman data, atau p
 3. **Konsistensi Gap & Layout Grid Alignment**: Jarak antarelemen di container flexbox/grid wajib menggunakan `gap-*` (misal `gap-4` / `gap-6`). Dilarang mencampur `gap` dengan inline margin manual (`mt-`, `mb-`, `ml-`, `mr-`) di elemen anak yang menyebabkan alur layout bergeser (*misalignment*).
 4. **Consistency Margin Outer Section**: Jarak antar section/card utama halaman wajib rapi dan konsisten dengan `space-y-4` / `space-y-6` atau `mb-4` / `mb-6`. Dilarang menggunakan margin negatif acak (`-mt-20`) tanpa kebutuhan overlay UI khusus.
 </RULE[spacing_standard_reviewer]>
+
+<RULE[module_color_theme_reviewer]>
+# Module Primary Color & Theme Reviewer Policy
+
+## Aturan Wajib Warna Primary & Tema Modul:
+1. **Dynamic Module Color Binding**: Setiap modul dan menu di dalamnya WAJIB memanfaatkan `primary_color` dari entitas modul (misal via CSS variable `--module-primary`, theme context, atau dynamic style), bukan mengandalkan warna statis bawaan (`bg-blue-600` / `#3b82f6` hardcoded di seluruh modul).
+2. **Active Menu & Accent Styling**: Indikator menu aktif, header modul, badge modul, dan aksen UI di dalam modul WAJIB secara dinamis mengikuti warna primary modul yang terdaftar di database master modul.
+3. **Dilarang Color Hardcoding Per Modul**: DILARANG KERAS meng-hardcode warna aksen modul secara statis pada file halaman/komponen jika modul tersebut telah memiliki `primary_color` terdaftar di database master modul (`/admin/modules`).
+</RULE[module_color_theme_reviewer]>
+
 

@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { moduleService, AppModule, CreateModulePayload, UpdateModulePayload } from '@/services/module.service';
+import { moduleService, AppModule, UpdateModulePayload } from '@/services/module.service';
 import { toast } from 'react-hot-toast';
 import { RefreshCw, Plus, Edit2, Trash2, Filter } from 'lucide-react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,6 +18,16 @@ import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/Badge';
 
+const moduleSchema = z.object({
+  name: z.string().min(1, 'Nama modul wajib diisi').max(255, 'Nama modul maksimal 255 karakter'),
+  code: z.string().min(1, 'Kode modul wajib diisi').max(50, 'Kode modul maksimal 50 karakter').regex(/^[a-z0-9-]+$/, 'Kode modul harus berupa huruf kecil, angka, atau tanda hubung'),
+  description: z.string().optional().nullable(),
+  primary_color: z.string().regex(/^#[a-fA-F0-9]{6}$/, 'Warna primary harus format hex contoh #3b82f6').optional().default('#3b82f6'),
+  is_active: z.boolean().default(true)
+});
+
+type ModuleFormValues = z.infer<typeof moduleSchema>;
+
 export default function AdminModulePage() {
   const [modules, setModules] = useState<AppModule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,13 +37,27 @@ export default function AdminModulePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<CreateModulePayload>({
-    name: '',
-    code: '',
-    description: '',
-    is_active: true
-  });
   const [editId, setEditId] = useState<number | null>(null);
+
+  // Form handling via React Hook Form + Zod
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    control,
+    formState: { errors }
+  } = useForm<ModuleFormValues>({
+    resolver: zodResolver(moduleSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      description: '',
+      primary_color: '#3b82f6',
+      is_active: true
+    }
+  });
 
   // Filter States
   const [showFilter, setShowFilter] = useState(false);
@@ -85,10 +113,12 @@ export default function AdminModulePage() {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setFormData({
+    setEditId(null);
+    reset({
       name: '',
       code: '',
       description: '',
+      primary_color: '#3b82f6',
       is_active: true
     });
     setIsModalOpen(true);
@@ -97,24 +127,24 @@ export default function AdminModulePage() {
   const openEditModal = (mod: AppModule) => {
     setModalMode('edit');
     setEditId(mod.id);
-    setFormData({
+    reset({
       name: mod.name,
       code: mod.code,
       description: mod.description || '',
+      primary_color: mod.primary_color || '#3b82f6',
       is_active: mod.is_active
     });
     setIsModalOpen(true);
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmitForm = async (values: ModuleFormValues) => {
     setIsSubmitting(true);
     try {
       if (modalMode === 'create') {
-        await moduleService.createModule(formData);
+        await moduleService.createModule(values);
         toast.success('Modul berhasil ditambahkan');
       } else if (editId) {
-        await moduleService.updateModule(editId, formData as UpdateModulePayload);
+        await moduleService.updateModule(editId, values as UpdateModulePayload);
         toast.success('Modul berhasil diperbarui');
       }
       setIsModalOpen(false);
@@ -135,6 +165,17 @@ export default function AdminModulePage() {
       <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold">
         {row.code}
       </code>
+    )},
+    { key: 'primary_color', label: 'Warna Primary', render: (row) => (
+      <div className="flex items-center gap-2">
+        <span 
+          className="w-4 h-4 rounded-full border border-slate-200 shadow-xs shrink-0" 
+          style={{ backgroundColor: row.primary_color || '#3b82f6' }} 
+        />
+        <code className="text-[0.8125rem] font-semibold text-slate-700">
+          {row.primary_color || '#3b82f6'}
+        </code>
+      </div>
     )},
     { key: 'description', label: 'Deskripsi', render: (row) => (
       <span className="text-sm text-slate-500">
@@ -250,7 +291,7 @@ export default function AdminModulePage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={isSubmitting}>Batal</Button>
-            <Button variant="primary" onClick={handleFormSubmit} disabled={isSubmitting}>
+            <Button variant="primary" onClick={handleSubmit(onSubmitForm)} disabled={isSubmitting}>
               {isSubmitting ? (
                 <><RefreshCw size={16} className="animate-spin mr-2 inline" /> Menyimpan...</>
               ) : (
@@ -260,13 +301,13 @@ export default function AdminModulePage() {
           </>
         }
       >
-        <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSubmitForm)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Nama Modul"
             required
             placeholder="Contoh: Sistem Akademik"
-            value={formData.name}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            error={errors.name?.message}
+            {...register('name')}
           />
           
           <Input
@@ -274,25 +315,65 @@ export default function AdminModulePage() {
             required
             placeholder="Contoh: siakad"
             hint="Harus unik, huruf kecil, tanpa spasi"
-            value={formData.code}
-            onChange={(e) => setFormData({...formData, code: e.target.value.toLowerCase()})}
+            error={errors.code?.message}
+            {...register('code')}
           />
+
+          <div className="col-span-1 md:col-span-2 flex flex-col gap-2">
+            <Controller
+              name="primary_color"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  label="Warna Primary Modul"
+                  placeholder="#3b82f6"
+                  error={errors.primary_color?.message}
+                  value={field.value || ''}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  prefixIcon={
+                    <span 
+                      className="w-4 h-4 rounded-full border border-slate-300 inline-block shrink-0 shadow-xs" 
+                      style={{ backgroundColor: field.value || '#3b82f6' }} 
+                    />
+                  }
+                />
+              )}
+            />
+            <div className="flex flex-wrap gap-2">
+              {['#3b82f6', '#4f46e5', '#0d9488', '#e11d48', '#059669', '#d97706', '#7c3aed', '#db2777'].map(color => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setValue('primary_color', color, { shouldValidate: true })}
+                  className={`w-6 h-6 rounded-full border border-slate-200 cursor-pointer transition-transform hover:scale-110 ${watch('primary_color') === color ? 'ring-2 ring-blue-500 ring-offset-1 scale-110' : ''}`}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
 
           <div className="col-span-1 md:col-span-2">
             <Textarea
               label="Deskripsi Modul"
               rows={3}
               placeholder="Penjelasan singkat kegunaan modul ini..."
-              value={formData.description || ''}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              error={errors.description?.message}
+              {...register('description')}
             />
           </div>
 
-          <div className="col-span-1 md:col-span-2 mt-2">
-            <Checkbox
-              label="Langsung Aktifkan Modul"
-              checked={formData.is_active}
-              onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
+          <div className="col-span-1 md:col-span-2">
+            <Controller
+              name="is_active"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  label="Langsung Aktifkan Modul"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              )}
             />
           </div>
         </form>

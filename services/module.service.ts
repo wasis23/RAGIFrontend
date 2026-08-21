@@ -6,6 +6,7 @@ export interface AppModule {
   name: string;
   code: string;
   description: string | null;
+  primary_color: string | null;
   is_active: boolean;
 }
 
@@ -13,6 +14,7 @@ export interface CreateModulePayload {
   name: string;
   code: string;
   description?: string;
+  primary_color?: string;
   is_active?: boolean;
 }
 
@@ -20,6 +22,7 @@ export interface UpdateModulePayload {
   name: string;
   code: string;
   description?: string;
+  primary_color?: string;
   is_active?: boolean;
 }
 
