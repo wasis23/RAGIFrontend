@@ -54,28 +54,46 @@ const spmbRegistrasiSchema = z.object({
   gelombang_id: z.string().min(1, 'Gelombang Penerimaan wajib dipilih'),
   program_studi_id: z.string().min(1, 'Program Studi Utama wajib dipilih'),
   program_studi_pilihan2_id: z.string().optional(),
+  jenis_daftar: z.string().min(1, 'Jenis pendaftaran wajib dipilih'),
+  kelas: z.string().min(1, 'Kelas wajib dipilih'),
+  info_daftar: z.string().min(1, 'Info pendaftaran wajib dipilih'),
+  ket_info_daftar: z.string().min(1, 'Keterangan info pendaftaran wajib diisi'),
   
   nama_lengkap: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
   nik: z.string().regex(/^[0-9]{16}$/, 'NIK wajib 16 digit angka'),
   tempat_lahir: z.string().min(2, 'Tempat lahir wajib diisi'),
   tanggal_lahir: z.string().min(1, 'Tanggal lahir wajib diisi'),
   jenis_kelamin: z.string().min(1, 'Jenis kelamin wajib dipilih'),
+  status_sipil: z.string().min(1, 'Status sipil wajib dipilih'),
   agama: z.string().optional(),
   kewarganegaraan: z.string().optional(),
   
-  no_hp: z.string().min(10, 'Nomor HP/WA minimal 10 digit').regex(/^[0-9\-\+\s]+$/, 'Format nomor HP tidak valid'),
   provinsi: z.string().min(2, 'Provinsi domisili wajib diisi'),
   kota_kabupaten: z.string().min(2, 'Kota/Kabupaten wajib diisi'),
   kecamatan: z.string().min(2, 'Kecamatan wajib diisi'),
   kode_pos: z.string().optional(),
   alamat: z.string().min(5, 'Alamat rumah lengkap minimal 5 karakter'),
   
-  asal_sekolah: z.string().min(3, 'Nama sekolah asal minimal 3 karakter'),
+  asal_lulusan: z.string().min(1, 'Asal lulusan wajib dipilih'),
+  asal_sekolah: z.string().optional(),
+  alamat_sekolah: z.string().optional(),
   npsn_sekolah: z.string().optional(),
-  jurusan_sekolah: z.string().min(2, 'Jurusan sekolah wajib diisi'),
-  tahun_lulus: z.string().min(4, 'Tahun lulus wajib diisi (contoh: 2025)'),
+  jurusan_sekolah: z.string().optional(),
+  tahun_lulus: z.string().optional(),
   nilai_rata_rapor: z.string().optional(),
+
+  asal_pt: z.string().optional(),
+  jenis_pt: z.string().optional(),
+  alamat_pt: z.string().optional(),
+  jenjang_pt: z.string().optional(),
+  progdi_pt: z.string().optional(),
+  ipk_pt: z.string().optional(),
+  nim_pt: z.string().optional(),
+  tahun_lulus_pt: z.string().optional(),
   
+  nama_ortu: z.string().min(2, 'Nama orang tua wajib diisi'),
+  alamat_ortu: z.string().min(5, 'Alamat orang tua wajib diisi'),
+  telp_ortu: z.string().min(10, 'Nomor HP orang tua minimal 10 digit').regex(/^[0-9\-\+\s]+$/, 'Format nomor HP orang tua tidak valid'),
   nama_ayah: z.string().min(2, 'Nama ayah kandung wajib diisi'),
   pekerjaan_ayah: z.string().optional(),
   nama_ibu: z.string().min(2, 'Nama ibu kandung wajib diisi'),
@@ -251,24 +269,41 @@ export default function RegistrasiSpmbPage() {
       jalur_id: '',
       gelombang_id: '',
       program_studi_id: '',
+      jenis_daftar: '',
+      kelas: '',
+      info_daftar: '',
+      ket_info_daftar: '',
       nama_lengkap: '',
       nik: '',
       tempat_lahir: '',
       tanggal_lahir: '',
       jenis_kelamin: '',
+      status_sipil: '',
       agama: '',
       kewarganegaraan: 'WNI',
-      no_hp: '',
       provinsi: '',
       kota_kabupaten: '',
       kecamatan: '',
       kode_pos: '',
       alamat: '',
+      asal_lulusan: 'sekolah',
       asal_sekolah: '',
+      alamat_sekolah: '',
       npsn_sekolah: '',
       jurusan_sekolah: '',
       tahun_lulus: '',
       nilai_rata_rapor: '',
+      asal_pt: '',
+      jenis_pt: 'non-komputer',
+      alamat_pt: '',
+      jenjang_pt: '',
+      progdi_pt: '',
+      ipk_pt: '',
+      nim_pt: '',
+      tahun_lulus_pt: '',
+      nama_ortu: '',
+      alamat_ortu: '',
+      telp_ortu: '',
       nama_ayah: '',
       pekerjaan_ayah: '',
       nama_ibu: '',
@@ -351,17 +386,25 @@ export default function RegistrasiSpmbPage() {
         if (p.jenis_kelamin) setValue('jenis_kelamin', p.jenis_kelamin);
         if (p.agama) setValue('agama', p.agama);
         if (p.kewarganegaraan) setValue('kewarganegaraan', p.kewarganegaraan);
-        if (p.no_hp) setValue('no_hp', p.no_hp);
         if (p.alamat) setValue('alamat', p.alamat);
         if (p.provinsi) setValue('provinsi', p.provinsi);
         if (p.kota_kabupaten) setValue('kota_kabupaten', p.kota_kabupaten);
         if (p.kecamatan) setValue('kecamatan', p.kecamatan);
         if (p.kode_pos) setValue('kode_pos', p.kode_pos);
+        if (p.asal_lulusan) setValue('asal_lulusan', p.asal_lulusan);
         if (p.asal_sekolah) setValue('asal_sekolah', p.asal_sekolah);
         if (p.jurusan_sekolah) setValue('jurusan_sekolah', p.jurusan_sekolah);
         if (p.npsn_sekolah) setValue('npsn_sekolah', p.npsn_sekolah);
         if (p.tahun_lulus) setValue('tahun_lulus', p.tahun_lulus);
         if (p.nilai_rata_rapor) setValue('nilai_rata_rapor', String(p.nilai_rata_rapor));
+        if (p.asal_pt) setValue('asal_pt', p.asal_pt);
+        if (p.jenis_pt) setValue('jenis_pt', p.jenis_pt);
+        if (p.alamat_pt) setValue('alamat_pt', p.alamat_pt);
+        if (p.jenjang_pt) setValue('jenjang_pt', p.jenjang_pt);
+        if (p.progdi_pt) setValue('progdi_pt', p.progdi_pt);
+        if (p.ipk_pt) setValue('ipk_pt', p.ipk_pt);
+        if (p.nim_pt) setValue('nim_pt', p.nim_pt);
+        if (p.tahun_lulus_pt) setValue('tahun_lulus_pt', p.tahun_lulus_pt);
         if (p.nama_ayah) setValue('nama_ayah', p.nama_ayah);
         if (p.pekerjaan_ayah) setValue('pekerjaan_ayah', p.pekerjaan_ayah);
         if (p.nama_ibu) setValue('nama_ibu', p.nama_ibu);
@@ -444,17 +487,25 @@ export default function RegistrasiSpmbPage() {
       setValue('jenis_kelamin', p.jenis_kelamin || 'L');
       setValue('agama', p.agama || '');
       setValue('kewarganegaraan', p.kewarganegaraan || 'WNI');
-      setValue('no_hp', p.no_hp || '');
       setValue('alamat', p.alamat || '');
       setValue('provinsi', p.provinsi || '');
       setValue('kota_kabupaten', p.kota_kabupaten || '');
       setValue('kecamatan', p.kecamatan || '');
       setValue('kode_pos', p.kode_pos || '');
+      setValue('asal_lulusan', p.asal_lulusan || 'sekolah');
       setValue('asal_sekolah', p.asal_sekolah || '');
       setValue('jurusan_sekolah', p.jurusan_sekolah || '');
       setValue('npsn_sekolah', p.npsn_sekolah || '');
       setValue('tahun_lulus', p.tahun_lulus || '');
       setValue('nilai_rata_rapor', p.nilai_rata_rapor ? String(p.nilai_rata_rapor) : '');
+      setValue('asal_pt', p.asal_pt || '');
+      setValue('jenis_pt', p.jenis_pt || 'non-komputer');
+      setValue('alamat_pt', p.alamat_pt || '');
+      setValue('jenjang_pt', p.jenjang_pt || '');
+      setValue('progdi_pt', p.progdi_pt || '');
+      setValue('ipk_pt', p.ipk_pt || '');
+      setValue('nim_pt', p.nim_pt || '');
+      setValue('tahun_lulus_pt', p.tahun_lulus_pt || '');
       setValue('nama_ayah', p.nama_ayah || '');
       setValue('pekerjaan_ayah', p.pekerjaan_ayah || '');
       setValue('nama_ibu', p.nama_ibu || '');
@@ -562,11 +613,11 @@ export default function RegistrasiSpmbPage() {
 
   const handleNextStep = async () => {
     let fieldsToValidate: string[] = [];
-    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id'];
-    else if (currentStep === 2) fieldsToValidate = ['nama_lengkap', 'nik', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin'];
+    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id', 'jenis_daftar', 'kelas'];
+    else if (currentStep === 2) fieldsToValidate = ['nama_lengkap', 'nik', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'status_sipil'];
     else if (currentStep === 3) fieldsToValidate = ['no_hp', 'provinsi', 'kota_kabupaten', 'kecamatan', 'alamat'];
-    else if (currentStep === 4) fieldsToValidate = ['asal_sekolah', 'jurusan_sekolah', 'tahun_lulus'];
-    else if (currentStep === 5) fieldsToValidate = ['nama_ayah', 'nama_ibu'];
+    else if (currentStep === 4) fieldsToValidate = ['asal_sekolah', 'alamat_sekolah', 'jurusan_sekolah', 'tahun_lulus'];
+    else if (currentStep === 5) fieldsToValidate = ['nama_ayah', 'nama_ibu', 'nama_ortu', 'alamat_ortu', 'telp_ortu', 'info_daftar', 'ket_info_daftar'];
     else if (currentStep === 6) fieldsToValidate = [];
 
     const isValid = await trigger(fieldsToValidate as any);
@@ -722,8 +773,9 @@ export default function RegistrasiSpmbPage() {
               uploadedBerkas={uploadedBerkas}
               onUpload={handleFileUpload}
               uploadingState={uploadingState}
-            />
-          </div>
+                 />
+               </div>
+
 
           {/* Payment Card (Production Ready & Premium) */}
           <div className="card p-5 sm:p-7 text-left border-primary-200/80 bg-gradient-to-b from-primary-50/50 via-white to-white mb-6 shadow-sm rounded-2xl">
@@ -1072,6 +1124,46 @@ export default function RegistrasiSpmbPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Controller
+                  name="jenis_daftar"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Jenis Pendaftaran *"
+                      options={[
+                        { value: 'REGULER', label: 'Reguler' },
+                        { value: 'KARYAWAN', label: 'Karyawan' },
+                        { value: 'TRANSFER', label: 'Transfer' },
+                      ]}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="-- Pilih Jenis Pendaftaran --"
+                      error={errors.jenis_daftar?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="kelas"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Kelas *"
+                      options={[
+                        { value: 'Pagi', label: 'Pagi' },
+                        { value: 'Khusus', label: 'Karyawan / Khusus' },
+                        { value: 'RPL', label: 'RPL / Transfer' },
+                        { value: 'Pindahan', label: 'Pindahan' },
+                      ]}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="-- Pilih Kelas --"
+                      error={errors.kelas?.message}
+                    />
+                  )}
+                />
+              </div>
+
               {selectedJalur && selectedGelombang && (
                 <div className="p-4 bg-primary-50/60 border border-primary-100 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
@@ -1151,6 +1243,25 @@ export default function RegistrasiSpmbPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
                 <Controller
+                  name="status_sipil"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Status Sipil *"
+                      options={[
+                        { value: 'Belum Kawin', label: 'Belum Kawin' },
+                        { value: 'Kawin', label: 'Kawin' },
+                        { value: 'Janda', label: 'Janda' },
+                        { value: 'Duda', label: 'Duda' },
+                      ]}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="-- Pilih Status Sipil --"
+                      error={errors.status_sipil?.message}
+                    />
+                  )}
+                />
+                <Controller
                   name="agama"
                   control={control}
                   render={({ field }) => (
@@ -1170,6 +1281,9 @@ export default function RegistrasiSpmbPage() {
                     />
                   )}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Input
                   label="Kewarganegaraan"
                   placeholder="WNI / WNA"
@@ -1194,28 +1308,20 @@ export default function RegistrasiSpmbPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Input
-                  label="Nomor WhatsApp / HP *"
-                  type="tel"
-                  placeholder="Contoh: 081234567890"
-                  error={errors.no_hp?.message}
-                  hint="Nomor aktif yang dapat dihubungi via WhatsApp"
-                  {...register('no_hp')}
-                />
-                <Input
                   label="Provinsi Domisili *"
                   placeholder="Nama Provinsi"
                   error={errors.provinsi?.message}
                   {...register('provinsi')}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 <Input
                   label="Kota / Kabupaten *"
                   placeholder="Nama Kota/Kabupaten"
                   error={errors.kota_kabupaten?.message}
                   {...register('kota_kabupaten')}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Input
                   label="Kecamatan *"
                   placeholder="Nama Kecamatan"
@@ -1252,41 +1358,159 @@ export default function RegistrasiSpmbPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Input
-                  label="Nama Sekolah Asal *"
-                  placeholder="Contoh: SMAN 1 Jakarta / SMKN 2 Bandung"
-                  error={errors.asal_sekolah?.message}
-                  {...register('asal_sekolah')}
-                />
-                <Input
-                  label="NPSN Sekolah (Opsional)"
-                  placeholder="8 digit NPSN Sekolah"
-                  {...register('npsn_sekolah')}
+              <div className="mb-4">
+                <Controller
+                  name="asal_lulusan"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Asal Lulusan *"
+                      options={[
+                        { value: 'sekolah', label: 'SMA/SMK/MA/Sederajat' },
+                        { value: 'pt', label: 'Perguruan Tinggi (Transfer)' },
+                      ]}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="-- Pilih Asal Lulusan --"
+                      error={errors.asal_lulusan?.message}
+                    />
+                  )}
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <Input
-                  label="Jurusan Sekolah *"
-                  placeholder="IPA / IPS / RPL / TKJ"
-                  error={errors.jurusan_sekolah?.message}
-                  {...register('jurusan_sekolah')}
-                />
-                <Input
-                  label="Tahun Lulus *"
-                  placeholder="2024 / 2025"
-                  error={errors.tahun_lulus?.message}
-                  {...register('tahun_lulus')}
-                />
-                <Input
-                  label="Nilai Rata-Rapor (Opsional)"
-                  type="number"
-                  step="0.01"
-                  placeholder="85.50"
-                  {...register('nilai_rata_rapor')}
-                />
-              </div>
+              {watch('asal_lulusan') === 'sekolah' ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <Input
+                      label="Nama Sekolah Asal *"
+                      placeholder="Contoh: SMAN 1 Jakarta / SMKN 2 Bandung"
+                      error={errors.asal_sekolah?.message}
+                      {...register('asal_sekolah')}
+                    />
+                    <Input
+                      label="NPSN Sekolah (Opsional)"
+                      placeholder="8 digit NPSN Sekolah"
+                      {...register('npsn_sekolah')}
+                    />
+                  </div>
+
+                  <Textarea
+                    label="Alamat Sekolah *"
+                    placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten"
+                    rows={2}
+                    error={errors.alamat_sekolah?.message}
+                    {...register('alamat_sekolah')}
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    <Input
+                      label="Jurusan Sekolah *"
+                      placeholder="IPA / IPS / RPL / TKJ"
+                      error={errors.jurusan_sekolah?.message}
+                      {...register('jurusan_sekolah')}
+                    />
+                    <Input
+                      label="Tahun Lulus *"
+                      placeholder="2024 / 2025"
+                      error={errors.tahun_lulus?.message}
+                      {...register('tahun_lulus')}
+                    />
+                    <Input
+                      label="Nilai Rata-Rapor (Opsional)"
+                      type="number"
+                      step="0.01"
+                      placeholder="85.50"
+                      {...register('nilai_rata_rapor')}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <Input
+                      label="Asal Perguruan Tinggi *"
+                      placeholder="Nama Kampus Asal"
+                      error={errors.asal_pt?.message}
+                      {...register('asal_pt')}
+                    />
+                    <Controller
+                      name="jenis_pt"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Jenis Perguruan Tinggi *"
+                          options={[
+                            { value: 'non-komputer', label: 'Non Komputer' },
+                            { value: 'komputer', label: 'Komputer' },
+                          ]}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="-- Pilih Jenis PT --"
+                          error={errors.jenis_pt?.message}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <Textarea
+                    label="Alamat Perguruan Tinggi *"
+                    placeholder="Alamat lengkap PT Asal"
+                    rows={2}
+                    error={errors.alamat_pt?.message}
+                    {...register('alamat_pt')}
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <Controller
+                      name="jenjang_pt"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Jenjang Program Studi *"
+                          options={[
+                            { value: 'D3', label: 'D3' },
+                            { value: 'S1', label: 'S1' },
+                            { value: 'S2', label: 'S2' },
+                          ]}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="-- Pilih Jenjang --"
+                          error={errors.jenjang_pt?.message}
+                        />
+                      )}
+                    />
+                    <Input
+                      label="Program Studi *"
+                      placeholder="Nama Program Studi Asal"
+                      error={errors.progdi_pt?.message}
+                      {...register('progdi_pt')}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    <Input
+                      label="IPK *"
+                      placeholder="Contoh: 3.50"
+                      type="number"
+                      step="0.01"
+                      error={errors.ipk_pt?.message}
+                      {...register('ipk_pt')}
+                    />
+                    <Input
+                      label="NIM *"
+                      placeholder="Nomor Induk Mahasiswa"
+                      error={errors.nim_pt?.message}
+                      {...register('nim_pt')}
+                    />
+                    <Input
+                      label="Tahun Lulus/Keluar *"
+                      placeholder="2024"
+                      error={errors.tahun_lulus_pt?.message}
+                      {...register('tahun_lulus_pt')}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -1301,6 +1525,34 @@ export default function RegistrasiSpmbPage() {
                   <h3 className="font-bold text-slate-900 text-base">Data Orang Tua / Wali</h3>
                   <p className="text-xs text-slate-500">Informasi identitas ayah dan ibu kandung atau wali calon mahasiswa.</p>
                 </div>
+              </div>
+
+              <div className="space-y-4 p-4 bg-slate-50/70 border border-slate-100 rounded-xl">
+                <h4 className="font-bold text-slate-800 text-sm border-b border-slate-200 pb-2">
+                  Biodata Utama &amp; Alamat Orang Tua / Penanggung Jawab
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Nama Orang Tua *"
+                    placeholder="Nama Orang Tua / Penanggung Jawab"
+                    error={errors.nama_ortu?.message}
+                    {...register('nama_ortu')}
+                  />
+                  <Input
+                    label="No. Telepon / HP Orang Tua *"
+                    type="tel"
+                    placeholder="Contoh: 081234567890"
+                    error={errors.telp_ortu?.message}
+                    {...register('telp_ortu')}
+                  />
+                </div>
+                <Textarea
+                  label="Alamat Orang Tua *"
+                  placeholder="Alamat lengkap tempat tinggal orang tua"
+                  rows={2}
+                  error={errors.alamat_ortu?.message}
+                  {...register('alamat_ortu')}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1358,6 +1610,41 @@ export default function RegistrasiSpmbPage() {
                     />
                   )}
                 />
+              </div>
+
+              <div className="space-y-4 p-4 bg-slate-50/70 border border-slate-100 rounded-xl">
+                <h4 className="font-bold text-slate-800 text-sm border-b border-slate-200 pb-2">
+                  Informasi Tambahan &amp; Sumber Informasi
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Controller
+                    name="info_daftar"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        label="Info Pendaftaran *"
+                        options={[
+                          { value: 'Media Sosial / Website', label: 'Media Sosial / Website' },
+                          { value: 'Guru / Sekolah', label: 'Guru / Sekolah' },
+                          { value: 'Brosur / Spanduk', label: 'Brosur / Spanduk' },
+                          { value: 'Alumni / Teman', label: 'Alumni / Teman' },
+                          { value: 'Rekomendasi Dosen/Staff', label: 'Rekomendasi Dosen/Staff' },
+                          { value: 'Lainnya', label: 'Lainnya' },
+                        ]}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="-- Pilih Sumber Info --"
+                        error={errors.info_daftar?.message}
+                      />
+                    )}
+                  />
+                  <Input
+                    label="Keterangan Info *"
+                    placeholder="Isi rincian sumber info atau tanda (-)"
+                    error={errors.ket_info_daftar?.message}
+                    {...register('ket_info_daftar')}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1434,8 +1721,11 @@ export default function RegistrasiSpmbPage() {
                     </button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div><span className="text-slate-400">No. WhatsApp:</span> <span className="font-semibold text-slate-800">{formValues.no_hp || '-'}</span></div>
-                    <div><span className="text-slate-400">Sekolah Asal:</span> <span className="font-semibold text-slate-800">{formValues.asal_sekolah || '-'}</span></div>
+                    {formValues.asal_lulusan === 'sekolah' ? (
+                      <div><span className="text-slate-400">Sekolah Asal:</span> <span className="font-semibold text-slate-800">{formValues.asal_sekolah || '-'}</span></div>
+                    ) : (
+                      <div><span className="text-slate-400">PT Asal:</span> <span className="font-semibold text-slate-800">{formValues.asal_pt || '-'}</span></div>
+                    )}
                     <div className="sm:col-span-2"><span className="text-slate-400">Alamat:</span> <span className="font-semibold text-slate-800">{formValues.alamat}, {formValues.kecamatan}, {formValues.kota_kabupaten}</span></div>
                   </div>
                 </div>
