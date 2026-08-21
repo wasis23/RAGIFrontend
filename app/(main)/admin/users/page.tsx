@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Shield, Mail, CheckCircle, XCircle, Filter } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Plus, Edit2, Trash2, Mail, CheckCircle, XCircle, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -12,10 +15,20 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { StatusBadge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
-import type { User, Role } from '@/types/auth.types';
+import type { User } from '@/types/auth.types';
 import type { PaginationMeta } from '@/types/api.types';
+
+const userSchema = z.object({
+  username: z.string().min(1, 'Username wajib diisi').max(100, 'Username maksimal 100 karakter'),
+  email: z.string().min(1, 'Email kampus wajib diisi').email('Format email tidak valid (contoh: user@kampus.ac.id)'),
+  phone: z.string().optional(),
+  password: z.string().min(6, 'Password minimal 6 karakter').optional().or(z.literal('')),
+});
+
+type UserFormValues = z.infer<typeof userSchema>;
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -24,13 +37,13 @@ export default function AdminUsersPage() {
   const [filterIsVerified, setFilterIsVerified] = useState<string>('');
   const [filterName, setFilterName] = useState<string>('');
   const [filterRole, setFilterRole] = useState<string>('');
-  const [filterRoleObj, setFilterRoleObj] = useState<{value: string, label: string} | null>(null);
+  const [filterRoleObj, setFilterRoleObj] = useState<{ value: string; label: string } | null>(null);
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterOrderBy, setFilterOrderBy] = useState<string>('id');
   const [filterOrderDir, setFilterOrderDir] = useState<string>('desc');
   const [filterLimit, setFilterLimit] = useState<string>('15');
 
-  // Applied Filters State (yang benar-benar digunakan untuk fetch API)
+  // Applied Filters State
   const [appliedFilters, setAppliedFilters] = useState({
     isActive: '',
     isVerified: '',
@@ -38,7 +51,7 @@ export default function AdminUsersPage() {
     role: '',
     date: '',
     orderBy: 'id',
-    orderDir: 'desc'
+    orderDir: 'desc',
   });
 
   const [page, setPage] = useState<number>(1);
@@ -49,14 +62,22 @@ export default function AdminUsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form Fields
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    phone: '',
-
-    password: '',
+  // React Hook Form + Zod Setup
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<UserFormValues>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      username: '',
+      email: '',
+      phone: '',
+      password: '',
+    },
   });
 
   const fetchUsers = async () => {
@@ -71,12 +92,11 @@ export default function AdminUsersPage() {
       if (appliedFilters.orderBy !== '') params.order_by = appliedFilters.orderBy;
       if (appliedFilters.orderDir !== '') params.order_dir = appliedFilters.orderDir;
       if (filterLimit !== '') params.limit = filterLimit;
-      
+
       const res: any = await adminService.getUsers(params);
       let userList = [];
       let metaData = undefined;
 
-      // Check if it's a direct Laravel paginator response
       if (res && Array.isArray(res.data) && 'current_page' in res) {
         userList = res.data;
         metaData = {
@@ -85,23 +105,17 @@ export default function AdminUsersPage() {
           per_page: res.per_page,
           total: res.total,
           from: res.from,
-          to: res.to
+          to: res.to,
         };
-      } 
-      // Check if it's wrapped in a custom response format { data: { items, meta } }
-      else if (res && res.data && Array.isArray(res.data.items)) {
+      } else if (res && res.data && Array.isArray(res.data.items)) {
         userList = res.data.items;
         metaData = res.data.meta;
-      } 
-      // Fallback if it's just an array inside data
-      else if (res && Array.isArray(res.data)) {
+      } else if (res && Array.isArray(res.data)) {
         userList = res.data;
-      }
-      // Absolute fallback if res is the array itself
-      else if (Array.isArray(res)) {
+      } else if (Array.isArray(res)) {
         userList = res;
       }
-      
+
       setUsers(userList);
       setMeta(metaData);
     } catch {
@@ -122,7 +136,7 @@ export default function AdminUsersPage() {
     appliedFilters.orderBy,
     appliedFilters.orderDir,
     filterLimit,
-    page
+    page,
   ]);
 
   const loadRoleOptions = async (inputValue: string) => {
@@ -139,49 +153,49 @@ export default function AdminUsersPage() {
         roleList = res;
       }
       return roleList.map((r: any) => ({ value: r.id.toString(), label: r.name }));
-    } catch (err) {
+    } catch {
       return [];
     }
   };
 
   const handleOpenCreate = () => {
     setEditingUser(null);
-    setFormData({ username: '', email: '', phone: '', password: '' });
+    reset({ username: '', email: '', phone: '', password: '' });
     setShowModal(true);
   };
 
   const handleOpenEdit = (user: User) => {
     setEditingUser(user);
-    setFormData({
+    reset({
       username: user.username,
       email: user.email,
       phone: user.phone || '',
-
       password: '',
     });
     setShowModal(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.username || !formData.email) {
-      toast.error('Username dan Email wajib diisi.');
-      return;
-    }
-
+  const onSaveUser = async (values: UserFormValues) => {
+    setIsSubmitting(true);
     try {
       if (editingUser) {
-        await adminService.updateUser(editingUser.id, formData);
+        await adminService.updateUser(editingUser.id, values);
         toast.success('Pengguna berhasil diperbarui!');
       } else {
-        await adminService.createUser(formData);
+        if (!values.password || values.password.length < 6) {
+          toast.error('Password minimal 6 karakter.');
+          setIsSubmitting(false);
+          return;
+        }
+        await adminService.createUser(values);
         toast.success('Pengguna baru berhasil ditambahkan!');
       }
       fetchUsers();
+      setShowModal(false);
     } catch {
       toast.error('Gagal menyimpan data. Periksa koneksi ke server.');
     } finally {
-      setShowModal(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -209,66 +223,97 @@ export default function AdminUsersPage() {
   };
 
   const columns: ColumnDef<User>[] = [
-    { key: 'id', label: 'No', render: (row, index) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + index : index + 1}</span> },
-    { key: 'pengguna', label: 'Pengguna', render: (row) => (
-      <div className="flex items-center gap-3">
-        <div className="avatar avatar-sm">
-          {row.username.slice(0, 2).toUpperCase()}
+    {
+      key: 'id',
+      label: 'No',
+      render: (row, index) => (
+        <span className="font-bold text-slate-400">{meta?.from ? meta.from + index : index + 1}</span>
+      ),
+    },
+    {
+      key: 'pengguna',
+      label: 'Pengguna',
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <div className="avatar avatar-sm">{row.username.slice(0, 2).toUpperCase()}</div>
+          <div>
+            <div className="font-bold text-slate-900">{row.username}</div>
+            <div className="text-xs text-slate-400">{row.email}</div>
+          </div>
         </div>
-        <div>
-          <div className="font-bold text-slate-900">{row.username}</div>
-          <div className="text-xs text-slate-400">{row.email}</div>
+      ),
+    },
+    {
+      key: 'roles',
+      label: 'Role(s)',
+      render: (row) => (
+        <>
+          {row.roles?.map((r) => (
+            <span key={r.id} className="dropdown-role-tag">
+              {r.name || r.role?.name}
+            </span>
+          ))}
+        </>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status Akun',
+      render: (row) => (
+        <button
+          onClick={() => handleToggleStatus(row)}
+          className="bg-transparent border-none cursor-pointer p-0"
+          title="Klik untuk mengubah status"
+        >
+          <StatusBadge active={row.is_active} />
+        </button>
+      ),
+    },
+    {
+      key: 'verified',
+      label: 'Terverifikasi',
+      render: (row) =>
+        row.is_verified ? (
+          <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-emerald-600">
+            <CheckCircle size={14} /> Ya
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-red-500">
+            <XCircle size={14} /> Belum
+          </span>
+        ),
+    },
+    {
+      key: 'created_at',
+      label: 'Tanggal Dibuat',
+      render: (row) => (
+        <span className="text-[0.8125rem] text-slate-500">{formatDate(row.created_at)}</span>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Edit Pengguna',
+                icon: <Edit2 size={14} />,
+                onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Hapus Pengguna',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => setDeletingUser(row),
+              },
+            ]}
+          />
         </div>
-      </div>
-    )},
-    { key: 'roles', label: 'Role(s)', render: (row) => (
-      <>
-        {row.roles?.map(r => (
-          <span key={r.id} className="dropdown-role-tag">{r.name || r.role?.name}</span>
-        ))}
-      </>
-    )},
-    { key: 'status', label: 'Status Akun', render: (row) => (
-      <button
-        onClick={() => handleToggleStatus(row)}
-        className="bg-transparent border-none cursor-pointer p-0"
-        title="Klik untuk mengubah status"
-      >
-        <StatusBadge active={row.is_active} />
-      </button>
-    )},
-    { key: 'verified', label: 'Terverifikasi', render: (row) => (
-      row.is_verified ? (
-        <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-emerald-600">
-          <CheckCircle size={14} /> Ya
-        </span>
-      ) : (
-        <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-red-500">
-          <XCircle size={14} /> Belum
-        </span>
-      )
-    )},
-    { key: 'created_at', label: 'Tanggal Dibuat', render: (row) => (
-      <span className="text-[0.8125rem] text-slate-500">
-        {formatDate(row.created_at)}
-      </span>
-    )},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Edit2 size={14} />}
-          onClick={() => handleOpenEdit(row)}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Trash2 size={14} color="var(--danger)" />}
-          onClick={() => setDeletingUser(row)}
-        />
-      </div>
-    )},
+      ),
+    },
   ];
 
   return (
@@ -281,11 +326,7 @@ export default function AdminUsersPage() {
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
               Tambah Pengguna
             </Button>
-            <Button 
-              variant="outline" 
-              icon={<Filter size={16} />} 
-              onClick={() => setShowFilter(true)}
-            >
+            <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
             </Button>
           </div>
@@ -299,7 +340,10 @@ export default function AdminUsersPage() {
         isLoading={isLoading}
         meta={meta}
         onPageChange={(p) => setPage(p)}
-        onLimitChange={(l) => { setFilterLimit(l.toString()); setPage(1); }}
+        onLimitChange={(l) => {
+          setFilterLimit(l.toString());
+          setPage(1);
+        }}
       />
 
       {/* Modal Form Create/Edit */}
@@ -309,19 +353,21 @@ export default function AdminUsersPage() {
         title={editingUser ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleSubmit(onSaveUser)} disabled={isSubmitting}>
               {editingUser ? 'Simpan Perubahan' : 'Tambah Pengguna'}
             </Button>
           </>
         }
       >
-        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSaveUser)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Username"
             required
-            value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            {...register('username')}
+            error={errors.username?.message}
             placeholder="contoh: mhs_2026"
           />
 
@@ -330,27 +376,25 @@ export default function AdminUsersPage() {
             type="email"
             required
             prefixIcon={<Mail size={16} />}
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            {...register('email')}
+            error={errors.email?.message}
             placeholder="nama@kampus.ac.id"
           />
 
           <Input
             label="Nomor HP / WhatsApp"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            {...register('phone')}
+            error={errors.phone?.message}
             placeholder="08123456789"
           />
-
-
 
           {!editingUser && (
             <Input
               label="Password Default"
               type="password"
               required
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              {...register('password')}
+              error={errors.password?.message}
               placeholder="Minimal 6 karakter"
             />
           )}
@@ -365,13 +409,18 @@ export default function AdminUsersPage() {
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeletingUser(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDelete}>Hapus</Button>
+            <Button variant="secondary" onClick={() => setDeletingUser(null)}>
+              Batal
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Hapus
+            </Button>
           </>
         }
       >
         <p className="text-slate-500">
-          Apakah Anda yakin ingin menghapus pengguna <strong>{deletingUser?.username}</strong>? Tindakan ini tidak dapat dibatalkan.
+          Apakah Anda yakin ingin menghapus pengguna <strong>{deletingUser?.username}</strong>? Tindakan ini
+          tidak dapat dibatalkan.
         </p>
       </Modal>
 
@@ -382,8 +431,8 @@ export default function AdminUsersPage() {
         title="Filter Pengguna"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={() => {
                 setFilterIsActive('');
                 setFilterIsVerified('');
@@ -400,7 +449,7 @@ export default function AdminUsersPage() {
                   role: '',
                   date: '',
                   orderBy: 'id',
-                  orderDir: 'desc'
+                  orderDir: 'desc',
                 });
                 setPage(1);
                 setShowFilter(false);
@@ -408,8 +457,8 @@ export default function AdminUsersPage() {
             >
               Reset
             </Button>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={() => {
                 setAppliedFilters({
                   isActive: filterIsActive,
@@ -418,7 +467,7 @@ export default function AdminUsersPage() {
                   role: filterRole,
                   date: filterDate,
                   orderBy: filterOrderBy,
-                  orderDir: filterOrderDir
+                  orderDir: filterOrderDir,
                 });
                 setPage(1);
                 setShowFilter(false);
@@ -430,14 +479,14 @@ export default function AdminUsersPage() {
         }
       >
         <div className="flex flex-col gap-5">
-          <Input 
+          <Input
             label="Nama Pengguna"
             placeholder="Ketik nama pengguna..."
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
           />
 
-          <AsyncSelect 
+          <AsyncSelect
             label="Role"
             placeholder="Cari nama role (cth: admin)..."
             value={filterRoleObj}
@@ -449,39 +498,37 @@ export default function AdminUsersPage() {
             isClearable
           />
 
-          <Input 
+          <Input
             label="Tanggal Dibuat"
             type="date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
           />
 
-          <Select 
+          <Select
             label="Status Akun"
             value={filterIsActive}
             onChange={(val) => setFilterIsActive(val)}
             options={[
               { value: '', label: 'Semua Status' },
               { value: 'true', label: 'Aktif' },
-              { value: 'false', label: 'Nonaktif' }
+              { value: 'false', label: 'Nonaktif' },
             ]}
           />
 
-          <Select 
+          <Select
             label="Status Verifikasi"
             value={filterIsVerified}
             onChange={(val) => setFilterIsVerified(val)}
             options={[
               { value: '', label: 'Semua Status' },
               { value: 'true', label: 'Terverifikasi' },
-              { value: 'false', label: 'Belum Verifikasi' }
+              { value: 'false', label: 'Belum Verifikasi' },
             ]}
           />
-          
-          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
-            <Select 
+            <Select
               label="Urut Berdasarkan"
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
@@ -490,17 +537,17 @@ export default function AdminUsersPage() {
                 { value: 'username', label: 'Nama Pengguna' },
                 { value: 'email', label: 'Email' },
                 { value: 'created_at', label: 'Tanggal Dibuat' },
-                { value: 'is_active', label: 'Status Akun' }
+                { value: 'is_active', label: 'Status Akun' },
               ]}
             />
 
-            <Select 
+            <Select
               label="Arah"
               value={filterOrderDir}
               onChange={(val) => setFilterOrderDir(val)}
               options={[
                 { value: 'asc', label: 'A - Z (Naik)' },
-                { value: 'desc', label: 'Z - A (Turun)' }
+                { value: 'desc', label: 'Z - A (Turun)' },
               ]}
             />
           </div>
