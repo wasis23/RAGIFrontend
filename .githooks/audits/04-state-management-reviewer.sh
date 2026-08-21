@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🤖 [Audit 4/4: State Management Standard] Memeriksa staged changes..."
+echo "🤖 [Audit 4/7: State Management Standard] Memeriksa staged changes..."
 
 # Cek apakah ada file store atau state management yang di-stage
 STAGED_DIFF=$(git diff --cached -- "store/**" "hooks/**" "app/(main)/**")
@@ -12,7 +12,7 @@ fi
 
 PROMPT_FILE=$(mktemp)
 
-cat << EOF > "$PROMPT_FILE"
+cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus State Management Standard.
 Periksa Git Diff berikut HANYA terhadap Aturan State Management:
 
@@ -27,26 +27,19 @@ Aturan State Management:
    - State yang memerlukan persistensi (seperti auth session / ui preferences) WAJIB menggunakan middleware `persist` dengan atribut `name` unik.
 
 Git Diff yang di-stage:
-\`\`\`diff
-$STAGED_DIFF
-\`\`\`
+EOF
 
+echo '```diff' >> "$PROMPT_FILE"
+echo "$STAGED_DIFF" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+
+cat << 'EOF' >> "$PROMPT_FILE"
 Jawab HANYA salah satu:
 - PASSED jika kode bersih dan memenuhi State Management Standard.
 - REJECTED: [detail alasan pelanggaran] jika ditemukan pelanggaran State Management Standard.
 EOF
 
-if command -v agy &> /dev/null; then
-    RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
-    AGY_EXIT_CODE=$?
-else
-    AGY_EXIT_CODE=127
-fi
-
-if [ $AGY_EXIT_CODE -ne 0 ]; then
-    echo "⚠️ [Fallback] agy gagal atau tidak ditemukan. Beralih ke opencode (9router/combo)..."
-    RESULT=$(opencode run -m 9router/combo "$(cat "$PROMPT_FILE")" 2>&1)
-fi
+RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
 rm -f "$PROMPT_FILE"
 
 if echo "$RESULT" | grep -qi "REJECTED"; then

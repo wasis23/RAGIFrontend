@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🤖 [Audit 1/2: Zero Hardcode & RBAC] Memeriksa staged changes..."
+echo "🤖 [Audit 1/7: Zero Hardcode & RBAC] Memeriksa staged changes..."
 
 STAGED_DIFF=$(git diff --cached)
 
@@ -10,36 +10,30 @@ fi
 
 PROMPT_FILE=$(mktemp)
 
-cat << EOF > "$PROMPT_FILE"
+cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus Zero Hardcode & RBAC.
 Periksa Git Diff berikut HANYA terhadap aturan Zero Hardcode & RBAC Policy:
 
 Aturan:
-1. DILARANG ADA HARDCODE string nama modul/role (seperti 'spmb', 'sikeu', 'admin', 'mahasiswa') dalam pengujian logika IF/ELSE atau perbandingan statis.
-2. DILARANG menggunakan properti statis user.user_type atau user_type.
-3. Seluruh otorisasi dan relasi WAJIB berbasis ID entitas atau hook RBAC (seperti hasRole / hasPermission).
+1. DILARANG KERAS ADA HARDCODE string atau array literal untuk opsi/pilihan data MASTER (misalnya wilayah, program studi, jenis pendaftaran). Semua data referensi WAJIB diambil secara dinamis (fetch dari API) yang merujuk pada tabel master di database. PENGECUALIAN: Untuk data struktural berjenis boolean (Aktif/Nonaktif, Wajib/Opsional) atau placeholder UI (seperti 'Semua Jalur', 'Semua Status'), DIPERBOLEHKAN menggunakan array/string literal statis pada properti options.
+2. DILARANG ADA HARDCODE string nama modul/role (seperti 'spmb', 'sikeu', 'admin', 'mahasiswa') dalam pengujian logika IF/ELSE atau perbandingan statis.
+3. DILARANG menggunakan properti statis user.user_type atau user_type.
+4. Seluruh otorisasi dan relasi WAJIB berbasis ID entitas atau hook RBAC (seperti hasRole / hasPermission).
 
 Git Diff:
-\`\`\`diff
-$STAGED_DIFF
-\`\`\`
+EOF
 
+echo '```diff' >> "$PROMPT_FILE"
+echo "$STAGED_DIFF" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+
+cat << 'EOF' >> "$PROMPT_FILE"
 Jawab HANYA salah satu:
 - PASSED jika kode bersih dari hardcode dan sesuai RBAC.
 - REJECTED: [detail alasan pelanggaran] jika ditemukan hardcode/pelanggaran RBAC.
 EOF
 
-if command -v agy &> /dev/null; then
-    RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
-    AGY_EXIT_CODE=$?
-else
-    AGY_EXIT_CODE=127
-fi
-
-if [ $AGY_EXIT_CODE -ne 0 ]; then
-    echo "⚠️ [Fallback] agy gagal atau tidak ditemukan. Beralih ke opencode (9router/combo)..."
-    RESULT=$(opencode run -m 9router/combo "$(cat "$PROMPT_FILE")" 2>&1)
-fi
+RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
 rm -f "$PROMPT_FILE"
 
 if echo "$RESULT" | grep -qi "REJECTED"; then

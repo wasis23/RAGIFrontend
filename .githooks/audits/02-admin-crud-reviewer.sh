@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🤖 [Audit 2/2: Admin CRUD Standard] Memeriksa staged changes..."
+echo "🤖 [Audit 2/7: Admin CRUD Standard] Memeriksa staged changes..."
 
 # Cek apakah ada file halaman admin/CRUD yang di-stage
 STAGED_DIFF=$(git diff --cached -- "app/(main)/**" "components/**")
@@ -12,7 +12,7 @@ fi
 
 PROMPT_FILE=$(mktemp)
 
-cat << EOF > "$PROMPT_FILE"
+cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus Admin CRUD Standard.
 Periksa Git Diff berikut HANYA terhadap Aturan Admin CRUD & Table Standard:
 
@@ -46,32 +46,29 @@ Aturan Admin CRUD:
    - Form <= 5 inputs: Gunakan Modal (`<Modal />`) dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
    - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali yang warnanya menyesuaikan primary modul di `PageHeader`.
 
-Git Diff yang di-stage:
-\`\`\`diff
-$STAGED_DIFF
-\`\`\`
+9. WAJIB 3-DOTS ACTION DROPDOWN MENU (<DropdownMenu />):
+   - Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />` dari `@/components/ui/DropdownMenu`).
+   - DILARANG KERAS menyejajarkan tombol-tombol aksi secara horizontal di sel tabel (*inefficient space*).
 
+Git Diff yang di-stage:
+EOF
+
+echo '```diff' >> "$PROMPT_FILE"
+echo "$STAGED_DIFF" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+
+cat << 'EOF' >> "$PROMPT_FILE"
 Jawab HANYA salah satu:
 - PASSED jika kode bersih dan memenuhi Admin CRUD Standard.
 - REJECTED: [detail alasan pelanggaran] jika ditemukan pelanggaran Admin CRUD Standard.
 EOF
 
-if command -v agy &> /dev/null; then
-    RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
-    AGY_EXIT_CODE=$?
-else
-    AGY_EXIT_CODE=127
-fi
-
-if [ $AGY_EXIT_CODE -ne 0 ]; then
-    echo "⚠️ [Fallback] agy gagal atau tidak ditemukan. Beralih ke opencode (9router/combo)..."
-    RESULT=$(opencode run -m 9router/combo "$(cat "$PROMPT_FILE")" 2>&1)
-fi
+RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
 rm -f "$PROMPT_FILE"
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
     echo "❌ [Audit Admin CRUD Standard] REJECTED!"
-    echo "$RESULT" | grep -i "REJECTED"
+    echo "$RESULT"
     exit 1
 else
     echo "✅ [Audit Admin CRUD Standard] PASSED."
