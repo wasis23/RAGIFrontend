@@ -6,7 +6,8 @@
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepare": "sh .githooks/setup.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
