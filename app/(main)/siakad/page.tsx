@@ -422,8 +422,15 @@ export default function SiakadDashboardPage() {
       badge: 'Civitas',
     },
     {
+      title: 'Konversi Nilai Transfer',
+      desc: 'Penyetaraan matakuliah mahasiswa pindahan',
+      icon: <FileSpreadsheet size={20} className="text-amber-600" />,
+      href: '/siakad/civitas/konversi',
+      badge: 'Civitas',
+    },
+    {
       title: 'Jadwal & Ruang Kelas',
-      desc: 'Alokasi ruang SINAPRA dan dosen pengampu uyuy',
+      desc: 'Alokasi ruang SINAPRA dan dosen pengampu',
       icon: <CalendarCheck size={20} className="text-emerald-600" />,
       href: '/siakad/perkuliahan/kelas',
       badge: 'Perkuliahan',
