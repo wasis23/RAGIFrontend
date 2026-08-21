@@ -1,15 +1,43 @@
 ---
 name: admin-crud-reviewer-standard
-description: Standar Baku Reviewer & Auditor Halaman Admin CRUD (Atomic Design, DataTable, Pagination, Sort By & Direction, Filter Drawer Kanan-ke-Kiri).
+description: Standar Baku Reviewer & Auditor Halaman Admin CRUD (Mobile-First, Detail Halaman Terpisah, Form Compact, Atomic Design, DataTable, Pagination, Sort By & Direction, Filter Drawer Kanan-ke-Kiri).
 ---
 
 # Admin CRUD & Table Reviewer Standard
 
-Dokumen ini merupakan **Standar Penilaian (Reviewer Policy)** untuk pembuatan dan modifikasi halaman Admin CRUD (Create, Read, Update, Delete) di seluruh ekosistem aplikasi. Setiap halaman Admin yang menampilkan atau mengelola data **WAJIB** mematuhi 4 Aturan Utama dan Aturan Konsistensi UI berikut:
+Dokumen ini merupakan **Standar Penilaian (Reviewer Policy)** untuk pembuatan dan modifikasi halaman Admin CRUD (Create, Read, Update, Delete) di seluruh ekosistem aplikasi. Setiap halaman Admin yang menampilkan atau mengelola data **WAJIB** mematuhi Aturan Utama dan Aturan Konsistensi UI berikut:
 
 ---
 
-## 1. Aturan 1: Arsitektur Atomic Design
+## 1. Aturan Mobile-First Responsive Styling
+- Seluruh tata letak, komponen, dan halaman **WAJIB** mengadopsi pendekatan **Mobile-First Design**.
+- Pengaturan kelas CSS bawaan ditujukan untuk layar *mobile* (HP) terlebih dahulu (misal: `w-full flex-col grid-cols-1 gap-4`).
+- Penyesuaian ke layar yang lebih lebar (tablet/desktop) menggunakan breakpoint terstruktur:
+  - `sm:` (min-width: 640px)
+  - `md:` (min-width: 768px)
+  - `lg:` (min-width: 1024px)
+- Seluruh tabel, tombol aksi, dan form harus tetap nyaman dan mudah ditekan pada perangkat seluler.
+
+---
+
+## 2. Aturan Halaman Detail Wajib Terpisah
+- Tampilan **Detail Data** (melihat rincian entitas secara mendalam) **WAJIB** dibuat di **Halaman Terpisah** (misalnya di route `/[id]` atau `/detail/[id]`).
+- **DILARANG KERAS** menyisipkan detail data yang kompleks ke dalam pop-up modal kecil atau tooltip.
+- Halaman Detail Terpisah wajib dilengkapi **Tombol Kembali Berwarna Oranye** (`bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm`) di prop `action` komponen `<PageHeader />`.
+
+---
+
+## 3. Aturan Desain Form Compact & Elegan
+- Layout form untuk *Create*, *Update*, maupun input data lainnya harus dirancang **sangat compact, rapi, dan tidak berlebihan** (*no excessive whitespace/margin*).
+- Gunakan arsitektur **CSS Grid Responsif**:
+  - Layar Mobile: 1 Kolom (`grid-cols-1`)
+  - Layar Medium/Desktop: Maksimal 2 atau 3 Kolom (`md:grid-cols-2 lg:grid-cols-3 gap-4`)
+- Jarak antar elemen input dijaga agar pas (`gap-4`), tidak terlalu renggang dan tidak terlalu sesak.
+- Gunakan selalu prop `label` bawaan komponen UI Kit (`<Input label="...">`, `<Select label="...">`).
+
+---
+
+## 4. Aturan Arsitektur Atomic Design
 Semua komponen antarmuka wajib dibangun mengikuti prinsip **Atomic Design**:
 - **Atoms & Molecules (`components/ui/`)**: Elemen dasar dan komponen interaktif individual wajib diambil dari UI Kit terpusat:
   - `<Button>` (`components/ui/Button.tsx`)
@@ -24,7 +52,7 @@ Semua komponen antarmuka wajib dibangun mengikuti prinsip **Atomic Design**:
 
 ---
 
-## 2. Aturan 2: Wajib DataTable & Server-Side Pagination
+## 5. Aturan Wajib DataTable & Server-Side Pagination
 Setiap halaman list/tabel data **WAJIB**:
 - Menggunakan komponen **`<DataTable />`** (`@/components/ui/DataTable`).
 - **DILARANG KERAS** menggunakan tag HTML mentah seperti `<table>`, `<thead>`, `<tbody>`, `<tr>`, atau `<td>` langsung di file halaman.
@@ -42,7 +70,7 @@ Setiap halaman list/tabel data **WAJIB**:
 
 ---
 
-## 3. Aturan 3: Filter Sort By & Sort Direction (Default Name/Label)
+## 6. Aturan Filter Sort By & Sort Direction (Default Name/Label)
 Setiap halaman list/tabel **WAJIB** memiliki opsi pengurutan data (*Sorting*):
 - Pilihan **Urut Berdasarkan** (`sort_by` / `orderBy`) mencakup kolom-kolom penting pada tabel (contoh: `name`, `label`, `id`, `created_at`).
 - Nilai **Default Sort** adalah berbasis `name` atau `label` (atau `id` / `created_at` yang relevan).
@@ -76,7 +104,7 @@ Setiap halaman list/tabel **WAJIB** memiliki opsi pengurutan data (*Sorting*):
 
 ---
 
-## 4. Aturan 4: Tombol Filter Outline Biru & Drawer Slide Kanan-ke-Kiri
+## 7. Aturan Tombol Filter Outline Biru & Drawer Slide Kanan-ke-Kiri
 Semua halaman admin yang membutuhkan filter **WAJIB**:
 - Menyediakan tombol **Filter** di header halaman (pada prop `action` komponen `<PageHeader />`).
 - Style tombol filter wajib menggunakan **Outline Biru** (`variant="outline"` / `btn-outline-blue`) dengan ikon `<Filter size={16} />`.
@@ -111,12 +139,6 @@ Semua halaman admin yang membutuhkan filter **WAJIB**:
 
 ---
 
-## 5. Aturan Tambahan Konsistensi UI/UX
-1. **Aturan Form Create/Update**:
-   - **<= 5 Input (Gunakan Modal)**: Menggunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
-   - **> 5 Input (Gunakan Halaman Terpisah)**: Membuat halaman terpisah (`/create`, `/[id]/edit`) dengan **Tombol Kembali Berwarna Oranye** (`bg-orange-500 text-white hover:bg-orange-600`) di header.
-2. **Prop Label pada Komponen Input/Select**:
-   - Dilarang membuat tag `<label>` manual di luar komponen. Selalu berikan prop `label="Nama Label"` pada `<Input>` atau `<Select>`.
-3. **Pemberitahuan & Konfirmasi**:
-   - Proses Hapus wajib menggunakan Modal konfirmasi (`<Modal size="sm">`).
-   - Notifikasi sukses/gagal wajib menggunakan `react-hot-toast`.
+## 8. Aturan Form Create/Update (Modal vs Halaman Terpisah)
+- **<= 5 Input (Gunakan Modal)**: Menggunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
+- **> 5 Input (Gunakan Halaman Terpisah)**: Membuat halaman terpisah (`/create`, `/[id]/edit`) dengan **Tombol Kembali Berwarna Oranye** (`bg-orange-500 text-white hover:bg-orange-600`) di header.
