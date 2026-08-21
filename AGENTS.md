@@ -23,6 +23,7 @@ Sebelum mengeksekusi tugas apapun, Anda WAJIB memeriksa daftar skill di bawah in
 | `form-validation-reviewer-standard` | `.agent/skills/form_validation_reviewer_standard/SKILL.md` | Diminta merancang, membuat, atau mereview form & validasi input (UI Kit, AsyncSelect Server-Side, Mandatory Zod Validation). |
 | `state-management-reviewer-standard` | `.agent/skills/state_management_reviewer_standard/SKILL.md` | Diminta merancang, membuat, atau mereview state management (Zustand, Type-Safe Stores, Persist Middleware). |
 | `icon-standard-reviewer` | `.agent/skills/icon_standard_reviewer/SKILL.md` | Diminta merancang, membuat, atau mereview penggunaan ikon (Mandatory Lucide-React Library, Dilarang SVG Mentah & Icon Unstandardized). |
+| `spacing-standard-reviewer` | `.agent/skills/spacing_standard_reviewer/SKILL.md` | Diminta merancang, membuat, atau mereview ukuran margin, padding, gap, dan alignment layout (No Arbitrary Pixels, Compact Padding, Grid Gap Consistency). |
 | `rbac-refactoring-standard` | `.agent/skills/rbac_refactoring_standard/SKILL.md` | Melakukan refaktor komponen, perbaikan UI, atau mendesain pengecekan akses (RBAC) tanpa mengandalkan tipe user statis. |
 | `module-management-standard`| `../RAGIBackend/.agent/skills/module_management_standard/SKILL.md` | Merancang, menambah, atau memodifikasi modul aplikasi (Master Modul) di ekosistem kampus terintegrasi. |
 
@@ -89,3 +90,14 @@ Hardcode adalah suatu metode atau cara pengambilan data, pengiriman data, atau p
 1. **Mandatory Lucide-React**: Seluruh ikon dalam aplikasi WAJIB di-import dan menggunakan pustaka standar `lucide-react` (seperti `<Plus size={16} />`, `<Trash2 size={16} />`, `<Filter size={16} />`).
 2. **Dilarang SVG Mentah Inline & Third-Party Unstandardized**: DILARANG KERAS menggunakan tag `<svg>` mentah inline dengan `<path>` panjang jika ikon sudah tersedia di `lucide-react`. DILARANG menggunakan `<i className="fa ...">` atau paket ikon non-standar lainnya.
 </RULE[icon_standard_reviewer]>
+
+<RULE[spacing_standard_reviewer]>
+# Spacing, Margin & Padding Reviewer Policy
+
+## Aturan Wajib Spacing & Layout Alignment:
+1. **Skala Spacing Standar**: Spacing WAJIB menggunakan skala terstandarisasi (`p-2` s.d `p-6`, `m-2` s.d `m-6`, `gap-2` s.d `gap-6`, `space-y-4` s.d `space-y-6`). DILARANG HARDBOUND/ARBITRARY PIXEL SPACING seperti `m-[37px]`, `p-[19px]`, `gap-[13px]`, `mt-[42px]`, `px-[55px]`.
+2. **Compact & Proporsional Card Padding**: Card/Container utama wajib efisien (`p-4` atau `p-6` di desktop, `p-3` atau `p-4` di mobile). DILARANG OVERSIZED PADDING seperti `p-16`, `p-20`, `px-24` yang membuang area layar.
+3. **Konsistensi Gap & Layout Grid Alignment**: Jarak antarelemen di container flexbox/grid wajib menggunakan `gap-*` (misal `gap-4` / `gap-6`). Dilarang mencampur `gap` dengan inline margin manual (`mt-`, `mb-`, `ml-`, `mr-`) di elemen anak yang menyebabkan alur layout bergeser (*misalignment*).
+4. **Consistency Margin Outer Section**: Jarak antar section/card utama halaman wajib rapi dan konsisten dengan `space-y-4` / `space-y-6` atau `mb-4` / `mb-6`. Dilarang menggunakan margin negatif acak (`-mt-20`) tanpa kebutuhan overlay UI khusus.
+</RULE[spacing_standard_reviewer]>
+
