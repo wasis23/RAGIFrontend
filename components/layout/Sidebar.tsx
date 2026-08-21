@@ -362,7 +362,10 @@ export function Sidebar() {
             return menu.name.toLowerCase().includes(searchQuery.toLowerCase()) || filterMenuChildren(menu.children).length > 0;
           });
 
-          if (!loading && activeDynamicMenus.length === 0) {
+          // Sort menus by order_index from database
+          const sortedDynamicMenus = [...activeDynamicMenus].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+
+          if (!loading && sortedDynamicMenus.length === 0) {
             return null;
           }
 
@@ -377,7 +380,7 @@ export function Sidebar() {
               {loading ? (
                 <div className="sidebar-loading">Loading menus...</div>
               ) : (
-                activeDynamicMenus.map((menu) => {
+                sortedDynamicMenus.map((menu) => {
                   if (menu.url.startsWith('#')) {
                     const validChildren = filterMenuChildren(menu.children);
                     if (validChildren.length === 0) return null;
