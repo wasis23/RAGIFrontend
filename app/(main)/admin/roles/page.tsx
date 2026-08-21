@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Plus, Edit2, Trash2, ShieldAlert, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -11,20 +14,32 @@ import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
 import type { Role } from '@/types/auth.types';
 import type { PaginationMeta } from '@/types/api.types';
 
+const roleSchema = z.object({
+  name: z.string().min(1, 'Nama role wajib diisi').max(100, 'Nama role maksimal 100 karakter'),
+  slug: z
+    .string()
+    .min(1, 'Slug identifier wajib diisi')
+    .regex(/^[a-z0-9_]+$/, 'Slug hanya boleh berisi huruf kecil, angka, dan underscore (contoh: dosen_pembimbing)'),
+  description: z.string().optional(),
+});
+
+type RoleFormValues = z.infer<typeof roleSchema>;
+
 export default function AdminRolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Pagination & Filters State
   const [page, setPage] = useState<number>(1);
   const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
   const [filterLimit, setFilterLimit] = useState<string>('15');
-  
+
   const [showFilter, setShowFilter] = useState(false);
   const [filterName, setFilterName] = useState<string>('');
   const [filterOrderBy, setFilterOrderBy] = useState<string>('id');
@@ -33,18 +48,29 @@ export default function AdminRolesPage() {
   const [appliedFilters, setAppliedFilters] = useState({
     name: '',
     orderBy: 'id',
-    orderDir: 'desc'
+    orderDir: 'desc',
   });
 
   // Modal States
   const [showModal, setShowModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = useState<Role | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    description: '',
+  // React Hook Form + Zod Setup
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors },
+  } = useForm<RoleFormValues>({
+    resolver: zodResolver(roleSchema),
+    defaultValues: {
+      name: '',
+      slug: '',
+      description: '',
+    },
   });
 
   const fetchRoles = async () => {
@@ -68,7 +94,7 @@ export default function AdminRolesPage() {
           per_page: res.per_page,
           total: res.total,
           from: res.from,
-          to: res.to
+          to: res.to,
         };
       } else if (res && res.data && Array.isArray(res.data.items)) {
         roleList = res.data.items;
@@ -94,13 +120,13 @@ export default function AdminRolesPage() {
 
   const handleOpenCreate = () => {
     setEditingRole(null);
-    setFormData({ name: '', slug: '', description: '' });
+    reset({ name: '', slug: '', description: '' });
     setShowModal(true);
   };
 
   const handleOpenEdit = (role: Role) => {
     setEditingRole(role);
-    setFormData({
+    reset({
       name: role.name,
       slug: role.slug,
       description: role.description || '',
@@ -108,24 +134,21 @@ export default function AdminRolesPage() {
     setShowModal(true);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.slug) {
-      toast.error('Nama Role dan Slug wajib diisi.');
-      return;
-    }
-
+  const onSaveRole = async (values: RoleFormValues) => {
+    setIsSubmitting(true);
     try {
       if (editingRole) {
-        await adminService.updateRole(editingRole.id, formData);
+        await adminService.updateRole(editingRole.id, values);
         toast.success('Role berhasil diperbarui!');
       } else {
-        await adminService.createRole(formData);
+        await adminService.createRole(values);
         toast.success('Role baru berhasil ditambahkan!');
       }
       fetchRoles();
+      setShowModal(false);
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || 'Gagal menyimpan role. Periksa koneksi ke server.';
+      const errorMsg =
+        error.response?.data?.message || 'Gagal menyimpan role. Periksa koneksi ke server.';
       if (error.response?.status === 403) {
         toast.error('Anda tidak memiliki wewenang untuk aksi ini.');
       } else if (error.response?.status === 422) {
@@ -134,7 +157,7 @@ export default function AdminRolesPage() {
         toast.error(errorMsg);
       }
     } finally {
-      setShowModal(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -145,7 +168,8 @@ export default function AdminRolesPage() {
       toast.success(`Role ${deletingRole.name} berhasil dihapus.`);
       fetchRoles();
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || 'Gagal menghapus role. Periksa koneksi ke server.';
+      const errorMsg =
+        error.response?.data?.message || 'Gagal menghapus role. Periksa koneksi ke server.';
       if (error.response?.status === 403) {
         toast.error('Anda tidak memiliki wewenang untuk menghapus role ini.');
       } else {
@@ -157,44 +181,66 @@ export default function AdminRolesPage() {
   };
 
   const columns: ColumnDef<Role>[] = [
-    { key: 'id', label: 'No', render: (row, index) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + index : index + 1}</span> },
-    { key: 'name', label: 'Nama Role', render: (row) => (
-      <div className="flex items-center gap-2 font-bold">
-        <ShieldAlert size={16} color="var(--primary-600)" />
-        {row.name}
-      </div>
-    )},
-    { key: 'slug', label: 'Slug Identifier', render: (row) => (
-      <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold">
-        {row.slug}
-      </code>
-    )},
-    { key: 'description', label: 'Deskripsi Akses', render: (row) => (
-      <span className="text-sm text-slate-500">
-        {row.description || '-'}
-      </span>
-    )},
-    { key: 'created_at', label: 'Tanggal Dibuat', render: (row) => (
-      <span className="text-[0.8125rem] text-slate-400">
-        {formatDate(row.created_at)}
-      </span>
-    )},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Edit2 size={14} />}
-          onClick={() => handleOpenEdit(row)}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Trash2 size={14} color="var(--danger)" />}
-          onClick={() => setDeletingRole(row)}
-        />
-      </div>
-    )},
+    {
+      key: 'id',
+      label: 'No',
+      render: (row, index) => (
+        <span className="font-bold text-slate-400">{meta?.from ? meta.from + index : index + 1}</span>
+      ),
+    },
+    {
+      key: 'name',
+      label: 'Nama Role',
+      render: (row) => (
+        <div className="flex items-center gap-2 font-bold">
+          <ShieldAlert size={16} color="var(--primary-600)" />
+          {row.name}
+        </div>
+      ),
+    },
+    {
+      key: 'slug',
+      label: 'Slug Identifier',
+      render: (row) => (
+        <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold">{row.slug}</code>
+      ),
+    },
+    {
+      key: 'description',
+      label: 'Deskripsi Akses',
+      render: (row) => <span className="text-sm text-slate-500">{row.description || '-'}</span>,
+    },
+    {
+      key: 'created_at',
+      label: 'Tanggal Dibuat',
+      render: (row) => (
+        <span className="text-[0.8125rem] text-slate-400">{formatDate(row.created_at)}</span>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Edit Role',
+                icon: <Edit2 size={14} />,
+                onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Hapus Role',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => setDeletingRole(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -207,11 +253,7 @@ export default function AdminRolesPage() {
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
               Tambah Role Baru
             </Button>
-            <Button 
-              variant="outline" 
-              icon={<Filter size={16} />} 
-              onClick={() => setShowFilter(true)}
-            >
+            <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
             </Button>
           </div>
@@ -224,7 +266,10 @@ export default function AdminRolesPage() {
         isLoading={isLoading}
         meta={meta}
         onPageChange={(p) => setPage(p)}
-        onLimitChange={(l) => { setFilterLimit(l.toString()); setPage(1); }}
+        onLimitChange={(l) => {
+          setFilterLimit(l.toString());
+          setPage(1);
+        }}
       />
 
       {/* Filter Drawer */}
@@ -234,8 +279,8 @@ export default function AdminRolesPage() {
         title="Filter Role"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={() => {
                 setFilterName('');
                 setFilterOrderBy('id');
@@ -243,7 +288,7 @@ export default function AdminRolesPage() {
                 setAppliedFilters({
                   name: '',
                   orderBy: 'id',
-                  orderDir: 'desc'
+                  orderDir: 'desc',
                 });
                 setPage(1);
                 setShowFilter(false);
@@ -251,13 +296,13 @@ export default function AdminRolesPage() {
             >
               Reset
             </Button>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               onClick={() => {
                 setAppliedFilters({
                   name: filterName,
                   orderBy: filterOrderBy,
-                  orderDir: filterOrderDir
+                  orderDir: filterOrderDir,
                 });
                 setPage(1);
                 setShowFilter(false);
@@ -269,17 +314,15 @@ export default function AdminRolesPage() {
         }
       >
         <div className="flex flex-col gap-5">
-          <Input 
+          <Input
             label="Nama / Slug Role"
             placeholder="Ketik kata kunci..."
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
           />
-          
-          <hr className="border-t border-slate-200 my-2" />
 
           <div className="grid grid-cols-2 gap-4">
-            <Select 
+            <Select
               label="Urut Berdasarkan"
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
@@ -290,13 +333,13 @@ export default function AdminRolesPage() {
                 { value: 'created_at', label: 'Tanggal Dibuat' },
               ]}
             />
-            <Select 
+            <Select
               label="Arah"
               value={filterOrderDir}
               onChange={(val) => setFilterOrderDir(val)}
               options={[
                 { value: 'asc', label: 'A - Z (Naik)' },
-                { value: 'desc', label: 'Z - A (Turun)' }
+                { value: 'desc', label: 'Z - A (Turun)' },
               ]}
             />
           </div>
@@ -310,32 +353,38 @@ export default function AdminRolesPage() {
         title={editingRole ? 'Edit Role' : 'Tambah Role Baru'}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleSubmit(onSaveRole)} disabled={isSubmitting}>
               {editingRole ? 'Simpan' : 'Tambah'}
             </Button>
           </>
         }
       >
-        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSaveRole)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Nama Role"
             required
             placeholder="Contoh: Dosen Pembimbing"
-            value={formData.name}
+            {...register('name')}
             onChange={(e) => {
               const name = e.target.value;
-              const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-              setFormData({ ...formData, name, slug: editingRole ? formData.slug : slug });
+              setValue('name', name);
+              if (!editingRole) {
+                const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                setValue('slug', slug);
+              }
             }}
+            error={errors.name?.message}
           />
 
           <Input
             label="Slug Unique Identifier"
             required
             placeholder="contoh: dosen_pembimbing"
-            value={formData.slug}
-            onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+            {...register('slug')}
+            error={errors.slug?.message}
             hint="Format: lowercase dengan underscore"
           />
 
@@ -344,8 +393,8 @@ export default function AdminRolesPage() {
               label="Deskripsi"
               rows={3}
               placeholder="Deskripsi wewenang role..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              {...register('description')}
+              error={errors.description?.message}
             />
           </div>
         </form>
@@ -359,13 +408,18 @@ export default function AdminRolesPage() {
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeletingRole(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDelete}>Hapus</Button>
+            <Button variant="secondary" onClick={() => setDeletingRole(null)}>
+              Batal
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Hapus
+            </Button>
           </>
         }
       >
         <p className="text-slate-500">
-          Hapus role <strong>{deletingRole?.name}</strong>? Pengguna dengan role ini akan kehilangan wewenang terkait.
+          Hapus role <strong>{deletingRole?.name}</strong>? Pengguna dengan role ini akan kehilangan
+          wewenang terkait.
         </p>
       </Modal>
     </div>
