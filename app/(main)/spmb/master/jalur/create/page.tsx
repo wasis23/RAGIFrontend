@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { spmbService } from '@/services/spmb.service';
 import { Input } from '@/components/ui/Input';
-import AsyncSelect from '@/components/ui/AsyncSelect';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PageHeader } from '@/components/layout/PageHeader';
