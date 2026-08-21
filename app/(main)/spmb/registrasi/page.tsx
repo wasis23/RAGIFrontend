@@ -6,6 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
+
 import {
   MapPin,
   User,
@@ -39,6 +40,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectOption } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,8 +56,8 @@ const spmbRegistrasiSchema = z.object({
   gelombang_id: z.string().min(1, 'Gelombang Penerimaan wajib dipilih'),
   program_studi_id: z.string().min(1, 'Program Studi Utama wajib dipilih'),
   program_studi_pilihan2_id: z.string().optional(),
-  jenis_daftar: z.string().min(1, 'Jenis pendaftaran wajib dipilih'),
-  kelas: z.string().min(1, 'Kelas wajib dipilih'),
+  master_tipe_jalur_id: z.string().min(1, 'Jenis pendaftaran wajib dipilih'),
+  master_jalur_kelas_id: z.string().min(1, 'Kelas wajib dipilih'),
   info_daftar: z.string().min(1, 'Info pendaftaran wajib dipilih'),
   ket_info_daftar: z.string().min(1, 'Keterangan info pendaftaran wajib diisi'),
   
@@ -269,8 +271,8 @@ export default function RegistrasiSpmbPage() {
       jalur_id: '',
       gelombang_id: '',
       program_studi_id: '',
-      jenis_daftar: '',
-      kelas: '',
+      master_tipe_jalur_id: '',
+      master_jalur_kelas_id: '',
       info_daftar: '',
       ket_info_daftar: '',
       nama_lengkap: '',
@@ -319,6 +321,9 @@ export default function RegistrasiSpmbPage() {
   const [jalurOptions, setJalurOptions] = useState<SelectOption[]>([]);
   const [gelombangOptions, setGelombangOptions] = useState<SelectOption[]>([]);
   const [prodiOptions, setProdiOptions] = useState<SelectOption[]>([]);
+
+
+
   const [loading, setLoading] = useState(false);
   const [tarif, setTarif] = useState(0);
   const [loadingTarif, setLoadingTarif] = useState(false);
@@ -339,6 +344,7 @@ export default function RegistrasiSpmbPage() {
   useEffect(() => {
     setIsMounted(true);
     fetchJalur();
+
     fetchProdi();
     checkExistingRegistration();
     const currentModuleCode = window.location.pathname.split('/')[1] || '';
@@ -352,6 +358,39 @@ export default function RegistrasiSpmbPage() {
       }
     });
   }, []);
+
+
+  const createLoadOptions = (tipe: string) => async (inputValue: string) => {
+    try {
+      const res = await spmbService.getReferensi(tipe);
+      const data = res.data || [];
+      const mapped = data.map((r: any) => ({ value: String(r.kode), label: r.nama }));
+      if (inputValue) {
+        return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
+      }
+      return mapped;
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const loadTipeJalur = async (inputValue: string) => {
+    try {
+      const res = await spmbService.getMasterTipeJalur();
+      const mapped = (res.data || []).map((t: any) => ({ value: String(t.id), label: t.nama }));
+      if (inputValue) return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
+      return mapped;
+    } catch (e) { return []; }
+  };
+
+  const loadJalurKelas = async (inputValue: string) => {
+    try {
+      const res = await spmbService.getMasterJalurKelas();
+      const mapped = (res.data || []).map((k: any) => ({ value: String(k.id), label: k.nama }));
+      if (inputValue) return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
+      return mapped;
+    } catch (e) { return []; }
+  };
 
   const fetchProdi = async () => {
     try {
@@ -613,7 +652,7 @@ export default function RegistrasiSpmbPage() {
 
   const handleNextStep = async () => {
     let fieldsToValidate: string[] = [];
-    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id', 'jenis_daftar', 'kelas'];
+    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id', 'master_tipe_jalur_id', 'master_jalur_kelas_id'];
     else if (currentStep === 2) fieldsToValidate = ['nama_lengkap', 'nik', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'status_sipil'];
     else if (currentStep === 3) fieldsToValidate = ['no_hp', 'provinsi', 'kota_kabupaten', 'kecamatan', 'alamat'];
     else if (currentStep === 4) fieldsToValidate = ['asal_sekolah', 'alamat_sekolah', 'jurusan_sekolah', 'tahun_lulus'];
@@ -1126,40 +1165,35 @@ export default function RegistrasiSpmbPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Controller
-                  name="jenis_daftar"
+                  name="master_tipe_jalur_id"
                   control={control}
                   render={({ field }) => (
-                    <Select
+                    <AsyncSelect
                       label="Jenis Pendaftaran *"
-                      options={[
-                        { value: 'REGULER', label: 'Reguler' },
-                        { value: 'KARYAWAN', label: 'Karyawan' },
-                        { value: 'TRANSFER', label: 'Transfer' },
-                      ]}
-                      value={field.value}
-                      onChange={field.onChange}
                       placeholder="-- Pilih Jenis Pendaftaran --"
-                      error={errors.jenis_daftar?.message}
-                    />
+                      error={errors.master_tipe_jalur_id?.message}
+                    
+                      defaultOptions
+                      loadOptions={loadTipeJalur}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                   )}
                 />
                 <Controller
-                  name="kelas"
+                  name="master_jalur_kelas_id"
                   control={control}
                   render={({ field }) => (
-                    <Select
+                    <AsyncSelect
                       label="Kelas *"
-                      options={[
-                        { value: 'Pagi', label: 'Pagi' },
-                        { value: 'Khusus', label: 'Karyawan / Khusus' },
-                        { value: 'RPL', label: 'RPL / Transfer' },
-                        { value: 'Pindahan', label: 'Pindahan' },
-                      ]}
-                      value={field.value}
-                      onChange={field.onChange}
                       placeholder="-- Pilih Kelas --"
-                      error={errors.kelas?.message}
-                    />
+                      error={errors.master_jalur_kelas_id?.message}
+                    
+                      defaultOptions
+                      loadOptions={loadJalurKelas}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                   )}
                 />
               </div>
@@ -1246,39 +1280,31 @@ export default function RegistrasiSpmbPage() {
                   name="status_sipil"
                   control={control}
                   render={({ field }) => (
-                    <Select
+                    <AsyncSelect
                       label="Status Sipil *"
-                      options={[
-                        { value: 'Belum Kawin', label: 'Belum Kawin' },
-                        { value: 'Kawin', label: 'Kawin' },
-                        { value: 'Janda', label: 'Janda' },
-                        { value: 'Duda', label: 'Duda' },
-                      ]}
-                      value={field.value}
-                      onChange={field.onChange}
                       placeholder="-- Pilih Status Sipil --"
                       error={errors.status_sipil?.message}
-                    />
+                    
+                      defaultOptions
+                      loadOptions={createLoadOptions('status_sipil')}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                   )}
                 />
                 <Controller
                   name="agama"
                   control={control}
                   render={({ field }) => (
-                    <Select
+                    <AsyncSelect
                       label="Agama"
-                      options={[
-                        { value: 'Islam', label: 'Islam' },
-                        { value: 'Kristen', label: 'Kristen' },
-                        { value: 'Katolik', label: 'Katolik' },
-                        { value: 'Hindu', label: 'Hindu' },
-                        { value: 'Buddha', label: 'Buddha' },
-                        { value: 'Konghucu', label: 'Konghucu' },
-                      ]}
-                      value={field.value}
-                      onChange={field.onChange}
                       placeholder="-- Pilih Agama --"
-                    />
+                    
+                      defaultOptions
+                      loadOptions={createLoadOptions('agama')}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                   )}
                 />
               </div>
@@ -1363,17 +1389,16 @@ export default function RegistrasiSpmbPage() {
                   name="asal_lulusan"
                   control={control}
                   render={({ field }) => (
-                    <Select
+                    <AsyncSelect
                       label="Asal Lulusan *"
-                      options={[
-                        { value: 'sekolah', label: 'SMA/SMK/MA/Sederajat' },
-                        { value: 'pt', label: 'Perguruan Tinggi (Transfer)' },
-                      ]}
-                      value={field.value}
-                      onChange={field.onChange}
                       placeholder="-- Pilih Asal Lulusan --"
                       error={errors.asal_lulusan?.message}
-                    />
+                    
+                      defaultOptions
+                      loadOptions={createLoadOptions('asal_lulusan')}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                   )}
                 />
               </div>
@@ -1437,17 +1462,16 @@ export default function RegistrasiSpmbPage() {
                       name="jenis_pt"
                       control={control}
                       render={({ field }) => (
-                        <Select
+                        <AsyncSelect
                           label="Jenis Perguruan Tinggi *"
-                          options={[
-                            { value: 'non-komputer', label: 'Non Komputer' },
-                            { value: 'komputer', label: 'Komputer' },
-                          ]}
-                          value={field.value}
-                          onChange={field.onChange}
                           placeholder="-- Pilih Jenis PT --"
                           error={errors.jenis_pt?.message}
-                        />
+                        
+                      defaultOptions
+                      loadOptions={createLoadOptions('jenis_pt')}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                       )}
                     />
                   </div>
@@ -1465,18 +1489,16 @@ export default function RegistrasiSpmbPage() {
                       name="jenjang_pt"
                       control={control}
                       render={({ field }) => (
-                        <Select
+                        <AsyncSelect
                           label="Jenjang Program Studi *"
-                          options={[
-                            { value: 'D3', label: 'D3' },
-                            { value: 'S1', label: 'S1' },
-                            { value: 'S2', label: 'S2' },
-                          ]}
-                          value={field.value}
-                          onChange={field.onChange}
                           placeholder="-- Pilih Jenjang --"
                           error={errors.jenjang_pt?.message}
-                        />
+                        
+                      defaultOptions
+                      loadOptions={createLoadOptions('jenjang_pt')}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                       )}
                     />
                     <Input
@@ -1596,18 +1618,15 @@ export default function RegistrasiSpmbPage() {
                   name="penghasilan_ortu"
                   control={control}
                   render={({ field }) => (
-                    <Select
+                    <AsyncSelect
                       label="Rata-rata Penghasilan Orang Tua per Bulan"
-                      options={[
-                        { value: '< 1 Juta', label: 'Kurang dari Rp 1.000.000' },
-                        { value: '1 - 3 Juta', label: 'Rp 1.000.000 - Rp 3.000.000' },
-                        { value: '3 - 5 Juta', label: 'Rp 3.000.000 - Rp 5.000.000' },
-                        { value: '> 5 Juta', label: 'Lebih dari Rp 5.000.000' },
-                      ]}
-                      value={field.value}
-                      onChange={field.onChange}
                       placeholder="-- Pilih Range Penghasilan --"
-                    />
+                    
+                      defaultOptions
+                      loadOptions={createLoadOptions('penghasilan_ortu')}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                   )}
                 />
               </div>
@@ -1621,21 +1640,16 @@ export default function RegistrasiSpmbPage() {
                     name="info_daftar"
                     control={control}
                     render={({ field }) => (
-                      <Select
+                      <AsyncSelect
                         label="Info Pendaftaran *"
-                        options={[
-                          { value: 'Media Sosial / Website', label: 'Media Sosial / Website' },
-                          { value: 'Guru / Sekolah', label: 'Guru / Sekolah' },
-                          { value: 'Brosur / Spanduk', label: 'Brosur / Spanduk' },
-                          { value: 'Alumni / Teman', label: 'Alumni / Teman' },
-                          { value: 'Rekomendasi Dosen/Staff', label: 'Rekomendasi Dosen/Staff' },
-                          { value: 'Lainnya', label: 'Lainnya' },
-                        ]}
-                        value={field.value}
-                        onChange={field.onChange}
                         placeholder="-- Pilih Sumber Info --"
                         error={errors.info_daftar?.message}
-                      />
+                      
+                      defaultOptions
+                      loadOptions={createLoadOptions('info_daftar')}
+                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+        />
                     )}
                   />
                   <Input

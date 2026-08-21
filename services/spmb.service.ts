@@ -35,6 +35,10 @@ export interface PendaftaranCalonMhs {
   user_id: number;
   program_studi_id: number;
   program_studi_pilihan2_id?: number;
+  master_tipe_jalur_id?: number | string;
+  master_jalur_kelas_id?: number | string;
+  info_daftar?: string;
+  ket_info_daftar?: string;
   no_pendaftaran: string;
   nim?: string;
   nama_lengkap: string;
@@ -43,6 +47,7 @@ export interface PendaftaranCalonMhs {
   tempat_lahir: string;
   jenis_kelamin: 'L' | 'P';
   agama?: string;
+  status_sipil?: string;
   kewarganegaraan?: string;
   no_hp?: string;
   alamat?: string;
@@ -51,6 +56,7 @@ export interface PendaftaranCalonMhs {
   kecamatan?: string;
   kode_pos?: string;
   asal_sekolah?: string;
+  alamat_sekolah?: string;
   jurusan_sekolah?: string;
   nilai_rata_rapor?: number;
   tahun_lulus?: string;
@@ -60,6 +66,9 @@ export interface PendaftaranCalonMhs {
   nama_ibu?: string;
   pekerjaan_ibu?: string;
   penghasilan_ortu?: string;
+  nama_ortu?: string;
+  alamat_ortu?: string;
+  telp_ortu?: string;
   nama_wali?: string;
   telepon_wali?: string;
   status: 'draft' | 'submitted' | 'verified' | 'lulus_administrasi' | 'gagal_administrasi' | string;
@@ -261,6 +270,18 @@ export const spmbService = {
 
   deleteTipeUjian: async (id: number) => {
     const response = await api.delete(`/spmb/master/tipe-ujian/${id}`);
+    return response.data;
+  },
+  getMasterTipeJalur: async () => {
+    const response = await api.get("/master/tipe-jalur");
+    return response.data;
+  },
+  getMasterJalurKelas: async () => {
+    const response = await api.get("/master/jalur-kelas");
+    return response.data;
+  },
+  getReferensi: async (tipe: string) => {
+    const response = await api.get(`/master/referensi/${tipe}`);
     return response.data;
   },
 };
