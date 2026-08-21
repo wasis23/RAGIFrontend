@@ -65,6 +65,7 @@ Hardcode adalah suatu metode atau cara pengambilan data, pengiriman data, atau p
    - Form <= 5 inputs: Gunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
    - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali Oranye (`bg-orange-500 text-white`) di `PageHeader`.
    - Gunakan prop `label` pada `<Input>` / `<Select>` langsung di Drawer.
+9. **Wajib 3-Dots Action Dropdown Menu (<DropdownMenu />)**: Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />` dari `@/components/ui/DropdownMenu`). Dilarang keras menyejajarkan tombol aksi secara horizontal di sel tabel (*inefficient space*).
 </RULE[admin_crud_reviewer]>
 
 <RULE[form_validation_reviewer]>

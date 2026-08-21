@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
-import { StatusBadge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
 const moduleSchema = z.object({
   name: z.string().min(1, 'Nama modul wajib diisi').max(255, 'Nama modul maksimal 255 karakter'),
@@ -197,18 +197,21 @@ export default function AdminModulePage() {
       </button>
     )},
     { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Edit2 size={14} />}
-          onClick={() => openEditModal(row)}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Trash2 size={14} color="var(--danger)" />}
-          onClick={() => handleDelete(row.id, row.name)}
+      <div className="flex justify-end">
+        <DropdownMenu
+          items={[
+            {
+              label: 'Edit Modul',
+              icon: <Edit2 size={14} />,
+              onClick: () => openEditModal(row)
+            },
+            {
+              label: 'Hapus Modul',
+              icon: <Trash2 size={14} />,
+              variant: 'danger',
+              onClick: () => handleDelete(row.id, row.name)
+            }
+          ]}
         />
       </div>
     )},

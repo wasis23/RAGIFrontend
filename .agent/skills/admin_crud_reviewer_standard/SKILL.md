@@ -142,3 +142,39 @@ Semua halaman admin yang membutuhkan filter **WAJIB**:
 ## 8. Aturan Form Create/Update (Modal vs Halaman Terpisah)
 - **<= 5 Input (Gunakan Modal)**: Menggunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
 - **> 5 Input (Gunakan Halaman Terpisah)**: Membuat halaman terpisah (`/create`, `/[id]/edit`) dengan **Tombol Kembali Berwarna Oranye** (`bg-orange-500 text-white hover:bg-orange-600`) di header.
+
+---
+
+## 9. Aturan Aksi Tabel Wajib 3-Dots Action Dropdown Menu (`<DropdownMenu />`)
+- **Space-Efficient Action Menu**: Seluruh kolom Aksi pada tabel data (`DataTable`) **WAJIB** menggunakan menu titik 3 (`<DropdownMenu />` dari `@/components/ui/DropdownMenu`).
+- **DILARANG HARDBOUND INLINE ACTION BUTTONS**: Dilarang keras menyejajarkan tombol-tombol aksi (Edit, Hapus, Detail, Status, Reset) secara horizontal di dalam sel tabel, karena sangat membuang ruang layar (*inefficient space*) dan tidak estetis.
+- **Penggunaan Dropdown Menu yang Benar**:
+  ```tsx
+  import { DropdownMenu } from '@/components/ui/DropdownMenu';
+  import { Edit2, Trash2, Eye } from 'lucide-react';
+
+  { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
+    <div className="flex justify-end">
+      <DropdownMenu
+        items={[
+          {
+            label: 'Detail',
+            icon: <Eye size={14} />,
+            onClick: () => router.push(`/admin/module/${row.id}`)
+          },
+          {
+            label: 'Edit',
+            icon: <Edit2 size={14} />,
+            onClick: () => openEditModal(row)
+          },
+          {
+            label: 'Hapus',
+            icon: <Trash2 size={14} />,
+            variant: 'danger',
+            onClick: () => handleDelete(row.id, row.name)
+          }
+        ]}
+      />
+    </div>
+  )}
+  ```
