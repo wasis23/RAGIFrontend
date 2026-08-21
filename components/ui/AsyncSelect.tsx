@@ -16,10 +16,11 @@ interface AsyncSelectProps {
   defaultOptions?: boolean | any[];
   isClearable?: boolean;
   isDisabled?: boolean;
+  isMulti?: boolean;
 }
 
 export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
-  ({ label, error, hint, required, loadOptions, value, onChange, placeholder, className, id, defaultOptions = true, isClearable = false, isDisabled = false, ...props }, ref) => {
+  ({ label, error, hint, required, loadOptions, value, onChange, placeholder, className, id, defaultOptions = true, isClearable = false, isDisabled = false, isMulti = false, ...props }, ref) => {
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     const customStyles = {
@@ -73,6 +74,7 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
             onChange={onChange}
             isClearable={isClearable}
             isDisabled={isDisabled}
+            isMulti={isMulti}
             placeholder={placeholder || 'Cari...'}
             styles={customStyles}
             className={cn('react-select-container', className)}

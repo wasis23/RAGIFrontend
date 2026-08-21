@@ -102,8 +102,8 @@ export const adminService = {
   },
 
   // ── USER-ROLES MAPPING ────────────────────────────────────
-  getUserRoles: async (): Promise<ApiResponse<UserRole[]>> => {
-    const { data } = await apiClient.get<ApiResponse<UserRole[]>>('/admin/user-roles');
+  getUserRoles: async (params?: Record<string, any>): Promise<ApiResponse<UserRole[]>> => {
+    const { data } = await apiClient.get<ApiResponse<UserRole[]>>('/admin/user-roles', { params });
     return data;
   },
 
