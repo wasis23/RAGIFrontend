@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🤖 [Audit 3/7: Form & Input Validation Standard] Memeriksa staged changes..."
+echo "🤖 [Audit 3/4: Form & Input Validation Standard] Memeriksa staged changes..."
 
 # Cek apakah ada file form / input yang di-stage
 STAGED_DIFF=$(git diff --cached -- "app/(main)/**" "components/**")
@@ -12,7 +12,7 @@ fi
 
 PROMPT_FILE=$(mktemp)
 
-cat << 'EOF' > "$PROMPT_FILE"
+cat << EOF > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus Form Validation & Input Component Standard.
 Periksa Git Diff berikut HANYA terhadap Aturan Form & Input Validation:
 
@@ -30,19 +30,26 @@ Aturan Form & Validasi:
    - Error message wajib Bahasa Indonesia dan tampil di bawah field.
 
 Git Diff yang di-stage:
-EOF
+\`\`\`diff
+$STAGED_DIFF
+\`\`\`
 
-echo '```diff' >> "$PROMPT_FILE"
-echo "$STAGED_DIFF" >> "$PROMPT_FILE"
-echo '```' >> "$PROMPT_FILE"
-
-cat << 'EOF' >> "$PROMPT_FILE"
 Jawab HANYA salah satu:
 - PASSED jika kode bersih dan memenuhi Form Validation Standard.
 - REJECTED: [detail alasan pelanggaran] jika ditemukan pelanggaran Form Validation Standard.
 EOF
 
-RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+if command -v agy &> /dev/null; then
+    RESULT=$(agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+    AGY_EXIT_CODE=$?
+else
+    AGY_EXIT_CODE=127
+fi
+
+if [ $AGY_EXIT_CODE -ne 0 ]; then
+    echo "⚠️ [Fallback] agy gagal atau tidak ditemukan. Beralih ke opencode (9router/combo)..."
+    RESULT=$(opencode run -m 9router/combo "$(cat "$PROMPT_FILE")" 2>&1)
+fi
 rm -f "$PROMPT_FILE"
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
