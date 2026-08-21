@@ -423,7 +423,7 @@ export default function SiakadDashboardPage() {
     },
     {
       title: 'Jadwal & Ruang Kelas',
-      desc: 'Alokasi ruang SINAPRA dan dosen pengampu',
+      desc: 'Alokasi ruang SINAPRA dan dosen pengampu uyuy',
       icon: <CalendarCheck size={20} className="text-emerald-600" />,
       href: '/siakad/perkuliahan/kelas',
       badge: 'Perkuliahan',
