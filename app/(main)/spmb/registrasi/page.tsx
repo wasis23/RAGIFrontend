@@ -70,6 +70,7 @@ const spmbRegistrasiSchema = z.object({
   agama: z.string().optional(),
   kewarganegaraan: z.string().optional(),
   
+  no_hp: z.string().min(10, 'Nomor HP minimal 10 digit').regex(/^[0-9\-\+\s]+$/, 'Format nomor HP tidak valid'),
   provinsi: z.string().min(2, 'Provinsi domisili wajib diisi'),
   kota_kabupaten: z.string().min(2, 'Kota/Kabupaten wajib diisi'),
   kecamatan: z.string().min(2, 'Kecamatan wajib diisi'),
@@ -283,6 +284,7 @@ export default function RegistrasiSpmbPage() {
       status_sipil: '',
       agama: '',
       kewarganegaraan: 'WNI',
+      no_hp: '',
       provinsi: '',
       kota_kabupaten: '',
       kecamatan: '',
@@ -425,6 +427,7 @@ export default function RegistrasiSpmbPage() {
         if (p.jenis_kelamin) setValue('jenis_kelamin', p.jenis_kelamin);
         if (p.agama) setValue('agama', p.agama);
         if (p.kewarganegaraan) setValue('kewarganegaraan', p.kewarganegaraan);
+        if (p.no_hp) setValue('no_hp', p.no_hp);
         if (p.alamat) setValue('alamat', p.alamat);
         if (p.provinsi) setValue('provinsi', p.provinsi);
         if (p.kota_kabupaten) setValue('kota_kabupaten', p.kota_kabupaten);
@@ -526,6 +529,7 @@ export default function RegistrasiSpmbPage() {
       setValue('jenis_kelamin', p.jenis_kelamin || 'L');
       setValue('agama', p.agama || '');
       setValue('kewarganegaraan', p.kewarganegaraan || 'WNI');
+      setValue('no_hp', p.no_hp || '');
       setValue('alamat', p.alamat || '');
       setValue('provinsi', p.provinsi || '');
       setValue('kota_kabupaten', p.kota_kabupaten || '');
@@ -1330,6 +1334,16 @@ export default function RegistrasiSpmbPage() {
                   <h3 className="font-bold text-slate-900 text-base">Data Kontak &amp; Alamat Tinggal</h3>
                   <p className="text-xs text-slate-500">Nomor kontak aktif dan domisili tempat tinggal pendaftar saat ini.</p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Input
+                  label="No. Telepon / HP *"
+                  type="tel"
+                  placeholder="Contoh: 081234567890"
+                  error={errors.no_hp?.message}
+                  {...register('no_hp')}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
