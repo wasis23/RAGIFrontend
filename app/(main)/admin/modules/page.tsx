@@ -16,14 +16,15 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { StatusBadge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
 const moduleSchema = z.object({
   name: z.string().min(1, 'Nama modul wajib diisi').max(255, 'Nama modul maksimal 255 karakter'),
   code: z.string().min(1, 'Kode modul wajib diisi').max(50, 'Kode modul maksimal 50 karakter').regex(/^[a-z0-9-]+$/, 'Kode modul harus berupa huruf kecil, angka, atau tanda hubung'),
-  description: z.string().optional().nullable(),
-  primary_color: z.string().regex(/^#[a-fA-F0-9]{6}$/, 'Warna primary harus format hex contoh #3b82f6').optional().default('#3b82f6'),
-  is_active: z.boolean().default(true)
+  description: z.string().optional(),
+  primary_color: z.string().regex(/^#[a-fA-F0-9]{6}$/, 'Warna primary harus format hex contoh #3b82f6').optional(),
+  is_active: z.boolean()
 });
 
 type ModuleFormValues = z.infer<typeof moduleSchema>;
@@ -140,11 +141,18 @@ export default function AdminModulePage() {
   const onSubmitForm = async (values: ModuleFormValues) => {
     setIsSubmitting(true);
     try {
+      const payload = {
+        name: values.name,
+        code: values.code,
+        description: values.description || undefined,
+        primary_color: values.primary_color || '#3b82f6',
+        is_active: values.is_active ?? true
+      };
       if (modalMode === 'create') {
-        await moduleService.createModule(values);
+        await moduleService.createModule(payload);
         toast.success('Modul berhasil ditambahkan');
       } else if (editId) {
-        await moduleService.updateModule(editId, values as UpdateModulePayload);
+        await moduleService.updateModule(editId, payload as UpdateModulePayload);
         toast.success('Modul berhasil diperbarui');
       }
       setIsModalOpen(false);
