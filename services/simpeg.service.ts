@@ -221,9 +221,9 @@ export const simpegService = {
   },
 
   // Penilaian Kinerja BKD / SKP
-  getKinerjaList: async (pegawaiId?: number, tahun?: number): Promise<ApiResponse<PenilaianKinerja[]>> => {
+  getKinerjaList: async (params?: number | Record<string, any>): Promise<ApiResponse<PenilaianKinerja[]>> => {
     const { data } = await apiClient.get<ApiResponse<PenilaianKinerja[]>>('/simpeg/penilaian-kinerja', {
-      params: { pegawai_id: pegawaiId, tahun },
+      params: typeof params === 'number' ? { pegawai_id: params } : params,
     });
     return data;
   },

@@ -1,102 +1,167 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { TrendingUp, Plus, RefreshCw, Award, ShieldAlert } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { TrendingUp, Plus, Filter, ShieldAlert, Award, FileText } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { PenilaianKinerja, PredikatKinerja } from '@/types/simpeg.types';
-import toast from 'react-hot-toast';
+import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function KinerjaPage() {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.kinerja.evaluate') || hasPermission('simpeg.kinerja.manage');
-  const canRead = hasPermission('simpeg.kinerja.read');
-  const canCreate = hasPermission('simpeg.kinerja.create') || hasPermission('simpeg.kinerja.evaluate');
+  const router = useRouter();
+  const { hasPermission } = useAuth();
+  const canRead = hasPermission('simpeg.kinerja.read') || hasPermission('simpeg.kinerja.evaluate') || hasPermission('simpeg.kinerja.manage');
+  const canCreate = hasPermission('simpeg.kinerja.create') || hasPermission('simpeg.kinerja.evaluate') || hasPermission('simpeg.kinerja.manage');
 
   const [loading, setLoading] = useState(true);
   const [kinerjaList, setKinerjaList] = useState<PenilaianKinerja[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>();
 
-  // Modal Form Evaluasi Kinerja
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    pegawai_id: 1,
-    tahun: 2026,
-    semester: 'ganjil' as 'ganjil' | 'genap' | 'tahunan',
-    nilai_skp: 88.5,
-    nilai_bkd: 14.5,
-    predikat: 'sangat_baik' as PredikatKinerja,
-    catatan_evaluator: 'Memenuhi ekspektasi tridharma perguruan tinggi dengan sangat baik.',
-  });
+  // Filter Drawer & Pagination state
+  const [showFilter, setShowFilter] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterSemester, setFilterSemester] = useState('');
+  const [filterPredikat, setFilterPredikat] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('tahun');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
 
-  const loadKinerja = async () => {
+  const loadKinerja = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
     try {
-      if (!isAdmin) {
-        const resMe = await simpegService.getPegawaiMe();
-        if (resMe.data) {
-          const pegId = resMe.data.id;
-          setFormData(prev => ({ ...prev, pegawai_id: pegId }));
-          const res = await simpegService.getKinerjaList(pegId);
-          setKinerjaList(res.data || []);
-        }
+      const params: Record<string, any> = {
+        page,
+        limit,
+        search: search || undefined,
+        semester: filterSemester || undefined,
+        predikat: filterPredikat || undefined,
+        orderBy: filterOrderBy,
+        orderDir: filterOrderDir,
+      };
+
+      const res: any = await simpegService.getKinerjaList(params);
+      if (res?.data && Array.isArray(res.data)) {
+        setKinerjaList(res.data);
+        if (res.meta) setMeta(res.meta);
+      } else if (Array.isArray(res)) {
+        setKinerjaList(res);
       } else {
-        const res = await simpegService.getKinerjaList();
-        setKinerjaList(res.data || []);
+        setKinerjaList([]);
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat evaluasi kinerja');
+      setKinerjaList([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canRead, page, limit, search, filterSemester, filterPredikat, filterOrderBy, filterOrderDir]);
 
   useEffect(() => {
     loadKinerja();
-  }, [canRead]);
+  }, [loadKinerja]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canCreate) {
-      toast.error('Akses Ditolak: Anda tidak memiliki permission menginput evaluasi kinerja.');
-      return;
-    }
-
-    try {
-      await simpegService.createKinerja({
-        pegawai_id: formData.pegawai_id,
-        tahun: Number(formData.tahun),
-        semester: formData.semester,
-        nilai_skp: Number(formData.nilai_skp),
-        nilai_bkd: formData.nilai_bkd ? Number(formData.nilai_bkd) : null,
-        predikat: formData.predikat,
-        catatan_evaluator: formData.catatan_evaluator || null,
-      });
-      toast.success('Penilaian Kinerja SKP/BKD berhasil disimpan!');
-      setShowModal(false);
-      loadKinerja();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan penilaian kinerja');
+  const getPredikatBadge = (predikat: PredikatKinerja) => {
+    switch (predikat) {
+      case 'sangat_baik':
+        return <Badge variant="success" className="uppercase">Sangat Baik</Badge>;
+      case 'baik':
+        return <Badge variant="blue" className="uppercase">Baik</Badge>;
+      case 'cukup':
+        return <Badge variant="yellow" className="uppercase">Cukup</Badge>;
+      case 'kurang':
+        return <Badge variant="warning" className="uppercase">Kurang</Badge>;
+      case 'sangat_kurang':
+        return <Badge variant="danger" className="uppercase">Sangat Kurang</Badge>;
+      default:
+        return <Badge variant="gray" className="uppercase">{predikat}</Badge>;
     }
   };
 
+  const columns: ColumnDef<PenilaianKinerja>[] = [
+    {
+      key: 'tahun_semester',
+      label: 'Tahun / Semester',
+      render: (row) => (
+        <span className="font-bold">
+          {row.tahun} ({row.semester.toUpperCase()})
+        </span>
+      ),
+    },
+    {
+      key: 'pegawai',
+      label: 'Nama Pegawai',
+      render: (row) => (
+        <div>
+          <div className="font-bold">{row.pegawai?.nama_lengkap || `Pegawai ID ${row.pegawai_id}`}</div>
+          {row.pegawai?.nip && <div className="text-xs opacity-70">NIP: {row.pegawai.nip}</div>}
+        </div>
+      ),
+    },
+    {
+      key: 'nilai_skp',
+      label: 'Nilai SKP',
+      render: (row) => <span className="font-bold">{row.nilai_skp} / 100</span>,
+    },
+    {
+      key: 'nilai_bkd',
+      label: 'Nilai BKD Dosen',
+      render: (row) => (row.nilai_bkd ? `${row.nilai_bkd} SKS` : '-'),
+    },
+    {
+      key: 'predikat',
+      label: 'Predikat Kinerja',
+      render: (row) => getPredikatBadge(row.predikat),
+    },
+    {
+      key: 'evaluator',
+      label: 'Evaluator / Asesor',
+      render: (row) => row.evaluator?.username || 'Asesor SDM',
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        const menuItems: DropdownMenuItem[] = [
+          {
+            label: 'Cetak Laporan SKP/BKD',
+            icon: <FileText size={14} />,
+            onClick: () => toast.success(`Mencetak Rapor SKP ${row.pegawai?.nama_lengkap || row.id}...`),
+          },
+        ];
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu items={menuItems} />
+          </div>
+        );
+      },
+    },
+  ];
+
   if (!canRead) {
     return (
-      <div className="animate-fade-in flex flex-col gap-6">
+      <div className="animate-fade-in space-y-6">
         <PageHeader
           title="Penilaian Kinerja Pegawai (SKP & BKD)"
           description="Evaluasi Kinerja Tahunan SKP PNS/Non-PNS & Laporan Beban Kerja Dosen (BKD)"
         />
-        <div className="card p-12 text-center">
-          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2 text-red-700">
-            Akses Ditolak / Dibatasi
-          </h2>
-          <p className="text-slate-400 max-w-[500px] mx-auto">
+        <div className="card p-6 text-center">
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">Akses Ditolak / Dibatasi</h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
             Peran Anda saat ini tidak memiliki permission untuk melihat Penilaian Kinerja.
           </p>
         </div>
@@ -105,152 +170,123 @@ export default function KinerjaPage() {
   }
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Penilaian Kinerja Pegawai (SKP & BKD)"
         description="Evaluasi Kinerja Tahunan SKP PNS/Non-PNS & Laporan Beban Kerja Dosen (BKD)"
+        action={
+          <div className="flex gap-2">
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={() => router.push('/simpeg/kinerja/create')}>
+                Input Evaluasi Kinerja
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+          </div>
+        }
       />
 
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold">Laporan Kinerja SKP & BKD ({kinerjaList.length})</h3>
-        <div className="flex gap-3">
-          <button onClick={loadKinerja} className="btn btn-outline btn-sm">
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
-          </button>
-          {canCreate && (
-            <button onClick={() => setShowModal(true)} className="btn btn-primary btn-sm">
-              <Plus size={16} /> Input Evaluasi Kinerja
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="card p-5">
-        {loading ? (
-          <div className="p-8 text-center text-slate-400">Memuat evaluasi kinerja...</div>
-        ) : kinerjaList.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
+      {/* Main DataTable */}
+      <DataTable
+        columns={columns}
+        data={kinerjaList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        emptyMessage={
+          <div className="py-8 text-center opacity-70">
             <TrendingUp size={48} className="mx-auto mb-4 opacity-40" />
-            <p>Belum ada evaluasi kinerja tercatat.</p>
+            <p>Belum ada evaluasi kinerja tercatat yang sesuai filter.</p>
           </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Tahun / Semester</th>
-                  <th>Nama Pegawai</th>
-                  <th>Nilai SKP</th>
-                  <th>Nilai BKD Dosen</th>
-                  <th>Predikat Kinerja</th>
-                  <th>Evaluator / Asesor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {kinerjaList.map((k) => (
-                  <tr key={k.id}>
-                    <td className="font-bold">
-                      {k.tahun} ({k.semester.toUpperCase()})
-                    </td>
-                    <td className="font-bold">
-                      {k.pegawai?.nama_lengkap || `Pegawai ID ${k.pegawai_id}`}
-                    </td>
-                    <td className="font-bold text-primary-600">{k.nilai_skp} / 100</td>
-                    <td className="font-bold text-emerald-600">{k.nilai_bkd ? `${k.nilai_bkd} SKS` : '-'}</td>
-                    <td>
-                      <span className="badge badge-green uppercase">
-                        {k.predikat.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="text-[0.8125rem] text-slate-500">
-                      {k.evaluator?.username || 'Asesor SDM'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        }
+      />
 
-      {/* Modal Input Evaluasi */}
-      {canCreate && (
-        <Modal
-          open={showModal}
-          onClose={() => setShowModal(false)}
-          title="Input Evaluasi SKP / BKD Pegawai"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowModal(false)}>Batal</Button>
-              <Button variant="primary" onClick={handleSubmit}>Simpan Evaluasi</Button>
-            </>
-          }
-        >
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Tahun Evaluasi"
-                type="number"
-                value={formData.tahun}
-                onChange={(e) => setFormData({ ...formData, tahun: Number(e.target.value) })}
-                required
-              />
-              <div className="form-group">
-                <label className="form-label">Semester</label>
-                <select
-                  className="input"
-                  value={formData.semester}
-                  onChange={(e) => setFormData({ ...formData, semester: e.target.value as any })}
-                >
-                  <option value="ganjil">Ganjil</option>
-                  <option value="genap">Genap</option>
-                  <option value="tahunan">Tahunan</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Nilai SKP (Skala 0-100)"
-                type="number"
-                step="0.1"
-                value={formData.nilai_skp}
-                onChange={(e) => setFormData({ ...formData, nilai_skp: Number(e.target.value) })}
-                required
-              />
-              <Input
-                label="Nilai BKD Dosen (SKS)"
-                type="number"
-                step="0.1"
-                value={formData.nilai_bkd}
-                onChange={(e) => setFormData({ ...formData, nilai_bkd: Number(e.target.value) })}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Predikat Evaluasi Kinerja</label>
-              <select
-                className="input"
-                value={formData.predikat}
-                onChange={(e) => setFormData({ ...formData, predikat: e.target.value as PredikatKinerja })}
-              >
-                <option value="sangat_baik">Sangat Baik</option>
-                <option value="baik">Baik</option>
-                <option value="cukup">Cukup</option>
-                <option value="kurang">Kurang</option>
-                <option value="sangat_kurang">Sangat Kurang</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Catatan Evaluator / Asesor</label>
-              <textarea
-                className="input"
-                rows={3}
-                value={formData.catatan_evaluator}
-                onChange={(e) => setFormData({ ...formData, catatan_evaluator: e.target.value })}
-              />
-            </div>
-          </form>
-        </Modal>
-      )}
+      {/* Filter Drawer Slide Right-to-Left */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Evaluasi Kinerja"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Pencarian Nama / NIP / Evaluator"
+            placeholder="Cari nama pegawai..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <Select
+            label="Filter Semester"
+            value={filterSemester}
+            onChange={(val) => {
+              setFilterSemester(val);
+              setPage(1);
+            }}
+            options={[
+              { value: '', label: 'Semua Semester' },
+              { value: 'ganjil', label: 'Ganjil' },
+              { value: 'genap', label: 'Genap' },
+              { value: 'tahunan', label: 'Tahunan' },
+            ]}
+          />
+
+          <Select
+            label="Filter Predikat"
+            value={filterPredikat}
+            onChange={(val) => {
+              setFilterPredikat(val);
+              setPage(1);
+            }}
+            options={[
+              { value: '', label: 'Semua Predikat' },
+              { value: 'sangat_baik', label: 'Sangat Baik' },
+              { value: 'baik', label: 'Baik' },
+              { value: 'cukup', label: 'Cukup' },
+              { value: 'kurang', label: 'Kurang' },
+              { value: 'sangat_kurang', label: 'Sangat Kurang' },
+            ]}
+          />
+
+          <hr className="my-2" />
+
+          {/* Grid 2 Kolom Sorting */}
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'tahun', label: 'Tahun' },
+                { value: 'nilai_skp', label: 'Nilai SKP' },
+                { value: 'id', label: 'ID' },
+              ]}
+            />
+
+            <Select
+              label="Arah Pengurutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'desc', label: 'Mundur (DESC)' },
+                { value: 'asc', label: 'Maju (ASC)' },
+              ]}
+            />
+          </div>
+        </div>
+      </Drawer>
     </div>
   );
 }
