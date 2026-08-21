@@ -154,7 +154,6 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
 const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [
   { id: 801, parent_id: null, name: 'Dashboard SPMB', url: '/spmb/dashboard', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
   { id: 802, parent_id: null, name: 'Formulir Registrasi', url: '/spmb/registrasi', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
-  { id: 803, parent_id: null, name: 'Kartu & Jadwal Ujian', url: '/spmb/ujian', icon: 'FaFileAlt', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
   { id: 804, parent_id: null, name: 'Hasil Seleksi', url: '/spmb/seleksi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
 ];
 
