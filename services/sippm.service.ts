@@ -57,8 +57,8 @@ export const sippmService = {
     return data;
   },
 
-  indexPeriode: async (): Promise<ApiResponse<PeriodeHibah[]>> => {
-    const { data } = await apiClient.get<ApiResponse<PeriodeHibah[]>>('/sippm/periode');
+  indexPeriode: async (params?: Record<string, any>): Promise<ApiResponse<PeriodeHibah[]>> => {
+    const { data } = await apiClient.get<ApiResponse<PeriodeHibah[]>>('/sippm/periode', { params });
     return data;
   },
 

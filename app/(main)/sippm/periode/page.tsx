@@ -1,12 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Plus, Filter, Calendar, Clock, ShieldAlert, Edit, Trash2, FileText } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Calendar, Plus, Search, CheckCircle2, XCircle, Clock, DollarSign } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Drawer } from '@/components/ui/Drawer';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { sippmService } from '@/services/sippm.service';
 import type { PeriodeHibah } from '@/types/sippm.types';
+import type { PaginationMeta } from '@/types/api.types';
+import { useAuth } from '@/hooks/useAuth';
 
 const periodeSchema = z.object({
   tahun_anggaran: z.string().min(4, 'Tahun anggaran wajib diisi'),
@@ -19,12 +31,27 @@ const periodeSchema = z.object({
 type PeriodeFormValues = z.infer<typeof periodeSchema>;
 
 export default function MasterPeriodePage() {
-  const [periodeList, setPeriodeList] = useState<PeriodeHibah[]>([]);
+  const { hasPermission } = useAuth();
+  const canRead = hasPermission('sippm.periode.read') || hasPermission('sippm.periode.manage');
+  const canCreate = hasPermission('sippm.periode.create') || hasPermission('sippm.periode.manage');
+
   const [loading, setLoading] = useState(true);
+  const [periodeList, setPeriodeList] = useState<PeriodeHibah[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>();
+
+  // Filter Drawer & Pagination state
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('created_at');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<PeriodeHibah | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const {
     register,
@@ -32,7 +59,7 @@ export default function MasterPeriodePage() {
     reset,
     formState: { errors },
   } = useForm<PeriodeFormValues>({
-    resolver: zodResolver(periodeSchema) as any,
+    resolver: zodResolver(periodeSchema),
     defaultValues: {
       tahun_anggaran: '2026/2027',
       nama_periode: 'Periode Hibah Internal 2026',
@@ -42,201 +69,366 @@ export default function MasterPeriodePage() {
     },
   });
 
-  const fetchPeriode = async () => {
+  const fetchPeriode = useCallback(async () => {
+    if (!canRead) return;
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await sippmService.indexPeriode();
-      const list = Array.isArray(res.data)
-        ? res.data
-        : (res?.data as any)?.items || (res?.data as any)?.data || [];
-      setPeriodeList(list);
-    } catch (err) {
-      console.error('Failed to fetch periode', err);
+      const params: Record<string, any> = {
+        page,
+        limit,
+        search: search || undefined,
+        status: filterStatus || undefined,
+        orderBy: filterOrderBy,
+        orderDir: filterOrderDir,
+      };
+
+      const res: any = await sippmService.indexPeriode(params);
+      if (res?.data) {
+        const dataItems = Array.isArray(res.data.data)
+          ? res.data.data
+          : Array.isArray(res.data)
+          ? res.data
+          : (res.data as any)?.items || [];
+        setPeriodeList(dataItems);
+        if (res.data.meta) setMeta(res.data.meta);
+        else if (res.meta) setMeta(res.meta);
+      } else if (Array.isArray(res)) {
+        setPeriodeList(res);
+      } else {
+        setPeriodeList([]);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal memuat periode hibah');
       setPeriodeList([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canRead, page, limit, search, filterStatus, filterOrderBy, filterOrderDir]);
 
   useEffect(() => {
     fetchPeriode();
-  }, []);
+  }, [fetchPeriode]);
+
+  const handleOpenCreateModal = () => {
+    setEditingItem(null);
+    reset({
+      tahun_anggaran: '2026/2027',
+      nama_periode: 'Periode Hibah Internal 2026',
+      tgl_buka: '2026-08-01',
+      tgl_tutup: '2026-09-30',
+      total_anggaran: 500000000,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (item: PeriodeHibah) => {
+    setEditingItem(item);
+    reset({
+      tahun_anggaran: item.tahun_anggaran,
+      nama_periode: item.nama_periode,
+      tgl_buka: item.tgl_buka,
+      tgl_tutup: item.tgl_tutup,
+      total_anggaran: item.total_anggaran,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus periode hibah ini?')) return;
+    try {
+      await sippmService.destroyPeriode(id);
+      toast.success('Periode hibah berhasil dihapus');
+      fetchPeriode();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus periode hibah');
+    }
+  };
 
   const onSubmit = async (data: PeriodeFormValues) => {
+    if (!canCreate) {
+      toast.error('Akses Ditolak: Anda tidak memiliki permission mengelola periode.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      setFeedback(null);
-      await sippmService.storePeriode({
-        ...data,
-        tgl_tutup_review: data.tgl_tutup,
-      });
-      setFeedback({ type: 'success', message: 'Periode hibah baru berhasil ditambahkan' });
+      if (editingItem) {
+        await sippmService.updatePeriode(editingItem.id, {
+          ...data,
+          tgl_tutup_review: data.tgl_tutup,
+        });
+        toast.success('Periode hibah berhasil diperbarui');
+      } else {
+        await sippmService.storePeriode({
+          ...data,
+          tgl_tutup_review: data.tgl_tutup,
+        });
+        toast.success('Periode hibah baru berhasil ditambahkan');
+      }
       setIsModalOpen(false);
       reset();
       fetchPeriode();
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.response?.data?.message || 'Gagal menyimpan periode' });
+      toast.error(err.response?.data?.message || 'Gagal menyimpan periode hibah');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const safeList = Array.isArray(periodeList) ? periodeList : [];
-  const filteredList = safeList.filter(
-    (item) =>
-      (item.nama_periode || '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.tahun_anggaran || '').toLowerCase().includes(search.toLowerCase())
-  );
-
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-sippm">Master Data SIPPM</span>
+  const columns: ColumnDef<PeriodeHibah>[] = [
+    {
+      key: 'tahun_anggaran',
+      label: 'Tahun Anggaran',
+      render: (row) => <span className="font-mono text-xs font-bold">{row.tahun_anggaran}</span>,
+    },
+    {
+      key: 'nama_periode',
+      label: 'Nama Periode',
+      render: (row) => <span className="font-bold">{row.nama_periode}</span>,
+    },
+    {
+      key: 'tgl_buka',
+      label: 'Jadwal Pendaftaran',
+      render: (row) => (
+        <div className="flex items-center gap-1 text-xs">
+          <Clock size={14} className="opacity-60" />
+          <span>{row.tgl_buka} s.d {row.tgl_tutup}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'total_anggaran',
+      label: 'Total Anggaran',
+      render: (row) => <span className="font-bold">{formatRupiah(row.total_anggaran)}</span>,
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (row) => (
+        <Badge variant={row.is_active ? 'success' : 'gray'}>
+          {row.is_active ? 'Aktif' : 'Tutup'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        const menuItems: DropdownMenuItem[] = [
+          {
+            label: 'Edit Periode',
+            icon: <Edit size={14} />,
+            onClick: () => handleOpenEditModal(row),
+          },
+          {
+            label: 'Hapus Periode',
+            icon: <Trash2 size={14} />,
+            variant: 'danger',
+            onClick: () => handleDelete(row.id),
+          },
+        ];
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu items={menuItems} />
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Master Periode Hibah</h1>
-          <p className="text-slate-500 text-sm">Pengaturan jadwal pendaftaran hibah riset & alokasi pagu anggaran tahunan.</p>
+        );
+      },
+    },
+  ];
+
+  if (!canRead) {
+    return (
+      <div className="animate-fade-in space-y-6">
+        <PageHeader
+          title="Master Periode Hibah"
+          description="Pengaturan jadwal pendaftaran hibah riset & alokasi pagu anggaran tahunan"
+        />
+        <div className="card p-6 text-center">
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">Akses Ditolak / Dibatasi</h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
+            Peran Anda saat ini tidak memiliki permission untuk melihat Master Periode Hibah.
+          </p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none shadow-sm">
-          <Plus size={18} /> Buat Periode Baru
-        </button>
       </div>
+    );
+  }
 
-      {feedback && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
+  return (
+    <div className="animate-fade-in space-y-6">
+      <PageHeader
+        title="Master Periode Hibah"
+        description="Pengaturan jadwal pendaftaran hibah riset & alokasi pagu anggaran tahunan"
+        action={
+          <div className="flex gap-2">
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+                Buat Periode Baru
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Filter Card */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="input-wrapper w-full md:w-80">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari periode / tahun..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+      {/* Main DataTable */}
+      <DataTable
+        columns={columns}
+        data={periodeList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        emptyMessage={
+          <div className="py-8 text-center opacity-70">
+            <Calendar size={48} className="mx-auto mb-4 opacity-40" />
+            <p>Belum ada periode hibah terdaftar.</p>
+          </div>
+        }
+      />
+
+      {/* Filter Drawer Slide Right-to-Left */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Periode Hibah"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Pencarian Nama / Tahun"
+            placeholder="Cari periode..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <Select
+            label="Filter Status"
+            value={filterStatus}
+            onChange={(val) => {
+              setFilterStatus(val);
+              setPage(1);
+            }}
+            options={[
+              { value: '', label: 'Semua Status' },
+              { value: 'active', label: 'Aktif' },
+              { value: 'closed', label: 'Tutup' },
+            ]}
+          />
+
+          <hr className="my-2" />
+
+          {/* Grid 2 Kolom Sorting */}
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'tahun_anggaran', label: 'Tahun Anggaran' },
+                { value: 'total_anggaran', label: 'Total Anggaran' },
+                { value: 'nama_periode', label: 'Nama Periode' },
+              ]}
+            />
+
+            <Select
+              label="Arah Pengurutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'desc', label: 'Mundur (DESC)' },
+                { value: 'asc', label: 'Maju (ASC)' },
+              ]}
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Total {filteredList.length} Periode Hibah
-          </div>
         </div>
-      </div>
-
-      {/* Table */}
-      <div className="table-container bg-white">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Tahun</th>
-              <th>Nama Periode</th>
-              <th>Jadwal Pendaftaran</th>
-              <th>Total Anggaran</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-slate-400">Memuat periode hibah...</td>
-              </tr>
-            ) : filteredList.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-8 text-slate-400">Belum ada periode hibah terdaftar.</td>
-              </tr>
-            ) : (
-              filteredList.map((item) => (
-                <tr key={item.id}>
-                  <td className="font-mono text-xs font-bold text-primary-700">{item.tahun_anggaran}</td>
-                  <td className="font-bold text-slate-800">{item.nama_periode}</td>
-                  <td className="text-slate-600 text-xs">
-                    <div className="flex items-center gap-1 font-medium text-slate-700">
-                      <Clock size={14} className="text-primary-600" />
-                      {item.tgl_buka} s.d {item.tgl_tutup}
-                    </div>
-                  </td>
-                  <td className="font-bold text-primary-700">{formatRupiah(item.total_anggaran)}</td>
-                  <td>
-                    <span className={`badge ${item.is_active ? 'badge-green badge-dot' : 'badge-gray'}`}>
-                      {item.is_active ? 'Aktif' : 'Tutup'}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      </Drawer>
 
       {/* Modal Form <= 5 inputs (Grid 2 Kolom) */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg modal-body">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <Calendar className="text-primary-600" size={20} /> Buat Periode Hibah Baru
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
-            </div>
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingItem ? 'Edit Periode Hibah' : 'Buat Periode Hibah Baru'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleSubmit(onSubmit)}
+              loading={submitting}
+              disabled={submitting}
+            >
+              {editingItem ? 'Simpan Perubahan' : 'Simpan Periode'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Tahun Anggaran"
+              required
+              placeholder="2026/2027"
+              error={errors.tahun_anggaran?.message}
+              {...register('tahun_anggaran')}
+            />
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Tahun Anggaran <span className="required">*</span></label>
-                  <input type="text" className={`input ${errors.tahun_anggaran ? 'error' : ''}`} placeholder="2026/2027" {...register('tahun_anggaran')} />
-                  {errors.tahun_anggaran && <span className="form-error">{errors.tahun_anggaran.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Total Pagu Anggaran (Rp) <span className="required">*</span></label>
-                  <input type="number" className={`input ${errors.total_anggaran ? 'error' : ''}`} placeholder="500000000" {...register('total_anggaran')} />
-                  {errors.total_anggaran && <span className="form-error">{errors.total_anggaran.message}</span>}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Nama Periode Hibah <span className="required">*</span></label>
-                <input type="text" className={`input ${errors.nama_periode ? 'error' : ''}`} placeholder="Misal: Hibah Internal Periode II 2026" {...register('nama_periode')} />
-                {errors.nama_periode && <span className="form-error">{errors.nama_periode.message}</span>}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Tanggal Buka Pendaftaran <span className="required">*</span></label>
-                  <input type="date" className={`input ${errors.tgl_buka ? 'error' : ''}`} {...register('tgl_buka')} />
-                  {errors.tgl_buka && <span className="form-error">{errors.tgl_buka.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Tanggal Tutup Pendaftaran <span className="required">*</span></label>
-                  <input type="date" className={`input ${errors.tgl_tutup ? 'error' : ''}`} {...register('tgl_tutup')} />
-                  {errors.tgl_tutup && <span className="form-error">{errors.tgl_tutup.message}</span>}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
-                  Batal
-                </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none">
-                  {submitting ? 'Menyimpan...' : 'Simpan Periode'}
-                </button>
-              </div>
-            </form>
+            <Input
+              label="Total Pagu Anggaran (Rp)"
+              type="number"
+              required
+              placeholder="500000000"
+              error={errors.total_anggaran?.message}
+              {...register('total_anggaran', { valueAsNumber: true })}
+            />
           </div>
-        </div>
-      )}
+
+          <Input
+            label="Nama Periode Hibah"
+            required
+            placeholder="Misal: Hibah Internal Periode II 2026"
+            error={errors.nama_periode?.message}
+            {...register('nama_periode')}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Tanggal Buka Pendaftaran"
+              type="date"
+              required
+              error={errors.tgl_buka?.message}
+              {...register('tgl_buka')}
+            />
+
+            <Input
+              label="Tanggal Tutup Pendaftaran"
+              type="date"
+              required
+              error={errors.tgl_tutup?.message}
+              {...register('tgl_tutup')}
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
