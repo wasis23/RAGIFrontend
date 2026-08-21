@@ -3680,17 +3680,19 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     visibility: hidden !important;
   }
 
-  /* 2. Tampilkan HANYA elemen yang memiliki class .printable-document beserta anak-anaknya */
+  /* 2. Tampilkan HANYA elemen yang memiliki class .printable-document atau .print-document beserta anak-anaknya */
   .printable-document,
-  .printable-document * {
+  .printable-document *,
+  .print-document,
+  .print-document * {
     visibility: visible !important;
   }
 
-  /* 3. Letakkan dokumen cetak tepat di posisi (0,0) lembar kertas */
-  .printable-document {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
+  /* 3. Letakkan dokumen cetak di aliran dokumen normal */
+  .printable-document,
+  .print-document {
+    position: relative !important;
+    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
@@ -3699,7 +3701,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     color: #000000 !important;
     border: none !important;
     box-shadow: none !important;
-    z-index: 999999 !important;
   }
 
   /* 4. Sembunyikan tombol, banner, header, navbar, sidebar secara fisik */

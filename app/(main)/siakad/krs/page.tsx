@@ -26,6 +26,11 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
@@ -37,6 +42,7 @@ export default function KrsMahasiswaPage() {
   const [approvingId, setApprovingId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
   const [selectedKrs, setSelectedKrs] = useState<any | null>(null);
 
   // Multi-period state
@@ -268,116 +274,242 @@ export default function KrsMahasiswaPage() {
   const isTransferStudent = Boolean(mhs?.konversi_transfer);
   const selectedTaObj = tahunAkademiks.find((t) => t.id === selectedTaId);
 
+  const columns: ColumnDef<any>[] = [
+    {
+      key: 'select',
+      label: '',
+      align: 'center',
+      headerRender: () => (
+        <input
+          type="checkbox"
+          onChange={handleSelectAll}
+          checked={
+            selectedKrsIds.length > 0 &&
+            selectedKrsIds.length === krsList.filter((k) => k.status !== 'disetujui' && !k.locked_by_keuangan).length
+          }
+          className="rounded border-slate-300 text-primary-600 focus:ring-0 cursor-pointer"
+        />
+      ),
+      render: (row) => {
+        const isSelected = selectedKrsIds.includes(row.id);
+        const canSelect = row.status !== 'disetujui' && !row.locked_by_keuangan;
+        return (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            disabled={!canSelect}
+            onChange={() => handleToggleSelect(row.id)}
+            className="rounded border-slate-300 text-primary-600 focus:ring-0 cursor-pointer disabled:opacity-40"
+          />
+        );
+      },
+    },
+    {
+      key: 'mahasiswa',
+      label: 'NIM & MAHASISWA',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 block">{row.mahasiswa?.nama_lengkap}</span>
+          <span className="font-mono text-2xs text-slate-400">{row.mahasiswa?.nim}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI / ANGKATAN',
+      render: (row) => (
+        <div>
+          <span className="font-semibold text-slate-800">{row.mahasiswa?.program_studi?.nama || '-'}</span>
+          <span className="text-2xs text-slate-400 block font-mono">Angkatan {row.mahasiswa?.angkatan || 2023}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'dosen_wali',
+      label: 'DOSEN WALI',
+      render: (row) => (
+        <span className="text-slate-700 text-xs">{row.mahasiswa?.dosen_wali?.nama_lengkap || '-'}</span>
+      ),
+    },
+    {
+      key: 'total_sks',
+      label: 'TOTAL SKS',
+      align: 'center',
+      render: (row) => (
+        <span className="font-black tabular-nums text-slate-900 text-sm">
+          {row.total_sks_diambil} SKS
+        </span>
+      ),
+    },
+    {
+      key: 'status_keuangan',
+      label: 'STATUS KEUANGAN',
+      render: (row) =>
+        row.locked_by_keuangan ? (
+          <Badge variant="red" className="inline-flex items-center gap-1">
+            <Lock size={11} /> Belum Lunas SPP
+          </Badge>
+        ) : (
+          <Badge variant="green" className="inline-flex items-center gap-1">
+            <CheckCircle2 size={11} /> Lunas SPP (SIKEU)
+          </Badge>
+        ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS KRS',
+      render: (row) => {
+        const variant =
+          row.status === 'disetujui'
+            ? 'green'
+            : row.status === 'diajukan'
+            ? 'amber'
+            : 'gray';
+        return <Badge variant={variant as any}>{row.status?.toUpperCase()}</Badge>;
+      },
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => {
+        const items: DropdownMenuItem[] = [
+          {
+            label: 'Detail Rencana Studi',
+            icon: <Eye size={14} />,
+            onClick: () => {
+              setSelectedKrs(row);
+            },
+          },
+        ];
+
+        if (row.status !== 'disetujui' && !row.locked_by_keuangan) {
+          items.push({
+            label: 'Setujui KRS',
+            icon: <CheckCircle2 size={14} />,
+            onClick: () => {
+              handleApprove(row.id);
+            },
+          });
+        }
+
+        return <DropdownMenu items={items} />;
+      },
+    },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Konten Halaman Utama (disembunyikan saat mencetak) */}
       <div className="space-y-6 print:hidden">
-        {/* Header & Periode Filter Toolbar di Kanan */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="badge badge-purple text-2xs font-extrabold uppercase tracking-wider">
-                Sistem Akademik (SIAKAD)
-              </span>
-              {isMahasiswa && activeKrs && (
-                <span className={`badge text-2xs font-black uppercase ${
-                  activeKrs.status === 'disetujui' ? 'badge-green' : activeKrs.status === 'diajukan' ? 'badge-yellow' : 'badge-slate'
-                }`}>
-                  Status KRS: {activeKrs.status}
-                </span>
-              )}
-            </div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight mt-1.5">
-              {isMahasiswa
-                ? 'Kartu Rencana Studi (KRS) Mahasiswa'
-                : isDosen
-                ? 'Bimbingan Akademik & Approval KRS'
-                : 'Manajemen KRS Mahasiswa Universitas'}
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {isMahasiswa
-                ? 'Pilih mata kuliah semester, sesuaikan beban SKS, dan ajukan persetujuan ke Dosen Pembimbing Akademik.'
-                : 'Persetujuan rencana studi semester mahasiswa bimbingan wali.'}
-            </p>
-          </div>
-
-          {/* Filter Periode Akademik & Action Buttons di Sisi Kanan */}
-          <div className="flex items-center gap-2.5 flex-wrap justify-start md:justify-end">
-            {/* Dropdown Periode Akademik */}
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl">
-              <Calendar size={15} className="text-primary-600 shrink-0" />
-              <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Periode:</span>
-              <select
-                value={selectedTaId || ''}
-                onChange={(e) => setSelectedTaId(Number(e.target.value))}
-                className="text-xs font-extrabold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
-              >
-                {tahunAkademiks.map((ta) => (
-                  <option key={ta.id} value={ta.id}>
-                    {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Admin Kelola / Aktifkan Periode Button */}
-            {isAdmin && (
-              <Button
-                variant="outline"
-                icon={<Settings size={14} className="text-slate-700" />}
-                className="font-bold text-xs py-2 px-3 h-auto border-slate-300 hover:bg-slate-50 text-slate-800"
-                onClick={() => setIsManagePeriodModalOpen(true)}
-                title="Kelola & Aktifkan Periode Semester"
-              >
-                Kelola Periode
-              </Button>
-            )}
-
-            {/* Mahasiswa Action Buttons */}
-            {isMahasiswa && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="primary"
-                  icon={<Plus size={15} />}
-                  className="font-bold min-h-[38px] text-xs shadow-xs"
-                  onClick={openClassPicker}
+        <PageHeader
+          title={
+            isMahasiswa
+              ? 'Kartu Rencana Studi (KRS) Mahasiswa'
+              : isDosen
+              ? 'Bimbingan Akademik & Approval KRS'
+              : 'Manajemen KRS Mahasiswa Universitas'
+          }
+          description={
+            isMahasiswa
+              ? 'Pilih mata kuliah semester, sesuaikan beban SKS, dan ajukan persetujuan ke Dosen Pembimbing Akademik.'
+              : 'Persetujuan rencana studi semester mahasiswa bimbingan wali.'
+          }
+          breadcrumbs={[
+            { label: 'Portal SSO', href: '/dashboard' },
+            { label: 'SIAKAD', href: '/siakad' },
+            { label: 'Rencana Studi (KRS)' },
+          ]}
+          action={
+            <div className="flex items-center gap-2.5 flex-wrap justify-start md:justify-end">
+              {/* Dropdown Periode Akademik */}
+              <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
+                <Calendar size={14} className="text-primary-600 shrink-0" />
+                <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Periode:</span>
+                <select
+                  value={selectedTaId || ''}
+                  onChange={(e) => setSelectedTaId(Number(e.target.value))}
+                  className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
                 >
-                  Ambil Mata Kuliah
-                </Button>
+                  {tahunAkademiks.map((ta) => (
+                    <option key={ta.id} value={ta.id}>
+                      {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                {activeKrs?.status === 'draft' ? (
-                  <Button
-                    variant="outline"
-                    icon={<Send size={14} className="text-primary-600" />}
-                    className="font-bold min-h-[38px] text-xs"
-                    onClick={handleSubmitKrs}
-                    disabled={submittingKrs || activeKrs?.total_sks_diambil === 0 || activeKrs?.locked_by_keuangan}
-                  >
-                    {submittingKrs ? 'Mengajukan...' : 'Ajukan ke Dosen Wali'}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="font-bold min-h-[38px] text-xs text-amber-700 hover:bg-amber-50 border-amber-300"
-                    onClick={handleReopenKrs}
-                  >
-                    Revisi / Ubah Rencana Studi
-                  </Button>
-                )}
-
+              {/* Filter Button for Admin & Dosen */}
+              {!isMahasiswa && (
                 <Button
                   variant="outline"
-                  icon={<Printer size={15} />}
+                  icon={<Filter size={15} />}
                   className="font-bold min-h-[38px] text-xs"
-                  onClick={() => setIsPrintModalOpen(true)}
-                  disabled={!activeKrs || activeKrs.krs_details?.length === 0}
+                  onClick={() => setShowFilter(true)}
                 >
-                  Cetak KRS
+                  Filter
                 </Button>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+
+              {/* Admin Kelola / Aktifkan Periode Button */}
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  icon={<Settings size={14} className="text-slate-700" />}
+                  className="font-bold text-xs py-2 px-3 h-auto border-slate-300 hover:bg-slate-50 text-slate-800"
+                  onClick={() => setIsManagePeriodModalOpen(true)}
+                  title="Kelola & Aktifkan Periode Semester"
+                >
+                  Kelola Periode
+                </Button>
+              )}
+
+              {/* Mahasiswa Action Buttons */}
+              {isMahasiswa && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="primary"
+                    icon={<Plus size={15} />}
+                    className="font-bold min-h-[38px] text-xs shadow-xs"
+                    onClick={openClassPicker}
+                  >
+                    Ambil Mata Kuliah
+                  </Button>
+
+                  {activeKrs?.status === 'draft' ? (
+                    <Button
+                      variant="outline"
+                      icon={<Send size={14} className="text-primary-600" />}
+                      className="font-bold text-xs min-h-[38px] border-primary-300 text-primary-700 hover:bg-primary-50"
+                      onClick={handleSubmitKrs}
+                      disabled={submittingKrs || (activeKrs?.krs_details?.length || 0) === 0 || activeKrs?.locked_by_keuangan}
+                    >
+                      {submittingKrs ? 'Mengajukan...' : 'Ajukan ke Dosen Wali'}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="font-bold min-h-[38px] text-xs text-amber-700 hover:bg-amber-50 border-amber-300"
+                      onClick={handleReopenKrs}
+                    >
+                      Revisi / Ubah Rencana Studi
+                    </Button>
+                  )}
+
+                  <Button
+                    variant="outline"
+                    icon={<Printer size={15} />}
+                    className="font-bold min-h-[38px] text-xs"
+                    onClick={() => setIsPrintModalOpen(true)}
+                    disabled={!activeKrs || activeKrs.krs_details?.length === 0}
+                  >
+                    Cetak KRS
+                  </Button>
+                </div>
+              )}
+            </div>
+          }
+        />
 
       {/* ======================================================== */}
       {/* KHUSUS TAMPILAN MAHASISWA & MAHASISWA TRANSFER */}
@@ -701,62 +833,14 @@ export default function KrsMahasiswaPage() {
       {/* TAMPILAN ADMIN & DOSEN WALI (TABEL REVIEW & APPROVAL KRS) */}
       {/* ======================================================== */}
       {!isMahasiswa && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-          {/* Advanced Multi-Filters Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="Cari NIM, nama mahasiswa, atau dosen wali..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-primary-500 transition outline-none font-medium"
-              />
-            </div>
-
-            <select
-              value={filterProdi}
-              onChange={(e) => setFilterProdi(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-            >
-              <option value="">Semua Program Studi</option>
-              {prodiList.map((p) => (
-                <option key={p.id} value={p.id}>{p.nama} ({p.jenjang || 'S1'})</option>
-              ))}
-            </select>
-
-            <select
-              value={filterAngkatan}
-              onChange={(e) => setFilterAngkatan(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-            >
-              <option value="">Semua Angkatan</option>
-              <option value="2023">Angkatan 2023</option>
-              <option value="2024">Angkatan 2024</option>
-              <option value="2025">Angkatan 2025</option>
-              <option value="2026">Angkatan 2026</option>
-            </select>
-
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-            >
-              <option value="">Semua Status KRS</option>
-              <option value="diajukan">Diajukan (Menunggu)</option>
-              <option value="disetujui">Disetujui</option>
-              <option value="draft">Draft</option>
-            </select>
-          </div>
-
+        <div className="space-y-4">
           {/* Bulk Action Toolbar */}
           {selectedKrsIds.length > 0 && (
             <div className="bg-primary-50 border border-primary-200 rounded-xl p-3.5 flex items-center justify-between flex-wrap gap-3 animate-fade-in">
               <div className="flex items-center gap-2">
-                <span className="badge badge-purple font-black text-xs">
+                <Badge variant="purple" className="font-black text-xs">
                   {selectedKrsIds.length} KRS Terpilih
-                </span>
+                </Badge>
                 <span className="text-xs text-primary-900 font-semibold">
                   Siap untuk diverifikasi dan disetujui secara bersamaan.
                 </span>
@@ -782,112 +866,99 @@ export default function KrsMahasiswaPage() {
             </div>
           )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                <tr>
-                  <th className="py-3 px-3 text-center w-10">
-                    <input
-                      type="checkbox"
-                      onChange={handleSelectAll}
-                      checked={
-                        selectedKrsIds.length > 0 &&
-                        selectedKrsIds.length === krsList.filter((k) => k.status !== 'disetujui' && !k.locked_by_keuangan).length
-                      }
-                      className="rounded border-slate-300 text-primary-600 focus:ring-0 cursor-pointer"
-                    />
-                  </th>
-                  <th className="py-3 px-4">NIM & MAHASISWA</th>
-                  <th className="py-3 px-4">PROGRAM STUDI / ANGKATAN</th>
-                  <th className="py-3 px-4">DOSEN WALI</th>
-                  <th className="py-3 px-4 text-center">TOTAL SKS</th>
-                  <th className="py-3 px-4">STATUS KEUANGAN (SIKEU)</th>
-                  <th className="py-3 px-4">STATUS KRS</th>
-                  <th className="py-3 px-4 text-right">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {loading ? (
-                  <tr><td colSpan={8} className="py-8 text-center text-slate-400">Memuat data KRS...</td></tr>
-                ) : krsList.length === 0 ? (
-                  <tr><td colSpan={8} className="py-8 text-center text-slate-400">Belum ada data KRS yang sesuai filter</td></tr>
-                ) : (
-                  krsList.map((krs) => {
-                    const isSelected = selectedKrsIds.includes(krs.id);
-                    const canSelect = krs.status !== 'disetujui' && !krs.locked_by_keuangan;
+          {/* Full-bleed DataTable */}
+          <DataTable
+            columns={columns}
+            data={krsList}
+            isLoading={loading}
+            emptyMessage="Belum ada data KRS yang sesuai filter."
+          />
 
-                    return (
-                      <tr key={krs.id} className={`hover:bg-slate-50/80 transition ${isSelected ? 'bg-primary-50/40' : ''}`}>
-                        <td className="py-3.5 px-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            disabled={!canSelect}
-                            onChange={() => handleToggleSelect(krs.id)}
-                            className="rounded border-slate-300 text-primary-600 focus:ring-0 cursor-pointer disabled:opacity-40"
-                          />
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-bold text-slate-900 block">{krs.mahasiswa?.nama_lengkap}</span>
-                          <span className="font-mono text-2xs text-slate-400">{krs.mahasiswa?.nim}</span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-semibold text-slate-800">{krs.mahasiswa?.program_studi?.nama || '-'}</span>
-                          <span className="text-2xs text-slate-400 block font-mono">Angkatan {krs.mahasiswa?.angkatan || 2023}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-slate-700 text-xs">
-                          {krs.mahasiswa?.dosen_wali?.nama_lengkap || '-'}
-                        </td>
-                        <td className="py-3.5 px-4 text-center font-black tabular-nums text-slate-900 text-sm">
-                          {krs.total_sks_diambil} SKS
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {krs.locked_by_keuangan ? (
-                            <span className="badge badge-red text-2xs font-bold inline-flex items-center gap-1">
-                              <Lock size={11} /> Belum Lunas SPP
-                            </span>
-                          ) : (
-                            <span className="badge badge-green text-2xs font-bold inline-flex items-center gap-1">
-                              <CheckCircle2 size={11} /> Lunas SPP (SIKEU)
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className={`badge text-2xs font-black uppercase ${
-                            krs.status === 'disetujui' ? 'badge-green' : krs.status === 'diajukan' ? 'badge-yellow' : 'badge-slate'
-                          }`}>
-                            {krs.status}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              icon={<Eye size={13} />}
-                              className="text-2xs py-1 px-2.5 h-auto font-bold"
-                              onClick={() => setSelectedKrs(krs)}
-                            >
-                              Detail
-                            </Button>
-                            {krs.status !== 'disetujui' && (
-                              <Button
-                                variant="primary"
-                                className="text-2xs py-1 px-2.5 h-auto font-bold"
-                                onClick={() => handleApprove(krs.id)}
-                                disabled={approvingId === krs.id || krs.locked_by_keuangan}
-                              >
-                                {approvingId === krs.id ? '...' : 'Setujui'}
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          {/* Drawer Filter */}
+          <Drawer
+            open={showFilter}
+            onClose={() => setShowFilter(false)}
+            title="Filter Data KRS"
+            footer={
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSearch('');
+                    setFilterProdi('');
+                    setFilterAngkatan('');
+                    setFilterStatus('');
+                    setShowFilter(false);
+                  }}
+                >
+                  Reset
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    fetchKrsList();
+                    setShowFilter(false);
+                  }}
+                >
+                  Terapkan
+                </Button>
+              </div>
+            }
+          >
+            <div className="flex flex-col gap-5">
+              <Input
+                label="Pencarian Mahasiswa"
+                placeholder="Cari NIM, nama mahasiswa, atau dosen wali..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+
+              <div>
+                <label className="label">Program Studi</label>
+                <select
+                  value={filterProdi}
+                  onChange={(e) => setFilterProdi(e.target.value)}
+                  className="select w-full"
+                >
+                  <option value="">Semua Program Studi</option>
+                  {prodiList.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nama} ({p.jenjang || 'S1'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label">Tahun Angkatan</label>
+                <select
+                  value={filterAngkatan}
+                  onChange={(e) => setFilterAngkatan(e.target.value)}
+                  className="select w-full"
+                >
+                  <option value="">Semua Angkatan</option>
+                  <option value="2023">Angkatan 2023</option>
+                  <option value="2024">Angkatan 2024</option>
+                  <option value="2025">Angkatan 2025</option>
+                  <option value="2026">Angkatan 2026</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="label">Status Persetujuan KRS</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="select w-full"
+                >
+                  <option value="">Semua Status KRS</option>
+                  <option value="diajukan">Diajukan (Menunggu)</option>
+                  <option value="disetujui">Disetujui</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+            </div>
+          </Drawer>
         </div>
       )}
       </div>
@@ -1177,6 +1248,181 @@ export default function KrsMahasiswaPage() {
               >
                 Tutup
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL DETAIL KRS MAHASISWA (ADMIN & DOSEN WALI) */}
+      {/* ======================================================== */}
+      {selectedKrs && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in print:hidden">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto space-y-5">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between border-b pb-3.5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="badge badge-purple text-2xs font-extrabold uppercase">
+                    Rencana Studi (KRS)
+                  </span>
+                  <span className={`badge text-2xs font-bold ${
+                    selectedKrs.status === 'disetujui' ? 'badge-green' : selectedKrs.status === 'diajukan' ? 'badge-yellow' : 'badge-slate'
+                  }`}>
+                    STATUS: {selectedKrs.status?.toUpperCase()}
+                  </span>
+                  {selectedKrs.locked_by_keuangan ? (
+                    <span className="badge badge-red text-2xs font-bold inline-flex items-center gap-1">
+                      <Lock size={10} /> Belum Lunas SPP
+                    </span>
+                  ) : (
+                    <span className="badge badge-green text-2xs font-bold inline-flex items-center gap-1">
+                      <CheckCircle2 size={10} /> Lunas Keuangan
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-black text-base text-slate-900 mt-1">
+                  KRS: {selectedKrs.mahasiswa?.nama_lengkap} ({selectedKrs.mahasiswa?.nim})
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedKrs(null)}
+                  className="text-slate-400 hover:text-slate-600 font-bold p-1 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Student Info Card */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+              <div>
+                <span className="text-2xs text-slate-400 font-bold uppercase block">Mahasiswa</span>
+                <strong className="text-slate-900 block">{selectedKrs.mahasiswa?.nama_lengkap}</strong>
+                <span className="font-mono text-2xs text-slate-500">NIM: {selectedKrs.mahasiswa?.nim}</span>
+              </div>
+              <div>
+                <span className="text-2xs text-slate-400 font-bold uppercase block">Program Studi</span>
+                <span className="font-semibold text-slate-800 block">{selectedKrs.mahasiswa?.program_studi?.nama || '-'}</span>
+                <span className="text-2xs text-slate-500">Angkatan {selectedKrs.mahasiswa?.angkatan || 2023}</span>
+              </div>
+              <div>
+                <span className="text-2xs text-slate-400 font-bold uppercase block">Dosen Pembimbing</span>
+                <span className="font-semibold text-slate-800 block">{selectedKrs.mahasiswa?.dosen_wali?.nama_lengkap || selectedKrs.dosen_pembimbing?.nama_lengkap || '-'}</span>
+                <span className="text-2xs text-slate-500 font-mono">NIDN: {selectedKrs.mahasiswa?.dosen_wali?.nidn || '-'}</span>
+              </div>
+              <div>
+                <span className="text-2xs text-slate-400 font-bold uppercase block">Total Beban Studi</span>
+                <span className="text-sm font-black text-primary-700 block">{selectedKrs.total_sks_diambil || 0} SKS</span>
+                <span className="text-2xs text-slate-500">{selectedKrs.krs_details?.length || 0} Mata Kuliah Terpilih</span>
+              </div>
+            </div>
+
+            {/* List of Enrolled Courses */}
+            <div className="space-y-2">
+              <span className="font-extrabold text-xs text-slate-900 block">
+                Daftar Mata Kuliah yang Diambil ({selectedKrs.tahun_akademik?.nama || 'Semester Aktif'}):
+              </span>
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3 w-10 text-center">NO</th>
+                      <th className="py-2.5 px-3">KODE MK</th>
+                      <th className="py-2.5 px-3">MATA KULIAH & KELAS</th>
+                      <th className="py-2.5 px-3 text-center">SKS</th>
+                      <th className="py-2.5 px-3">DOSEN PENGAMPU</th>
+                      <th className="py-2.5 px-3">JADWAL & RUANGAN</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                    {!selectedKrs.krs_details || selectedKrs.krs_details.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-400">
+                          Belum ada mata kuliah yang didaftarkan pada KRS ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      selectedKrs.krs_details.map((detail: any, idx: number) => (
+                        <tr key={detail.id || idx} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3 text-center font-mono text-slate-400">{idx + 1}</td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                            {detail.kelas?.mata_kuliah?.kode_mk || detail.kode_mk || '-'}
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-slate-900 block">
+                              {detail.kelas?.mata_kuliah?.nama || detail.nama_mk || '-'}
+                            </span>
+                            <span className="text-2xs text-slate-400">
+                              Kelas {detail.kelas?.nama_kelas || '-'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-black tabular-nums">
+                            {detail.kelas?.mata_kuliah?.total_sks || detail.sks || 3} SKS
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700">
+                            {detail.kelas?.dosen_pengampu?.find((dp: any) => dp.peran === 'pengampu_utama')?.dosen?.nama_lengkap ||
+                             detail.kelas?.dosen_pengampu?.[0]?.dosen?.nama_lengkap ||
+                             detail.dosen_pengampu ||
+                             '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-2xs">
+                            <span className="font-bold text-slate-800 capitalize block">
+                              {detail.kelas?.hari ? `${detail.kelas.hari}, ${detail.kelas.jam_mulai?.slice(0, 5)} - ${detail.kelas.jam_selesai?.slice(0, 5)}` : '-'}
+                            </span>
+                            <span className="text-slate-400">{detail.kelas?.ruangan?.nama || 'Ruang Kuliah'}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {selectedKrs.krs_details?.length > 0 && (
+                    <tfoot className="bg-slate-50 font-bold border-t border-slate-200">
+                      <tr>
+                        <td colSpan={3} className="py-2.5 px-3 text-right text-slate-600">
+                          Total Beban SKS:
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-black text-primary-700">
+                          {selectedKrs.total_sks_diambil} SKS
+                        </td>
+                        <td colSpan={2} className="py-2.5 px-3 text-slate-400 text-2xs">
+                          Maksimal Beban: 24 SKS
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-3 border-t">
+              <Button
+                variant="outline"
+                className="text-xs"
+                onClick={() => setSelectedKrs(null)}
+              >
+                Tutup
+              </Button>
+
+              <div className="flex items-center gap-2">
+                {selectedKrs.status !== 'disetujui' && (
+                  <Button
+                    variant="primary"
+                    icon={<CheckCircle2 size={14} />}
+                    className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-xs"
+                    onClick={async () => {
+                      await handleApprove(selectedKrs.id);
+                      setSelectedKrs(null);
+                    }}
+                    disabled={selectedKrs.locked_by_keuangan}
+                  >
+                    Setujui KRS Mahasiswa
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>

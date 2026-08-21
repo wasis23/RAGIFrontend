@@ -191,6 +191,11 @@ export const siakadService = {
   },
 
   // Perkuliahan & Kelas
+  getRefRuangan: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/ref/ruangan', { params });
+    return response.data;
+  },
+
   getKelas: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/perkuliahan/kelas', { params });
     return response.data;
@@ -354,8 +359,9 @@ export const siakadService = {
     return response.data;
   },
 
-  getMahasiswaPortofolioObe: async (mahasiswaId: number): Promise<ApiResponse<any>> => {
-    const response = await apiClient.get(`/v1/siakad/obe/mahasiswa/${mahasiswaId}/portofolio`);
+  getMahasiswaPortofolioObe: async (mahasiswaId?: number | string): Promise<ApiResponse<any>> => {
+    const url = mahasiswaId ? `/v1/siakad/obe/mahasiswa/${mahasiswaId}/portofolio` : '/v1/siakad/obe/mahasiswa/portofolio';
+    const response = await apiClient.get(url);
     return response.data;
   },
 };

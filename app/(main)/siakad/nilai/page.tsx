@@ -27,6 +27,10 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
@@ -40,6 +44,7 @@ export default function InputNilaiPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
 
   // Multi-period state
   const [tahunAkademiks, setTahunAkademiks] = useState<any[]>([]);
@@ -110,6 +115,11 @@ export default function InputNilaiPage() {
   // Student OBE Portfolio Tab
   const [portofolioObeData, setPortofolioObeData] = useState<any | null>(null);
   const [loadingPortofolioObe, setLoadingPortofolioObe] = useState(false);
+
+  // Student Porto Detail Modal / Drawer from class grading view
+  const [portoDrawerStudent, setPortoDrawerStudent] = useState<any | null>(null);
+  const [drawerPortoData, setDrawerPortoData] = useState<any | null>(null);
+  const [loadingDrawerPorto, setLoadingDrawerPorto] = useState(false);
 
   const fetchTahunAkademiks = async () => {
     try {
@@ -212,7 +222,7 @@ export default function InputNilaiPage() {
   };
 
   const fetchPortofolioObe = async () => {
-    const targetMhsId = selectedMahasiswa?.id || (summary?.mahasiswa?.id ?? 1);
+    const targetMhsId = selectedMahasiswa?.id ? selectedMahasiswa.id : undefined;
     try {
       setLoadingPortofolioObe(true);
       const res = await siakadService.getMahasiswaPortofolioObe(targetMhsId);
@@ -220,9 +230,24 @@ export default function InputNilaiPage() {
         setPortofolioObeData(res.data);
       }
     } catch (err: any) {
-      toast.error('Gagal memuat portofolio capaian OBE');
+      toast.error(err?.response?.data?.message || 'Gagal memuat portofolio capaian OBE');
     } finally {
       setLoadingPortofolioObe(false);
+    }
+  };
+
+  const handleOpenStudentPortoDrawer = async (student: any) => {
+    setPortoDrawerStudent(student);
+    try {
+      setLoadingDrawerPorto(true);
+      const res = await siakadService.getMahasiswaPortofolioObe(student.id);
+      if (res.data) {
+        setDrawerPortoData(res.data);
+      }
+    } catch (err: any) {
+      toast.error('Gagal memuat rincian portofolio capaian OBE mahasiswa');
+    } finally {
+      setLoadingDrawerPorto(false);
     }
   };
 
@@ -347,93 +372,267 @@ export default function InputNilaiPage() {
   const selectedTaObj = tahunAkademiks.find((t) => t.id === selectedTaId);
   const mhs = summary?.mahasiswa || transkripData?.mahasiswa || portofolioObeData?.mahasiswa;
 
+  const kelasColumns: ColumnDef<any>[] = [
+    {
+      key: 'kode_kelas',
+      label: 'KODE & KELAS',
+      render: (k) => (
+        <div>
+          <span className="font-extrabold text-slate-900 block font-mono">{k.kode_kelas}</span>
+          <span className="text-2xs text-slate-500">{k.nama_kelas}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'mata_kuliah',
+      label: 'MATA KULIAH & SKS',
+      render: (k) => (
+        <div>
+          <span className="font-bold text-slate-900 block">{k.mata_kuliah?.nama || 'Mata Kuliah'}</span>
+          <span className="text-2xs text-primary-700 font-bold">{k.mata_kuliah?.total_sks || 3} SKS</span>
+        </div>
+      ),
+    },
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI',
+      render: (k) => <span className="font-semibold text-slate-700">{k.program_studi?.nama || '-'}</span>,
+    },
+    {
+      key: 'dosen',
+      label: 'DOSEN PENGAMPU',
+      render: (k) => (
+        <span className="font-medium text-slate-800 text-xs">
+          {k.dosen_pengampu?.[0]?.dosen?.nama_lengkap || 'Dosen Pengampu'}
+        </span>
+      ),
+    },
+    {
+      key: 'jadwal',
+      label: 'JADWAL & RUANG',
+      render: (k) => (
+        <div className="text-2xs text-slate-600">
+          <span className="font-bold block capitalize">
+            {k.hari || 'Senin'}, {k.jam_mulai ? k.jam_mulai.substring(0, 5) : '08:00'} - {k.jam_selesai ? k.jam_selesai.substring(0, 5) : '10:30'}
+          </span>
+          <span className="text-slate-400">{k.ruangan?.nama || 'Ruang Kuliah'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'peserta',
+      label: 'KUOTA / PESERTA',
+      align: 'center',
+      render: (k) => (
+        <Badge variant="purple" className="text-2xs font-bold">
+          {k.total_peserta || 35} Mahasiswa
+        </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (k) => (
+        <Button
+          variant="primary"
+          icon={<Eye size={13} />}
+          className="text-2xs py-1.5 px-3 h-auto font-bold shadow-xs"
+          onClick={() => handleSelectKelas(k)}
+        >
+          Buka Nilai & Peserta Kelas →
+        </Button>
+      ),
+    },
+  ];
+
+  const mhsPortoColumns: ColumnDef<any>[] = [
+    {
+      key: 'mahasiswa',
+      label: 'NIM & NAMA MAHASISWA',
+      render: (m) => (
+        <div>
+          <span className="font-extrabold text-slate-900 block">{m.nama_lengkap}</span>
+          <span className="text-2xs text-slate-500 font-mono">{m.nim}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI',
+      render: (m) => <span className="font-semibold text-slate-700">{m.program_studi?.nama || '-'}</span>,
+    },
+    {
+      key: 'angkatan',
+      label: 'ANGKATAN',
+      align: 'center',
+      render: (m) => <span className="font-mono">{m.angkatan || '2026'}</span>,
+    },
+    {
+      key: 'ipk',
+      label: 'IPK',
+      align: 'center',
+      render: (m) => (
+        <span className="font-mono font-black text-slate-900">
+          {Number(m.ipk || 3.85).toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      key: 'status_cpl',
+      label: 'STATUS CAPAIAN CPL',
+      align: 'center',
+      render: () => (
+        <Badge variant="green" className="text-2xs font-bold">
+          ✓ Memenuhi Standar CPL
+        </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (m) => (
+        <Button
+          variant="primary"
+          icon={<Eye size={13} />}
+          className="text-2xs py-1.5 px-3 h-auto font-bold shadow-xs"
+          onClick={() => {
+            setSelectedMahasiswa(m);
+            fetchPortofolioObe();
+          }}
+        >
+          Lihat Detail Portofolio OBE →
+        </Button>
+      ),
+    },
+  ];
+
+  const mhsTranskripColumns: ColumnDef<any>[] = [
+    {
+      key: 'nim',
+      label: 'NIM',
+      render: (m) => <span className="font-mono font-bold text-slate-900">{m.nim}</span>,
+    },
+    {
+      key: 'nama_lengkap',
+      label: 'NAMA MAHASISWA',
+      render: (m) => <span className="font-bold text-slate-900">{m.nama_lengkap}</span>,
+    },
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI',
+      render: (m) => <span>{m.program_studi?.nama || '-'}</span>,
+    },
+    {
+      key: 'angkatan',
+      label: 'ANGKATAN',
+      align: 'center',
+      render: (m) => <span className="font-mono">{m.angkatan || '2026'}</span>,
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (m) => (
+        <Button
+          variant={selectedMahasiswa?.id === m.id ? 'primary' : 'outline'}
+          className="text-2xs py-1 px-3 h-auto font-bold"
+          onClick={() => setSelectedMahasiswa(m)}
+        >
+          {selectedMahasiswa?.id === m.id ? '✓ Terpilih' : 'Pilih Mahasiswa'}
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto">
       {/* Konten Halaman Utama (disembunyikan saat mencetak) */}
       <div className="space-y-6 print:hidden">
-        {/* Header & Controls Toolbar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="badge badge-purple text-2xs font-extrabold uppercase tracking-wider">
-                {isMahasiswa ? 'Hasil Studi Mahasiswa' : 'Penilaian & KHS OBE (SIAKAD)'}
-              </span>
-              <span className="badge badge-blue text-2xs font-black uppercase">
-                Kurikulum OBE 2026
-              </span>
-              {isMahasiswa && (
-                <span className="badge badge-green text-2xs font-black uppercase">
-                  IPK: {summary?.ipk?.toFixed(2) || transkripData?.ringkasan?.ipk?.toFixed(2) || '0.00'}
-                </span>
+        <PageHeader
+          title={
+            isMahasiswa
+              ? 'Hasil Studi & Portofolio Capaian OBE'
+              : isDosen
+              ? 'Penilaian & Portofolio OBE Mahasiswa'
+              : 'Manajemen Penilaian & Transkrip OBE'
+          }
+          description={
+            isMahasiswa
+              ? 'Kartu Hasil Studi (KHS), ketercapaian CPMK/CPL, dan dokumen Transkrip Akademik resmi.'
+              : 'Manajemen asesmen capaian pembelajaran (OBE), evaluasi ketercapaian CPMK, dan kalkulasi KHS.'
+          }
+          breadcrumbs={[
+            { label: 'Portal SSO', href: '/dashboard' },
+            { label: 'SIAKAD', href: '/siakad' },
+            { label: 'Hasil Studi & Penilaian' },
+          ]}
+          action={
+            <div className="flex items-center gap-2.5 flex-wrap justify-start md:justify-end">
+              {activeTab === 'khs' && (
+                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
+                  <Calendar size={14} className="text-primary-600 shrink-0" />
+                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Periode:</span>
+                  <select
+                    value={selectedTaId || ''}
+                    onChange={(e) => {
+                      setSelectedTaId(Number(e.target.value));
+                      setSelectedKelasObj(null);
+                    }}
+                    className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
+                  >
+                    {tahunAkademiks.map((ta) => (
+                      <option key={ta.id} value={ta.id}>
+                        {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
-              {!isMahasiswa && selectedMahasiswa && activeTab === 'transkrip' && (
-                <span className="badge badge-green text-2xs font-black uppercase">
-                  IPK: {transkripData?.ringkasan?.ipk?.toFixed(2) || summary?.ipk?.toFixed(2) || '0.00'}
-                </span>
+
+              {/* Filter Button for Admin & Dosen */}
+              {!isMahasiswa && (
+                ((activeTab === 'khs' && !selectedKelasObj) ||
+                 (activeTab === 'portofolio_obe' && !selectedMahasiswa) ||
+                 (activeTab === 'transkrip' && !selectedMahasiswa)) && (
+                  <Button
+                    variant="outline"
+                    icon={<Filter size={15} />}
+                    className="font-bold text-xs border-slate-300 min-h-[38px] text-slate-700 hover:bg-slate-50"
+                    onClick={() => setShowFilter(true)}
+                  >
+                    Filter
+                  </Button>
+                )
+              )}
+
+              {/* Tombol Cetak KHS */}
+              {activeTab === 'khs' && (isMahasiswa || (selectedMahasiswa && !selectedKelasObj)) && (
+                <Button
+                  variant="outline"
+                  icon={<Printer size={15} />}
+                  className="font-bold text-xs border-slate-300 min-h-[38px] text-slate-700 hover:bg-slate-50"
+                  onClick={() => setIsPrintKhsOpen(true)}
+                >
+                  Cetak KHS
+                </Button>
+              )}
+
+              {/* Tombol Cetak Transkrip */}
+              {activeTab === 'transkrip' && (isMahasiswa || selectedMahasiswa) && (
+                <Button
+                  variant="primary"
+                  icon={<Printer size={15} />}
+                  className="font-bold text-xs min-h-[38px]"
+                  onClick={() => setIsPrintTranskripOpen(true)}
+                >
+                  Cetak Transkrip
+                </Button>
               )}
             </div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight mt-1.5">
-              {isMahasiswa
-                ? 'Hasil Studi & Portofolio Capaian OBE'
-                : isDosen
-                ? 'Penilaian & Portofolio OBE Mahasiswa'
-                : 'Manajemen Penilaian & Transkrip OBE'}
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {isMahasiswa
-                ? 'Kartu Hasil Studi (KHS), ketercapaian CPMK/CPL, dan dokumen Transkrip Akademik resmi.'
-                : 'Manajemen asesmen capaian pembelajaran (OBE), evaluasi ketercapaian CPMK, dan kalkulasi KHS.'}
-            </p>
-          </div>
-
-          {/* Action Buttons & Period Filter Toolbar */}
-          <div className="flex items-center gap-2.5 flex-wrap justify-start md:justify-end">
-            {activeTab === 'khs' && (
-              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl">
-                <Calendar size={15} className="text-primary-600 shrink-0" />
-                <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Periode:</span>
-                <select
-                  value={selectedTaId || ''}
-                  onChange={(e) => {
-                    setSelectedTaId(Number(e.target.value));
-                    setSelectedKelasObj(null);
-                  }}
-                  className="text-xs font-extrabold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
-                >
-                  {tahunAkademiks.map((ta) => (
-                    <option key={ta.id} value={ta.id}>
-                      {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Tombol Cetak KHS */}
-            {activeTab === 'khs' && (isMahasiswa || (selectedMahasiswa && !selectedKelasObj)) && (
-              <Button
-                variant="outline"
-                icon={<Printer size={15} />}
-                className="font-bold text-xs border-slate-300 min-h-[40px] text-slate-700 hover:bg-slate-50"
-                onClick={() => setIsPrintKhsOpen(true)}
-              >
-                Cetak KHS Semester
-              </Button>
-            )}
-
-            {/* Tombol Cetak Transkrip */}
-            {activeTab === 'transkrip' && (isMahasiswa || selectedMahasiswa) && (
-              <Button
-                variant="primary"
-                icon={<Printer size={15} />}
-                className="font-bold text-xs min-h-[40px]"
-                onClick={() => setIsPrintTranskripOpen(true)}
-              >
-                Cetak Transkrip Resmi
-              </Button>
-            )}
-          </div>
-        </div>
+          }
+        />
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 border-b border-slate-200">
@@ -483,103 +682,63 @@ export default function InputNilaiPage() {
             {!isMahasiswa ? (
               !selectedKelasObj ? (
                 /* 1. DIRECTORY DAFTAR KELAS & MATA KULIAH */
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                    <div>
-                      <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                        <Layers size={16} className="text-primary-600" />
-                        Pilih Kelas Perkuliahan untuk Penginputan & Rekap Nilai OBE
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Klik <strong>"Buka Nilai & Peserta Kelas"</strong> pada kelas terkait untuk menginput skor asesmen dinamis dan melihat evaluasi CPMK.
-                      </p>
-                    </div>
-                  </div>
+                <div className="space-y-4">
+                  <DataTable
+                    columns={kelasColumns}
+                    data={kelasList}
+                    isLoading={loadingKelasList}
+                    emptyMessage="Tidak ada kelas aktif pada periode ini."
+                  />
 
-                  {/* Filter Toolbar Kelas */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    <div className="relative">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input
-                        type="text"
-                        placeholder="Cari Nama Mata Kuliah / Kelas..."
+                  {/* Drawer Filter Kelas */}
+                  <Drawer
+                    open={showFilter && activeTab === 'khs'}
+                    onClose={() => setShowFilter(false)}
+                    title="Filter Kelas Perkuliahan"
+                    footer={
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setSearchKelas('');
+                            setFilterProdiKelas('');
+                            setShowFilter(false);
+                          }}
+                        >
+                          Reset
+                        </Button>
+                        <Button
+                          variant="primary"
+                          onClick={() => setShowFilter(false)}
+                        >
+                          Terapkan
+                        </Button>
+                      </div>
+                    }
+                  >
+                    <div className="flex flex-col gap-5">
+                      <Input
+                        label="Pencarian Kelas"
+                        placeholder="Cari nama mata kuliah atau kelas..."
                         value={searchKelas}
                         onChange={(e) => setSearchKelas(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-primary-500 transition outline-none"
                       />
+
+                      <div>
+                        <label className="label">Program Studi</label>
+                        <select
+                          value={filterProdiKelas}
+                          onChange={(e) => setFilterProdiKelas(e.target.value)}
+                          className="select w-full"
+                        >
+                          <option value="">Semua Program Studi</option>
+                          {prodis.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nama}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-
-                    <select
-                      value={filterProdiKelas}
-                      onChange={(e) => setFilterProdiKelas(e.target.value)}
-                      className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none"
-                    >
-                      <option value="">Semua Program Studi</option>
-                      {prodis.map((p) => (
-                        <option key={p.id} value={p.id}>{p.nama}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Table Kelas */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                        <tr>
-                          <th className="py-3 px-4">KODE & KELAS</th>
-                          <th className="py-3 px-4">MATA KULIAH & SKS</th>
-                          <th className="py-3 px-4">PROGRAM STUDI</th>
-                          <th className="py-3 px-4">DOSEN PENGAMPU</th>
-                          <th className="py-3 px-4">JADWAL & RUANG</th>
-                          <th className="py-3 px-4 text-center">KUOTA / PESERTA</th>
-                          <th className="py-3 px-4 text-right">AKSI</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                        {loadingKelasList ? (
-                          <tr><td colSpan={7} className="py-8 text-center text-slate-400">Memuat daftar kelas perkuliahan...</td></tr>
-                        ) : kelasList.length === 0 ? (
-                          <tr><td colSpan={7} className="py-8 text-center text-slate-400">Tidak ada kelas aktif pada periode ini</td></tr>
-                        ) : (
-                          kelasList.map((k) => (
-                            <tr key={k.id} className="hover:bg-slate-50/80 transition">
-                              <td className="py-3.5 px-4 font-mono">
-                                <span className="font-extrabold text-slate-900 block">{k.kode_kelas}</span>
-                                <span className="text-2xs text-slate-500">{k.nama_kelas}</span>
-                              </td>
-                              <td className="py-3.5 px-4">
-                                <span className="font-bold text-slate-900 block">{k.mata_kuliah?.nama || 'Mata Kuliah'}</span>
-                                <span className="text-2xs text-primary-700 font-bold">{k.mata_kuliah?.total_sks || 3} SKS</span>
-                              </td>
-                              <td className="py-3.5 px-4">{k.program_studi?.nama || '-'}</td>
-                              <td className="py-3.5 px-4 font-semibold text-slate-800">
-                                {k.dosen_pengampu?.[0]?.dosen?.nama_lengkap || 'Dosen Pengampu'}
-                              </td>
-                              <td className="py-3.5 px-4 text-2xs text-slate-600">
-                                <span className="font-bold block capitalize">{k.hari || 'Senin'}, {k.jam_mulai ? k.jam_mulai.substring(0, 5) : '08:00'} - {k.jam_selesai ? k.jam_selesai.substring(0, 5) : '10:30'}</span>
-                                <span className="text-slate-400">{k.ruangan?.nama || 'Ruang Kuliah'}</span>
-                              </td>
-                              <td className="py-3.5 px-4 text-center">
-                                <span className="badge badge-purple text-2xs font-bold">
-                                  {k.total_peserta || 35} Mahasiswa
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 text-right">
-                                <Button
-                                  variant="primary"
-                                  icon={<Eye size={13} />}
-                                  className="text-2xs py-1.5 px-3 h-auto font-bold shadow-xs"
-                                  onClick={() => handleSelectKelas(k)}
-                                >
-                                  Buka Nilai & Peserta Kelas →
-                                </Button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  </Drawer>
                 </div>
               ) : (
                 /* 2. DETAIL PENILAIAN OBE & PESERTA KELAS TERPILIH */
@@ -763,14 +922,24 @@ export default function InputNilaiPage() {
                                   {Number(p.bobot_mutu).toFixed(2)}
                                 </td>
                                 <td className="py-3.5 px-4 text-right">
-                                  <Button
-                                    variant="outline"
-                                    icon={<Edit3 size={13} />}
-                                    className="text-2xs py-1 px-2.5 h-auto font-bold text-primary-700 border-primary-200 hover:bg-primary-50"
-                                    onClick={() => handleOpenEditPesertaObe(p)}
-                                  >
-                                    Input Nilai OBE
-                                  </Button>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <Button
+                                      variant="outline"
+                                      icon={<Award size={13} />}
+                                      className="text-2xs py-1 px-2.5 h-auto font-bold text-purple-700 border-purple-200 hover:bg-purple-50 whitespace-nowrap"
+                                      onClick={() => handleOpenStudentPortoDrawer(p.mahasiswa)}
+                                    >
+                                      Porto Capaian
+                                    </Button>
+                                    <Button
+                                      variant="primary"
+                                      icon={<Edit3 size={13} />}
+                                      className="text-2xs py-1 px-2.5 h-auto font-bold whitespace-nowrap"
+                                      onClick={() => handleOpenEditPesertaObe(p)}
+                                    >
+                                      Input Nilai
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -860,99 +1029,63 @@ export default function InputNilaiPage() {
           <div className="space-y-6 animate-fade-in">
             {/* Student Directory selector jika Admin / Dosen */}
             {!isMahasiswa && !selectedMahasiswa ? (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div>
-                    <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                      <UserCheck size={16} className="text-primary-600" />
-                      Direktori Portofolio Capaian Pembelajaran Lulusan (CPL) Mahasiswa
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Pilih mahasiswa untuk mengaudit dan mengevaluasi pemenuhan ketercapaian kompetensi OBE.
-                    </p>
-                  </div>
-                </div>
+              <div className="space-y-4">
+                <DataTable
+                  columns={mhsPortoColumns}
+                  data={mahasiswaDirectory}
+                  isLoading={loadingMhs}
+                  emptyMessage="Tidak ada mahasiswa ditemukan."
+                />
 
-                {/* Filter Search & Prodi */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Cari NIM atau Nama Mahasiswa..."
+                {/* Drawer Filter Mahasiswa Portofolio */}
+                <Drawer
+                  open={showFilter && activeTab === 'portofolio_obe'}
+                  onClose={() => setShowFilter(false)}
+                  title="Filter Direktori Mahasiswa"
+                  footer={
+                    <div className="flex justify-end gap-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setSearchMhs('');
+                          setFilterProdiMhs('');
+                          setShowFilter(false);
+                        }}
+                      >
+                        Reset
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={() => setShowFilter(false)}
+                      >
+                        Terapkan
+                      </Button>
+                    </div>
+                  }
+                >
+                  <div className="flex flex-col gap-5">
+                    <Input
+                      label="Pencarian Mahasiswa"
+                      placeholder="Cari NIM atau nama mahasiswa..."
                       value={searchMhs}
                       onChange={(e) => setSearchMhs(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-primary-500"
                     />
-                  </div>
-                  <select
-                    value={filterProdiMhs}
-                    onChange={(e) => setFilterProdiMhs(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-                  >
-                    <option value="">Semua Program Studi</option>
-                    {prodis.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nama}</option>
-                    ))}
-                  </select>
-                </div>
 
-                {/* Table Daftar Mahasiswa untuk Portofolio OBE */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                      <tr>
-                        <th className="py-3 px-4 w-12 text-center">NO</th>
-                        <th className="py-3 px-4">NIM & NAMA MAHASISWA</th>
-                        <th className="py-3 px-4">PROGRAM STUDI</th>
-                        <th className="py-3 px-4 text-center">ANGKATAN</th>
-                        <th className="py-3 px-4 text-center">IPK</th>
-                        <th className="py-3 px-4 text-center">STATUS CAPAIAN CPL</th>
-                        <th className="py-3 px-4 text-right">AKSI</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                      {loadingMhs ? (
-                        <tr><td colSpan={7} className="py-8 text-center text-slate-400">Memuat direktori mahasiswa...</td></tr>
-                      ) : mahasiswaDirectory.length === 0 ? (
-                        <tr><td colSpan={7} className="py-8 text-center text-slate-400">Tidak ada mahasiswa ditemukan</td></tr>
-                      ) : (
-                        mahasiswaDirectory.map((m, idx) => (
-                          <tr key={m.id} className="hover:bg-slate-50/80 transition">
-                            <td className="py-3.5 px-4 text-center font-bold text-slate-400">{idx + 1}</td>
-                            <td className="py-3.5 px-4 font-mono">
-                              <span className="font-extrabold text-slate-900 block font-sans">{m.nama_lengkap}</span>
-                              <span className="text-2xs text-slate-500 font-mono">{m.nim}</span>
-                            </td>
-                            <td className="py-3.5 px-4 font-semibold">{m.program_studi?.nama || '-'}</td>
-                            <td className="py-3.5 px-4 text-center font-mono">{m.angkatan || '2026'}</td>
-                            <td className="py-3.5 px-4 text-center font-mono font-black text-slate-900">
-                              {Number(m.ipk || 3.85).toFixed(2)}
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              <span className="badge badge-green text-2xs font-bold">
-                                ✓ Memenuhi Standar CPL
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <Button
-                                variant="primary"
-                                icon={<Eye size={13} />}
-                                className="text-2xs py-1.5 px-3 h-auto font-bold shadow-xs"
-                                onClick={() => {
-                                  setSelectedMahasiswa(m);
-                                  fetchPortofolioObe();
-                                }}
-                              >
-                                Lihat Detail Portofolio OBE →
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    <div>
+                      <label className="label">Program Studi</label>
+                      <select
+                        value={filterProdiMhs}
+                        onChange={(e) => setFilterProdiMhs(e.target.value)}
+                        className="select w-full"
+                      >
+                        <option value="">Semua Program Studi</option>
+                        {prodis.map((p) => (
+                          <option key={p.id} value={p.id}>{p.nama}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </Drawer>
               </div>
             ) : (
               /* DETAIL PORTOFOLIO MAHASISWA TERPILIH */
@@ -974,9 +1107,12 @@ export default function InputNilaiPage() {
                     <Button
                       variant="outline"
                       className="text-xs font-bold py-2 px-3.5 h-auto bg-primary-800 hover:bg-primary-700 text-white border-primary-500 whitespace-nowrap"
-                      onClick={() => setSelectedMahasiswa(null)}
+                      onClick={() => {
+                        setSelectedMahasiswa(null);
+                        setPortofolioObeData(null);
+                      }}
                     >
-                      ← Kembali ke Daftar Mahasiswa
+                      ← Kembali ke Direktori Mahasiswa
                     </Button>
                   </div>
                 )}
@@ -1030,69 +1166,89 @@ export default function InputNilaiPage() {
         {activeTab === 'transkrip' && (
           <div className="space-y-4">
             {/* Search selector jika bukan mahasiswa */}
-            {!isMahasiswa && (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3">
-                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                  <UserCheck size={16} className="text-primary-600" />
-                  Pencarian Mahasiswa untuk Penerbitan Transkrip Akademik
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Cari NIM atau Nama Mahasiswa..."
+            {!isMahasiswa && !selectedMahasiswa ? (
+              <div className="space-y-4">
+                <DataTable
+                  columns={mhsTranskripColumns}
+                  data={mahasiswaDirectory}
+                  isLoading={loadingMhs}
+                  emptyMessage="Tidak ada mahasiswa ditemukan."
+                />
+
+                {/* Drawer Filter Mahasiswa Transkrip */}
+                <Drawer
+                  open={showFilter && activeTab === 'transkrip'}
+                  onClose={() => setShowFilter(false)}
+                  title="Pencarian Mahasiswa Transkrip"
+                  footer={
+                    <div className="flex justify-end gap-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setSearchMhs('');
+                          setFilterProdiMhs('');
+                          setShowFilter(false);
+                        }}
+                      >
+                        Reset
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={() => setShowFilter(false)}
+                      >
+                        Terapkan
+                      </Button>
+                    </div>
+                  }
+                >
+                  <div className="flex flex-col gap-5">
+                    <Input
+                      label="Pencarian Mahasiswa"
+                      placeholder="Cari NIM atau nama mahasiswa..."
                       value={searchMhs}
                       onChange={(e) => setSearchMhs(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white focus:border-primary-500"
                     />
-                  </div>
-                  <select
-                    value={filterProdiMhs}
-                    onChange={(e) => setFilterProdiMhs(e.target.value)}
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-                  >
-                    <option value="">Semua Program Studi</option>
-                    {prodis.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nama}</option>
-                    ))}
-                  </select>
-                </div>
 
-                {/* Directory Table */}
-                <div className="overflow-x-auto pt-2">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-4">NIM</th>
-                        <th className="py-2.5 px-4">NAMA MAHASISWA</th>
-                        <th className="py-2.5 px-4">PROGRAM STUDI</th>
-                        <th className="py-2.5 px-4">ANGKATAN</th>
-                        <th className="py-2.5 px-4 text-right">AKSI</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
-                      {mahasiswaDirectory.map((m) => (
-                        <tr key={m.id} className={selectedMahasiswa?.id === m.id ? 'bg-primary-50' : 'hover:bg-slate-50'}>
-                          <td className="py-2.5 px-4 font-mono font-bold">{m.nim}</td>
-                          <td className="py-2.5 px-4 font-bold text-slate-900">{m.nama_lengkap}</td>
-                          <td className="py-2.5 px-4">{m.program_studi?.nama}</td>
-                          <td className="py-2.5 px-4">{m.angkatan}</td>
-                          <td className="py-2.5 px-4 text-right">
-                            <Button
-                              variant={selectedMahasiswa?.id === m.id ? 'primary' : 'outline'}
-                              className="text-2xs py-1 px-3 h-auto font-bold"
-                              onClick={() => setSelectedMahasiswa(m)}
-                            >
-                              {selectedMahasiswa?.id === m.id ? '✓ Terpilih' : 'Pilih Mahasiswa'}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    <div>
+                      <label className="label">Program Studi</label>
+                      <select
+                        value={filterProdiMhs}
+                        onChange={(e) => setFilterProdiMhs(e.target.value)}
+                        className="select w-full"
+                      >
+                        <option value="">Semua Program Studi</option>
+                        {prodis.map((p) => (
+                          <option key={p.id} value={p.id}>{p.nama}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </Drawer>
               </div>
+            ) : (
+              !isMahasiswa && selectedMahasiswa && (
+                <div className="bg-primary-900 text-white rounded-2xl p-5 shadow-lg border border-primary-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <span className="badge badge-yellow text-2xs font-bold uppercase tracking-wider">
+                      Transkrip Mahasiswa Terpilih
+                    </span>
+                    <h2 className="text-lg font-black text-white mt-1">
+                      {selectedMahasiswa.nama_lengkap} (NIM: {selectedMahasiswa.nim})
+                    </h2>
+                    <p className="text-xs text-primary-200 mt-0.5">
+                      Program Studi: <strong>{selectedMahasiswa.program_studi?.nama}</strong> • Angkatan: <strong>{selectedMahasiswa.angkatan || 2026}</strong>
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="text-xs font-bold py-2 px-3.5 h-auto bg-primary-800 hover:bg-primary-700 text-white border-primary-500 whitespace-nowrap"
+                    onClick={() => setSelectedMahasiswa(null)}
+                  >
+                    ← Ganti / Pilih Mahasiswa Lain
+                  </Button>
+                </div>
+              )
             )}
 
             {/* Tabel Transkrip */}
@@ -1577,6 +1733,138 @@ export default function InputNilaiPage() {
           </div>
         </div>
       )}
+
+      {/* ======================================================== */}
+      {/* DRAWER PORTOFOLIO CAPAIAN OBE MAHASISWA DARI INPUT NILAI */}
+      {/* ======================================================== */}
+      <Drawer
+        open={!!portoDrawerStudent}
+        onClose={() => {
+          setPortoDrawerStudent(null);
+          setDrawerPortoData(null);
+        }}
+        title="Portofolio Capaian OBE Mahasiswa"
+        footer={
+          <div className="flex items-center justify-between gap-3 w-full">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPortoDrawerStudent(null);
+                setDrawerPortoData(null);
+              }}
+            >
+              Tutup
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Award size={14} />}
+              onClick={() => {
+                const std = portoDrawerStudent;
+                setPortoDrawerStudent(null);
+                setDrawerPortoData(null);
+                setSelectedMahasiswa(std);
+                setActiveTab('portofolio_obe');
+              }}
+            >
+              Buka Tab Portofolio Lengkap →
+            </Button>
+          </div>
+        }
+      >
+        {portoDrawerStudent && (
+          <div className="space-y-6">
+            {/* Header Ringkasan Mahasiswa */}
+            <div className="bg-primary-50 border border-primary-100 rounded-2xl p-4 space-y-1">
+              <span className="badge badge-purple text-2xs font-bold uppercase tracking-wider">
+                Profil Mahasiswa
+              </span>
+              <h3 className="text-base font-extrabold text-slate-900 mt-1">
+                {portoDrawerStudent.nama_lengkap}
+              </h3>
+              <p className="text-xs text-slate-600 font-mono">
+                NIM: <strong>{portoDrawerStudent.nim}</strong> • Angkatan: <strong>{portoDrawerStudent.angkatan || 2026}</strong>
+              </p>
+              <p className="text-xs text-primary-700 font-semibold">
+                Program Studi: {portoDrawerStudent.program_studi?.nama || '-'} • IPK: {Number(portoDrawerStudent.ipk || 3.85).toFixed(2)}
+              </p>
+            </div>
+
+            {loadingDrawerPorto ? (
+              <div className="py-12 text-center text-slate-400 text-xs font-semibold">
+                Memuat rincian ketercapaian CPMK & CPL mahasiswa...
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* 1. Ketercapaian CPMK pada Kelas Terpilih */}
+                {selectedKelasObj && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5 border-b pb-2">
+                      <Layers size={14} className="text-primary-600" />
+                      Capaian CPMK Kelas: {selectedKelasObj.mata_kuliah?.nama}
+                    </h4>
+                    <div className="space-y-2">
+                      {obeKelasData?.cpmks?.map((cpmk: any) => {
+                        const mhsInClass = obeKelasData?.peserta?.find(
+                          (p: any) => p.mahasiswa?.id === portoDrawerStudent.id
+                        );
+                        const att = mhsInClass?.cpmk_attainment?.[cpmk.id];
+                        const score = att?.skor || 0;
+                        const isPassed = att?.is_tercapai ?? (score >= 65);
+
+                        return (
+                          <div key={cpmk.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono font-bold text-xs text-slate-900">{cpmk.kode_cpmk}</span>
+                              <span className={`badge text-2xs font-bold ${isPassed ? 'badge-green' : 'badge-red'}`}>
+                                Skor: {score.toFixed(1)} {isPassed ? '✓ Tercapai' : '✗ Belum'}
+                              </span>
+                            </div>
+                            <p className="text-2xs text-slate-600 leading-normal">{cpmk.deskripsi}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Evaluasi Ketercapaian CPL Kumulatif */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5 border-b pb-2">
+                    <Award size={14} className="text-primary-600" />
+                    Ketercapaian CPL Lulusan (Kumulatif)
+                  </h4>
+                  <div className="space-y-3">
+                    {drawerPortoData?.cpl_summary?.map((cpl: any) => {
+                      const score = cpl.skor_rata_rata || 80;
+                      return (
+                        <div key={cpl.cpl_id} className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="badge badge-purple font-mono font-black text-xs">{cpl.kode_cpl}</span>
+                            <span className="text-xs font-black text-primary-700 font-mono">{score}%</span>
+                          </div>
+                          <p className="text-2xs font-medium text-slate-700">{cpl.deskripsi}</p>
+                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all rounded-full ${
+                                score >= 80 ? 'bg-emerald-500' : score >= 65 ? 'bg-primary-500' : 'bg-rose-500'
+                              }`}
+                              style={{ width: `${Math.min(100, score)}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-3xs text-slate-400 font-semibold">
+                            <span>Status: <strong className="text-emerald-700">{cpl.status}</strong></span>
+                            <span>{cpl.total_mata_kuliah_diukur} MK diukur</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Drawer>
 
       {/* ======================================================== */}
       {/* MODAL CETAK KHS SEMESTER (PRINT TEMPLATE) */}

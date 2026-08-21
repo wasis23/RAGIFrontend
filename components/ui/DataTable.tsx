@@ -8,9 +8,10 @@ import type { PaginationMeta } from '@/types/api.types';
 
 export interface ColumnDef<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
   align?: 'left' | 'center' | 'right';
   render?: (row: T, index: number) => React.ReactNode;
+  headerRender?: () => React.ReactNode;
   sortable?: boolean;
 }
 
@@ -40,14 +41,14 @@ export function DataTable<T extends object>({
   const total = meta?.total ?? 0;
 
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
-      <div style={{ overflowX: 'auto' }}>
+    <div className="table-container">
+      <div className="table-wrapper">
         <table className="table">
           <thead>
             <tr>
-              {columns.map((col, idx) => (
-                <th key={col.key || idx} style={{ textAlign: col.align || 'left' }}>
-                  {col.label}
+              {columns.map((col, index) => (
+                <th key={col.key || index} style={{ textAlign: col.align || 'left' }}>
+                  {col.headerRender ? col.headerRender() : col.label}
                 </th>
               ))}
             </tr>

@@ -105,15 +105,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           }
         })
         .catch(() => {
-          // Token expired atau invalid handled by axios interceptor
+          const currentUrl = pathname + (typeof window !== 'undefined' ? window.location.search : '');
+          router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
         })
         .finally(() => {
           setCheckingAccess(false);
         });
     } else {
       setCheckingAccess(false);
+      const isPublic = (PUBLIC_ROUTES as readonly string[]).includes(pathname);
+      if (!isPublic) {
+        const currentUrl = pathname + (typeof window !== 'undefined' ? window.location.search : '');
+        router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
+      }
     }
-  }, [setUser, pathname]);
+  }, [setUser, pathname, router]);
 
   if (isNotFound) {
     return <NotFoundPage />;

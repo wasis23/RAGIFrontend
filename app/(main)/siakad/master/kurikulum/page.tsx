@@ -1,9 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Layers, Plus, Search, Edit3, Trash2 } from 'lucide-react';
+import { Layers, Plus, Filter, Edit2, Trash2, BookOpen } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
@@ -11,10 +18,20 @@ export default function KurikulumPage() {
   const [kurikulums, setKurikulums] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
 
+  // Filter Drawer States
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterProdiId, setFilterProdiId] = useState<string>('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: '',
+    prodiId: '',
+  });
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingKurikulum, setEditingKurikulum] = useState<any | null>(null);
+  const [deletingKurikulum, setDeletingKurikulum] = useState<any | null>(null);
   const [form, setForm] = useState({
     kode: '',
     nama: '',
@@ -35,7 +52,11 @@ export default function KurikulumPage() {
   const fetchKurikulum = async () => {
     try {
       setLoading(true);
-      const res = await siakadService.getKurikulums({ search });
+      const params: any = {};
+      if (appliedFilters.search) params.search = appliedFilters.search;
+      if (appliedFilters.prodiId) params.program_studi_id = appliedFilters.prodiId;
+
+      const res = await siakadService.getKurikulums(params);
       if (res.data) setKurikulums(res.data);
     } catch (err: any) {
       toast.error('Gagal memuat kurikulum');
@@ -50,7 +71,7 @@ export default function KurikulumPage() {
 
   useEffect(() => {
     fetchKurikulum();
-  }, [search]);
+  }, [appliedFilters]);
 
   const handleOpenModal = (item?: any) => {
     if (item) {
@@ -97,225 +118,300 @@ export default function KurikulumPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Yakin ingin menghapus kurikulum ini?')) return;
+  const handleDelete = async () => {
+    if (!deletingKurikulum) return;
     try {
-      await siakadService.deleteKurikulum(id);
+      await siakadService.deleteKurikulum(deletingKurikulum.id);
       toast.success('Kurikulum berhasil dihapus');
+      setDeletingKurikulum(null);
       fetchKurikulum();
     } catch (err: any) {
       toast.error('Gagal menghapus kurikulum');
     }
   };
 
+  const columns: ColumnDef<any>[] = [
+    {
+      key: 'kode',
+      label: 'KODE',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-900 text-xs">
+          {row.kode}
+        </span>
+      ),
+    },
+    {
+      key: 'nama',
+      label: 'NAMA KURIKULUM',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 text-sm block">{row.nama}</span>
+          {row.deskripsi && (
+            <p className="text-xs text-slate-500 mt-0.5 max-w-md line-clamp-1">{row.deskripsi}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI',
+      render: (row) => (
+        <span className="text-xs font-semibold text-slate-800">
+          {row.program_studi?.nama || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'tahun_berlaku',
+      label: 'TAHUN BERLAKU',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono text-xs font-semibold text-slate-700">
+          {row.tahun_berlaku}
+        </span>
+      ),
+    },
+    {
+      key: 'total_sks_lulus',
+      label: 'TOTAL SKS',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono text-xs font-black text-slate-900">
+          {row.total_sks_lulus} SKS
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      align: 'center',
+      render: () => (
+        <Badge variant="green">Aktif</Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Edit Kurikulum',
+                icon: <Edit2 size={14} />,
+                onClick: () => handleOpenModal(row),
+              },
+              {
+                label: 'Hapus Kurikulum',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => setDeletingKurikulum(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Kurikulum Akademik"
         description="Struktur kurikulum OBE, penetapan total SKS kelulusan, dan masa berlaku kurikulum."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIAKAD', href: '/siakad' },
+          { label: 'Kurikulum OBE' },
+        ]}
         action={
-          <Button
-            variant="primary"
-            icon={<Plus size={16} />}
-            className="font-bold min-h-[40px]"
-            onClick={() => handleOpenModal()}
-          >
-            Tambah Kurikulum
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => handleOpenModal()}
+            >
+              Tambah Kurikulum
+            </Button>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+          </div>
         }
       />
 
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input
-            type="text"
-            placeholder="Cari kode atau nama kurikulum..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-primary-500 transition outline-none"
+      {/* Full-bleed DataTable Card */}
+      <DataTable
+        columns={columns}
+        data={kurikulums}
+        isLoading={loading}
+        emptyMessage="Belum ada data kurikulum akademik yang tersimpan."
+      />
+
+      {/* Filter Drawer (Slide out from Right side) */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Kurikulum"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFilterSearch('');
+                setFilterProdiId('');
+                setAppliedFilters({ search: '', prodiId: '' });
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAppliedFilters({
+                  search: filterSearch,
+                  prodiId: filterProdiId,
+                });
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <Input
+            label="Kode atau Nama Kurikulum"
+            placeholder="Ketik kata kunci..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
           />
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-              <tr>
-                <th className="py-3 px-4">KODE</th>
-                <th className="py-3 px-4">NAMA KURIKULUM</th>
-                <th className="py-3 px-4">PROGRAM STUDI</th>
-                <th className="py-3 px-4">TAHUN BERLAKU</th>
-                <th className="py-3 px-4">TOTAL SKS LULUS</th>
-                <th className="py-3 px-4">STATUS</th>
-                <th className="py-3 px-4 text-right">AKSI</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {loading ? (
-                <tr><td colSpan={7} className="py-8 text-center text-slate-400">Memuat data kurikulum...</td></tr>
-              ) : kurikulums.length === 0 ? (
-                <tr><td colSpan={7} className="py-8 text-center text-slate-400">Belum ada kurikulum</td></tr>
-              ) : (
-                kurikulums.map((k) => (
-                  <tr key={k.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{k.kode}</td>
-                    <td className="py-3.5 px-4">
-                      <span className="font-bold text-slate-900">{k.nama}</span>
-                      <p className="text-2xs text-slate-400 mt-0.5">{k.deskripsi}</p>
-                    </td>
-                    <td className="py-3.5 px-4">{k.program_studi?.nama || '-'}</td>
-                    <td className="py-3.5 px-4 tabular-nums font-semibold">{k.tahun_berlaku}</td>
-                    <td className="py-3.5 px-4 tabular-nums font-bold text-slate-900">{k.total_sks_lulus} SKS</td>
-                    <td className="py-3.5 px-4">
-                      <span className="badge badge-green text-2xs font-bold">Aktif</span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="outline"
-                          icon={<Edit3 size={13} />}
-                          className="text-2xs py-1 px-2.5 h-auto font-bold"
-                          onClick={() => handleOpenModal(k)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          icon={<Trash2 size={13} className="text-rose-600" />}
-                          className="text-2xs py-1 px-2.5 h-auto hover:bg-rose-50"
-                          onClick={() => handleDelete(k.id)}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal Kurikulum */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
-            <h3 className="text-base font-extrabold text-slate-900">
-              {editingKurikulum ? 'Edit Kurikulum' : 'Tambah Kurikulum Baru'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1 mb-4">
-              Definisikan kode kurikulum, total SKS kelulusan, dan prodi pengampu.
-            </p>
-
-            <form onSubmit={handleSave} className="space-y-3.5">
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Kode Kurikulum *
-                </label>
-                <input
-                  type="text"
-                  required
-                  disabled={Boolean(editingKurikulum)}
-                  placeholder="KUR-2024-IF"
-                  value={form.kode}
-                  onChange={(e) => setForm({ ...form, kode: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500 font-mono disabled:bg-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Nama Kurikulum *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Kurikulum OBE Informatika 2024"
-                  value={form.nama}
-                  onChange={(e) => setForm({ ...form, nama: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Program Studi *
-                  </label>
-                  <select
-                    disabled={Boolean(editingKurikulum)}
-                    value={form.program_studi_id}
-                    onChange={(e) => setForm({ ...form, program_studi_id: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500 disabled:bg-slate-100"
-                  >
-                    {prodis.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nama}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Tahun Berlaku *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={form.tahun_berlaku}
-                    onChange={(e) => setForm({ ...form, tahun_berlaku: parseInt(e.target.value) || 2024 })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Total SKS Kelulusan *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="100"
-                  value={form.total_sks_lulus}
-                  onChange={(e) => setForm({ ...form, total_sks_lulus: parseInt(e.target.value) || 144 })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Deskripsi
-                </label>
-                <textarea
-                  rows={2}
-                  value={form.deskripsi}
-                  onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
-                  placeholder="Keterangan kurikulum..."
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="text-xs"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="text-xs font-bold"
-                  disabled={saving}
-                >
-                  {saving ? 'Menyimpan...' : 'Simpan Kurikulum'}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label className="label">Program Studi</label>
+            <select
+              value={filterProdiId}
+              onChange={(e) => setFilterProdiId(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Program Studi</option>
+              {prodis.map((p) => (
+                <option key={p.id} value={p.id.toString()}>
+                  {p.nama} ({p.jenjang})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      )}
+      </Drawer>
+
+      {/* Modal Form Kurikulum */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingKurikulum ? 'Edit Kurikulum' : 'Tambah Kurikulum Baru'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Menyimpan...' : 'Simpan Kurikulum'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Kode Kurikulum"
+            required
+            disabled={Boolean(editingKurikulum)}
+            placeholder="KUR-2024-IF"
+            value={form.kode}
+            onChange={(e) => setForm({ ...form, kode: e.target.value })}
+          />
+
+          <Input
+            label="Nama Kurikulum"
+            required
+            placeholder="Kurikulum OBE Informatika 2024"
+            value={form.nama}
+            onChange={(e) => setForm({ ...form, nama: e.target.value })}
+          />
+
+          <div>
+            <label className="label">Program Studi *</label>
+            <select
+              disabled={Boolean(editingKurikulum)}
+              value={form.program_studi_id}
+              onChange={(e) => setForm({ ...form, program_studi_id: parseInt(e.target.value) })}
+              className="select w-full"
+            >
+              {prodis.map((p) => (
+                <option key={p.id} value={p.id}>{p.nama}</option>
+              ))}
+            </select>
+          </div>
+
+          <Input
+            label="Tahun Berlaku"
+            type="number"
+            required
+            value={form.tahun_berlaku}
+            onChange={(e) => setForm({ ...form, tahun_berlaku: parseInt(e.target.value) || 2024 })}
+          />
+
+          <Input
+            label="Total SKS Kelulusan"
+            type="number"
+            required
+            min="100"
+            value={form.total_sks_lulus}
+            onChange={(e) => setForm({ ...form, total_sks_lulus: parseInt(e.target.value) || 144 })}
+          />
+
+          <div className="md:col-span-2">
+            <label className="label">Deskripsi</label>
+            <textarea
+              rows={2}
+              value={form.deskripsi}
+              onChange={(e) => setForm({ ...form, deskripsi: e.target.value })}
+              placeholder="Keterangan kurikulum..."
+              className="input w-full"
+            />
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        open={Boolean(deletingKurikulum)}
+        onClose={() => setDeletingKurikulum(null)}
+        title="Hapus Kurikulum?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeletingKurikulum(null)}>
+              Batal
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Hapus
+            </Button>
+          </>
+        }
+      >
+        <p className="text-slate-500 text-sm">
+          Apakah Anda yakin ingin menghapus kurikulum <strong>{deletingKurikulum?.nama}</strong> ({deletingKurikulum?.kode})? Tindakan ini tidak dapat dibatalkan.
+        </p>
+      </Modal>
     </div>
   );
 }
+

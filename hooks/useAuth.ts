@@ -9,15 +9,15 @@ import { authService } from '@/services/auth.service';
 import { ROUTES } from '@/lib/constants';
 import type { LoginRequest, User, Permission } from '@/types/auth.types';
 
-// Helper set cookie untuk middleware Next.js (1 jam = 3600 detik)
+// Helper set cookie untuk middleware Next.js (24 jam = 86400 detik)
 function setAuthCookies(token: string, userRole: string) {
-  document.cookie = `sso_access_token=${token}; path=/; max-age=3600; SameSite=Lax`;
-  document.cookie = `sso_user_role=${userRole}; path=/; max-age=3600; SameSite=Lax`;
+  document.cookie = `sso_access_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+  document.cookie = `sso_user_role=${userRole}; path=/; max-age=86400; SameSite=Lax`;
 }
 
 function clearAuthCookies() {
-  document.cookie = 'sso_access_token=; path=/; max-age=0;';
-  document.cookie = 'sso_user_role=; path=/; max-age=0;';
+  document.cookie = 'sso_access_token=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'sso_user_role=; path=/; max-age=0; SameSite=Lax';
 }
 
 export function useAuth() {
@@ -49,7 +49,12 @@ export function useAuth() {
           setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
           setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
           toast.success(res?.message || `Selamat datang, ${userObj.username || 'Pengguna'}!`);
-          router.push(redirectPath || ROUTES.DASHBOARD);
+          
+          if (redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
+            router.push(redirectPath);
+          } else {
+            router.push(ROUTES.DASHBOARD);
+          }
         } else {
           toast.error(res?.message || 'Gagal autentikasi dari server.');
         }
@@ -88,8 +93,11 @@ export function useAuth() {
         if (tokenStr && userObj) {
           setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
           setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
-          toast.success(res?.message || `Pendaftaran berhasil, selamat datang ${userObj.username}!`);
-          router.push(redirectPath || ROUTES.DASHBOARD);
+          if (redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
+            router.push(redirectPath);
+          } else {
+            router.push(ROUTES.DASHBOARD);
+          }
         } else {
           // Fallback if backend doesn't return token
           toast.success('Pendaftaran berhasil! Silakan login.');

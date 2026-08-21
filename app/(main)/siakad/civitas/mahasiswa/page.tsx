@@ -1,9 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { GraduationCap, Plus, Search, Edit3, Trash2, RefreshCw, Sparkles, UserCheck } from 'lucide-react';
+import {
+  GraduationCap,
+  Plus,
+  Filter,
+  Edit2,
+  Trash2,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
@@ -12,11 +26,21 @@ export default function MahasiswaPage() {
   const [prodis, setProdis] = useState<any[]>([]);
   const [dosens, setDosens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+
+  // Filter Drawer States
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
   const [filterProdi, setFilterProdi] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDosenPa, setFilterDosenPa] = useState('');
   const [filterNim, setFilterNim] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: '',
+    prodi: '',
+    status: '',
+    dosenPa: '',
+    nim: '',
+  });
 
   // Bulk PA Assignment State
   const [selectedMhsIds, setSelectedMhsIds] = useState<number[]>([]);
@@ -28,8 +52,10 @@ export default function MahasiswaPage() {
   const [syncingSpmb, setSyncingSpmb] = useState(false);
   const [generatingNims, setGeneratingNims] = useState(false);
 
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMhs, setEditingMhs] = useState<any | null>(null);
+  const [deletingMhs, setDeletingMhs] = useState<any | null>(null);
   const [form, setForm] = useState({
     nama_lengkap: '',
     nim: '',
@@ -48,7 +74,7 @@ export default function MahasiswaPage() {
     try {
       const [pRes, dRes] = await Promise.all([
         siakadService.getProdi(),
-        siakadService.getDosens({ per_page: 100 })
+        siakadService.getDosens({ per_page: 100 }),
       ]);
       if (pRes.data) setProdis(pRes.data);
       if (dRes.data) {
@@ -62,21 +88,21 @@ export default function MahasiswaPage() {
     try {
       setLoading(true);
       const res = await siakadService.getMahasiswas({
-        search,
-        program_studi_id: filterProdi,
-        status: filterStatus
+        search: appliedFilters.search,
+        program_studi_id: appliedFilters.prodi,
+        status: appliedFilters.status,
       });
       if (res.data) {
         let list = res.data;
-        if (filterDosenPa === 'unassigned') {
+        if (appliedFilters.dosenPa === 'unassigned') {
           list = list.filter((m: any) => !m.dosen_wali_id);
-        } else if (filterDosenPa) {
-          list = list.filter((m: any) => String(m.dosen_wali_id) === String(filterDosenPa));
+        } else if (appliedFilters.dosenPa) {
+          list = list.filter((m: any) => String(m.dosen_wali_id) === String(appliedFilters.dosenPa));
         }
 
-        if (filterNim === 'unassigned') {
+        if (appliedFilters.nim === 'unassigned') {
           list = list.filter((m: any) => !m.nim || m.nim === '');
-        } else if (filterNim === 'assigned') {
+        } else if (appliedFilters.nim === 'assigned') {
           list = list.filter((m: any) => Boolean(m.nim));
         }
 
@@ -95,7 +121,7 @@ export default function MahasiswaPage() {
 
   useEffect(() => {
     fetchMahasiswa();
-  }, [search, filterProdi, filterStatus, filterDosenPa, filterNim]);
+  }, [appliedFilters]);
 
   const handleSyncSpmb = async () => {
     try {
@@ -123,30 +149,33 @@ export default function MahasiswaPage() {
     }
   };
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedMhsIds(mahasiswas.map((m) => m.id));
-    } else {
-      setSelectedMhsIds([]);
-    }
-  };
-
   const handleToggleSelect = (id: number) => {
     setSelectedMhsIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedMhsIds.length === mahasiswas.length) {
+      setSelectedMhsIds([]);
+    } else {
+      setSelectedMhsIds(mahasiswas.map((m) => m.id));
+    }
   };
 
   const handleBulkAssignPa = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBulkDosenId || selectedMhsIds.length === 0) return;
+    if (!selectedBulkDosenId) {
+      toast.error('Pilih Dosen PA terlebih dahulu');
+      return;
+    }
     try {
       setAssigningPa(true);
-      const res = await siakadService.bulkAssignPa({
+      await siakadService.bulkAssignPa({
         mahasiswa_ids: selectedMhsIds,
-        dosen_wali_id: Number(selectedBulkDosenId)
+        dosen_wali_id: Number(selectedBulkDosenId),
       });
-      toast.success(res.message || 'Dosen PA berhasil ditetapkan');
+      toast.success(`Dosen PA berhasil ditetapkan untuk ${selectedMhsIds.length} mahasiswa`);
       setIsBulkPaModalOpen(false);
       setSelectedMhsIds([]);
       fetchMahasiswa();
@@ -162,13 +191,13 @@ export default function MahasiswaPage() {
       setEditingMhs(item);
       setForm({
         nama_lengkap: item.nama_lengkap,
-        nim: item.nim,
+        nim: item.nim || '',
         nik: item.nik || '',
         program_studi_id: item.program_studi_id,
-        angkatan: item.angkatan,
-        jenis_kelamin: item.jenis_kelamin,
-        status: item.status,
-        dosen_wali_id: item.dosen_wali_id || '',
+        angkatan: item.angkatan || 2025,
+        jenis_kelamin: item.jenis_kelamin || 'L',
+        status: item.status || 'aktif',
+        dosen_wali_id: item.dosen_wali_id ? String(item.dosen_wali_id) : '',
         telepon: item.telepon || '',
         alamat: item.alamat || '',
       });
@@ -220,28 +249,201 @@ export default function MahasiswaPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Yakin ingin menghapus mahasiswa ini?')) return;
+  const handleDelete = async () => {
+    if (!deletingMhs) return;
     try {
-      await siakadService.deleteMahasiswa(id);
+      await siakadService.deleteMahasiswa(deletingMhs.id);
       toast.success('Mahasiswa berhasil dihapus');
+      setDeletingMhs(null);
       fetchMahasiswa();
     } catch (err: any) {
       toast.error('Gagal menghapus mahasiswa');
     }
   };
 
+  const columns: ColumnDef<any>[] = [
+    {
+      key: 'select',
+      label: '',
+      align: 'center',
+      headerRender: () => (
+        <input
+          type="checkbox"
+          onChange={handleSelectAll}
+          checked={mahasiswas.length > 0 && selectedMhsIds.length === mahasiswas.length}
+          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+        />
+      ),
+      render: (row) => (
+        <input
+          type="checkbox"
+          checked={selectedMhsIds.includes(row.id)}
+          onChange={() => handleToggleSelect(row.id)}
+          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+        />
+      ),
+    },
+    {
+      key: 'nim',
+      label: 'NIM',
+      render: (row) => (
+        <div className="font-mono">
+          {row.nim ? (
+            <span className="font-bold text-slate-900 text-xs">{row.nim}</span>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <Badge variant="amber" className="text-2xs">Belum Ada NIM</Badge>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await siakadService.generateNim({
+                      id: row.id,
+                      nama_lengkap: row.nama_lengkap,
+                      program_studi_id: row.program_studi_id,
+                      angkatan: row.angkatan,
+                      jenis_kelamin: row.jenis_kelamin,
+                    });
+                    toast.success(`NIM berhasil di-generate untuk ${row.nama_lengkap}`);
+                    fetchMahasiswa();
+                  } catch (err: any) {
+                    toast.error('Gagal generate NIM');
+                  }
+                }}
+                className="text-2xs font-bold text-primary-600 hover:text-primary-800 underline cursor-pointer"
+              >
+                + Buat NIM
+              </button>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'nama_lengkap',
+      label: 'NAMA MAHASISWA',
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-900 text-sm">{row.nama_lengkap}</span>
+          {row.konversi_id && (
+            <Badge variant="purple" className="text-2xs">Transfer</Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI',
+      render: (row) => (
+        <span className="text-xs font-medium text-slate-700">
+          {row.program_studi?.nama || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'angkatan',
+      label: 'ANGKATAN',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono text-xs font-bold text-slate-900">
+          {row.angkatan}
+        </span>
+      ),
+    },
+    {
+      key: 'dosen_pa',
+      label: 'DOSEN PA (WALI)',
+      render: (row) => (
+        <div>
+          {row.dosen_wali ? (
+            <span className="font-bold text-primary-800 bg-primary-50 px-2 py-1 rounded-lg border border-primary-200 text-xs inline-block">
+              {row.dosen_wali.nama_lengkap}
+            </span>
+          ) : (
+            <span className="text-2xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 font-bold inline-block">
+              Belum Ada Dosen PA
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      align: 'center',
+      render: (row) => (
+        <Badge
+          variant={row.status === 'aktif' ? 'green' : row.status === 'cuti' ? 'amber' : 'gray'}
+          className="capitalize"
+        >
+          {row.status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Edit Mahasiswa',
+                icon: <Edit2 size={14} />,
+                onClick: () => handleOpenModal(row),
+              },
+              ...(!row.nim
+                ? [
+                    {
+                      label: 'Generate NIM',
+                      icon: <Sparkles size={14} />,
+                      onClick: async () => {
+                        try {
+                          await siakadService.generateNim({
+                            id: row.id,
+                            nama_lengkap: row.nama_lengkap,
+                            program_studi_id: row.program_studi_id,
+                            angkatan: row.angkatan,
+                            jenis_kelamin: row.jenis_kelamin,
+                          });
+                          toast.success('NIM berhasil di-generate');
+                          fetchMahasiswa();
+                        } catch (err: any) {
+                          toast.error('Gagal generate NIM');
+                        }
+                      },
+                    },
+                  ]
+                : []),
+              {
+                label: 'Hapus Mahasiswa',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => setDeletingMhs(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Manajemen Mahasiswa & Dosen PA"
+        title="Civitas Mahasiswa"
         description="Data mahasiswa aktif, integrasi SPMB, penomoran NIM otomatis, dan plotting Dosen Pembimbing Akademik."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIAKAD', href: '/siakad' },
+          { label: 'Mahasiswa' },
+        ]}
         action={
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
-              icon={<RefreshCw size={15} className={`text-emerald-600 ${syncingSpmb ? 'animate-spin' : ''}`} />}
-              className="font-bold min-h-[40px] border-emerald-200 text-emerald-800 hover:bg-emerald-50"
+              icon={<RefreshCw size={15} className={syncingSpmb ? 'animate-spin' : ''} />}
               onClick={handleSyncSpmb}
               disabled={syncingSpmb}
             >
@@ -249,17 +451,15 @@ export default function MahasiswaPage() {
             </Button>
             <Button
               variant="outline"
-              icon={<Sparkles size={15} className="text-amber-600" />}
-              className="font-bold min-h-[40px] border-amber-200 text-amber-800 hover:bg-amber-50"
+              icon={<Sparkles size={15} />}
               onClick={handleGenerateMissingNims}
               disabled={generatingNims}
             >
-              {generatingNims ? 'Memproses...' : 'Generate NIM (Bagi yang Belum Ada)'}
+              {generatingNims ? 'Memproses...' : 'Generate NIM'}
             </Button>
             <Button
               variant="outline"
-              icon={<GraduationCap size={16} className="text-primary-600" />}
-              className="font-bold min-h-[40px] border-primary-200 text-primary-700 hover:bg-primary-50"
+              icon={<GraduationCap size={16} />}
               onClick={() => {
                 if (selectedMhsIds.length === 0) {
                   toast('Centang mahasiswa di tabel terlebih dahulu untuk menetapkan Dosen PA.', { icon: 'ℹ️' });
@@ -273,10 +473,16 @@ export default function MahasiswaPage() {
             <Button
               variant="primary"
               icon={<Plus size={16} />}
-              className="font-bold min-h-[40px]"
               onClick={() => handleOpenModal()}
             >
-              Tambah Manual
+              Tambah Mahasiswa
+            </Button>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
             </Button>
           </div>
         }
@@ -284,7 +490,7 @@ export default function MahasiswaPage() {
 
       {/* Floating Action Bar jika ada mahasiswa yang dicentang */}
       {selectedMhsIds.length > 0 && (
-        <div className="bg-primary-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-xl animate-fade-in border border-primary-700">
+        <div className="card p-4 flex items-center justify-between border-primary-500 bg-primary-950 text-white shadow-xl animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary-700 text-white font-black flex items-center justify-center text-xs">
               {selectedMhsIds.length}
@@ -318,369 +524,272 @@ export default function MahasiswaPage() {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-        {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="relative md:col-span-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Cari NIM, NIK, atau Nama..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-primary-500 transition outline-none"
+      {/* Full-bleed DataTable Card */}
+      <DataTable
+        columns={columns}
+        data={mahasiswas}
+        isLoading={loading}
+        emptyMessage="Belum ada data mahasiswa yang terdaftar."
+      />
+
+      {/* Filter Drawer */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Mahasiswa"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFilterSearch('');
+                setFilterProdi('');
+                setFilterNim('');
+                setFilterDosenPa('');
+                setFilterStatus('');
+                setAppliedFilters({ search: '', prodi: '', nim: '', dosenPa: '', status: '' });
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAppliedFilters({
+                  search: filterSearch,
+                  prodi: filterProdi,
+                  nim: filterNim,
+                  dosenPa: filterDosenPa,
+                  status: filterStatus,
+                });
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <Input
+            label="NIM, NIK, atau Nama Mahasiswa"
+            placeholder="Ketik kata kunci pencarian..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
+
+          <div>
+            <label className="label">Program Studi</label>
+            <select
+              value={filterProdi}
+              onChange={(e) => setFilterProdi(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Program Studi</option>
+              {prodis.map((p) => (
+                <option key={p.id} value={p.id.toString()}>{p.nama}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Status Kepemilikan NIM</label>
+            <select
+              value={filterNim}
+              onChange={(e) => setFilterNim(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Status NIM</option>
+              <option value="unassigned">⚠️ Belum Memiliki NIM</option>
+              <option value="assigned">✓ Sudah Memiliki NIM</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Dosen Pembimbing Akademik (PA)</label>
+            <select
+              value={filterDosenPa}
+              onChange={(e) => setFilterDosenPa(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Dosen PA</option>
+              <option value="unassigned">⚠️ Belum Memiliki Dosen PA</option>
+              {dosens.map((d) => (
+                <option key={d.id} value={d.id.toString()}>{d.nama_lengkap}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Status Akademik</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Status</option>
+              <option value="aktif">Aktif</option>
+              <option value="cuti">Cuti</option>
+              <option value="mangkir">Mangkir</option>
+              <option value="lulus">Lulus</option>
+            </select>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* Modal Plotting Dosen PA Massal */}
+      <Modal
+        open={isBulkPaModalOpen}
+        onClose={() => setIsBulkPaModalOpen(false)}
+        title="Plotting Dosen Pembimbing Akademik (PA)"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsBulkPaModalOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleBulkAssignPa} disabled={assigningPa}>
+              {assigningPa ? 'Menyimpan...' : `Tetapkan untuk ${selectedMhsIds.length} Mahasiswa`}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Pilih Dosen PA yang akan membimbing <strong>{selectedMhsIds.length} mahasiswa</strong> terpilih.
+          </p>
+
+          <div>
+            <label className="label">Pilih Dosen Pembimbing Akademik (PA) *</label>
+            <select
+              required
+              value={selectedBulkDosenId}
+              onChange={(e) => setSelectedBulkDosenId(Number(e.target.value))}
+              className="select w-full font-bold"
+            >
+              {dosens.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nama_lengkap} (NIDN: {d.nidn || '-'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-2xs text-slate-600 space-y-1">
+            <p>• Dosen PA berhak memverifikasi dan menyetujui pengajuan KRS mahasiswa.</p>
+            <p>• Dosen PA memonitor rekap nilai KHS dan perkembangan indeks prestasi kumulatif.</p>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Form Mahasiswa */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingMhs ? 'Edit Mahasiswa' : 'Tambah Mahasiswa / Generate NIM'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Menyimpan...' : 'Simpan Mahasiswa'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <Input
+              label="Nama Lengkap Mahasiswa"
+              required
+              placeholder="Contoh: Ahmad Fauzi"
+              value={form.nama_lengkap}
+              onChange={(e) => setForm({ ...form, nama_lengkap: e.target.value })}
             />
           </div>
 
-          <select
-            value={filterProdi}
-            onChange={(e) => setFilterProdi(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-          >
-            <option value="">Semua Program Studi</option>
-            {prodis.map((p) => (
-              <option key={p.id} value={p.id}>{p.nama}</option>
-            ))}
-          </select>
+          <Input
+            label="NIM (Kosongkan jika auto)"
+            disabled={Boolean(editingMhs)}
+            placeholder="Kosong = Auto generate"
+            value={form.nim}
+            onChange={(e) => setForm({ ...form, nim: e.target.value })}
+          />
 
-          <select
-            value={filterNim}
-            onChange={(e) => setFilterNim(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-          >
-            <option value="">Semua Status NIM</option>
-            <option value="unassigned">⚠️ Belum Memiliki NIM</option>
-            <option value="assigned">✓ Sudah Memiliki NIM</option>
-          </select>
-
-          <select
-            value={filterDosenPa}
-            onChange={(e) => setFilterDosenPa(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-          >
-            <option value="">Semua Dosen PA (Wali)</option>
-            <option value="unassigned">⚠️ Belum Memiliki Dosen PA</option>
-            {dosens.map((d) => (
-              <option key={d.id} value={d.id}>PA: {d.nama_lengkap}</option>
-            ))}
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-semibold text-slate-700"
-          >
-            <option value="">Semua Status</option>
-            <option value="aktif">Aktif</option>
-            <option value="cuti">Cuti</option>
-            <option value="mangkir">Mangkir</option>
-            <option value="lulus">Lulus</option>
-          </select>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-              <tr>
-                <th className="py-3 px-4 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    onChange={handleSelectAll}
-                    checked={mahasiswas.length > 0 && selectedMhsIds.length === mahasiswas.length}
-                    className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
-                  />
-                </th>
-                <th className="py-3 px-4">NIM</th>
-                <th className="py-3 px-4">NAMA LENGKAP</th>
-                <th className="py-3 px-4">PROGRAM STUDI</th>
-                <th className="py-3 px-4">ANGKATAN</th>
-                <th className="py-3 px-4">DOSEN PEMBIMBING AKADEMIK (PA)</th>
-                <th className="py-3 px-4">STATUS</th>
-                <th className="py-3 px-4 text-right">AKSI</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {loading ? (
-                <tr><td colSpan={8} className="py-8 text-center text-slate-400">Memuat data mahasiswa...</td></tr>
-              ) : mahasiswas.length === 0 ? (
-                <tr><td colSpan={8} className="py-8 text-center text-slate-400">Tidak ada data mahasiswa yang sesuai</td></tr>
-              ) : (
-                mahasiswas.map((mhs) => {
-                  const isSelected = selectedMhsIds.includes(mhs.id);
-                  return (
-                    <tr key={mhs.id} className={`transition ${isSelected ? 'bg-primary-50/60' : 'hover:bg-slate-50/80'}`}>
-                      <td className="py-3.5 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleToggleSelect(mhs.id)}
-                          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="py-3.5 px-4 font-mono">
-                        {mhs.nim ? (
-                          <span className="font-bold text-slate-900">{mhs.nim}</span>
-                        ) : (
-                          <div className="flex items-center gap-1.5">
-                            <span className="badge badge-yellow text-2xs font-bold">Belum Ada NIM</span>
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                try {
-                                  await siakadService.generateNim({
-                                    id: mhs.id,
-                                    nama_lengkap: mhs.nama_lengkap,
-                                    program_studi_id: mhs.program_studi_id,
-                                    angkatan: mhs.angkatan,
-                                    jenis_kelamin: mhs.jenis_kelamin,
-                                  });
-                                  toast.success(`NIM berhasil di-generate untuk ${mhs.nama_lengkap}`);
-                                  fetchMahasiswa();
-                                } catch (err: any) {
-                                  toast.error('Gagal generate NIM');
-                                }
-                              }}
-                              className="text-2xs font-bold text-primary-600 hover:text-primary-800 underline cursor-pointer"
-                            >
-                              + Buat NIM
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-bold text-slate-900">{mhs.nama_lengkap}</span>
-                        {mhs.konversi_id && (
-                          <span className="badge badge-purple text-2xs ml-2 font-bold">Transfer</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">{mhs.program_studi?.nama || '-'}</td>
-                      <td className="py-3.5 px-4 tabular-nums font-mono">{mhs.angkatan}</td>
-                      <td className="py-3.5 px-4">
-                        {mhs.dosen_wali ? (
-                          <span className="font-bold text-primary-800 bg-primary-50 px-2 py-1 rounded-lg border border-primary-200">
-                            {mhs.dosen_wali.nama_lengkap}
-                          </span>
-                        ) : (
-                          <span className="text-2xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 font-bold">
-                            Belum Ada Dosen PA
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`badge text-2xs font-bold ${mhs.status === 'aktif' ? 'badge-green' : 'badge-yellow'}`}>
-                          {mhs.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            variant="outline"
-                            icon={<Edit3 size={13} />}
-                            className="text-2xs py-1 px-2.5 h-auto font-bold"
-                            onClick={() => handleOpenModal(mhs)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            icon={<Trash2 size={13} className="text-rose-600" />}
-                            className="text-2xs py-1 px-2.5 h-auto hover:bg-rose-50"
-                            onClick={() => handleDelete(mhs.id)}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Modal Plotting Dosen PA Massal */}
-      {isBulkPaModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
-            <h3 className="text-base font-extrabold text-slate-900">Plotting Dosen Pembimbing Akademik (PA)</h3>
-            <p className="text-xs text-slate-500 mt-1 mb-4">
-              Pilih Dosen PA yang akan membimbing <strong>{selectedMhsIds.length} mahasiswa</strong> terpilih.
-            </p>
-
-            <form onSubmit={handleBulkAssignPa} className="space-y-4">
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Pilih Dosen Pembimbing Akademik (PA) *
-                </label>
-                <select
-                  required
-                  value={selectedBulkDosenId}
-                  onChange={(e) => setSelectedBulkDosenId(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-primary-500"
-                >
-                  {dosens.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.nama_lengkap} (NIDN: {d.nidn || '-'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-2xs text-slate-600 space-y-1">
-                <p>• Dosen PA berhak memverifikasi dan menyetujui pengajuan KRS mahasiswa.</p>
-                <p>• Dosen PA memonitor rekap nilai KHS dan perkembangan indeks prestasi kumulatif.</p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t">
-                <Button
-                  variant="outline"
-                  className="text-xs"
-                  onClick={() => setIsBulkPaModalOpen(false)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  variant="primary"
-                  type="submit"
-                  disabled={assigningPa}
-                  className="text-xs font-bold"
-                >
-                  {assigningPa ? 'Menyimpan...' : `Tetapkan untuk ${selectedMhsIds.length} Mahasiswa`}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label className="label">Program Studi *</label>
+            <select
+              disabled={Boolean(editingMhs)}
+              value={form.program_studi_id}
+              onChange={(e) => setForm({ ...form, program_studi_id: parseInt(e.target.value) })}
+              className="select w-full"
+            >
+              {prodis.map((p) => (
+                <option key={p.id} value={p.id}>{p.nama}</option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
 
-      {/* Modal Mahasiswa */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
-            <h3 className="text-base font-extrabold text-slate-900">
-              {editingMhs ? 'Edit Mahasiswa' : 'Tambah Mahasiswa / Generate NIM'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1 mb-4">
-              {editingMhs ? 'Perbarui data profil mahasiswa.' : 'Kosongkan NIM jika ingin sistem generate otomatis.'}
-            </p>
+          <Input
+            label="Tahun Angkatan"
+            type="number"
+            required
+            value={form.angkatan}
+            onChange={(e) => setForm({ ...form, angkatan: parseInt(e.target.value) || 2025 })}
+          />
 
-            <form onSubmit={handleSave} className="space-y-3.5">
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Nama Lengkap *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: Ahmad Fauzi"
-                  value={form.nama_lengkap}
-                  onChange={(e) => setForm({ ...form, nama_lengkap: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    NIM (Auto jika kosong)
-                  </label>
-                  <input
-                    type="text"
-                    disabled={Boolean(editingMhs)}
-                    placeholder="Kosong = Auto"
-                    value={form.nim}
-                    onChange={(e) => setForm({ ...form, nim: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500 font-mono disabled:bg-slate-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Program Studi *
-                  </label>
-                  <select
-                    disabled={Boolean(editingMhs)}
-                    value={form.program_studi_id}
-                    onChange={(e) => setForm({ ...form, program_studi_id: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500 disabled:bg-slate-100"
-                  >
-                    {prodis.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nama}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Angkatan *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={form.angkatan}
-                    onChange={(e) => setForm({ ...form, angkatan: parseInt(e.target.value) || 2025 })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Jenis Kelamin *
-                  </label>
-                  <select
-                    value={form.jenis_kelamin}
-                    onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                  >
-                    <option value="L">Laki-laki (L)</option>
-                    <option value="P">Perempuan (P)</option>
-                  </select>
-                </div>
-              </div>
-
-              {editingMhs && (
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Status Mahasiswa
-                  </label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                  >
-                    <option value="aktif">Aktif</option>
-                    <option value="cuti">Cuti</option>
-                    <option value="mangkir">Mangkir</option>
-                    <option value="lulus">Lulus</option>
-                  </select>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="text-xs"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="text-xs font-bold"
-                  disabled={saving}
-                >
-                  {saving ? 'Menyimpan...' : 'Simpan Mahasiswa'}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label className="label">Jenis Kelamin *</label>
+            <select
+              value={form.jenis_kelamin}
+              onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })}
+              className="select w-full"
+            >
+              <option value="L">Laki-laki (L)</option>
+              <option value="P">Perempuan (P)</option>
+            </select>
           </div>
-        </div>
-      )}
+
+          {editingMhs && (
+            <div className="md:col-span-2">
+              <label className="label">Status Akademik</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                className="select w-full"
+              >
+                <option value="aktif">Aktif</option>
+                <option value="cuti">Cuti</option>
+                <option value="mangkir">Mangkir</option>
+                <option value="lulus">Lulus</option>
+              </select>
+            </div>
+          )}
+        </form>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal
+        open={Boolean(deletingMhs)}
+        onClose={() => setDeletingMhs(null)}
+        title="Hapus Mahasiswa?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeletingMhs(null)}>
+              Batal
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Hapus
+            </Button>
+          </>
+        }
+      >
+        <p className="text-slate-500 text-sm">
+          Apakah Anda yakin ingin menghapus mahasiswa <strong>{deletingMhs?.nama_lengkap}</strong> ({deletingMhs?.nim || 'Belum ada NIM'})? Tindakan ini tidak dapat dibatalkan.
+        </p>
+      </Modal>
     </div>
   );
 }

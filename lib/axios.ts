@@ -110,6 +110,19 @@ function handleLogout() {
   localStorage.removeItem('sso-auth-storage');
   document.cookie = 'sso_access_token=; path=/; max-age=0; SameSite=Lax';
   document.cookie = 'sso_user_role=; path=/; max-age=0; SameSite=Lax';
+
+  if (typeof window !== 'undefined') {
+    const currentPath = window.location.pathname;
+    const isPublic = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email', '/mfa'].some(
+      (p) => currentPath === p || currentPath.startsWith(`${p}/`)
+    );
+    if (!isPublic && currentPath !== '/') {
+      const currentUrl = window.location.pathname + window.location.search;
+      window.location.href = `${ROUTES.LOGIN}?redirect=${encodeURIComponent(currentUrl)}`;
+      return;
+    }
+  }
+
   window.location.href = ROUTES.LOGIN;
 }
 

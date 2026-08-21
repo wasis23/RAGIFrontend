@@ -1,17 +1,18 @@
 import { cn } from '@/lib/utils';
 
-type BadgeVariant = 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'indigo' | 'purple' | 'cyan' | 'orange' | 'simpeg' | 'spmb' | 'siakad' | 'sikeu' | 'lms' | 'sinapra' | 'kerjasama' | 'upm' | 'success' | 'danger' | 'warning' | 'info' | 'secondary';
+type BadgeVariant = 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'indigo' | 'purple' | 'cyan' | 'orange' | 'amber' | 'rose' | 'simpeg' | 'spmb' | 'siakad' | 'sikeu' | 'lms' | 'sinapra' | 'kerjasama' | 'upm' | 'success' | 'danger' | 'warning' | 'info' | 'secondary';
 
 interface BadgeProps {
   variant?: BadgeVariant;
   dot?: boolean;
   children: React.ReactNode;
   className?: string;
+  title?: string;
 }
 
-export function Badge({ variant = 'gray', dot = false, children, className }: BadgeProps) {
+export function Badge({ variant = 'gray', dot = false, children, className, title }: BadgeProps) {
   return (
-    <span className={cn('badge', `badge-${variant}`, dot && 'badge-dot', className)}>
+    <span title={title} className={cn('badge', `badge-${variant}`, dot && 'badge-dot', className)}>
       {children}
     </span>
   );

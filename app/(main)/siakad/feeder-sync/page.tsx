@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
 import { feederService } from '@/services/feeder.service';
 import toast from 'react-hot-toast';
 import {
@@ -13,21 +16,19 @@ import {
   AlertTriangle,
   Settings,
   History,
-  ArrowRight,
-  Search,
-  Filter,
   GraduationCap,
   Users,
   BookOpen,
   CalendarCheck,
-  Server
+  Server,
+  Filter,
 } from 'lucide-react';
 
 export default function FeederSyncPage() {
   const [activeTab, setActiveTab] = useState<'sync' | 'config' | 'mappings' | 'logs'>('sync');
   const [isLoading, setIsLoading] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<string | null>(null);
-  
+
   // Config state
   const [configForm, setConfigForm] = useState({
     url: 'http://localhost:8100/ws/live2.php',
@@ -39,7 +40,12 @@ export default function FeederSyncPage() {
   const [mappings, setMappings] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [syncingEntity, setSyncingEntity] = useState<string | null>(null);
-  const [mappingFilter, setMappingFilter] = useState({
+
+  // Filter Drawer State (Mappings Tab)
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterEntityType, setFilterEntityType] = useState('');
+  const [filterSyncStatus, setFilterSyncStatus] = useState('');
+  const [appliedMappingFilters, setAppliedMappingFilters] = useState({
     entity_type: '',
     sync_status: '',
   });
@@ -80,7 +86,7 @@ export default function FeederSyncPage() {
         const res = await feederService.getLogs();
         if (res.data) setLogs(res.data);
       } else if (activeTab === 'mappings') {
-        const res = await feederService.getMappings(mappingFilter);
+        const res = await feederService.getMappings(appliedMappingFilters);
         if (res.data) setMappings(res.data);
       }
     } catch (err) {}
@@ -93,7 +99,7 @@ export default function FeederSyncPage() {
 
   useEffect(() => {
     fetchLogsAndMappings();
-  }, [activeTab, mappingFilter]);
+  }, [activeTab, appliedMappingFilters]);
 
   const handleSaveConfig = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +109,7 @@ export default function FeederSyncPage() {
       toast.success('Konfigurasi Neo Feeder berhasil disimpan');
       checkToken();
     } catch (err: any) {
-      toast.error('Gagal menyimpan konfigurasi');
+      toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan konfigurasi');
     } finally {
       setIsLoading(false);
     }
@@ -113,7 +119,7 @@ export default function FeederSyncPage() {
     try {
       setSyncingEntity(entity);
       const res = await feederService.triggerSync(entity);
-      toast.success(res.message || `Sinkronisasi ${entity} selesai`);
+      toast.success(res.message || `Sinkronisasi ${entity} berhasil diproses`);
       fetchLogsAndMappings();
     } catch (err: any) {
       toast.error(err.response?.data?.message || err.message || `Gagal sinkronisasi ${entity}`);
@@ -122,21 +128,172 @@ export default function FeederSyncPage() {
     }
   };
 
+  const mappingColumns: ColumnDef<any>[] = [
+    {
+      key: 'entity_type',
+      label: 'ENTITAS',
+      render: (row) => (
+        <span className="font-bold text-slate-900 uppercase text-xs">
+          {row.entity_type}
+        </span>
+      ),
+    },
+    {
+      key: 'local_id',
+      label: 'LOCAL ID',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-800 text-xs">
+          #{row.local_id}
+        </span>
+      ),
+    },
+    {
+      key: 'feeder_id',
+      label: 'ID FEEDER / DIKTI',
+      render: (row) => (
+        <span className="font-mono font-bold text-primary-700 text-xs">
+          {row.feeder_id || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'sync_status',
+      label: 'STATUS SYNC',
+      align: 'center',
+      render: (row) => (
+        <Badge
+          variant={
+            row.sync_status === 'synced'
+              ? 'green'
+              : row.sync_status === 'failed'
+              ? 'rose'
+              : 'amber'
+          }
+          className="uppercase"
+        >
+          {row.sync_status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'last_synced_at',
+      label: 'TERAKHIR SYNC',
+      render: (row) => (
+        <span className="text-slate-500 font-mono text-2xs">
+          {row.last_synced_at || '-'}
+        </span>
+      ),
+    },
+  ];
+
+  const logColumns: ColumnDef<any>[] = [
+    {
+      key: 'created_at',
+      label: 'WAKTU SYNC',
+      render: (row) => (
+        <span className="font-mono text-slate-600 text-2xs">
+          {row.created_at?.slice(0, 19).replace('T', ' ')}
+        </span>
+      ),
+    },
+    {
+      key: 'entity_type',
+      label: 'MODUL / ENTITAS',
+      render: (row) => (
+        <span className="font-bold text-slate-900 uppercase text-xs">
+          {row.entity_type}
+        </span>
+      ),
+    },
+    {
+      key: 'sync_type',
+      label: 'TIPE',
+      render: (row) => (
+        <span className="uppercase font-bold text-slate-600 text-2xs">
+          {row.sync_type}
+        </span>
+      ),
+    },
+    {
+      key: 'total_records',
+      label: 'TOTAL',
+      align: 'center',
+      render: (row) => (
+        <span className="tabular-nums font-bold text-slate-900 text-xs">
+          {row.total_records}
+        </span>
+      ),
+    },
+    {
+      key: 'hasil',
+      label: 'SUKSES / GAGAL',
+      render: (row) => (
+        <span className="tabular-nums text-xs">
+          <span className="text-emerald-700 font-bold">{row.success_count} Sukses</span> /{' '}
+          <span className="text-rose-600 font-bold">{row.failed_count} Gagal</span>
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      align: 'center',
+      render: (row) => (
+        <Badge
+          variant={
+            row.status === 'success'
+              ? 'green'
+              : row.status === 'partial'
+              ? 'amber'
+              : 'rose'
+          }
+          className="uppercase"
+        >
+          {row.status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'operator',
+      label: 'OPERATOR',
+      render: (row) => (
+        <span className="text-slate-600 text-xs">
+          {row.user?.username || 'System'}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Integrasi & Penampungan Data Neo Feeder PDDIKTI"
-        description="Sinkronisasi data terintegrasi ke Neo Feeder PDDIKTI, pemetaan data staging/penampungan, dan manajemen koneksi web service."
+        title="Sinkronisasi PDDikti Neo Feeder"
+        description="Integrasi Web Service (WS) Neo Feeder, sinkronisasi civitas, kurikulum, dan pelaporan semester."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIAKAD', href: '/siakad' },
+          { label: 'Neo Feeder Sync' },
+        ]}
         action={
-          <Button
-            variant="outline"
-            icon={<RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />}
-            className="font-bold text-xs"
-            onClick={checkToken}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Mengecek...' : 'Cek Status Token'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<RefreshCw size={15} className={isLoading ? 'animate-spin' : ''} />}
+              onClick={checkToken}
+              disabled={isLoading}
+            >
+              Uji Koneksi
+            </Button>
+            {activeTab === 'mappings' && (
+              <Button
+                variant="outline"
+                icon={<Filter size={16} />}
+                onClick={() => setShowFilter(true)}
+              >
+                Filter
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -144,43 +301,50 @@ export default function FeederSyncPage() {
       <div className="flex items-center gap-2 border-b border-slate-200">
         <button
           onClick={() => setActiveTab('sync')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition -mb-px cursor-pointer ${
             activeTab === 'sync'
-              ? 'border-primary-600 text-primary-700'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
+              ? 'border-primary-600 text-primary-600 bg-primary-50/50 rounded-t-xl'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
-          <Database size={16} /> Operasi Sinkronisasi
+          <Database size={16} />
+          Operasi Sinkronisasi
         </button>
+
         <button
           onClick={() => setActiveTab('mappings')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition -mb-px cursor-pointer ${
             activeTab === 'mappings'
-              ? 'border-primary-600 text-primary-700'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
+              ? 'border-primary-600 text-primary-600 bg-primary-50/50 rounded-t-xl'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
-          <Server size={16} /> Penampungan Data & ID Feeder
+          <Server size={16} />
+          Data Mapping Feeder
         </button>
+
         <button
           onClick={() => setActiveTab('logs')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition -mb-px cursor-pointer ${
             activeTab === 'logs'
-              ? 'border-primary-600 text-primary-700'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
+              ? 'border-primary-600 text-primary-600 bg-primary-50/50 rounded-t-xl'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
-          <History size={16} /> Riwayat Log Sync
+          <History size={16} />
+          Riwayat Log Sync
         </button>
+
         <button
           onClick={() => setActiveTab('config')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition -mb-px cursor-pointer ${
             activeTab === 'config'
-              ? 'border-primary-600 text-primary-700'
-              : 'border-transparent text-slate-500 hover:text-slate-700'
+              ? 'border-primary-600 text-primary-600 bg-primary-50/50 rounded-t-xl'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
-          <Settings size={16} /> Konfigurasi Kredensial
+          <Settings size={16} />
+          Konfigurasi Kredensial
         </button>
       </div>
 
@@ -188,30 +352,36 @@ export default function FeederSyncPage() {
       {activeTab === 'sync' && (
         <div className="space-y-4">
           {/* Connection Status Banner */}
-          <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div className="card p-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tokenInfo ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  tokenInfo ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                }`}
+              >
                 {tokenInfo ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Koneksi Feeder / Staging</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Status Koneksi Feeder / Staging
+                </p>
                 <p className="font-mono text-xs font-bold text-slate-900 mt-0.5 break-all">
                   {tokenInfo ? `Token Aktif: ${tokenInfo}` : 'Koneksi belum terverifikasi'}
                 </p>
               </div>
             </div>
-            <span className={`badge font-bold text-2xs ${tokenInfo ? 'badge-green' : 'badge-red'}`}>
+            <Badge variant={tokenInfo ? 'green' : 'rose'}>
               {tokenInfo ? 'TERHUBUNG' : 'OFFLINE'}
-            </span>
+            </Badge>
           </div>
 
-          {/* Sync Action Cards */}
+          {/* Sync Action Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Card 1: Mahasiswa */}
-            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-3">
+            <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center font-bold">
                     <GraduationCap size={18} />
                   </div>
                   <div>
@@ -220,11 +390,11 @@ export default function FeederSyncPage() {
                   </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold">Tabel: siakad_mahasiswa</span>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_mahasiswa</span>
                 <Button
                   variant="primary"
-                  className="text-xs font-bold px-3 py-1.5 h-auto"
+                  className="text-xs font-bold"
                   disabled={syncingEntity === 'mahasiswa'}
                   onClick={() => handleTriggerSync('mahasiswa')}
                 >
@@ -234,10 +404,10 @@ export default function FeederSyncPage() {
             </div>
 
             {/* Card 2: Dosen */}
-            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-3">
+            <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
                     <Users size={18} />
                   </div>
                   <div>
@@ -246,11 +416,11 @@ export default function FeederSyncPage() {
                   </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold">Tabel: siakad_dosen</span>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_dosen</span>
                 <Button
                   variant="primary"
-                  className="text-xs font-bold px-3 py-1.5 h-auto"
+                  className="text-xs font-bold"
                   disabled={syncingEntity === 'dosen'}
                   onClick={() => handleTriggerSync('dosen')}
                 >
@@ -260,10 +430,10 @@ export default function FeederSyncPage() {
             </div>
 
             {/* Card 3: Mata Kuliah */}
-            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-3">
+            <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
                     <BookOpen size={18} />
                   </div>
                   <div>
@@ -272,11 +442,11 @@ export default function FeederSyncPage() {
                   </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold">Tabel: siakad_mata_kuliah</span>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_mata_kuliah</span>
                 <Button
                   variant="primary"
-                  className="text-xs font-bold px-3 py-1.5 h-auto"
+                  className="text-xs font-bold"
                   disabled={syncingEntity === 'mata_kuliah'}
                   onClick={() => handleTriggerSync('mata_kuliah')}
                 >
@@ -286,10 +456,10 @@ export default function FeederSyncPage() {
             </div>
 
             {/* Card 4: Kelas Perkuliahan */}
-            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-3">
+            <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
                     <CalendarCheck size={18} />
                   </div>
                   <div>
@@ -298,11 +468,11 @@ export default function FeederSyncPage() {
                   </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold">Tabel: siakad_kelas & siakad_nilai</span>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_kelas & siakad_nilai</span>
                 <Button
                   variant="primary"
-                  className="text-xs font-bold px-3 py-1.5 h-auto"
+                  className="text-xs font-bold"
                   disabled={syncingEntity === 'kelas'}
                   onClick={() => handleTriggerSync('kelas')}
                 >
@@ -311,11 +481,11 @@ export default function FeederSyncPage() {
               </div>
             </div>
 
-            {/* Card 5: Penugasan Dosen Pengajar Kelas */}
-            <div className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-3">
+            {/* Card 5: Penugasan Dosen */}
+            <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
                     <Users size={18} />
                   </div>
                   <div>
@@ -324,11 +494,11 @@ export default function FeederSyncPage() {
                   </div>
                 </div>
               </div>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold">Tabel: siakad_dosen_pengampu</span>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_dosen_pengampu</span>
                 <Button
                   variant="primary"
-                  className="text-xs font-bold px-3 py-1.5 h-auto bg-amber-600 hover:bg-amber-700 text-white border-none"
+                  className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white border-none"
                   disabled={syncingEntity === 'penugasan_dosen'}
                   onClick={() => handleTriggerSync('penugasan_dosen')}
                 >
@@ -342,182 +512,132 @@ export default function FeederSyncPage() {
 
       {/* Tab 2: Staging / Penampungan Mappings */}
       {activeTab === 'mappings' && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <select
-                value={mappingFilter.entity_type}
-                onChange={(e) => setMappingFilter({ ...mappingFilter, entity_type: e.target.value })}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
-              >
-                <option value="">Semua Entitas</option>
-                <option value="mahasiswa">Mahasiswa</option>
-                <option value="dosen">Dosen</option>
-                <option value="mata_kuliah">Mata Kuliah</option>
-                <option value="kelas">Kelas</option>
-              </select>
-
-              <select
-                value={mappingFilter.sync_status}
-                onChange={(e) => setMappingFilter({ ...mappingFilter, sync_status: e.target.value })}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
-              >
-                <option value="">Semua Status</option>
-                <option value="synced">Synced</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">ENTITAS</th>
-                  <th className="py-3 px-4">LOCAL ID</th>
-                  <th className="py-3 px-4">ID FEEDER / DIKTI</th>
-                  <th className="py-3 px-4">STATUS SYNC</th>
-                  <th className="py-3 px-4">TERAKHIR SYNC</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {mappings.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
-                      Belum ada penampungan data mapping. Klik salah satu tombol "Push" di tab Operasi Sinkronisasi.
-                    </td>
-                  </tr>
-                ) : (
-                  mappings.map((m) => (
-                    <tr key={m.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 uppercase">{m.entity_type}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-800">#{m.local_id}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold text-primary-700">{m.feeder_id || '-'}</td>
-                      <td className="py-3.5 px-4">
-                        <span className={`badge text-2xs font-bold ${
-                          m.sync_status === 'synced' ? 'badge-green' : m.sync_status === 'failed' ? 'badge-red' : 'badge-yellow'
-                        }`}>
-                          {m.sync_status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-500 text-2xs">{m.last_synced_at || '-'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          columns={mappingColumns}
+          data={mappings}
+          isLoading={isLoading}
+          emptyMessage="Belum ada penampungan data mapping. Klik salah satu tombol 'Push' di tab Operasi Sinkronisasi."
+        />
       )}
 
       {/* Tab 3: Riwayat Logs */}
       {activeTab === 'logs' && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">WAKTU SYNC</th>
-                  <th className="py-3 px-4">MODUL / ENTITAS</th>
-                  <th className="py-3 px-4">TIPE</th>
-                  <th className="py-3 px-4">TOTAL</th>
-                  <th className="py-3 px-4">SUKSES / GAGAL</th>
-                  <th className="py-3 px-4">STATUS</th>
-                  <th className="py-3 px-4">OPERATOR</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">Belum ada riwayat log sinkronisasi.</td>
-                  </tr>
-                ) : (
-                  logs.map((l) => (
-                    <tr key={l.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-3.5 px-4 font-mono text-slate-600 text-2xs">{l.created_at?.slice(0, 19).replace('T', ' ')}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900 uppercase">{l.entity_type}</td>
-                      <td className="py-3.5 px-4 uppercase font-bold text-slate-600">{l.sync_type}</td>
-                      <td className="py-3.5 px-4 tabular-nums font-bold">{l.total_records}</td>
-                      <td className="py-3.5 px-4 tabular-nums">
-                        <span className="text-emerald-700 font-bold">{l.success_count} Sukses</span> /{' '}
-                        <span className="text-rose-600 font-bold">{l.failed_count} Gagal</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`badge text-2xs font-bold ${
-                          l.status === 'success' ? 'badge-green' : l.status === 'partial' ? 'badge-yellow' : 'badge-red'
-                        }`}>
-                          {l.status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-slate-600">{l.user?.username || 'System'}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          columns={logColumns}
+          data={logs}
+          isLoading={isLoading}
+          emptyMessage="Belum ada riwayat log sinkronisasi Neo Feeder."
+        />
       )}
 
       {/* Tab 4: Configuration */}
       {activeTab === 'config' && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs max-w-2xl">
-          <h3 className="text-base font-extrabold text-slate-900">Pengaturan Kredensial Neo Feeder</h3>
-          <p className="text-xs text-slate-500 mt-1 mb-5">
-            Konfigurasikan URL endpoint Web Service (WS) Neo Feeder PDDIKTI kampus Anda.
-          </p>
+        <div className="card p-6 max-w-2xl space-y-4">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900">Pengaturan Kredensial Neo Feeder</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Konfigurasikan URL endpoint Web Service (WS) Neo Feeder PDDIKTI kampus Anda.
+            </p>
+          </div>
 
-          <form onSubmit={handleSaveConfig} className="space-y-4">
-            <div>
-              <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                URL Web Service Feeder (ws/live2.php atau sandbox)
-              </label>
-              <input
-                type="text"
-                required
-                value={configForm.url}
-                onChange={(e) => setConfigForm({ ...configForm, url: e.target.value })}
-                placeholder="http://localhost:8100/ws/live2.php"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500 font-mono"
-              />
-            </div>
+          <form onSubmit={handleSaveConfig} className="space-y-4 pt-2">
+            <Input
+              label="URL Web Service Feeder (ws/live2.php atau sandbox) *"
+              required
+              value={configForm.url}
+              onChange={(e) => setConfigForm({ ...configForm, url: e.target.value })}
+              placeholder="http://localhost:8100/ws/live2.php"
+            />
 
-            <div>
-              <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Username / Kode PT Feeder
-              </label>
-              <input
-                type="text"
-                required
-                value={configForm.username}
-                onChange={(e) => setConfigForm({ ...configForm, username: e.target.value })}
-                placeholder="admin_siakad"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-              />
-            </div>
+            <Input
+              label="Username / Kode PT Feeder *"
+              required
+              value={configForm.username}
+              onChange={(e) => setConfigForm({ ...configForm, username: e.target.value })}
+              placeholder="admin_siakad"
+            />
 
-            <div>
-              <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Password Feeder (Kosongkan jika tidak ingin mengubah)
-              </label>
-              <input
-                type="password"
-                value={configForm.password}
-                onChange={(e) => setConfigForm({ ...configForm, password: e.target.value })}
-                placeholder="••••••••"
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-              />
-            </div>
+            <Input
+              label="Password Feeder (Kosongkan jika tidak ingin mengubah)"
+              type="password"
+              value={configForm.password}
+              onChange={(e) => setConfigForm({ ...configForm, password: e.target.value })}
+              placeholder="••••••••"
+            />
 
             <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
-              <Button type="submit" variant="primary" className="text-xs font-bold min-h-[38px]" disabled={isLoading}>
+              <Button type="submit" variant="primary" disabled={isLoading}>
                 {isLoading ? 'Menyimpan...' : 'Simpan Konfigurasi'}
               </Button>
             </div>
           </form>
         </div>
       )}
+
+      {/* Filter Drawer for Mappings */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Mapping Feeder"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFilterEntityType('');
+                setFilterSyncStatus('');
+                setAppliedMappingFilters({ entity_type: '', sync_status: '' });
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAppliedMappingFilters({
+                  entity_type: filterEntityType,
+                  sync_status: filterSyncStatus,
+                });
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <div>
+            <label className="label">Tipe Entitas</label>
+            <select
+              value={filterEntityType}
+              onChange={(e) => setFilterEntityType(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Entitas</option>
+              <option value="mahasiswa">Mahasiswa</option>
+              <option value="dosen">Dosen</option>
+              <option value="mata_kuliah">Mata Kuliah</option>
+              <option value="kelas">Kelas Perkuliahan</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Status Sinkronisasi</label>
+            <select
+              value={filterSyncStatus}
+              onChange={(e) => setFilterSyncStatus(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Status</option>
+              <option value="synced">Synced (Berhasil)</option>
+              <option value="pending">Pending</option>
+              <option value="failed">Failed (Gagal)</option>
+            </select>
+          </div>
+        </div>
+      </Drawer>
     </div>
   );
 }

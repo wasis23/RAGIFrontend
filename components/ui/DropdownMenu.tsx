@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 export interface DropdownMenuItem {
   label: string;
   icon?: React.ReactNode;
-  onClick: () => void;
+  onClick: () => void | Promise<void>;
   variant?: 'default' | 'danger' | 'warning';
   disabled?: boolean;
 }

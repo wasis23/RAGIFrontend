@@ -22,10 +22,14 @@ import {
   BarChart3,
   TrendingUp,
   Clock,
-  Send
+  Send,
+  MoreVertical,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { siakadService } from '@/services/siakad.service';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
@@ -264,41 +268,241 @@ export default function KurikulumObePage() {
 
   const selectedProdiObj = prodis.find((p) => p.id === Number(selectedProdiId));
 
-  return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-purple text-2xs font-extrabold uppercase tracking-wider">
-              Modul Kurikulum OBE (SN-DIKTI)
-            </span>
-            <span className="badge badge-green text-2xs font-bold uppercase">
-              Akreditasi Unggul
-            </span>
-          </div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight mt-1.5">
-            Kurikulum & Rencana Pembelajaran Semester (RPS OBE)
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Perumusan CPL, penurunan CPMK, penyusunan rancangan pembelajaran (RPS 16 Minggu), dan verifikasi Kaprodi.
-          </p>
-        </div>
+  const cplColumns: ColumnDef<any>[] = [
+    {
+      key: 'kode_cpl',
+      label: 'KODE CPL',
+      render: (row) => (
+        <span className="font-mono font-black text-primary-700 text-xs">
+          {row.kode_cpl}
+        </span>
+      ),
+    },
+    {
+      key: 'kategori',
+      label: 'RANAH / KATEGORI',
+      render: (row) => (
+        <Badge variant="purple" className="uppercase font-bold text-2xs">
+          {row.kategori?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'deskripsi',
+      label: 'DESKRIPSI CAPAIAN PEMBELAJARAN LULUSAN',
+      render: (row) => (
+        <span className="leading-relaxed font-normal text-slate-800 text-xs">
+          {row.deskripsi}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      align: 'center',
+      render: () => <Badge variant="green">Aktif</Badge>,
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <Button
+          variant="outline"
+          icon={<Edit3 size={12} />}
+          className="text-2xs py-1 px-2.5 h-auto font-bold"
+          onClick={() => {
+            setEditingCpl(row);
+            setCplForm({
+              program_studi_id: row.program_studi_id,
+              kode_cpl: row.kode_cpl,
+              kategori: row.kategori,
+              deskripsi: row.deskripsi,
+            });
+            setIsCplModalOpen(true);
+          }}
+        >
+          Edit
+        </Button>
+      ),
+    },
+  ];
 
-        {/* Prodi Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-500">Program Studi:</span>
-          <select
-            value={selectedProdiId}
-            onChange={(e) => setSelectedProdiId(Number(e.target.value))}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-900 outline-none cursor-pointer"
-          >
-            {prodis.map((p) => (
-              <option key={p.id} value={p.id}>{p.nama} ({p.jenjang})</option>
-            ))}
-          </select>
+  const cpmkColumns: ColumnDef<any>[] = [
+    {
+      key: 'kode_cpmk',
+      label: 'KODE CPMK',
+      render: (row) => (
+        <span className="font-mono font-black text-primary-700 text-xs">
+          {row.kode_cpmk}
+        </span>
+      ),
+    },
+    {
+      key: 'cpl',
+      label: 'KORELASI CPL',
+      render: (row) =>
+        row.cpl ? (
+          <Badge variant="blue" className="font-mono font-bold" title={row.cpl.deskripsi}>
+            {row.cpl.kode_cpl}
+          </Badge>
+        ) : (
+          <span className="text-slate-400 text-xs">-</span>
+        ),
+    },
+    {
+      key: 'deskripsi',
+      label: 'DESKRIPSI CAPAIAN MATA KULIAH',
+      render: (row) => (
+        <span className="leading-relaxed font-normal text-slate-800 text-xs">
+          {row.deskripsi}
+        </span>
+      ),
+    },
+    {
+      key: 'bobot',
+      label: 'BOBOT (%)',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-900 text-xs">
+          {row.bobot_persentase}%
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <Button
+          variant="outline"
+          icon={<Edit3 size={12} />}
+          className="text-2xs py-1 px-2.5 h-auto font-bold"
+          onClick={() => {
+            setEditingCpmk(row);
+            setCpmkForm({
+              mata_kuliah_id: row.mata_kuliah_id,
+              cpl_id: row.cpl_id || '',
+              kode_cpmk: row.kode_cpmk,
+              deskripsi: row.deskripsi,
+              bobot_persentase: row.bobot_persentase || 30,
+            });
+            setIsCpmkModalOpen(true);
+          }}
+        >
+          Edit
+        </Button>
+      ),
+    },
+  ];
+
+  const rpsColumns: ColumnDef<any>[] = [
+    {
+      key: 'mata_kuliah',
+      label: 'KODE & MATA KULIAH',
+      render: (row) => (
+        <div>
+          <span className="font-extrabold text-slate-900 block text-xs">
+            {row.mata_kuliah?.nama}
+          </span>
+          <span className="text-2xs text-slate-400 font-mono">
+            {row.mata_kuliah?.kode_mk} • Tahun {row.tahun_ajaran}
+          </span>
         </div>
-      </div>
+      ),
+    },
+    {
+      key: 'sks',
+      label: 'SMT / SKS',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-800 text-xs block">
+            Smt {row.semester}
+          </span>
+          <span className="text-2xs text-primary-700 font-bold">
+            {row.mata_kuliah?.total_sks || 3} SKS
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'dosen',
+      label: 'DOSEN PENGEMBANG RPS',
+      render: (row) => (
+        <span className="font-semibold text-slate-800 text-xs">
+          {row.dosen_pengembang?.nama_lengkap || 'Tim Kurikulum Prodi'}
+        </span>
+      ),
+    },
+    {
+      key: 'kaprodi',
+      label: 'VERIFIKATOR KAPRODI',
+      render: (row) => (
+        <span className="font-semibold text-slate-800 text-xs">
+          {row.kaprodi?.nama_lengkap || 'Kaprodi'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS VERIFIKASI',
+      align: 'center',
+      render: (row) => {
+        if (row.status === 'disetujui') {
+          return <Badge variant="green">✓ Disetujui</Badge>;
+        }
+        if (row.status === 'diajukan') {
+          return <Badge variant="amber">⏳ Menunggu Verifikasi</Badge>;
+        }
+        if (row.status === 'revisi') {
+          return <Badge variant="rose" title={row.catatan_revisi}>⚠️ Perlu Revisi</Badge>;
+        }
+        return <Badge variant="gray">Draft Penyusunan</Badge>;
+      },
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <Button
+          variant="primary"
+          icon={<Eye size={12} />}
+          className="text-2xs py-1.5 px-3 h-auto font-bold shadow-xs"
+          onClick={() => handleOpenDetailRps(row)}
+        >
+          Detail & Verifikasi
+        </Button>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <div className="space-y-6 animate-fade-in print:hidden">
+        <PageHeader
+          title="Kurikulum & Rencana Pembelajaran Semester (RPS OBE)"
+          description="Perumusan CPL, penurunan CPMK, penyusunan rancangan pembelajaran (RPS 16 Minggu), dan verifikasi Kaprodi."
+          breadcrumbs={[
+            { label: 'Portal SSO', href: '/dashboard' },
+            { label: 'SIAKAD', href: '/siakad' },
+            { label: 'Kurikulum OBE' },
+          ]}
+          action={
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-xs font-bold text-slate-500">Program Studi:</span>
+              <select
+                value={selectedProdiId}
+                onChange={(e) => setSelectedProdiId(Number(e.target.value))}
+                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none cursor-pointer"
+              >
+                {prodis.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nama} ({p.jenjang})</option>
+                ))}
+              </select>
+            </div>
+          }
+        />
 
       {/* Tab Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200">
@@ -358,7 +562,7 @@ export default function KurikulumObePage() {
         <div className="space-y-6 animate-fade-in">
           {/* Top Metric Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-1">
+            <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">CPL Terumuskan</span>
               <span className="text-2xl font-black text-slate-900 font-mono">
                 {dashboardData?.summary?.total_cpl || 4}
@@ -366,7 +570,7 @@ export default function KurikulumObePage() {
               <p className="text-2xs text-slate-400">Standar SN-Dikti / IABEE</p>
             </div>
 
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-1">
+            <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">CPMK Terpetakan</span>
               <span className="text-2xl font-black text-primary-700 font-mono">
                 {dashboardData?.summary?.total_cpmk || 24}
@@ -374,7 +578,7 @@ export default function KurikulumObePage() {
               <p className="text-2xs text-slate-400">Lintas Seluruh Mata Kuliah</p>
             </div>
 
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-1">
+            <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">Mata Kuliah Ber-RPS</span>
               <span className="text-2xl font-black text-emerald-700 font-mono">
                 {dashboardData?.summary?.total_rps || 8} / {dashboardData?.summary?.total_matakuliah || 8}
@@ -382,7 +586,7 @@ export default function KurikulumObePage() {
               <p className="text-2xs text-emerald-600 font-bold">100% Kelengkapan Dokumen</p>
             </div>
 
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-1">
+            <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">RPS Disetujui Kaprodi</span>
               <span className="text-2xl font-black text-purple-700 font-mono">
                 {dashboardData?.summary?.rps_disetujui || 8}
@@ -392,7 +596,7 @@ export default function KurikulumObePage() {
           </div>
 
           {/* CPL Fulfillment by Category Progress */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-5">
+          <div className="card p-6 space-y-5">
             <div>
               <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                 <TrendingUp size={16} className="text-primary-600" />
@@ -456,8 +660,8 @@ export default function KurikulumObePage() {
       {/* TAB 2: PERUMUSAN CPL PRODI */}
       {/* ======================================================== */}
       {activeTab === 'cpl' && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
                 <Award size={16} className="text-primary-600" />
@@ -471,7 +675,6 @@ export default function KurikulumObePage() {
             <Button
               variant="primary"
               icon={<Plus size={15} />}
-              className="text-xs font-bold"
               onClick={() => {
                 setEditingCpl(null);
                 setCplForm({
@@ -483,64 +686,16 @@ export default function KurikulumObePage() {
                 setIsCplModalOpen(true);
               }}
             >
-              + Tambah Rumusan CPL
+              Tambah Rumusan CPL
             </Button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                <tr>
-                  <th className="py-3 px-4 w-28">KODE CPL</th>
-                  <th className="py-3 px-4 w-40">RANAH / KATEGORI</th>
-                  <th className="py-3 px-4">DESKRIPSI CAPAIAN PEMBELAJARAN LULUSAN</th>
-                  <th className="py-3 px-4 text-center w-24">STATUS</th>
-                  <th className="py-3 px-4 text-right w-24">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {loading ? (
-                  <tr><td colSpan={5} className="py-8 text-center text-slate-400">Memuat CPL...</td></tr>
-                ) : cplList.length === 0 ? (
-                  <tr><td colSpan={5} className="py-8 text-center text-slate-400">Belum ada CPL yang dirumuskan</td></tr>
-                ) : (
-                  cplList.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50 transition">
-                      <td className="py-3.5 px-4 font-mono font-black text-primary-700">{c.kode_cpl}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="badge badge-purple text-2xs uppercase font-bold">
-                          {c.kategori.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 leading-relaxed font-normal text-slate-800">{c.deskripsi}</td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className="badge badge-green text-2xs font-bold">Aktif</span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <Button
-                          variant="outline"
-                          icon={<Edit3 size={12} />}
-                          className="text-2xs py-1 px-2.5 h-auto font-bold"
-                          onClick={() => {
-                            setEditingCpl(c);
-                            setCplForm({
-                              program_studi_id: c.program_studi_id,
-                              kode_cpl: c.kode_cpl,
-                              kategori: c.kategori,
-                              deskripsi: c.deskripsi,
-                            });
-                            setIsCplModalOpen(true);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={cplColumns}
+            data={cplList}
+            isLoading={loading}
+            emptyMessage="Belum ada CPL yang dirumuskan untuk program studi ini."
+          />
         </div>
       )}
 
@@ -548,8 +703,8 @@ export default function KurikulumObePage() {
       {/* TAB 3: PEMETAAN CPMK MATA KULIAH */}
       {/* ======================================================== */}
       {activeTab === 'cpmk' && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-5 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
             <div>
               <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
                 <Target size={16} className="text-primary-600" />
@@ -564,7 +719,7 @@ export default function KurikulumObePage() {
               <select
                 value={selectedMkId}
                 onChange={(e) => setSelectedMkId(Number(e.target.value))}
-                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                className="select text-xs font-bold"
               >
                 {matakuliahList.map((m) => (
                   <option key={m.id} value={m.id}>{m.kode_mk} - {m.nama} ({m.total_sks} SKS)</option>
@@ -574,7 +729,6 @@ export default function KurikulumObePage() {
               <Button
                 variant="primary"
                 icon={<Plus size={15} />}
-                className="text-xs font-bold shrink-0"
                 onClick={() => {
                   setEditingCpmk(null);
                   setCpmkForm({
@@ -587,68 +741,17 @@ export default function KurikulumObePage() {
                   setIsCpmkModalOpen(true);
                 }}
               >
-                + Tambah CPMK
+                Tambah CPMK
               </Button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                <tr>
-                  <th className="py-3 px-4 w-28">KODE CPMK</th>
-                  <th className="py-3 px-4 w-32">KORELASI CPL</th>
-                  <th className="py-3 px-4">DESKRIPSI CAPAIAN MATA KULIAH</th>
-                  <th className="py-3 px-4 text-center w-28">BOBOT (%)</th>
-                  <th className="py-3 px-4 text-right w-24">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {loading ? (
-                  <tr><td colSpan={5} className="py-8 text-center text-slate-400">Memuat CPMK...</td></tr>
-                ) : cpmkList.length === 0 ? (
-                  <tr><td colSpan={5} className="py-8 text-center text-slate-400">Belum ada CPMK untuk mata kuliah ini</td></tr>
-                ) : (
-                  cpmkList.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50 transition">
-                      <td className="py-3.5 px-4 font-mono font-black text-primary-700">{c.kode_cpmk}</td>
-                      <td className="py-3.5 px-4">
-                        {c.cpl ? (
-                          <span className="badge badge-blue font-mono text-2xs font-bold" title={c.cpl.deskripsi}>
-                            {c.cpl.kode_cpl}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 leading-relaxed font-normal text-slate-800">{c.deskripsi}</td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-900">{c.bobot_persentase}%</td>
-                      <td className="py-3.5 px-4 text-right">
-                        <Button
-                          variant="outline"
-                          icon={<Edit3 size={12} />}
-                          className="text-2xs py-1 px-2.5 h-auto font-bold"
-                          onClick={() => {
-                            setEditingCpmk(c);
-                            setCpmkForm({
-                              mata_kuliah_id: c.mata_kuliah_id,
-                              cpl_id: c.cpl_id || '',
-                              kode_cpmk: c.kode_cpmk,
-                              deskripsi: c.deskripsi,
-                              bobot_persentase: c.bobot_persentase || 30,
-                            });
-                            setIsCpmkModalOpen(true);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={cpmkColumns}
+            data={cpmkList}
+            isLoading={loading}
+            emptyMessage="Belum ada CPMK untuk mata kuliah ini."
+          />
         </div>
       )}
 
@@ -656,91 +759,23 @@ export default function KurikulumObePage() {
       {/* TAB 4: DOKUMEN RPS & ALUR VERIFIKASI / APPROVAL KAPRODI */}
       {/* ======================================================== */}
       {activeTab === 'rps' && (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
-              <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <FileText size={16} className="text-primary-600" />
-                Rencana Pembelajaran Semester (RPS) & Status Verifikasi Kaprodi
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Daftar dokumen RPS mata kuliah kurikulum OBE, evaluasi 16 pertemuan, dan persetujuan Ketua Program Studi.
-              </p>
-            </div>
+        <div className="space-y-4 animate-fade-in">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+            <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <FileText size={16} className="text-primary-600" />
+              Rencana Pembelajaran Semester (RPS) & Status Verifikasi Kaprodi
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Daftar dokumen RPS mata kuliah kurikulum OBE, evaluasi 16 pertemuan, dan persetujuan Ketua Program Studi.
+            </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">KODE & MATA KULIAH</th>
-                  <th className="py-3 px-4">SMT / SKS</th>
-                  <th className="py-3 px-4">DOSEN PENGEMBANG RPS</th>
-                  <th className="py-3 px-4">VERIFIKATOR KAPRODI</th>
-                  <th className="py-3 px-4 text-center">STATUS VERIFIKASI</th>
-                  <th className="py-3 px-4 text-right">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {loading ? (
-                  <tr><td colSpan={6} className="py-8 text-center text-slate-400">Memuat data RPS...</td></tr>
-                ) : rpsList.length === 0 ? (
-                  <tr><td colSpan={6} className="py-8 text-center text-slate-400">Belum ada dokumen RPS</td></tr>
-                ) : (
-                  rpsList.map((rps) => {
-                    const isApproved = rps.status === 'disetujui';
-                    const isSubmitted = rps.status === 'diajukan';
-                    const isRevision = rps.status === 'revisi';
-
-                    return (
-                      <tr key={rps.id} className="hover:bg-slate-50 transition">
-                        <td className="py-3.5 px-4 font-mono">
-                          <span className="font-extrabold text-slate-900 block font-sans">{rps.mata_kuliah?.nama}</span>
-                          <span className="text-2xs text-slate-400">{rps.mata_kuliah?.kode_mk} • Tahun {rps.tahun_ajaran}</span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="font-bold text-slate-800">Smt {rps.semester}</span>
-                          <span className="text-2xs text-primary-700 block font-bold">{rps.mata_kuliah?.total_sks || 3} SKS</span>
-                        </td>
-                        <td className="py-3.5 px-4 font-semibold text-slate-800">
-                          {rps.dosen_pengembang?.nama_lengkap || 'Tim Kurikulum Prodi'}
-                        </td>
-                        <td className="py-3.5 px-4 font-semibold text-slate-800">
-                          {rps.kaprodi?.nama_lengkap || 'Kaprodi'}
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          {isApproved && (
-                            <span className="badge badge-green text-2xs font-bold">✓ Disetujui Kaprodi</span>
-                          )}
-                          {isSubmitted && (
-                            <span className="badge badge-yellow text-2xs font-bold">⏳ Menunggu Verifikasi</span>
-                          )}
-                          {isRevision && (
-                            <span className="badge badge-red text-2xs font-bold" title={rps.catatan_revisi}>⚠️ Perlu Revisi</span>
-                          )}
-                          {!isApproved && !isSubmitted && !isRevision && (
-                            <span className="badge badge-gray text-2xs font-bold">Draft Penyusunan</span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              variant="primary"
-                              icon={<Eye size={12} />}
-                              className="text-2xs py-1.5 px-3 h-auto font-bold shadow-xs"
-                              onClick={() => handleOpenDetailRps(rps)}
-                            >
-                              Detail & Verifikasi RPS
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={rpsColumns}
+            data={rpsList}
+            isLoading={loading}
+            emptyMessage="Belum ada dokumen RPS yang terdaftar."
+          />
         </div>
       )}
 
@@ -1037,6 +1072,176 @@ export default function KurikulumObePage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* ======================================================== */}
+      {/* DOKUMEN CETAK RPS RESMI (SN-DIKTI / OBE) — KHUSUS PRINT */}
+      {/* ======================================================== */}
+      {selectedRpsDetail && (
+        <div className="hidden print:block printable-document print-document bg-white text-black p-8 font-serif leading-normal w-full">
+          {/* Kop Dokumen Resmi */}
+          <div className="border-b-2 border-black pb-3 mb-4 text-center">
+            <h2 className="text-sm font-bold uppercase tracking-wider">KEMENTERIAN PENDIDIKAN TINGGI, RISET, DAN TEKNOLOGI</h2>
+            <h1 className="text-base font-black uppercase tracking-tight">UNIVERSITAS NUSANTARA TERPADU</h1>
+            <p className="text-xs">
+              FAKULTAS TEKNOLOGI INFORMASI & KOMUNIKASI • PROGRAM STUDI {selectedProdiObj?.nama?.toUpperCase() || 'SISTEM INFORMASI'}
+            </p>
+            <p className="text-[10px] text-gray-600 mt-0.5 font-sans">
+              Jl. Kampus Terpadu No. 1 • Website: siakad.kampus.ac.id • Email: akademik@kampus.ac.id
+            </p>
+          </div>
+
+          <div className="text-center mb-5">
+            <h3 className="text-sm font-black uppercase tracking-wide underline">
+              RENCANA PEMBELAJARAN SEMESTER (RPS)
+            </h3>
+            <p className="text-xs font-semibold mt-0.5">
+              Standar Kurikulum Berbasis Capaian Pembelajaran Lulusan (Outcome-Based Education / SN-DIKTI)
+            </p>
+          </div>
+
+          {/* Tabel Identitas Mata Kuliah */}
+          <table className="w-full border-collapse border border-black text-xs mb-4">
+            <tbody>
+              <tr className="border-b border-black">
+                <td className="p-2 font-bold bg-gray-100 w-1/4 border-r border-black">MATA KULIAH</td>
+                <td className="p-2 border-r border-black font-semibold">{selectedRpsDetail.mata_kuliah?.nama}</td>
+                <td className="p-2 font-bold bg-gray-100 w-1/6 border-r border-black">KODE MK</td>
+                <td className="p-2 font-mono font-bold">{selectedRpsDetail.mata_kuliah?.kode_mk}</td>
+              </tr>
+              <tr className="border-b border-black">
+                <td className="p-2 font-bold bg-gray-100 border-r border-black">BOBOT / SKS</td>
+                <td className="p-2 border-r border-black">{selectedRpsDetail.mata_kuliah?.total_sks || 3} SKS</td>
+                <td className="p-2 font-bold bg-gray-100 border-r border-black">SEMESTER</td>
+                <td className="p-2">Semester {selectedRpsDetail.mata_kuliah?.semester_anjuran || 1}</td>
+              </tr>
+              <tr className="border-b border-black">
+                <td className="p-2 font-bold bg-gray-100 border-r border-black">DOSEN PENGEMBANG RPS</td>
+                <td className="p-2 border-r border-black font-semibold">{selectedRpsDetail.dosen_pengembang?.nama_lengkap || 'Dosen Pengampu'}</td>
+                <td className="p-2 font-bold bg-gray-100 border-r border-black">KETUA PRODI</td>
+                <td className="p-2 font-semibold">{selectedRpsDetail.kaprodi?.nama_lengkap || 'Dr. Ir. Ahmad Santoso, M.Kom'}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Deskripsi Singkat */}
+          <div className="mb-4 text-xs">
+            <h4 className="font-bold border-b border-black pb-1 mb-1.5 uppercase">I. DESKRIPSI SINGKAT MATA KULIAH</h4>
+            <p className="text-justify leading-relaxed whitespace-pre-line pl-2">
+              {selectedRpsDetail.deskripsi_singkat || 'Mata kuliah ini membahas konsep dasar, metodologi, implementasi sistem terstruktur dan studi kasus komprehensif.'}
+            </p>
+          </div>
+
+          {/* Capaian Pembelajaran (CPMK) */}
+          <div className="mb-4 text-xs">
+            <h4 className="font-bold border-b border-black pb-1 mb-1.5 uppercase">II. CAPAIAN PEMBELAJARAN MATA KULIAH (CPMK)</h4>
+            <table className="w-full border-collapse border border-black text-xs">
+              <thead className="bg-gray-100">
+                <tr className="border-b border-black text-center font-bold">
+                  <th className="p-1.5 border-r border-black w-20">KODE</th>
+                  <th className="p-1.5 border-r border-black">DESKRIPSI CAPAIAN PEMBELAJARAN (CPMK)</th>
+                  <th className="p-1.5 w-20">BOBOT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedRpsDetail.mata_kuliah?.cpmks?.length ? (
+                  selectedRpsDetail.mata_kuliah.cpmks.map((c: any) => (
+                    <tr key={c.id} className="border-b border-black">
+                      <td className="p-1.5 font-bold font-mono text-center border-r border-black">{c.kode_cpmk}</td>
+                      <td className="p-1.5 border-r border-black">{c.deskripsi}</td>
+                      <td className="p-1.5 text-center font-bold">{c.bobot_persentase}%</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="border-b border-black">
+                    <td colSpan={3} className="p-2 text-center italic">CPMK disusun sesuai panduan kurikulum OBE SN-DIKTI.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pustaka & Referensi */}
+          <div className="mb-4 text-xs">
+            <h4 className="font-bold border-b border-black pb-1 mb-1.5 uppercase">III. REFERENSI / PUSTAKA PEMBELAJARAN</h4>
+            <div className="pl-2 space-y-1">
+              <p><strong>Pustaka Utama (Wajib):</strong></p>
+              <p className="whitespace-pre-line pl-4 text-gray-800">{selectedRpsDetail.pustaka_utama || '1. Pressman, R. S. Software Engineering: A Practitioner’s Approach.\n2. Tanenbaum, A. S. Modern Operating Systems.'}</p>
+              <p className="mt-2"><strong>Pustaka Pendukung:</strong></p>
+              <p className="whitespace-pre-line pl-4 text-gray-800">{selectedRpsDetail.pustaka_pendukung || '1. IEEE Transactions on Systems and Software.\n2. Dokumentasi Standar Industri Terkait.'}</p>
+            </div>
+          </div>
+
+          {/* Rencana 16 Pertemuan Mingguan */}
+          <div className="mb-6 text-xs">
+            <h4 className="font-bold border-b border-black pb-1 mb-1.5 uppercase">IV. RENCANA KEGIATAN PEMBELAJARAN MINGGUAN (16 PERTEMUAN)</h4>
+            <table className="w-full border-collapse border border-black text-[10px]">
+              <thead className="bg-gray-100 font-bold text-center">
+                <tr className="border-b border-black">
+                  <th className="p-1 border-r border-black w-8">MG</th>
+                  <th className="p-1 border-r border-black w-1/4">KEMAMPUAN AKHIR (SUB-CPMK)</th>
+                  <th className="p-1 border-r border-black">BAHAN KAJIAN / MATERI POKOK</th>
+                  <th className="p-1 border-r border-black w-28">BENTUK & METODE</th>
+                  <th className="p-1 w-12">BOBOT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 16 }, (_, i) => i + 1).map((mKe) => {
+                  const mData = selectedRpsDetail.mingguan?.find((m: any) => m.minggu_ke === mKe) || {};
+                  return (
+                    <tr key={mKe} className={`border-b border-black ${mKe === 8 || mKe === 16 ? 'bg-gray-100 font-bold' : ''}`}>
+                      <td className="p-1 text-center font-bold border-r border-black">{mKe}</td>
+                      <td className="p-1 border-r border-black">{mData.kemampuan_akhir || (mKe === 8 ? 'Evaluasi Tengah Semester' : mKe === 16 ? 'Evaluasi Akhir Semester' : `Sub-CPMK Pertemuan ${mKe}`)}</td>
+                      <td className="p-1 border-r border-black">{mData.bahan_kajian || (mKe === 8 ? 'Ujian Tengah Semester (UTS)' : mKe === 16 ? 'Evaluasi Akhir Semester (UAS / Proyek)' : `Topik Pembahasan Perkuliahan Minggu ${mKe}`)}</td>
+                      <td className="p-1 border-r border-black text-center">{mData.bentuk_metode || 'Kuliah & PBL'}</td>
+                      <td className="p-1 text-center font-bold">{mData.bobot_penilaian ?? (mKe === 8 ? 25 : mKe === 16 ? 30 : 3)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Lembar Pengesahan Tanda Tangan */}
+          <div className="grid grid-cols-3 gap-4 pt-6 text-center text-xs break-inside-avoid">
+            <div className="space-y-16">
+              <div>
+                <span className="block text-gray-600">Dosen Pengembang RPS,</span>
+              </div>
+              <div>
+                <strong className="underline block">{selectedRpsDetail.dosen_pengembang?.nama_lengkap || 'Dosen Pengampu'}</strong>
+                <span className="font-mono text-[10px]">NIDN: {selectedRpsDetail.dosen_pengembang?.nidn || '0412058001'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-16">
+              <div>
+                <span className="block text-gray-600">Koordinator RMK,</span>
+              </div>
+              <div>
+                <strong className="underline block">{selectedRpsDetail.koordinator_rmk?.nama_lengkap || 'Koordinator Bidang Keahlian'}</strong>
+                <span className="font-mono text-[10px]">NIDN: {selectedRpsDetail.koordinator_rmk?.nidn || '0419088502'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-16">
+              <div>
+                <span className="block text-gray-600">Ketua Program Studi,</span>
+              </div>
+              <div>
+                <strong className="underline block">{selectedRpsDetail.kaprodi?.nama_lengkap || 'Dr. Ir. Ahmad Santoso, M.Kom'}</strong>
+                <span className="font-mono text-[10px]">NIP: 198005122005011002</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Dokumen */}
+          <div className="pt-8 border-t border-black mt-8 flex justify-between items-center text-[9px] font-mono text-gray-500">
+            <span>DOKUMEN RPS RESMI UNIVERSITAS NUSANTARA TERPADU — SISTEM INFORMASI AKADEMIK TERPADU (SIAKAD)</span>
+            <span>VERIFIED OBE COMPLIANT #{selectedRpsDetail.mata_kuliah?.kode_mk}-2026</span>
           </div>
         </div>
       )}

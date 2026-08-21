@@ -1,9 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserCheck, Plus, Search, Edit3, Trash2 } from 'lucide-react';
+import { UserCheck, Plus, Filter, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
@@ -11,11 +17,21 @@ export default function DosenPage() {
   const [dosens, setDosens] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+
+  // Filter Drawer States
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
   const [filterProdi, setFilterProdi] = useState('');
+  const [filterJabatan, setFilterJabatan] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: '',
+    prodi: '',
+    jabatan: '',
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDosen, setEditingDosen] = useState<any | null>(null);
+  const [deletingDosen, setDeletingDosen] = useState<any | null>(null);
   const [form, setForm] = useState({
     nama_lengkap: '',
     nidn: '',
@@ -24,6 +40,7 @@ export default function DosenPage() {
     jabatan_akademik: 'Lektor',
   });
   const [saving, setSaving] = useState(false);
+  const [syncingSimpeg, setSyncingSimpeg] = useState(false);
 
   const fetchProdis = async () => {
     try {
@@ -35,8 +52,17 @@ export default function DosenPage() {
   const fetchDosens = async () => {
     try {
       setLoading(true);
-      const res = await siakadService.getDosens({ search, program_studi_id: filterProdi });
-      if (res.data) setDosens(res.data);
+      const res = await siakadService.getDosens({
+        search: appliedFilters.search,
+        program_studi_id: appliedFilters.prodi,
+      });
+      if (res.data) {
+        let list = res.data;
+        if (appliedFilters.jabatan) {
+          list = list.filter((d: any) => d.jabatan_akademik === appliedFilters.jabatan);
+        }
+        setDosens(list);
+      }
     } catch (err: any) {
       toast.error('Gagal memuat data dosen');
     } finally {
@@ -50,7 +76,7 @@ export default function DosenPage() {
 
   useEffect(() => {
     fetchDosens();
-  }, [search, filterProdi]);
+  }, [appliedFilters]);
 
   const handleOpenModal = (item?: any) => {
     if (item) {
@@ -95,18 +121,17 @@ export default function DosenPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Yakin ingin menghapus dosen ini?')) return;
+  const handleDelete = async () => {
+    if (!deletingDosen) return;
     try {
-      await siakadService.deleteDosen(id);
+      await siakadService.deleteDosen(deletingDosen.id);
       toast.success('Dosen berhasil dihapus');
+      setDeletingDosen(null);
       fetchDosens();
     } catch (err: any) {
       toast.error('Gagal menghapus dosen');
     }
   };
-
-  const [syncingSimpeg, setSyncingSimpeg] = useState(false);
 
   const handleSyncSimpeg = async () => {
     try {
@@ -121,224 +146,296 @@ export default function DosenPage() {
     }
   };
 
+  const columns: ColumnDef<any>[] = [
+    {
+      key: 'nidn',
+      label: 'NIDN',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-900 text-xs">
+          {row.nidn || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'nama_lengkap',
+      label: 'NAMA LENGKAP & GELAR',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 text-sm block">{row.nama_lengkap}</span>
+          {row.nip && (
+            <span className="text-2xs text-slate-400 font-mono">NIP: {row.nip}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'program_studi',
+      label: 'HOMEBASE PRODI',
+      render: (row) => (
+        <span className="text-xs font-medium text-slate-700">
+          {row.program_studi?.nama || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'jabatan_akademik',
+      label: 'JABATAN AKADEMIK',
+      render: (row) => (
+        <span className="text-xs font-semibold text-slate-800">
+          {row.jabatan_akademik || 'Tenaga Pendidik'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      align: 'center',
+      render: () => <Badge variant="green">Aktif</Badge>,
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Edit Dosen',
+                icon: <Edit2 size={14} />,
+                onClick: () => handleOpenModal(row),
+              },
+              {
+                label: 'Hapus Dosen',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => setDeletingDosen(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Dosen & Tenaga Pengajar"
-        description="Data dosen ber-NIDN, homebase program studi, dan integrasi data pegawai SIMPEG."
+        title="Civitas Dosen & Pengajar"
+        description="Data dosen ber-NIDN, homebase program studi, dan integrasi data kepegawaian SIMPEG."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIAKAD', href: '/siakad' },
+          { label: 'Dosen' },
+        ]}
         action={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              icon={<UserCheck size={16} className="text-primary-600" />}
-              className="font-bold min-h-[40px] border-primary-200 hover:bg-primary-50 text-primary-700"
+              icon={<RefreshCw size={15} className={syncingSimpeg ? 'animate-spin' : ''} />}
               onClick={handleSyncSimpeg}
               disabled={syncingSimpeg}
             >
-              {syncingSimpeg ? 'Menyinkronkan...' : 'Tarik Data Dosen dari SIMPEG'}
+              {syncingSimpeg ? 'Menyinkronkan...' : 'Sinkronkan SIMPEG'}
             </Button>
             <Button
               variant="primary"
               icon={<Plus size={16} />}
-              className="font-bold min-h-[40px]"
               onClick={() => handleOpenModal()}
             >
-              Tambah Dosen Baru
+              Tambah Dosen
+            </Button>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
             </Button>
           </div>
         }
       />
 
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-        {/* Filters */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Cari berdasarkan NIDN, NIP, atau Nama Lengkap..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-primary-500 transition outline-none"
-            />
-          </div>
-
-          <select
-            value={filterProdi}
-            onChange={(e) => setFilterProdi(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
-          >
-            <option value="">Semua Program Studi</option>
-            {prodis.map((p) => (
-              <option key={p.id} value={p.id}>{p.nama}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-bold border-y border-slate-200">
-              <tr>
-                <th className="py-3 px-4">NIDN</th>
-                <th className="py-3 px-4">NAMA LENGKAP & GELAR</th>
-                <th className="py-3 px-4">PROGRAM STUDI</th>
-                <th className="py-3 px-4">JABATAN AKADEMIK</th>
-                <th className="py-3 px-4">STATUS</th>
-                <th className="py-3 px-4 text-right">AKSI</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {loading ? (
-                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Memuat data dosen...</td></tr>
-              ) : dosens.length === 0 ? (
-                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Tidak ada data dosen</td></tr>
-              ) : (
-                dosens.map((d) => (
-                  <tr key={d.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{d.nidn || '-'}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">{d.nama_lengkap}</td>
-                    <td className="py-3.5 px-4">{d.program_studi?.nama || '-'}</td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-700">{d.jabatan_akademik || 'Tenaga Pendidik'}</td>
-                    <td className="py-3.5 px-4">
-                      <span className="badge badge-green text-2xs font-bold">Aktif</span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="outline"
-                          icon={<Edit3 size={13} />}
-                          className="text-2xs py-1 px-2.5 h-auto font-bold"
-                          onClick={() => handleOpenModal(d)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          icon={<Trash2 size={13} className="text-rose-600" />}
-                          className="text-2xs py-1 px-2.5 h-auto hover:bg-rose-50"
-                          onClick={() => handleDelete(d.id)}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <div className="card p-4 flex items-center justify-between gap-3 text-xs bg-primary-50/60 border-primary-200 text-primary-900">
+        <div className="flex items-center gap-2.5">
+          <UserCheck className="text-primary-600 shrink-0" size={18} />
+          <span>
+            <strong>Terintegrasi Otomatis dengan SIMPEG:</strong> Seluruh data dosen terpusat pada Modul Kepegawaian (SIMPEG). Penambahan atau pembaruan dosen dilakukan di SIMPEG dan otomatis tersinkronisasi ke SIAKAD.
+          </span>
         </div>
       </div>
 
-      {/* Modal Dosen */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
-            <h3 className="text-base font-extrabold text-slate-900">
-              {editingDosen ? 'Edit Data Dosen' : 'Tambah Dosen Pengampu'}
-            </h3>
-            <p className="text-xs text-slate-500 mt-1 mb-4">
-              Lengkapi NIDN, gelar, dan program studi homebase dosen.
-            </p>
+      <DataTable
+        columns={columns}
+        data={dosens}
+        isLoading={loading}
+        emptyMessage="Belum ada data dosen yang terdaftar."
+      />
 
-            <form onSubmit={handleSave} className="space-y-3.5">
-              <div>
-                <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Nama Lengkap & Gelar *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Dr. Ahmad Santoso, M.Kom"
-                  value={form.nama_lengkap}
-                  onChange={(e) => setForm({ ...form, nama_lengkap: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                />
-              </div>
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Dosen"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFilterSearch('');
+                setFilterProdi('');
+                setFilterJabatan('');
+                setAppliedFilters({ search: '', prodi: '', jabatan: '' });
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAppliedFilters({
+                  search: filterSearch,
+                  prodi: filterProdi,
+                  jabatan: filterJabatan,
+                });
+                setShowFilter(false);
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <Input
+            label="NIDN, NIP, atau Nama Dosen"
+            placeholder="Ketik kata kunci pencarian..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    NIDN
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="0412345601"
-                    value={form.nidn}
-                    onChange={(e) => setForm({ ...form, nidn: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500 font-mono"
-                  />
-                </div>
+          <div>
+            <label className="label">Homebase Program Studi</label>
+            <select
+              value={filterProdi}
+              onChange={(e) => setFilterProdi(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Program Studi</option>
+              {prodis.map((p) => (
+                <option key={p.id} value={p.id.toString()}>{p.nama}</option>
+              ))}
+            </select>
+          </div>
 
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    NIP / NUP
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="1985..."
-                    value={form.nip}
-                    onChange={(e) => setForm({ ...form, nip: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Homebase Prodi *
-                  </label>
-                  <select
-                    value={form.program_studi_id}
-                    onChange={(e) => setForm({ ...form, program_studi_id: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                  >
-                    {prodis.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nama}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-2xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Jabatan Akademik
-                  </label>
-                  <select
-                    value={form.jabatan_akademik}
-                    onChange={(e) => setForm({ ...form, jabatan_akademik: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-primary-500"
-                  >
-                    <option value="Asisten Ahli">Asisten Ahli</option>
-                    <option value="Lektor">Lektor</option>
-                    <option value="Lektor Kepala">Lektor Kepala</option>
-                    <option value="Guru Besar">Guru Besar</option>
-                    <option value="Tenaga Pengajar">Tenaga Pengajar</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="text-xs"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Batal
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="text-xs font-bold"
-                  disabled={saving}
-                >
-                  {saving ? 'Menyimpan...' : 'Simpan Dosen'}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label className="label">Jabatan Fungsional Akademik</label>
+            <select
+              value={filterJabatan}
+              onChange={(e) => setFilterJabatan(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Jabatan</option>
+              <option value="Tenaga Pengajar">Tenaga Pengajar</option>
+              <option value="Asisten Ahli">Asisten Ahli</option>
+              <option value="Lektor">Lektor</option>
+              <option value="Lektor Kepala">Lektor Kepala</option>
+              <option value="Guru Besar">Guru Besar (Profesor)</option>
+            </select>
           </div>
         </div>
-      )}
+      </Drawer>
+
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingDosen ? 'Edit Data Dosen' : 'Tambah Dosen Baru'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Menyimpan...' : 'Simpan Dosen'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <Input
+              label="Nama Lengkap & Gelar *"
+              required
+              placeholder="Dr. Ahmad Santoso, M.Kom"
+              value={form.nama_lengkap}
+              onChange={(e) => setForm({ ...form, nama_lengkap: e.target.value })}
+            />
+          </div>
+
+          <Input
+            label="NIDN"
+            placeholder="0412345601"
+            value={form.nidn}
+            onChange={(e) => setForm({ ...form, nidn: e.target.value })}
+          />
+
+          <Input
+            label="NIP / NUP"
+            placeholder="1985..."
+            value={form.nip}
+            onChange={(e) => setForm({ ...form, nip: e.target.value })}
+          />
+
+          <div>
+            <label className="label">Homebase Prodi *</label>
+            <select
+              value={form.program_studi_id}
+              onChange={(e) => setForm({ ...form, program_studi_id: parseInt(e.target.value) })}
+              className="select w-full"
+            >
+              {prodis.map((p) => (
+                <option key={p.id} value={p.id}>{p.nama}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Jabatan Akademik</label>
+            <select
+              value={form.jabatan_akademik}
+              onChange={(e) => setForm({ ...form, jabatan_akademik: e.target.value })}
+              className="select w-full"
+            >
+              <option value="Tenaga Pengajar">Tenaga Pengajar</option>
+              <option value="Asisten Ahli">Asisten Ahli</option>
+              <option value="Lektor">Lektor</option>
+              <option value="Lektor Kepala">Lektor Kepala</option>
+              <option value="Guru Besar">Guru Besar</option>
+            </select>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(deletingDosen)}
+        onClose={() => setDeletingDosen(null)}
+        title="Hapus Dosen?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeletingDosen(null)}>
+              Batal
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Hapus
+            </Button>
+          </>
+        }
+      >
+        <p className="text-slate-500 text-sm">
+          Apakah Anda yakin ingin menghapus data dosen <strong>{deletingDosen?.nama_lengkap}</strong> (NIDN: {deletingDosen?.nidn || '-'})? Tindakan ini tidak dapat dibatalkan.
+        </p>
+      </Modal>
     </div>
   );
 }
