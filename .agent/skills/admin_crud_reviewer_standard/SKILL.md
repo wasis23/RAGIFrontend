@@ -23,7 +23,7 @@ Dokumen ini merupakan **Standar Penilaian (Reviewer Policy)** untuk pembuatan da
 ## 2. Aturan Halaman Detail Wajib Terpisah
 - Tampilan **Detail Data** (melihat rincian entitas secara mendalam) **WAJIB** dibuat di **Halaman Terpisah** (misalnya di route `/[id]` atau `/detail/[id]`).
 - **DILARANG KERAS** menyisipkan detail data yang kompleks ke dalam pop-up modal kecil atau tooltip.
-- Halaman Detail Terpisah wajib dilengkapi **Tombol Kembali Berwarna Oranye** (`bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm`) di prop `action` komponen `<PageHeader />`.
+- Halaman Detail Terpisah wajib dilengkapi **Tombol Kembali** yang warnanya secara dinamis mengikuti warna primary modul (bukan hardcode warna) di prop `action` komponen `<PageHeader />`.
 
 ---
 
@@ -104,10 +104,10 @@ Setiap halaman list/tabel **WAJIB** memiliki opsi pengurutan data (*Sorting*):
 
 ---
 
-## 7. Aturan Tombol Filter Outline Biru & Drawer Slide Kanan-ke-Kiri
+## 7. Aturan Tombol Filter Outline Dynamic & Drawer Slide Kanan-ke-Kiri
 Semua halaman admin yang membutuhkan filter **WAJIB**:
 - Menyediakan tombol **Filter** di header halaman (pada prop `action` komponen `<PageHeader />`).
-- Style tombol filter wajib menggunakan **Outline Biru** (`variant="outline"` / `btn-outline-blue`) dengan ikon `<Filter size={16} />`.
+- Style tombol filter wajib menggunakan **Outline Dynamic** (warna outline menyesuaikan primary_color modul, bukan hardcode warna biru) dengan ikon `<Filter size={16} />`.
 - Ketika tombol diklik, panel filter **WAJIB** memunculkan komponen **`<Drawer />`** yang meluncur dari kanan ke kiri (*right-to-left*), merujuk pada standar modul **SSO / IAM**.
   ```tsx
   <PageHeader
@@ -141,7 +141,7 @@ Semua halaman admin yang membutuhkan filter **WAJIB**:
 
 ## 8. Aturan Form Create/Update (Modal vs Halaman Terpisah)
 - **<= 5 Input (Gunakan Modal)**: Menggunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
-- **> 5 Input (Gunakan Halaman Terpisah)**: Membuat halaman terpisah (`/create`, `/[id]/edit`) dengan **Tombol Kembali Berwarna Oranye** (`bg-orange-500 text-white hover:bg-orange-600`) di header.
+- **> 5 Input (Gunakan Halaman Terpisah)**: Membuat halaman terpisah (`/create`, `/[id]/edit`) dengan **Tombol Kembali** yang warnanya secara dinamis mengikuti primary modul di header.
 
 ---
 

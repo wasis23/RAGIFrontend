@@ -19,7 +19,7 @@ Dokumen ini merupakan **Standar Penilaian (Reviewer Policy)** untuk memastikan s
 ---
 
 ## 2. Dynamic Active Menu & Accent Styling
-- Indikator **menu aktif** di sidebar/navigation, border aksen, badge modul, serta button utama di dalam halaman modul **WAJIB** merefleksikan `primary_color` dari modul yang sedang dibuka.
+- Indikator **menu aktif** di sidebar/navigation, border aksen, badge modul, serta seluruh tombol (termasuk tombol Aksi Utama, tombol Kembali/Back, dan tombol Filter Outline) di dalam halaman modul **WAJIB** merefleksikan `primary_color` dari modul yang sedang dibuka dan bukan hardcode.
 - Dilarang memaksa (hardcode) warna biru bawaan (`bg-blue-600` / `#3b82f6`) untuk modul yang memiliki identitas warna primary berbeda (seperti SIPPM yang menggunakan Teal `#0d9488` atau SIMPEG yang menggunakan Indigo `#4f46e5`).
 
 ---

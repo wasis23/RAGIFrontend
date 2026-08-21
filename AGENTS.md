@@ -55,15 +55,15 @@ Hardcode adalah suatu metode atau cara pengambilan data, pengiriman data, atau p
 
 ## Aturan Wajib Halaman Admin CRUD:
 1. **Mobile-First Responsive Styling**: Seluruh layout dan halaman WAJIB menggunakan pendekatan mobile-first (`w-full flex-col grid-cols-1 gap-4`) dengan penyesuaian breakpoint responsif (`sm:`, `md:`, `lg:`).
-2. **Halaman Detail Terpisah (Separate Detail Page)**: Tampilan Detail data/rincian entitas WAJIB dibuat di **Halaman Terpisah** (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali Oranye di `PageHeader`. Dilarang menjejalkan detail rumit ke dalam modal kecil.
+2. **Halaman Detail Terpisah (Separate Detail Page)**: Tampilan Detail data/rincian entitas WAJIB dibuat di **Halaman Terpisah** (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali yang warnanya menyesuaikan primary modul (bukan hardcode warna) di `PageHeader`. Dilarang menjejalkan detail rumit ke dalam modal kecil.
 3. **Desain Form Compact & Elegan**: Form harus dirancang sangat compact, rapi, dan proporsional (grid 1 kolom di mobile, max 2-3 kolom di desktop: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`). Dilarang ada whitespace/margin yang berlebihan.
 4. **Atomic Design Architecture**: Wajib memisahkan elemen UI ke `@/components/ui/` (`Button`, `Input`, `Select`, `Modal`, `Drawer`, `DataTable`, `Badge`) dan layout ke `@/components/layout/` (`PageHeader`). Dilarang memakai elemen HTML mentah tanpa style standar.
 5. **Mandatory DataTable & Server-Side Pagination**: Halaman list/tabel data WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`. Dilarang memakai tag HTML manual `<table>`. Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`.
 6. **Sort By & Sort Direction (Default Name/Label)**: WAJIB menyediakan filter pengurutan `sort_by` / `orderBy` (default berbasis `name` / `label` / `id`) dan `sort_dir` / `orderDir` (`asc` / `desc`) dalam layout grid 2 kolom di Drawer filter.
-7. **Tombol Filter Outline Biru & Drawer Slide Kanan-ke-Kiri**: Tombol Filter di `PageHeader` WAJIB bertipe outline biru (`variant="outline"` / `btn-outline-blue` / ikon `<Filter size={16} />`). Diklik memunculkan `<Drawer />` dari kanan ke kiri (standard SSO/IAM).
+7. **Tombol Filter Outline Dynamic & Drawer Slide Kanan-ke-Kiri**: Tombol Filter di `PageHeader` WAJIB bertipe outline dengan warna yang menyesuaikan primary modul (bukan hardcode warna biru) dengan ikon `<Filter size={16} />`. Diklik memunculkan `<Drawer />` dari kanan ke kiri (standard SSO/IAM).
 8. **UI & Form Consistency**:
    - Form <= 5 inputs: Gunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
-   - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali Oranye (`bg-orange-500 text-white`) di `PageHeader`.
+   - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali yang menyesuaikan warna primary modul di `PageHeader`.
    - Gunakan prop `label` pada `<Input>` / `<Select>` langsung di Drawer.
 9. **Wajib 3-Dots Action Dropdown Menu (<DropdownMenu />)**: Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />` dari `@/components/ui/DropdownMenu`). Dilarang keras menyejajarkan tombol aksi secara horizontal di sel tabel (*inefficient space*).
 </RULE[admin_crud_reviewer]>

@@ -22,7 +22,7 @@ Aturan Warna Primary & Tema Modul:
    - DILARANG mengandalkan warna biru statis bawaan (`bg-blue-600` / `#3b82f6` hardcoded) secara membabi buta di seluruh modul.
 
 2. ACTIVE MENU & ACCENT STYLING:
-   - Indikator menu aktif, header modul, badge modul, dan aksen UI di dalam modul WAJIB secara dinamis mengikuti warna primary modul yang disetting pada database master modul.
+   - Indikator menu aktif, header modul, badge modul, serta seluruh tombol (termasuk tombol Aksi Utama, tombol Kembali/Back, dan tombol Filter Outline) di dalam halaman modul WAJIB merefleksikan primary_color dari modul yang sedang dibuka dan bukan hardcode.
 
 3. DILARANG COLOR HARDCODING PER MODUL:
    - DILARANG KERAS meng-hardcode warna aksen modul secara statis pada file halaman/komponen jika modul tersebut telah memiliki `primary_color` terdaftar di database master modul (`/admin/modules`).

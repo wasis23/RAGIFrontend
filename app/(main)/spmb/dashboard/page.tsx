@@ -669,7 +669,7 @@ function SPMBAdminDashboardView({
       label: 'CALON MAHASISWA',
       render: (p) => (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-primary-50 text-primary-600 font-bold flex items-center justify-center text-xs shrink-0">
             {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
           </div>
           <div className="min-w-0">
@@ -728,15 +728,15 @@ function SPMBAdminDashboardView({
         description="Portal pusat pemantauan pendaftaran mahasiswa baru, verifikasi formulir, dan penetapan hasil seleksi"
       />
 
-      {/* ── 2. Executive Hero Banner (Vibrant Royal Blue & Indigo) ── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white p-6 sm:p-8 md:p-10 border border-blue-600 shadow-xl">
+      {/* ── 2. Executive Hero Banner (Dynamic Primary) ── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-primary-700 via-primary-600 to-primary-800 text-white p-6 sm:p-8 md:p-10 border border-primary-600 shadow-xl">
         {/* Glow Effects */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-400/20 rounded-full blur-3xl pointer-events-none -z-0" />
-        <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-indigo-400/20 rounded-full blur-2xl pointer-events-none -z-0" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary-400/20 rounded-full blur-3xl pointer-events-none -z-0" />
+        <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-primary-500/20 rounded-full blur-2xl pointer-events-none -z-0" />
 
         <div className="relative z-10 space-y-4 max-w-4xl">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/30 text-white text-xs font-bold tracking-wide backdrop-blur-md">
-            <ShieldCheck size={15} className="shrink-0 text-sky-200" />
+            <ShieldCheck size={15} className="shrink-0 text-primary-200" />
             <span className="!text-white">Panel Administrasi &amp; Panitia SPMB Kampus</span>
           </div>
 
@@ -744,7 +744,7 @@ function SPMBAdminDashboardView({
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold !text-white tracking-tight leading-tight drop-shadow-sm">
               Penerimaan Mahasiswa Baru
             </h1>
-            <p className="text-blue-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium max-w-3xl">
+            <p className="text-primary-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium max-w-3xl">
               Pantau arus calon pendaftar, status kelulusan berkas administrasi, konfirmasi pembayaran formulir, dan jalannya ujian seleksi secara terintegrasi.
             </p>
           </div>
@@ -753,17 +753,17 @@ function SPMBAdminDashboardView({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3">
             <Link
               href="/spmb/pendaftaran"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-blue-700 hover:bg-blue-50 active:bg-blue-100 font-extrabold text-sm shadow-lg hover:shadow-xl transition-all min-h-[44px]"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-primary-700 hover:bg-primary-50 active:bg-primary-100 font-extrabold text-sm shadow-lg hover:shadow-xl transition-all min-h-[44px]"
             >
-              <Users size={18} className="text-blue-700" />
-              <span className="text-blue-700 font-extrabold">Kelola Data Pendaftar ({totalCount})</span>
+              <Users size={18} className="text-primary-700" />
+              <span className="text-primary-700 font-extrabold">Kelola Data Pendaftar ({totalCount})</span>
             </Link>
 
             <Link
               href="/spmb/ujian/jadwal"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-blue-900/40 hover:bg-blue-900/60 active:bg-blue-900/80 text-white font-bold text-sm border border-white/30 transition-all min-h-[44px] backdrop-blur-md"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary-900/40 hover:bg-primary-900/60 active:bg-primary-900/80 text-white font-bold text-sm border border-white/30 transition-all min-h-[44px] backdrop-blur-md"
             >
-              <Calendar size={18} className="text-sky-200" />
+              <Calendar size={18} className="text-primary-200" />
               <span className="!text-white font-bold">Jadwal Ujian CAT</span>
             </Link>
           </div>
@@ -776,7 +776,7 @@ function SPMBAdminDashboardView({
         <div className="card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between gap-3 mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Calon Pendaftar</span>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
               <Users size={20} />
             </div>
           </div>
@@ -824,7 +824,7 @@ function SPMBAdminDashboardView({
         <div className="card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between gap-3 mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Gelombang Aktif</span>
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
               <Calendar size={20} />
             </div>
           </div>
@@ -902,7 +902,7 @@ function SPMBAdminDashboardView({
                     <div key={p.id} className="p-4 space-y-3 hover:bg-slate-50/60 transition-colors">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 font-bold flex items-center justify-center text-xs shrink-0">
                             {p.nama_lengkap ? p.nama_lengkap.slice(0, 2).toUpperCase() : 'CM'}
                           </div>
                           <div className="min-w-0">

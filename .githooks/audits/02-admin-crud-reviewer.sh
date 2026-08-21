@@ -21,7 +21,7 @@ Aturan Admin CRUD:
    - Layout dan halaman WAJIB menggunakan pendekatan Mobile-First (misal: `w-full flex-col grid-cols-1 gap-4`) dengan breakpoint responsif (`sm:`, `md:`, `lg:`).
 
 2. HALAMAN DETAIL TERPISAH (SEPARATE DETAIL PAGE):
-   - Tampilan Detail data/rincian entitas WAJIB dibuat di Halaman Terpisah (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali Oranye di `PageHeader`. DILARANG menjejalkan detail rumit ke dalam modal kecil.
+   - Tampilan Detail data/rincian entitas WAJIB dibuat di Halaman Terpisah (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali yang warnanya menyesuaikan primary modul (bukan hardcode warna) di `PageHeader`. DILARANG menjejalkan detail rumit ke dalam modal kecil.
 
 3. DESAIN FORM COMPACT & ELEGAN:
    - Form harus dirancang sangat compact, rapi, dan proporsional (grid 1 kolom di mobile, max 2-3 kolom di desktop: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`). No excessive whitespace or huge margins.
@@ -38,13 +38,13 @@ Aturan Admin CRUD:
    - Halaman list/tabel WAJIB memiliki opsi `sort_by` / `orderBy` (default berbasis `name` / `label` / `id`) dan `sort_dir` / `orderDir` (`asc` / `desc`).
    - Opsi pengurutan diletakkan di dalam Drawer dengan layout grid 2 kolom.
 
-7. TOMBOL FILTER OUTLINE BIRU & DRAWER SLIDE KANAN-KE-KIRI:
-   - Tombol Filter WAJIB bertipe outline biru (`variant="outline"` / ikon `<Filter size={16} />`).
+7. TOMBOL FILTER OUTLINE DYNAMIC & DRAWER SLIDE KANAN-KE-KIRI:
+   - Tombol Filter WAJIB bertipe outline dengan warna yang menyesuaikan primary modul (bukan hardcode warna biru) (misal: `variant="outline"` / ikon `<Filter size={16} />`).
    - Membuka panel `<Drawer />` yang meluncur dari kanan ke kiri (*right-to-left*).
 
 8. FORM & LAYOUT CONSISTENCY:
    - Form <= 5 inputs: Gunakan Modal (`<Modal />`) dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
-   - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali Berwarna Oranye (`bg-orange-500 text-white`) di `PageHeader`.
+   - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali yang warnanya menyesuaikan primary modul di `PageHeader`.
 
 9. WAJIB 3-DOTS ACTION DROPDOWN MENU (<DropdownMenu />):
    - Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />` dari `@/components/ui/DropdownMenu`).
