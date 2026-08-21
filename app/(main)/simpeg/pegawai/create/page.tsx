@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { simpegService } from '@/services/simpeg.service';
+import type { UnitKerja } from '@/types/simpeg.types';
 
 const pegawaiSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
@@ -73,11 +74,11 @@ export default function CreatePegawaiPage() {
       const res = await simpegService.getUnitKerjaList();
       const units = res.data || [];
       const filtered = units.filter(
-        (u) =>
+        (u: UnitKerja) =>
           u.nama.toLowerCase().includes(inputValue.toLowerCase()) ||
           u.kode.toLowerCase().includes(inputValue.toLowerCase())
       );
-      return filtered.map((u) => ({
+      return filtered.map((u: UnitKerja) => ({
         value: u.id.toString(),
         label: `[${u.kode}] ${u.nama}`,
       }));

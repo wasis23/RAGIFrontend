@@ -18,8 +18,8 @@ import type {
 
 export const simpegService = {
   // ── UNIT KERJA ──────────────────────────────────────────────
-  getUnitKerjaList: async (): Promise<ApiResponse<UnitKerja[]>> => {
-    const { data } = await apiClient.get<ApiResponse<UnitKerja[]>>('/simpeg/unit-kerja');
+  getUnitKerjaList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/unit-kerja', { params });
     return data;
   },
 
