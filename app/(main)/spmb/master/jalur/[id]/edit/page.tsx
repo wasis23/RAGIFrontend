@@ -2,15 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { spmbService } from '@/services/spmb.service';
-import { JalurMasuk } from '@/types/spmb.types';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import AsyncSelect from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+
+const schema = z.object({
+  kode: z.string().min(1, 'Kode jalur wajib diisi'),
+  nama: z.string().min(1, 'Nama jalur wajib diisi'),
+  deskripsi: z.string().optional().nullable(),
+  master_tipe_jalur_id: z.number().min(1, 'Tipe jalur wajib dipilih'),
+  ada_wawancara: z.boolean(),
+  is_active: z.boolean(),
+});
+
+type FormValues = z.infer<typeof schema>;
 
 export default function EditJalurPage() {
   const router = useRouter();
@@ -20,15 +34,25 @@ export default function EditJalurPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<Partial<JalurMasuk>>({
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
     defaultValues: {
-      tipe: 'reguler',
       is_active: true,
-      ada_ujian_tulis: false,
-      ada_ujian_praktik: false,
       ada_wawancara: false
     }
   });
+
+  const fetchTipeJalur = async () => {
+    try {
+      const res = await spmbService.getMasterTipeJalur();
+      return (res.data || []).map((t: any) => ({
+        value: t.id,
+        label: t.nama
+      }));
+    } catch {
+      return [];
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -49,7 +73,7 @@ export default function EditJalurPage() {
     fetchDetail();
   }, [id, reset, router]);
 
-  const onSubmit = async (data: Partial<JalurMasuk>) => {
+  const onSubmit = async (data: FormValues) => {
     try {
       setLoading(true);
       const payload = {
@@ -75,96 +99,77 @@ export default function EditJalurPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-      {/* HEADER & BACK BUTTON */}
-      <div className="flex items-center gap-3">
-        <button 
-          onClick={() => router.back()} 
-          className="btn btn-ghost btn-sm"
-        >
-          <ArrowLeft size={18} /> Kembali
-        </button>
-        <h1 className="text-2xl font-bold">Edit Jalur Masuk</h1>
-      </div>
+    <div className="max-w-4xl mx-auto space-y-4 animate-fade-in">
+      <PageHeader
+        title="Edit Jalur Masuk"
+        description="Perbarui informasi data jalur pendaftaran"
+        backUrl="/spmb/master/jalur"
+      />
 
       <div className="card bg-base-100 shadow-sm border border-base-200">
-        <div className="card-body p-8">
+        <div className="card-body p-6 md:p-8">
           <form onSubmit={handleSubmit(onSubmit)}>
-            
             <h3 className="text-lg font-semibold mb-4 text-base-content border-b pb-2">Informasi Umum</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <Input 
                 label="Kode Jalur *"
                 placeholder="Misal: REG"
-                {...register('kode', { required: true })} 
+                error={errors.kode?.message}
+                {...register('kode')} 
               />
               
               <Input 
                 label="Nama Jalur *"
                 placeholder="Misal: Reguler"
-                {...register('nama', { required: true })} 
+                error={errors.nama?.message}
+                {...register('nama')} 
               />
               
-              <Controller
-                name="tipe"
-                control={control}
-                rules={{ required: true }}
-                render={({ field }) => (
-                  <Select
-                    label="Tipe Jalur *"
-                    options={[
-                      { value: 'reguler', label: 'Reguler' },
-                      { value: 'transfer', label: 'Transfer' },
-                      { value: 'beasiswa', label: 'Beasiswa' },
-                      { value: 'internasional', label: 'Internasional' },
-                      { value: 'rpla', label: 'RPL/A' }
-                    ]}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
+              <div className="md:col-span-2">
+                <Controller
+                  name="master_tipe_jalur_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Tipe Jalur *"
+                      placeholder="Pilih tipe jalur..."
+                      loadOptions={fetchTipeJalur}
+                      value={field.value}
+                      onChange={field.onChange}
+                      error={errors.master_tipe_jalur_id?.message}
+                      defaultOptions
+                    />
+                  )}
+                />
+              </div>
               
-              <div className="flex items-center pt-2 md:pt-8">
+              <div className="md:col-span-2">
+                <Textarea 
+                  label="Deskripsi Keterangan"
+                  placeholder="Penjelasan singkat mengenai jalur ini"
+                  error={errors.deskripsi?.message}
+                  {...register('deskripsi')} 
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              <div className="flex items-center">
+                <Checkbox label="Membutuhkan Wawancara" {...register('ada_wawancara')} />
+              </div>
+              <div className="flex items-center">
                 <Checkbox 
                   label="Status Aktif (Jalur ini digunakan)"
                   {...register('is_active')} 
                 />
               </div>
-
-              <div className="md:col-span-2">
-                <Textarea 
-                  label="Deskripsi Keterangan"
-                  placeholder="Penjelasan singkat mengenai jalur ini"
-                  {...register('deskripsi')} 
-                />
-              </div>
-
             </div>
 
-            <h3 className="text-lg font-semibold mb-4 text-base-content border-b pb-2">Komponen Ujian</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-              <div className="flex items-center">
-                <Checkbox label="Ujian Tulis" {...register('ada_ujian_tulis')} />
-              </div>
-              <div className="flex items-center">
-                <Checkbox label="Ujian Praktik" {...register('ada_ujian_praktik')} />
-              </div>
-              <div className="flex items-center">
-                <Checkbox label="Wawancara" {...register('ada_wawancara')} />
-              </div>
-
-            </div>
-
-            {/* ACTION BUTTONS */}
-            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-base-200">
-               <button type="button" onClick={() => router.back()} className="btn btn-ghost" disabled={loading}>Batal</button>
-               <button type="submit" className="btn btn-primary" disabled={loading}>
-                 {loading ? <span className="loading loading-spinner loading-sm"></span> : <Save size={18} className="mr-2" />}
+            <div className="flex justify-end gap-3 pt-4 border-t border-base-200">
+               <Button type="button" variant="secondary" onClick={() => router.back()} disabled={loading}>Batal</Button>
+               <Button type="submit" variant="primary" loading={loading} icon={<Save size={18} />}>
                  Simpan Perubahan
-               </button>
+               </Button>
             </div>
           </form>
         </div>

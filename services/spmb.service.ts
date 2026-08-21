@@ -121,13 +121,18 @@ export interface PendaftaranBerkas {
 }
 
 export const spmbService = {
+  getMasterTipeJalur: async () => {
+    const response = await api.get('/spmb/master-tipe-jalur');
+    return response.data;
+  },
+
   getProgramStudi: async () => {
     const response = await api.get('/spmb/prodi');
     return response.data;
   },
 
-  getJalurMasuk: async () => {
-    const response = await api.get('/spmb/jalur');
+  getJalurMasuk: async (params?: { page?: number; limit?: number; name?: string; status?: string; sort_by?: string; sort_dir?: string }) => {
+    const response = await api.get('/spmb/jalur', { params });
     return response.data;
   },
 
@@ -264,26 +269,7 @@ export const spmbService = {
     }
   },
 
-  // Master Tipe Ujian
-  getTipeUjian: async (params?: { search?: string; is_active?: boolean }) => {
-    const response = await api.get('/spmb/master/tipe-ujian', { params });
-    return response.data;
-  },
 
-  createTipeUjian: async (data: { kode: string; nama: string; deskripsi?: string; is_active: boolean }) => {
-    const response = await api.post('/spmb/master/tipe-ujian', data);
-    return response.data;
-  },
-
-  updateTipeUjian: async (id: number, data: { kode: string; nama: string; deskripsi?: string; is_active: boolean }) => {
-    const response = await api.put(`/spmb/master/tipe-ujian/${id}`, data);
-    return response.data;
-  },
-
-  deleteTipeUjian: async (id: number) => {
-    const response = await api.delete(`/spmb/master/tipe-ujian/${id}`);
-    return response.data;
-  },
   getMasterTipeJalur: async () => {
     const response = await api.get("/master/tipe-jalur");
     return response.data;

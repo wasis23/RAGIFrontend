@@ -1,53 +1,104 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit, Trash2, Filter } from 'lucide-react';
 import { spmbService } from '@/services/spmb.service';
 import { JalurMasuk } from '@/types/spmb.types';
 import toast from 'react-hot-toast';
-import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DataTable } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { useRouter } from 'next/navigation';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 export default function MasterJalurPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
   const [data, setData] = useState<JalurMasuk[]>([]);
+  const [meta, setMeta] = useState({ current_page: 1, last_page: 1, total: 0 });
   const [loading, setLoading] = useState(false);
 
+  // Filter drawer state
   const [showFilter, setShowFilter] = useState(false);
-  const [filterName, setFilterName] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterOrderBy, setFilterOrderBy] = useState('id');
-  const [filterOrderDir, setFilterOrderDir] = useState('desc');
+  const page = Number(searchParams.get('page')) || 1;
+  const limit = Number(searchParams.get('limit')) || 10;
+  const nameQ = searchParams.get('name') || '';
+  const statusQ = searchParams.get('status') || '';
+  const orderByQ = searchParams.get('sort_by') || 'nama';
+  const orderDirQ = searchParams.get('sort_dir') || 'asc';
 
-  const [appliedFilters, setAppliedFilters] = useState({
-    name: '',
-    type: '',
-    status: '',
-    orderBy: 'id',
-    orderDir: 'desc'
-  });
+  const [filterName, setFilterName] = useState(nameQ);
+  const [filterStatus, setFilterStatus] = useState(statusQ);
+  const [filterOrderBy, setFilterOrderBy] = useState(orderByQ);
+  const [filterOrderDir, setFilterOrderDir] = useState(orderDirQ);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await spmbService.getJalurMasuk();
-      setData(res.data);
+      const res = await spmbService.getJalurMasuk({
+        page,
+        limit,
+        name: nameQ,
+        status: statusQ,
+        sort_by: orderByQ,
+        sort_dir: orderDirQ
+      });
+      setData(res.data || []);
+      if (res.meta) setMeta(res.meta);
     } catch (error: any) {
       toast.error(error.message || 'Gagal memuat data jalur masuk');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, nameQ, statusQ, orderByQ, orderDirQ]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  const updateURLParams = (newParams: Record<string, string | number>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.keys(newParams).forEach(key => {
+      if (newParams[key]) {
+        params.set(key, String(newParams[key]));
+      } else {
+        params.delete(key);
+      }
+    });
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const handleApplyFilter = () => {
+    updateURLParams({
+      page: 1,
+      name: filterName,
+      status: filterStatus,
+      sort_by: filterOrderBy,
+      sort_dir: filterOrderDir
+    });
+    setShowFilter(false);
+  };
+
+  const handleResetFilter = () => {
+    setFilterName('');
+    setFilterStatus('');
+    setFilterOrderBy('nama');
+    setFilterOrderDir('asc');
+    updateURLParams({
+      page: 1,
+      name: '',
+      status: '',
+      sort_by: 'nama',
+      sort_dir: 'asc'
+    });
+    setShowFilter(false);
+  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Apakah Anda yakin ingin menghapus jalur ini?')) return;
@@ -60,35 +111,8 @@ export default function MasterJalurPage() {
     }
   };
 
-  const filteredData = useMemo(() => {
-    let result = [...data];
-    if (appliedFilters.name) {
-      result = result.filter(item => 
-        item.nama.toLowerCase().includes(appliedFilters.name.toLowerCase()) || 
-        item.kode.toLowerCase().includes(appliedFilters.name.toLowerCase())
-      );
-    }
-    if (appliedFilters.type) {
-      result = result.filter(item => item.tipe === appliedFilters.type);
-    }
-    if (appliedFilters.status !== '') {
-      const isActive = appliedFilters.status === 'true';
-      result = result.filter(item => item.is_active === isActive);
-    }
-
-    result.sort((a: any, b: any) => {
-      const aVal = a[appliedFilters.orderBy];
-      const bVal = b[appliedFilters.orderBy];
-      if (aVal < bVal) return appliedFilters.orderDir === 'asc' ? -1 : 1;
-      if (aVal > bVal) return appliedFilters.orderDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [data, appliedFilters]);
-
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Master Jalur Masuk"
         description="Kelola jalur masuk pendaftaran mahasiswa baru"
@@ -109,94 +133,77 @@ export default function MasterJalurPage() {
       />
 
       <DataTable 
-            data={filteredData}
-            isLoading={loading}
-            columns={[
-              { key: 'kode', label: 'Kode', sortable: true },
-              { key: 'nama', label: 'Nama Jalur', sortable: true },
-              { key: 'tipe', label: 'Tipe', render: (row) => <span className="uppercase badge badge-ghost badge-sm">{row.tipe}</span> },
-              { key: 'ujian', label: 'Komponen Ujian', render: (row) => (
-                <div className="flex gap-1 flex-wrap">
-                  {row.ada_ujian_tulis && <span className="text-[0.7rem] px-1.5 py-0.5 bg-slate-50 rounded border border-slate-200">Tulis</span>}
-                  {row.ada_ujian_praktik && <span className="text-[0.7rem] px-1.5 py-0.5 bg-slate-50 rounded border border-slate-200">Praktik</span>}
-                  {row.ada_wawancara && <span className="text-[0.7rem] px-1.5 py-0.5 bg-slate-50 rounded border border-slate-200">Wawancara</span>}
-                  {!row.ada_ujian_tulis && !row.ada_ujian_praktik && !row.ada_wawancara && <span className="text-slate-400">-</span>}
-                </div>
-              )},
-              { key: 'is_active', label: 'Status', render: (row) => row.is_active ? <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-emerald-600">Aktif</span> : <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-red-500">Tidak Aktif</span> },
-              { key: 'actions', label: 'Aksi', align: 'right', render: (row) => (
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" icon={<Edit size={14} />} onClick={() => router.push(`/spmb/master/jalur/${row.id}/edit`)} />
-                  <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => handleDelete(row.id)} />
-                </div>
-              )}
-            ]}
-          />
+        data={data}
+        meta={meta}
+        isLoading={loading}
+        columns={[
+          { key: 'kode', label: 'Kode', sortable: true },
+          { key: 'nama', label: 'Nama Jalur', sortable: true },
+          { 
+            key: 'master_tipe_jalur', 
+            label: 'Tipe Jalur', 
+            render: (row) => (
+              <Badge variant="ghost">
+                {row.master_tipe_jalur?.nama || '-'}
+              </Badge>
+            ) 
+          },
+          { 
+            key: 'is_active', 
+            label: 'Status', 
+            render: (row) => row.is_active ? (
+              <Badge variant="success">Aktif</Badge>
+            ) : (
+              <Badge variant="danger">Tidak Aktif</Badge>
+            ) 
+          },
+          { 
+            key: 'actions', 
+            label: 'Aksi', 
+            align: 'right', 
+            render: (row) => (
+              <DropdownMenu
+                items={[
+                  {
+                    label: 'Edit Data',
+                    icon: <Edit size={14} />,
+                    onClick: () => router.push(`/spmb/master/jalur/${row.id}/edit`),
+                  },
+                  {
+                    label: 'Hapus',
+                    icon: <Trash2 size={14} className="text-red-500" />,
+                    onClick: () => handleDelete(row.id),
+                    danger: true,
+                  },
+                ]}
+              />
+            ) 
+          }
+        ]}
+      />
 
+      {/* Filter Drawer */}
       <Drawer
         open={showFilter}
         onClose={() => setShowFilter(false)}
         title="Filter Jalur Masuk"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="secondary" 
-              onClick={() => {
-                setFilterName('');
-                setFilterType('');
-                setFilterStatus('');
-                setFilterOrderBy('id');
-                setFilterOrderDir('desc');
-                setAppliedFilters({
-                  name: '',
-                  type: '',
-                  status: '',
-                  orderBy: 'id',
-                  orderDir: 'desc'
-                });
-                setShowFilter(false);
-              }}
-            >
+            <Button variant="secondary" onClick={handleResetFilter}>
               Reset
             </Button>
-            <Button 
-              variant="primary" 
-              onClick={() => {
-                setAppliedFilters({
-                  name: filterName,
-                  type: filterType,
-                  status: filterStatus,
-                  orderBy: filterOrderBy,
-                  orderDir: filterOrderDir
-                });
-                setShowFilter(false);
-              }}
-            >
+            <Button variant="primary" onClick={handleApplyFilter}>
               Terapkan
             </Button>
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input 
             label="Pencarian"
             placeholder="Kode atau nama jalur..."
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
-          />
-
-          <Select 
-            label="Tipe Jalur"
-            value={filterType}
-            onChange={(val) => setFilterType(val)}
-            options={[
-              { value: '', label: 'Semua Tipe' },
-              { value: 'reguler', label: 'Reguler' },
-              { value: 'transfer', label: 'Transfer' },
-              { value: 'beasiswa', label: 'Beasiswa' },
-              { value: 'internasional', label: 'Internasional' },
-              { value: 'rpla', label: 'RPL/A' }
-            ]}
           />
 
           <Select 
@@ -210,7 +217,7 @@ export default function MasterJalurPage() {
             ]}
           />
           
-          <hr className="border-t border-slate-200 my-2" />
+          <hr className="border-t border-slate-200 my-1" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select 
@@ -218,10 +225,10 @@ export default function MasterJalurPage() {
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
               options={[
-                { value: 'id', label: 'ID' },
-                { value: 'kode', label: 'Kode Jalur' },
                 { value: 'nama', label: 'Nama Jalur' },
-                { value: 'tipe', label: 'Tipe' }
+                { value: 'kode', label: 'Kode Jalur' },
+                { value: 'id', label: 'ID' },
+                { value: 'created_at', label: 'Tanggal Dibuat' }
               ]}
             />
 

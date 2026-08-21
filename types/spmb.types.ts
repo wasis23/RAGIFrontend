@@ -1,11 +1,18 @@
+export interface MasterTipeJalur {
+  id: number;
+  kode: string;
+  nama: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface JalurMasuk {
   id: number;
   kode: string;
   nama: string;
   deskripsi: string | null;
-  tipe: 'reguler' | 'mandiri' | 'prestasi' | 'kerjasama';
-  ada_ujian_tulis: boolean;
-  ada_ujian_praktik: boolean;
+  master_tipe_jalur_id: number;
+  master_tipe_jalur?: MasterTipeJalur;
   ada_wawancara: boolean;
   is_active: boolean;
   created_at: string;
