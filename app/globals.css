@@ -707,13 +707,12 @@ p.text-white, span.text-white, div.text-white {
 }
 
 .btn-warning {
-  background: var(--warning, #f97316);
+  background-color: var(--warning, #f59e0b);
   color: white;
-  border-color: var(--warning, #f97316);
+  border-color: var(--warning, #f59e0b);
 }
 .btn-warning:hover {
-  background: #ea580c;
-  box-shadow: 0 4px 12px rgb(249 115 22 / 0.3);
+  filter: brightness(0.92);
   transform: translateY(-1px);
 }
 

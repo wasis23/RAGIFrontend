@@ -195,9 +195,9 @@ export const simpegService = {
   },
 
   // Payroll / Gaji
-  getPayrollList: async (pegawaiId?: number, periode?: string): Promise<ApiResponse<GajiPegawai[]>> => {
-    const { data } = await apiClient.get<ApiResponse<GajiPegawai[]>>('/simpeg/payroll', {
-      params: { pegawai_id: pegawaiId, periode },
+  getPayrollList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll', {
+      params: typeof params === 'number' ? { pegawai_id: params } : params,
     });
     return data;
   },

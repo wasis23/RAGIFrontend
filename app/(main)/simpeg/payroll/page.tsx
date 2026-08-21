@@ -1,90 +1,173 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { DollarSign, Printer, Plus, RefreshCw, ShieldAlert } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { DollarSign, Printer, Plus, Filter, ShieldAlert, ExternalLink } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Card, CardBody } from '@/components/ui/Card';
+import { Select } from '@/components/ui/Select';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { simpegService } from '@/services/simpeg.service';
-import type { GajiPegawai, StatusTransferGaji } from '@/types/simpeg.types';
-import toast from 'react-hot-toast';
+import type { GajiPegawai } from '@/types/simpeg.types';
+import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function PayrollPage() {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.payroll.manage');
+  const router = useRouter();
+  const { hasPermission } = useAuth();
   const canRead = hasPermission('simpeg.payroll.read') || hasPermission('simpeg.payroll.view') || hasPermission('simpeg.payroll.manage');
   const canCreate = hasPermission('simpeg.payroll.create') || hasPermission('simpeg.payroll.manage');
 
   const [loading, setLoading] = useState(true);
   const [payrollList, setPayrollList] = useState<GajiPegawai[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>();
 
-  // Modal State
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({
-    pegawai_id: 1,
-    periode_bulan_tahun: '2026-07',
-    gaji_pokok: 4500000,
-    total_tunjangan: 1500000,
-    total_potongan: 250000,
-    gaji_bersih: 5750000,
-    status_transfer: 'paid' as StatusTransferGaji,
-    nomor_rekening: '5220391823',
-    bank_nama: 'Bank Mandiri',
-  });
+  // Filter & Pagination state
+  const [search, setSearch] = useState('');
+  const [filterPeriode, setFilterPeriode] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('periode_bulan_tahun');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
+  const [showFilter, setShowFilter] = useState(false);
 
-  const loadPayroll = async () => {
+  const loadPayroll = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
     try {
-      if (!isAdmin) {
-        const resMe = await simpegService.getPegawaiMe();
-        if (resMe.data) {
-          const pegId = resMe.data.id;
-          setFormData(prev => ({ ...prev, pegawai_id: pegId }));
-          const res = await simpegService.getPayrollList(pegId);
-          setPayrollList(res.data || []);
-        }
-      } else {
-        const res = await simpegService.getPayrollList();
+      const res: any = await simpegService.getPayrollList({
+        page,
+        limit,
+        search: search || undefined,
+        periode: filterPeriode || undefined,
+        sort_by: filterOrderBy,
+        sort_dir: filterOrderDir,
+      });
+
+      if (res?.meta) {
         setPayrollList(res.data || []);
+        setMeta(res.meta);
+      } else {
+        let items: GajiPegawai[] = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        if (search) {
+          const q = search.toLowerCase();
+          items = items.filter(
+            (g) =>
+              g.periode_bulan_tahun.toLowerCase().includes(q) ||
+              g.pegawai?.nama_lengkap?.toLowerCase().includes(q)
+          );
+        }
+        if (filterPeriode) {
+          items = items.filter((g) => g.periode_bulan_tahun === filterPeriode);
+        }
+
+        items.sort((a, b) => {
+          let valA = (a as any)[filterOrderBy] ?? '';
+          let valB = (b as any)[filterOrderBy] ?? '';
+          if (typeof valA === 'string') valA = valA.toLowerCase();
+          if (typeof valB === 'string') valB = valB.toLowerCase();
+
+          if (valA < valB) return filterOrderDir === 'asc' ? -1 : 1;
+          if (valA > valB) return filterOrderDir === 'asc' ? 1 : -1;
+          return 0;
+        });
+
+        const totalItems = items.length;
+        const totalPages = Math.ceil(totalItems / limit) || 1;
+        const startIndex = (page - 1) * limit;
+        const paginated = items.slice(startIndex, startIndex + limit);
+
+        setPayrollList(paginated);
+        setMeta({
+          current_page: page,
+          last_page: totalPages,
+          per_page: limit,
+          total: totalItems,
+          from: totalItems > 0 ? startIndex + 1 : 0,
+          to: Math.min(startIndex + limit, totalItems),
+        });
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat Slip Gaji');
     } finally {
       setLoading(false);
     }
-  };
+  }, [canRead, page, limit, search, filterPeriode, filterOrderBy, filterOrderDir]);
 
   useEffect(() => {
     loadPayroll();
-  }, [canRead]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canCreate) {
-      toast.error('Akses Ditolak: Anda tidak memiliki permission menerbitkan slip gaji.');
-      return;
-    }
-
-    try {
-      const res = await simpegService.createPayroll(formData);
-      toast.success('Slip gaji berhasil diterbitkan & terposting ke Jurnal SIKEU!');
-      setShowModal(false);
-      loadPayroll();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menerbitkan slip gaji');
-    }
-  };
+  }, [loadPayroll]);
 
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   };
+
+  const columns: ColumnDef<GajiPegawai>[] = [
+    {
+      key: 'periode_bulan_tahun',
+      label: 'Periode',
+      render: (row) => <span className="font-bold font-mono">{row.periode_bulan_tahun}</span>,
+    },
+    {
+      key: 'pegawai',
+      label: 'Nama Pegawai',
+      render: (row) => <span className="font-bold">{row.pegawai?.nama_lengkap || `Pegawai ID ${row.pegawai_id}`}</span>,
+    },
+    {
+      key: 'gaji_pokok',
+      label: 'Gaji Pokok',
+      render: (row) => formatRupiah(row.gaji_pokok),
+    },
+    {
+      key: 'total_tunjangan',
+      label: 'Tunjangan',
+      render: (row) => `+${formatRupiah(row.total_tunjangan)}`,
+    },
+    {
+      key: 'total_potongan',
+      label: 'Potongan',
+      render: (row) => `-${formatRupiah(row.total_potongan)}`,
+    },
+    {
+      key: 'gaji_bersih',
+      label: 'Take Home Pay',
+      render: (row) => <span className="font-bold">{formatRupiah(row.gaji_bersih)}</span>,
+    },
+    {
+      key: 'status_transfer',
+      label: 'Status SIKEU',
+      render: (row) => (
+        <Badge variant="success" className="uppercase">
+          {row.status_transfer} (Posted)
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: () => {
+        const menuItems: DropdownMenuItem[] = [
+          {
+            label: 'Cetak Slip Gaji PDF',
+            icon: <Printer size={14} />,
+            onClick: () => toast.success('Mengunduh Slip Gaji PDF...'),
+          },
+        ];
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu items={menuItems} />
+          </div>
+        );
+      },
+    },
+  ];
 
   if (!canRead) {
     return (
@@ -93,13 +176,15 @@ export default function PayrollPage() {
           title="Payroll & Slip Gaji Pegawai"
           description="Penggajian, Tunjangan Jabatan, Potongan PPh21, dan Integrasi Jurnal Keuangan (SIKEU)"
         />
-        <Card>
-          <EmptyState
-            icon={<ShieldAlert size={48} className="text-[var(--danger)]" />}
-            title="Akses Ditolak / Dibatasi"
-            description="Peran Anda saat ini tidak memiliki permission untuk melihat Slip Gaji & Payroll."
-          />
-        </Card>
+        <div className="card p-6 text-center">
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">
+            Akses Ditolak / Dibatasi
+          </h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
+            Peran Anda saat ini tidak memiliki hak akses (*permission*) untuk melihat Slip Gaji & Payroll.
+          </p>
+        </div>
       </div>
     );
   }
@@ -109,143 +194,121 @@ export default function PayrollPage() {
       <PageHeader
         title="Payroll & Slip Gaji Pegawai"
         description="Penggajian, Tunjangan Jabatan, Potongan PPh21, dan Integrasi Jurnal Keuangan (SIKEU)"
+        action={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              icon={<ExternalLink size={16} />}
+              onClick={() => window.open('/sikeu/akuntansi/jurnal', '_blank')}
+            >
+              Jurnal SIKEU
+            </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={() => router.push('/simpeg/payroll/create')}>
+                Terbitkan Payroll Baru
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+          </div>
+        }
       />
 
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-lg">Daftar Slip Gaji ({payrollList.length})</h3>
-        <div className="flex gap-3 items-center">
-          <Button variant="outline" size="sm" onClick={() => window.open('/sikeu/akuntansi/jurnal', '_blank')}>
-            Lihat Jurnal SIKEU &rarr;
-          </Button>
-          <Button variant="outline" size="sm" onClick={loadPayroll}>
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
-          </Button>
-          {canCreate && (
-            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
-              <Plus size={16} /> Terbitkan Payroll Baru
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* Main DataTable */}
+      <DataTable
+        columns={columns}
+        data={payrollList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        emptyMessage={
+          <div className="py-8 text-center opacity-70">
+            <DollarSign size={48} className="mx-auto mb-4 opacity-40" />
+            <p>Belum ada data slip gaji penerbitan yang sesuai filter.</p>
+          </div>
+        }
+      />
 
-      {loading ? (
-        <Card>
-          <CardBody className="text-center text-[var(--text-muted)] py-8">Memuat slip gaji...</CardBody>
-        </Card>
-      ) : payrollList.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<DollarSign size={48} className="opacity-40" />}
-            title="Belum ada data slip gaji penerbitan."
+      {/* Filter Drawer Slide Right-to-Left */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Payroll Slip Gaji"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Pencarian Nama / Periode"
+            placeholder="Cari nama pegawai, 2026-07..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
-        </Card>
-      ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Periode</th>
-                <th>Nama Pegawai</th>
-                <th>Gaji Pokok</th>
-                <th>Tunjangan</th>
-                <th>Potongan</th>
-                <th>Take Home Pay</th>
-                <th>Status SIKEU</th>
-                <th className="text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payrollList.map((g) => (
-                <tr key={g.id}>
-                  <td className="font-bold font-mono">{g.periode_bulan_tahun}</td>
-                  <td className="font-bold">
-                    {g.pegawai?.nama_lengkap || `Pegawai ID ${g.pegawai_id}`}
-                  </td>
-                  <td>{formatRupiah(g.gaji_pokok)}</td>
-                  <td className="text-[var(--success)]">+{formatRupiah(g.total_tunjangan)}</td>
-                  <td className="text-[var(--danger)]">-{formatRupiah(g.total_potongan)}</td>
-                  <td className="font-bold text-accent-600">{formatRupiah(g.gaji_bersih)}</td>
-                  <td>
-                    <Badge variant="green" className="uppercase">
-                      {g.status_transfer} (Posted)
-                    </Badge>
-                  </td>
-                  <td className="text-right">
-                    <Button variant="ghost" size="sm" icon={<Printer size={16} />} onClick={() => toast.success('Mengunduh Slip Gaji PDF...')} title="Cetak Slip Gaji" />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
-      {/* Modal Terbit Payroll */}
-      {canCreate && (
-        <Modal
-          open={showModal}
-          onClose={() => setShowModal(false)}
-          title="Terbitkan Slip Gaji & Post to SIKEU"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowModal(false)}>Batal</Button>
-              <Button variant="primary" onClick={handleSubmit}>Terbitkan & Post Jurnal</Button>
-            </>
-          }
-        >
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input
-              label="Periode (YYYY-MM)"
-              value={formData.periode_bulan_tahun}
-              onChange={(e) => setFormData({ ...formData, periode_bulan_tahun: e.target.value })}
-              placeholder="2026-07"
-              required
+          <Input
+            label="Filter Periode (YYYY-MM)"
+            placeholder="Contoh: 2026-07"
+            value={filterPeriode}
+            onChange={(e) => {
+              setFilterPeriode(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <hr className="my-2" />
+
+          {/* Grid 2 Kolom Sorting */}
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'periode_bulan_tahun', label: 'Periode' },
+                { value: 'gaji_bersih', label: 'Take Home Pay' },
+                { value: 'id', label: 'ID' },
+              ]}
             />
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Gaji Pokok (IDR)"
-                type="number"
-                value={formData.gaji_pokok}
-                onChange={(e) => setFormData({ ...formData, gaji_pokok: Number(e.target.value) })}
-                required
-              />
-              <Input
-                label="Total Tunjangan (IDR)"
-                type="number"
-                value={formData.total_tunjangan}
-                onChange={(e) => setFormData({ ...formData, total_tunjangan: Number(e.target.value) })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Total Potongan (IDR)"
-                type="number"
-                value={formData.total_potongan}
-                onChange={(e) => setFormData({ ...formData, total_potongan: Number(e.target.value) })}
-              />
-              <Input
-                label="Gaji Bersih / THP (IDR)"
-                type="number"
-                value={formData.gaji_bersih}
-                onChange={(e) => setFormData({ ...formData, gaji_bersih: Number(e.target.value) })}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Nama Bank"
-                value={formData.bank_nama}
-                onChange={(e) => setFormData({ ...formData, bank_nama: e.target.value })}
-              />
-              <Input
-                label="Nomor Rekening"
-                value={formData.nomor_rekening}
-                onChange={(e) => setFormData({ ...formData, nomor_rekening: e.target.value })}
-              />
-            </div>
-          </form>
-        </Modal>
-      )}
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+                { value: 'asc', label: 'A - Z (Terlama)' },
+              ]}
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch('');
+                setFilterPeriode('');
+                setFilterOrderBy('periode_bulan_tahun');
+                setFilterOrderDir('desc');
+                setPage(1);
+              }}
+            >
+              Reset Filter
+            </Button>
+            <Button onClick={() => setShowFilter(false)}>
+              Terapkan
+            </Button>
+          </div>
+        </div>
+      </Drawer>
     </div>
   );
 }
