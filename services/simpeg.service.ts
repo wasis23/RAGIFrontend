@@ -51,9 +51,9 @@ export const simpegService = {
   },
 
   // ── JABATAN ──────────────────────────────────────────────────
-  getJabatanList: async (unitKerjaId?: number): Promise<ApiResponse<Jabatan[]>> => {
-    const { data } = await apiClient.get<ApiResponse<Jabatan[]>>('/simpeg/jabatan', {
-      params: unitKerjaId ? { unit_kerja_id: unitKerjaId } : undefined,
+  getJabatanList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/jabatan', {
+      params: typeof params === 'number' ? { unit_kerja_id: params } : params,
     });
     return data;
   },
