@@ -333,7 +333,7 @@ export const sippmService = {
     return data;
   },
 
-  indexPengumuman: async (params?: { tahun_anggaran?: string; status?: string }): Promise<ApiResponse<PaginatedResponse<PengumumanHibah>>> => {
+  indexPengumuman: async (params?: Record<string, any>): Promise<ApiResponse<PaginatedResponse<PengumumanHibah>>> => {
     const { data } = await apiClient.get<ApiResponse<PaginatedResponse<PengumumanHibah>>>('/sippm/pengumuman', { params });
     return data;
   },

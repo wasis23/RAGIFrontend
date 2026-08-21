@@ -2,319 +2,326 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Plus, Trash2, Send, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Send, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import toast from 'react-hot-toast';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { sippmService } from '@/services/sippm.service';
 import type { CreatePengumumanPayload } from '@/types/sippm.types';
+import { useAuth } from '@/hooks/useAuth';
+
+const DEFAULT_JADWAL = [
+  { waktu: '20 Maret – 22 Maret', kegiatan: 'Pengumuman Penerimaan proposal PPM' },
+  { waktu: '23 Maret - 23 April', kegiatan: 'Unggah proposal melalui system http://sippm.poltekindonusa.ac.id\nUsername : nidn\nPassword : nidn' },
+  { waktu: '24 April – 28 April', kegiatan: 'Penilaian oleh tim reviewer' },
+  { waktu: '29 April', kegiatan: 'Penetapan pemenang' },
+  { waktu: '30 April', kegiatan: 'Pengumuman proposal yang didanai' },
+  { waktu: '4 Mei', kegiatan: 'Kontrak dan Pencairan dana 70%' },
+  { waktu: '4 Mei – 4 Juli', kegiatan: 'Pelaksanaan PPM' },
+  { waktu: '6 – 7 Juli', kegiatan: 'Monev kemajuan pelaksanaan PPM melalui sistem' },
+  { waktu: '14 – 15 Agustus', kegiatan: 'Unggah Laporan akhir dan Luaran yang sesuai dalam proposal melalui sistem' },
+  { waktu: 'Akhir Agustus', kegiatan: 'Seminar Hasil dan pencairan dana 30%' },
+];
+
+const pengumumanSchema = z.object({
+  nomor_surat: z.string().min(1, 'Nomor surat wajib diisi'),
+  tgl_surat: z.string().min(1, 'Tanggal surat wajib diisi'),
+  tahun_anggaran: z.string().min(1, 'Tahun anggaran wajib diisi'),
+  kategori_pendanaan: z.string().optional(),
+  hal_surat: z.string().min(1, 'Perihal surat wajib diisi'),
+  nama_ketua_uppm: z.string().min(1, 'Nama Ketua UPPM wajib diisi'),
+  nama_direktur: z.string().min(1, 'Nama Direktur wajib diisi'),
+  tgl_buka_proposal: z.string().min(1, 'Tanggal buka pengusulan wajib diisi'),
+  tgl_tutup_proposal: z.string().min(1, 'Tanggal tutup pengusulan wajib diisi'),
+  kualifikasi_dosen: z.string().optional().nullable(),
+});
+
+type PengumumanFormValues = z.infer<typeof pengumumanSchema>;
 
 export default function CreatePengumumanPage() {
   const router = useRouter();
-
-  const DEFAULT_JADWAL = [
-    { waktu: '20 Maret – 22 Maret', kegiatan: 'Pengumuman Penerimaan proposal PPM' },
-    { waktu: '23 Maret - 23 April', kegiatan: 'Unggah proposal melalui system http://sippm.poltekindonusa.ac.id\nUsername : nidn\nPassword : nidn' },
-    { waktu: '24 April – 28 April', kegiatan: 'Penilaian oleh tim reviewer' },
-    { waktu: '29 April', kegiatan: 'Penetapan pemenang' },
-    { waktu: '30 April', kegiatan: 'Pengumuman proposal yang didanai' },
-    { waktu: '4 Mei', kegiatan: 'Kontrak dan Pencairan dana 70%' },
-    { waktu: '4 Mei – 4 Juli', kegiatan: 'Pelaksanaan PPM' },
-    { waktu: '6 – 7 Juli', kegiatan: 'Monev kemajuan pelaksanaan PPM melalui sistem' },
-    { waktu: '14 – 15 Agustus', kegiatan: 'Unggah Laporan akhir dan Luaran yang sesuai dalam proposal melalui sistem' },
-    { waktu: 'Akhir Agustus', kegiatan: 'Seminar Hasil dan pencairan dana 30%' },
-  ];
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('sippm.pengumuman.create') || hasPermission('sippm.pengumuman.manage');
 
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'danger' } | null>(null);
+  const [jadwalRows, setJadwalRows] = useState<{ waktu: string; kegiatan: string }[]>(DEFAULT_JADWAL);
 
-  const [formData, setFormData] = useState<CreatePengumumanPayload>({
-    nomor_surat: '001/UPPM-INDONUSA/III/2026',
-    tgl_surat: '2026-03-20',
-    tahun_anggaran: '2026',
-    kategori_pendanaan: 'Hibah Institusi',
-    hal_surat: 'Penerimaan Proposal Penelitian dan Pengabdian Kepada Masyarakat (PPM) Hibah Institusi Tahun Anggaran 2026',
-    nama_ketua_uppm: 'Narsih, S.T., M.Kom',
-    nama_direktur: 'Ir. Suwahyo, S.T., M.T',
-    tgl_buka_proposal: '2026-03-23',
-    tgl_tutup_proposal: '2026-04-23',
-    lampiran_alokasi_waktu: DEFAULT_JADWAL,
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<PengumumanFormValues>({
+    resolver: zodResolver(pengumumanSchema),
+    defaultValues: {
+      nomor_surat: '001/UPPM-INDONUSA/III/2026',
+      tgl_surat: '2026-03-20',
+      tahun_anggaran: '2026',
+      kategori_pendanaan: 'Hibah Institusi',
+      hal_surat: 'Penerimaan Proposal Penelitian dan Pengabdian Kepada Masyarakat (PPM) Hibah Institusi Tahun Anggaran 2026',
+      nama_ketua_uppm: 'Narsih, S.T., M.Kom',
+      nama_direktur: 'Ir. Suwahyo, S.T., M.T',
+      tgl_buka_proposal: '2026-03-23',
+      tgl_tutup_proposal: '2026-04-23',
+      kualifikasi_dosen: '',
+    },
   });
 
-  const showToast = (message: string, type: 'success' | 'danger' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
   const handleJadwalChange = (index: number, field: 'waktu' | 'kegiatan', value: string) => {
-    const current = [...(formData.lampiran_alokasi_waktu || formData.lampiran_jadwal || [])];
-    current[index] = { ...current[index], [field]: value };
-    setFormData({ ...formData, lampiran_alokasi_waktu: current, lampiran_jadwal: current });
+    const updated = [...jadwalRows];
+    updated[index] = { ...updated[index], [field]: value };
+    setJadwalRows(updated);
   };
 
   const handleAddJadwalRow = () => {
-    const current = formData.lampiran_alokasi_waktu || formData.lampiran_jadwal || [];
-    const updated = [...current, { waktu: '', kegiatan: '' }];
-    setFormData({ ...formData, lampiran_alokasi_waktu: updated, lampiran_jadwal: updated });
+    setJadwalRows((prev) => [...prev, { waktu: '', kegiatan: '' }]);
   };
 
   const handleRemoveJadwalRow = (index: number) => {
-    const current = formData.lampiran_alokasi_waktu || formData.lampiran_jadwal || [];
-    const updated = current.filter((_, i) => i !== index);
-    setFormData({ ...formData, lampiran_alokasi_waktu: updated, lampiran_jadwal: updated });
+    setJadwalRows((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: PengumumanFormValues) => {
+    if (!canCreate) {
+      toast.error('Akses Ditolak: Anda tidak memiliki permission menerbitkan pengumuman.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await sippmService.createPengumuman(formData);
-      showToast('Pengumuman berhasil diterbitkan!', 'success');
-      setTimeout(() => {
-        router.push('/sippm/pengumuman');
-      }, 1500);
+      const payload: CreatePengumumanPayload = {
+        ...values,
+        kualifikasi_dosen: values.kualifikasi_dosen || undefined,
+        lampiran_alokasi_waktu: jadwalRows,
+        lampiran_jadwal: jadwalRows,
+      };
+
+      await sippmService.createPengumuman(payload);
+      toast.success('Pengumuman hibah berhasil diterbitkan & Draf PDF siap dicetak!');
+      router.push('/sippm/pengumuman');
     } catch (error: any) {
       console.error('Submit Pengumuman Error:', error);
-      showToast(error.response?.data?.message || 'Gagal menerbitkan pengumuman', 'danger');
+      toast.error(error.response?.data?.message || 'Gagal menerbitkan pengumuman');
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white font-medium flex items-center gap-2 ${
-          toast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'
-        }`}>
-          <span>{toast.message}</span>
-        </div>
-      )}
-
-      {/* HEADER & BACK BUTTON */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="btn btn-ghost btn-sm text-slate-600 hover:text-slate-900"
-        >
-          <ArrowLeft size={18} /> Kembali
-        </button>
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            Buat Pengumuman Hibah Institusi Baru
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">
-              Formulir Penerbitan Surat
-            </span>
-          </h1>
-          <p className="text-slate-500 text-xs mt-0.5">
-            Isi rincian informasi dokumen surat resmi pengumuman penerimaan proposal hibah penelitian & pengabdian beserta alokasi waktu lampiran.
+  if (!canCreate) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          title="Terbitkan Pengumuman Hibah Institusi Baru"
+          description="Formulir Penerbitan Dokumen Surat Resmi Pengumuman Proposal Hibah"
+          action={
+            <Button
+              variant="warning"
+              onClick={() => router.back()}
+              icon={<ArrowLeft size={16} />}
+            >
+              Kembali
+            </Button>
+          }
+        />
+        <div className="card p-6 text-center">
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">Akses Ditolak</h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
+            Anda tidak memiliki permission untuk menerbitkan pengumuman hibah.
           </p>
         </div>
       </div>
+    );
+  }
 
-      {/* Main Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Top Grid: 2 Columns for Sections 1 & 2 */}
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        title="Terbitkan Pengumuman Hibah Institusi Baru"
+        description="Formulir Penerbitan Dokumen Surat Resmi Pengumuman Proposal Hibah"
+        action={
+          <Button
+            variant="warning"
+            onClick={() => router.back()}
+            icon={<ArrowLeft size={16} />}
+          >
+            Kembali
+          </Button>
+        }
+      />
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Grid 2 Kolom untuk Seksi 1 & 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Column 1: Informasi Dokumen Surat */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div className="card p-6 space-y-4">
             <div className="border-b pb-3 flex items-center gap-2">
-              <span className="w-7 h-7 bg-blue-100 text-blue-700 rounded-lg font-bold text-xs flex items-center justify-center">1</span>
-              <h3 className="font-bold text-slate-800 text-sm">Informasi Dokumen Surat</h3>
+              <span className="w-7 h-7 bg-slate-100 text-slate-700 rounded-lg font-bold text-xs flex items-center justify-center">1</span>
+              <h3 className="font-bold text-sm">Informasi Dokumen Surat</h3>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Nomor Surat Resmi *</label>
-              <input
-                type="text"
-                required
-                value={formData.nomor_surat}
-                onChange={(e) => setFormData({ ...formData, nomor_surat: e.target.value })}
-                placeholder="Contoh: 001/UPPM-INDONUSA/III/2026"
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
-              />
-            </div>
+            <Input
+              label="Nomor Surat Resmi"
+              required
+              placeholder="Contoh: 001/UPPM-INDONUSA/III/2026"
+              error={errors.nomor_surat?.message}
+              {...register('nomor_surat')}
+            />
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal Surat *</label>
-              <input
-                type="date"
-                required
-                value={formData.tgl_surat}
-                onChange={(e) => setFormData({ ...formData, tgl_surat: e.target.value })}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
-              />
-            </div>
+            <Input
+              label="Tanggal Surat"
+              type="date"
+              required
+              error={errors.tgl_surat?.message}
+              {...register('tgl_surat')}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Tahun Anggaran Pendanaan *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.tahun_anggaran}
-                  onChange={(e) => setFormData({ ...formData, tahun_anggaran: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Kategori Pendanaan</label>
-                <input
-                  type="text"
-                  value={formData.kategori_pendanaan}
-                  onChange={(e) => setFormData({ ...formData, kategori_pendanaan: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Perihal Surat *</label>
-              <input
-                type="text"
+              <Input
+                label="Tahun Anggaran Pendanaan"
                 required
-                value={formData.hal_surat}
-                onChange={(e) => setFormData({ ...formData, hal_surat: e.target.value })}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
+                placeholder="Contoh: 2026"
+                error={errors.tahun_anggaran?.message}
+                {...register('tahun_anggaran')}
+              />
+
+              <Input
+                label="Kategori Pendanaan"
+                placeholder="Contoh: Hibah Institusi"
+                error={errors.kategori_pendanaan?.message}
+                {...register('kategori_pendanaan')}
               />
             </div>
+
+            <Input
+              label="Perihal Surat"
+              required
+              placeholder="Penerimaan Proposal Penelitian..."
+              error={errors.hal_surat?.message}
+              {...register('hal_surat')}
+            />
           </div>
 
-          {/* Column 2: Tanggal Pengusulan & Pejabat */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          {/* Column 2: Waktu Pengusulan & Pejabat TTD */}
+          <div className="card p-6 space-y-4">
             <div className="border-b pb-3 flex items-center gap-2">
-              <span className="w-7 h-7 bg-indigo-100 text-indigo-700 rounded-lg font-bold text-xs flex items-center justify-center">2</span>
-              <h3 className="font-bold text-slate-800 text-sm">Waktu Pengusulan & Pejabat TTD</h3>
+              <span className="w-7 h-7 bg-slate-100 text-slate-700 rounded-lg font-bold text-xs flex items-center justify-center">2</span>
+              <h3 className="font-bold text-sm">Waktu Pengusulan & Pejabat TTD</h3>
             </div>
 
-            <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-3">
-              <h4 className="font-bold text-indigo-900 text-xs uppercase">Periode Pengusulan Proposal Dosen</h4>
+            <div className="p-4 rounded-xl border space-y-3 bg-slate-50/50">
+              <h4 className="font-bold text-xs uppercase opacity-80">Periode Pengusulan Proposal Dosen</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal Buka Pengusulan *</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.tgl_buka_proposal}
-                    onChange={(e) => setFormData({ ...formData, tgl_buka_proposal: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none bg-white transition"
-                  />
-                </div>
+                <Input
+                  label="Tanggal Buka Pengusulan"
+                  type="date"
+                  required
+                  error={errors.tgl_buka_proposal?.message}
+                  {...register('tgl_buka_proposal')}
+                />
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal Tutup Pengusulan *</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.tgl_tutup_proposal}
-                    onChange={(e) => setFormData({ ...formData, tgl_tutup_proposal: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none bg-white transition"
-                  />
-                </div>
+                <Input
+                  label="Tanggal Tutup Pengusulan"
+                  type="date"
+                  required
+                  error={errors.tgl_tutup_proposal?.message}
+                  {...register('tgl_tutup_proposal')}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama & Gelar Ketua UPPM *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.nama_ketua_uppm}
-                  onChange={(e) => setFormData({ ...formData, nama_ketua_uppm: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
-                />
-              </div>
+              <Input
+                label="Nama & Gelar Ketua UPPM"
+                required
+                placeholder="Narsih, S.T., M.Kom"
+                error={errors.nama_ketua_uppm?.message}
+                {...register('nama_ketua_uppm')}
+              />
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nama & Gelar Direktur Kampus *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.nama_direktur}
-                  onChange={(e) => setFormData({ ...formData, nama_direktur: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Kualifikasi Dosen Sasaran</label>
-              <textarea
-                rows={2}
-                value={formData.kualifikasi_dosen}
-                onChange={(e) => setFormData({ ...formData, kualifikasi_dosen: e.target.value })}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none bg-slate-50/50 focus:bg-white transition"
+              <Input
+                label="Nama & Gelar Direktur Kampus"
+                required
+                placeholder="Ir. Suwahyo, S.T., M.T"
+                error={errors.nama_direktur?.message}
+                {...register('nama_direktur')}
               />
             </div>
+
+            <Textarea
+              label="Kualifikasi Dosen Sasaran"
+              rows={2}
+              placeholder="Rincian kualifikasi dosen pemohon..."
+              error={errors.kualifikasi_dosen?.message}
+              {...register('kualifikasi_dosen')}
+            />
           </div>
         </div>
 
-        {/* Section 3: LAMPIRAN 1 Editor (Full Width Below Sections 1 & 2) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        {/* Section 3: LAMPIRAN 1 Editor (Alokasi Waktu & Agenda) */}
+        <div className="card p-6 space-y-4">
           <div className="border-b pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="w-7 h-7 bg-emerald-100 text-emerald-700 rounded-lg font-bold text-xs flex items-center justify-center shrink-0">3</span>
+              <span className="w-7 h-7 bg-slate-100 text-slate-700 rounded-lg font-bold text-xs flex items-center justify-center shrink-0">3</span>
               <div>
-                <h3 className="font-bold text-slate-800 text-sm">LAMPIRAN 1: Alokasi Waktu & Agenda Kegiatan</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Sesuaikan atau tambah daftar agenda alokasi waktu kegiatan yang akan tampil secara otomatis pada Lampiran 1 surat resmi pengumuman.
+                <h3 className="font-bold text-sm">LAMPIRAN 1: Alokasi Waktu & Agenda Kegiatan</h3>
+                <p className="text-xs opacity-70 mt-0.5">
+                  Daftar agenda alokasi waktu kegiatan yang akan tampil pada Lampiran 1 surat resmi pengumuman.
                 </p>
               </div>
             </div>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleAddJadwalRow}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition shadow-sm flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+              icon={<Plus size={14} />}
             >
-              <Plus size={14} /> Tambah Baris Agenda
-            </button>
+              Tambah Baris Agenda
+            </Button>
           </div>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <div className="overflow-x-auto border rounded-xl">
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-100 text-slate-700 font-semibold uppercase text-[11px]">
                 <tr>
-                  <th className="p-3 w-12 text-center border-b border-slate-200">No</th>
-                  <th className="p-3 w-72 border-b border-slate-200">Waktu Agenda</th>
-                  <th className="p-3 border-b border-slate-200">Rincian Kegiatan</th>
-                  <th className="p-3 w-20 text-center border-b border-slate-200">Aksi</th>
+                  <th className="p-3 w-12 text-center border-b">No</th>
+                  <th className="p-3 w-72 border-b">Waktu Agenda</th>
+                  <th className="p-3 border-b">Rincian Kegiatan</th>
+                  <th className="p-3 w-20 text-center border-b">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {(formData.lampiran_alokasi_waktu || formData.lampiran_jadwal || []).map((row, idx) => (
+              <tbody className="divide-y bg-white">
+                {jadwalRows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/80 transition">
-                    <td className="p-3 text-center font-bold text-slate-500 bg-slate-50/50">
+                    <td className="p-3 text-center font-bold opacity-60">
                       {idx + 1}.
                     </td>
                     <td className="p-3">
-                      <input
-                        type="text"
+                      <Input
                         placeholder="Contoh: 20 Maret – 22 Maret"
                         value={row.waktu || ''}
                         onChange={(e) => handleJadwalChange(idx, 'waktu', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50/50 focus:bg-white transition"
                       />
                     </td>
                     <td className="p-3">
-                      <textarea
+                      <Textarea
                         rows={2}
                         placeholder="Rincian kegiatan..."
                         value={row.kegiatan || ''}
                         onChange={(e) => handleJadwalChange(idx, 'kegiatan', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-slate-50/50 focus:bg-white transition"
                       />
                     </td>
                     <td className="p-3 text-center">
-                      <button
+                      <Button
                         type="button"
+                        variant="danger"
                         onClick={() => handleRemoveJadwalRow(idx)}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition border border-rose-200"
-                        title="Hapus baris ini"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                        icon={<Trash2 size={14} />}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -324,21 +331,24 @@ export default function CreatePengumumanPage() {
         </div>
 
         {/* Action Footer */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-          <Link
-            href="/sippm/pengumuman"
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition"
+        <div className="card p-4 flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={submitting}
           >
             Batal
-          </Link>
+          </Button>
 
-          <button
+          <Button
             type="submit"
+            loading={submitting}
             disabled={submitting}
-            className="btn btn-primary font-bold rounded-xl px-6 py-2.5 border-none shadow-lg text-sm flex items-center gap-2"
+            icon={<Send size={16} />}
           >
-            {submitting ? 'Memproses...' : <><Send size={16} /> Terbitkan & Generate Draf Surat PDF</>}
-          </button>
+            Terbitkan & Generate Draf Surat PDF
+          </Button>
         </div>
       </form>
     </div>
