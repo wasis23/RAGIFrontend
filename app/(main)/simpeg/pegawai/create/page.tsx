@@ -21,18 +21,18 @@ const pegawaiSchema = z.object({
   nik: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
   jenis_pegawai: z.enum(['dosen', 'tendik', 'honorer'], {
-    required_error: 'Jenis Pegawai wajib dipilih',
+    message: 'Jenis Pegawai wajib dipilih',
   }),
   status_kepegawaian: z.enum(['pns', 'non_pns', 'kontrak', 'tetap_yayasan'], {
-    required_error: 'Status Kepegawaian wajib dipilih',
+    message: 'Status Kepegawaian wajib dipilih',
   }),
   status: z.enum(['aktif', 'non_aktif', 'pensiun'], {
-    required_error: 'Status Keaktifan wajib dipilih',
+    message: 'Status Keaktifan wajib dipilih',
   }),
   tempat_lahir: z.string().optional().nullable(),
   tanggal_lahir: z.string().optional().nullable(),
   jenis_kelamin: z.enum(['L', 'P'], {
-    required_error: 'Jenis Kelamin wajib dipilih',
+    message: 'Jenis Kelamin wajib dipilih',
   }),
   telepon: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
