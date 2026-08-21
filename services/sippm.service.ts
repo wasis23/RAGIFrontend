@@ -287,7 +287,7 @@ export const sippmService = {
   // ------------------------------------------------------------
   // Master Rubrik Indikator Penilaian
   // ------------------------------------------------------------
-  indexRubrik: async (params?: { tipe_reviewer?: string; search?: string }): Promise<PaginatedResponse<RubrikIndikator>> => {
+  indexRubrik: async (params?: Record<string, any>): Promise<PaginatedResponse<RubrikIndikator>> => {
     const { data } = await apiClient.get<PaginatedResponse<RubrikIndikator>>('/sippm/rubrik', { params });
     return data;
   },
