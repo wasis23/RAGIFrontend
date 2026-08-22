@@ -391,7 +391,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
               {newStatus === 'lulus_administrasi' && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2 text-emerald-800 text-xs">
                   <CheckCircle2 size={15} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span>Calon mahasiswa akan mendapatkan status LUNAS Administrasi dan berhak mengikuti seleksi berikutnya.</span>
+                  <span>Calon mahasiswa akan mendapatkan status LUNAS Administrasi dan berhak mengikuti tahap berikutnya.</span>
                 </div>
               )}
 

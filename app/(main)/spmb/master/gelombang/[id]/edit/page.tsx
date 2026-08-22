@@ -202,7 +202,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
           status: row.status,
           tanggal_buka: row.tanggal_buka ? new Date(row.tanggal_buka).toISOString().split('T')[0] : '',
           tanggal_tutup: row.tanggal_tutup ? new Date(row.tanggal_tutup).toISOString().split('T')[0] : '',
-          tanggal_ujian: row.tanggal_ujian ? new Date(row.tanggal_ujian).toISOString().split('T')[0] : '',
           tanggal_pengumuman: row.tanggal_pengumuman ? new Date(row.tanggal_pengumuman).toISOString().split('T')[0] : '',
         });
       } catch (error: any) {
@@ -409,11 +408,10 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
 
-          {/* SECTION II: JADWAL PELAKSANAAN */}
           <div className="space-y-5 pt-2">
             <SectionHeader 
               title="Jadwal Pelaksanaan"
-              description="Tentukan rentang tanggal buka/tutup pendaftaran, tanggal ujian, dan pengumuman."
+              description="Tentukan rentang tanggal buka/tutup pendaftaran dan pengumuman."
               icon={Calendar}
             />
 
@@ -442,13 +440,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                   </div>
                 )}
               </div>
-
-              <Input 
-                type="date"
-                label="Tanggal Ujian (Opsional)"
-                hint="Jadwal tes seleksi/ujian tulis (jika ada)."
-                {...register('tanggal_ujian')} 
-              />
 
               <Input 
                 type="date"

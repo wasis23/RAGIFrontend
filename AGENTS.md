@@ -115,3 +115,8 @@ Termasuk juga membuat **array literal statis** untuk `options` pada komponen UI 
 </RULE[module_color_theme_reviewer]>
 
 
+
+<RULE[no_ujian_spmb]>
+# No Ujian/CBT Policy for SPMB
+Agent **DILARANG KERAS** menyarankan, merancang, atau membuat fitur yang berkaitan dengan "Ujian", "Seleksi Ujian", "CBT (Computer Based Test)", atau "Jadwal Ujian" di dalam modul SPMB (Penerimaan Mahasiswa Baru). Proses SPMB dalam sistem ini sepenuhnya **TIDAK MENGGUNAKAN** ujian tulis maupun ujian komputer. Penerimaan murni didasarkan pada jalur pendaftaran dan seleksi administrasi/berkas. Jangan pernah menganggap atau berasumsi bahwa SPMB membutuhkan fitur tes/ujian.
+</RULE[no_ujian_spmb]>

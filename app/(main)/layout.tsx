@@ -77,7 +77,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 '/sikeu/mahasiswa/tagihan',
                 '/spmb/dashboard',
                 '/spmb/registrasi',
-                '/spmb/ujian',
                 '/spmb/seleksi'
               ];
               

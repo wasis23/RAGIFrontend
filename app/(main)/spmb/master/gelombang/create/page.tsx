@@ -342,11 +342,10 @@ export default function CreateGelombangPage() {
             </div>
           </div>
 
-          {/* SECTION II: JADWAL PELAKSANAAN */}
           <div className="space-y-5 pt-2">
             <SectionHeader 
               title="Jadwal Pelaksanaan"
-              description="Tentukan rentang tanggal buka/tutup pendaftaran, tanggal ujian, dan pengumuman."
+              description="Tentukan rentang tanggal buka/tutup pendaftaran dan pengumuman."
               icon={Calendar}
             />
 
@@ -375,13 +374,6 @@ export default function CreateGelombangPage() {
                   </div>
                 )}
               </div>
-
-              <Input 
-                type="date"
-                label="Tanggal Ujian (Opsional)"
-                hint="Jadwal tes seleksi/ujian tulis (jika ada)."
-                {...register('tanggal_ujian')} 
-              />
 
               <Input 
                 type="date"

@@ -78,7 +78,7 @@ export const SPMB_STATUS_CONFIG: Record<string, StatusConfig> = {
     label: 'Gagal Administrasi',
     variant: 'red',
     icon: XCircle,
-    description: 'Pendaftar TIDAK LULUS seleksi administrasi. Catatan verifikasi wajib diisi.',
+    description: 'Pendaftar TIDAK LULUS verifikasi administrasi. Catatan verifikasi wajib diisi.',
   },
 };
 

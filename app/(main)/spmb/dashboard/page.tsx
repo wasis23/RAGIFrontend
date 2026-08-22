@@ -157,25 +157,14 @@ export default function SPMBDashboardPage() {
       badgeText: 'Lulus Administrasi',
       badgeClass: 'badge-green',
       title: 'Selamat! Berkas Terverifikasi',
-      desc: 'Persyaratan administrasi Anda telah memenuhi syarat. Silakan cetak kartu & ikuti tes seleksi/ujian sesuai jadwal.',
+      desc: 'Persyaratan administrasi Anda telah memenuhi syarat. Pengumuman hasil seleksi akan diinformasikan lebih lanjut.',
       progressPct: 67,
       completedSteps: 4,
-      ctaText: 'Cek Jadwal & Ujian',
-      ctaLink: '/spmb/ujian/jadwal',
+      ctaText: 'Cek Pengumuman',
+      ctaLink: '/spmb/dashboard',
       variant: 'success',
     };
-  } else if (status === 'sudah_ujian') {
-    statusConfig = {
-      badgeText: 'Sudah Mengikuti Ujian',
-      badgeClass: 'badge-indigo',
-      title: 'Ujian Seleksi Selesai',
-      desc: 'Anda telah menyelesaikan sesi ujian seleksi masuk. Pengumuman hasil seleksi akan diinformasikan sesuai jadwal.',
-      progressPct: 83,
-      completedSteps: 5,
-      ctaText: 'Lihat Pengumuman Hasil',
-      ctaLink: '/spmb/seleksi',
-      variant: 'info',
-    };
+
   } else if (status === 'gagal_administrasi') {
     statusConfig = {
       badgeText: 'Berkas Perlu Perbaikan',
@@ -200,18 +189,16 @@ export default function SPMBDashboardPage() {
   const isPembayaranLunas = pendaftaran?.status_pembayaran === 'lunas' || pendaftaran?.status_pembayaran === 'gratis';
   const isBiodataFilled = !!pendaftaran?.nama_lengkap;
   const isDokumenUploaded = uploadedDocs.length > 0;
-  const isSubmitted = status === 'submitted' || status === 'verified' || status === 'lulus_administrasi' || status === 'sudah_ujian' || status === 'lulus_seleksi' || status === 'diterima';
-  const isVerifiedAdmin = status === 'verified' || status === 'lulus_administrasi' || status === 'sudah_ujian' || status === 'lulus_seleksi' || status === 'diterima';
-  const isUjianDone = status === 'sudah_ujian' || status === 'lulus_seleksi' || status === 'diterima' || status === 'lulus' || !!(pendaftaran as any)?.nilai_ujian || !!(pendaftaran as any)?.peserta_ujian?.length;
-  const isPengumumanDone = status === 'lulus_seleksi' || status === 'diterima' || status === 'tidak_lulus' || status === 'ditolak';
+  const isSubmitted = status === 'submitted' || status === 'verified' || status === 'lulus_administrasi' || status === 'diterima';
+  const isVerifiedAdmin = status === 'verified' || status === 'lulus_administrasi' || status === 'diterima';
+  const isPengumumanDone = status === 'lulus_administrasi' || status === 'diterima' || status === 'tidak_lulus' || status === 'ditolak';
 
-  // Workflow steps definition (6 Tahap Utama Calon Mahasiswa)
+  // Workflow steps definition (Tahap Utama Calon Mahasiswa)
   const steps = [
     { label: 'Biodata', key: 'biodata', done: isBiodataFilled },
     { label: 'Pembayaran', key: 'pembayaran', done: isPembayaranLunas },
     { label: 'Unggah Berkas', key: 'berkas', done: isDokumenUploaded || isSubmitted },
     { label: 'Finalisasi & Verifikasi', key: 'finalize', done: isVerifiedAdmin },
-    { label: 'Ujian Seleksi (CBT)', key: 'ujian', done: isUjianDone },
     { label: 'Pengumuman', key: 'pengumuman', done: isPengumumanDone },
   ];
 
@@ -473,7 +460,6 @@ export default function SPMBDashboardPage() {
                   {status === 'none' && 'Segera buat akun pendaftaran dan isi data diri awal Anda untuk mendapatkan Nomor Registrasi Pendaftaran.'}
                   {status === 'draft' && 'Lengkapi form biodata diri, data orang tua/wali, serta pastikan Anda telah mengunggah dokumen persyaratan.'}
                   {status === 'submitted' && 'Tim administrasi sedang memeriksa kelengkapan berkas Anda. Pantau halaman ini secara berkala.'}
-                  {(status === 'verified' || status === 'lulus_administrasi') && 'Berkas Anda sudah Lulus Administrasi! Cetak kartu ujian atau bersiap mengikuti tes seleksi sesuai jadwal.'}
                   {status === 'gagal_administrasi' && 'Periksa catatan perbaikan berkas di bawah, perbaiki dokumen yang ditolak, lalu simpan ulang.'}
                 </p>
                 <Link href={statusConfig.ctaLink} className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 hover:text-primary-700">
@@ -613,16 +599,8 @@ export default function SPMBDashboardPage() {
                 </div>
               </div>
 
-              {(activeGelombang?.tanggal_ujian || activeGelombang?.tanggal_pengumuman) && (
+              {(activeGelombang?.tanggal_pengumuman) && (
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                  {activeGelombang.tanggal_ujian && (
-                    <div>
-                      <span className="text-xs text-slate-400 block">Pelaksanaan Ujian</span>
-                      <span className="font-semibold text-slate-700 text-xs">
-                        {formatDate(activeGelombang.tanggal_ujian)}
-                      </span>
-                    </div>
-                  )}
                   {activeGelombang.tanggal_pengumuman && (
                     <div>
                       <span className="text-xs text-slate-400 block">Pengumuman</span>
@@ -648,16 +626,6 @@ export default function SPMBDashboardPage() {
               <Link href="/spmb/registrasi" className="p-3 bg-slate-50 hover:bg-primary-50 hover:border-primary-200 border border-slate-100 rounded-xl flex flex-col items-center text-center transition-all group">
                 <UploadCloud size={20} className="text-slate-600 group-hover:text-primary-600 mb-1.5" />
                 <span className="text-xs font-semibold text-slate-800">Upload Berkas</span>
-              </Link>
-
-              <Link href="/spmb/ujian" className="p-3 bg-slate-50 hover:bg-primary-50 hover:border-primary-200 border border-slate-100 rounded-xl flex flex-col items-center text-center transition-all group">
-                <BookOpen size={20} className="text-slate-600 group-hover:text-primary-600 mb-1.5" />
-                <span className="text-xs font-semibold text-slate-800">Kartu Ujian</span>
-              </Link>
-
-              <Link href="/spmb/seleksi" className="p-3 bg-slate-50 hover:bg-primary-50 hover:border-primary-200 border border-slate-100 rounded-xl flex flex-col items-center text-center transition-all group">
-                <Award size={20} className="text-slate-600 group-hover:text-primary-600 mb-1.5" />
-                <span className="text-xs font-semibold text-slate-800">Hasil Seleksi</span>
               </Link>
             </div>
           </div>
@@ -780,7 +748,7 @@ function SPMBAdminDashboardView({
               Penerimaan Mahasiswa Baru
             </h1>
             <p className="text-primary-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium max-w-3xl">
-              Pantau arus calon pendaftar, status kelulusan berkas administrasi, konfirmasi pembayaran formulir, dan jalannya ujian seleksi secara terintegrasi.
+              Pantau arus calon pendaftar, status kelulusan berkas administrasi, konfirmasi pembayaran formulir, dan jalannya tahap selanjutnya secara terintegrasi.
             </p>
           </div>
 
@@ -792,14 +760,6 @@ function SPMBAdminDashboardView({
             >
               <Users size={18} className="text-primary-700" />
               <span className="text-primary-700 font-extrabold">Kelola Data Pendaftar ({totalCount})</span>
-            </Link>
-
-            <Link
-              href="/spmb/ujian/jadwal"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary-900/40 hover:bg-primary-900/60 active:bg-primary-900/80 text-white font-bold text-sm border border-white/30 transition-all min-h-[44px] backdrop-blur-md"
-            >
-              <Calendar size={18} className="text-primary-200" />
-              <span className="!text-white font-bold">Jadwal Ujian CAT</span>
             </Link>
           </div>
         </div>
@@ -1010,38 +970,6 @@ function SPMBAdminDashboardView({
                     Kuota Program Studi
                   </h4>
                   <p className="text-2xs text-slate-500">Batas daya tampung penerimaan</p>
-                </div>
-                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
-              </Link>
-
-              <Link
-                href="/spmb/ujian/peserta"
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors border border-slate-100 min-h-[48px] group"
-              >
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <FileCheck size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-slate-800 text-xs group-hover:text-primary-600 transition-colors">
-                    Plotting Ujian CAT
-                  </h4>
-                  <p className="text-2xs text-slate-500">Jadwal &amp; nomor peserta tes</p>
-                </div>
-                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
-              </Link>
-
-              <Link
-                href="/spmb/seleksi"
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors border border-slate-100 min-h-[48px] group"
-              >
-                <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                  <Award size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-slate-800 text-xs group-hover:text-primary-600 transition-colors">
-                    Hasil Seleksi &amp; Kelulusan
-                  </h4>
-                  <p className="text-2xs text-slate-500">Penetapan status lulus calon mhs</p>
                 </div>
                 <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600" />
               </Link>

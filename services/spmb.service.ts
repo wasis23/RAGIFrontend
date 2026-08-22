@@ -6,8 +6,6 @@ export interface JalurMasuk {
   nama: string;
   deskripsi: string;
   tipe: 'reguler' | 'transfer' | 'beasiswa' | 'internasional' | 'rpla';
-  ada_ujian_tulis: boolean;
-  ada_ujian_praktik: boolean;
   ada_wawancara: boolean;
   is_active: boolean;
   created_at: string;
@@ -20,7 +18,6 @@ export interface GelombangPenerimaan {
   nama: string;
   tanggal_buka: string;
   tanggal_tutup: string;
-  tanggal_ujian: string | null;
   tanggal_pengumuman: string | null;
   kuota_total: number;
   kuota_terisi: number;
