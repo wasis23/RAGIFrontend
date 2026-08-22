@@ -199,6 +199,34 @@ export const spmbService = {
     return response.data;
   },
 
+  // Tarif UKT Daftar Ulang
+  getTarifUktSpmb: async (params?: { page?: number; limit?: number; search?: string; program_studi_id?: number; tahun_akademik_id?: number; is_active?: boolean; sort_by?: string; sort_dir?: string }) => {
+    const response = await api.get('/spmb/master/tarif-ukt', { params });
+    return response.data;
+  },
+  storeTarifUktSpmb: async (data: { program_studi_id: number; tahun_akademik_id: number; kelompok_ukt: string; nominal: number; is_active: boolean }) => {
+    const response = await api.post('/spmb/master/tarif-ukt', data);
+    return response.data;
+  },
+  updateTarifUktSpmb: async (id: number, data: { program_studi_id: number; tahun_akademik_id: number; kelompok_ukt: string; nominal: number; is_active: boolean }) => {
+    const response = await api.put(`/spmb/master/tarif-ukt/${id}`, data);
+    return response.data;
+  },
+  deleteTarifUktSpmb: async (id: number) => {
+    const response = await api.delete(`/spmb/master/tarif-ukt/${id}`);
+    return response.data;
+  },
+
+  // Daftar Ulang Actions
+  generateTagihanDaftarUlang: async (id: number) => {
+    const response = await api.post(`/spmb/daftar-ulang/${id}/generate-tagihan`);
+    return response.data;
+  },
+  konfirmasiDaftarUlang: async (id: number) => {
+    const response = await api.post(`/spmb/daftar-ulang/${id}/konfirmasi`);
+    return response.data;
+  },
+
   uploadBerkas: async (data: FormData) => {
     const response = await api.post('/spmb/pendaftaran/berkas', data, {
       headers: {

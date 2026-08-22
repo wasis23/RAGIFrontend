@@ -80,6 +80,19 @@ export interface BerkasRequirementPayload {
   urutan?: number;
 }
 
+export interface TarifUktSpmb {
+  id: number;
+  program_studi_id: number;
+  tahun_akademik_id: number;
+  kelompok_ukt: string;
+  nominal: number;
+  is_active: boolean;
+  program_studi?: ProgramStudi;
+  tahun_akademik?: TahunAkademik;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface TarifUkt {
   id: number;
   program_studi_id: number;
