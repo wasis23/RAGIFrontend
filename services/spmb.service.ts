@@ -302,11 +302,11 @@ export const spmbService = {
     const response = await api.get('/spmb/master-tipe-jalur', { params });
     return response.data;
   },
-  createMasterTipeJalur: async (data: { kode: string; nama: string }) => {
+  createMasterTipeJalur: async (data: { kode: string; nama: string; alur?: { nama_tahap: string; urutan?: number }[] }) => {
     const response = await api.post('/spmb/master-tipe-jalur', data);
     return response.data;
   },
-  updateMasterTipeJalur: async (id: number, data: { kode: string; nama: string }) => {
+  updateMasterTipeJalur: async (id: number, data: { kode: string; nama: string; alur?: { nama_tahap: string; urutan?: number }[] }) => {
     const response = await api.put(`/spmb/master-tipe-jalur/${id}`, data);
     return response.data;
   },

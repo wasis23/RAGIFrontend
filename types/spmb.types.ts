@@ -1,7 +1,14 @@
+export interface MasterTipeJalurAlur {
+  id?: number;
+  nama_tahap: string;
+  urutan?: number;
+}
+
 export interface MasterTipeJalur {
   id: number;
   kode: string;
   nama: string;
+  alur?: MasterTipeJalurAlur[];
   created_at?: string;
   updated_at?: string;
 }
