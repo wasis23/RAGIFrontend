@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
-      <head>
+    <html lang="id" suppressHydrationWarning>
+      <head suppressHydrationWarning>
         <Script
           id="performance-polyfill"
           strategy="beforeInteractive"

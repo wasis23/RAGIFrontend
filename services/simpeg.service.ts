@@ -145,13 +145,23 @@ export const simpegService = {
     return data;
   },
 
-  createDokumen: async (payload: Partial<DokumenPegawai>): Promise<ApiResponse<DokumenPegawai>> => {
-    const { data } = await apiClient.post<ApiResponse<DokumenPegawai>>('/simpeg/dokumen', payload);
+  createDokumen: async (payload: FormData | Partial<DokumenPegawai>): Promise<ApiResponse<DokumenPegawai>> => {
+    const isFormData = payload instanceof FormData;
+    const { data } = await apiClient.post<ApiResponse<DokumenPegawai>>('/simpeg/dokumen', payload, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+    });
     return data;
   },
 
   getSecureDokumenView: async (id: number): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/dokumen/${id}/secure-view`);
+    return data;
+  },
+
+  downloadDokumenFile: async (id: number): Promise<Blob> => {
+    const { data } = await apiClient.get(`/simpeg/dokumen/${id}/download`, {
+      responseType: 'blob',
+    });
     return data;
   },
 
@@ -168,8 +178,11 @@ export const simpegService = {
     return data;
   },
 
-  createCuti: async (payload: Partial<PengajuanCuti>): Promise<ApiResponse<PengajuanCuti>> => {
-    const { data } = await apiClient.post<ApiResponse<PengajuanCuti>>('/simpeg/cuti', payload);
+  createCuti: async (payload: FormData | Partial<PengajuanCuti>): Promise<ApiResponse<PengajuanCuti>> => {
+    const isFormData = payload instanceof FormData;
+    const { data } = await apiClient.post<ApiResponse<PengajuanCuti>>('/simpeg/cuti', payload, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
+    });
     return data;
   },
 
@@ -182,15 +195,43 @@ export const simpegService = {
   },
 
   // Presensi
-  getPresensiList: async (pegawaiId?: number, tanggal?: string): Promise<ApiResponse<PresensiPegawai[]>> => {
-    const { data } = await apiClient.get<ApiResponse<PresensiPegawai[]>>('/simpeg/presensi', {
-      params: { pegawai_id: pegawaiId, tanggal },
+  getPresensiList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/presensi', {
+      params: typeof params === 'number' ? { pegawai_id: params } : params,
     });
     return data;
   },
 
   createPresensi: async (payload: Partial<PresensiPegawai>): Promise<ApiResponse<PresensiPegawai>> => {
     const { data } = await apiClient.post<ApiResponse<PresensiPegawai>>('/simpeg/presensi', payload);
+    return data;
+  },
+
+  uploadPresensiRekap: async (payload: FormData): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/upload-rekap', payload, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600000, // 10 minutes timeout for processing large SQL dumps
+    });
+    return data;
+  },
+
+  resetPresensiData: async (): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>('/simpeg/presensi/reset');
+    return data;
+  },
+
+  getPresensiBundleDetail: async (id: number | string, params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/presensi/${id}`, { params });
+    return data;
+  },
+
+  deletePresensiBundle: async (id: number | string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/simpeg/presensi/${id}`);
+    return data;
+  },
+
+  processBundlePayroll: async (id: number | string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/presensi/${id}/payroll`);
     return data;
   },
 
@@ -204,6 +245,21 @@ export const simpegService = {
 
   createPayroll: async (payload: Partial<GajiPegawai>): Promise<ApiResponse<GajiPegawai>> => {
     const { data } = await apiClient.post<ApiResponse<GajiPegawai>>('/simpeg/payroll', payload);
+    return data;
+  },
+
+  generatePayroll: async (periode: string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/generate', { periode });
+    return data;
+  },
+
+  submitPayrollToSikeu: async (periode: string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/submit-to-sikeu', { periode });
+    return data;
+  },
+
+  processPayrollPayment: async (id: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/payroll/${id}/process-payment`);
     return data;
   },
 

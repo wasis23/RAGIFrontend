@@ -138,7 +138,9 @@ export default function KinerjaPage() {
           {
             label: 'Cetak Laporan SKP/BKD',
             icon: <FileText size={14} />,
-            onClick: () => toast.success(`Mencetak Rapor SKP ${row.pegawai?.nama_lengkap || row.id}...`),
+            onClick: () => {
+              toast.success(`Mencetak Rapor SKP ${row.pegawai?.nama_lengkap || row.id}...`);
+            },
           },
         ];
 

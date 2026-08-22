@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Calendar, Plus, CheckCircle, XCircle, Filter, ShieldAlert } from 'lucide-react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
@@ -13,38 +11,20 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
-import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
-import type { PengajuanCuti, JenisCuti, StatusApprovalCuti, Pegawai } from '@/types/simpeg.types';
+import type { PengajuanCuti, StatusApprovalCuti } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
-
-interface OptionType {
-  value: string;
-  label: string;
-}
-
-const cutiSchema = z.object({
-  pegawai_id: z.string().min(1, 'Pegawai Pemohon wajib dipilih'),
-  jenis_cuti: z.enum(['tahunan', 'sakit', 'alasan_penting', 'melahirkan', 'besar'], {
-    message: 'Jenis Cuti wajib dipilih',
-  }),
-  tanggal_mulai: z.string().min(1, 'Tanggal Mulai wajib diisi'),
-  tanggal_selesai: z.string().min(1, 'Tanggal Selesai wajib diisi'),
-  jumlah_hari: z.number().min(1, 'Jumlah hari minimal 1'),
-  alasan: z.string().min(1, 'Alasan pengajuan cuti wajib diisi'),
-});
-
-type CutiFormValues = z.infer<typeof cutiSchema>;
 
 export default function CutiPage() {
   const { hasPermission } = useAuth();
   const canRead = hasPermission('simpeg.cuti.read') || hasPermission('simpeg.cuti.request') || hasPermission('simpeg.cuti.approve') || hasPermission('simpeg.cuti.manage');
   const canCreate = hasPermission('simpeg.cuti.create') || hasPermission('simpeg.cuti.request') || hasPermission('simpeg.cuti.manage');
   const canUpdate = hasPermission('simpeg.cuti.update') || hasPermission('simpeg.cuti.approve') || hasPermission('simpeg.cuti.manage');
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [cutiList, setCutiList] = useState<PengajuanCuti[]>([]);
@@ -60,34 +40,11 @@ export default function CutiPage() {
   const [limit, setLimit] = useState(15);
   const [showFilter, setShowFilter] = useState(false);
 
-  // Modal Request Cuti State
-  const [showModalRequest, setShowModalRequest] = useState(false);
-  const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<OptionType | null>(null);
-  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
-
   // Modal Process/Approval State
   const [showModalApproval, setShowModalApproval] = useState(false);
   const [selectedCuti, setSelectedCuti] = useState<PengajuanCuti | null>(null);
   const [catatanApproval, setCatatanApproval] = useState('');
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<CutiFormValues>({
-    resolver: zodResolver(cutiSchema),
-    defaultValues: {
-      pegawai_id: '',
-      jenis_cuti: 'tahunan',
-      tanggal_mulai: '',
-      tanggal_selesai: '',
-      jumlah_hari: 1,
-      alasan: '',
-    },
-  });
 
   const loadCuti = useCallback(async () => {
     if (!canRead) return;
@@ -160,69 +117,12 @@ export default function CutiPage() {
     loadCuti();
   }, [loadCuti]);
 
-  // Async loader for Pegawai AsyncSelect
-  const loadPegawaiOptions = useCallback(async (inputValue: string) => {
-    try {
-      const res: any = await simpegService.getPegawaiList();
-      const list: Pegawai[] = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      const filtered = list.filter(
-        (p: Pegawai) =>
-          p.nama_lengkap.toLowerCase().includes(inputValue.toLowerCase()) ||
-          (p.nip && p.nip.toLowerCase().includes(inputValue.toLowerCase()))
-      );
-      return filtered.map((p: Pegawai) => ({
-        value: p.id.toString(),
-        label: `[NIP: ${p.nip || '-'}] ${p.nama_lengkap}`,
-      }));
-    } catch (err) {
-      console.error('Gagal memuat opsi pegawai', err);
-      return [];
-    }
-  }, []);
-
   const handleOpenRequest = () => {
     if (!canCreate) {
       toast.error('Anda tidak memiliki permission untuk mengajukan Cuti.');
       return;
     }
-    setSelectedPegawaiOption(null);
-    reset({
-      pegawai_id: '',
-      jenis_cuti: 'tahunan',
-      tanggal_mulai: '',
-      tanggal_selesai: '',
-      jumlah_hari: 1,
-      alasan: '',
-    });
-    setShowModalRequest(true);
-  };
-
-  const onSubmitRequest = async (values: CutiFormValues) => {
-    if (!canCreate) {
-      toast.error('Akses Ditolak: Anda tidak memiliki permission mengajukan Cuti.');
-      return;
-    }
-
-    setIsSubmittingRequest(true);
-    try {
-      const payload = {
-        pegawai_id: Number(values.pegawai_id),
-        jenis_cuti: values.jenis_cuti as JenisCuti,
-        tanggal_mulai: values.tanggal_mulai,
-        tanggal_selesai: values.tanggal_selesai,
-        jumlah_hari: values.jumlah_hari,
-        alasan: values.alasan,
-      };
-
-      await simpegService.createCuti(payload);
-      toast.success('Pengajuan Cuti berhasil dikirim!');
-      setShowModalRequest(false);
-      loadCuti();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengajukan Cuti');
-    } finally {
-      setIsSubmittingRequest(false);
-    }
+    router.push('/simpeg/cuti/pengajuan');
   };
 
   const handleOpenApprovalModal = (cuti: PengajuanCuti) => {
@@ -281,8 +181,22 @@ export default function CutiPage() {
     },
     {
       key: 'alasan',
-      label: 'Alasan',
-      render: (row) => <span className="text-slate-600 text-xs">{row.alasan}</span>,
+      label: 'Alasan & Lampiran',
+      render: (row) => (
+        <div className="space-y-1">
+          <div className="text-slate-600 text-xs">{row.alasan}</div>
+          {row.file_pendukung && (
+            <a
+              href={row.file_pendukung.startsWith('http') ? row.file_pendukung : `http://localhost:8000/${row.file_pendukung}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-primary-600 hover:underline font-semibold block"
+            >
+              📎 Liha Lampiran Izin
+            </a>
+          )}
+        </div>
+      ),
     },
     {
       key: 'status_approval',
@@ -482,114 +396,6 @@ export default function CutiPage() {
           </div>
         </div>
       </Drawer>
-
-      {/* Modal Request Cuti */}
-      {canCreate && (
-        <Modal
-          open={showModalRequest}
-          onClose={() => setShowModalRequest(false)}
-          title="Formulir Pengajuan Cuti Online"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowModalRequest(false)}>
-                Batal
-              </Button>
-              <Button
-                type="submit"
-                loading={isSubmittingRequest}
-                disabled={isSubmittingRequest}
-                form="cuti-request-modal-form"
-              >
-                Kirim Pengajuan
-              </Button>
-            </>
-          }
-        >
-          <form id="cuti-request-modal-form" onSubmit={handleSubmit(onSubmitRequest)} className="space-y-4">
-            <Controller
-              name="pegawai_id"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Pilih Pegawai Pemohon"
-                  required
-                  placeholder="Cari nama pegawai / NIP..."
-                  loadOptions={loadPegawaiOptions}
-                  value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
-                  onChange={(opt) => {
-                    setSelectedPegawaiOption(opt);
-                    field.onChange(opt ? opt.value : '');
-                  }}
-                  isClearable
-                  error={errors.pegawai_id?.message}
-                />
-              )}
-            />
-
-            <Controller
-              name="jenis_cuti"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  label="Jenis Cuti"
-                  required
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.jenis_cuti?.message}
-                  options={[
-                    { value: 'tahunan', label: 'Cuti Tahunan' },
-                    { value: 'sakit', label: 'Cuti Sakit' },
-                    { value: 'alasan_penting', label: 'Cuti Alasan Penting' },
-                    { value: 'melahirkan', label: 'Cuti Melahirkan' },
-                    { value: 'besar', label: 'Cuti Besar' },
-                  ]}
-                />
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Tanggal Mulai"
-                type="date"
-                required
-                error={errors.tanggal_mulai?.message}
-                {...register('tanggal_mulai')}
-              />
-              <Input
-                label="Tanggal Selesai"
-                type="date"
-                required
-                error={errors.tanggal_selesai?.message}
-                {...register('tanggal_selesai')}
-              />
-            </div>
-
-            <Input
-              label="Jumlah Hari Cuti"
-              type="number"
-              required
-              error={errors.jumlah_hari?.message}
-              {...register('jumlah_hari', { valueAsNumber: true })}
-            />
-
-            <Controller
-              name="alasan"
-              control={control}
-              render={({ field }) => (
-                <Textarea
-                  label="Alasan Pengajuan Cuti"
-                  required
-                  rows={3}
-                  placeholder="Berikan alasan detail pengajuan cuti..."
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.alasan?.message}
-                />
-              )}
-            />
-          </form>
-        </Modal>
-      )}
 
       {/* Modal Process Approval SDM */}
       {canUpdate && (

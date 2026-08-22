@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   ArrowLeft,
   School,
@@ -22,8 +21,19 @@ import {
   TrendingUp,
   FlaskConical,
   FileCheck,
+  Filter,
+  RotateCcw,
 } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Hero } from '@/components/ui/Hero';
+import type { PaginationMeta } from '@/types/api.types';
 
 interface ProdiDetail {
   id: string;
@@ -141,7 +151,17 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
   const prodi = mockProdiMap[prodiId] || mockProdiMap['IF'];
 
   const [activeTab, setActiveTab] = useState<'publikasi' | 'hibah' | 'hki'>('publikasi');
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // Pagination Meta State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // Filter & Search State
+  const [showFilter, setShowFilter] = useState(false);
+  const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('id');
+  const [filterOrderDir, setFilterOrderDir] = useState('asc');
 
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
@@ -277,42 +297,211 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
     },
   ];
 
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* HEADER & BACK BUTTON */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/sippm')}
-            className="btn btn-secondary btn-sm bg-white hover:bg-slate-100 text-slate-700 font-bold border-slate-200 flex items-center gap-1.5 shadow-xs"
-          >
-            <ArrowLeft size={16} /> Kembali ke Dashboard
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="badge badge-blue">
-                Laporan Penjaminan Mutu UPM
-              </span>
-              <span className="badge badge-purple">
-                IKU 5 Kemendikbudristek
-              </span>
-            </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1">
-              Laporan Kinerja Riset & Luaran: {prodi.nama_prodi}
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              {prodi.fakultas} • Ketua Program Studi: <strong>{prodi.kaprodi}</strong>
-            </p>
-          </div>
-        </div>
+  // Filtered Items
+  const filteredPublikasi = publikasiList.filter(
+    (p) =>
+      p.dosen.toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      p.judul.toLowerCase().includes(appliedSearch.toLowerCase())
+  );
 
-        <button
-          onClick={() => window.print()}
-          className="btn btn-primary bg-primary-700 hover:bg-primary-800 border-none text-white font-bold text-xs flex items-center gap-2 shadow-sm shrink-0"
+  const filteredHibah = hibahList.filter(
+    (h) =>
+      h.ketua.toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      h.judul.toLowerCase().includes(appliedSearch.toLowerCase())
+  );
+
+  const filteredHki = hkiList.filter(
+    (hk) =>
+      hk.inventor.toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      hk.judul.toLowerCase().includes(appliedSearch.toLowerCase())
+  );
+
+  // Column Definitions
+  const publikasiColumns: ColumnDef<(typeof publikasiList)[0]>[] = [
+    {
+      key: 'dosen',
+      label: 'Nama Dosen & NIDN',
+      render: (pub) => (
+        <div className="space-y-0.5">
+          <div className="font-extrabold text-slate-900 text-xs">{pub.dosen}</div>
+          <div className="text-[11px] text-slate-400 font-mono">NIDN: {pub.nidn}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'judul',
+      label: 'Judul Artikel & Nama Jurnal',
+      render: (pub) => (
+        <div className="space-y-0.5">
+          <div className="font-bold text-slate-900 text-xs line-clamp-1">{pub.judul}</div>
+          <div className="text-[11px] text-primary-700 font-medium">{pub.jurnal}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'kategori',
+      label: 'Kategori & Indexing',
+      render: (pub) => (
+        <Badge
+          variant={pub.kategori.includes('Scopus') ? 'purple' : 'blue'}
+          className="font-bold text-[10px] font-mono"
         >
-          <Printer size={16} /> Cetak Laporan PDF
-        </button>
-      </div>
+          {pub.kategori}
+        </Badge>
+      ),
+    },
+    {
+      key: 'tanggal',
+      label: 'Tanggal Terbit',
+      render: (pub) => <span className="text-xs text-slate-600 font-medium">{pub.tanggal}</span>,
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (pub) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Buka Link DOI / URL',
+                icon: <ExternalLink size={14} className="text-purple-700" />,
+                onClick: () => {
+                  window.open(pub.link, '_blank');
+                },
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  const hibahColumns: ColumnDef<(typeof hibahList)[0]>[] = [
+    {
+      key: 'ketua',
+      label: 'Ketua Peneliti',
+      render: (hib) => (
+        <div className="space-y-0.5">
+          <div className="font-extrabold text-slate-900 text-xs">{hib.ketua}</div>
+          <div className="text-[11px] text-slate-500 font-medium">Ketua Pelaksana</div>
+        </div>
+      ),
+    },
+    {
+      key: 'judul',
+      label: 'Judul Proposal Riset',
+      render: (hib) => <div className="font-bold text-slate-900 text-xs line-clamp-1">{hib.judul}</div>,
+    },
+    {
+      key: 'skema',
+      label: 'Skema & Sumber Hibah',
+      render: (hib) => (
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-slate-800">{hib.skema}</div>
+          <div className="text-[11px] text-primary-700 font-medium">{hib.sumber}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'dana',
+      label: 'Dana Disetujui',
+      render: (hib) => <span className="font-mono font-extrabold text-primary-900 text-xs">{formatRupiah(hib.dana)}</span>,
+    },
+    {
+      key: 'status',
+      label: 'Status Hibah',
+      render: (hib) => (
+        <Badge variant="green" className="font-bold text-[10px]">
+          {hib.status}
+        </Badge>
+      ),
+    },
+  ];
+
+  const hkiColumns: ColumnDef<(typeof hkiList)[0]>[] = [
+    {
+      key: 'inventor',
+      label: 'Inventor / Pemegang Hak',
+      render: (hki) => <div className="font-extrabold text-slate-900 text-xs">{hki.inventor}</div>,
+    },
+    {
+      key: 'judul',
+      label: 'Judul Ciptaan / Paten',
+      render: (hki) => <div className="font-bold text-slate-900 text-xs line-clamp-1">{hki.judul}</div>,
+    },
+    {
+      key: 'jenis',
+      label: 'Jenis HKI',
+      render: (hki) => (
+        <Badge variant="purple" className="font-bold text-[10px]">
+          {hki.jenis}
+        </Badge>
+      ),
+    },
+    {
+      key: 'no_cipta',
+      label: 'No. Permohonan / Cipta',
+      render: (hki) => <span className="font-mono font-bold text-slate-700 text-xs">{hki.no_cipta}</span>,
+    },
+    {
+      key: 'tanggal',
+      label: 'Tanggal Terbit',
+      render: (hki) => <span className="text-xs text-slate-600 font-medium">{hki.tanggal}</span>,
+    },
+  ];
+
+  const metaData: PaginationMeta = {
+    current_page: 1,
+    per_page: 10,
+    total:
+      activeTab === 'publikasi'
+        ? filteredPublikasi.length
+        : activeTab === 'hibah'
+        ? filteredHibah.length
+        : filteredHki.length,
+    last_page: 1,
+    from: 1,
+    to:
+      activeTab === 'publikasi'
+        ? filteredPublikasi.length
+        : activeTab === 'hibah'
+        ? filteredHibah.length
+        : filteredHki.length,
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in pb-16 max-w-7xl mx-auto">
+      {/* Page Header (Atomic Standard) */}
+      <PageHeader
+        title={`Laporan Kinerja Riset & Luaran: ${prodi.nama_prodi}`}
+        description={`${prodi.fakultas} • Ketua Program Studi: ${prodi.kaprodi}`}
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIPPM', href: '/sippm' },
+          { label: `Laporan ${prodi.id}` },
+        ]}
+        action={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<ArrowLeft size={16} />}
+              onClick={() => router.push('/sippm')}
+              className="font-bold"
+            >
+              Kembali
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Printer size={16} />}
+              onClick={() => window.print()}
+              className="font-bold"
+            >
+              Cetak Laporan PDF
+            </Button>
+          </div>
+        }
+      />
 
       {/* TOP EXECUTIVE STATS GRID (4 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -367,236 +556,105 @@ export default function LaporanProdiDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      {/* MAIN DATA TAB SECTION */}
-      <div className="card">
-        {/* Navigation Tabs */}
-        <div className="card-header bg-slate-50 p-4 border-b border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveTab('publikasi')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
-                activeTab === 'publikasi'
-                  ? 'bg-primary-700 text-white shadow-xs'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <Globe size={15} /> Publikasi Jurnal ({publikasiList.length})
-            </button>
+      {/* NAVIGATION TAB CONTROLS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200/80">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={activeTab === 'publikasi' ? 'primary' : 'outline'}
+            icon={<Globe size={15} />}
+            onClick={() => setActiveTab('publikasi')}
+            className="font-bold text-xs"
+          >
+            Publikasi Jurnal ({publikasiList.length})
+          </Button>
 
-            <button
-              onClick={() => setActiveTab('hibah')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
-                activeTab === 'hibah'
-                  ? 'bg-primary-700 text-white shadow-xs'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <Award size={15} /> Hibah Riset ({hibahList.length})
-            </button>
+          <Button
+            variant={activeTab === 'hibah' ? 'primary' : 'outline'}
+            icon={<Award size={15} />}
+            onClick={() => setActiveTab('hibah')}
+            className="font-bold text-xs"
+          >
+            Hibah Riset ({hibahList.length})
+          </Button>
 
-            <button
-              onClick={() => setActiveTab('hki')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
-                activeTab === 'hki'
-                  ? 'bg-primary-700 text-white shadow-xs'
-                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <FileCheck size={15} /> HKI & Paten ({hkiList.length})
-            </button>
-          </div>
-
-          <div className="input-wrapper w-full md:w-64">
-            <span className="input-prefix-icon"><Search size={15} /></span>
-            <input
-              type="text"
-              className="input input-icon-left text-xs"
-              placeholder="Cari judul / nama dosen..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <Button
+            variant={activeTab === 'hki' ? 'primary' : 'outline'}
+            icon={<FileCheck size={15} />}
+            onClick={() => setActiveTab('hki')}
+            className="font-bold text-xs"
+          >
+            HKI &amp; Paten ({hkiList.length})
+          </Button>
         </div>
 
-        {/* TAB CONTENT: TAB 1 - PUBLIKASI JURNAL */}
-        {activeTab === 'publikasi' && (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="text-center w-12">No</th>
-                  <th className="text-left w-64">Nama Dosen & NIDN</th>
-                  <th className="text-left">Judul Artikel & Nama Jurnal</th>
-                  <th className="text-center w-36">Kategori & Indexing</th>
-                  <th className="text-center w-32">Tanggal Terbit</th>
-                  <th className="text-center w-32">Link Publikasi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {publikasiList
-                  .filter(
-                    (p) =>
-                      p.dosen.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      p.judul.toLowerCase().includes(searchTerm.toLowerCase())
-                  )
-                  .map((pub, idx) => (
-                    <tr key={pub.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="text-center align-middle font-mono font-bold text-slate-400 text-xs">
-                        {idx + 1}
-                      </td>
-                      <td className="text-left align-middle">
-                        <div className="font-extrabold text-slate-900 text-xs">{pub.dosen}</div>
-                        <div className="text-[11px] text-slate-400 font-mono">NIDN: {pub.nidn}</div>
-                      </td>
-                      <td className="text-left align-middle space-y-1">
-                        <div className="font-bold text-slate-900 text-xs leading-snug">{pub.judul}</div>
-                        <div className="text-[11px] text-primary-700 font-medium">{pub.jurnal}</div>
-                      </td>
-                      <td className="text-center align-middle">
-                        <div className="flex justify-center">
-                          <span
-                            className={`badge font-bold text-[11px] font-mono ${
-                              pub.kategori.includes('Scopus')
-                                ? 'badge-purple bg-purple-100 text-purple-800 border-purple-200'
-                                : 'badge-blue bg-blue-100 text-blue-800 border-blue-200'
-                            }`}
-                          >
-                            {pub.kategori}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-center align-middle text-xs font-medium text-slate-600">
-                        {pub.tanggal}
-                      </td>
-                      <td className="text-center align-middle">
-                        <div className="flex justify-center">
-                          <a
-                            href={pub.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-secondary btn-sm bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-[11px] inline-flex items-center gap-1 border-purple-200"
-                          >
-                            <ExternalLink size={13} /> DOI / URL
-                          </a>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* TAB CONTENT: TAB 2 - HIBAH RISET */}
-        {activeTab === 'hibah' && (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="text-center w-12">No</th>
-                  <th className="text-left w-64">Ketua Peneliti</th>
-                  <th className="text-left">Judul Proposal Riset</th>
-                  <th className="text-center w-48">Skema & Sumber Hibah</th>
-                  <th className="text-center w-40">Dana Disetujui</th>
-                  <th className="text-center w-36">Status Hibah</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hibahList
-                  .filter(
-                    (h) =>
-                      h.ketua.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      h.judul.toLowerCase().includes(searchTerm.toLowerCase())
-                  )
-                  .map((hib, idx) => (
-                    <tr key={hib.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="text-center align-middle font-mono font-bold text-slate-400 text-xs">
-                        {idx + 1}
-                      </td>
-                      <td className="text-left align-middle">
-                        <div className="font-extrabold text-slate-900 text-xs">{hib.ketua}</div>
-                        <div className="text-[11px] text-slate-500 font-medium">Ketua Pelaksana</div>
-                      </td>
-                      <td className="text-left align-middle">
-                        <div className="font-bold text-slate-900 text-xs leading-snug">{hib.judul}</div>
-                      </td>
-                      <td className="text-center align-middle">
-                        <div className="text-xs font-bold text-slate-800">{hib.skema}</div>
-                        <div className="text-[11px] text-primary-700 font-medium">{hib.sumber}</div>
-                      </td>
-                      <td className="text-center align-middle font-mono font-extrabold text-primary-900 text-xs">
-                        {formatRupiah(hib.dana)}
-                      </td>
-                      <td className="text-center align-middle">
-                        <div className="flex justify-center">
-                          <span className="badge badge-green font-bold text-[11px]">
-                            {hib.status}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* TAB CONTENT: TAB 3 - HKI & PATEN */}
-        {activeTab === 'hki' && (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="text-center w-12">No</th>
-                  <th className="text-left w-64">Inventor / Pemegang Hak</th>
-                  <th className="text-left">Judul Ciptaan / Paten</th>
-                  <th className="text-center w-48">Jenis HKI</th>
-                  <th className="text-center w-40">No. Permohonan / Cipta</th>
-                  <th className="text-center w-32">Tanggal Terbit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hkiList
-                  .filter(
-                    (hk) =>
-                      hk.inventor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      hk.judul.toLowerCase().includes(searchTerm.toLowerCase())
-                  )
-                  .map((hki, idx) => (
-                    <tr key={hki.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="text-center align-middle font-mono font-bold text-slate-400 text-xs">
-                        {idx + 1}
-                      </td>
-                      <td className="text-left align-middle">
-                        <div className="font-extrabold text-slate-900 text-xs">{hki.inventor}</div>
-                      </td>
-                      <td className="text-left align-middle">
-                        <div className="font-bold text-slate-900 text-xs leading-snug">{hki.judul}</div>
-                      </td>
-                      <td className="text-center align-middle">
-                        <div className="flex justify-center">
-                          <span className="badge badge-fuchsia bg-fuchsia-50 text-fuchsia-800 border-fuchsia-200 font-bold text-[11px]">
-                            {hki.jenis}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-center align-middle font-mono font-bold text-slate-700 text-xs">
-                        {hki.no_cipta}
-                      </td>
-                      <td className="text-center align-middle text-xs font-medium text-slate-600">
-                        {hki.tanggal}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <Button
+          variant="outline"
+          icon={<Filter size={16} />}
+          onClick={() => setShowFilter(true)}
+          className="font-bold"
+        >
+          Filter &amp; Urutkan
+        </Button>
       </div>
+
+      {/* DATA TABLE DISPLAY */}
+      {activeTab === 'publikasi' && (
+        <DataTable columns={publikasiColumns} data={filteredPublikasi} meta={metaData} />
+      )}
+      {activeTab === 'hibah' && (
+        <DataTable columns={hibahColumns} data={filteredHibah} meta={metaData} />
+      )}
+      {activeTab === 'hki' && (
+        <DataTable columns={hkiColumns} data={filteredHki} meta={metaData} />
+      )}
+
+      {/* FILTER DRAWER SLIDE RIGHT-TO-LEFT */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Laporan Kinerja Riset Prodi"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Judul / Nama Dosen"
+            placeholder="Ketik judul riset atau nama dosen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              icon={<RotateCcw size={14} />}
+              onClick={() => {
+                setSearch('');
+                setAppliedSearch('');
+                setShowFilter(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Filter size={14} />}
+              onClick={() => {
+                setAppliedSearch(search);
+                setShowFilter(false);
+              }}
+            >
+              Terapkan Filter
+            </Button>
+          </div>
+        </div>
+      </Drawer>
 
       {/* FOOTER NOTE / CATATAN EVALUASI UPM */}
       <Hero
-        badge={<span className="flex items-center gap-2 text-primary-200 font-extrabold text-sm tracking-wide"><CheckCircle2 size={20} /> REKOMENDASI PENJAMINAN MUTU UPM</span>}
+        badge={
+          <span className="flex items-center gap-2 text-primary-200 font-extrabold text-sm tracking-wide">
+            <CheckCircle2 size={20} /> REKOMENDASI PENJAMINAN MUTU UPM
+          </span>
+        }
         title=""
         description={
           <p className="text-xs md:text-sm text-primary-50 leading-relaxed font-semibold max-w-4xl opacity-95">

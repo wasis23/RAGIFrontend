@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,11 +20,24 @@ import {
   Sliders,
   ShieldCheck,
   Save,
+  Filter,
+  RotateCcw,
 } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { sippmService } from '@/services/sippm.service';
 import type { UnitKerja } from '@/types/simpeg.types';
 import type { Iku5StandardProdi } from '@/types/sippm.types';
+import type { PaginationMeta } from '@/types/api.types';
+import toast from 'react-hot-toast';
 
 const ikuStandardSchema = z.object({
   prodi_id: z.string().min(1, 'Pilih program studi'),
@@ -39,14 +53,36 @@ const ikuStandardSchema = z.object({
 type IkuStandardFormValues = z.infer<typeof ikuStandardSchema>;
 
 export default function Iku5StandardsPage() {
+  const router = useRouter();
   const [prodiStandards, setProdiStandards] = useState<Iku5StandardProdi[]>([]);
   const [unitKerjaList, setUnitKerjaList] = useState<UnitKerja[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination Meta State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    per_page: 10,
+    total: 0,
+    last_page: 1,
+    from: 0,
+    to: 0,
+  });
+
+  // Filter & Search State
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('nama_prodi');
+  const [filterOrderDir, setFilterOrderDir] = useState('asc');
+  const [appliedOrderBy, setAppliedOrderBy] = useState('nama_prodi');
+  const [appliedOrderDir, setAppliedOrderDir] = useState('asc');
+
+  // Modal State
   const [selectedProdi, setSelectedProdi] = useState<Iku5StandardProdi | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const {
     register,
@@ -67,31 +103,23 @@ export default function Iku5StandardsPage() {
     },
   });
 
-  // Default Standard Fallbacks (merged with database backend unit kerja)
-  const defaultStandardMap: Record<string, Omit<Iku5StandardProdi, 'id' | 'nama_prodi' | 'fakultas'>> = {
-    'S1 Teknik Informatika': { target_scopus: 5, target_sinta: 8, target_dikti: 4, target_internal: 5, target_hki: 8, min_capaian_iku: 110, tahun_akademik: '2025/2026' },
-    'S1 Sistem Informasi': { target_scopus: 4, target_sinta: 7, target_dikti: 3, target_internal: 4, target_hki: 6, min_capaian_iku: 100, tahun_akademik: '2025/2026' },
-    'S1 Desain Komunikasi Visual': { target_scopus: 2, target_sinta: 5, target_dikti: 2, target_internal: 4, target_hki: 10, min_capaian_iku: 95, tahun_akademik: '2025/2026' },
-    'S1 Teknik Elektro': { target_scopus: 4, target_sinta: 6, target_dikti: 4, target_internal: 3, target_hki: 5, min_capaian_iku: 100, tahun_akademik: '2025/2026' },
-    'S1 Manajemen Informatika': { target_scopus: 3, target_sinta: 5, target_dikti: 2, target_internal: 3, target_hki: 4, min_capaian_iku: 90, tahun_akademik: '2025/2026' },
-    'D3 Sistem Informasi': { target_scopus: 2, target_sinta: 4, target_dikti: 2, target_internal: 3, target_hki: 4, min_capaian_iku: 85, tahun_akademik: '2025/2026' },
-  };
-
-  const fetchBackendStandards = async () => {
+  const fetchBackendStandards = useCallback(async () => {
     try {
       setLoading(true);
-      // Fetch unit kerja prodi
       const unitRes = await simpegService.getUnitKerjaList();
       const rawUnits = Array.isArray(unitRes.data) ? unitRes.data : (unitRes.data as any)?.data || [];
       setUnitKerjaList(rawUnits);
 
-      // Fetch IKU 5 standards from backend API
       const ikuRes = await sippmService.indexIku5Standards({ tahun_akademik: '2025/2026' });
       const rawData = ikuRes.data;
       const backendItems: any[] = Array.isArray(rawData) ? rawData : (rawData as any)?.data || [];
 
-      // Map backend data to UI format
-      const prodiUnits = rawUnits.filter((u: any) => u.jenis === 'prodi' || (u.nama || '').toLowerCase().includes('s1') || (u.nama || '').toLowerCase().includes('d3'));
+      const prodiUnits = rawUnits.filter(
+        (u: any) =>
+          u.jenis === 'prodi' ||
+          (u.nama || '').toLowerCase().includes('s1') ||
+          (u.nama || '').toLowerCase().includes('d3')
+      );
       const activeUnits = prodiUnits.length > 0 ? prodiUnits : rawUnits;
 
       const mergedList: Iku5StandardProdi[] = activeUnits.map((unit: any, idx: number) => {
@@ -116,16 +144,47 @@ export default function Iku5StandardsPage() {
       });
 
       setProdiStandards(mergedList);
+
+      setMeta({
+        current_page: page,
+        per_page: limit,
+        total: mergedList.length,
+        last_page: Math.ceil(mergedList.length / limit) || 1,
+        from: mergedList.length > 0 ? (page - 1) * limit + 1 : 0,
+        to: Math.min(page * limit, mergedList.length),
+      });
     } catch (err) {
       console.error('Failed to load IKU 5 standards from backend', err);
+      toast.error('Gagal memuat standar IKU 5 dari database backend');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit]);
 
   useEffect(() => {
     fetchBackendStandards();
-  }, []);
+  }, [fetchBackendStandards]);
+
+  // Apply Filter Handler
+  const handleApplyFilter = () => {
+    setAppliedSearch(search);
+    setAppliedOrderBy(filterOrderBy);
+    setAppliedOrderDir(filterOrderDir);
+    setPage(1);
+    setShowFilter(false);
+  };
+
+  // Reset Filter Handler
+  const handleResetFilter = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setFilterOrderBy('nama_prodi');
+    setFilterOrderDir('asc');
+    setAppliedOrderBy('nama_prodi');
+    setAppliedOrderDir('asc');
+    setPage(1);
+    setShowFilter(false);
+  };
 
   const handleEditModal = (item: Iku5StandardProdi) => {
     setSelectedProdi(item);
@@ -144,9 +203,6 @@ export default function Iku5StandardsPage() {
     if (!selectedProdi) return;
     try {
       setSubmitting(true);
-      setFeedback(null);
-
-      // Save/Upsert to Backend DB API
       await sippmService.storeIku5Standard({
         unit_kerja_id: selectedProdi.unit_kerja_id,
         tahun_akademik: data.tahun_akademik,
@@ -157,11 +213,11 @@ export default function Iku5StandardsPage() {
       });
 
       await fetchBackendStandards();
-
-      setFeedback({ type: 'success', message: `Standar IKU 5 untuk "${selectedProdi?.nama_prodi}" berhasil disimpan ke Database Backend!` });
+      toast.success(`Standar IKU 5 untuk "${selectedProdi.nama_prodi}" berhasil diperbarui!`);
       setIsModalOpen(false);
     } catch (err: any) {
-      setFeedback({ type: 'error', message: 'Gagal memperbarui standar IKU 5 prodi.' });
+      const msg = err.response?.data?.message || 'Gagal memperbarui standar IKU 5 prodi';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -169,34 +225,118 @@ export default function Iku5StandardsPage() {
 
   const filteredProdi = prodiStandards.filter(
     (p) =>
-      p.nama_prodi.toLowerCase().includes(search.toLowerCase()) ||
-      p.fakultas.toLowerCase().includes(search.toLowerCase())
+      p.nama_prodi.toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      p.fakultas.toLowerCase().includes(appliedSearch.toLowerCase())
   );
 
-  return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-sippm">Sistem Mutu Akademik Kampus</span>
-            <span className="badge badge-purple font-bold">Admin LPPM & UPM</span>
-          </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
-            Pengaturan Standar Capaian IKU 5 per Program Studi
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Konfigurasi rasio target luaran Scopus, Sinta, Hibah Dikti/Internal, serta HKI untuk setiap Program Studi.
-          </p>
+  // DataTable Column Definitions
+  const columns: ColumnDef<Iku5StandardProdi>[] = [
+    {
+      key: 'nama_prodi',
+      label: 'Program Studi (Backend DB)',
+      render: (item: Iku5StandardProdi) => (
+        <div className="space-y-0.5">
+          <div className="font-extrabold text-slate-900 text-xs">{item.nama_prodi}</div>
+          <div className="text-[11px] text-slate-500 font-medium">{item.fakultas}</div>
         </div>
-      </div>
+      ),
+    },
+    {
+      key: 'target_scopus',
+      label: 'Target Scopus',
+      render: (item: Iku5StandardProdi) => (
+        <Badge variant="purple" className="font-mono text-[10px] inline-flex items-center gap-1">
+          <Globe size={11} /> {item.target_scopus} Artikel
+        </Badge>
+      ),
+    },
+    {
+      key: 'target_sinta',
+      label: 'Target Sinta',
+      render: (item: Iku5StandardProdi) => (
+        <Badge variant="blue" className="font-mono text-[10px] inline-flex items-center gap-1">
+          <BookOpen size={11} /> {item.target_sinta} Artikel
+        </Badge>
+      ),
+    },
+    {
+      key: 'target_dikti',
+      label: 'Target Dikti',
+      render: (item: Iku5StandardProdi) => (
+        <Badge variant="green" className="font-mono text-[10px] inline-flex items-center gap-1">
+          <Award size={11} /> {item.target_dikti} Hibah
+        </Badge>
+      ),
+    },
+    {
+      key: 'target_internal',
+      label: 'Target Internal',
+      render: (item: Iku5StandardProdi) => (
+        <Badge variant="amber" className="font-mono text-[10px] inline-flex items-center gap-1">
+          <Layers size={11} /> {item.target_internal} Hibah
+        </Badge>
+      ),
+    },
+    {
+      key: 'target_hki',
+      label: 'Target HKI',
+      render: (item: Iku5StandardProdi) => (
+        <Badge variant="purple" className="font-mono text-[10px] inline-flex items-center gap-1">
+          <FileCheck size={11} /> {item.target_hki} HKI
+        </Badge>
+      ),
+    },
+    {
+      key: 'min_capaian_iku',
+      label: 'Min Capaian',
+      render: (item: Iku5StandardProdi) => (
+        <Badge variant="gray" className="font-mono text-[10px] font-bold">
+          {item.min_capaian_iku}%
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (item: Iku5StandardProdi) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Edit Standar IKU 5',
+                icon: <Edit size={14} className="text-purple-700" />,
+                onClick: () => handleEditModal(item),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
 
-      {feedback && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
+  return (
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Page Header (Atomic Standard) */}
+      <PageHeader
+        title="Pengaturan Standar Capaian IKU 5 per Program Studi"
+        description="Konfigurasi rasio target luaran Scopus, Sinta, Hibah Dikti/Internal, serta HKI untuk setiap Program Studi."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIPPM', href: '/sippm' },
+          { label: 'Standar IKU 5' },
+        ]}
+        action={
+          <Button
+            variant="outline"
+            icon={<Filter size={16} />}
+            onClick={() => setShowFilter(true)}
+            className="font-bold"
+          >
+            Filter &amp; Urutkan
+          </Button>
+        }
+      />
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -224,7 +364,7 @@ export default function Iku5StandardsPage() {
             <Award size={24} className="text-blue-600" />
             {Math.round(prodiStandards.reduce((sum, p) => sum + p.target_dikti + p.target_internal, 0) / (prodiStandards.length || 1))} Proposal / Prodi
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">Hibah DIKTI & Riset Internal</div>
+          <div className="text-[11px] text-slate-400 mt-1">Hibah DIKTI &amp; Riset Internal</div>
         </div>
 
         <div className="card p-5 border-l-4 border-l-amber-600 bg-white shadow-xs">
@@ -237,201 +377,151 @@ export default function Iku5StandardsPage() {
         </div>
       </div>
 
-      {/* Filter Card */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="input-wrapper w-full md:w-80">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari program studi / fakultas..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+      {/* DataTable Component */}
+      <DataTable
+        columns={columns}
+        data={filteredProdi}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+      />
+
+      {/* FILTER DRAWER SLIDE RIGHT-TO-LEFT */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Standar IKU 5"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Program Studi / Fakultas"
+            placeholder="Ketik nama prodi atau fakultas..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'nama_prodi', label: 'Nama Prodi' },
+                { value: 'fakultas', label: 'Fakultas' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val)}
+              options={[
+                { value: 'asc', label: 'A - Z' },
+                { value: 'desc', label: 'Z - A' },
+              ]}
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Total {filteredProdi.length} Program Studi Ditemukan
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              icon={<RotateCcw size={14} />}
+              onClick={handleResetFilter}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Filter size={14} />}
+              onClick={handleApplyFilter}
+            >
+              Terapkan Filter
+            </Button>
           </div>
         </div>
-      </div>
+      </Drawer>
 
-      {/* Standards Table */}
-      <div className="table-container bg-white">
-        <table className="table w-full">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-200">
-              <th className="text-left py-3.5 px-4 font-extrabold text-slate-700 text-xs">PROGRAM STUDI (BACKEND DB)</th>
-              <th className="text-center py-3.5 px-4 font-extrabold text-slate-700 text-xs">TARGET SCOPUS</th>
-              <th className="text-center py-3.5 px-4 font-extrabold text-slate-700 text-xs">TARGET SINTA</th>
-              <th className="text-center py-3.5 px-4 font-extrabold text-slate-700 text-xs">TARGET DIKTI</th>
-              <th className="text-center py-3.5 px-4 font-extrabold text-slate-700 text-xs">TARGET INTERNAL</th>
-              <th className="text-center py-3.5 px-4 font-extrabold text-slate-700 text-xs">TARGET HKI</th>
-              <th className="text-center py-3.5 px-4 font-extrabold text-slate-700 text-xs">MIN CAPAIAN IKU</th>
-              <th className="text-right py-3.5 px-4 font-extrabold text-slate-700 text-xs">AKSI CONFIG</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={8} className="text-center py-10 text-slate-400">Memuat data program studi dari database backend...</td>
-              </tr>
-            ) : filteredProdi.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-10 text-slate-400">Tidak ada program studi yang cocok.</td>
-              </tr>
-            ) : (
-              filteredProdi.map((item) => (
-                <tr key={item.id} className="hover:bg-purple-50/20 transition-colors">
-                  <td className="py-4 px-4">
-                    <div className="font-extrabold text-slate-900 text-sm">{item.nama_prodi}</div>
-                    <div className="text-xs text-slate-500 font-medium">{item.fakultas}</div>
-                  </td>
-                  <td className="text-center py-4 px-4">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-bold font-mono border border-purple-200">
-                      <Globe size={13} /> {item.target_scopus} Artikel
-                    </span>
-                  </td>
-                  <td className="text-center py-4 px-4">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold font-mono border border-blue-200">
-                      <BookOpen size={13} /> {item.target_sinta} Artikel
-                    </span>
-                  </td>
-                  <td className="text-center py-4 px-4">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold font-mono border border-emerald-200">
-                      <Award size={13} /> {item.target_dikti} Hibah
-                    </span>
-                  </td>
-                  <td className="text-center py-4 px-4">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-bold font-mono border border-amber-200">
-                      <Layers size={13} /> {item.target_internal} Hibah
-                    </span>
-                  </td>
-                  <td className="text-center py-4 px-4">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-fuchsia-50 text-fuchsia-700 text-xs font-bold font-mono border border-fuchsia-200">
-                      <FileCheck size={13} /> {item.target_hki} HKI
-                    </span>
-                  </td>
-                  <td className="text-center py-4 px-4 font-mono font-black text-slate-800 text-xs">
-                    <span className="badge badge-gray">
-                      {item.min_capaian_iku}%
-                    </span>
-                  </td>
-                  <td className="text-right py-4 px-4">
-                    <button
-                      onClick={() => handleEditModal(item)}
-                      className="btn btn-primary btn-sm bg-purple-700 hover:bg-purple-800 border-none font-bold text-xs flex items-center gap-1.5 ml-auto"
-                    >
-                      <Edit size={14} /> Edit Standar
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* EDIT MODAL FORM (<= 5 inputs / 2-column grid per crud-ui-standard) */}
-      {isModalOpen && selectedProdi && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg modal-body">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <Sliders className="text-purple-700" size={20} /> Konfigurasi Target Standar IKU 5
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
-            </div>
-
-            {/* Target Context Info */}
+      {/* EDIT MODAL FORM (UI KIT & GRID 2 KOLOM) */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Konfigurasi Target Standar IKU 5"
+        size="lg"
+      >
+        {selectedProdi && (
+          <div className="space-y-4">
             <div className="p-3 rounded-xl bg-purple-50 border border-purple-100 text-xs text-purple-900 space-y-0.5">
               <div className="font-black text-sm">{selectedProdi.nama_prodi}</div>
               <div className="text-purple-700">{selectedProdi.fakultas}</div>
             </div>
 
-            {/* FORM HAS <= 5 INPUT GROUPS -> MODAL GRID MAKS 2 KOLOM per crud-ui-standard */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Target Scopus */}
-                <div className="form-group">
-                  <label className="form-label text-xs font-bold text-slate-700">Target Artikel Scopus <span className="text-rose-500">*</span></label>
-                  <input
-                    type="number"
-                    className={`input text-xs ${errors.target_scopus ? 'error' : ''}`}
-                    {...register('target_scopus', { valueAsNumber: true })}
-                  />
-                  {errors.target_scopus && <span className="form-error">{errors.target_scopus.message}</span>}
-                </div>
+                <Input
+                  label="Target Artikel Scopus *"
+                  type="number"
+                  error={errors.target_scopus?.message}
+                  {...register('target_scopus', { valueAsNumber: true })}
+                />
 
-                {/* Target Sinta */}
-                <div className="form-group">
-                  <label className="form-label text-xs font-bold text-slate-700">Target Artikel Sinta <span className="text-rose-500">*</span></label>
-                  <input
-                    type="number"
-                    className={`input text-xs ${errors.target_sinta ? 'error' : ''}`}
-                    {...register('target_sinta', { valueAsNumber: true })}
-                  />
-                  {errors.target_sinta && <span className="form-error">{errors.target_sinta.message}</span>}
-                </div>
+                <Input
+                  label="Target Artikel Sinta *"
+                  type="number"
+                  error={errors.target_sinta?.message}
+                  {...register('target_sinta', { valueAsNumber: true })}
+                />
 
-                {/* Target Dikti */}
-                <div className="form-group">
-                  <label className="form-label text-xs font-bold text-slate-700">Target Hibah DIKTI <span className="text-rose-500">*</span></label>
-                  <input
-                    type="number"
-                    className={`input text-xs ${errors.target_dikti ? 'error' : ''}`}
-                    {...register('target_dikti', { valueAsNumber: true })}
-                  />
-                  {errors.target_dikti && <span className="form-error">{errors.target_dikti.message}</span>}
-                </div>
+                <Input
+                  label="Target Hibah DIKTI *"
+                  type="number"
+                  error={errors.target_dikti?.message}
+                  {...register('target_dikti', { valueAsNumber: true })}
+                />
 
-                {/* Target Internal */}
-                <div className="form-group">
-                  <label className="form-label text-xs font-bold text-slate-700">Target Hibah Internal <span className="text-rose-500">*</span></label>
-                  <input
-                    type="number"
-                    className={`input text-xs ${errors.target_internal ? 'error' : ''}`}
-                    {...register('target_internal', { valueAsNumber: true })}
-                  />
-                  {errors.target_internal && <span className="form-error">{errors.target_internal.message}</span>}
-                </div>
+                <Input
+                  label="Target Hibah Internal *"
+                  type="number"
+                  error={errors.target_internal?.message}
+                  {...register('target_internal', { valueAsNumber: true })}
+                />
 
-                {/* Target HKI */}
-                <div className="form-group">
-                  <label className="form-label text-xs font-bold text-slate-700">Target HKI & Paten <span className="text-rose-500">*</span></label>
-                  <input
-                    type="number"
-                    className={`input text-xs ${errors.target_hki ? 'error' : ''}`}
-                    {...register('target_hki', { valueAsNumber: true })}
-                  />
-                  {errors.target_hki && <span className="form-error">{errors.target_hki.message}</span>}
-                </div>
+                <Input
+                  label="Target HKI & Paten *"
+                  type="number"
+                  error={errors.target_hki?.message}
+                  {...register('target_hki', { valueAsNumber: true })}
+                />
 
-                {/* Target Min Capaian (%) */}
-                <div className="form-group">
-                  <label className="form-label text-xs font-bold text-slate-700">Target Min Capaian (%) <span className="text-rose-500">*</span></label>
-                  <input
-                    type="number"
-                    className={`input text-xs ${errors.min_capaian_iku ? 'error' : ''}`}
-                    {...register('min_capaian_iku', { valueAsNumber: true })}
-                  />
-                  {errors.min_capaian_iku && <span className="form-error">{errors.min_capaian_iku.message}</span>}
-                </div>
+                <Input
+                  label="Target Min Capaian (%) *"
+                  type="number"
+                  error={errors.min_capaian_iku?.message}
+                  {...register('min_capaian_iku', { valueAsNumber: true })}
+                />
               </div>
 
-              {/* Modal Actions */}
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm text-slate-600">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsModalOpen(false)}
+                >
                   Batal
-                </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary btn-sm bg-purple-700 hover:bg-purple-800 border-none font-bold">
-                  {submitting ? 'Menyimpan...' : 'Simpan Standar IKU'}
-                </button>
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={submitting}
+                  className="font-bold"
+                >
+                  Simpan Standar IKU 5
+                </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

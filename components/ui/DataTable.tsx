@@ -23,6 +23,7 @@ interface DataTableProps<T> {
   onPageChange?: (page: number) => void;
   onLimitChange?: (limit: number) => void;
   emptyMessage?: React.ReactNode;
+  rowClassName?: (row: T, index: number) => string;
 }
 
 export function DataTable<T extends object>({
@@ -33,6 +34,7 @@ export function DataTable<T extends object>({
   onPageChange,
   onLimitChange,
   emptyMessage = 'Data tidak ditemukan.',
+  rowClassName,
 }: DataTableProps<T>) {
   
   // Calculate which items are shown
@@ -66,7 +68,10 @@ export function DataTable<T extends object>({
               </tr>
             ) : (
               data.map((row, rowIndex) => (
-                <tr key={(row as { id?: number | string }).id || rowIndex}>
+                <tr
+                  key={(row as { id?: number | string }).id || rowIndex}
+                  className={rowClassName ? rowClassName(row, rowIndex) : undefined}
+                >
                   {columns.map((col, colIndex) => (
                     <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }}>
                       {col.render ? col.render(row, rowIndex) : (row as any)[col.key]}

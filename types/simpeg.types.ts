@@ -67,6 +67,8 @@ export interface Pegawai {
   status: StatusPegawai;
   alamat?: string | null;
   telepon?: string | null;
+  nomor_rekening?: string | null;
+  bank_nama?: string | null;
   user?: User | null;
   unit_kerja?: UnitKerja | null;
   riwayat_jabatan?: RiwayatJabatan[];
@@ -176,20 +178,25 @@ export interface PresensiPegawai {
   updated_at?: string;
 }
 
-export type StatusTransferGaji = 'draft' | 'paid' | 'cancelled';
+export type StatusTransferGaji = 'draft' | 'submitted_to_sikeu' | 'paid' | 'cancelled';
 
 export interface GajiPegawai {
   id: number;
   pegawai_id: number;
   periode_bulan_tahun: string;
   gaji_pokok: number;
+  tunjangan_tetap?: number;
+  total_biaya_transport?: number;
+  jumlah_hari_hadir_tepat_waktu?: number;
   total_tunjangan: number;
   total_potongan: number;
   gaji_bersih: number;
   status_transfer: StatusTransferGaji;
   tanggal_transfer?: string | null;
+  submitted_at?: string | null;
   nomor_rekening?: string | null;
   bank_nama?: string | null;
+  catatan?: string | null;
   pegawai?: Pegawai | null;
   created_at?: string;
   updated_at?: string;

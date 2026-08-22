@@ -8,17 +8,18 @@ import { z } from 'zod';
 import {
   ArrowLeft,
   Save,
-  ClipboardCheck,
   Award,
-  CheckCircle2,
   XCircle,
-  FileText,
-  DollarSign,
-  User,
-  FlaskConical,
 } from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { Badge } from '@/components/ui/Badge';
 import { sippmService } from '@/services/sippm.service';
-import type { ReviewerKegiatan, RekomendasiReviewer } from '@/types/sippm.types';
+import type { ReviewerKegiatan } from '@/types/sippm.types';
+import toast from 'react-hot-toast';
 
 const evaluationSchema = z.object({
   skor_rekam_jejak: z.number().min(0, 'Skor minimal 0').max(100, 'Skor maksimal 100'),
@@ -58,6 +59,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
   const skorRekamJejak = watch('skor_rekam_jejak') || 0;
   const skorSubstansi = watch('skor_substansi') || 0;
   const skorRab = watch('skor_rab') || 0;
+  const rekomendasiVal = watch('rekomendasi');
 
   // Total Skor Weighted (25% Rekam Jejak, 50% Substansi, 25% RAB)
   const totalSkor = Math.round(skorRekamJejak * 0.25 + skorSubstansi * 0.5 + skorRab * 0.25);
@@ -83,6 +85,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
         }
       } catch (err) {
         console.error('Failed to load assigned reviewer item', err);
+        toast.error('Gagal memuat rincian usulan reviewer');
       } finally {
         setLoading(false);
       }
@@ -95,9 +98,12 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
       setSubmitting(true);
       setErrorMsg(null);
       await sippmService.submitPenilaian(Number(resolvedParams.id), data);
+      toast.success('Penilaian desk evaluation berhasil disimpan!');
       router.push('/sippm/reviewer');
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || 'Gagal menyimpan penilaian proposal');
+      const msg = err.response?.data?.message || 'Gagal menyimpan penilaian proposal';
+      setErrorMsg(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -108,17 +114,28 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* HEADER & BACK BUTTON (crud-ui-standard) */}
-      <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="btn btn-ghost btn-sm">
-          <ArrowLeft size={18} /> Kembali
-        </button>
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Form Penilaian Desk Evaluation</h1>
-          <p className="text-slate-500 text-xs mt-0.5">Berikan bobot skor rubrik & rekomendasi kelayakan proposal riset.</p>
-        </div>
-      </div>
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Header (PageHeader Atomic Standard) */}
+      <PageHeader
+        title="Form Penilaian Desk Evaluation"
+        description="Berikan bobot skor rubrik & rekomendasi kelayakan proposal riset."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIPPM', href: '/sippm' },
+          { label: 'Portal Reviewer', href: '/sippm/reviewer' },
+          { label: 'Desk Evaluation' },
+        ]}
+        action={
+          <Button
+            variant="outline"
+            icon={<ArrowLeft size={16} />}
+            onClick={() => router.back()}
+            className="font-bold"
+          >
+            Kembali
+          </Button>
+        }
+      />
 
       {errorMsg && (
         <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm font-medium flex items-center gap-2">
@@ -128,19 +145,26 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
 
       {/* Ringkasan Proposal Card */}
       {reviewerData?.proposal && (
-        <div className="card bg-primary-900 text-white p-6 shadow-md border-none">
+        <div className="card bg-slate-900 text-white p-6 shadow-md border-none rounded-2xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="badge badge-blue mb-2">
+            <div className="space-y-2">
+              <Badge variant="blue" className="font-bold">
                 {reviewerData.proposal.skema?.nama_skema || 'Skema Riset'}
-              </span>
+              </Badge>
               <h2 className="text-xl font-extrabold text-white leading-tight">
                 {reviewerData.proposal.judul}
               </h2>
-              <div className="flex items-center gap-4 text-xs text-primary-200 mt-2">
-                <span>Ketua: <strong>{reviewerData.proposal.ketua?.nama_lengkap || 'Dosen Pengusul'}</strong></span>
+              <div className="flex items-center gap-4 text-xs text-slate-300 flex-wrap">
+                <span>
+                  Ketua: <strong>{reviewerData.proposal.ketua?.nama_lengkap || 'Dosen Pengusul'}</strong>
+                </span>
                 <span>•</span>
-                <span>Dana Diusulkan: <strong>Rp {(reviewerData.proposal.dana_diusulkan || 0).toLocaleString('id-ID')}</strong></span>
+                <span>
+                  Dana Diusulkan:{' '}
+                  <strong>
+                    Rp {(reviewerData.proposal.dana_diusulkan || 0).toLocaleString('id-ID')}
+                  </strong>
+                </span>
               </div>
             </div>
           </div>
@@ -149,97 +173,102 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* RUBRIK PENILAIAN CARD (COMPACT GRID LAYOUT MAKS 3 KOLOM) */}
-        <div className="card">
-          <div className="card-header bg-slate-50">
+        <div className="card p-6 space-y-6">
+          <div className="border-b border-slate-100 pb-3">
             <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
               <Award size={18} className="text-primary-600" /> Rubrik Bobot Penilaian (Skala 0 - 100)
             </h2>
           </div>
-          <div className="card-body">
-            {/* GRID LAYOUT MAKS 3 KOLOM per crud-ui-standard */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Field 1: Rekam Jejak (25%) */}
-              <div className="form-group">
-                <label className="form-label">Skor Rekam Jejak (Bobot 25%) <span className="required">*</span></label>
-                <input
-                  type="number"
-                  className={`input ${errors.skor_rekam_jejak ? 'error' : ''}`}
-                  placeholder="0 - 100"
-                  {...register('skor_rekam_jejak', { valueAsNumber: true })}
-                />
-                {errors.skor_rekam_jejak && <span className="form-error">{errors.skor_rekam_jejak.message}</span>}
-              </div>
 
-              {/* Field 2: Substansi (50%) */}
-              <div className="form-group">
-                <label className="form-label">Skor Substansi Usulan (Bobot 50%) <span className="required">*</span></label>
-                <input
-                  type="number"
-                  className={`input ${errors.skor_substansi ? 'error' : ''}`}
-                  placeholder="0 - 100"
-                  {...register('skor_substansi', { valueAsNumber: true })}
-                />
-                {errors.skor_substansi && <span className="form-error">{errors.skor_substansi.message}</span>}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Field 1: Rekam Jejak (25%) */}
+            <Input
+              label="Skor Rekam Jejak (Bobot 25%) *"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="0 - 100"
+              error={errors.skor_rekam_jejak?.message}
+              {...register('skor_rekam_jejak', { valueAsNumber: true })}
+            />
 
-              {/* Field 3: RAB (25%) */}
-              <div className="form-group">
-                <label className="form-label">Skor Kelayakan RAB (Bobot 25%) <span className="required">*</span></label>
-                <input
-                  type="number"
-                  className={`input ${errors.skor_rab ? 'error' : ''}`}
-                  placeholder="0 - 100"
-                  {...register('skor_rab', { valueAsNumber: true })}
-                />
-                {errors.skor_rab && <span className="form-error">{errors.skor_rab.message}</span>}
-              </div>
+            {/* Field 2: Substansi (50%) */}
+            <Input
+              label="Skor Substansi Usulan (Bobot 50%) *"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="0 - 100"
+              error={errors.skor_substansi?.message}
+              {...register('skor_substansi', { valueAsNumber: true })}
+            />
 
-              {/* Total Skor Calculation Highlight */}
-              <div className="col-span-full p-4 rounded-xl bg-primary-50 border border-primary-200 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-primary-800 uppercase tracking-wide">TOTAL SKOR PENILAIAN</div>
-                  <div className="text-xs text-primary-600">Terhitung otomatis dari 3 kriteria di atas</div>
-                </div>
-                <div className="text-3xl font-extrabold text-primary-800">{totalSkor} / 100</div>
-              </div>
+            {/* Field 3: RAB (25%) */}
+            <Input
+              label="Skor Kelayakan RAB (Bobot 25%) *"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="0 - 100"
+              error={errors.skor_rab?.message}
+              {...register('skor_rab', { valueAsNumber: true })}
+            />
 
-              {/* Rekomendasi Select */}
-              <div className="form-group col-span-full md:col-span-1">
-                <label className="form-label">Rekomendasi Akhir Reviewer <span className="required">*</span></label>
-                <select className="input font-bold" {...register('rekomendasi')}>
-                  <option value="terima">Terima (Disetujui)</option>
-                  <option value="revisi">Perlu Revisi Usulan</option>
-                  <option value="tolak">Tolak Usulan</option>
-                </select>
+            {/* Total Skor Calculation Highlight */}
+            <div className="col-span-full p-4 rounded-xl bg-primary-50 border border-primary-200 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-primary-800 uppercase tracking-wide">TOTAL SKOR PENILAIAN</div>
+                <div className="text-xs text-primary-600">Terhitung otomatis dari 3 kriteria di atas (Weighted)</div>
               </div>
+              <div className="text-3xl font-extrabold text-primary-800 font-mono">{totalSkor} / 100</div>
+            </div>
 
-              {/* Catatan Masukan Reviewer (col-span-full exception) */}
-              <div className="form-group col-span-full">
-                <label className="form-label">Catatan & Masukan Kritis Reviewer <span className="required">*</span></label>
-                <textarea
-                  rows={5}
-                  className={`input ${errors.catatan_reviewer ? 'error' : ''}`}
-                  placeholder="Ketik uraian evaluasi substansi, masukan perbaikan metode, serta kewajaran alokasi dana RAB..."
-                  {...register('catatan_reviewer')}
-                />
-                {errors.catatan_reviewer && <span className="form-error">{errors.catatan_reviewer.message}</span>}
-              </div>
+            {/* Rekomendasi Select */}
+            <div className="col-span-full md:col-span-1">
+              <Select
+                label="Rekomendasi Akhir Reviewer *"
+                value={rekomendasiVal}
+                onChange={(val) => setValue('rekomendasi', val as any)}
+                options={[
+                  { value: 'terima', label: 'Terima (Disetujui)' },
+                  { value: 'revisi', label: 'Perlu Revisi Usulan' },
+                  { value: 'tolak', label: 'Tolak Usulan' },
+                ]}
+                error={errors.rekomendasi?.message}
+              />
+            </div>
+
+            {/* Catatan Masukan Reviewer */}
+            <div className="col-span-full">
+              <Textarea
+                label="Catatan & Masukan Kritis Reviewer *"
+                rows={5}
+                placeholder="Ketik uraian evaluasi substansi, masukan perbaikan metode, serta kewajaran alokasi dana RAB..."
+                error={errors.catatan_reviewer?.message}
+                {...register('catatan_reviewer')}
+              />
             </div>
           </div>
         </div>
 
-        {/* ACTION BUTTONS (crud-ui-standard) */}
+        {/* ACTION BUTTONS (Atomic UI Kit) */}
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-          <button type="button" onClick={() => router.back()} className="btn btn-secondary font-semibold">
-            Batal
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="btn btn-primary bg-primary-600 hover:bg-primary-700 border-none font-bold"
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
           >
-            <Save size={18} /> {submitting ? 'Menyimpan Penilaian...' : 'Simpan Desk Evaluation'}
-          </button>
+            Batal
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={submitting}
+            icon={<Save size={16} />}
+            className="font-bold"
+          >
+            Simpan Desk Evaluation
+          </Button>
         </div>
       </form>
     </div>

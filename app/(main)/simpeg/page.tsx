@@ -88,7 +88,7 @@ export default function SimpegDashboardPage() {
       if (isAdmin) {
         // Load Admin View
         const [resPegawai, resUnit] = await Promise.all([
-          simpegService.getPegawaiList({ per_page: 5 }),
+          simpegService.getPegawaiList({ per_page: 100 }),
           simpegService.getUnitKerjaList(),
         ]);
 
@@ -96,19 +96,19 @@ export default function SimpegDashboardPage() {
           ? resPegawai.data
           : resPegawai.data?.items || (resPegawai as any).data?.data || [];
 
-        setPegawaiList(items);
+        setPegawaiList(items.slice(0, 5));
         const units = resUnit.data || [];
         setUnitKerjaList(units);
 
-        const total = items.length;
+        const realTotal = (resPegawai as any).meta?.total || (resPegawai as any).data?.total || items.length;
         const dosen = items.filter((p) => p.jenis_pegawai === 'dosen').length;
         const tendik = items.filter((p) => p.jenis_pegawai === 'tendik').length;
 
         setStats({
-          totalPegawai: total || 1,
-          totalDosen: dosen || 1,
-          totalTendik: tendik || 0,
-          totalUnitKerja: units.length || 6,
+          totalPegawai: realTotal || items.length,
+          totalDosen: dosen,
+          totalTendik: tendik,
+          totalUnitKerja: units.length,
         });
       } else {
         // Load Personal Dosen View (Anisa / Dosen Ybs)

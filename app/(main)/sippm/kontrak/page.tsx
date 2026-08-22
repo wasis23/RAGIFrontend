@@ -1,15 +1,39 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { FileCheck, Plus, Search, CheckCircle2, XCircle, DollarSign, Calendar, FileText, User, Award } from 'lucide-react';
+import {
+  FileCheck,
+  Plus,
+  Search,
+  CheckCircle2,
+  XCircle,
+  DollarSign,
+  Calendar,
+  FileText,
+  User,
+  Award,
+  Filter,
+  RotateCcw,
+  Eye,
+} from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { sippmService } from '@/services/sippm.service';
 import type { KontrakKegiatan, ProposalKegiatan } from '@/types/sippm.types';
-import { SippmBadge } from '@/components/sippm/SippmBadge';
+import type { PaginationMeta } from '@/types/api.types';
+import toast from 'react-hot-toast';
 
-// Modal <= 5 inputs (Grid 2 Kolom per crud-ui-standard)
 const kontrakSchema = z.object({
   proposal_kegiatan_id: z.number().min(1, 'Pilih proposal usulan'),
   nomor_kontrak: z.string().min(5, 'Nomor kontrak minimal 5 karakter'),
@@ -36,20 +60,43 @@ interface CombinedKontrakRow {
 }
 
 export default function KontrakPage() {
+  const router = useRouter();
   const [kontrakList, setKontrakList] = useState<KontrakKegiatan[]>([]);
   const [proposalTahap3, setProposalTahap3] = useState<ProposalKegiatan[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination Meta State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    per_page: 10,
+    total: 0,
+    last_page: 1,
+    from: 0,
+    to: 0,
+  });
+
+  // Filter & Search State
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('id');
+  const [filterOrderDir, setFilterOrderDir] = useState('desc');
+  const [appliedOrderBy, setAppliedOrderBy] = useState('id');
+  const [appliedOrderDir, setAppliedOrderDir] = useState('desc');
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProp, setSelectedProp] = useState<ProposalKegiatan | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<KontrakFormValues>({
     resolver: zodResolver(kontrakSchema) as any,
@@ -62,12 +109,20 @@ export default function KontrakPage() {
     },
   });
 
-  const fetchData = async () => {
+  const selectedPropId = watch('proposal_kegiatan_id');
+
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [resKontrak, resProp] = await Promise.all([
         sippmService.indexKontrak(),
-        sippmService.getProposals({ per_page: 100 } as any),
+        sippmService.getProposals({
+          page,
+          per_page: limit,
+          search: appliedSearch || undefined,
+          order_by: appliedOrderBy,
+          order_dir: appliedOrderDir,
+        } as any),
       ]);
 
       let contracts: KontrakKegiatan[] = [];
@@ -81,7 +136,6 @@ export default function KontrakPage() {
           ? resProp.data
           : (resProp.data as any).items || (resProp.data as any).data || [];
 
-        // Filter Tahap 3 Approved proposals
         const t3 = items.filter(
           (p) =>
             (p.status as any) === 'disetujui_admin' ||
@@ -90,16 +144,52 @@ export default function KontrakPage() {
         );
         setProposalTahap3(t3);
       }
+
+      const responseMeta = (resProp as any)?.meta || (resProp?.data as any)?.meta;
+      if (responseMeta) {
+        setMeta(responseMeta);
+      } else {
+        setMeta({
+          current_page: page,
+          per_page: limit,
+          total: kontrakList.length + proposalTahap3.length,
+          last_page: 1,
+          from: 1,
+          to: kontrakList.length + proposalTahap3.length,
+        });
+      }
     } catch (err) {
       console.error('Failed to load kontrak data', err);
+      toast.error('Gagal memuat data penetapan kontrak hibah');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, appliedSearch, appliedOrderBy, appliedOrderDir]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  // Apply Filter Handler
+  const handleApplyFilter = () => {
+    setAppliedSearch(search);
+    setAppliedOrderBy(filterOrderBy);
+    setAppliedOrderDir(filterOrderDir);
+    setPage(1);
+    setShowFilter(false);
+  };
+
+  // Reset Filter Handler
+  const handleResetFilter = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setFilterOrderBy('id');
+    setFilterOrderDir('desc');
+    setAppliedOrderBy('id');
+    setAppliedOrderDir('desc');
+    setPage(1);
+    setShowFilter(false);
+  };
 
   // Build Unified Single Table Rows
   const buildCombinedRows = (): CombinedKontrakRow[] => {
@@ -138,7 +228,7 @@ export default function KontrakPage() {
         jangka_waktu: k.tgl_mulai && k.tgl_selesai ? `${k.tgl_mulai} s.d ${k.tgl_selesai}` : '-',
         dana_diusulkan: p?.dana_diusulkan || (p as any)?.anggaran_diajukan || null,
         dana_disetujui: (k as any).dana_disetujui || k.nominal_dana || null,
-        status_kontrak: k.is_signed ? 'Kontrak Terdandatangani' : 'SPK Diterbitkan',
+        status_kontrak: k.is_signed ? 'Kontrak Tertandatangani' : 'SPK Diterbitkan',
         rawProposal: p,
         rawKontrak: k,
       });
@@ -152,9 +242,9 @@ export default function KontrakPage() {
   // Filtered Rows
   const filteredRows = combinedRows.filter(
     (row) =>
-      row.nomor_kontrak.toLowerCase().includes(search.toLowerCase()) ||
-      row.judul_proposal.toLowerCase().includes(search.toLowerCase()) ||
-      row.ketua_pengusul.toLowerCase().includes(search.toLowerCase())
+      row.nomor_kontrak.toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      row.judul_proposal.toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      row.ketua_pengusul.toLowerCase().includes(appliedSearch.toLowerCase())
   );
 
   // Open Modal for Setting Nominal & Issuing SPK
@@ -176,9 +266,7 @@ export default function KontrakPage() {
   const onSubmit = async (data: KontrakFormValues) => {
     try {
       setSubmitting(true);
-      setFeedback(null);
 
-      // 1. Issue SPK contract via backend
       await sippmService.storeKontrak(data.proposal_kegiatan_id, {
         nomor_kontrak: data.nomor_kontrak,
         dana_disetujui: data.nominal_disetujui,
@@ -186,27 +274,21 @@ export default function KontrakPage() {
         tgl_selesai: data.tgl_selesai,
       });
 
-      // 2. Update nominal disetujui & status on proposal
       await sippmService.updateProposal(data.proposal_kegiatan_id, {
         dana_disetujui: data.nominal_disetujui,
         status: 'lolos',
       } as any);
 
-      setFeedback({
-        type: 'success',
-        message: `Kontrak SPK (${data.nomor_kontrak}) berhasil diterbitkan dengan Nominal Disetujui ${formatRupiah(
-          data.nominal_disetujui
-        )}!`,
-      });
+      toast.success(
+        `Kontrak SPK (${data.nomor_kontrak}) berhasil diterbitkan! Nominal: ${formatRupiah(data.nominal_disetujui)}.`
+      );
 
       setIsModalOpen(false);
       reset();
       fetchData();
     } catch (err: any) {
-      setFeedback({
-        type: 'error',
-        message: err.response?.data?.message || 'Gagal menerbitkan kontrak hibah. Periksa kembali inputan form.',
-      });
+      const msg = err.response?.data?.message || 'Gagal menerbitkan kontrak hibah. Periksa inputan form.';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -217,258 +299,298 @@ export default function KontrakPage() {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   };
 
+  // DataTable Column Definitions
+  const columns: ColumnDef<CombinedKontrakRow>[] = [
+    {
+      key: 'nomor_kontrak',
+      label: 'No Kontrak',
+      render: (row: CombinedKontrakRow) => (
+        <span className="font-mono text-xs font-bold text-slate-900">
+          {row.nomor_kontrak !== '-' ? (
+            <span className="text-amber-800">{row.nomor_kontrak}</span>
+          ) : (
+            <span className="text-slate-400">-</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'judul_proposal',
+      label: 'Judul Proposal Usulan',
+      render: (row: CombinedKontrakRow) => (
+        <div className="font-bold text-slate-900 line-clamp-1">{row.judul_proposal}</div>
+      ),
+    },
+    {
+      key: 'ketua_pengusul',
+      label: 'Ketua Pengusul',
+      render: (row: CombinedKontrakRow) => (
+        <div className="text-xs text-slate-700 font-semibold">{row.ketua_pengusul}</div>
+      ),
+    },
+    {
+      key: 'jangka_waktu',
+      label: 'Jangka Waktu',
+      render: (row: CombinedKontrakRow) => (
+        <div className="text-xs text-slate-600 font-mono font-medium">{row.jangka_waktu}</div>
+      ),
+    },
+    {
+      key: 'dana_diusulkan',
+      label: 'Dana Diusulkan',
+      render: (row: CombinedKontrakRow) => (
+        <span className="font-bold text-primary-700 text-xs">{formatRupiah(row.dana_diusulkan)}</span>
+      ),
+    },
+    {
+      key: 'dana_disetujui',
+      label: 'Dana Disetujui',
+      render: (row: CombinedKontrakRow) => (
+        <span className="font-extrabold text-emerald-700 text-xs">{formatRupiah(row.dana_disetujui)}</span>
+      ),
+    },
+    {
+      key: 'status_kontrak',
+      label: 'Status Kontrak',
+      render: (row: CombinedKontrakRow) =>
+        row.type === 'pending' ? (
+          <Badge variant="amber" className="font-bold text-[11px]">
+            Belum Terbit SPK
+          </Badge>
+        ) : (
+          <Badge variant="green" className="font-bold text-[11px] inline-flex items-center gap-1">
+            <CheckCircle2 size={12} /> {row.status_kontrak}
+          </Badge>
+        ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row: CombinedKontrakRow) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              ...(row.type === 'pending' && row.rawProposal
+                ? [
+                    {
+                      label: 'Tetapkan & Terbitkan SPK',
+                      icon: <DollarSign size={14} className="text-emerald-600" />,
+                      onClick: () => handleOpenCreateModal(row.rawProposal),
+                    },
+                  ]
+                : []),
+              {
+                label: 'Lihat Detail Proposal',
+                icon: <Eye size={14} />,
+                onClick: () => router.push(`/sippm/proposal/${row.proposal_id}`),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+    <div className="space-y-6 animate-fade-in">
+      {/* Page Header (Atomic Standard) */}
+      <PageHeader
+        title="Penetapan Nominal Disetujui & Kontrak Hibah SPK"
+        description="Tabel terintegrasi penetapan nominal hibah disetujui dan penerbitan SPK untuk seluruh proposal Tahap 3."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIPPM', href: '/sippm' },
+          { label: 'Kontrak SPK' },
+        ]}
+        action={
           <div className="flex items-center gap-2">
-            <span className="badge badge-sippm-gold">Keuangan & Legal SIPPM</span>
-            <span className="badge badge-purple font-bold">Penetapan SPK & Kontrak Hibah</span>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold"
+            >
+              Filter &amp; Urutkan
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => handleOpenCreateModal()}
+              className="font-bold"
+            >
+              Terbitkan Kontrak Manual
+            </Button>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
-            Penetapan Nominal Disetujui & Kontrak Hibah SPK
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Tabel terintegrasi penetapan nominal hibah disetujui dan penerbitan SPK untuk seluruh proposal Tahap 3.
-          </p>
-        </div>
-        <button
-          onClick={() => handleOpenCreateModal()}
-          className="btn btn-secondary font-bold flex items-center gap-1.5"
-        >
-          <Plus size={18} /> Terbitkan Kontrak Manual
-        </button>
-      </div>
+        }
+      />
 
-      {feedback && (
-        <div
-          className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${
-            feedback.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
-          }`}
-        >
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
+      {/* DataTable Component */}
+      <DataTable
+        columns={columns}
+        data={filteredRows}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+      />
 
-      {/* Filter Card */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="input-wrapper w-full md:w-80">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari no kontrak / proposal / ketua..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+      {/* FILTER DRAWER SLIDE RIGHT-TO-LEFT */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Kontrak SPK"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari No Kontrak / Proposal / Ketua"
+            placeholder="Ketik no kontrak, judul proposal, atau nama ketua..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'id', label: 'ID Kontrak' },
+                { value: 'nomor_kontrak', label: 'Nomor SPK' },
+                { value: 'created_at', label: 'Tanggal Penerbitan' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val)}
+              options={[
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+                { value: 'asc', label: 'A - Z (Terlama)' },
+              ]}
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Total <strong>{filteredRows.length}</strong> Proposal / Kontrak Terdaftar
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              icon={<RotateCcw size={14} />}
+              onClick={handleResetFilter}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Filter size={14} />}
+              onClick={handleApplyFilter}
+            >
+              Terapkan Filter
+            </Button>
           </div>
         </div>
-      </div>
+      </Drawer>
 
-      {/* SINGLE COMBINED TABLE */}
-      <div className="table-container bg-white">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>NO KONTRAK</th>
-              <th>JUDUL PROPOSAL</th>
-              <th>KETUA PENGUSUL</th>
-              <th>JANGKA WAKTU</th>
-              <th>DANA DIUSULKAN</th>
-              <th>DANA DISETUJUI</th>
-              <th>STATUS KONTRAK</th>
-              <th className="text-right">AKSI PENETAPAN</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={8} className="text-center py-10 text-slate-400">
-                  Memuat data kontrak hibah...
-                </td>
-              </tr>
-            ) : filteredRows.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-10 text-slate-400">
-                  Belum ada proposal / kontrak hibah terdaftar.
-                </td>
-              </tr>
-            ) : (
-              filteredRows.map((row) => (
-                <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
-                  {/* NO KONTRAK */}
-                  <td className="font-mono text-xs font-bold text-slate-900">
-                    {row.nomor_kontrak !== '-' ? (
-                      <span className="text-amber-800">{row.nomor_kontrak}</span>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
-                  </td>
+      {/* MODAL FORM PENETAPAN NOMINAL & KONTRAK SPK (UI KIT & GRID 2 KOLOM) */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Penetapan Nominal & Terbitkan SPK"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {selectedProp && (
+            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs space-y-1">
+              <div className="font-extrabold text-slate-900">{selectedProp.judul}</div>
+              <div className="text-slate-700 flex items-center gap-3">
+                <span>
+                  Dana Diusulkan Dosen:{' '}
+                  <strong className="text-primary-800 font-bold">
+                    {formatRupiah(selectedProp.dana_diusulkan || (selectedProp as any).anggaran_diajukan || 0)}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          )}
 
-                  {/* JUDUL PROPOSAL */}
-                  <td>
-                    <div className="font-bold text-slate-900 line-clamp-1">{row.judul_proposal}</div>
-                  </td>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <Select
+              label="Pilih Proposal Tahap 3 Disetujui *"
+              value={selectedPropId}
+              onChange={(val) => {
+                const idNum = Number(val);
+                setValue('proposal_kegiatan_id', idNum);
+                const found = proposalTahap3.find((p) => p.id === idNum);
+                if (found) {
+                  setSelectedProp(found);
+                  setValue('nominal_disetujui', found.dana_diusulkan || (found as any).anggaran_diajukan || 25000000);
+                  setValue('nomor_kontrak', `SPK/LPPM/${new Date().getFullYear()}/${String(found.id).padStart(3, '0')}`);
+                }
+              }}
+              options={[
+                { value: 0, label: '-- Pilih Proposal Tahap 3 --' },
+                ...proposalTahap3.map((p) => ({
+                  value: p.id,
+                  label: `${p.judul} (Diusulkan: ${formatRupiah(p.dana_diusulkan || (p as any).anggaran_diajukan || 0)})`,
+                })),
+              ]}
+              error={errors.proposal_kegiatan_id?.message}
+            />
 
-                  {/* KETUA PENGUSUL */}
-                  <td className="text-xs text-slate-700 font-semibold">
-                    {row.ketua_pengusul}
-                  </td>
+            {/* Grid 2 Kolom per crud-ui-standard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Nomor Surat SPK Kontrak *"
+                placeholder="001/LPPM/SPK/2026"
+                error={errors.nomor_kontrak?.message}
+                {...register('nomor_kontrak')}
+                className="font-mono text-xs"
+              />
 
-                  {/* JANGKA WAKTU */}
-                  <td className="text-xs text-slate-600 font-mono font-medium">
-                    {row.jangka_waktu}
-                  </td>
+              <Input
+                label="Nominal Dana Disetujui (Rp) *"
+                type="number"
+                placeholder="25000000"
+                error={errors.nominal_disetujui?.message}
+                {...register('nominal_disetujui', { valueAsNumber: true })}
+                className="font-bold text-emerald-800 text-xs"
+              />
 
-                  {/* DANA DIUSULKAN */}
-                  <td className="font-bold text-primary-700 text-xs">
-                    {formatRupiah(row.dana_diusulkan)}
-                  </td>
+              <Input
+                label="Tanggal Mulai SPK *"
+                type="date"
+                error={errors.tgl_mulai?.message}
+                {...register('tgl_mulai')}
+              />
 
-                  {/* DANA DISETUJUI */}
-                  <td className="font-extrabold text-emerald-700 text-xs">
-                    {formatRupiah(row.dana_disetujui)}
-                  </td>
-
-                  {/* STATUS KONTRAK */}
-                  <td>
-                    {row.type === 'pending' ? (
-                      <span className="badge badge-amber font-bold text-[11px] flex items-center gap-1">
-                        Belum Terbit SPK
-                      </span>
-                    ) : (
-                      <span className="badge badge-green font-bold text-[11px] flex items-center gap-1">
-                        <CheckCircle2 size={12} /> {row.status_kontrak}
-                      </span>
-                    )}
-                  </td>
-
-                  {/* AKSI PENETAPAN */}
-                  <td>
-                    <div className="flex items-center justify-end gap-2">
-                      {row.type === 'pending' && row.rawProposal ? (
-                        <button
-                          onClick={() => handleOpenCreateModal(row.rawProposal)}
-                          className="btn btn-primary btn-sm font-bold shadow-xs flex items-center gap-1.5"
-                        >
-                          <DollarSign size={14} /> Tetapkan & Terbitkan SPK
-                        </button>
-                      ) : (
-                        <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
-                          <CheckCircle2 size={14} className="text-emerald-500" /> Diterbitkan
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* MODAL FORM PENETAPAN NOMINAL & KONTRAK SPK (Grid 2 Kolom per crud-ui-standard) */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg modal-body">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <FileCheck className="text-amber-600" size={20} /> Penetapan Nominal & Terbitkan SPK
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
+              <Input
+                label="Tanggal Selesai SPK *"
+                type="date"
+                error={errors.tgl_selesai?.message}
+                {...register('tgl_selesai')}
+              />
             </div>
 
-            {selectedProp && (
-              <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs space-y-1">
-                <div className="font-extrabold text-slate-900">{selectedProp.judul}</div>
-                <div className="text-slate-700 flex items-center gap-3">
-                  <span>Dana Diusulkan Dosen: <strong className="text-primary-800 font-bold">{formatRupiah(selectedProp.dana_diusulkan || (selectedProp as any).anggaran_diajukan || 0)}</strong></span>
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="form-group">
-                <label className="form-label font-bold text-xs">Pilih Proposal Tahap 3 Disetujui <span className="required">*</span></label>
-                <select
-                  className={`input text-xs ${errors.proposal_kegiatan_id ? 'error' : ''}`}
-                  {...register('proposal_kegiatan_id', { valueAsNumber: true })}
-                >
-                  <option value={0}>-- Pilih Proposal Tahap 3 --</option>
-                  {proposalTahap3.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.judul} (Diusulkan: {formatRupiah(p.dana_diusulkan || (p as any).anggaran_diajukan || 0)})
-                    </option>
-                  ))}
-                </select>
-                {errors.proposal_kegiatan_id && <span className="form-error">{errors.proposal_kegiatan_id.message}</span>}
-              </div>
-
-              {/* Grid 2 Kolom per crud-ui-standard */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label font-bold text-xs">Nomor Surat SPK Kontrak <span className="required">*</span></label>
-                  <input
-                    type="text"
-                    className={`input text-xs font-mono ${errors.nomor_kontrak ? 'error' : ''}`}
-                    placeholder="001/LPPM/SPK/2026"
-                    {...register('nomor_kontrak')}
-                  />
-                  {errors.nomor_kontrak && <span className="form-error">{errors.nomor_kontrak.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label font-bold text-xs">Nominal Dana Disetujui (Rp) <span className="required">*</span></label>
-                  <input
-                    type="number"
-                    className={`input text-xs font-bold text-emerald-800 ${errors.nominal_disetujui ? 'error' : ''}`}
-                    placeholder="25000000"
-                    {...register('nominal_disetujui', { valueAsNumber: true })}
-                  />
-                  {errors.nominal_disetujui && <span className="form-error">{errors.nominal_disetujui.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label font-bold text-xs">Tanggal Mulai SPK <span className="required">*</span></label>
-                  <input
-                    type="date"
-                    className={`input text-xs ${errors.tgl_mulai ? 'error' : ''}`}
-                    {...register('tgl_mulai')}
-                  />
-                  {errors.tgl_mulai && <span className="form-error">{errors.tgl_mulai.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label font-bold text-xs">Tanggal Selesai SPK <span className="required">*</span></label>
-                  <input
-                    type="date"
-                    className={`input text-xs ${errors.tgl_selesai ? 'error' : ''}`}
-                    {...register('tgl_selesai')}
-                  />
-                  {errors.tgl_selesai && <span className="form-error">{errors.tgl_selesai.message}</span>}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm text-slate-600">
-                  Batal
-                </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary btn-sm bg-emerald-700 hover:bg-emerald-800 border-none font-bold">
-                  {submitting ? 'Menerbitkan...' : 'Tetapkan Nominal & Terbitkan SPK'}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={submitting}
+                className="font-bold"
+              >
+                Tetapkan Nominal &amp; Terbitkan SPK
+              </Button>
+            </div>
+          </form>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

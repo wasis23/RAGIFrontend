@@ -1,13 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Award, Plus, Search, CheckCircle2, XCircle, ShieldCheck, FileCheck } from 'lucide-react';
+import {
+  Award,
+  Plus,
+  Search,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  FileCheck,
+  Filter,
+  RotateCcw,
+  Check,
+  X,
+} from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { sippmService } from '@/services/sippm.service';
-import type { HkiDanBuku, KategoriHki, StatusVerifikasiLuaran } from '@/types/sippm.types';
-import { SippmBadge } from '@/components/sippm/SippmBadge';
+import type { HkiDanBuku, StatusVerifikasiLuaran } from '@/types/sippm.types';
+import type { PaginationMeta } from '@/types/api.types';
+import toast from 'react-hot-toast';
 
 const hkiSchema = z.object({
   judul_hki: z.string().min(5, 'Judul HKI minimal 5 karakter'),
@@ -20,17 +43,41 @@ const hkiSchema = z.object({
 type HkiFormValues = z.infer<typeof hkiSchema>;
 
 export default function HkiRegistryPage() {
+  const router = useRouter();
   const [hkiList, setHkiList] = useState<HkiDanBuku[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination Meta State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    per_page: 10,
+    total: 0,
+    last_page: 1,
+    from: 0,
+    to: 0,
+  });
+
+  // Filter & Search State
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('id');
+  const [filterOrderDir, setFilterOrderDir] = useState('desc');
+  const [appliedOrderBy, setAppliedOrderBy] = useState('id');
+  const [appliedOrderDir, setAppliedOrderDir] = useState('desc');
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<HkiFormValues>({
     resolver: zodResolver(hkiSchema) as any,
@@ -43,37 +90,71 @@ export default function HkiRegistryPage() {
     },
   });
 
-  const fetchHki = async () => {
+  const selectedKategori = watch('kategori_hki');
+
+  const fetchHki = useCallback(async () => {
     try {
       setLoading(true);
       const res = await sippmService.indexHki();
       const list = Array.isArray(res.data)
         ? res.data
         : (res?.data as any)?.items || (res?.data as any)?.data || [];
+
       setHkiList(list);
+
+      setMeta({
+        current_page: page,
+        per_page: limit,
+        total: list.length,
+        last_page: Math.ceil(list.length / limit) || 1,
+        from: list.length > 0 ? (page - 1) * limit + 1 : 0,
+        to: Math.min(page * limit, list.length),
+      });
     } catch (err) {
       console.error('Failed to fetch HKI list', err);
+      toast.error('Gagal memuat data HKI & Paten');
       setHkiList([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit]);
 
   useEffect(() => {
     fetchHki();
-  }, []);
+  }, [fetchHki]);
+
+  // Apply Filter Handler
+  const handleApplyFilter = () => {
+    setAppliedSearch(search);
+    setAppliedOrderBy(filterOrderBy);
+    setAppliedOrderDir(filterOrderDir);
+    setPage(1);
+    setShowFilter(false);
+  };
+
+  // Reset Filter Handler
+  const handleResetFilter = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setFilterOrderBy('id');
+    setFilterOrderDir('desc');
+    setAppliedOrderBy('id');
+    setAppliedOrderDir('desc');
+    setPage(1);
+    setShowFilter(false);
+  };
 
   const onSubmit = async (data: HkiFormValues) => {
     try {
       setSubmitting(true);
-      setFeedback(null);
       await sippmService.storeHki(data);
-      setFeedback({ type: 'success', message: 'HKI / Paten baru berhasil didaftarkan' });
+      toast.success('HKI / Paten baru berhasil didaftarkan!');
       setIsModalOpen(false);
       reset();
       fetchHki();
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.response?.data?.message || 'Gagal mendaftarkan HKI' });
+      const msg = err.response?.data?.message || 'Gagal mendaftarkan HKI / Paten';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -82,206 +163,301 @@ export default function HkiRegistryPage() {
   const handleVerify = async (id: number, status: 'verified' | 'rejected') => {
     try {
       await sippmService.verifyHki(id, status);
+      toast.success(`HKI / Paten berhasil ${status === 'verified' ? 'disetujui' : 'ditolak'}`);
       fetchHki();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Gagal memverifikasi HKI');
+      const msg = err.response?.data?.message || 'Gagal memverifikasi HKI / Paten';
+      toast.error(msg);
     }
   };
 
   const safeList = Array.isArray(hkiList) ? hkiList : [];
   const filteredList = safeList.filter(
     (item) =>
-      (item.judul_hki || '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.kategori_hki || '').toLowerCase().includes(search.toLowerCase())
+      (item.judul_hki || (item as any).judul || '').toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      (item.kategori_hki || item.jenis_luaran || '').toLowerCase().includes(appliedSearch.toLowerCase())
   );
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-sippm-purple">Portofolio & Intellectual Property</span>
+  // DataTable Column Definitions
+  const columns: ColumnDef<HkiDanBuku>[] = [
+    {
+      key: 'judul_hki',
+      label: 'Judul HKI / Karya',
+      render: (item: HkiDanBuku) => {
+        const judulHki = item.judul_hki || (item as any).judul || 'HKI / Karya Terdaftar';
+        return (
+          <div className="space-y-0.5">
+            <div className="font-bold text-slate-900 line-clamp-1">{judulHki}</div>
+            {item.penerbit_lembaga && (
+              <div className="text-xs text-purple-700 font-medium">{item.penerbit_lembaga}</div>
+            )}
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Registry HKI & Paten Kampus</h1>
-          <p className="text-slate-500 text-sm">Pendataan Kekayaan Intelektual, Hak Cipta, Paten, Merek & Buku Ajar Dosen.</p>
-        </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-purple-700 hover:bg-purple-800 border-none shadow-sm font-bold">
-          <Plus size={18} /> Registrasi HKI Baru
-        </button>
-      </div>
+        );
+      },
+    },
+    {
+      key: 'kategori',
+      label: 'Kategori HKI',
+      render: (item: HkiDanBuku) => {
+        const kategoriHki = (item.jenis_luaran || item.kategori_hki || 'hak_cipta').replace(/_/g, ' ');
+        return (
+          <Badge variant="purple" className="font-mono uppercase text-[10px]">
+            {kategoriHki}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'no_sertifikat',
+      label: 'No Pendaftaran / Sertifikat',
+      render: (item: HkiDanBuku) => {
+        const noSertifikat = item.nomor_pencatatan_isbn || item.nomor_sertifikat || item.nomor_pendaftaran || '-';
+        return <span className="font-mono text-xs font-bold text-slate-700">{noSertifikat}</span>;
+      },
+    },
+    {
+      key: 'tahun',
+      label: 'Tahun',
+      render: (item: HkiDanBuku) => {
+        const displayTahun =
+          item.tahun || (item.tgl_terbit_catat ? new Date(item.tgl_terbit_catat).getFullYear() : '2026');
+        return <span className="font-bold text-slate-700 text-xs">{displayTahun}</span>;
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status Verifikasi',
+      render: (item: HkiDanBuku) => {
+        const isVerified = item.is_verified_lppm || item.status_verifikasi === 'verified';
+        const isRejected = item.status_verifikasi === 'rejected';
 
-      {feedback && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
-
-      {/* Filter Card */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="input-wrapper w-full md:w-80">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari karya HKI / paten..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+        if (isVerified) {
+          return (
+            <Badge variant="green" className="font-bold text-[11px] inline-flex items-center gap-1">
+              <CheckCircle2 size={12} /> Terverifikasi LPPM
+            </Badge>
+          );
+        }
+        if (isRejected) {
+          return (
+            <Badge variant="rose" className="font-bold text-[11px] inline-flex items-center gap-1">
+              <XCircle size={12} /> Ditolak
+            </Badge>
+          );
+        }
+        return (
+          <Badge variant="amber" className="font-bold text-[11px]">
+            Menunggu Verifikasi
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (item: HkiDanBuku) => {
+        const isPending = !item.is_verified_lppm && item.status_verifikasi !== 'rejected';
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                ...(isPending
+                  ? [
+                      {
+                        label: 'Setujui Verifikasi HKI',
+                        icon: <Check size={14} className="text-emerald-600" />,
+                        onClick: () => handleVerify(item.id, 'verified'),
+                      },
+                      {
+                        label: 'Tolak Verifikasi HKI',
+                        icon: <X size={14} className="text-rose-600" />,
+                        onClick: () => handleVerify(item.id, 'rejected'),
+                      },
+                    ]
+                  : []),
+              ]}
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Total {filteredList.length} HKI Terdaftar
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Page Header (Atomic Standard) */}
+      <PageHeader
+        title="Registry HKI, Paten & Intellectual Property"
+        description="Pendataan Kekayaan Intelektual, Hak Cipta, Paten, Merek, Desain Industri & Buku Ajar Dosen."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIPPM', href: '/sippm' },
+          { label: 'HKI & Paten' },
+        ]}
+        action={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold"
+            >
+              Filter &amp; Urutkan
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => setIsModalOpen(true)}
+              className="font-bold"
+            >
+              Registrasi HKI Baru
+            </Button>
+          </div>
+        }
+      />
+
+      {/* DataTable Component */}
+      <DataTable
+        columns={columns}
+        data={filteredList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+      />
+
+      {/* FILTER DRAWER SLIDE RIGHT-TO-LEFT */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan HKI & Paten"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Judul HKI / Paten / Kategori"
+            placeholder="Ketik judul HKI atau kategori..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'id', label: 'ID HKI' },
+                { value: 'judul_hki', label: 'Judul HKI' },
+                { value: 'tahun', label: 'Tahun Registrasi' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val)}
+              options={[
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+                { value: 'asc', label: 'A - Z (Terlama)' },
+              ]}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              icon={<RotateCcw size={14} />}
+              onClick={handleResetFilter}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Filter size={14} />}
+              onClick={handleApplyFilter}
+            >
+              Terapkan Filter
+            </Button>
           </div>
         </div>
-      </div>
+      </Drawer>
 
-      {/* Data Table */}
-      <div className="table-container bg-white">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Judul HKI / Karya</th>
-              <th>Kategori HKI</th>
-              <th>No Pendaftaran / Sertifikat</th>
-              <th>Tahun</th>
-              <th>Status Verifikasi</th>
-              <th className="text-right">Aksi LPPM</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400">Memuat data HKI & Paten...</td>
-              </tr>
-            ) : filteredList.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400">Belum ada HKI terdaftar.</td>
-              </tr>
-            ) : (
-              filteredList.map((item) => {
-                const judulHki = item.judul_hki || (item as any).judul || 'HKI / Karya Terdaftar';
-                const kategoriHki = (item.jenis_luaran || item.kategori_hki || 'hak_cipta').replace(/_/g, ' ');
-                const noSertifikat = item.nomor_pencatatan_isbn || item.nomor_sertifikat || item.nomor_pendaftaran || '-';
-                const displayTahun = item.tahun || (item.tgl_terbit_catat ? new Date(item.tgl_terbit_catat).getFullYear() : '2026');
-                const statusVerifikasi: StatusVerifikasiLuaran = item.is_verified_lppm ? 'verified' : (item.status_verifikasi || 'pending');
+      {/* FORM MODAL REGISTRASI HKI (UI KIT & GRID 2 KOLOM) */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Registrasi HKI & Paten Baru"
+        size="lg"
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Input
+            label="Judul HKI / Ciptaan / Paten *"
+            placeholder="Ketik judul HKI atau karya..."
+            error={errors.judul_hki?.message}
+            {...register('judul_hki')}
+          />
 
-                return (
-                  <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
-                    <td>
-                      <div className="font-bold text-slate-900 line-clamp-1">{judulHki}</div>
-                      {item.penerbit_lembaga && (
-                        <div className="text-xs text-purple-700 font-medium mt-0.5">{item.penerbit_lembaga}</div>
-                      )}
-                    </td>
-                    <td>
-                      <span className="badge badge-sippm-purple font-mono uppercase text-[11px]">
-                        {kategoriHki}
-                      </span>
-                    </td>
-                    <td className="font-mono text-xs font-bold text-slate-700">
-                      {noSertifikat}
-                    </td>
-                    <td className="font-bold text-slate-700 text-xs">{displayTahun}</td>
-                    <td>
-                      <SippmBadge status={statusVerifikasi} type="luaran" />
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-end gap-1">
-                        {statusVerifikasi === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleVerify(item.id, 'verified')}
-                              className="btn btn-ghost btn-sm text-emerald-700 hover:bg-emerald-50"
-                            >
-                              Setujui
-                            </button>
-                            <button
-                              onClick={() => handleVerify(item.id, 'rejected')}
-                              className="btn btn-ghost btn-sm text-rose-600 hover:bg-rose-50"
-                            >
-                              Tolak
-                            </button>
-                          </>
-                        )}
-                        {statusVerifikasi === 'verified' && (
-                          <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                            <CheckCircle2 size={14} /> Terverifikasi
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+          {/* Grid 2 Kolom per crud-ui-standard */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Kategori Kekayaan Intelektual *"
+              value={selectedKategori}
+              onChange={(val) => setValue('kategori_hki', val as any)}
+              options={[
+                { value: 'hak_cipta', label: 'Hak Cipta Program/Karya' },
+                { value: 'paten', label: 'Paten Terdaftar' },
+                { value: 'paten_sederhana', label: 'Paten Sederhana' },
+                { value: 'merek', label: 'Merek Dagang' },
+                { value: 'desain_industri', label: 'Desain Industri' },
+                { value: 'buku_ajar', label: 'Buku Ajar / Monograf' },
+                { value: 'prototype', label: 'Prototype Industri' },
+              ]}
+              error={errors.kategori_hki?.message}
+            />
 
-      {/* Modal Form <= 5 inputs (Grid 2 Kolom per crud-ui-standard) */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg modal-body">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <Award className="text-purple-700" size={20} /> Registrasi HKI & Paten Baru
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
-            </div>
+            <Input
+              label="Tahun Registrasi *"
+              type="number"
+              placeholder="2026"
+              error={errors.tahun?.message}
+              {...register('tahun', { valueAsNumber: true })}
+            />
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="form-group">
-                <label className="form-label">Judul HKI / Ciptaan / Paten <span className="required">*</span></label>
-                <input type="text" className={`input ${errors.judul_hki ? 'error' : ''}`} placeholder="Ketik judul HKI..." {...register('judul_hki')} />
-                {errors.judul_hki && <span className="form-error">{errors.judul_hki.message}</span>}
-              </div>
+            <Input
+              label="Nomor Pendaftaran Permohonan"
+              placeholder="EC002026xxxx"
+              error={errors.nomor_pendaftaran?.message}
+              {...register('nomor_pendaftaran')}
+            />
 
-              {/* Grid 2 Kolom per crud-ui-standard */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Kategori Kekayaan Intelektual <span className="required">*</span></label>
-                  <select className="input" {...register('kategori_hki')}>
-                    <option value="hak_cipta">Hak Cipta Program/Karya</option>
-                    <option value="paten">Paten Terdaftar</option>
-                    <option value="paten_sederhana">Paten Sederhana</option>
-                    <option value="merek">Merek Dagang</option>
-                    <option value="desain_industri">Desain Industri</option>
-                    <option value="buku_ajar">Buku Ajar / Monograf</option>
-                    <option value="prototype">Prototype Industri</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Tahun Registrasi <span className="required">*</span></label>
-                  <input type="number" className={`input ${errors.tahun ? 'error' : ''}`} placeholder="2026" {...register('tahun', { valueAsNumber: true })} />
-                  {errors.tahun && <span className="form-error">{errors.tahun.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Nomor Pendaftaran Permohonan</label>
-                  <input type="text" className="input" placeholder="EC002026xxxx" {...register('nomor_pendaftaran')} />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Nomor Sertifikat HKI / Paten</label>
-                  <input type="text" className="input" placeholder="000789xxx" {...register('nomor_sertifikat')} />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
-                  Batal
-                </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary bg-purple-700 hover:bg-purple-800 border-none font-bold">
-                  {submitting ? 'Mendaftarkan...' : 'Simpan HKI'}
-                </button>
-              </div>
-            </form>
+            <Input
+              label="Nomor Sertifikat HKI / Paten"
+              placeholder="000789xxx"
+              error={errors.nomor_sertifikat?.message}
+              {...register('nomor_sertifikat')}
+            />
           </div>
-        </div>
-      )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={submitting}
+              className="font-bold"
+            >
+              Simpan HKI &amp; Paten
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

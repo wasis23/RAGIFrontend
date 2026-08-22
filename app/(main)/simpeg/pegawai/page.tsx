@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +25,7 @@ import { Select } from '@/components/ui/Select';
 import { Drawer } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, UnitKerja, JenisPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -59,7 +60,7 @@ export default function PegawaiPage() {
   const [filterOrderBy, setFilterOrderBy] = useState('nama_lengkap');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
 
-  const loadPegawai = async () => {
+  const loadPegawai = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
     try {
@@ -106,11 +107,11 @@ export default function PegawaiPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [canRead, isAdmin, page, limit, selectedUnit, selectedJenis, search]);
 
   useEffect(() => {
     loadPegawai();
-  }, [canRead, page, limit, selectedUnit, selectedJenis]);
+  }, [loadPegawai]);
 
   const handleApplyFilter = () => {
     setPage(1);
@@ -156,7 +157,7 @@ export default function PegawaiPage() {
     }
   };
 
-  // DataTable Columns definition for Admin View
+  // DataTable Columns definition for Admin View (with Mandatory 3-Dots Action Dropdown)
   const columns: ColumnDef<Pegawai>[] = [
     {
       key: 'nip',
@@ -217,33 +218,34 @@ export default function PegawaiPage() {
       label: 'Aksi',
       align: 'right',
       render: (peg) => (
-        <div className="flex justify-end gap-1">
-          <Link href={`/simpeg/pegawai/${peg.id}`}>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Eye size={16} className="text-primary-600" />}
-              title="Lihat Detail"
-            />
-          </Link>
-          {canUpdate && (
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Edit2 size={16} className="text-primary-600" />}
-              onClick={() => handleOpenEditModal(peg)}
-              title="Edit"
-            />
-          )}
-          {canDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Trash2 size={16} className="text-red-600" />}
-              onClick={() => handleDelete(peg.id, peg.nama_lengkap)}
-              title="Hapus"
-            />
-          )}
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Lihat Detail Profil',
+                icon: <Eye size={14} className="text-primary-600" />,
+                onClick: () => router.push(`/simpeg/pegawai/${peg.id}`),
+              },
+              ...(canUpdate
+                ? [
+                    {
+                      label: 'Edit Data Pegawai',
+                      icon: <Edit2 size={14} className="text-blue-600" />,
+                      onClick: () => handleOpenEditModal(peg),
+                    },
+                  ]
+                : []),
+              ...(canDelete
+                ? [
+                    {
+                      label: 'Hapus Pegawai',
+                      icon: <Trash2 size={14} className="text-rose-600" />,
+                      onClick: () => handleDelete(peg.id, peg.nama_lengkap),
+                    },
+                  ]
+                : []),
+            ]}
+          />
         </div>
       ),
     },
@@ -253,7 +255,7 @@ export default function PegawaiPage() {
     return (
       <div className="animate-fade-in flex flex-col gap-6">
         <PageHeader
-          title="Data Pegawai (Dosen & Tendik)"
+          title="Data Pegawai (Dosen &amp; Tendik)"
           description="Direktori Profil, NIP, NIDN, Jabatan, dan Status Kepegawaian Kampus"
         />
         <div className="card p-12 text-center">
@@ -272,7 +274,7 @@ export default function PegawaiPage() {
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
-        title="Data Pegawai (Dosen & Tendik)"
+        title="Data Pegawai (Dosen &amp; Tendik)"
         description="Direktori Profil, NIP, NIDN, Jabatan, dan Status Kepegawaian Kampus"
         action={
           isAdmin ? (
@@ -447,7 +449,7 @@ export default function PegawaiPage() {
                         icon={<Edit2 size={16} />}
                         className="bg-white text-primary-600 border-none font-bold"
                       >
-                        Edit Kontak & Biodata
+                        Edit Kontak &amp; Biodata
                       </Button>
                     </div>
                   </div>
@@ -460,13 +462,13 @@ export default function PegawaiPage() {
                       <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
                         <Users size={20} className="text-primary-600" />
                         <h3 className="text-lg font-bold m-0 text-slate-800">
-                          Biodata & Identitas Utama
+                          Biodata &amp; Identitas Utama
                         </h3>
                       </div>
 
                       <div className="flex flex-col gap-4">
                         <div>
-                          <div className="text-xs text-slate-400 uppercase font-semibold">Nama Lengkap & Gelar</div>
+                          <div className="text-xs text-slate-400 uppercase font-semibold">Nama Lengkap &amp; Gelar</div>
                           <div className="text-[0.9375rem] font-bold text-slate-800">{peg.nama_lengkap}</div>
                         </div>
 
@@ -533,7 +535,7 @@ export default function PegawaiPage() {
                       <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
                         <Building2 size={20} className="text-primary-600" />
                         <h3 className="text-lg font-bold m-0 text-slate-800">
-                          Riwayat Jabatan & Jabatan Fungsional
+                          Riwayat Jabatan &amp; Jabatan Fungsional
                         </h3>
                       </div>
 

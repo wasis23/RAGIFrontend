@@ -1,13 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { BookOpen, Plus, Search, CheckCircle2, XCircle, ExternalLink, Award, FileText } from 'lucide-react';
+import {
+  BookOpen,
+  Plus,
+  Search,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  Award,
+  FileText,
+  Filter,
+  RotateCcw,
+  Eye,
+  Check,
+  X,
+} from 'lucide-react';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { sippmService } from '@/services/sippm.service';
-import type { PublikasiIlmiah, KategoriPublikasi, StatusVerifikasiLuaran } from '@/types/sippm.types';
-import { SippmBadge } from '@/components/sippm/SippmBadge';
+import type { PublikasiIlmiah, StatusVerifikasiLuaran } from '@/types/sippm.types';
+import type { PaginationMeta } from '@/types/api.types';
+import toast from 'react-hot-toast';
 
 const publikasiSchema = z.object({
   judul_artikel: z.string().min(5, 'Judul artikel minimal 5 karakter'),
@@ -20,17 +45,41 @@ const publikasiSchema = z.object({
 type PublikasiFormValues = z.infer<typeof publikasiSchema>;
 
 export default function PublikasiRegistryPage() {
+  const router = useRouter();
   const [publikasiList, setPublikasiList] = useState<PublikasiIlmiah[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination Meta State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    per_page: 10,
+    total: 0,
+    last_page: 1,
+    from: 0,
+    to: 0,
+  });
+
+  // Filter & Search State
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('id');
+  const [filterOrderDir, setFilterOrderDir] = useState('desc');
+  const [appliedOrderBy, setAppliedOrderBy] = useState('id');
+  const [appliedOrderDir, setAppliedOrderDir] = useState('desc');
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<PublikasiFormValues>({
     resolver: zodResolver(publikasiSchema) as any,
@@ -43,37 +92,71 @@ export default function PublikasiRegistryPage() {
     },
   });
 
-  const fetchPublikasi = async () => {
+  const selectedKategori = watch('kategori_publikasi');
+
+  const fetchPublikasi = useCallback(async () => {
     try {
       setLoading(true);
       const res = await sippmService.indexPublikasi();
       const list = Array.isArray(res.data)
         ? res.data
         : (res?.data as any)?.items || (res?.data as any)?.data || [];
+
       setPublikasiList(list);
+
+      setMeta({
+        current_page: page,
+        per_page: limit,
+        total: list.length,
+        last_page: Math.ceil(list.length / limit) || 1,
+        from: list.length > 0 ? (page - 1) * limit + 1 : 0,
+        to: Math.min(page * limit, list.length),
+      });
     } catch (err) {
       console.error('Failed to fetch publikasi list', err);
+      toast.error('Gagal memuat daftar publikasi ilmiah');
       setPublikasiList([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit]);
 
   useEffect(() => {
     fetchPublikasi();
-  }, []);
+  }, [fetchPublikasi]);
+
+  // Apply Filter Handler
+  const handleApplyFilter = () => {
+    setAppliedSearch(search);
+    setAppliedOrderBy(filterOrderBy);
+    setAppliedOrderDir(filterOrderDir);
+    setPage(1);
+    setShowFilter(false);
+  };
+
+  // Reset Filter Handler
+  const handleResetFilter = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setFilterOrderBy('id');
+    setFilterOrderDir('desc');
+    setAppliedOrderBy('id');
+    setAppliedOrderDir('desc');
+    setPage(1);
+    setShowFilter(false);
+  };
 
   const onSubmit = async (data: PublikasiFormValues) => {
     try {
       setSubmitting(true);
-      setFeedback(null);
       await sippmService.storePublikasi(data);
-      setFeedback({ type: 'success', message: 'Publikasi ilmiah baru berhasil didaftarkan' });
+      toast.success('Publikasi ilmiah baru berhasil didaftarkan!');
       setIsModalOpen(false);
       reset();
       fetchPublikasi();
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.response?.data?.message || 'Gagal mendaftarkan publikasi' });
+      const msg = err.response?.data?.message || 'Gagal mendaftarkan publikasi ilmiah';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -82,212 +165,323 @@ export default function PublikasiRegistryPage() {
   const handleVerify = async (id: number, status: 'verified' | 'rejected') => {
     try {
       await sippmService.verifyPublikasi(id, status);
+      toast.success(`Publikasi berhasil ${status === 'verified' ? 'disetujui' : 'ditolak'}`);
       fetchPublikasi();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Gagal memverifikasi publikasi');
+      const msg = err.response?.data?.message || 'Gagal memverifikasi publikasi';
+      toast.error(msg);
     }
   };
 
   const safeList = Array.isArray(publikasiList) ? publikasiList : [];
   const filteredList = safeList.filter(
     (item) =>
-      (item.judul_artikel || '').toLowerCase().includes(search.toLowerCase()) ||
-      (item.nama_jurnal || '').toLowerCase().includes(search.toLowerCase())
+      (item.judul_artikel || '').toLowerCase().includes(appliedSearch.toLowerCase()) ||
+      (item.nama_jurnal || item.nama_jurnal_prosiding || '').toLowerCase().includes(appliedSearch.toLowerCase())
   );
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-sippm-purple">Portofolio & Registry Luaran</span>
+  // DataTable Column Definitions
+  const columns: ColumnDef<PublikasiIlmiah>[] = [
+    {
+      key: 'judul_artikel',
+      label: 'Judul Artikel & Nama Jurnal',
+      render: (item: PublikasiIlmiah) => {
+        const namaJurnal = item.nama_jurnal_prosiding || item.nama_jurnal || 'Jurnal / Prosiding Kampus';
+        return (
+          <div className="space-y-0.5">
+            <div className="font-bold text-slate-900 line-clamp-1">{item.judul_artikel}</div>
+            <div className="text-xs text-purple-700 font-medium">{namaJurnal}</div>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">Registry Publikasi Ilmiah</h1>
-          <p className="text-slate-500 text-sm">Pendataan luaran artikel ilmiah terindeks Scopus, WoS, dan Sinta Kampus.</p>
-        </div>
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary bg-purple-700 hover:bg-purple-800 border-none shadow-sm font-bold">
-          <Plus size={18} /> Registrasi Publikasi Baru
-        </button>
-      </div>
+        );
+      },
+    },
+    {
+      key: 'kategori',
+      label: 'Kategori Indeks',
+      render: (item: PublikasiIlmiah) => {
+        const indexingBadge = (item.indexing || item.jenis_publikasi || item.kategori_publikasi || 'scopus').replace(/_/g, ' ');
+        return (
+          <Badge variant="purple" className="font-mono uppercase text-[10px]">
+            {indexingBadge}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'tahun',
+      label: 'Tahun',
+      render: (item: PublikasiIlmiah) => {
+        const displayTahun =
+          item.tahun ||
+          (item.volume_issue_tahun
+            ? item.volume_issue_tahun.match(/\((20\d\d)\)/)?.[1] || item.volume_issue_tahun
+            : '2026');
+        return <span className="font-bold text-slate-700 text-xs">{displayTahun}</span>;
+      },
+    },
+    {
+      key: 'doi_url',
+      label: 'DOI / Link',
+      render: (item: PublikasiIlmiah) => {
+        const linkUrl = item.url_artikel || item.doi_url || (item.doi ? `https://doi.org/${item.doi}` : null);
+        return linkUrl ? (
+          <a
+            href={linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary-700 hover:underline inline-flex items-center gap-1 font-mono"
+          >
+            <ExternalLink size={12} /> Link DOI
+          </a>
+        ) : (
+          <span className="text-xs text-slate-400 font-mono">-</span>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status Verifikasi',
+      render: (item: PublikasiIlmiah) => {
+        const isVerified = item.is_verified_lppm || item.status_verifikasi === 'verified';
+        const isRejected = item.status_verifikasi === 'rejected';
 
-      {feedback && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-          {feedback.message}
-        </div>
-      )}
-
-      {/* Filter Card */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="input-wrapper w-full md:w-80">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari judul artikel / jurnal..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+        if (isVerified) {
+          return (
+            <Badge variant="green" className="font-bold text-[11px] inline-flex items-center gap-1">
+              <CheckCircle2 size={12} /> Terverifikasi LPPM
+            </Badge>
+          );
+        }
+        if (isRejected) {
+          return (
+            <Badge variant="rose" className="font-bold text-[11px] inline-flex items-center gap-1">
+              <XCircle size={12} /> Ditolak
+            </Badge>
+          );
+        }
+        return (
+          <Badge variant="amber" className="font-bold text-[11px]">
+            Menunggu Verifikasi
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (item: PublikasiIlmiah) => {
+        const isPending = !item.is_verified_lppm && item.status_verifikasi !== 'rejected';
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                ...(isPending
+                  ? [
+                      {
+                        label: 'Setujui Verifikasi',
+                        icon: <Check size={14} className="text-emerald-600" />,
+                        onClick: () => handleVerify(item.id, 'verified'),
+                      },
+                      {
+                        label: 'Tolak Verifikasi',
+                        icon: <X size={14} className="text-rose-600" />,
+                        onClick: () => handleVerify(item.id, 'rejected'),
+                      },
+                    ]
+                  : []),
+                ...(item.url_artikel || item.doi_url
+                  ? [
+                      {
+                        label: 'Buka Link DOI Artikel',
+                        icon: <ExternalLink size={14} />,
+                        onClick: () => {
+                          window.open(item.url_artikel || item.doi_url, '_blank');
+                        },
+                      },
+                    ]
+                  : []),
+              ]}
             />
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Total {filteredList.length} Artikel Terdaftar
+        );
+      },
+    },
+  ];
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Page Header (Atomic Standard) */}
+      <PageHeader
+        title="Registry & Portofolio Publikasi Ilmiah"
+        description="Pendataan luaran artikel ilmiah terindeks Scopus, WoS, Sinta, serta verifikasi legal LPPM Kampus."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIPPM', href: '/sippm' },
+          { label: 'Publikasi Ilmiah' },
+        ]}
+        action={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold"
+            >
+              Filter &amp; Urutkan
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => setIsModalOpen(true)}
+              className="font-bold"
+            >
+              Registrasi Publikasi Baru
+            </Button>
+          </div>
+        }
+      />
+
+      {/* DataTable Component */}
+      <DataTable
+        columns={columns}
+        data={filteredList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+      />
+
+      {/* FILTER DRAWER SLIDE RIGHT-TO-LEFT */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Publikasi Ilmiah"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Judul Artikel / Nama Jurnal"
+            placeholder="Ketik judul artikel atau nama jurnal..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'id', label: 'ID Publikasi' },
+                { value: 'judul_artikel', label: 'Judul Artikel' },
+                { value: 'tahun', label: 'Tahun Terbit' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val)}
+              options={[
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+                { value: 'asc', label: 'A - Z (Terlama)' },
+              ]}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              icon={<RotateCcw size={14} />}
+              onClick={handleResetFilter}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Filter size={14} />}
+              onClick={handleApplyFilter}
+            >
+              Terapkan Filter
+            </Button>
           </div>
         </div>
-      </div>
+      </Drawer>
 
-      {/* Data Table */}
-      <div className="table-container bg-white">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Judul Artikel & Nama Jurnal</th>
-              <th>Kategori Indeks</th>
-              <th>Tahun</th>
-              <th>DOI / Link</th>
-              <th>Status Verifikasi</th>
-              <th className="text-right">Verifikasi LPPM</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400">Memuat publikasi ilmiah...</td>
-              </tr>
-            ) : filteredList.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400">Belum ada publikasi ilmiah terdaftar.</td>
-              </tr>
-            ) : (
-              filteredList.map((item) => {
-                const namaJurnal = item.nama_jurnal_prosiding || item.nama_jurnal || 'Jurnal / Prosiding Kampus';
-                const indexingBadge = (item.indexing || item.jenis_publikasi || item.kategori_publikasi || 'scopus').replace(/_/g, ' ');
-                const displayTahun = item.tahun || (item.volume_issue_tahun ? (item.volume_issue_tahun.match(/\((20\d\d)\)/)?.[1] || item.volume_issue_tahun) : '2026');
-                const linkUrl = item.url_artikel || item.doi_url || (item.doi ? `https://doi.org/${item.doi}` : null);
-                const statusVerifikasi: StatusVerifikasiLuaran = item.is_verified_lppm ? 'verified' : (item.status_verifikasi || 'pending');
+      {/* FORM MODAL REGISTRASI PUBLIKASI (UI KIT & GRID 2 KOLOM) */}
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Registrasi Publikasi Ilmiah Baru"
+        size="lg"
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Input
+            label="Judul Artikel Ilmiah *"
+            placeholder="Ketik judul artikel ilmiah..."
+            error={errors.judul_artikel?.message}
+            {...register('judul_artikel')}
+          />
 
-                return (
-                  <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
-                    <td>
-                      <div className="font-bold text-slate-900 line-clamp-1">{item.judul_artikel}</div>
-                      <div className="text-xs text-purple-700 font-medium mt-0.5">{namaJurnal}</div>
-                    </td>
-                    <td>
-                      <span className="badge badge-sippm-purple font-mono uppercase text-[11px]">
-                        {indexingBadge}
-                      </span>
-                    </td>
-                    <td className="font-bold text-slate-700 text-xs">{displayTahun}</td>
-                    <td>
-                      {linkUrl ? (
-                        <a href={linkUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-700 hover:underline inline-flex items-center gap-1 font-mono">
-                          <ExternalLink size={12} /> Link DOI
-                        </a>
-                      ) : (
-                        <span className="text-xs text-slate-400 font-mono">-</span>
-                      )}
-                    </td>
-                    <td>
-                      <SippmBadge status={statusVerifikasi} type="luaran" />
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-end gap-1">
-                        {statusVerifikasi === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleVerify(item.id, 'verified')}
-                              className="btn btn-ghost btn-sm text-emerald-700 hover:bg-emerald-50"
-                              title="Setujui Verifikasi"
-                            >
-                              Setujui
-                            </button>
-                            <button
-                              onClick={() => handleVerify(item.id, 'rejected')}
-                              className="btn btn-ghost btn-sm text-rose-600 hover:bg-rose-50"
-                              title="Tolak Verifikasi"
-                            >
-                              Tolak
-                            </button>
-                          </>
-                        )}
-                        {statusVerifikasi === 'verified' && (
-                          <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                            <CheckCircle2 size={14} /> Terverifikasi
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+          {/* Grid 2 Kolom per crud-ui-standard */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Nama Jurnal / Proceedings *"
+              placeholder="Misal: IEEE Access / Jurnal Sains Kampus"
+              error={errors.nama_jurnal?.message}
+              {...register('nama_jurnal')}
+            />
 
-      {/* Modal Form <= 5 inputs (Grid 2 Kolom per crud-ui-standard) */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg modal-body">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-              <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                <BookOpen className="text-purple-700" size={20} /> Registrasi Publikasi Ilmiah
-              </h2>
-              <button onClick={() => setIsModalOpen(false)} className="btn btn-ghost btn-sm">✕</button>
-            </div>
+            <Select
+              label="Kategori Pengindeks *"
+              value={selectedKategori}
+              onChange={(val) => setValue('kategori_publikasi', val as any)}
+              options={[
+                { value: 'scopus', label: 'Scopus (Q1/Q2/Q3/Q4)' },
+                { value: 'wos', label: 'Web of Science (WoS)' },
+                { value: 'sinta_1_2', label: 'Sinta 1 - Sinta 2' },
+                { value: 'sinta_3_6', label: 'Sinta 3 - Sinta 6' },
+                { value: 'international', label: 'Internasional Bereputasi' },
+                { value: 'national_indexed', label: 'Nasional Terakreditasi' },
+              ]}
+              error={errors.kategori_publikasi?.message}
+            />
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="form-group">
-                <label className="form-label">Judul Artikel Ilmiah <span className="required">*</span></label>
-                <input type="text" className={`input ${errors.judul_artikel ? 'error' : ''}`} placeholder="Ketik judul artikel..." {...register('judul_artikel')} />
-                {errors.judul_artikel && <span className="form-error">{errors.judul_artikel.message}</span>}
-              </div>
+            <Input
+              label="Tahun Terbit *"
+              type="number"
+              placeholder="2026"
+              error={errors.tahun?.message}
+              {...register('tahun', { valueAsNumber: true })}
+            />
 
-              {/* Grid 2 Kolom per crud-ui-standard */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <label className="form-label">Nama Jurnal / Proceedings <span className="required">*</span></label>
-                  <input type="text" className={`input ${errors.nama_jurnal ? 'error' : ''}`} placeholder="Misal: IEEE Access" {...register('nama_jurnal')} />
-                  {errors.nama_jurnal && <span className="form-error">{errors.nama_jurnal.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Kategori Pengindeks <span className="required">*</span></label>
-                  <select className="input" {...register('kategori_publikasi')}>
-                    <option value="scopus">Scopus (Q1/Q2/Q3/Q4)</option>
-                    <option value="wos">Web of Science (WoS)</option>
-                    <option value="sinta_1_2">Sinta 1 - Sinta 2</option>
-                    <option value="sinta_3_6">Sinta 3 - Sinta 6</option>
-                    <option value="international">Internasional Bereputasi</option>
-                    <option value="national_indexed">Nasional Terakreditasi</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Tahun Terbit <span className="required">*</span></label>
-                  <input type="number" className={`input ${errors.tahun ? 'error' : ''}`} placeholder="2026" {...register('tahun', { valueAsNumber: true })} />
-                  {errors.tahun && <span className="form-error">{errors.tahun.message}</span>}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Link DOI / URL Artikel</label>
-                  <input type="text" className="input" placeholder="https://doi.org/10.xxx" {...register('doi_url')} />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary">
-                  Batal
-                </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary bg-purple-700 hover:bg-purple-800 border-none font-bold">
-                  {submitting ? 'Mendaftarkan...' : 'Simpan Publikasi'}
-                </button>
-              </div>
-            </form>
+            <Input
+              label="Link DOI / URL Artikel"
+              placeholder="https://doi.org/10.xxx"
+              error={errors.doi_url?.message}
+              {...register('doi_url')}
+            />
           </div>
-        </div>
-      )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={submitting}
+              className="font-bold"
+            >
+              Simpan Publikasi
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

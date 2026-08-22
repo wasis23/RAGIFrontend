@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FileText, Upload, Trash2, Eye, ShieldCheck, Filter, ShieldAlert } from 'lucide-react';
+import { FileText, Upload, Trash2, Eye, ShieldCheck, Filter, ShieldAlert, Download, ExternalLink } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -58,11 +58,13 @@ export default function DokumenPage() {
   // Modal Upload State
   const [showModalUpload, setShowModalUpload] = useState(false);
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<OptionType | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Modal Preview Watermark State
   const [showModalPreview, setShowModalPreview] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const {
     register,
@@ -146,19 +148,26 @@ export default function DokumenPage() {
     loadDokumen();
   }, [loadDokumen]);
 
-  // Async loader for Pegawai AsyncSelect
+  // Async loader for Pegawai AsyncSelect: Pulls ALL pegawai in database with high per_page
   const loadPegawaiOptions = useCallback(async (inputValue: string) => {
     try {
-      const res: any = await simpegService.getPegawaiList();
-      const list: Pegawai[] = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      const filtered = list.filter(
-        (p: Pegawai) =>
-          p.nama_lengkap.toLowerCase().includes(inputValue.toLowerCase()) ||
-          (p.nip && p.nip.toLowerCase().includes(inputValue.toLowerCase()))
-      );
+      const res: any = await simpegService.getPegawaiList({ per_page: 500 });
+      const responseData = res?.data || res;
+      const list: Pegawai[] = Array.isArray(responseData)
+        ? responseData
+        : responseData?.items || responseData?.data || [];
+      
+      const filtered = inputValue
+        ? list.filter(
+            (p: Pegawai) =>
+              p.nama_lengkap.toLowerCase().includes(inputValue.toLowerCase()) ||
+              (p.nip && p.nip.toLowerCase().includes(inputValue.toLowerCase()))
+          )
+        : list;
+
       return filtered.map((p: Pegawai) => ({
         value: p.id.toString(),
-        label: `[NIP: ${p.nip}] ${p.nama_lengkap}`,
+        label: `[NIP: ${p.nip || '-'}] ${p.nama_lengkap} (${p.unit_kerja?.nama || 'Tanpa Unit'})`,
       }));
     } catch (err) {
       console.error('Gagal memuat opsi pegawai', err);
@@ -172,6 +181,7 @@ export default function DokumenPage() {
       return;
     }
     setSelectedPegawaiOption(null);
+    setSelectedFile(null);
     reset({
       pegawai_id: '',
       nama_dokumen: '',
@@ -186,18 +196,21 @@ export default function DokumenPage() {
       return;
     }
 
+    if (!selectedFile) {
+      toast.error('Silakan pilih file berkas dokumen yang akan diunggah.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const payload = {
-        pegawai_id: Number(values.pegawai_id),
-        nama_dokumen: values.nama_dokumen,
-        jenis_dokumen: values.jenis_dokumen as JenisDokumenPegawai,
-        file_path: '/uploads/documents/doc_' + Date.now() + '.pdf',
-        file_size: '1.5 MB',
-      };
+      const formData = new FormData();
+      formData.append('pegawai_id', values.pegawai_id);
+      formData.append('nama_dokumen', values.nama_dokumen);
+      formData.append('jenis_dokumen', values.jenis_dokumen);
+      formData.append('file', selectedFile);
 
-      await simpegService.createDokumen(payload);
-      toast.success('Dokumen E-File berhasil diunggah!');
+      await simpegService.createDokumen(formData);
+      toast.success('Dokumen E-File fisik berhasil diunggah & tersimpan aman di server!');
       setShowModalUpload(false);
       loadDokumen();
     } catch (err: any) {
@@ -217,7 +230,27 @@ export default function DokumenPage() {
       setPreviewData(res.data);
       setShowModalPreview(true);
     } catch (err: any) {
-      toast.error('Gagal memuat secure preview');
+      toast.error(err?.response?.data?.message || 'Akses Ditolak: Dokumen ini rahasia dan hanya dapat dibuka oleh Admin SIMPEG, Superadmin, atau pemilik dokumen.');
+    }
+  };
+
+  const handleDownloadOriginalFile = async (id: number, namaDokumen: string) => {
+    setIsDownloading(true);
+    try {
+      const blob = await simpegService.downloadDokumenFile(id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${namaDokumen}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('File dokumen fisik berhasil diunduh.');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengunduh file dokumen atau Akses Ditolak.');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -229,7 +262,7 @@ export default function DokumenPage() {
     if (!confirm(`Apakah Anda yakin ingin menghapus dokumen "${nama}"?`)) return;
     try {
       await simpegService.deleteDokumen(id);
-      toast.success('Dokumen berhasil dihapus!');
+      toast.success('Dokumen beserta file fisiknya berhasil dihapus dari server!');
       loadDokumen();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal menghapus dokumen');
@@ -259,14 +292,14 @@ export default function DokumenPage() {
     {
       key: 'file_size',
       label: 'Ukuran',
-      render: (row) => <span className="text-slate-500 font-mono text-xs">{row.file_size || '1.2 MB'}</span>,
+      render: (row) => <span className="text-slate-500 font-mono text-xs">{row.file_size || '0 MB'}</span>,
     },
     {
       key: 'proteksi',
       label: 'Proteksi Keamanan',
       render: () => (
         <Badge variant="indigo">
-          <ShieldCheck size={12} className="mr-1 inline-block" /> Encrypted Watermark
+          <ShieldCheck size={12} className="mr-1 inline-block" /> Encrypted & Restricted
         </Badge>
       ),
     },
@@ -280,6 +313,11 @@ export default function DokumenPage() {
             label: 'Pratinjau Terproteksi',
             icon: <Eye size={14} />,
             onClick: () => handlePreviewSecure(row.id),
+          },
+          {
+            label: 'Unduh Berkas Fisik',
+            icon: <Download size={14} />,
+            onClick: () => handleDownloadOriginalFile(row.id, row.nama_dokumen),
           },
         ];
 
@@ -325,7 +363,7 @@ export default function DokumenPage() {
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Manajemen Dokumen E-File Digital"
-        description="Arsip Surat Keputusan (SK), Ijazah, Transkrip, KTP, KK, dan Sertifikat Kepegawaian"
+        description="Arsip Surat Keputusan (SK), Ijazah, Transkrip, KTP, KK, dan Sertifikat Kepegawaian (Restricted Access)"
         action={
           <div className="flex gap-2">
             {canCreate && (
@@ -358,7 +396,7 @@ export default function DokumenPage() {
         emptyMessage={
           <div className="py-8 text-center text-slate-400">
             <FileText size={48} className="mx-auto mb-4 opacity-40" />
-            <p>Belum ada dokumen digital yang sesuai filter.</p>
+            <p>Belum ada dokumen digital yang tersimpan di server.</p>
           </div>
         }
       />
@@ -474,7 +512,7 @@ export default function DokumenPage() {
                 <AsyncSelect
                   label="Pilih Pegawai Pemilik Dokumen"
                   required
-                  placeholder="Cari nama pegawai / NIP..."
+                  placeholder="Ketik untuk mencari dari seluruh pegawai..."
                   loadOptions={loadPegawaiOptions}
                   value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
                   onChange={(opt) => {
@@ -517,6 +555,27 @@ export default function DokumenPage() {
                 />
               )}
             />
+
+            {/* File Upload Input Field */}
+            <div className="space-y-1">
+              <label className="block text-sm font-semibold text-slate-700">
+                Pilih Berkas Dokumen Fisik (PDF, JPG, PNG) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                required
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 border border-slate-300 rounded-xl cursor-pointer p-1.5 transition-all"
+              />
+              {selectedFile ? (
+                <p className="text-xs text-emerald-600 font-medium">
+                  File Terpilih: <strong>{selectedFile.name}</strong> ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">File akan disimpan aman di direktori storage server (Max 10MB)</p>
+              )}
+            </div>
           </form>
         </Modal>
       )}
@@ -527,9 +586,22 @@ export default function DokumenPage() {
         onClose={() => setShowModalPreview(false)}
         title="Dynamic Watermark Secure Preview"
         footer={
-          <Button variant="secondary" onClick={() => setShowModalPreview(false)}>
-            Tutup Viewer
-          </Button>
+          <div className="flex justify-between w-full">
+            {previewData?.dokumen_id && (
+              <Button
+                variant="outline"
+                loading={isDownloading}
+                disabled={isDownloading}
+                icon={<Download size={16} />}
+                onClick={() => handleDownloadOriginalFile(previewData.dokumen_id, previewData.nama_dokumen)}
+              >
+                Unduh Berkas Fisik
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => setShowModalPreview(false)}>
+              Tutup Viewer
+            </Button>
+          </div>
         }
       >
         {previewData && (
@@ -538,13 +610,29 @@ export default function DokumenPage() {
               <div className="font-bold text-slate-900 mb-1">{previewData.nama_dokumen}</div>
               <div className="text-xs text-slate-500">Status Keamanan: {previewData.security_status}</div>
             </div>
-            <div className="relative border border-slate-200 rounded-lg p-8 bg-slate-100 flex flex-col items-center justify-center text-center overflow-hidden min-h-[220px]">
+            
+            <div className="relative border border-slate-200 rounded-lg p-6 bg-slate-100 flex flex-col items-center justify-center text-center overflow-hidden min-h-[220px]">
               <FileText size={48} className="opacity-40 mb-2 text-slate-600" />
-              <p className="text-sm font-semibold text-slate-700">Pratinjau PDF Terenkripsi</p>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 rotate-[-25deg] text-lg font-extrabold text-slate-900 tracking-widest uppercase select-none">
-                {previewData.watermark_overlay || 'CONFIDENTIAL — OFFICIAL DOCUMENT'}
+              <p className="text-sm font-semibold text-slate-700">Pratinjau Terproteksi & Terenkripsi</p>
+              <p className="text-xs text-slate-500 max-w-xs mt-1">Dokumen ini hanya diizinkan untuk dibuka oleh Admin SIMPEG, Superadmin, atau Pegawai Pemilik Dokumen.</p>
+              
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20 rotate-[-25deg] text-base font-extrabold text-slate-900 tracking-widest uppercase select-none">
+                {previewData.watermark_overlay || 'CONFIDENTIAL — RESTRICTED ACCESS'}
               </div>
             </div>
+
+            {previewData.file_url && (
+              <div className="pt-2 text-center">
+                <a
+                  href={previewData.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:underline font-semibold"
+                >
+                  <ExternalLink size={14} /> Buka Berkas Langsung dari Storage Server
+                </a>
+              </div>
+            )}
           </div>
         )}
       </Modal>

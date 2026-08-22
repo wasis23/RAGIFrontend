@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ClipboardCheck,
   Search,
@@ -18,14 +19,29 @@ import {
   CheckSquare,
   Sparkles,
   Info,
+  Filter,
+  Eye,
+  RotateCcw,
 } from 'lucide-react';
-import { SippmBadge } from '@/components/sippm/SippmBadge';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { sippmService } from '@/services/sippm.service';
 import { useAuth } from '@/hooks/useAuth';
 import type { ProposalKegiatan, RubrikIndikator } from '@/types/sippm.types';
+import type { PaginationMeta } from '@/types/api.types';
+import toast from 'react-hot-toast';
 
 export default function ReviewerPortalPage() {
-  const { user, hasRole, isAdmin } = useAuth();
+  const router = useRouter();
+  const { user } = useAuth();
 
   // Active Tab: 'tahap1' (Kaprodi), 'tahap2' (Admin SIPPM), 'tahap3' (Dual Reviewer Lolos)
   const [activeTab, setActiveTab] = useState<'tahap1' | 'tahap2' | 'tahap3'>('tahap1');
@@ -36,8 +52,26 @@ export default function ReviewerPortalPage() {
   const [tahap3List, setTahap3List] = useState<ProposalKegiatan[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Search
+  // Pagination Meta State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta>({
+    current_page: 1,
+    per_page: 10,
+    total: 0,
+    last_page: 1,
+    from: 0,
+    to: 0,
+  });
+
+  // Filter & Search State
+  const [showFilter, setShowFilter] = useState(false);
   const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('id');
+  const [filterOrderDir, setFilterOrderDir] = useState('desc');
+  const [appliedOrderBy, setAppliedOrderBy] = useState('id');
+  const [appliedOrderDir, setAppliedOrderDir] = useState('desc');
 
   // Rubrik Evaluation Modal State
   const [selectedProposal, setSelectedProposal] = useState<ProposalKegiatan | null>(null);
@@ -49,24 +83,41 @@ export default function ReviewerPortalPage() {
   const [evalError, setEvalError] = useState<string | null>(null);
   const [evalSuccess, setEvalSuccess] = useState<string | null>(null);
 
-  const fetchAllProposals = async () => {
+  // Fetch Proposals with Server-Side Params
+  const fetchAllProposals = useCallback(async () => {
     try {
       setLoading(true);
 
-      // Fetch all proposals
-      const res = await sippmService.getProposals({ per_page: 100 } as any);
+      const params: any = {
+        page,
+        limit,
+        search: appliedSearch || undefined,
+        order_by: appliedOrderBy,
+        order_dir: appliedOrderDir,
+      };
+
+      const res = await sippmService.getProposals(params);
       const items: ProposalKegiatan[] = Array.isArray(res?.data)
         ? res.data
         : (res?.data as any)?.items || (res?.data as any)?.data || [];
 
+      const responseMeta = (res as any)?.meta || (res?.data as any)?.meta;
+      if (responseMeta) {
+        setMeta(responseMeta);
+      } else {
+        setMeta({
+          current_page: page,
+          per_page: limit,
+          total: items.length,
+          last_page: Math.ceil(items.length / limit) || 1,
+          from: items.length > 0 ? (page - 1) * limit + 1 : 0,
+          to: Math.min(page * limit, items.length),
+        });
+      }
+
       // Categorize proposals into 3 review stages
-      // Tahap 1: status = 'diajukan' atau 'submitted'
       const t1 = items.filter((p) => (p.status as any) === 'diajukan' || (p.status as any) === 'submitted');
-
-      // Tahap 2: status = 'disetujui_kaprodi'
       const t2 = items.filter((p) => (p.status as any) === 'disetujui_kaprodi');
-
-      // Tahap 3: status = 'disetujui_admin' atau 'lolos' atau 'approved'
       const t3 = items.filter(
         (p) =>
           (p.status as any) === 'disetujui_admin' ||
@@ -79,14 +130,36 @@ export default function ReviewerPortalPage() {
       setTahap3List(t3);
     } catch (err) {
       console.error('Failed to load proposals for reviewer portal', err);
+      toast.error('Gagal memuat antrean proposal reviewer');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, appliedSearch, appliedOrderBy, appliedOrderDir]);
 
   useEffect(() => {
     fetchAllProposals();
-  }, []);
+  }, [fetchAllProposals]);
+
+  // Apply Filter Handler
+  const handleApplyFilter = () => {
+    setAppliedSearch(search);
+    setAppliedOrderBy(filterOrderBy);
+    setAppliedOrderDir(filterOrderDir);
+    setPage(1);
+    setShowFilter(false);
+  };
+
+  // Reset Filter Handler
+  const handleResetFilter = () => {
+    setSearch('');
+    setAppliedSearch('');
+    setFilterOrderBy('id');
+    setFilterOrderDir('desc');
+    setAppliedOrderBy('id');
+    setAppliedOrderDir('desc');
+    setPage(1);
+    setShowFilter(false);
+  };
 
   // Open Evaluation Modal for Tahap 1 or Tahap 2
   const handleOpenEvaluationModal = async (proposal: ProposalKegiatan, stage: 'kaprodi' | 'admin') => {
@@ -97,7 +170,6 @@ export default function ReviewerPortalPage() {
     setEvalError(null);
     setEvalSuccess(null);
 
-    // Fetch rubric indicators for this stage from Master Rubrik
     try {
       const res = await sippmService.indexRubrik({ tipe_reviewer: stage });
       const rubrikList = Array.isArray(res?.data)
@@ -106,7 +178,6 @@ export default function ReviewerPortalPage() {
 
       setRubriks(rubrikList);
 
-      // Initialize default scores to 0
       const initialScores: Record<number, number> = {};
       rubrikList.forEach((r: RubrikIndikator) => {
         initialScores[r.id] = 0;
@@ -114,6 +185,7 @@ export default function ReviewerPortalPage() {
       setScores(initialScores);
     } catch (err) {
       console.error('Failed to load rubriks for evaluation', err);
+      toast.error('Gagal memuat indikator rubrik penilaian');
     }
   };
 
@@ -146,7 +218,6 @@ export default function ReviewerPortalPage() {
       setSubmittingEval(true);
       setEvalError(null);
 
-      // Determine next status based on stage and score > 80 threshold
       let nextStatus = '';
       if (evaluationStage === 'kaprodi') {
         nextStatus = isPassing ? 'disetujui_kaprodi' : 'revisi';
@@ -154,62 +225,287 @@ export default function ReviewerPortalPage() {
         nextStatus = isPassing ? 'disetujui_admin' : 'revisi';
       }
 
-      // Update proposal status via backend API
       await sippmService.updateProposal(selectedProposal.id, {
         status: nextStatus,
       } as any);
 
-      setEvalSuccess(
+      toast.success(
         `Berhasil menyimpan hasil penilaian Rubrik ${
-          evaluationStage === 'kaprodi' ? 'Tahap 1 (Kaprodi)' : 'Tahap 2 (Admin SIPPM)'
-        }! Total Skor: ${currentTotalScore}. Status proposal diperbarui menjadi: "${nextStatus}".`
+          evaluationStage === 'kaprodi' ? 'Tahap 1' : 'Tahap 2'
+        }! Status: "${nextStatus}".`
       );
 
-      setTimeout(() => {
-        setSelectedProposal(null);
-        fetchAllProposals();
-      }, 1500);
+      setSelectedProposal(null);
+      fetchAllProposals();
     } catch (err: any) {
-      setEvalError(err.response?.data?.message || 'Gagal menyimpan hasil penilaian rubrik');
+      const msg = err.response?.data?.message || 'Gagal menyimpan hasil penilaian rubrik';
+      setEvalError(msg);
+      toast.error(msg);
     } finally {
       setSubmittingEval(false);
     }
   };
 
-  // Filter Helper
-  const filterProposalList = (list: ProposalKegiatan[]) => {
-    return list.filter(
-      (item) =>
-        (item.judul || '').toLowerCase().includes(search.toLowerCase()) ||
-        (item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || '')
-          .toLowerCase()
-          .includes(search.toLowerCase()) ||
-        (item.rumpun_ilmu || '').toLowerCase().includes(search.toLowerCase())
-    );
-  };
+  // DataTable Column Definitions
+  const columnsTahap1: ColumnDef<ProposalKegiatan>[] = [
+    {
+      key: 'judul',
+      label: 'Judul Proposal Usulan',
+      render: (row: ProposalKegiatan) => (
+        <div className="space-y-0.5">
+          <div className="font-bold text-slate-900 line-clamp-1">{row.judul}</div>
+          <div className="text-xs text-indigo-700 font-medium">{row.rumpun_ilmu}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'ketua',
+      label: 'Ketua Pengusul & Prodi',
+      render: (row: ProposalKegiatan) => (
+        <div className="space-y-0.5">
+          <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+            <User size={14} className="text-slate-400" />
+            {row.ketua?.nama_lengkap || (row as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
+          </div>
+          <div className="text-2xs text-slate-400 font-mono">
+            NIP: {row.ketua?.nip || (row as any).ketua_pegawai?.nip || '-'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'skema',
+      label: 'Skema & Dana',
+      render: (row: ProposalKegiatan) => (
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-slate-700">
+            {row.skema?.nama_skema || row.skema?.nama || 'Skema Riset'}
+          </div>
+          <div className="text-xs font-mono font-bold text-primary-700">
+            Rp {(row.dana_diusulkan || (row as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status Tahap 1',
+      render: () => (
+        <Badge variant="amber" className="font-bold text-[11px] inline-flex items-center gap-1">
+          <AlertTriangle size={12} /> Review Kaprodi
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row: ProposalKegiatan) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Nilai Rubrik Tahap 1',
+                icon: <Award size={14} className="text-indigo-600" />,
+                onClick: () => handleOpenEvaluationModal(row, 'kaprodi'),
+              },
+              {
+                label: 'Detail Desk Evaluation',
+                icon: <FileText size={14} className="text-purple-600" />,
+                onClick: () => router.push(`/sippm/reviewer/${row.id}/evaluate`),
+              },
+              {
+                label: 'Lihat Detail Proposal',
+                icon: <Eye size={14} />,
+                onClick: () => router.push(`/sippm/proposal/${row.id}`),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  const columnsTahap2: ColumnDef<ProposalKegiatan>[] = [
+    {
+      key: 'judul',
+      label: 'Judul Proposal Usulan',
+      render: (row: ProposalKegiatan) => (
+        <div className="space-y-0.5">
+          <div className="font-bold text-slate-900 line-clamp-1">{row.judul}</div>
+          <div className="text-xs text-purple-700 font-medium">{row.rumpun_ilmu}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'ketua',
+      label: 'Ketua Pengusul & Prodi',
+      render: (row: ProposalKegiatan) => (
+        <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+          <User size={14} className="text-slate-400" />
+          {row.ketua?.nama_lengkap || (row as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
+        </div>
+      ),
+    },
+    {
+      key: 'skema',
+      label: 'Skema & Dana',
+      render: (row: ProposalKegiatan) => (
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-slate-700">
+            {row.skema?.nama_skema || row.skema?.nama || 'Skema Riset'}
+          </div>
+          <div className="text-xs font-mono font-bold text-primary-700">
+            Rp {(row.dana_diusulkan || (row as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Verifikasi Tahap 1',
+      render: () => (
+        <Badge variant="green" className="font-bold text-[11px] inline-flex items-center gap-1">
+          <CheckCircle2 size={12} /> Disetujui Kaprodi (&gt; 80)
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row: ProposalKegiatan) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Nilai Rubrik Tahap 2',
+                icon: <ShieldCheck size={14} className="text-purple-600" />,
+                onClick: () => handleOpenEvaluationModal(row, 'admin'),
+              },
+              {
+                label: 'Detail Desk Evaluation',
+                icon: <FileText size={14} className="text-indigo-600" />,
+                onClick: () => router.push(`/sippm/reviewer/${row.id}/evaluate`),
+              },
+              {
+                label: 'Lihat Detail Proposal',
+                icon: <Eye size={14} />,
+                onClick: () => router.push(`/sippm/proposal/${row.id}`),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  const columnsTahap3: ColumnDef<ProposalKegiatan>[] = [
+    {
+      key: 'judul',
+      label: 'Judul Proposal Usulan',
+      render: (row: ProposalKegiatan) => (
+        <div className="space-y-0.5">
+          <div className="font-bold text-slate-900 line-clamp-1">{row.judul}</div>
+          <div className="text-xs text-emerald-700 font-medium">{row.rumpun_ilmu}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'ketua',
+      label: 'Ketua Pengusul & Prodi',
+      render: (row: ProposalKegiatan) => (
+        <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+          <User size={14} className="text-slate-400" />
+          {row.ketua?.nama_lengkap || (row as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
+        </div>
+      ),
+    },
+    {
+      key: 'skema',
+      label: 'Skema & Dana Disetujui',
+      render: (row: ProposalKegiatan) => (
+        <div className="space-y-0.5">
+          <div className="text-xs font-bold text-slate-700">
+            {row.skema?.nama_skema || row.skema?.nama || 'Skema Riset'}
+          </div>
+          <div className="text-xs font-mono font-bold text-emerald-700">
+            Rp {(row.dana_disetujui || (row as any).anggaran_disetujui || row.dana_diusulkan || 0).toLocaleString('id-ID')}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status Reviewer',
+      render: () => (
+        <Badge variant="green" className="font-bold text-[11px] inline-flex items-center gap-1">
+          <CheckCircle2 size={12} /> Dual Reviewer Lolos (2/2)
+        </Badge>
+      ),
+    },
+    {
+      key: 'keterangan',
+      label: 'Keterangan Persetujuan',
+      render: () => (
+        <div className="text-xs text-slate-600 font-medium flex items-center gap-1">
+          <CheckSquare size={14} className="text-emerald-600" />
+          Disetujui Kaprodi & Admin SIPPM
+        </div>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row: ProposalKegiatan) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Lihat Detail Proposal',
+                icon: <Eye size={14} />,
+                onClick: () => router.push(`/sippm/proposal/${row.id}`),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+    <div className="space-y-6 animate-fade-in">
+      {/* Page Header (Atomic Standard) */}
+      <PageHeader
+        title="Portal Reviewer & Verifikator Proposal"
+        description="Penilaian bertahap indikator Keilmuan & Linieritas (Tahap 1 Kaprodi) dan Administrasi & Kelayakan Kelompok (Tahap 2 Admin SIPPM)."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIPPM', href: '/sippm' },
+          { label: 'Portal Reviewer' },
+        ]}
+        action={
           <div className="flex items-center gap-2">
-            <span className="badge badge-sippm">Fase Penilaian Rubrik Proposal</span>
-            <span className="badge badge-purple font-bold">Reviewer & Verifikator Portal</span>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold"
+            >
+              Filter &amp; Urutkan
+            </Button>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
-            Portal Penilaian Rubrik Proposal Riset & PkM
-          </h1>
-          <p className="text-slate-500 text-sm">
-            Penilaian bertahap indikator Keilmuan & Linieritas (Tahap 1 Kaprodi) dan Administrasi & Kelayakan Kelompok (Tahap 2 Admin SIPPM).
-          </p>
-        </div>
-      </div>
+        }
+      />
 
       {/* 3 STAGE TABS (Tahap 1, Tahap 2, Tahap 3) */}
       <div className="flex items-center border-b border-slate-200 gap-2 overflow-x-auto">
         <button
-          onClick={() => setActiveTab('tahap1')}
+          onClick={() => {
+            setActiveTab('tahap1');
+            setPage(1);
+          }}
           className={`px-4 py-3 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all shrink-0 ${
             activeTab === 'tahap1'
               ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50 rounded-t-lg'
@@ -220,7 +516,10 @@ export default function ReviewerPortalPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('tahap2')}
+          onClick={() => {
+            setActiveTab('tahap2');
+            setPage(1);
+          }}
           className={`px-4 py-3 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all shrink-0 ${
             activeTab === 'tahap2'
               ? 'border-purple-600 text-purple-700 bg-purple-50/50 rounded-t-lg'
@@ -231,7 +530,10 @@ export default function ReviewerPortalPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('tahap3')}
+          onClick={() => {
+            setActiveTab('tahap3');
+            setPage(1);
+          }}
           className={`px-4 py-3 text-sm font-extrabold flex items-center gap-2 border-b-2 transition-all shrink-0 ${
             activeTab === 'tahap3'
               ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50 rounded-t-lg'
@@ -242,274 +544,145 @@ export default function ReviewerPortalPage() {
         </button>
       </div>
 
-      {/* Search Filter Card */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="input-wrapper w-full md:w-80">
-            <span className="input-prefix-icon"><Search size={18} /></span>
-            <input
-              type="text"
-              className="input input-icon-left"
-              placeholder="Cari judul proposal / nama dosen..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-            <Info size={14} className="text-primary-600" />
+      {/* Threshold Information Card */}
+      <div className="card p-4 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50 border-slate-200">
+        <div className="text-xs text-slate-600 font-medium flex items-center gap-2">
+          <Info size={16} className="text-primary-600 shrink-0" />
+          <span>
             Batas Minimal Kelulusan Skor per Tahap: <strong className="text-slate-900 font-bold">&gt; 80 / 100</strong>
-          </div>
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="blue">Tahap 1: Linieritas Prodi</Badge>
+          <Badge variant="purple">Tahap 2: Administrasi SIPPM</Badge>
         </div>
       </div>
 
-      {/* TAB 1: TAHAP 1 - REVIEW KAPRODI (KEILMUAN & LINIERITAS) */}
+      {/* TAB CONTENTS (DataTable + Server-Side Pagination) */}
       {activeTab === 'tahap1' && (
-        <div className="table-container bg-white">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Judul Proposal Usulan</th>
-                <th>Ketua Pengusul & Prodi</th>
-                <th>Skema & Dana</th>
-                <th>Status Tahap 1</th>
-                <th className="text-right">Aksi Scoring Rubrik</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400">Memuat proposal usulan Tahap 1...</td>
-                </tr>
-              ) : filterProposalList(tahap1List).length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <CheckCircle2 size={32} className="text-emerald-400" />
-                      <span>Tidak ada proposal antrean penilaian Tahap 1 (Kaprodi).</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filterProposalList(tahap1List).map((item) => (
-                  <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors">
-                    <td>
-                      <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
-                      <div className="text-xs text-indigo-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
-                    </td>
-                    <td>
-                      <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                        <User size={14} className="text-slate-400" />
-                        {item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
-                      </div>
-                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                        NIP: {item.ketua?.nip || (item as any).ketua_pegawai?.nip || '-'}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="text-xs font-bold text-slate-700">
-                        {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
-                      </div>
-                      <div className="text-xs font-mono font-bold text-primary-700">
-                        Rp {(item.dana_diusulkan || (item as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge badge-amber font-bold text-[11px] flex items-center gap-1">
-                        <AlertTriangle size={12} /> Menunggu Review Kaprodi
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenEvaluationModal(item, 'kaprodi')}
-                          className="btn btn-primary btn-sm font-bold shadow-xs flex items-center gap-1.5"
-                        >
-                          <Award size={15} /> Nilai Rubrik Tahap 1
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columnsTahap1}
+          data={tahap1List}
+          isLoading={loading}
+          meta={meta}
+          onPageChange={(newPage) => setPage(newPage)}
+        />
       )}
 
-      {/* TAB 2: TAHAP 2 - REVIEW ADMIN SIPPM (ADMINISTRASI & KELAYAKAN KELOMPOK) */}
       {activeTab === 'tahap2' && (
-        <div className="table-container bg-white">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Judul Proposal Usulan</th>
-                <th>Ketua Pengusul & Prodi</th>
-                <th>Skema & Dana</th>
-                <th>Verifikasi Tahap 1</th>
-                <th className="text-right">Aksi Scoring Rubrik</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400">Memuat proposal usulan Tahap 2...</td>
-                </tr>
-              ) : filterProposalList(tahap2List).length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-10 text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <CheckCircle2 size={32} className="text-purple-400" />
-                      <span>Tidak ada proposal antrean penilaian Tahap 2 (Admin SIPPM).</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filterProposalList(tahap2List).map((item) => (
-                  <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
-                    <td>
-                      <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
-                      <div className="text-xs text-purple-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
-                    </td>
-                    <td>
-                      <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                        <User size={14} className="text-slate-400" />
-                        {item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="text-xs font-bold text-slate-700">
-                        {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
-                      </div>
-                      <div className="text-xs font-mono font-bold text-primary-700">
-                        Rp {(item.dana_diusulkan || (item as any).anggaran_diajukan || 0).toLocaleString('id-ID')}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge badge-green font-bold text-[11px] flex items-center gap-1">
-                        <CheckCircle2 size={12} /> Disetujui Kaprodi (Skor &gt; 80)
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenEvaluationModal(item, 'admin')}
-                          className="btn btn-primary btn-sm bg-purple-700 hover:bg-purple-800 border-none font-bold shadow-xs flex items-center gap-1.5"
-                        >
-                          <ShieldCheck size={15} /> Nilai Rubrik Tahap 2
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columnsTahap2}
+          data={tahap2List}
+          isLoading={loading}
+          meta={meta}
+          onPageChange={(newPage) => setPage(newPage)}
+        />
       )}
 
-      {/* TAB 3: TAHAP 3 - PROPOSAL LOLOS DUAL REVIEWER (DISETUJUI) */}
       {activeTab === 'tahap3' && (
         <div className="space-y-4">
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-start gap-2.5">
             <Sparkles size={18} className="text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <strong>Informasi Alur Tahap 3 (Final Approved)</strong>: Seluruh proposal pada tab ini dinyatakan 
-              <strong> Disetujui oleh Kaprodi (Tahap 1)</strong> dan <strong> Disetujui oleh Admin SIPPM (Tahap 2)</strong>. 
-              Admin SIPPM <em>tidak perlu mencarikan reviewer tambahan lagi</em> karena reviewer utama adalah Kaprodi di Tahap 1 dan Admin SIPPM di Tahap 2.
+              <strong>Informasi Alur Tahap 3 (Final Approved)</strong>: Seluruh proposal pada tab ini dinyatakan{' '}
+              <strong>Disetujui oleh Kaprodi (Tahap 1)</strong> dan <strong>Disetujui oleh Admin SIPPM (Tahap 2)</strong>.
             </div>
           </div>
 
-          <div className="table-container bg-white">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Judul Proposal Usulan</th>
-                  <th>Ketua Pengusul & Prodi</th>
-                  <th>Skema & Dana Disetujui</th>
-                  <th>Status Reviewer</th>
-                  <th>Keterangan Persetujuan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-10 text-slate-400">Memuat proposal lolos Tahap 3...</td>
-                  </tr>
-                ) : filterProposalList(tahap3List).length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-10 text-slate-400">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <ClipboardCheck size={32} className="text-slate-300" />
-                        <span>Belum ada proposal yang lolos evaluasi Tahap 1 & Tahap 2.</span>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filterProposalList(tahap3List).map((item) => (
-                    <tr key={item.id} className="hover:bg-emerald-50/40 transition-colors">
-                      <td>
-                        <div className="font-bold text-slate-900 line-clamp-1">{item.judul}</div>
-                        <div className="text-xs text-primary-700 font-medium mt-0.5">{item.rumpun_ilmu}</div>
-                      </td>
-                      <td>
-                        <div className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-                          <User size={14} className="text-slate-400" />
-                          {item.ketua?.nama_lengkap || (item as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="text-xs font-bold text-slate-700">
-                          {item.skema?.nama_skema || item.skema?.nama || 'Skema Riset'}
-                        </div>
-                        <div className="text-xs font-mono font-bold text-emerald-700">
-                          Rp {(item.dana_disetujui || (item as any).anggaran_disetujui || item.dana_diusulkan || 0).toLocaleString('id-ID')}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="badge badge-green font-bold text-[11px] flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Dual Reviewer Lolos (2/2)
-                        </span>
-                      </td>
-                      <td>
-                        <div className="text-xs text-slate-600 font-medium flex items-center gap-1">
-                          <CheckSquare size={14} className="text-emerald-600" />
-                          Disetujui Kaprodi & Admin SIPPM
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columnsTahap3}
+            data={tahap3List}
+            isLoading={loading}
+            meta={meta}
+            onPageChange={(newPage) => setPage(newPage)}
+          />
         </div>
       )}
 
-      {/* FORM SCORING RUBRIK MODAL (TAHAP 1 & TAHAP 2 DINAMIS) */}
-      {selectedProposal && (
-        <div className="modal-overlay">
-          <div className="modal modal-lg modal-body">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="badge badge-purple font-bold text-[11px] mb-1">
-                  {evaluationStage === 'kaprodi'
-                    ? 'Tahap 1: Rubrik Keilmuan & Linieritas (Kaprodi)'
-                    : 'Tahap 2: Rubrik Administrasi & Kelayakan Kelompok (Admin SIPPM)'}
-                </span>
-                <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                  <Award className="text-purple-700" size={20} /> Form Penilaian Rubrik Proposal
-                </h2>
-              </div>
-              <button onClick={() => setSelectedProposal(null)} className="btn btn-ghost btn-sm">✕</button>
-            </div>
+      {/* FILTER DRAWER SLIDE RIGHT-TO-LEFT */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter & Urutkan Data Proposal"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Proposal / Pengusul"
+            placeholder="Ketik judul proposal atau nama dosen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
 
+          <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'id', label: 'ID Proposal' },
+                { value: 'judul', label: 'Judul Proposal' },
+                { value: 'created_at', label: 'Tanggal Pengajuan' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val)}
+              options={[
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+                { value: 'asc', label: 'A - Z (Terlama)' },
+              ]}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              icon={<RotateCcw size={14} />}
+              onClick={handleResetFilter}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Filter size={14} />}
+              onClick={handleApplyFilter}
+            >
+              Terapkan Filter
+            </Button>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* FORM SCORING RUBRIK MODAL (UI KIT COMPLIANT) */}
+      <Modal
+        open={Boolean(selectedProposal)}
+        onClose={() => setSelectedProposal(null)}
+        title={`Form Penilaian Rubrik Proposal — ${
+          evaluationStage === 'kaprodi' ? 'Tahap 1 (Kaprodi)' : 'Tahap 2 (Admin SIPPM)'
+        }`}
+        size="lg"
+      >
+        {selectedProposal && (
+          <div className="space-y-4">
             {/* Context Box Proposal */}
             <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-100 space-y-1 text-xs">
               <div className="font-extrabold text-slate-900">{selectedProposal.judul}</div>
-              <div className="text-slate-600 flex items-center gap-3">
-                <span>Ketua: <strong>{selectedProposal.ketua?.nama_lengkap || (selectedProposal as any).ketua_pegawai?.nama_lengkap || 'Dosen Pengusul'}</strong></span>
+              <div className="text-slate-600 flex items-center gap-3 flex-wrap">
+                <span>
+                  Ketua:{' '}
+                  <strong>
+                    {selectedProposal.ketua?.nama_lengkap ||
+                      (selectedProposal as any).ketua_pegawai?.nama_lengkap ||
+                      'Dosen Pengusul'}
+                  </strong>
+                </span>
                 <span>•</span>
-                <span>Prodi: <strong>{selectedProposal.rumpun_ilmu}</strong></span>
+                <span>
+                  Prodi: <strong>{selectedProposal.rumpun_ilmu}</strong>
+                </span>
               </div>
             </div>
 
@@ -525,7 +698,6 @@ export default function ReviewerPortalPage() {
               </div>
             )}
 
-            {/* FORM RUBRIK SCORING */}
             <form onSubmit={handleSaveEvaluation} className="space-y-4">
               <div className="space-y-3">
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -543,16 +715,17 @@ export default function ReviewerPortalPage() {
                         <div>
                           <div className="font-bold text-slate-900 text-xs flex items-center gap-2">
                             {rub.nama_indikator}
-                            <span className="badge badge-gray text-[10px] font-mono">Bobot: {rub.bobot}%</span>
+                            <Badge variant="gray" className="text-[10px] font-mono">
+                              Bobot: {rub.bobot}%
+                            </Badge>
                           </div>
                           {rub.deskripsi && <div className="text-[11px] text-slate-500 mt-0.5">{rub.deskripsi}</div>}
                         </div>
                         <div className="w-32 shrink-0">
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             max={100}
-                            className="input input-sm text-right font-bold text-slate-900 text-xs"
                             value={scores[rub.id] ?? ''}
                             onChange={(e) =>
                               setScores({
@@ -561,6 +734,7 @@ export default function ReviewerPortalPage() {
                               })
                             }
                             required
+                            className="text-right font-bold"
                           />
                         </div>
                       </div>
@@ -570,11 +744,13 @@ export default function ReviewerPortalPage() {
               </div>
 
               {/* Total Live Score Summary Highlight */}
-              <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                isPassing
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                  : 'bg-rose-50 border-rose-200 text-rose-900'
-              }`}>
+              <div
+                className={`p-4 rounded-xl border flex items-center justify-between ${
+                  isPassing
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}
+              >
                 <div>
                   <div className="text-xs font-bold uppercase tracking-wide">TOTAL SKOR AKHIR RUBRIK</div>
                   <div className="text-xs mt-0.5">
@@ -593,38 +769,35 @@ export default function ReviewerPortalPage() {
               </div>
 
               {/* Catatan Tambahan Reviewer */}
-              <div className="form-group">
-                <label className="form-label font-bold text-slate-700 text-xs">Catatan & Masukan Reviewer</label>
-                <textarea
-                  rows={3}
-                  className="input text-xs"
-                  placeholder="Ketik catatan evaluasi keilmuan, linieritas, atau catatan administrasi kelompok..."
-                  value={catatan}
-                  onChange={(e) => setCatatan(e.target.value)}
-                />
-              </div>
+              <Textarea
+                label="Catatan & Masukan Reviewer"
+                rows={3}
+                placeholder="Ketik catatan evaluasi keilmuan, linieritas, atau catatan administrasi kelompok..."
+                value={catatan}
+                onChange={(e) => setCatatan(e.target.value)}
+              />
 
               {/* Modal Actions */}
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
                   onClick={() => setSelectedProposal(null)}
-                  className="btn btn-ghost btn-sm text-slate-600"
                 >
                   Batal
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={submittingEval}
-                  className="btn btn-primary btn-sm bg-purple-700 hover:bg-purple-800 border-none font-bold"
+                  variant="primary"
+                  isLoading={submittingEval}
+                  className="font-bold"
                 >
-                  {submittingEval ? 'Menyimpan...' : 'Simpan & Tetapkan Status Proposal'}
-                </button>
+                  Simpan &amp; Tetapkan Status Proposal
+                </Button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

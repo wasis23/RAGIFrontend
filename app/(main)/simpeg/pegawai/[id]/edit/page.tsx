@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, RefreshCw, CreditCard, Building } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,6 +37,8 @@ const pegawaiSchema = z.object({
   }),
   telepon: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
+  bank_nama: z.string().optional().nullable(),
+  nomor_rekening: z.string().optional().nullable(),
 });
 
 type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
@@ -71,6 +73,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       jenis_kelamin: 'L',
       telepon: '',
       alamat: '',
+      bank_nama: '',
+      nomor_rekening: '',
     },
   });
 
@@ -117,6 +121,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             status: peg.status || 'aktif',
             telepon: peg.telepon || '',
             alamat: peg.alamat || '',
+            bank_nama: peg.bank_nama || '',
+            nomor_rekening: peg.nomor_rekening || '',
           };
           reset(formVals);
 
@@ -152,6 +158,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         status: values.status,
         telepon: values.telepon || null,
         alamat: values.alamat || null,
+        bank_nama: values.bank_nama || null,
+        nomor_rekening: values.nomor_rekening || null,
       };
 
       await simpegService.updatePegawai(pegawaiId, payload);
@@ -167,14 +175,13 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   if (loading) {
     return (
       <div className="space-y-6 animate-fade-in">
-        {/* Mandatory RAGI Admin CRUD Rule 8: Back button on separate form page (>5 inputs) must use bg-orange-500 text-white */}
         <PageHeader
           title="Edit Kontak & Biodata Pegawai"
-          description="Perbarui biodata pribadi, alamat, atau status kepegawaian"
+          description="Perbarui biodata pribadi, alamat, nomor rekening, atau status kepegawaian"
           action={
             <Button
               onClick={() => router.back()}
-              className="bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm"
+              className="bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm font-bold"
               icon={<ArrowLeft size={16} />}
             >
               Kembali
@@ -191,15 +198,13 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Standard RAGI Admin CRUD mandatory Orange Back Button (bg-orange-500 text-white) */}
-      {/* Mandatory RAGI Admin CRUD Rule 8: Back button on separate form page (>5 inputs) must use bg-orange-500 text-white */}
       <PageHeader
         title="Edit Kontak & Biodata Pegawai"
-        description="Perbarui biodata pribadi, alamat, atau status kepegawaian"
+        description="Perbarui biodata pribadi, alamat, nomor rekening, atau status kepegawaian"
         action={
           <Button
             onClick={() => router.back()}
-            className="bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm"
+            className="bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm font-bold"
             icon={<ArrowLeft size={16} />}
           >
             Kembali
@@ -213,23 +218,23 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               <Input
-                label="Nama Lengkap & Gelar"
+                label="Nama Lengkap & Gelar *"
                 required
-                placeholder="Contoh: Dr. Wasis Utama, M.Kom."
+                placeholder="Ketik Nama Lengkap & Gelar..."
                 error={errors.nama_lengkap?.message}
                 {...register('nama_lengkap')}
               />
 
               <Input
                 label="NIP (Nomor Induk Pegawai)"
-                placeholder="Contoh: 199001012022011001"
+                placeholder="Ketik NIP pegawai..."
                 error={errors.nip?.message}
                 {...register('nip')}
               />
 
               <Input
                 label="NIK (KTP)"
-                placeholder="Contoh: 327101..."
+                placeholder="Ketik NIK 16 digit..."
                 error={errors.nik?.message}
                 {...register('nik')}
               />
@@ -239,7 +244,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <Select
-                    label="Jenis Pegawai"
+                    label="Jenis Pegawai *"
                     required
                     value={field.value}
                     onChange={field.onChange}
@@ -258,7 +263,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <Select
-                    label="Status Kepegawaian"
+                    label="Status Kepegawaian *"
                     required
                     value={field.value}
                     onChange={field.onChange}
@@ -278,7 +283,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <Select
-                    label="Status Keaktifan"
+                    label="Status Keaktifan *"
                     required
                     value={field.value}
                     onChange={field.onChange}
@@ -315,7 +320,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
 
               <Input
                 label="Tempat Lahir"
-                placeholder="Contoh: Bandung"
+                placeholder="Ketik Kota Tempat Lahir..."
                 error={errors.tempat_lahir?.message}
                 {...register('tempat_lahir')}
               />
@@ -332,7 +337,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <Select
-                    label="Jenis Kelamin"
+                    label="Jenis Kelamin *"
                     required
                     value={field.value}
                     onChange={field.onChange}
@@ -346,16 +351,30 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               />
 
               <Input
-                label="Nomor Telepon / WA"
-                placeholder="Contoh: 081234567890"
+                label="Nomor Telepon / WhatsApp"
+                placeholder="Ketik Nomor HP / WA..."
                 error={errors.telepon?.message}
                 {...register('telepon')}
               />
 
-              <div className="lg:col-span-2">
+              <Input
+                label="Nama Bank Pencairan"
+                placeholder="Contoh: Bank Mandiri / BNI / BRI"
+                error={errors.bank_nama?.message}
+                {...register('bank_nama')}
+              />
+
+              <Input
+                label="Nomor Rekening Bank"
+                placeholder="Ketik Nomor Rekening..."
+                error={errors.nomor_rekening?.message}
+                {...register('nomor_rekening')}
+              />
+
+              <div className="lg:col-span-3">
                 <Textarea
                   label="Alamat Domisili Lengkap"
-                  placeholder="Jl. Kampus Utama No. 12, Bandung"
+                  placeholder="Ketik Alamat Lengkap..."
                   rows={2}
                   error={errors.alamat?.message}
                   {...register('alamat')}
@@ -378,6 +397,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 loading={isSubmitting}
                 disabled={isSubmitting}
                 icon={<Save size={16} />}
+                className="font-bold"
               >
                 Simpan Perubahan
               </Button>
