@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState, useEffect } from 'react';
 import ReactAsyncSelect from 'react-select/async';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,14 @@ interface AsyncSelectProps {
 
 export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
   ({ label, error, hint, required, loadOptions, value, onChange, placeholder, className, id, defaultOptions = true, isClearable = false, isDisabled = false, isMulti = false, ...props }, ref) => {
-    const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+      setIsMounted(true);
+    }, []);
+
+    const generatedId = React.useId();
+    const selectId = id || `async-select-${generatedId}`;
 
     const customStyles = {
       control: (base: any, state: any) => ({
@@ -55,6 +62,20 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
       })
     };
 
+    if (!isMounted) {
+      return (
+        <div className="form-group">
+          {label && (
+            <label className="form-label" htmlFor={selectId}>
+              {label}
+              {required && <span className="required">*</span>}
+            </label>
+          )}
+          <div className="h-10 w-full bg-slate-100 rounded-lg animate-pulse" />
+        </div>
+      );
+    }
+
     return (
       <div className="form-group">
         {label && (
@@ -66,6 +87,7 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
         <div className="input-wrapper" style={{ display: 'block' }}>
           <ReactAsyncSelect
             ref={ref}
+            instanceId={selectId}
             inputId={selectId}
             cacheOptions
             defaultOptions={defaultOptions}

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 export interface BreadcrumbItem {
   label: string;
@@ -12,12 +12,19 @@ interface PageHeaderProps {
   action?: React.ReactNode;
   breadcrumb?: React.ReactNode;
   breadcrumbs?: BreadcrumbItem[];
+  backUrl?: string;
 }
 
-export function PageHeader({ title, description, action, breadcrumb, breadcrumbs }: PageHeaderProps) {
+export function PageHeader({ title, description, action, breadcrumb, breadcrumbs, backUrl }: PageHeaderProps) {
   return (
     <div className="page-header flex items-center justify-between gap-4 flex-wrap mb-6 w-full">
       <div className="flex-1 min-w-[260px]">
+        {backUrl && (
+          <Link href={backUrl} className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium hover:text-primary-600 transition mb-2">
+            <ChevronLeft size={14} />
+            Kembali
+          </Link>
+        )}
         {breadcrumbs && breadcrumbs.length > 0 ? (
           <nav className="flex items-center gap-1.5 text-xs text-slate-500 mb-2 font-medium">
             {breadcrumbs.map((b, idx) => (

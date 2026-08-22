@@ -118,11 +118,6 @@ export interface PendaftaranBerkas {
 }
 
 export const spmbService = {
-  getMasterTipeJalur: async () => {
-    const response = await api.get('/spmb/master-tipe-jalur');
-    return response.data;
-  },
-
   getProgramStudi: async () => {
     const response = await api.get('/spmb/prodi');
     return response.data;
@@ -267,8 +262,20 @@ export const spmbService = {
   },
 
 
-  getMasterTipeJalur: async () => {
-    const response = await api.get('/spmb/master-tipe-jalur');
+  getMasterTipeJalur: async (params?: { page?: number; limit?: number; search?: string; sort_by?: string; sort_dir?: string }) => {
+    const response = await api.get('/spmb/master-tipe-jalur', { params });
+    return response.data;
+  },
+  createMasterTipeJalur: async (data: { kode: string; nama: string }) => {
+    const response = await api.post('/spmb/master-tipe-jalur', data);
+    return response.data;
+  },
+  updateMasterTipeJalur: async (id: number, data: { kode: string; nama: string }) => {
+    const response = await api.put(`/spmb/master-tipe-jalur/${id}`, data);
+    return response.data;
+  },
+  deleteMasterTipeJalur: async (id: number) => {
+    const response = await api.delete(`/spmb/master-tipe-jalur/${id}`);
     return response.data;
   },
   getMasterJalurKelas: async () => {
@@ -282,27 +289,27 @@ export const spmbService = {
 
   // Berkas Requirement
   getBerkasRequirements: async (params?: { search?: string; jalur_masuk_id?: number; page?: number; limit?: number }) => {
-    const response = await api.get('/master/berkas-requirement', { params });
+    const response = await api.get('/spmb/master/berkas-requirement', { params });
     return response.data;
   },
 
   getBerkasRequirementById: async (id: number) => {
-    const response = await api.get(`/master/berkas-requirement/${id}`);
+    const response = await api.get(`/spmb/master/berkas-requirement/${id}`);
     return response.data;
   },
 
   createBerkasRequirement: async (data: Partial<BerkasRequirement>) => {
-    const response = await api.post('/master/berkas-requirement', data);
+    const response = await api.post('/spmb/master/berkas-requirement', data);
     return response.data;
   },
 
   updateBerkasRequirement: async (id: number, data: Partial<BerkasRequirement>) => {
-    const response = await api.put(`/master/berkas-requirement/${id}`, data);
+    const response = await api.put(`/spmb/master/berkas-requirement/${id}`, data);
     return response.data;
   },
 
   deleteBerkasRequirement: async (id: number) => {
-    const response = await api.delete(`/master/berkas-requirement/${id}`);
+    const response = await api.delete(`/spmb/master/berkas-requirement/${id}`);
     return response.data;
   },
 };
