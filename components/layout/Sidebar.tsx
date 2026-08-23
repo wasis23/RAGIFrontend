@@ -84,6 +84,7 @@ const getIcon = (iconName: string) => {
     'FaCloudUploadAlt': RefreshCw,
     'FaDatabase': List,
     'FaCogs': List,
+    'FaChartBar': PieChart,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;

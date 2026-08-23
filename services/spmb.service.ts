@@ -123,6 +123,14 @@ export const spmbService = {
     const response = await api.get('/spmb/prodi');
     return response.data;
   },
+  getLaporanStatistik: async () => {
+    const response = await api.get('/spmb/laporan/statistik');
+    return response.data;
+  },
+  exportLaporanSpmb: async () => {
+    const response = await api.get('/spmb/laporan/export', { responseType: 'blob' });
+    return response.data;
+  },
 
   getJalurMasuk: async (params?: { page?: number; limit?: number; name?: string; status?: string; sort_by?: string; sort_dir?: string }) => {
     const response = await api.get('/spmb/jalur', { params });
