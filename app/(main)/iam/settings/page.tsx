@@ -4,6 +4,15 @@ import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Select, type SelectOption } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { KeyRound, Mail, Globe } from 'lucide-react';
+
+interface GoogleWorkspaceSettings {
+  adminEmail: string;
+  domain: string;
+  credentials: string;
+}
 import { Save, Settings, Users, CheckCircle2, Loader2, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/axios';
@@ -24,6 +33,14 @@ export default function SystemSettingsPage() {
   const [originalRole, setOriginalRole] = useState('calon_mhs');
   const [superadminRole, setSuperadminRole] = useState('superadmin');
   const [originalSuperadminRole, setOriginalSuperadminRole] = useState('superadmin');
+  
+  // Google Workspace Settings
+  const [gWorkspaceAdmin, setGWorkspaceAdmin] = useState('');
+  const [originalGWorkspaceAdmin, setOriginalGWorkspaceAdmin] = useState('');
+  const [gWorkspaceDomain, setGWorkspaceDomain] = useState('student.campus.ac.id');
+  const [originalGWorkspaceDomain, setOriginalGWorkspaceDomain] = useState('student.campus.ac.id');
+  const [gWorkspaceCredentials, setGWorkspaceCredentials] = useState('');
+  const [originalGWorkspaceCredentials, setOriginalGWorkspaceCredentials] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -49,6 +66,18 @@ export default function SystemSettingsPage() {
         setSuperadminRole(settingsData.superadmin_role.value);
         setOriginalSuperadminRole(settingsData.superadmin_role.value);
       }
+      if (settingsData?.google_workspace_admin_email?.value) {
+        setGWorkspaceAdmin(settingsData.google_workspace_admin_email.value);
+        setOriginalGWorkspaceAdmin(settingsData.google_workspace_admin_email.value);
+      }
+      if (settingsData?.google_workspace_domain?.value) {
+        setGWorkspaceDomain(settingsData.google_workspace_domain.value);
+        setOriginalGWorkspaceDomain(settingsData.google_workspace_domain.value);
+      }
+      if (settingsData?.google_workspace_credentials?.value) {
+        setGWorkspaceCredentials(settingsData.google_workspace_credentials.value);
+        setOriginalGWorkspaceCredentials(settingsData.google_workspace_credentials.value);
+      }
     } catch {
       toast.error('Gagal memuat pengaturan sistem.');
     } finally {
@@ -64,10 +93,16 @@ export default function SystemSettingsPage() {
         settings: [
           { key: 'default_register_role', value: defaultRole },
           { key: 'superadmin_role', value: superadminRole },
+          { key: 'google_workspace_admin_email', value: gWorkspaceAdmin },
+          { key: 'google_workspace_domain', value: gWorkspaceDomain },
+          { key: 'google_workspace_credentials', value: gWorkspaceCredentials },
         ],
       });
       setOriginalRole(defaultRole);
       setOriginalSuperadminRole(superadminRole);
+      setOriginalGWorkspaceAdmin(gWorkspaceAdmin);
+      setOriginalGWorkspaceDomain(gWorkspaceDomain);
+      setOriginalGWorkspaceCredentials(gWorkspaceCredentials);
       setSaveSuccess(true);
       toast.success('Konfigurasi sistem berhasil disimpan.');
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -78,7 +113,12 @@ export default function SystemSettingsPage() {
     }
   };
 
-  const isDirty = defaultRole !== originalRole || superadminRole !== originalSuperadminRole;
+  const isDirty = 
+    defaultRole !== originalRole || 
+    superadminRole !== originalSuperadminRole ||
+    gWorkspaceAdmin !== originalGWorkspaceAdmin ||
+    gWorkspaceDomain !== originalGWorkspaceDomain ||
+    gWorkspaceCredentials !== originalGWorkspaceCredentials;
   const selectedRole = roles.find((r) => r.slug === defaultRole);
   const selectedSuperadminRole = roles.find((r) => r.slug === superadminRole);
 
@@ -203,7 +243,62 @@ export default function SystemSettingsPage() {
                 </div>
               )}
             </div>
+          </div>
 
+          {/* Section 3: Google Workspace */}
+          <div className="settings-section-card card">
+            {/* Section Header */}
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-green-100 text-green-700">
+                <Globe size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Integrasi Google Workspace</h2>
+                <p className="settings-section-desc">
+                  Konfigurasi Domain-Wide Delegation API untuk otomatisasi pembuatan email kampus mahasiswa (G-Suite).
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            {/* Setting Field */}
+            <div className="settings-section-body space-y-4">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Domain Kampus"
+                      value={gWorkspaceDomain}
+                      onChange={(e) => setGWorkspaceDomain(e.target.value)}
+                      placeholder="Misal: student.campus.ac.id"
+                      hint="Domain untuk alamat email mahasiswa (tanpa @)."
+                    />
+                    <Input
+                      label="Admin Email (Impersonation)"
+                      value={gWorkspaceAdmin}
+                      onChange={(e) => setGWorkspaceAdmin(e.target.value)}
+                      placeholder="admin@campus.ac.id"
+                      hint="Email Admin G-Suite utama dengan akses Directory API."
+                    />
+                  </div>
+                  <Textarea
+                    label="Credentials JSON (Service Account)"
+                    value={gWorkspaceCredentials}
+                    onChange={(e) => setGWorkspaceCredentials(e.target.value)}
+                    placeholder='{"type": "service_account", "project_id": "...", ...}'
+                    rows={4}
+                    hint="Tempel isi file JSON Service Account dari Google Cloud Console."
+                  />
+                </>
+              )}
+            </div>
+            
             {/* Footer Action */}
             <div className="settings-section-footer">
               <div className="settings-footer-left">
@@ -228,6 +323,9 @@ export default function SystemSettingsPage() {
                     onClick={() => {
                       setDefaultRole(originalRole);
                       setSuperadminRole(originalSuperadminRole);
+                      setGWorkspaceAdmin(originalGWorkspaceAdmin);
+                      setGWorkspaceDomain(originalGWorkspaceDomain);
+                      setGWorkspaceCredentials(originalGWorkspaceCredentials);
                       setSaveSuccess(false);
                     }}
                     disabled={isSaving}
@@ -245,7 +343,6 @@ export default function SystemSettingsPage() {
               </div>
             </div>
           </div>
-
         </div>
 
         {/* ── Right: Info Panel (Desktop only) ── */}
