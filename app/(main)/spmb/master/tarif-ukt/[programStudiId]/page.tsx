@@ -85,7 +85,21 @@ export default function TarifUktProgramStudiDetailPage() {
   const loadTarifSikeu = async (input: string) => {
     const response = await spmbService.getSikeuMasterTarifUkt();
     const list = response.data || [];
-    return list.filter((item: any) => `${item.kelompok_ukt} ${item.nama_kelompok}`.toLowerCase().includes(input.toLowerCase())).map((item: any) => ({ value: item.id, label: `${item.kelompok_ukt} - ${item.nama_kelompok} (${formatRupiah(Number(item.nominal))})`, raw: item }));
+    return list
+      .filter((item: any) => {
+        const label = `${item.kelompok_ukt} ${item.nama_kelompok || ''} ${item.jenis_biaya?.nama || ''} ${item.jalur_kelas || ''}`.toLowerCase();
+        return label.includes(input.toLowerCase());
+      })
+      .map((item: any) => {
+        const kelompok = item.nama_kelompok || `Kelompok ${item.kelompok_ukt}`;
+        const jenisBiaya = item.jenis_biaya?.nama || '';
+        const jalurKelas = item.jalur_kelas ? ` - ${item.jalur_kelas}` : '';
+        return {
+          value: item.id,
+          label: `${kelompok}${jalurKelas}${jenisBiaya ? ` - ${jenisBiaya}` : ''} (${formatRupiah(Number(item.nominal))})`,
+          raw: item,
+        };
+      });
   };
 
   const loadTahunAkademik = async (input: string) => {
@@ -129,7 +143,7 @@ export default function TarifUktProgramStudiDetailPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Controller name="tahun_akademik_id" control={control} render={({ field }) => <AsyncSelect label="Tahun Akademik *" loadOptions={loadTahunAkademik} defaultOptions value={field.value ? { value: field.value, label: data.find((item) => item.tahun_akademik_id === field.value)?.tahun_akademik?.nama || String(field.value) } : null} onChange={(option: any) => field.onChange(option?.value || 0)} error={errors.tahun_akademik_id?.message} />} />
-            <AsyncSelect label="Tarif UKT Master SIKEU *" loadOptions={loadTarifSikeu} defaultOptions onChange={(option: any) => { setValue('kelompok_ukt', option?.raw?.kelompok_ukt || option?.raw?.nama_kelompok || ''); setValue('nominal', Number(option?.raw?.nominal || 0)); }} hint="Terisi otomatis." />
+            <AsyncSelect label="Tarif UKT Master SIKEU *" loadOptions={loadTarifSikeu} defaultOptions onChange={(option: any) => { setValue('kelompok_ukt', option?.raw?.nama_kelompok || `Kelompok ${option?.raw?.kelompok_ukt}` || ''); setValue('nominal', Number(option?.raw?.nominal || 0)); }} hint="Terisi otomatis." />
             <Input label="Kelompok UKT" readOnly className="bg-slate-100" {...register('kelompok_ukt')} error={errors.kelompok_ukt?.message} />
             <Input label="Nominal (Rp)" type="number" readOnly className="bg-slate-100" {...register('nominal', { valueAsNumber: true })} error={errors.nominal?.message} />
           </div>
