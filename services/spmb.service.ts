@@ -213,14 +213,7 @@ export const spmbService = {
     const response = await api.get('/spmb/master/tarif-ukt', { params });
     return response.data;
   },
-  getSikeuMasterTarifUkt: async () => {
-    try {
-      const response = await api.get('/v1/sikeu/master/tarif-ukt');
-      return response.data;
-    } catch {
-      return { status: 'success', data: [] };
-    }
-  },
+
   storeTarifUktSpmb: async (data: { program_studi_id: number; tahun_akademik_id: number; kelompok_ukt: string; nominal: number; is_active: boolean }) => {
     const response = await api.post('/spmb/master/tarif-ukt', data);
     return response.data;

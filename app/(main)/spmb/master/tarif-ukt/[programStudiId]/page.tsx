@@ -21,7 +21,7 @@ import { spmbService } from '@/services/spmb.service';
 
 const schema = z.object({
   tahun_akademik_id: z.number().int().positive('Tahun akademik wajib dipilih'),
-  kelompok_ukt: z.string().min(1, 'Pilih tarif dari SIKEU'),
+  kelompok_ukt: z.string().min(1, 'Kelompok UKT wajib diisi'),
   nominal: z.number({ error: 'Nominal harus berupa angka' }).min(0, 'Nominal tidak boleh kurang dari 0'),
   is_active: z.boolean(),
 });
@@ -82,25 +82,7 @@ export default function TarifUktProgramStudiDetailPage() {
     setShowFilter(false);
   };
 
-  const loadTarifSikeu = async (input: string) => {
-    const response = await spmbService.getSikeuMasterTarifUkt();
-    const list = response.data || [];
-    return list
-      .filter((item: any) => {
-        const label = `${item.kelompok_ukt} ${item.nama_kelompok || ''} ${item.jenis_biaya?.nama || ''} ${item.jalur_kelas || ''}`.toLowerCase();
-        return label.includes(input.toLowerCase());
-      })
-      .map((item: any) => {
-        const kelompok = item.nama_kelompok || `Kelompok ${item.kelompok_ukt}`;
-        const jenisBiaya = item.jenis_biaya?.nama || '';
-        const jalurKelas = item.jalur_kelas ? ` - ${item.jalur_kelas}` : '';
-        return {
-          value: item.id,
-          label: `${kelompok}${jalurKelas}${jenisBiaya ? ` - ${jenisBiaya}` : ''} (${formatRupiah(Number(item.nominal))})`,
-          raw: item,
-        };
-      });
-  };
+
 
   const loadTahunAkademik = async (input: string) => {
     const response = await spmbService.getTahunAkademikList();
@@ -143,9 +125,8 @@ export default function TarifUktProgramStudiDetailPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Controller name="tahun_akademik_id" control={control} render={({ field }) => <AsyncSelect label="Tahun Akademik *" loadOptions={loadTahunAkademik} defaultOptions value={field.value ? { value: field.value, label: data.find((item) => item.tahun_akademik_id === field.value)?.tahun_akademik?.nama || String(field.value) } : null} onChange={(option: any) => field.onChange(option?.value || 0)} error={errors.tahun_akademik_id?.message} />} />
-            <AsyncSelect label="Tarif UKT Master SIKEU *" loadOptions={loadTarifSikeu} defaultOptions onChange={(option: any) => { setValue('kelompok_ukt', option?.raw?.nama_kelompok || `Kelompok ${option?.raw?.kelompok_ukt}` || ''); setValue('nominal', Number(option?.raw?.nominal || 0)); }} hint="Terisi otomatis." />
-            <Input label="Kelompok UKT" readOnly className="bg-slate-100" {...register('kelompok_ukt')} error={errors.kelompok_ukt?.message} />
-            <Input label="Nominal (Rp)" type="number" readOnly className="bg-slate-100" {...register('nominal', { valueAsNumber: true })} error={errors.nominal?.message} />
+            <Input label="Kelompok UKT *" placeholder="Contoh: Kelompok I" className="bg-white" {...register('kelompok_ukt')} error={errors.kelompok_ukt?.message} />
+            <Input label="Nominal (Rp) *" type="number" className="bg-white" {...register('nominal', { valueAsNumber: true })} error={errors.nominal?.message} />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100"><Button type="button" variant="secondary" onClick={() => setShowModal(false)}>Batal</Button><Button type="submit" loading={submitting}>Simpan</Button></div>
         </form>
