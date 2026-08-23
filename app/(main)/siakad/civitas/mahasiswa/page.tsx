@@ -471,13 +471,6 @@ export default function MahasiswaPage() {
               Plotting Dosen PA ({selectedMhsIds.length})
             </Button>
             <Button
-              variant="primary"
-              icon={<Plus size={16} />}
-              onClick={() => handleOpenModal()}
-            >
-              Tambah Mahasiswa
-            </Button>
-            <Button
               variant="outline"
               icon={<Filter size={16} />}
               onClick={() => setShowFilter(true)}

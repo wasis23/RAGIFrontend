@@ -65,6 +65,22 @@ export const siakadService = {
     return response.data;
   },
 
+  // Profil & Biodata Mahasiswa (Self-Service & Neo Feeder)
+  getMahasiswaProfil: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/mahasiswa/profil', { params });
+    return response.data;
+  },
+
+  updateMahasiswaProfil: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put('/v1/siakad/mahasiswa/profil', payload);
+    return response.data;
+  },
+
+  syncMahasiswaProfilToFeeder: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/mahasiswa/profil/sync-feeder', params);
+    return response.data;
+  },
+
   // Konversi Transfer
   getKonversis: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/mahasiswa/konversi', { params });
@@ -78,6 +94,11 @@ export const siakadService = {
 
   deleteKonversi: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.delete(`/v1/siakad/mahasiswa/konversi/${id}`);
+    return response.data;
+  },
+
+  updateKonversiStatus: async (id: number, payload: { status: string; catatan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/mahasiswa/konversi/${id}/status`, payload);
     return response.data;
   },
 
@@ -362,6 +383,78 @@ export const siakadService = {
   getMahasiswaPortofolioObe: async (mahasiswaId?: number | string): Promise<ApiResponse<any>> => {
     const url = mahasiswaId ? `/v1/siakad/obe/mahasiswa/${mahasiswaId}/portofolio` : '/v1/siakad/obe/mahasiswa/portofolio';
     const response = await apiClient.get(url);
+    return response.data;
+  },
+
+  // Profil Lulusan & Bahan Kajian (OBE)
+  getProfilLulusans: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/profil-lulusan', { params });
+    return response.data;
+  },
+
+  storeProfilLulusan: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/profil-lulusan', payload);
+    return response.data;
+  },
+
+  deleteProfilLulusan: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/profil-lulusan/${id}`);
+    return response.data;
+  },
+
+  mapProfilLulusanCpl: async (payload: { profil_lulusan_id: number; cpl_ids: number[] }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/profil-lulusan/cpl', payload);
+    return response.data;
+  },
+
+  getBahanKajians: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/bahan-kajian', { params });
+    return response.data;
+  },
+
+  storeBahanKajian: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/bahan-kajian', payload);
+    return response.data;
+  },
+
+  deleteBahanKajian: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/bahan-kajian/${id}`);
+    return response.data;
+  },
+
+  mapMataKuliahBahanKajian: async (payload: { mata_kuliah_id: number; bahan_kajian_ids: number[] }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/matakuliah/bahan-kajian', payload);
+    return response.data;
+  },
+
+  // Absensi Mahasiswa
+  getPertemuans: async (kelasId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/perkuliahan/kelas/${kelasId}/pertemuan`);
+    return response.data;
+  },
+
+  createPertemuan: async (kelasId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/perkuliahan/kelas/${kelasId}/pertemuan`, payload);
+    return response.data;
+  },
+
+  getAbsensiList: async (pertemuanId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/perkuliahan/pertemuan/${pertemuanId}/absensi`);
+    return response.data;
+  },
+
+  saveAbsensi: async (pertemuanId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/perkuliahan/pertemuan/${pertemuanId}/absensi`, payload);
+    return response.data;
+  },
+
+  updateModePenilaian: async (taId: number, payload: { mode_penilaian: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/akademik/tahun-akademik/${taId}/mode-penilaian`, payload);
+    return response.data;
+  },
+
+  saveBulkNilaiObe: async (kelasId: number, payload: { is_final: boolean; grades: any[] }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/obe/kelas/${kelasId}/bulk-nilai`, payload);
     return response.data;
   },
 };

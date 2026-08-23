@@ -22,7 +22,8 @@ import {
   Calendar,
   ChevronDown,
   Settings,
-  Check
+  Check,
+  Save
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -37,6 +38,11 @@ import toast from 'react-hot-toast';
 
 export default function KrsMahasiswaPage() {
   const { user } = useAuthStore();
+  const userRoles = user?.roles?.map((r: any) => typeof r === 'string' ? r : r.slug) || [];
+  const isMahasiswa = userRoles.includes('mahasiswa');
+  const isDosen = userRoles.includes('dosen');
+  const isAdmin = userRoles.includes('superadmin') || userRoles.includes('admin');
+
   const [krsList, setKrsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<number | null>(null);
@@ -71,11 +77,153 @@ export default function KrsMahasiswaPage() {
   // Print modal state
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Check roles
-  const userRoles = user?.roles?.map((r: any) => typeof r === 'string' ? r : r.slug) || [];
-  const isMahasiswa = userRoles.includes('mahasiswa');
-  const isDosen = userRoles.includes('dosen');
-  const isAdmin = userRoles.includes('superadmin') || userRoles.includes('admin');
+  // Penyetaraan Konversi States & Handlers (Moved from Profile Page)
+  const [activeTab, setActiveTab] = useState<'krs' | 'konversi'>('krs');
+  const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
+  const [konversiForm, setKonversiForm] = useState({
+    kampus_asal: '',
+    prodi_asal: '',
+    catatan: '',
+    details: [] as any[],
+  });
+  const [savingKonversi, setSavingKonversi] = useState(false);
+
+  useEffect(() => {
+    if (mhs?.konversi_transfer) {
+      setKonversiForm({
+        kampus_asal: mhs.konversi_transfer.kampus_asal || '',
+        prodi_asal: mhs.konversi_transfer.prodi_asal || '',
+        catatan: mhs.konversi_transfer.catatan || '',
+        details: mhs.konversi_transfer.details || [],
+      });
+    }
+  }, [studentKrsData]);
+
+  useEffect(() => {
+    if (isMahasiswa && activeTab === 'konversi') {
+      const fetchMk = async () => {
+        try {
+          const res = await siakadService.getMataKuliahs({ per_page: 200 });
+          if (res.data) setMatakuliahs(res.data);
+        } catch (err) {}
+      };
+      fetchMk();
+    }
+  }, [activeTab, isMahasiswa]);
+
+  const handleAddKonversiDetail = () => {
+    setKonversiForm((prev) => ({
+      ...prev,
+      details: [
+        ...prev.details,
+        {
+          mata_kuliah_diakui_id: matakuliahs[0]?.id || 1,
+          kode_mk_asal: '',
+          nama_mk_asal: '',
+          sks_asal: 3,
+          nilai_huruf_asal: 'A',
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveKonversiDetail = (idx: number) => {
+    setKonversiForm((prev) => {
+      const updated = [...prev.details];
+      updated.splice(idx, 1);
+      return { ...prev, details: updated };
+    });
+  };
+
+  const handleKonversiDetailChange = (idx: number, field: string, value: any) => {
+    setKonversiForm((prev) => {
+      const updated = [...prev.details];
+      updated[idx] = { ...updated[idx], [field]: value };
+      return { ...prev, details: updated };
+    });
+  };
+
+  const handleSaveKonversi = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mhs?.id) return;
+    
+    if (!konversiForm.kampus_asal || !konversiForm.prodi_asal) {
+      toast.error('Kampus Asal dan Program Studi Asal wajib diisi');
+      return;
+    }
+    if (konversiForm.details.length === 0) {
+      toast.error('Minimal harus menginputkan 1 mata kuliah penyetaraan');
+      return;
+    }
+
+    try {
+      setSavingKonversi(true);
+      const payload = {
+        mahasiswa_id: mhs.id,
+        kampus_asal: konversiForm.kampus_asal,
+        prodi_asal: konversiForm.prodi_asal,
+        catatan: konversiForm.catatan,
+        status: 'draft', // saved as draft
+        details: konversiForm.details.map((d: any) => ({
+          mata_kuliah_diakui_id: Number(d.mata_kuliah_diakui_id),
+          kode_mk_asal: d.kode_mk_asal,
+          nama_mk_asal: d.nama_mk_asal,
+          sks_asal: Number(d.sks_asal),
+          nilai_huruf_asal: d.nilai_huruf_asal,
+        })),
+      };
+      
+      const res = await siakadService.createKonversi(payload);
+      toast.success(res.message || 'Konversi transfer berhasil disimpan sebagai DRAFT');
+      await fetchStudentActiveKrs(selectedTaId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan konversi transfer');
+    } finally {
+      setSavingKonversi(false);
+    }
+  };
+
+  const handleSubmitKonversi = async () => {
+    if (!mhs?.konversi_id) return;
+    if (!confirm('Kirim usulan konversi transfer Anda ke Dosen PA? Data tidak akan bisa diubah selama proses review.')) return;
+    
+    try {
+      setSavingKonversi(true);
+      const res = await siakadService.updateKonversiStatus(mhs.konversi_id, {
+        status: 'diajukan',
+        catatan: 'Diajukan oleh mahasiswa transfer untuk validasi PA.'
+      });
+      toast.success(res.message || 'Usulan konversi transfer berhasil diajukan');
+      await fetchStudentActiveKrs(selectedTaId);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal mengajukan konversi transfer');
+    } finally {
+      setSavingKonversi(false);
+    }
+  };
+
+  const handleDeleteKonversi = async () => {
+    if (!mhs?.konversi_id) return;
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data konversi transfer Anda?')) return;
+    try {
+      setSavingKonversi(true);
+      await siakadService.deleteKonversi(mhs.konversi_id);
+      toast.success('Konversi transfer berhasil dihapus');
+      setKonversiForm({
+        kampus_asal: '',
+        prodi_asal: '',
+        catatan: '',
+        details: [],
+      });
+      await fetchStudentActiveKrs(selectedTaId);
+    } catch (err: any) {
+      toast.error('Gagal menghapus konversi transfer');
+    } finally {
+      setSavingKonversi(false);
+    }
+  };
+
+  // Roles checked at top
 
   // Admin filter states & prodi
   const [prodiList, setProdiList] = useState<any[]>([]);
@@ -271,7 +419,7 @@ export default function KrsMahasiswaPage() {
 
   const mhs = studentKrsData?.mahasiswa;
   const activeKrs = studentKrsData?.krs;
-  const isTransferStudent = Boolean(mhs?.konversi_transfer);
+  const isTransferStudent = mhs?.jenis_pendaftaran === 'Peserta Didik Pindahan' || Boolean(mhs?.konversi_transfer);
   const selectedTaObj = tahunAkademiks.find((t) => t.id === selectedTaId);
 
   const columns: ColumnDef<any>[] = [
@@ -600,9 +748,9 @@ export default function KrsMahasiswaPage() {
       {isMahasiswa && (
         <div className="space-y-5">
           {/* Banner Profil Akademik & Status Keuangan */}
-          <div className="bg-gradient-to-r from-primary-900 to-slate-900 text-white rounded-2xl p-6 shadow-md space-y-4">
-            <div className="flex items-start justify-between flex-wrap gap-4">
-              <div>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-6 text-white shadow-md space-y-4">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-2xs font-bold uppercase tracking-wider bg-white/20 px-2.5 py-1 rounded-full text-white">
                     Semester Terpilih: {activeKrs?.tahun_akademik?.nama || selectedTaObj?.nama || '2026/2027 Ganjil'}
@@ -613,27 +761,27 @@ export default function KrsMahasiswaPage() {
                     </span>
                   )}
                 </div>
-                <h2 className="text-xl md:text-2xl font-black mt-2.5 text-white">
+                <h2 className="text-xl md:text-2xl font-black mt-2.5 text-white" style={{ color: '#ffffff' }}>
                   {mhs?.nama_lengkap || user?.username}
                 </h2>
-                <p className="text-xs text-slate-300 font-mono mt-0.5">
+                <p className="text-xs text-slate-300 font-mono mt-0.5" style={{ color: '#e2e8f0' }}>
                   NIM: {mhs?.nim || '2301001001'} • {mhs?.program_studi?.nama || 'S1 Teknik Informatika'} ({mhs?.program_studi?.jenjang || 'S1'})
                 </p>
-                <p className="text-2xs text-slate-300 mt-2 flex items-center gap-1.5 font-medium">
+                <p className="text-2xs text-slate-300 mt-2 flex items-center gap-1.5 font-medium" style={{ color: '#e2e8f0' }}>
                   <UserCheck size={14} className="text-primary-400" />
-                  Dosen Wali: <strong className="text-white">{mhs?.dosen_wali?.nama_lengkap || 'Dr. Ir. Ahmad Santoso, M.Kom'}</strong>
+                  Dosen Wali: <strong className="text-white" style={{ color: '#ffffff' }}>{mhs?.dosen_wali?.nama_lengkap || 'Dr. Ir. Ahmad Santoso, M.Kom'}</strong>
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-xs border border-white/10">
+              <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-xs border border-white/10 shrink-0">
                 <div className="text-center">
-                  <span className="text-2xs text-slate-300 block font-semibold">Total SKS Diambil</span>
-                  <span className="text-2xl font-black text-white">{activeKrs?.total_sks_diambil || 0}</span>
-                  <span className="text-2xs text-slate-400 block font-mono">Batas: 24 SKS</span>
+                  <span className="text-2xs text-slate-300 block font-semibold" style={{ color: '#e2e8f0' }}>Total SKS Diambil</span>
+                  <span className="text-2xl font-black text-white" style={{ color: '#ffffff' }}>{activeKrs?.total_sks_diambil || 0}</span>
+                  <span className="text-2xs text-slate-400 block font-mono" style={{ color: '#94a3b8' }}>Batas: 24 SKS</span>
                 </div>
                 <div className="h-10 w-px bg-white/20" />
                 <div className="text-center">
-                  <span className="text-2xs text-slate-300 block font-semibold">Status SPP (SIKEU)</span>
+                  <span className="text-2xs text-slate-300 block font-semibold" style={{ color: '#e2e8f0' }}>Status SPP (SIKEU)</span>
                   {activeKrs?.locked_by_keuangan ? (
                     <span className="badge badge-red text-xs font-bold mt-1 inline-flex items-center gap-1">
                       <Lock size={11} /> Belum Lunas
@@ -646,7 +794,7 @@ export default function KrsMahasiswaPage() {
                 </div>
                 <div className="h-10 w-px bg-white/20" />
                 <div className="text-center">
-                  <span className="text-2xs text-slate-300 block font-semibold">Status KRS</span>
+                  <span className="text-2xs text-slate-300 block font-semibold" style={{ color: '#e2e8f0' }}>Status KRS</span>
                   <span className={`badge text-xs font-bold mt-1 uppercase ${
                     activeKrs?.status === 'disetujui' ? 'badge-green' : activeKrs?.status === 'diajukan' ? 'badge-yellow' : 'badge-slate'
                   }`}>
@@ -669,50 +817,287 @@ export default function KrsMahasiswaPage() {
             )}
           </div>
 
-          {/* Daftar Mata Kuliah yang Diambil (Full-Bleed DataTable) */}
-          <div className="space-y-4">
-            <DataTable
-              columns={studentKrsColumns}
-              data={activeKrs?.krs_details || []}
-              isLoading={loading}
-              emptyMessage={
-                <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3 py-6">
-                  <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center">
-                    <BookOpen size={24} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-black text-slate-900">Rencana Studi Masih Kosong</h4>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      Anda belum memilih mata kuliah untuk periode <strong>{selectedTaObj?.nama || 'semester ini'}</strong>.
-                    </p>
-                  </div>
-                  <Button
-                    variant="primary"
-                    icon={<Plus size={14} />}
-                    className="font-bold text-xs shadow-xs"
-                    onClick={openClassPicker}
-                  >
-                    Ambil Mata Kuliah
-                  </Button>
-                </div>
-              }
-            />
+          {/* Tabs for Transfer Student */}
+          {isTransferStudent && (
+            <div className="flex border-b border-slate-200/90 mt-2">
+              <button
+                type="button"
+                className={`py-3 px-6 font-bold text-xs uppercase tracking-wider border-b-2 transition ${
+                  activeTab === 'krs'
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+                onClick={() => setActiveTab('krs')}
+              >
+                Rencana Studi (KRS)
+              </button>
+              <button
+                type="button"
+                className={`py-3 px-6 font-bold text-xs uppercase tracking-wider border-b-2 transition ${
+                  activeTab === 'konversi'
+                    ? 'border-amber-600 text-amber-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+                onClick={() => setActiveTab('konversi')}
+              >
+                Penyetaraan Konversi
+              </button>
+            </div>
+          )}
 
-            {/* Total Footer Ringkasan Beban SKS */}
-            {activeKrs?.krs_details?.length > 0 && (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between flex-wrap gap-3 text-xs">
-                <span className="text-slate-600 font-medium">
-                  Jumlah Mata Kuliah Terpilih: <strong className="text-slate-900">{activeKrs.krs_details.length} Kelas</strong>
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-600 font-medium">Total Beban Studi:</span>
-                  <span className="font-mono font-black text-sm text-primary-700 bg-primary-50 px-3 py-1 rounded-lg border border-primary-200">
-                    {activeKrs.total_sks_diambil || 0} / 24 SKS
+          {activeTab === 'krs' ? (
+            /* Daftar Mata Kuliah yang Diambil (Full-Bleed DataTable) */
+            <div className="space-y-4">
+              <DataTable
+                columns={studentKrsColumns}
+                data={activeKrs?.krs_details || []}
+                isLoading={loading}
+                emptyMessage={
+                  <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3 py-6">
+                    <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center">
+                      <BookOpen size={24} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">Rencana Studi Masih Kosong</h4>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        Anda belum memilih mata kuliah untuk periode <strong>{selectedTaObj?.nama || 'semester ini'}</strong>. Gunakan tombol di kanan atas untuk mengambil kelas.
+                      </p>
+                    </div>
+                  </div>
+                }
+              />
+
+              {/* Total Footer Ringkasan Beban SKS */}
+              {activeKrs?.krs_details?.length > 0 && (
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between flex-wrap gap-3 text-xs">
+                  <span className="text-slate-600 font-medium">
+                    Jumlah Mata Kuliah Terpilih: <strong className="text-slate-900">{activeKrs.krs_details.length} Kelas</strong>
                   </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-600 font-medium">Total Beban Studi:</span>
+                    <span className="font-mono font-black text-sm text-primary-700 bg-primary-50 px-3 py-1 rounded-lg border border-primary-200">
+                      {activeKrs.total_sks_diambil || 0} / 24 SKS
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Penyetaraan Konversi Form (tab === 'konversi') */
+            <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Sparkles className="text-amber-500" size={18} />
+                    Penyetaraan Nilai Konversi (Mahasiswa Pindahan)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Mapping mata kuliah asal ke mata kuliah kurikulum lokal kampus saat ini.
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {mhs?.konversi_transfer?.status && (
+                    <span className={`badge text-2xs font-black uppercase ${
+                      mhs.konversi_transfer.status === 'disetujui' ? 'badge-green' : mhs.konversi_transfer.status === 'diajukan' ? 'badge-yellow' : mhs.konversi_transfer.status === 'ditolak' ? 'badge-red' : 'badge-slate'
+                    }`}>
+                      Status: {mhs.konversi_transfer.status}
+                    </span>
+                  )}
+                  {mhs?.konversi_id && mhs?.konversi_transfer?.status === 'draft' && (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      icon={<Trash2 size={13} />}
+                      className="font-bold text-xs h-auto py-1 px-3 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100"
+                      onClick={handleDeleteKonversi}
+                      disabled={savingKonversi}
+                      type="button"
+                    >
+                      Hapus Konversi
+                    </Button>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Status Notice */}
+              {mhs?.konversi_transfer?.status === 'diajukan' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-xs text-yellow-800 flex items-start gap-2.5">
+                  <Clock size={16} className="mt-0.5 shrink-0 text-yellow-600" />
+                  <div>
+                    <strong className="font-bold block">Usulan Sedang Ditinjau</strong>
+                    Usulan konversi transfer Anda telah diajukan ke Dosen PA. Perubahan data dikunci selama masa review.
+                  </div>
+                </div>
+              )}
+
+              {mhs?.konversi_transfer?.status === 'disetujui' && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs text-emerald-800 flex items-start gap-2.5">
+                  <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+                  <div>
+                    <strong className="font-bold block">Usulan Disetujui</strong>
+                    Usulan konversi Anda telah disetujui oleh Dosen PA. Mata kuliah yang diakui secara otomatis lulus dan tidak perlu diambil kembali di KRS.
+                  </div>
+                </div>
+              )}
+
+              {mhs?.konversi_transfer?.status === 'ditolak' && (
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 flex items-start gap-2.5">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-600" />
+                  <div>
+                    <strong className="font-bold block">Usulan Ditolak</strong>
+                    Catatan Dosen PA: <strong>{mhs.konversi_transfer.catatan || '-'}</strong>. Silakan perbaiki data di bawah dan simpan/ajukan kembali.
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveKonversi} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Perguruan Tinggi Asal *"
+                    placeholder="Contoh: Universitas Gadjah Mada"
+                    value={konversiForm.kampus_asal}
+                    onChange={(e) => setKonversiForm({ ...konversiForm, kampus_asal: e.target.value })}
+                    required
+                    disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                  />
+                  <Input
+                    label="Program Studi Asal *"
+                    placeholder="Contoh: S1 Teknik Informatika"
+                    value={konversiForm.prodi_asal}
+                    onChange={(e) => setKonversiForm({ ...konversiForm, prodi_asal: e.target.value })}
+                    required
+                    disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                  />
+                  <div className="md:col-span-2">
+                    <label className="label font-bold text-slate-700">Catatan Tambahan (Opsional)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="e.g. Diakui sebanyak 10 mata kuliah..."
+                      value={konversiForm.catatan}
+                      onChange={(e) => setKonversiForm({ ...konversiForm, catatan: e.target.value })}
+                      className="textarea w-full text-xs font-bold"
+                      disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                    />
+                  </div>
+                </div>
+
+                {/* Converted Course List */}
+                <div className="space-y-3 pt-3 border-t border-slate-200">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Mata Kuliah Yang Diakui</h4>
+                    {!(mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui') && (
+                      <button
+                        type="button"
+                        onClick={handleAddKonversiDetail}
+                        className="text-xs font-bold text-amber-900 bg-amber-200 hover:bg-amber-300 py-1 px-3 rounded-lg flex items-center gap-1.5 cursor-pointer transition"
+                      >
+                        <Plus size={14} /> Tambah Baris Mata Kuliah
+                      </button>
+                    )}
+                  </div>
+
+                  {konversiForm.details.length === 0 ? (
+                    <p className="text-xs text-center py-6 text-slate-400 italic">Belum ada mata kuliah yang disetarakan. Klik tombol di atas untuk menambah.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {konversiForm.details.map((detail: any, idx: number) => (
+                        <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 relative shadow-2xs">
+                          {!(mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui') && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveKonversiDetail(idx)}
+                              className="absolute right-3 top-3 text-rose-600 hover:text-rose-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Trash2 size={12} /> Hapus Baris
+                            </button>
+                          )}
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-20">
+                            <Input
+                              label="Kode MK Asal *"
+                              placeholder="e.g. INF-101"
+                              value={detail.kode_mk_asal}
+                              onChange={(e) => handleKonversiDetailChange(idx, 'kode_mk_asal', e.target.value)}
+                              required
+                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                            />
+                            <Input
+                              label="Nama MK Asal *"
+                              placeholder="e.g. Pemrograman Dasar"
+                              value={detail.nama_mk_asal}
+                              onChange={(e) => handleKonversiDetailChange(idx, 'nama_mk_asal', e.target.value)}
+                              required
+                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <Input
+                              label="SKS Asal *"
+                              type="number"
+                              min="1"
+                              value={detail.sks_asal}
+                              onChange={(e) => handleKonversiDetailChange(idx, 'sks_asal', parseInt(e.target.value) || 0)}
+                              required
+                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                            />
+                            <Input
+                              label="Nilai Huruf Asal *"
+                              placeholder="e.g. A, B+, C"
+                              value={detail.nilai_huruf_asal}
+                              onChange={(e) => handleKonversiDetailChange(idx, 'nilai_huruf_asal', e.target.value)}
+                              required
+                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                            />
+                            <div>
+                              <label className="label font-bold text-slate-700">Disetarakan Ke MK Lokal *</label>
+                              <select
+                                value={detail.mata_kuliah_diakui_id}
+                                onChange={(e) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', parseInt(e.target.value))}
+                                className="select w-full text-xs font-bold bg-white"
+                                disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                              >
+                                {matakuliahs.map((mk) => (
+                                  <option key={mk.id} value={mk.id}>
+                                    {mk.kode_mk} - {mk.nama} ({mk.total_sks} SKS)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  {mhs?.konversi_id && (mhs?.konversi_transfer?.status === 'draft' || mhs?.konversi_transfer?.status === 'ditolak') && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="font-bold text-xs"
+                      onClick={handleSubmitKonversi}
+                      disabled={savingKonversi}
+                    >
+                      <Send size={14} /> Ajukan Penyetaraan ke Dosen PA
+                    </Button>
+                  )}
+                  {!(mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui') && (
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      className="font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
+                      disabled={savingKonversi}
+                    >
+                      <Save size={14} /> Simpan Draft Penyetaraan
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       )}
 
@@ -1405,6 +1790,136 @@ export default function KrsMahasiswaPage() {
                 </table>
               </div>
             </div>
+
+            {/* Penyetaraan Konversi Section inside Modal for Advisor/Admin Review */}
+            {(selectedKrs.mahasiswa?.jenis_pendaftaran === 'Peserta Didik Pindahan' || selectedKrs.mahasiswa?.konversi_transfer) && (
+              <div className="space-y-3 pt-3 border-t">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-xs text-slate-900 flex items-center gap-1.5">
+                    <Sparkles className="text-amber-500 animate-pulse" size={14} />
+                    Usulan Penyetaraan Konversi Transfer:
+                  </span>
+                  {selectedKrs.mahasiswa?.konversi_transfer?.status && (
+                    <span className={`badge text-2xs font-black uppercase ${
+                      selectedKrs.mahasiswa.konversi_transfer.status === 'disetujui' ? 'badge-green' : selectedKrs.mahasiswa.konversi_transfer.status === 'diajukan' ? 'badge-yellow' : selectedKrs.mahasiswa.konversi_transfer.status === 'ditolak' ? 'badge-red' : 'badge-slate'
+                    }`}>
+                      Status: {selectedKrs.mahasiswa.konversi_transfer.status}
+                    </span>
+                  )}
+                </div>
+
+                {!selectedKrs.mahasiswa?.konversi_transfer ? (
+                  <p className="text-2xs text-slate-400 italic">Mahasiswa belum menginputkan data penyetaraan konversi.</p>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-xs">
+                    <div className="grid grid-cols-2 gap-4 text-2xs">
+                      <div>
+                        <span className="text-slate-400 font-semibold block uppercase">Kampus Asal</span>
+                        <strong className="text-slate-800">{selectedKrs.mahasiswa.konversi_transfer.kampus_asal}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-semibold block uppercase">Prodi Asal</span>
+                        <strong className="text-slate-800">{selectedKrs.mahasiswa.konversi_transfer.prodi_asal}</strong>
+                      </div>
+                      {selectedKrs.mahasiswa.konversi_transfer.catatan && (
+                        <div className="col-span-2">
+                          <span className="text-slate-400 font-semibold block uppercase">Catatan Mahasiswa</span>
+                          <span className="text-slate-700 italic">"{selectedKrs.mahasiswa.konversi_transfer.catatan}"</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t pt-2.5">
+                      <span className="font-bold text-slate-800 block mb-1">Daftar Penyetaraan Matakuliah:</span>
+                      <table className="w-full text-left text-2xs border-collapse">
+                        <thead>
+                          <tr className="border-b text-slate-500 font-bold">
+                            <th className="py-1">MK Asal (Kode/Nama/SKS/Nilai)</th>
+                            <th className="py-1">Disetarakan Ke MK Lokal (Kode/Nama/SKS)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y text-slate-700 font-medium">
+                          {selectedKrs.mahasiswa.konversi_transfer.details?.map((det: any, i: number) => (
+                            <tr key={det.id || i}>
+                              <td className="py-1.5 pr-2">
+                                <span className="font-bold">{det.kode_mk_asal} - {det.nama_mk_asal}</span> ({det.sks_asal} SKS, Nilai {det.nilai_huruf_asal})
+                              </td>
+                              <td className="py-1.5">
+                                <span className="font-bold text-primary-700">{det.mata_kuliah_diakui?.kode_mk || det.mata_kuliah_diakui_id}</span> - {det.mata_kuliah_diakui?.nama} ({det.mata_kuliah_diakui?.total_sks} SKS)
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Dosen Wali / Admin Approval Actions */}
+                    {selectedKrs.mahasiswa.konversi_transfer.status === 'diajukan' && (
+                      <div className="border-t pt-3 flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex-1 min-w-[200px]">
+                          <input
+                            type="text"
+                            placeholder="Catatan persetujuan / penolakan..."
+                            id="catatan-konversi"
+                            className="input w-full text-2xs py-1.5 font-bold"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            className="font-bold text-2xs py-1 px-3 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                            onClick={async () => {
+                              const input = document.getElementById('catatan-konversi') as HTMLInputElement;
+                              const catatan = input?.value || '';
+                              if (!catatan) {
+                                toast.error('Harap isi catatan/alasan penolakan');
+                                return;
+                              }
+                              try {
+                                const res = await siakadService.updateKonversiStatus(selectedKrs.mahasiswa.konversi_transfer.id, {
+                                  status: 'ditolak',
+                                  catatan
+                                });
+                                toast.success('Penyetaraan konversi ditolak.');
+                                setSelectedKrs(null);
+                                fetchKrsList();
+                              } catch (err) {
+                                toast.error('Gagal memproses usulan konversi');
+                              }
+                            }}
+                          >
+                            Tolak Penyetaraan
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            className="font-bold text-2xs py-1 px-3 bg-emerald-600 text-white hover:bg-emerald-700 border-none"
+                            onClick={async () => {
+                              const input = document.getElementById('catatan-konversi') as HTMLInputElement;
+                              const catatan = input?.value || 'Disetujui oleh Dosen PA';
+                              try {
+                                const res = await siakadService.updateKonversiStatus(selectedKrs.mahasiswa.konversi_transfer.id, {
+                                  status: 'disetujui',
+                                  catatan
+                                });
+                                toast.success('Penyetaraan konversi disetujui.');
+                                setSelectedKrs(null);
+                                fetchKrsList();
+                              } catch (err) {
+                                toast.error('Gagal memproses usulan konversi');
+                              }
+                            }}
+                          >
+                            Setujui Penyetaraan
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Modal Actions */}
             <div className="flex items-center justify-between pt-3 border-t">

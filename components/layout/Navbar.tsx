@@ -13,6 +13,11 @@ export function Navbar() {
   const { toggleSidebar } = useUiStore();
   const [showDropdown, setShowDropdown] = useState(false);
 
+  const isMahasiswa = (user?.roles || []).some((r: any) => {
+    const slug = (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase();
+    return slug === 'mahasiswa';
+  });
+
   return (
     <header className="topbar">
       <div className="topbar-section">
@@ -78,6 +83,18 @@ export function Navbar() {
                 <User size={16} />
                 <span>Pengaturan Profil</span>
               </Link>
+
+              {isMahasiswa && (
+                <Link
+                  href="/siakad/profil"
+                  onClick={() => setShowDropdown(false)}
+                  className="dropdown-item text-amber-800 bg-amber-50 hover:bg-amber-100 font-semibold"
+                  role="menuitem"
+                >
+                  <User size={16} className="text-amber-700" />
+                  <span>Biodata PDDIKTI</span>
+                </Link>
+              )}
 
               <Link
                 href="/profile/mfa"

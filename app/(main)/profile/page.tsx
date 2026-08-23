@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,6 +35,11 @@ type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const userRoles = (user?.roles || []).map((r: any) =>
+    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
+  );
+  const isMahasiswa = userRoles.includes('mahasiswa') || user?.user_type === 'mahasiswa';
+
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info');
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -131,6 +137,18 @@ export default function ProfilePage() {
                   <span className="font-semibold">{formatDate(displayUser.created_at)}</span>
                 </div>
               </div>
+
+              {isMahasiswa && (
+                <div className="mt-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-center space-y-2">
+                  <span className="text-xs font-bold text-amber-900 block">Identitas PDDikti Terbaca</span>
+                  <p className="text-2xs text-slate-500 mb-2">Anda dapat mengubah data alamat, orang tua, dan rincian konversi transfer melalui portal khusus.</p>
+                  <Link href="/siakad/profil" className="inline-block w-full">
+                    <Button variant="outline" size="sm" className="w-full font-bold text-amber-900 border-amber-300 hover:bg-amber-100 bg-white">
+                      Buka Biodata PDDIKTI
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 

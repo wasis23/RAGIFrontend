@@ -82,6 +82,85 @@ export default function PerkuliahanKelasPage() {
   });
   const [savingRps, setSavingRps] = useState(false);
 
+  // Student Attendance States
+  const [selectedAbsenKelas, setSelectedAbsenKelas] = useState<any | null>(null);
+  const [isAbsensiModalOpen, setIsAbsensiModalOpen] = useState(false);
+  const [pertemuans, setPertemuans] = useState<any[]>([]);
+  const [activePertemuan, setActivePertemuan] = useState<any | null>(null);
+  const [attendanceList, setAttendanceList] = useState<any[]>([]);
+  const [isNewPertemuanOpen, setIsNewPertemuanOpen] = useState(false);
+  const [newPertemuanForm, setNewPertemuanForm] = useState({
+    pertemuan_ke: 1,
+    tanggal: new Date().toISOString().slice(0, 10),
+    materi: '',
+    jam_mulai: '08:00',
+    jam_selesai: '10:30',
+  });
+  const [savingAbsen, setSavingAbsen] = useState(false);
+
+  const fetchPertemuans = async (kelasId: number) => {
+    try {
+      const res = await siakadService.getPertemuans(kelasId);
+      if (res.data) setPertemuans(res.data);
+    } catch (err: any) {
+      toast.error('Gagal memuat daftar pertemuan');
+    }
+  };
+
+  const handleOpenAbsensi = (k: any) => {
+    setSelectedAbsenKelas(k);
+    fetchPertemuans(k.id);
+    setActivePertemuan(null);
+    setIsAbsensiModalOpen(true);
+  };
+
+  const handleCreatePertemuan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingAbsen(true);
+      await siakadService.createPertemuan(selectedAbsenKelas.id, newPertemuanForm);
+      toast.success('Pertemuan baru berhasil dibuat.');
+      setIsNewPertemuanOpen(false);
+      fetchPertemuans(selectedAbsenKelas.id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal membuat pertemuan. Pastikan RPS disetujui.');
+    } finally {
+      setSavingAbsen(false);
+    }
+  };
+
+  const handleViewAttendanceDetails = async (p: any) => {
+    setActivePertemuan(p);
+    try {
+      const res = await siakadService.getAbsensiList(p.id);
+      if (res.data && res.data.absensi) {
+        setAttendanceList(res.data.absensi);
+      }
+    } catch (err: any) {
+      toast.error('Gagal memuat data kehadiran mahasiswa');
+    }
+  };
+
+  const handleSaveAttendance = async () => {
+    try {
+      setSavingAbsen(true);
+      const payload = attendanceList.map((item) => ({
+        mahasiswa_id: item.mahasiswa_id,
+        status: item.status,
+        catatan: item.catatan || '',
+      }));
+      await siakadService.saveAbsensi(activePertemuan.id, { absensi: payload });
+      toast.success('Presensi mahasiswa berhasil disimpan.');
+      setActivePertemuan(null);
+      fetchPertemuans(selectedAbsenKelas.id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan absensi');
+    } finally {
+      setSavingAbsen(false);
+    }
+  };
+
+
   const handleOpenRps = async (k: any) => {
     setSelectedRpsKelas(k);
     try {
@@ -380,6 +459,16 @@ export default function PerkuliahanKelasPage() {
             },
           },
         ];
+
+        if (isDosen) {
+          items.push({
+            label: 'Input Absensi Mahasiswa',
+            icon: <CalendarCheck size={14} />,
+            onClick: () => {
+              handleOpenAbsensi(row);
+            },
+          });
+        }
 
         if (!isMahasiswa && !isDosen) {
           items.push(
@@ -1027,7 +1116,211 @@ export default function PerkuliahanKelasPage() {
       {/* ======================================================== */}
       {/* MODAL LIHAT & EDIT LANGSUNG DOKUMEN RPS (16 MINGGU) */}
       {/* ======================================================== */}
+      {/* MODAL ABSENSI & PRESENSI DOSEN */}
+      {isAbsensiModalOpen && selectedAbsenKelas && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-100 animate-scale-in flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b flex items-center justify-between bg-slate-50 shrink-0">
+              <div>
+                <span className="text-2xs font-extrabold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">PORTAL DOSEN PENGAJAR</span>
+                <h3 className="font-black text-sm text-slate-900 mt-1">
+                  Absensi Kelas: {selectedAbsenKelas.nama_kelas} ({selectedAbsenKelas.mata_kuliah?.nama})
+                </h3>
+              </div>
+              <button onClick={() => setIsAbsensiModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Kolom Kiri: Pertemuan 1-16 */}
+              <div className="md:col-span-1 border-r pr-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-xs uppercase text-slate-500">Pertemuan 1-16</span>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="text-2xs font-bold"
+                    onClick={() => {
+                      setNewPertemuanForm({
+                        pertemuan_ke: pertemuans.length + 1,
+                        tanggal: new Date().toISOString().slice(0, 10),
+                        materi: '',
+                        jam_mulai: selectedAbsenKelas.jam_mulai ? selectedAbsenKelas.jam_mulai.slice(0, 5) : '08:00',
+                        jam_selesai: selectedAbsenKelas.jam_selesai ? selectedAbsenKelas.jam_selesai.slice(0, 5) : '10:30',
+                      });
+                      setIsNewPertemuanOpen(true);
+                    }}
+                  >
+                    Tambah
+                  </Button>
+                </div>
+
+                {isNewPertemuanOpen && (
+                  <form onSubmit={handleCreatePertemuan} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-2xs">
+                      <div>
+                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Pertemuan Ke</label>
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          max={16}
+                          value={newPertemuanForm.pertemuan_ke}
+                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, pertemuan_ke: Number(e.target.value) })}
+                          className="input w-full font-bold text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Tanggal</label>
+                        <input
+                          type="date"
+                          required
+                          value={newPertemuanForm.tanggal}
+                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, tanggal: e.target.value })}
+                          className="input w-full text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-2xs">
+                      <label className="font-bold text-slate-500 block uppercase">Materi Pembahasan</label>
+                      <input
+                        type="text"
+                        required
+                        value={newPertemuanForm.materi}
+                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, materi: e.target.value })}
+                        className="input w-full text-xs"
+                        placeholder="Contoh: Pengenalan OOP, Analisis Kebutuhan"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-1.5 pt-1">
+                      <Button type="button" variant="outline" size="sm" className="text-2xs" onClick={() => setIsNewPertemuanOpen(false)}>Batal</Button>
+                      <Button type="submit" variant="primary" size="sm" className="text-2xs font-bold" disabled={savingAbsen}>Simpan</Button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+                  {pertemuans.length === 0 ? (
+                    <p className="text-2xs text-slate-400 italic">Belum ada pertemuan kelas.</p>
+                  ) : (
+                    pertemuans.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => handleViewAttendanceDetails(p)}
+                        className={`p-3 rounded-xl border border-slate-200 cursor-pointer transition ${
+                          activePertemuan?.id === p.id ? 'bg-primary-50 border-primary-300 font-bold' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-900 font-black">Pertemuan {p.pertemuan_ke}</span>
+                          <span className="text-2xs font-mono text-slate-400">{p.tanggal}</span>
+                        </div>
+                        <p className="text-2xs text-slate-600 mt-1 font-medium truncate">{p.materi || 'Tidak ada materi'}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Kolom Kanan: Pengisian Absen Mahasiswa */}
+              <div className="md:col-span-2 flex flex-col h-[55vh]">
+                {activePertemuan ? (
+                  <div className="flex flex-col h-full space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b">
+                      <div>
+                        <h4 className="font-extrabold text-xs text-slate-900">Daftar Kehadiran: Pertemuan {activePertemuan.pertemuan_ke}</h4>
+                        <p className="text-2xs text-slate-500 font-medium">Materi: {activePertemuan.materi}</p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        className="text-xs font-bold"
+                        onClick={handleSaveAttendance}
+                        disabled={savingAbsen}
+                      >
+                        {savingAbsen ? 'Menyimpan...' : 'Simpan Presensi'}
+                      </Button>
+                    </div>
+
+                    <div className="overflow-y-auto flex-1 border border-slate-200 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-50 font-bold text-slate-600 border-b">
+                          <tr>
+                            <th className="py-2.5 px-3">MAHASISWA</th>
+                            <th className="py-2.5 px-3 text-center w-48">STATUS KEHADIRAN</th>
+                            <th className="py-2.5 px-3 w-40">CATATAN</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y font-medium text-slate-700">
+                          {attendanceList.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="py-6 text-center text-slate-400 italic">Tidak ada mahasiswa terdaftar di kelas ini.</td>
+                            </tr>
+                          ) : (
+                            attendanceList.map((item, idx) => (
+                              <tr key={item.id || idx}>
+                                <td className="py-2.5 px-3">
+                                  <span className="font-bold text-slate-900 block text-xs">{item.mahasiswa?.nama_lengkap}</span>
+                                  <span className="font-mono text-2xs text-slate-400">NIM: {item.mahasiswa?.nim}</span>
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg justify-between border">
+                                    {['hadir', 'sakit', 'izin', 'alfa'].map((st) => (
+                                      <button
+                                        key={st}
+                                        type="button"
+                                        onClick={() => {
+                                          const next = [...attendanceList];
+                                          next[idx].status = st;
+                                          setAttendanceList(next);
+                                        }}
+                                        className={`px-2 py-1 text-2xs font-extrabold capitalize rounded-md transition ${
+                                          item.status === st
+                                            ? st === 'hadir' ? 'bg-emerald-600 text-white'
+                                              : st === 'sakit' ? 'bg-blue-600 text-white'
+                                              : st === 'izin' ? 'bg-amber-500 text-white'
+                                              : 'bg-red-600 text-white'
+                                            : 'text-slate-500 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        {st}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <input
+                                    type="text"
+                                    value={item.catatan || ''}
+                                    onChange={(e) => {
+                                      const next = [...attendanceList];
+                                      next[idx].catatan = e.target.value;
+                                      setAttendanceList(next);
+                                    }}
+                                    placeholder="..."
+                                    className="input w-full text-2xs py-1 px-2 border-slate-200"
+                                  />
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center border border-dashed rounded-3xl bg-slate-50 text-slate-400 p-6">
+                    <CalendarCheck size={36} className="text-slate-300 animate-bounce mb-2" />
+                    <p className="text-xs font-bold">Pilih Pertemuan di sebelah kiri</p>
+                    <p className="text-2xs text-slate-400">Untuk menginput atau merekap presensi mahasiswa.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedRpsKelas && (
+
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto space-y-5">
             <div className="flex items-center justify-between border-b pb-3.5">
@@ -1319,7 +1612,211 @@ export default function PerkuliahanKelasPage() {
       {/* ======================================================== */}
       {/* DOKUMEN CETAK RPS RESMI (SN-DIKTI / OBE) — KHUSUS PRINT */}
       {/* ======================================================== */}
+      {/* MODAL ABSENSI & PRESENSI DOSEN */}
+      {isAbsensiModalOpen && selectedAbsenKelas && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-100 animate-scale-in flex flex-col max-h-[85vh]">
+            <div className="px-6 py-4 border-b flex items-center justify-between bg-slate-50 shrink-0">
+              <div>
+                <span className="text-2xs font-extrabold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">PORTAL DOSEN PENGAJAR</span>
+                <h3 className="font-black text-sm text-slate-900 mt-1">
+                  Absensi Kelas: {selectedAbsenKelas.nama_kelas} ({selectedAbsenKelas.mata_kuliah?.nama})
+                </h3>
+              </div>
+              <button onClick={() => setIsAbsensiModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Kolom Kiri: Pertemuan 1-16 */}
+              <div className="md:col-span-1 border-r pr-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-xs uppercase text-slate-500">Pertemuan 1-16</span>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="text-2xs font-bold"
+                    onClick={() => {
+                      setNewPertemuanForm({
+                        pertemuan_ke: pertemuans.length + 1,
+                        tanggal: new Date().toISOString().slice(0, 10),
+                        materi: '',
+                        jam_mulai: selectedAbsenKelas.jam_mulai ? selectedAbsenKelas.jam_mulai.slice(0, 5) : '08:00',
+                        jam_selesai: selectedAbsenKelas.jam_selesai ? selectedAbsenKelas.jam_selesai.slice(0, 5) : '10:30',
+                      });
+                      setIsNewPertemuanOpen(true);
+                    }}
+                  >
+                    Tambah
+                  </Button>
+                </div>
+
+                {isNewPertemuanOpen && (
+                  <form onSubmit={handleCreatePertemuan} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-2xs">
+                      <div>
+                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Pertemuan Ke</label>
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          max={16}
+                          value={newPertemuanForm.pertemuan_ke}
+                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, pertemuan_ke: Number(e.target.value) })}
+                          className="input w-full font-bold text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Tanggal</label>
+                        <input
+                          type="date"
+                          required
+                          value={newPertemuanForm.tanggal}
+                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, tanggal: e.target.value })}
+                          className="input w-full text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-2xs">
+                      <label className="font-bold text-slate-500 block uppercase">Materi Pembahasan</label>
+                      <input
+                        type="text"
+                        required
+                        value={newPertemuanForm.materi}
+                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, materi: e.target.value })}
+                        className="input w-full text-xs"
+                        placeholder="Contoh: Pengenalan OOP, Analisis Kebutuhan"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-1.5 pt-1">
+                      <Button type="button" variant="outline" size="sm" className="text-2xs" onClick={() => setIsNewPertemuanOpen(false)}>Batal</Button>
+                      <Button type="submit" variant="primary" size="sm" className="text-2xs font-bold" disabled={savingAbsen}>Simpan</Button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+                  {pertemuans.length === 0 ? (
+                    <p className="text-2xs text-slate-400 italic">Belum ada pertemuan kelas.</p>
+                  ) : (
+                    pertemuans.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => handleViewAttendanceDetails(p)}
+                        className={`p-3 rounded-xl border border-slate-200 cursor-pointer transition ${
+                          activePertemuan?.id === p.id ? 'bg-primary-50 border-primary-300 font-bold' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-900 font-black">Pertemuan {p.pertemuan_ke}</span>
+                          <span className="text-2xs font-mono text-slate-400">{p.tanggal}</span>
+                        </div>
+                        <p className="text-2xs text-slate-600 mt-1 font-medium truncate">{p.materi || 'Tidak ada materi'}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Kolom Kanan: Pengisian Absen Mahasiswa */}
+              <div className="md:col-span-2 flex flex-col h-[55vh]">
+                {activePertemuan ? (
+                  <div className="flex flex-col h-full space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b">
+                      <div>
+                        <h4 className="font-extrabold text-xs text-slate-900">Daftar Kehadiran: Pertemuan {activePertemuan.pertemuan_ke}</h4>
+                        <p className="text-2xs text-slate-500 font-medium">Materi: {activePertemuan.materi}</p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        className="text-xs font-bold"
+                        onClick={handleSaveAttendance}
+                        disabled={savingAbsen}
+                      >
+                        {savingAbsen ? 'Menyimpan...' : 'Simpan Presensi'}
+                      </Button>
+                    </div>
+
+                    <div className="overflow-y-auto flex-1 border border-slate-200 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="bg-slate-50 font-bold text-slate-600 border-b">
+                          <tr>
+                            <th className="py-2.5 px-3">MAHASISWA</th>
+                            <th className="py-2.5 px-3 text-center w-48">STATUS KEHADIRAN</th>
+                            <th className="py-2.5 px-3 w-40">CATATAN</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y font-medium text-slate-700">
+                          {attendanceList.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="py-6 text-center text-slate-400 italic">Tidak ada mahasiswa terdaftar di kelas ini.</td>
+                            </tr>
+                          ) : (
+                            attendanceList.map((item, idx) => (
+                              <tr key={item.id || idx}>
+                                <td className="py-2.5 px-3">
+                                  <span className="font-bold text-slate-900 block text-xs">{item.mahasiswa?.nama_lengkap}</span>
+                                  <span className="font-mono text-2xs text-slate-400">NIM: {item.mahasiswa?.nim}</span>
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg justify-between border">
+                                    {['hadir', 'sakit', 'izin', 'alfa'].map((st) => (
+                                      <button
+                                        key={st}
+                                        type="button"
+                                        onClick={() => {
+                                          const next = [...attendanceList];
+                                          next[idx].status = st;
+                                          setAttendanceList(next);
+                                        }}
+                                        className={`px-2 py-1 text-2xs font-extrabold capitalize rounded-md transition ${
+                                          item.status === st
+                                            ? st === 'hadir' ? 'bg-emerald-600 text-white'
+                                              : st === 'sakit' ? 'bg-blue-600 text-white'
+                                              : st === 'izin' ? 'bg-amber-500 text-white'
+                                              : 'bg-red-600 text-white'
+                                            : 'text-slate-500 hover:text-slate-900'
+                                        }`}
+                                      >
+                                        {st}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <input
+                                    type="text"
+                                    value={item.catatan || ''}
+                                    onChange={(e) => {
+                                      const next = [...attendanceList];
+                                      next[idx].catatan = e.target.value;
+                                      setAttendanceList(next);
+                                    }}
+                                    placeholder="..."
+                                    className="input w-full text-2xs py-1 px-2 border-slate-200"
+                                  />
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center border border-dashed rounded-3xl bg-slate-50 text-slate-400 p-6">
+                    <CalendarCheck size={36} className="text-slate-300 animate-bounce mb-2" />
+                    <p className="text-xs font-bold">Pilih Pertemuan di sebelah kiri</p>
+                    <p className="text-2xs text-slate-400">Untuk menginput atau merekap presensi mahasiswa.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedRpsKelas && (
+
         <div className="hidden print:block printable-document print-document bg-white text-black p-8 font-serif leading-normal w-full">
           {/* Kop Dokumen Resmi */}
           <div className="border-b-2 border-black pb-3 mb-4 text-center">

@@ -18,6 +18,7 @@ import {
   History,
   GraduationCap,
   Users,
+  User,
   BookOpen,
   CalendarCheck,
   Server,
@@ -115,7 +116,7 @@ export default function FeederSyncPage() {
     }
   };
 
-  const handleTriggerSync = async (entity: 'mahasiswa' | 'dosen' | 'mata_kuliah' | 'kelas' | 'penugasan_dosen') => {
+  const handleTriggerSync = async (entity: 'mahasiswa' | 'biodata_mahasiswa' | 'riwayat_pendidikan_mahasiswa' | 'dosen' | 'mata_kuliah' | 'kelas' | 'penugasan_dosen') => {
     try {
       setSyncingEntity(entity);
       const res = await feederService.triggerSync(entity);
@@ -377,28 +378,80 @@ export default function FeederSyncPage() {
 
           {/* Sync Action Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Card 1: Mahasiswa */}
+            {/* Card 1: Biodata Mahasiswa */}
             <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center font-bold">
-                    <GraduationCap size={18} />
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                    <User size={18} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Data Mahasiswa</h4>
-                    <p className="text-2xs text-slate-500">Kirim biodata, NIK, NIM & status akademik ke PDDIKTI</p>
+                    <h4 className="font-bold text-sm text-slate-900">Biodata Mahasiswa (WS Feeder)</h4>
+                    <p className="text-2xs text-slate-500">InsertBiodataMahasiswa (NIK, NISN, Ibu Kandung, Alamat)</p>
                   </div>
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_mahasiswa</span>
+                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: InsertBiodataMahasiswa</span>
+                <Button
+                  variant="primary"
+                  className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                  disabled={syncingEntity === 'biodata_mahasiswa'}
+                  onClick={() => handleTriggerSync('biodata_mahasiswa')}
+                >
+                  {syncingEntity === 'biodata_mahasiswa' ? 'Menyinkronkan...' : 'Push Biodata →'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Card 2: Riwayat Pendidikan Mahasiswa */}
+            <div className="card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                    <GraduationCap size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">Riwayat Pendidikan & Registrasi</h4>
+                    <p className="text-2xs text-slate-500">InsertRiwayatPendidikanMahasiswa (NIM, Prodi, Jalur Masuk, SKS Transfer)</p>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: InsertRiwayatPendidikanMahasiswa</span>
+                <Button
+                  variant="primary"
+                  className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={syncingEntity === 'riwayat_pendidikan_mahasiswa'}
+                  onClick={() => handleTriggerSync('riwayat_pendidikan_mahasiswa')}
+                >
+                  {syncingEntity === 'riwayat_pendidikan_mahasiswa' ? 'Menyinkronkan...' : 'Push Riwayat →'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Card 3: Batch All Mahasiswa */}
+            <div className="card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center font-bold">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Penuh Mahasiswa</h4>
+                    <p className="text-2xs text-slate-500">Orkestrasi gabungan Biodata + Riwayat Pendidikan PDDikti</p>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">Orkestrasi: All Mahasiswa</span>
                 <Button
                   variant="primary"
                   className="text-xs font-bold"
                   disabled={syncingEntity === 'mahasiswa'}
                   onClick={() => handleTriggerSync('mahasiswa')}
                 >
-                  {syncingEntity === 'mahasiswa' ? 'Menyinkronkan...' : 'Push Mahasiswa →'}
+                  {syncingEntity === 'mahasiswa' ? 'Menyinkronkan...' : 'Push All Mahasiswa →'}
                 </Button>
               </div>
             </div>

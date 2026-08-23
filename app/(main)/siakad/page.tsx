@@ -85,7 +85,7 @@ export default function SiakadDashboardPage() {
   if (isMahasiswa) {
     const mhs = studentData?.mahasiswa;
     const krs = studentData?.krs;
-    const isTransfer = Boolean(mhs?.konversi_transfer);
+    const isTransfer = mhs?.jenis_pendaftaran === 'Peserta Didik Pindahan' || Boolean(mhs?.konversi_transfer);
 
     return (
       <div className="space-y-6 animate-fade-in">
@@ -97,20 +97,6 @@ export default function SiakadDashboardPage() {
             { label: 'SIAKAD' },
             { label: 'Portal Mahasiswa' },
           ]}
-          action={
-            <div className="flex items-center gap-2">
-              <Link href="/siakad/krs">
-                <Button variant="primary" icon={<PlusCircle size={15} />} className="font-bold">
-                  Isi / Edit KRS
-                </Button>
-              </Link>
-              <Link href="/sikeu/mahasiswa/tagihan">
-                <Button variant="outline" icon={<CreditCard size={15} />} className="font-bold">
-                  Tagihan SPP
-                </Button>
-              </Link>
-            </div>
-          }
         />
 
         {/* Profil Mahasiswa Banner */}
@@ -257,7 +243,20 @@ export default function SiakadDashboardPage() {
         })()}
 
         {/* Quick Menu Shortcuts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
+          <Link
+            href="/siakad/profil"
+            className="card p-4 hover:border-primary-300 hover:shadow-md transition flex items-center gap-3.5 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+              <UserCheck size={18} />
+            </div>
+            <div>
+              <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">Biodata PDDIKTI</p>
+              <p className="text-2xs text-slate-500">Edit Profil & Feeder</p>
+            </div>
+          </Link>
+
           <Link
             href="/siakad/krs"
             className="card p-4 hover:border-primary-300 hover:shadow-md transition flex items-center gap-3.5 group"

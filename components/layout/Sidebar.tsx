@@ -97,6 +97,7 @@ const SIAKAD_MAHASISWA_MENUS: Menu[] = [
   { id: 712, parent_id: null, name: 'Jadwal Kuliah & RPS', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
   { id: 713, parent_id: null, name: 'KHS & Transkrip Nilai', url: '/siakad/nilai', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
   { id: 714, parent_id: null, name: 'Tagihan SPP (SIKEU)', url: '/sikeu/mahasiswa/tagihan', icon: 'FaCreditCard', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
+  { id: 715, parent_id: null, name: 'Biodata PDDIKTI', url: '/siakad/profil', icon: 'FaUser', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
 ];
 
 // Menus SIAKAD untuk Dosen (Portal Dosen Pengajar / Wali)
@@ -126,6 +127,7 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
       { id: 7031, parent_id: 703, name: 'Mahasiswa', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
       { id: 7032, parent_id: 703, name: 'Konversi Transfer', url: '/siakad/civitas/konversi', icon: 'FaExchangeAlt', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
       { id: 7033, parent_id: 703, name: 'Dosen', url: '/siakad/civitas/dosen', icon: 'FaChalkboardTeacher', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+      { id: 7034, parent_id: 703, name: 'Biodata Mahasiswa', url: '/siakad/civitas/biodata', icon: 'FaUser', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
     ]
   },
   {
@@ -235,7 +237,7 @@ export function Sidebar() {
   );
 
   const isMahasiswaRole = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
-  const isDosenRole = userRoleSlugs.includes('dosen') && !isSuperAdmin && !isAdmin;
+  const isDosenRole = (userRoleSlugs.includes('dosen') || userRoleSlugs.includes('kaprodi') || userRoleSlugs.includes('wakil_prodi')) && !isSuperAdmin && !isAdmin;
 
   const isPanitiaAdmin =
     isSuperAdmin ||
@@ -349,7 +351,13 @@ export function Sidebar() {
     }
   }, [user, pathname]);
 
-  const isMainActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
+  const isMainActive = (path: string) => {
+    const isModuleRoot = ['/siakad', '/sikeu', '/simpeg', '/spmb', '/sinapra', '/sippm', '/admin', '/dashboard'].includes(path);
+    if (isModuleRoot) {
+      return pathname === path;
+    }
+    return pathname === path || pathname.startsWith(path + '/');
+  };
 
   return (
     <aside className={`sidebar ${sidebar_open ? '' : 'sidebar-collapsed'}`}>

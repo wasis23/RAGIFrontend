@@ -239,13 +239,6 @@ export default function DosenPage() {
               {syncingSimpeg ? 'Menyinkronkan...' : 'Sinkronkan SIMPEG'}
             </Button>
             <Button
-              variant="primary"
-              icon={<Plus size={16} />}
-              onClick={() => handleOpenModal()}
-            >
-              Tambah Dosen
-            </Button>
-            <Button
               variant="outline"
               icon={<Filter size={16} />}
               onClick={() => setShowFilter(true)}

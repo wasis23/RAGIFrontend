@@ -17,6 +17,7 @@ export default function FakultasPage() {
   const [activeTab, setActiveTab] = useState<'fakultas' | 'prodi'>('fakultas');
   const [fakultas, setFakultas] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
+  const [dosens, setDosens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter Drawer State
@@ -48,6 +49,7 @@ export default function FakultasPage() {
   const [deletingProdi, setDeletingProdi] = useState<any | null>(null);
   const [prodiForm, setProdiForm] = useState({
     fakultas_id: 1,
+    kaprodi_id: '',
     kode_prodi: '',
     kode_prodi_dikti: '',
     nama: '',
@@ -60,13 +62,14 @@ export default function FakultasPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [fRes, pRes] = await Promise.all([
+      const [fRes, pRes, dRes] = await Promise.all([
         siakadService.getFakultas(),
         siakadService.getProdi({
           search: appliedFilters.search,
           fakultas_id: appliedFilters.fakultasId,
           jenjang: appliedFilters.jenjang,
         }),
+        siakadService.getDosens(),
       ]);
       if (fRes.data) {
         setFakultas(fRes.data);
@@ -75,6 +78,7 @@ export default function FakultasPage() {
         }
       }
       if (pRes.data) setProdis(pRes.data);
+      if (dRes.data) setDosens(dRes.data);
     } catch (err: any) {
       toast.error('Gagal memuat data fakultas & program studi');
     } finally {
@@ -148,6 +152,7 @@ export default function FakultasPage() {
       setEditingProdi(item);
       setProdiForm({
         fakultas_id: item.fakultas_id,
+        kaprodi_id: item.kaprodi_id || '',
         kode_prodi: item.kode_prodi,
         kode_prodi_dikti: item.kode_prodi_dikti || '',
         nama: item.nama,
@@ -158,6 +163,7 @@ export default function FakultasPage() {
       setEditingProdi(null);
       setProdiForm({
         fakultas_id: fakultas[0]?.id || 1,
+        kaprodi_id: '',
         kode_prodi: '',
         kode_prodi_dikti: '',
         nama: '',
@@ -614,6 +620,22 @@ export default function FakultasPage() {
               value={prodiForm.nama}
               onChange={(e) => setProdiForm({ ...prodiForm, nama: e.target.value })}
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="label">Ketua Program Studi (Kaprodi)</label>
+            <select
+              value={prodiForm.kaprodi_id}
+              onChange={(e) => setProdiForm({ ...prodiForm, kaprodi_id: e.target.value })}
+              className="select w-full"
+            >
+              <option value="">-- Belum Ditentukan / Pilih Dosen --</option>
+              {dosens.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nama_lengkap} (NIDN: {d.nidn || '-'})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="md:col-span-2">

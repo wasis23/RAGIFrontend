@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Award,
   BookOpen,
@@ -37,6 +38,7 @@ import toast from 'react-hot-toast';
 
 export default function InputNilaiPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'khs' | 'transkrip' | 'portofolio_obe'>('khs');
   const [nilaiList, setNilaiList] = useState<any[]>([]);
   const [summary, setSummary] = useState<any | null>(null);
@@ -474,7 +476,7 @@ export default function InputNilaiPage() {
       align: 'center',
       render: (m) => (
         <span className="font-mono font-black text-slate-900">
-          {Number(m.ipk || 3.85).toFixed(2)}
+          {Number(m.ipk ?? 0.00).toFixed(2)}
         </span>
       ),
     },
@@ -758,6 +760,31 @@ export default function InputNilaiPage() {
                 </div>
               )}
 
+              {isAdmin && selectedTaObj && (
+                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
+                  <Settings size={14} className="text-emerald-600 shrink-0" />
+                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Mode Penilaian:</span>
+                  <select
+                    value={selectedTaObj.mode_penilaian || 'semi_obe'}
+                    onChange={async (e) => {
+                      const nextMode = e.target.value;
+                      try {
+                        await siakadService.updateModePenilaian(selectedTaObj.id, { mode_penilaian: nextMode });
+                        toast.success(`Mode penilaian periode berhasil diubah ke ${nextMode}`);
+                        setTahunAkademiks(prev => prev.map(t => t.id === selectedTaObj.id ? { ...t, mode_penilaian: nextMode } : t));
+                      } catch(err) {
+                        toast.error('Gagal memperbarui mode penilaian');
+                      }
+                    }}
+                    className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
+                  >
+                    <option value="full_obe">Pure OBE (CPMK)</option>
+                    <option value="semi_obe">Hybrid OBE (UTS/UAS)</option>
+                    <option value="konvensional">Konvensional</option>
+                  </select>
+                </div>
+              )}
+
               {/* Filter Button for Admin & Dosen */}
               {!isMahasiswa && (
                 ((activeTab === 'khs' && !selectedKelasObj) ||
@@ -941,6 +968,14 @@ export default function InputNilaiPage() {
 
                     <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
                       <Button
+                        variant="primary"
+                        icon={<Edit3 size={14} />}
+                        className="text-xs font-bold py-2.5 px-4 h-auto bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-sm whitespace-nowrap"
+                        onClick={() => router.push(`/siakad/nilai/input/${selectedKelasObj.id}`)}
+                      >
+                        Input Nilai Kelas (Halaman Penuh)
+                      </Button>
+                      <Button
                         variant="secondary"
                         icon={<Settings size={14} className="text-slate-800" />}
                         className="text-xs font-bold py-2.5 px-4 h-auto bg-white hover:bg-slate-100 text-slate-900 border-none shadow-sm whitespace-nowrap"
@@ -986,19 +1021,23 @@ export default function InputNilaiPage() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
+                      <table className="w-full text-left text-xs min-w-full">
                         <thead>
                           {/* TIER 1: Super Header Berjenjang */}
                           <tr className="bg-slate-100 text-slate-700 font-extrabold border-y border-slate-300 text-2xs uppercase tracking-wider">
                             <th colSpan={2} className="py-2.5 px-4 text-center">DATA MAHASISWA</th>
                             <th colSpan={obeKelasData?.komponen?.length || 1} className="py-2.5 px-3 text-center border-l border-slate-300 bg-sky-50 text-sky-900">
-                              📋 1. NILAI KOMPONEN ASESMEN KELAS (Skor 0 - 100)
+                              {obeKelasData?.mode_penilaian === 'full_obe'
+                                ? '🎯 1. PENCAPAIAN CPMK KELAS (Skor 0 - 100)'
+                                : '📋 1. NILAI KOMPONEN ASESMEN (Skor 0 - 100)'}
                             </th>
-                            <th colSpan={obeKelasData?.cpmks?.length || 1} className="py-2.5 px-3 text-center border-l border-slate-300 bg-purple-50 text-purple-900">
-                              🎯 2. EVALUASI KETERCAPAIAN CPMK (Target ≥65)
-                            </th>
+                            {obeKelasData?.mode_penilaian === 'semi_obe' && (
+                              <th colSpan={obeKelasData?.cpmks?.length || 1} className="py-2.5 px-3 text-center border-l border-slate-300 bg-purple-50 text-purple-900">
+                                🎯 2. EVALUASI KETERCAPAIAN CPMK (Target ≥65)
+                              </th>
+                            )}
                             <th colSpan={3} className="py-2.5 px-3 text-center border-l border-slate-300 bg-amber-50 text-amber-900">
-                              🏆 3. REKAPITULASI HASIL
+                              🏆 {obeKelasData?.mode_penilaian === 'semi_obe' ? '3. REKAPITULASI HASIL' : '2. REKAPITULASI HASIL'}
                             </th>
                             <th className="py-2.5 px-4 text-right border-l border-slate-300">AKSI</th>
                           </tr>
@@ -1008,7 +1047,7 @@ export default function InputNilaiPage() {
                             <th className="py-3 px-4 w-12 text-center">NO</th>
                             <th className="py-3 px-4 min-w-[180px]">NIM & NAMA MAHASISWA</th>
 
-                            {/* Header Dinamis Komponen OBE */}
+                            {/* Header Dinamis Komponen */}
                             {obeKelasData?.komponen?.map((comp: any) => (
                               <th key={comp.id} className="py-3 px-3 text-center border-l border-slate-200 bg-sky-50/40 min-w-[120px]">
                                 <span className="block text-slate-900 font-black text-xs">{comp.nama_komponen}</span>
@@ -1016,7 +1055,7 @@ export default function InputNilaiPage() {
                                   <span className="badge badge-blue text-2xs font-mono font-bold">
                                     Bobot {comp.bobot}%
                                   </span>
-                                  {comp.cpmk && (
+                                  {comp.cpmk && obeKelasData?.mode_penilaian === 'semi_obe' && (
                                     <span className="text-2xs text-purple-700 font-bold">
                                       Ukur: {comp.cpmk.kode_cpmk}
                                     </span>
@@ -1025,8 +1064,8 @@ export default function InputNilaiPage() {
                               </th>
                             ))}
 
-                            {/* Header Ketercapaian CPMK */}
-                            {obeKelasData?.cpmks?.map((c: any) => (
+                            {/* Header Ketercapaian CPMK (Hanya untuk Semi-OBE) */}
+                            {obeKelasData?.mode_penilaian === 'semi_obe' && obeKelasData?.cpmks?.map((c: any) => (
                               <th key={c.id} className="py-3 px-3 text-center border-l border-slate-200 bg-purple-50/50 min-w-[90px]">
                                 <span className="block text-purple-950 font-black text-xs">{c.kode_cpmk}</span>
                                 <span className="text-2xs text-purple-700 font-semibold block">Skor Capaian</span>
@@ -1043,9 +1082,9 @@ export default function InputNilaiPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                           {loadingObeKelas ? (
-                            <tr><td colSpan={12} className="py-8 text-center text-slate-400">Memuat matriks nilai OBE...</td></tr>
+                            <tr><td colSpan={14} className="py-8 text-center text-slate-400">Memuat matriks nilai...</td></tr>
                           ) : !obeKelasData?.peserta || obeKelasData.peserta.length === 0 ? (
-                            <tr><td colSpan={12} className="py-8 text-center text-slate-400">Belum ada mahasiswa terdaftar di kelas ini</td></tr>
+                            <tr><td colSpan={14} className="py-8 text-center text-slate-400">Belum ada mahasiswa terdaftar di kelas ini</td></tr>
                           ) : (
                             obeKelasData.peserta.map((p: any, idx: number) => (
                               <tr key={p.krs_detail_id} className="hover:bg-slate-50/80 transition">
@@ -1065,8 +1104,8 @@ export default function InputNilaiPage() {
                                   );
                                 })}
 
-                                {/* Kolom Ketercapaian CPMK */}
-                                {obeKelasData.cpmks.map((c: any) => {
+                                {/* Kolom Ketercapaian CPMK (Hanya Semi-OBE) */}
+                                {obeKelasData?.mode_penilaian === 'semi_obe' && obeKelasData.cpmks.map((c: any) => {
                                   const att = p.cpmk_attainment?.[c.id];
                                   const score = att?.skor || 0;
                                   const isPassed = att?.is_tercapai ?? (score >= 65);
@@ -1090,19 +1129,21 @@ export default function InputNilaiPage() {
                                 </td>
                                 <td className="py-3.5 px-4 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
-                                    <Button
-                                      variant="outline"
-                                      icon={<Award size={13} />}
-                                      className="text-2xs py-1 px-2.5 h-auto font-bold text-purple-700 border-purple-200 hover:bg-purple-50 whitespace-nowrap"
-                                      onClick={() => handleOpenStudentPortoDrawer(p.mahasiswa)}
-                                    >
-                                      Porto Capaian
-                                    </Button>
+                                    {obeKelasData?.mode_penilaian !== 'konvensional' && (
+                                      <Button
+                                        variant="outline"
+                                        icon={<Award size={13} />}
+                                        className="text-2xs py-1 px-2.5 h-auto font-bold text-purple-700 border-purple-200 hover:bg-purple-50 whitespace-nowrap"
+                                        onClick={() => handleOpenStudentPortoDrawer(p.mahasiswa)}
+                                      >
+                                        Porto Capaian
+                                      </Button>
+                                    )}
                                     <Button
                                       variant="primary"
                                       icon={<Edit3 size={13} />}
                                       className="text-2xs py-1 px-2.5 h-auto font-bold whitespace-nowrap"
-                                      onClick={() => handleOpenEditPesertaObe(p)}
+                                      onClick={() => router.push(`/siakad/nilai/input/${selectedKelasObj.id}`)}
                                     >
                                       Input Nilai
                                     </Button>
@@ -1241,7 +1282,7 @@ export default function InputNilaiPage() {
                         {selectedMahasiswa.nama_lengkap} (NIM: {selectedMahasiswa.nim})
                       </h2>
                       <p className="text-xs text-primary-200 mt-0.5">
-                        Program Studi: <strong>{selectedMahasiswa.program_studi?.nama}</strong> • Angkatan: <strong>{selectedMahasiswa.angkatan || 2026}</strong> • IPK: <strong>{Number(selectedMahasiswa.ipk || 3.85).toFixed(2)}</strong>
+                        Program Studi: <strong>{selectedMahasiswa.program_studi?.nama}</strong> • Angkatan: <strong>{selectedMahasiswa.angkatan || 2026}</strong> • IPK: <strong>{Number(selectedMahasiswa.ipk || 0).toFixed(2)}</strong>
                       </p>
                     </div>
 
@@ -1261,7 +1302,7 @@ export default function InputNilaiPage() {
                 {/* Radar & Progress Cards Capaian CPL */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {portofolioObeData?.cpl_summary?.map((cpl: any) => {
-                    const score = cpl.skor_rata_rata || 80;
+                    const score = Number(cpl.skor_rata_rata || 0);
                     return (
                       <div key={cpl.cpl_id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-3">
                         <div className="flex items-center justify-between">
@@ -1281,16 +1322,16 @@ export default function InputNilaiPage() {
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                             <div
                               className={`h-full transition-all duration-500 rounded-full ${
-                                score >= 80 ? 'bg-emerald-500' : score >= 65 ? 'bg-primary-500' : 'bg-rose-500'
+                                score >= 80 ? 'bg-emerald-500' : score >= 65 ? 'bg-primary-500' : score > 0 ? 'bg-amber-500' : 'bg-slate-200'
                               }`}
-                              style={{ width: `${Math.min(100, score)}%` }}
+                              style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
                             />
                           </div>
                         </div>
 
                         <div className="pt-2 flex justify-between items-center text-2xs text-slate-500 border-t border-slate-100">
-                          <span>Status: <strong className="text-emerald-700">{cpl.status}</strong></span>
-                          <span>Diukur pada {cpl.total_mata_kuliah_diukur} Mata Kuliah</span>
+                          <span>Status: <strong className={score >= 65 && cpl.total_mata_kuliah_diukur > 0 ? 'text-emerald-700' : 'text-slate-500'}>{cpl.status}</strong></span>
+                          <span>Diukur pada {cpl.total_mata_kuliah_diukur || 0} Mata Kuliah</span>
                         </div>
                       </div>
                     );
@@ -1465,18 +1506,20 @@ export default function InputNilaiPage() {
                 Komponen Asesmen Dinamis ({obeKelasData?.komponen?.length || 0})
               </button>
 
-              <button
-                type="button"
-                onClick={() => setObeConfigTab('cpmk')}
-                className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
-                  obeConfigTab === 'cpmk'
-                    ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-lg'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <Target size={14} />
-                Kelola CPMK Mata Kuliah ({obeKelasData?.cpmks?.length || 0} CPMK)
-              </button>
+              {obeKelasData?.mode_penilaian !== 'konvensional' && (
+                <button
+                  type="button"
+                  onClick={() => setObeConfigTab('cpmk')}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
+                    obeConfigTab === 'cpmk'
+                      ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-lg'
+                      : 'border-transparent text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <Target size={14} />
+                  Kelola CPMK Mata Kuliah ({obeKelasData?.cpmks?.length || 0} CPMK)
+                </button>
+              )}
             </div>
 
             {/* TAB 1: KOMPONEN ASESMEN */}
@@ -1531,21 +1574,23 @@ export default function InputNilaiPage() {
                       </select>
                     </div>
 
-                    <div className="sm:col-span-2">
-                      <label className="block text-slate-600 font-bold mb-1">Target Capaian Pembelajaran (CPMK)</label>
-                      <select
-                        value={formKomponen.cpmk_id}
-                        onChange={(e) => setFormKomponen({ ...formKomponen, cpmk_id: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-xs outline-none"
-                      >
-                        <option value="">-- Pengukuran Umum Mata Kuliah --</option>
-                        {obeKelasData?.cpmks?.map((c: any) => (
-                          <option key={c.id} value={c.id}>
-                            {c.kode_cpmk} - {c.deskripsi.substring(0, 50)}...
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {obeKelasData?.mode_penilaian === 'semi_obe' && (
+                      <div className="sm:col-span-2">
+                        <label className="block text-slate-600 font-bold mb-1">Target Capaian Pembelajaran (CPMK)</label>
+                        <select
+                          value={formKomponen.cpmk_id}
+                          onChange={(e) => setFormKomponen({ ...formKomponen, cpmk_id: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-xs outline-none"
+                        >
+                          <option value="">-- Pengukuran Umum Mata Kuliah --</option>
+                          {obeKelasData?.cpmks?.map((c: any) => (
+                            <option key={c.id} value={c.id}>
+                              {c.kode_cpmk} {c.deskripsi ? `- ${c.deskripsi.substring(0, 50)}...` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
@@ -1578,7 +1623,9 @@ export default function InputNilaiPage() {
                           <strong className="font-bold text-slate-900">{comp.nama_komponen}</strong>
                           <div className="flex items-center gap-2 text-2xs text-slate-500 mt-0.5">
                             <span className="badge badge-purple text-2xs font-mono">{comp.bobot}%</span>
-                            <span className="capitalize text-slate-600">Teknik: {comp.teknik_penilaian.replace('_', ' ')}</span>
+                            <span className="capitalize text-slate-600">
+                              Teknik: {comp.teknik_penilaian ? comp.teknik_penilaian.replace('_', ' ') : 'Asesmen CPMK'}
+                            </span>
                             {comp.cpmk && <span className="font-bold text-primary-700">Target: {comp.cpmk.kode_cpmk}</span>}
                           </div>
                         </div>
@@ -1592,7 +1639,7 @@ export default function InputNilaiPage() {
                               setEditingKomponen(comp);
                               setFormKomponen({
                                 nama_komponen: comp.nama_komponen,
-                                teknik_penilaian: comp.teknik_penilaian,
+                                teknik_penilaian: comp.teknik_penilaian || 'tugas',
                                 bobot: comp.bobot,
                                 cpmk_id: comp.cpmk_id || '',
                               });
@@ -1895,7 +1942,7 @@ export default function InputNilaiPage() {
                 NIM: <strong>{portoDrawerStudent.nim}</strong> • Angkatan: <strong>{portoDrawerStudent.angkatan || 2026}</strong>
               </p>
               <p className="text-xs text-primary-700 font-semibold">
-                Program Studi: {portoDrawerStudent.program_studi?.nama || '-'} • IPK: {Number(portoDrawerStudent.ipk || 3.85).toFixed(2)}
+                Program Studi: {portoDrawerStudent.program_studi?.nama || '-'} • IPK: {Number(portoDrawerStudent.ipk || 0).toFixed(2)}
               </p>
             </div>
 
@@ -1945,7 +1992,7 @@ export default function InputNilaiPage() {
                   </h4>
                   <div className="space-y-3">
                     {drawerPortoData?.cpl_summary?.map((cpl: any) => {
-                      const score = cpl.skor_rata_rata || 80;
+                      const score = Number(cpl.skor_rata_rata || 0);
                       return (
                         <div key={cpl.cpl_id} className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-2">
                           <div className="flex items-center justify-between">
@@ -1956,14 +2003,14 @@ export default function InputNilaiPage() {
                           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                             <div
                               className={`h-full transition-all rounded-full ${
-                                score >= 80 ? 'bg-emerald-500' : score >= 65 ? 'bg-primary-500' : 'bg-rose-500'
+                                score >= 80 ? 'bg-emerald-500' : score >= 65 ? 'bg-primary-500' : score > 0 ? 'bg-amber-500' : 'bg-slate-200'
                               }`}
-                              style={{ width: `${Math.min(100, score)}%` }}
+                              style={{ width: `${Math.min(100, Math.max(0, score))}%` }}
                             />
                           </div>
                           <div className="flex justify-between text-3xs text-slate-400 font-semibold">
-                            <span>Status: <strong className="text-emerald-700">{cpl.status}</strong></span>
-                            <span>{cpl.total_mata_kuliah_diukur} MK diukur</span>
+                            <span>Status: <strong className={score >= 65 && cpl.total_mata_kuliah_diukur > 0 ? 'text-emerald-700' : 'text-slate-500'}>{cpl.status}</strong></span>
+                            <span>Diukur pada {cpl.total_mata_kuliah_diukur || 0} MK</span>
                           </div>
                         </div>
                       );
@@ -2062,8 +2109,8 @@ export default function InputNilaiPage() {
               </table>
 
               <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div>Indeks Prestasi Semester (IPS): <strong className="font-mono text-base text-primary-900">{summary?.ips || 3.85}</strong></div>
-                <div>Indeks Prestasi Kumulatif (IPK): <strong className="font-mono text-base text-primary-900">{summary?.ipk || 3.85}</strong></div>
+                <div>Indeks Prestasi Semester (IPS): <strong className="font-mono text-base text-primary-900">{summary?.ips !== undefined ? Number(summary.ips).toFixed(2) : '0.00'}</strong></div>
+                <div>Indeks Prestasi Kumulatif (IPK): <strong className="font-mono text-base text-primary-900">{summary?.ipk !== undefined ? Number(summary.ipk).toFixed(2) : '0.00'}</strong></div>
               </div>
             </div>
           </div>

@@ -16,15 +16,18 @@ import toast from 'react-hot-toast';
 export default function MataKuliahPage() {
   const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
   const [kurikulums, setKurikulums] = useState<any[]>([]);
+  const [prodis, setProdis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter Drawer States
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
+  const [filterProdi, setFilterProdi] = useState('');
   const [filterKurikulum, setFilterKurikulum] = useState('');
   const [filterTipe, setFilterTipe] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
+    prodi_id: '',
     kurikulum: '',
     tipe: '',
   });
@@ -33,6 +36,7 @@ export default function MataKuliahPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMk, setEditingMk] = useState<any | null>(null);
   const [deletingMk, setDeletingMk] = useState<any | null>(null);
+  const [selectedProdiModal, setSelectedProdiModal] = useState<number | string>('');
   const [form, setForm] = useState({
     kurikulum_id: 1,
     kode_mk: '',
@@ -44,10 +48,14 @@ export default function MataKuliahPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  const fetchKurikulums = async () => {
+  const fetchInitialData = async () => {
     try {
-      const res = await siakadService.getKurikulums();
-      if (res.data) setKurikulums(res.data);
+      const [kRes, pRes] = await Promise.all([
+        siakadService.getKurikulums(),
+        siakadService.getProdi(),
+      ]);
+      if (kRes.data) setKurikulums(kRes.data);
+      if (pRes.data) setProdis(pRes.data);
     } catch (err) {}
   };
 
@@ -56,8 +64,10 @@ export default function MataKuliahPage() {
       setLoading(true);
       const res = await siakadService.getMataKuliahs({
         search: appliedFilters.search,
-        kurikulum_id: appliedFilters.kurikulum,
-        tipe: appliedFilters.tipe,
+        program_studi_id: appliedFilters.prodi_id || undefined,
+        kurikulum_id: appliedFilters.kurikulum || undefined,
+        tipe: appliedFilters.tipe || undefined,
+        per_page: 100,
       });
       if (res.data) setMatakuliahs(res.data);
     } catch (err: any) {
@@ -68,7 +78,7 @@ export default function MataKuliahPage() {
   };
 
   useEffect(() => {
-    fetchKurikulums();
+    fetchInitialData();
   }, []);
 
   useEffect(() => {
@@ -78,6 +88,8 @@ export default function MataKuliahPage() {
   const handleOpenModal = (item?: any) => {
     if (item) {
       setEditingMk(item);
+      const currentKur = kurikulums.find((k) => k.id === item.kurikulum_id);
+      setSelectedProdiModal(currentKur?.program_studi_id || '');
       setForm({
         kurikulum_id: item.kurikulum_id,
         kode_mk: item.kode_mk,
@@ -89,8 +101,11 @@ export default function MataKuliahPage() {
       });
     } else {
       setEditingMk(null);
+      const defaultProdiId = prodis[0]?.id || '';
+      setSelectedProdiModal(defaultProdiId);
+      const matchingKur = kurikulums.find((k) => k.program_studi_id === defaultProdiId);
       setForm({
-        kurikulum_id: kurikulums[0]?.id || 1,
+        kurikulum_id: matchingKur?.id || kurikulums[0]?.id || 1,
         kode_mk: '',
         nama: '',
         sks_teori: 2,
@@ -177,12 +192,17 @@ export default function MataKuliahPage() {
       ),
     },
     {
-      key: 'kurikulum',
-      label: 'KURIKULUM',
+      key: 'program_studi',
+      label: 'PROGRAM STUDI & KURIKULUM',
       render: (row) => (
-        <span className="text-xs font-medium text-slate-700">
-          {row.kurikulum?.nama || '-'}
-        </span>
+        <div>
+          <span className="font-bold text-slate-900 text-xs block">
+            {row.kurikulum?.program_studi?.nama || row.kurikulum?.program_studi?.nama_singkat || 'Umum Kampus'}
+          </span>
+          <span className="text-2xs text-slate-500 font-mono">
+            {row.kurikulum?.nama || '-'}
+          </span>
+        </div>
       ),
     },
     {
@@ -268,9 +288,10 @@ export default function MataKuliahPage() {
               variant="secondary"
               onClick={() => {
                 setFilterSearch('');
+                setFilterProdi('');
                 setFilterKurikulum('');
                 setFilterTipe('');
-                setAppliedFilters({ search: '', kurikulum: '', tipe: '' });
+                setAppliedFilters({ search: '', prodi_id: '', kurikulum: '', tipe: '' });
                 setShowFilter(false);
               }}
             >
@@ -281,6 +302,7 @@ export default function MataKuliahPage() {
               onClick={() => {
                 setAppliedFilters({
                   search: filterSearch,
+                  prodi_id: filterProdi,
                   kurikulum: filterKurikulum,
                   tipe: filterTipe,
                 });
@@ -301,6 +323,23 @@ export default function MataKuliahPage() {
           />
 
           <div>
+            <label className="label">Program Studi</label>
+            <select
+              value={filterProdi}
+              onChange={(e) => {
+                setFilterProdi(e.target.value);
+                setFilterKurikulum('');
+              }}
+              className="select w-full"
+            >
+              <option value="">Semua Program Studi</option>
+              {prodis.map((p) => (
+                <option key={p.id} value={p.id.toString()}>{p.nama} ({p.jenjang || 'S1'})</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="label">Kurikulum</label>
             <select
               value={filterKurikulum}
@@ -308,9 +347,11 @@ export default function MataKuliahPage() {
               className="select w-full"
             >
               <option value="">Semua Kurikulum</option>
-              {kurikulums.map((k) => (
-                <option key={k.id} value={k.id.toString()}>{k.nama}</option>
-              ))}
+              {kurikulums
+                .filter((k) => !filterProdi || String(k.program_studi_id) === String(filterProdi))
+                .map((k) => (
+                  <option key={k.id} value={k.id.toString()}>{k.nama} ({k.program_studi?.nama || 'Prodi'})</option>
+                ))}
             </select>
           </div>
 

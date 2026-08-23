@@ -36,7 +36,7 @@ import toast from 'react-hot-toast';
 
 export default function KurikulumObePage() {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'cpl' | 'cpmk' | 'rps'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'cpl' | 'cpmk' | 'rps' | 'profil_lulusan' | 'bahan_kajian'>('dashboard');
   const [prodis, setProdis] = useState<any[]>([]);
   const [selectedProdiId, setSelectedProdiId] = useState<number | ''>('');
   const [loading, setLoading] = useState(true);
@@ -58,6 +58,7 @@ export default function KurikulumObePage() {
   // CPMK Data
   const [matakuliahList, setMatakuliahList] = useState<any[]>([]);
   const [selectedMkId, setSelectedMkId] = useState<number | ''>('');
+  const [searchMkQuery, setSearchMkQuery] = useState('');
   const [cpmkList, setCpmkList] = useState<any[]>([]);
   const [isCpmkModalOpen, setIsCpmkModalOpen] = useState(false);
   const [editingCpmk, setEditingCpmk] = useState<any | null>(null);
@@ -78,6 +79,340 @@ export default function KurikulumObePage() {
   const [isPrintRpsOpen, setIsPrintRpsOpen] = useState(false);
 
   const [saving, setSaving] = useState(false);
+
+  // Profil Lulusan States
+  const [plList, setPlList] = useState<any[]>([]);
+  const [isPlModalOpen, setIsPlModalOpen] = useState(false);
+  const [editingPl, setEditingPl] = useState<any | null>(null);
+  const [plForm, setPlForm] = useState({
+    kode_pl: '',
+    nama: '',
+    deskripsi: '',
+    urutan: 1,
+  });
+  const [isMapCplModalOpen, setIsMapCplModalOpen] = useState(false);
+  const [selectedPlForMapping, setSelectedPlForMapping] = useState<any | null>(null);
+  const [selectedCplIds, setSelectedCplIds] = useState<number[]>([]);
+
+  // Bahan Kajian States
+  const [bkList, setBkList] = useState<any[]>([]);
+  const [isBkModalOpen, setIsBkModalOpen] = useState(false);
+  const [editingBk, setEditingBk] = useState<any | null>(null);
+  const [bkForm, setBkForm] = useState({
+    kode_bk: '',
+    nama_bk: '',
+    deskripsi: '',
+  });
+  const [isMapBkModalOpen, setIsMapBkModalOpen] = useState(false);
+  const [selectedMkForMapping, setSelectedMkForMapping] = useState<any | null>(null);
+  const [selectedBkIds, setSelectedBkIds] = useState<number[]>([]);
+
+  const fetchPl = async () => {
+    try {
+      setLoading(true);
+      const res = await siakadService.getProfilLulusans({
+        program_studi_id: selectedProdiId || undefined,
+      });
+      if (res.data) setPlList(res.data);
+    } catch (err) {
+      toast.error('Gagal memuat profil lulusan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchBk = async () => {
+    try {
+      setLoading(true);
+      const res = await siakadService.getBahanKajians({
+        program_studi_id: selectedProdiId || undefined,
+      });
+      if (res.data) setBkList(res.data);
+    } catch (err) {
+      toast.error('Gagal memuat bahan kajian');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSavePl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const payload = {
+        ...plForm,
+        program_studi_id: Number(selectedProdiId),
+        id: editingPl ? editingPl.id : undefined,
+      };
+      await siakadService.storeProfilLulusan(payload);
+      toast.success(editingPl ? 'Profil lulusan berhasil diperbarui' : 'Profil lulusan berhasil ditambahkan');
+      setIsPlModalOpen(false);
+      fetchPl();
+    } catch (err) {
+      toast.error('Gagal menyimpan profil lulusan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePl = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus profil lulusan ini?')) return;
+    try {
+      await siakadService.deleteProfilLulusan(id);
+      toast.success('Profil lulusan berhasil dihapus');
+      fetchPl();
+    } catch (err) {
+      toast.error('Gagal menghapus profil lulusan');
+    }
+  };
+
+  const handleSavePlCplMapping = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await siakadService.mapProfilLulusanCpl({
+        profil_lulusan_id: selectedPlForMapping.id,
+        cpl_ids: selectedCplIds,
+      });
+      toast.success('Pemetaan Cpl berhasil disimpan');
+      setIsMapCplModalOpen(false);
+      fetchPl();
+    } catch (err) {
+      toast.error('Gagal menyimpan pemetaan CPL');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveBk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const payload = {
+        ...bkForm,
+        program_studi_id: Number(selectedProdiId),
+        id: editingBk ? editingBk.id : undefined,
+      };
+      await siakadService.storeBahanKajian(payload);
+      toast.success(editingBk ? 'Bahan kajian berhasil diperbarui' : 'Bahan kajian berhasil ditambahkan');
+      setIsBkModalOpen(false);
+      fetchBk();
+    } catch (err) {
+      toast.error('Gagal menyimpan bahan kajian');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteBk = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus bahan kajian ini?')) return;
+    try {
+      await siakadService.deleteBahanKajian(id);
+      toast.success('Bahan kajian berhasil dihapus');
+      fetchBk();
+    } catch (err) {
+      toast.error('Gagal menghapus bahan kajian');
+    }
+  };
+
+  const handleSaveMkBkMapping = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await siakadService.mapMataKuliahBahanKajian({
+        mata_kuliah_id: selectedMkForMapping.id,
+        bahan_kajian_ids: selectedBkIds,
+      });
+      toast.success('Pemetaan Bahan Kajian berhasil disimpan');
+      setIsMapBkModalOpen(false);
+      fetchMatakuliah();
+    } catch (err) {
+      toast.error('Gagal menyimpan pemetaan Bahan Kajian');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const plColumns: ColumnDef<any>[] = [
+    {
+      key: 'kode_pl',
+      label: 'KODE PL',
+      render: (row) => <span className="font-mono font-black text-indigo-700 text-xs">{row.kode_pl}</span>,
+    },
+    {
+      key: 'nama',
+      label: 'PROFIL LULUSAN',
+      render: (row) => <span className="font-bold text-slate-900 text-xs">{row.nama}</span>,
+    },
+    {
+      key: 'deskripsi',
+      label: 'DESKRIPSI / RUMUSAN KOMPETENSI',
+      render: (row) => <span className="text-slate-700 text-xs leading-relaxed">{row.deskripsi}</span>,
+    },
+    {
+      key: 'cpls',
+      label: 'CPL YANG DIDUKUNG',
+      render: (row) => (
+        <div className="flex flex-wrap gap-1">
+          {row.cpls?.length > 0 ? (
+            row.cpls.map((c: any) => (
+              <Badge key={c.id} variant="purple" className="font-bold text-[10px] uppercase">
+                {c.kode_cpl}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-slate-400 text-2xs italic">Belum terpetakan</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center gap-1.5 justify-end">
+          <Button
+            variant="outline"
+            icon={<Sparkles size={11} />}
+            className="text-2xs py-1 px-2.5 h-auto font-black text-amber-700 hover:bg-amber-50 border-amber-200"
+            onClick={() => {
+              setSelectedPlForMapping(row);
+              setSelectedCplIds(row.cpls?.map((c: any) => c.id) || []);
+              setIsMapCplModalOpen(true);
+            }}
+          >
+            Petakan CPL
+          </Button>
+          <Button
+            variant="outline"
+            icon={<Edit3 size={11} />}
+            className="text-2xs py-1 px-2.5 h-auto font-bold text-slate-700"
+            onClick={() => {
+              setEditingPl(row);
+              setPlForm({
+                kode_pl: row.kode_pl,
+                nama: row.nama,
+                deskripsi: row.deskripsi || '',
+                urutan: row.urutan || 1,
+              });
+              setIsPlModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            icon={<Trash2 size={11} />}
+            className="text-2xs py-1 px-2.5 h-auto font-bold text-red-600 hover:bg-red-50 border-red-200"
+            onClick={() => handleDeletePl(row.id)}
+          >
+            Hapus
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const bkColumns: ColumnDef<any>[] = [
+    {
+      key: 'kode_bk',
+      label: 'KODE BK',
+      render: (row) => <span className="font-mono font-black text-emerald-700 text-xs">{row.kode_bk}</span>,
+    },
+    {
+      key: 'nama_bk',
+      label: 'NAMA BAHAN KAJIAN',
+      render: (row) => <span className="font-bold text-slate-900 text-xs">{row.nama_bk}</span>,
+    },
+    {
+      key: 'deskripsi',
+      label: 'DESKRIPSI BAHAN KAJIAN / KEDALAMAN',
+      render: (row) => <span className="text-slate-700 text-xs leading-relaxed">{row.deskripsi}</span>,
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center gap-1.5 justify-end">
+          <Button
+            variant="outline"
+            icon={<Edit3 size={11} />}
+            className="text-2xs py-1 px-2.5 h-auto font-bold text-slate-700"
+            onClick={() => {
+              setEditingBk(row);
+              setBkForm({
+                kode_bk: row.kode_bk,
+                nama_bk: row.nama_bk,
+                deskripsi: row.deskripsi || '',
+              });
+              setIsBkModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            icon={<Trash2 size={11} />}
+            className="text-2xs py-1 px-2.5 h-auto font-bold text-red-600 hover:bg-red-50 border-red-200"
+            onClick={() => handleDeleteBk(row.id)}
+          >
+            Hapus
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const mkObeColumns: ColumnDef<any>[] = [
+    {
+      key: 'kode_mk',
+      label: 'KODE & MATA KULIAH',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 text-xs block">{row.nama}</span>
+          <span className="font-mono text-2xs text-slate-400">{row.kode_mk} • {row.total_sks} SKS • Smt {row.semester_default || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'bahan_kajian',
+      label: 'BAHAN KAJIAN TERPETAKAN',
+      render: (row) => (
+        <div className="flex flex-wrap gap-1">
+          {row.bahan_kajians?.length > 0 ? (
+            row.bahan_kajians.map((b: any) => (
+              <Badge key={b.id} variant="green" className="font-bold text-[10px] uppercase">
+                {b.kode_bk} - {b.nama_bk}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-slate-400 text-2xs italic">Belum ada bahan kajian terpetakan</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'AKSI PEMETAAN',
+      align: 'right',
+      render: (row) => (
+        <Button
+          variant="outline"
+          icon={<Sparkles size={11} />}
+          className="text-2xs py-1 px-2.5 h-auto font-black text-emerald-700 hover:bg-emerald-50 border-emerald-200"
+          onClick={() => {
+            setSelectedMkForMapping(row);
+            setSelectedBkIds(row.bahan_kajians?.map((b: any) => b.id) || []);
+            setIsMapBkModalOpen(true);
+          }}
+        >
+          Petakan Bahan Kajian
+        </Button>
+      ),
+    },
+  ];
 
   const fetchProdis = async () => {
     try {
@@ -123,11 +458,14 @@ export default function KurikulumObePage() {
     try {
       const res = await siakadService.getMataKuliahs({
         program_studi_id: selectedProdiId || undefined,
+        per_page: 200,
       });
       if (res.data) {
         setMatakuliahList(res.data);
-        if (res.data[0] && !selectedMkId) {
+        if (res.data[0]) {
           setSelectedMkId(res.data[0].id);
+        } else {
+          setSelectedMkId('');
         }
       }
     } catch (err) {}
@@ -175,6 +513,11 @@ export default function KurikulumObePage() {
         fetchCpl();
       }
       if (activeTab === 'rps') fetchRps();
+      if (activeTab === 'profil_lulusan') fetchPl();
+      if (activeTab === 'bahan_kajian') {
+        fetchBk();
+        fetchMatakuliah();
+      }
     }
   }, [selectedProdiId, activeTab]);
 
@@ -183,6 +526,19 @@ export default function KurikulumObePage() {
       fetchCpmk();
     }
   }, [selectedMkId, activeTab]);
+
+  useEffect(() => {
+    const filtered = matakuliahList.filter((m) =>
+      m.nama.toLowerCase().includes(searchMkQuery.toLowerCase()) ||
+      m.kode_mk.toLowerCase().includes(searchMkQuery.toLowerCase())
+    );
+    if (filtered.length > 0) {
+      const match = filtered.find((m) => m.id === selectedMkId);
+      if (!match) {
+        setSelectedMkId(filtered[0].id);
+      }
+    }
+  }, [searchMkQuery, matakuliahList]);
 
   // CPL Handlers
   const handleSaveCpl = async (e: React.FormEvent) => {
@@ -553,6 +909,30 @@ export default function KurikulumObePage() {
           <FileText size={16} />
           Dokumen RPS & Verifikasi Kaprodi
         </button>
+
+        <button
+          onClick={() => setActiveTab('profil_lulusan')}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
+            activeTab === 'profil_lulusan'
+              ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Layers size={16} />
+          Profil Lulusan ({plList.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('bahan_kajian')}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
+            activeTab === 'bahan_kajian'
+              ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <BookOpen size={16} />
+          Bahan Kajian ({bkList.length})
+        </button>
       </div>
 
       {/* ======================================================== */}
@@ -716,14 +1096,26 @@ export default function KurikulumObePage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={searchMkQuery}
+                onChange={(e) => setSearchMkQuery(e.target.value)}
+                placeholder="Cari Mata Kuliah..."
+                className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary-500 w-44"
+              />
               <select
                 value={selectedMkId}
                 onChange={(e) => setSelectedMkId(Number(e.target.value))}
                 className="select text-xs font-bold"
               >
-                {matakuliahList.map((m) => (
-                  <option key={m.id} value={m.id}>{m.kode_mk} - {m.nama} ({m.total_sks} SKS)</option>
-                ))}
+                {matakuliahList
+                  .filter((m) =>
+                    m.nama.toLowerCase().includes(searchMkQuery.toLowerCase()) ||
+                    m.kode_mk.toLowerCase().includes(searchMkQuery.toLowerCase())
+                  )
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>{m.kode_mk} - {m.nama} ({m.total_sks} SKS)</option>
+                  ))}
               </select>
 
               <Button
@@ -1080,6 +1472,214 @@ export default function KurikulumObePage() {
       {/* ======================================================== */}
       {/* DOKUMEN CETAK RPS RESMI (SN-DIKTI / OBE) — KHUSUS PRINT */}
       {/* ======================================================== */}
+      {/* Modal Form Profil Lulusan */}
+      {isPlModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 animate-scale-in">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h3 className="font-black text-sm text-slate-900">
+                {editingPl ? 'Edit Profil Lulusan' : 'Tambah Profil Lulusan'}
+              </h3>
+              <button onClick={() => setIsPlModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+            </div>
+            <form onSubmit={handleSavePl} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-2xs font-bold text-slate-500 uppercase">Kode PL</label>
+                <input
+                  type="text"
+                  required
+                  value={plForm.kode_pl}
+                  onChange={(e) => setPlForm({ ...plForm, kode_pl: e.target.value })}
+                  className="input w-full font-bold text-xs"
+                  placeholder="Contoh: PL-01"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-2xs font-bold text-slate-500 uppercase">Nama Profil Lulusan</label>
+                <input
+                  type="text"
+                  required
+                  value={plForm.nama}
+                  onChange={(e) => setPlForm({ ...plForm, nama: e.target.value })}
+                  className="input w-full text-xs font-semibold"
+                  placeholder="Contoh: Software Engineer, Data Scientist"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-2xs font-bold text-slate-500 uppercase">Deskripsi / Rumusan Kompetensi</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={plForm.deskripsi}
+                  onChange={(e) => setPlForm({ ...plForm, deskripsi: e.target.value })}
+                  className="input w-full text-xs min-h-[80px]"
+                  placeholder="Jelaskan kompetensi lulusan secara detail..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" className="text-xs" onClick={() => setIsPlModalOpen(false)}>Batal</Button>
+                <Button type="submit" variant="primary" className="text-xs font-bold" disabled={saving}>
+                  {saving ? 'Menyimpan...' : 'Simpan'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Mapping CPL to PL */}
+      {isMapCplModalOpen && selectedPlForMapping && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 animate-scale-in">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h3 className="font-black text-sm text-slate-900">Pemetaan CPL yang Didukung</h3>
+                <p className="text-2xs text-slate-500 font-bold">{selectedPlForMapping.kode_pl} - {selectedPlForMapping.nama}</p>
+              </div>
+              <button onClick={() => setIsMapCplModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+            </div>
+            <form onSubmit={handleSavePlCplMapping} className="p-6 space-y-4">
+              <p className="text-xs text-slate-500">Pilih satu atau beberapa CPL prodi yang diturunkan/didukung langsung oleh profil lulusan ini:</p>
+              <div className="max-h-[250px] overflow-y-auto border border-slate-200 rounded-2xl p-4 divide-y divide-slate-100 space-y-2.5">
+                {cplList.map((cpl) => (
+                  <label key={cpl.id} className="flex items-start gap-3 pt-2.5 cursor-pointer first:pt-0">
+                    <input
+                      type="checkbox"
+                      className="checkbox mt-0.5 shrink-0"
+                      checked={selectedCplIds.includes(cpl.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedCplIds([...selectedCplIds, cpl.id]);
+                        } else {
+                          setSelectedCplIds(selectedCplIds.filter((id) => id !== cpl.id));
+                        }
+                      }}
+                    />
+                    <div className="space-y-0.5">
+                      <span className="font-mono font-black text-primary-700 text-xs block">{cpl.kode_cpl}</span>
+                      <span className="text-xs text-slate-600 font-medium block leading-normal">{cpl.deskripsi}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" className="text-xs" onClick={() => setIsMapCplModalOpen(false)}>Batal</Button>
+                <Button type="submit" variant="primary" className="text-xs font-bold" disabled={saving}>
+                  {saving ? 'Menyimpan...' : 'Simpan Pemetaan'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Form Bahan Kajian */}
+      {isBkModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-100 animate-scale-in">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h3 className="font-black text-sm text-slate-900">
+                {editingBk ? 'Edit Bahan Kajian' : 'Tambah Bahan Kajian'}
+              </h3>
+              <button onClick={() => setIsBkModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+            </div>
+            <form onSubmit={handleSaveBk} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-2xs font-bold text-slate-500 uppercase">Kode Bahan Kajian (BK)</label>
+                <input
+                  type="text"
+                  required
+                  value={bkForm.kode_bk}
+                  onChange={(e) => setBkForm({ ...bkForm, kode_bk: e.target.value })}
+                  className="input w-full font-bold text-xs"
+                  placeholder="Contoh: BK-01"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-2xs font-bold text-slate-500 uppercase">Nama Bahan Kajian</label>
+                <input
+                  type="text"
+                  required
+                  value={bkForm.nama_bk}
+                  onChange={(e) => setBkForm({ ...bkForm, nama_bk: e.target.value })}
+                  className="input w-full text-xs font-semibold"
+                  placeholder="Contoh: Rekayasa Perangkat Lunak, Data Science"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-2xs font-bold text-slate-500 uppercase">Deskripsi / Kedalaman & Ruang Lingkup</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={bkForm.deskripsi}
+                  onChange={(e) => setBkForm({ ...bkForm, deskripsi: e.target.value })}
+                  className="input w-full text-xs min-h-[80px]"
+                  placeholder="Jelaskan ruang lingkup dan kedalaman materi..."
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" className="text-xs" onClick={() => setIsBkModalOpen(false)}>Batal</Button>
+                <Button type="submit" variant="primary" className="text-xs font-bold" disabled={saving}>
+                  {saving ? 'Menyimpan...' : 'Simpan'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Mapping Bahan Kajian to Mata Kuliah */}
+      {isMapBkModalOpen && selectedMkForMapping && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-100 animate-scale-in">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h3 className="font-black text-sm text-slate-900">Pemetaan Bahan Kajian ke Mata Kuliah</h3>
+                <p className="text-2xs text-slate-500 font-bold">{selectedMkForMapping.kode_mk} - {selectedMkForMapping.nama}</p>
+              </div>
+              <button onClick={() => setIsMapBkModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+            </div>
+            <form onSubmit={handleSaveMkBkMapping} className="p-6 space-y-4">
+              <p className="text-xs text-slate-500">Pilih satu atau beberapa Bahan Kajian yang tercakup di dalam mata kuliah ini:</p>
+              <div className="max-h-[250px] overflow-y-auto border border-slate-200 rounded-2xl p-4 divide-y divide-slate-100 space-y-2.5">
+                {bkList.map((bk) => (
+                  <label key={bk.id} className="flex items-start gap-3 pt-2.5 cursor-pointer first:pt-0">
+                    <input
+                      type="checkbox"
+                      className="checkbox mt-0.5 shrink-0"
+                      checked={selectedBkIds.includes(bk.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedBkIds([...selectedBkIds, bk.id]);
+                        } else {
+                          setSelectedBkIds(selectedBkIds.filter((id) => id !== bk.id));
+                        }
+                      }}
+                    />
+                    <div className="space-y-0.5">
+                      <span className="font-mono font-black text-emerald-700 text-xs block">{bk.kode_bk} - {bk.nama_bk}</span>
+                      <span className="text-xs text-slate-600 font-medium block leading-normal">{bk.deskripsi}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" className="text-xs" onClick={() => setIsMapBkModalOpen(false)}>Batal</Button>
+                <Button type="submit" variant="primary" className="text-xs font-bold" disabled={saving}>
+                  {saving ? 'Menyimpan...' : 'Simpan Pemetaan'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {selectedRpsDetail && (
         <div className="hidden print:block printable-document print-document bg-white text-black p-8 font-serif leading-normal w-full">
           {/* Kop Dokumen Resmi */}
