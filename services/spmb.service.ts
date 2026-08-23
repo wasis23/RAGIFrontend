@@ -119,8 +119,8 @@ export interface PendaftaranBerkas {
 }
 
 export const spmbService = {
-  getProgramStudi: async () => {
-    const response = await api.get('/spmb/prodi');
+  getProgramStudi: async (params?: { page?: number; limit?: number; search?: string; sort_by?: string; sort_dir?: string }) => {
+    const response = await api.get('/spmb/prodi', { params });
     return response.data;
   },
   getLaporanStatistik: async () => {

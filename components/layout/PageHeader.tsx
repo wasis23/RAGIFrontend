@@ -20,7 +20,7 @@ export function PageHeader({ title, description, action, breadcrumb, breadcrumbs
     <div className="page-header flex items-center justify-between gap-4 flex-wrap mb-6 w-full">
       <div className="flex-1 min-w-[260px]">
         {backUrl && (
-          <Link href={backUrl} className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium hover:text-primary-600 transition mb-2">
+          <Link href={backUrl} className="inline-flex items-center gap-1.5 text-xs font-medium transition mb-2" style={{ color: 'var(--module-primary, var(--primary-600))' }}>
             <ChevronLeft size={14} />
             Kembali
           </Link>
