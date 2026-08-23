@@ -138,6 +138,17 @@ export interface PendaftaranBerkasItem {
   created_at?: string;
 }
 
+export interface PendaftaranAlur {
+  id: number;
+  pendaftaran_id: number;
+  master_tipe_jalur_alur_id: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  catatan?: string | null;
+  master_alur?: MasterTipeJalurAlur;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Pendaftaran {
   id: number;
   gelombang_id: number;
@@ -178,6 +189,7 @@ export interface Pendaftaran {
   program_studi?: ProgramStudi;
   dokumen_pendaftaran?: PendaftaranBerkasItem[];
   konversi?: KonversiRecord | null;
+  progress_alur?: PendaftaranAlur[];
 }
 
 export interface StatusHistoryItem {

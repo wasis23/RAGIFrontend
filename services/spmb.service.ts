@@ -105,6 +105,7 @@ export interface PendaftaranCalonMhs {
     phone?: string;
   };
   dokumen_pendaftaran?: PendaftaranBerkas[];
+  progress_alur?: any[];
 }
 
 export interface PendaftaranBerkas {
