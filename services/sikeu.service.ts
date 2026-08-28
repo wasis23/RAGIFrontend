@@ -46,6 +46,60 @@ export const sikeuService = {
     });
   },
 
+  // Piutang Mahasiswa & Rekapitulasi Tunggakan
+  getPiutangMahasiswa: async (params?: {
+    search?: string;
+    angkatan?: string | number;
+    tahun_akademik_id?: string | number;
+    program_studi_id?: string | number;
+    status?: string;
+    page?: number;
+    per_page?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }) => {
+    const cleanParams: Record<string, string> = {};
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          cleanParams[key] = String(val);
+        }
+      });
+    }
+    const query = new URLSearchParams(cleanParams).toString();
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/piutang?${query}`);
+  },
+
+  downloadPiutangExcel: async (params?: any) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sso_access_token') : null;
+    const cleanParams: Record<string, string> = {};
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          cleanParams[key] = String(val);
+        }
+      });
+    }
+    const query = new URLSearchParams(cleanParams).toString();
+    const res = await fetch(`${API_BASE_URL}/v1/sikeu/piutang/export-excel?${query}`, {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : '',
+      },
+    });
+    if (!res.ok) {
+      throw new Error('Gagal mengunduh file Excel piutang');
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Piutang_Mahasiswa_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
   // Dispensasi Tagihan
   getDispensasiList: async (params?: { status?: string; mahasiswa_id?: number }) => {
     const query = new URLSearchParams(params as any).toString();

@@ -29,9 +29,24 @@ export const Select = forwardRef<any, CustomSelectProps>(
     const reactId = useId();
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-') || reactId;
 
+    let safeOptions: SelectOption[] = Array.isArray(options) ? options : [];
+
+    if ((!options || !Array.isArray(options)) && (props as any).children) {
+      const extracted: SelectOption[] = [];
+      React.Children.forEach((props as any).children, (child: any) => {
+        if (child && child.props) {
+          extracted.push({
+            value: child.props.value !== undefined ? child.props.value : child.props.children,
+            label: String(child.props.children || child.props.value || ''),
+          });
+        }
+      });
+      safeOptions = extracted;
+    }
+
     const selectedOption = isMulti
-      ? options.filter(o => (Array.isArray(value) ? value : []).map(String).includes(String(o.value)))
-      : (options.find(o => String(o.value) === String(value) || (value !== null && value !== undefined && value !== '' && !isNaN(Number(value)) && Math.round(Number(o.value)) === Math.round(Number(value)))) || null);
+      ? safeOptions.filter(o => (Array.isArray(value) ? value : []).map(String).includes(String(o.value)))
+      : (safeOptions.find(o => String(o.value) === String(value) || (value !== null && value !== undefined && value !== '' && !isNaN(Number(value)) && Math.round(Number(o.value)) === Math.round(Number(value)))) || null);
 
     const handleChange = (selected: any) => {
       if (onChange) {
@@ -88,7 +103,7 @@ export const Select = forwardRef<any, CustomSelectProps>(
             ref={ref}
             inputId={selectId}
             instanceId={selectId}
-            options={options}
+            options={safeOptions}
             value={selectedOption}
             onChange={handleChange}
             placeholder={placeholder || 'Pilih...'}

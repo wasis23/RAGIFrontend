@@ -193,20 +193,27 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
 const SIKEU_FALLBACK_MENUS: Menu[] = [
   { id: 601, parent_id: null, name: 'Dashboard Keuangan', url: '/sikeu', icon: 'FaChartPie', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
   {
-    id: 602, parent_id: null, name: 'OPERASIONAL KEUANGAN', url: '#operasional_sikeu', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 2, is_active: true,
+    id: 602, parent_id: null, name: 'OPERASIONAL PENERIMAAN', url: '#penerimaan_sikeu', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 2, is_active: true,
     children: [
       { id: 6021, parent_id: 602, name: 'Tagihan SPP & UKT', url: '/sikeu/tagihan', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
-      { id: 6022, parent_id: 602, name: 'Pembayaran SPP', url: '/sikeu/pembayaran', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
-      { id: 6023, parent_id: 602, name: 'Pemasukan Kas', url: '/sikeu/pemasukan', icon: 'FaList', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
-      { id: 6024, parent_id: 602, name: 'Pengeluaran Kas', url: '/sikeu/pengeluaran', icon: 'FaList', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
-      { id: 6025, parent_id: 602, name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: 'FaClipboardCheck', module: 'sikeu', permission_id: null, order_index: 5, is_active: true },
-      { id: 6026, parent_id: 602, name: 'Approval Pimpinan', url: '/sikeu/approval', icon: 'FaShieldCheck', module: 'sikeu', permission_id: null, order_index: 6, is_active: true },
-      { id: 6027, parent_id: 602, name: 'Payment Gateway', url: '/sikeu/payment-gateway', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 7, is_active: true },
-      { id: 6028, parent_id: 602, name: 'Pajak & Perpajakan', url: '/sikeu/pajak', icon: 'FaFileAlt', module: 'sikeu', permission_id: null, order_index: 8, is_active: true },
+      { id: 6029, parent_id: 602, name: 'Piutang Mahasiswa', url: '/sikeu/piutang', icon: 'FaExclamationTriangle', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
+      { id: 6022, parent_id: 602, name: 'Pembayaran SPP', url: '/sikeu/pembayaran', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
+      { id: 6023, parent_id: 602, name: 'Pemasukan Kas', url: '/sikeu/pemasukan', icon: 'FaList', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
+      { id: 6027, parent_id: 602, name: 'Payment Gateway', url: '/sikeu/payment-gateway', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 5, is_active: true },
     ]
   },
   {
-    id: 603, parent_id: null, name: 'AKUNTANSI & LAPORAN', url: '#akuntansi_sikeu', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 3, is_active: true,
+    id: 605, parent_id: null, name: 'OPERASIONAL PENGELUARAN', url: '#pengeluaran_sikeu', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 3, is_active: true,
+    children: [
+      { id: 6024, parent_id: 605, name: 'Pengeluaran Kas', url: '/sikeu/pengeluaran', icon: 'FaList', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
+      { id: 6043, parent_id: 605, name: 'Unit Kas & Rekening', url: '/sikeu/unit-kas', icon: 'FaBuilding', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
+      { id: 6025, parent_id: 605, name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: 'FaClipboardCheck', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
+      { id: 6026, parent_id: 605, name: 'Approval Pimpinan', url: '/sikeu/approval', icon: 'FaShieldCheck', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
+      { id: 6028, parent_id: 605, name: 'Pajak & Perpajakan', url: '/sikeu/pajak', icon: 'FaFileAlt', module: 'sikeu', permission_id: null, order_index: 5, is_active: true },
+    ]
+  },
+  {
+    id: 603, parent_id: null, name: 'AKUNTANSI & LAPORAN', url: '#akuntansi_sikeu', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 4, is_active: true,
     children: [
       { id: 6031, parent_id: 603, name: 'Jurnal Umum', url: '/sikeu/akuntansi/jurnal', icon: 'FaFileAlt', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
       { id: 6032, parent_id: 603, name: 'Buku Besar', url: '/sikeu/akuntansi/buku-besar', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
@@ -215,11 +222,10 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
     ]
   },
   { 
-    id: 604, parent_id: null, name: 'MASTER KEUANGAN', url: '#master_sikeu', icon: 'FaDatabase', module: 'sikeu', permission_id: null, order_index: 4, is_active: true,
+    id: 604, parent_id: null, name: 'MASTER KEUANGAN', url: '#master_sikeu', icon: 'FaDatabase', module: 'sikeu', permission_id: null, order_index: 5, is_active: true,
     children: [
-      { id: 6041, parent_id: 604, name: 'Master Tarif Gaji Pegawai', url: '/sikeu/master/gaji-pegawai', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
-      { id: 6042, parent_id: 604, name: 'Master Biaya & Tarif', url: '/sikeu/master', icon: 'FaBuilding', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
-      { id: 6043, parent_id: 604, name: 'Unit Kas & Rekening', url: '/sikeu/unit-kas', icon: 'FaBuilding', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
+      { id: 6042, parent_id: 604, name: 'Master Biaya & Tarif', url: '/sikeu/master', icon: 'FaBuilding', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
+      { id: 6041, parent_id: 604, name: 'Master Tarif Gaji Pegawai', url: '/sikeu/master/gaji-pegawai', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
     ]
   },
 ];
