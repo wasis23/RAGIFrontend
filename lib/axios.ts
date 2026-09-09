@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, ROUTES } from '@/lib/constants';
-import { getCookie, getCookieDomain } from '@/lib/domain';
+import { getCookie, getCookieDomain, getCurrentDomainContext, getAuthTokenKey } from '@/lib/domain';
 
 // ============================================================
 // Axios Instance
@@ -15,15 +15,24 @@ const apiClient = axios.create({
 });
 
 // ============================================================
-// Request Interceptor — Inject Bearer Token
+// Request Interceptor — Inject Bearer Token & X-Environment
 // ============================================================
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    let token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+    const ctx = getCurrentDomainContext();
+    const tokenKey = getAuthTokenKey(ctx.isDemo, ctx.hostname);
+
+    // 1. Suntikkan header X-Environment jika request berasal dari lingkungan demo
+    if (ctx.isDemo && config.headers) {
+      config.headers['X-Environment'] = 'demo';
+    }
+
+    // 2. Ambil token dari key yang sesuai (demo vs produksi)
+    let token = typeof window !== 'undefined' ? localStorage.getItem(tokenKey) : null;
     if (!token) {
-      token = getCookie(TOKEN_KEY);
+      token = getCookie(tokenKey);
       if (token && typeof window !== 'undefined') {
-        localStorage.setItem(TOKEN_KEY, token);
+        localStorage.setItem(tokenKey, token);
       }
     }
     if (token && config.headers) {

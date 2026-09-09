@@ -1,4 +1,4 @@
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, TOKEN_KEY } from './constants';
 
 // ============================================================
 // DOMAIN / SUBDOMAIN RESOLUTION — Multi-Tenant Frontend (satu codebase)
@@ -51,16 +51,19 @@ export interface DomainContext {
   hostname: string;
   baseDomain: string;
   subdomain: string;
+  effectiveSubdomain: string;
   moduleSlug: string | null;
   modulePath: string | null;
   moduleLabel: string | null;
   isModule: boolean;
   isDefault: boolean;
+  isDemo: boolean;
 }
 
 /**
  * Resolve konteks tenant dari hostname (framework-agnostic & pure,
  * aman dipakai di proxy.ts (server) maupun komponen client).
+ * Mendukung deteksi lingkungan Demo (prefix 'demo-').
  */
 export function resolveDomainContext(hostname: string): DomainContext {
   const host = (hostname || '').trim().toLowerCase().split(':')[0];
@@ -88,14 +91,17 @@ export function resolveDomainContext(hostname: string): DomainContext {
   }
 
   const sub = subdomain.toLowerCase();
-  const isReserved = sub === '' || RESERVED_SUBDOMAINS.has(sub);
-  const moduleSlug = isReserved ? null : sub;
+  const isDemo = sub.startsWith('demo-');
+  const effectiveSub = isDemo ? sub.slice(5) : sub;
+  const isReserved = effectiveSub === '' || RESERVED_SUBDOMAINS.has(effectiveSub);
+  const moduleSlug = isReserved ? null : effectiveSub;
   const modulePath = moduleSlug ? `/${moduleSlug}` : null;
 
   return {
     hostname: host,
     baseDomain,
     subdomain: sub,
+    effectiveSubdomain: effectiveSub,
     moduleSlug,
     modulePath,
     moduleLabel: moduleSlug
@@ -103,6 +109,7 @@ export function resolveDomainContext(hostname: string): DomainContext {
       : null,
     isModule: moduleSlug !== null,
     isDefault: moduleSlug === null,
+    isDemo,
   };
 }
 
@@ -178,11 +185,12 @@ export function getModuleUrl(moduleCode: string, path: string = '', currentHostn
   }
 
   const protocol = typeof window !== 'undefined' && window.location.protocol ? window.location.protocol : 'https:';
+  const prefix = ctx.isDemo ? 'demo-' : '';
 
   // Jika target adalah portal SSO / domain default
   if (RESERVED_SUBDOMAINS.has(code)) {
     const ssoPath = cleanPath || ROUTES.DASHBOARD;
-    return `${protocol}//sso.${ctx.baseDomain}${ssoPath.startsWith('/') ? ssoPath : `/${ssoPath}`}`;
+    return `${protocol}//${prefix}sso.${ctx.baseDomain}${ssoPath.startsWith('/') ? ssoPath : `/${ssoPath}`}`;
   }
 
   // Jika target adalah subdomain modul (misal siakad, sikeu, spmb)
@@ -193,6 +201,21 @@ export function getModuleUrl(moduleCode: string, path: string = '', currentHostn
     cleanPath = cleanPath.slice(code.length + 1);
   }
 
-  return `${protocol}//${code}.${ctx.baseDomain}${cleanPath || ''}`;
+  return `${protocol}//${prefix}${code}.${ctx.baseDomain}${cleanPath || ''}`;
 }
+
+/**
+ * Dapatkan nama cookie / key token otentikasi berdasarkan lingkungan:
+ * - Lingkungan Demo     -> 'demo_sso_access_token'
+ * - Lingkungan Produksi -> 'sso_access_token' (TOKEN_KEY)
+ */
+export function getAuthTokenKey(isDemo?: boolean, hostname?: string): string {
+  if (typeof isDemo === 'boolean') {
+    return isDemo ? 'demo_sso_access_token' : TOKEN_KEY;
+  }
+  const host = hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
+  const ctx = resolveDomainContext(host);
+  return ctx.isDemo ? 'demo_sso_access_token' : TOKEN_KEY;
+}
+
 

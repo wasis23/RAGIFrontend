@@ -12,7 +12,7 @@ import { AppLauncher } from '@/components/layout/AppLauncher';
 export function Navbar() {
   const { user, logout } = useAuth();
   const { toggleSidebar } = useUiStore();
-  const { moduleLabel } = useDomain();
+  const { moduleLabel, isDemo } = useDomain();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const isMahasiswa = (user?.roles || []).some((r: any) => {
@@ -36,6 +36,11 @@ export function Navbar() {
             {moduleLabel ? `${moduleLabel} Portal` : 'Single Sign-On (SSO) Portal'}
           </span>
           <span className="badge badge-blue hide-mobile">TERINTEGRASI</span>
+          {isDemo && (
+            <span className="badge bg-amber-500 text-slate-950 font-bold hide-mobile">
+              DEMO
+            </span>
+          )}
         </div>
       </div>
 

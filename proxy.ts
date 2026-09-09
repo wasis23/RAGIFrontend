@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveDomainContext, MODULE_LABELS, RESERVED_SUBDOMAINS } from '@/lib/domain';
+import { resolveDomainContext, MODULE_LABELS, RESERVED_SUBDOMAINS, getAuthTokenKey } from '@/lib/domain';
 import { TOKEN_KEY } from '@/lib/constants';
 
 // Rute publik yang dapat diakses tanpa autentikasi
@@ -64,7 +64,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get(TOKEN_KEY)?.value;
+  const tokenKey = getAuthTokenKey(ctx.isDemo, host);
+  const token = request.cookies.get(tokenKey)?.value;
+  const envPrefix = ctx.isDemo ? 'demo-' : '';
 
   // 2. Auth Guard Server-Side:
   //    Jika belum login dan mengakses rute terproteksi, langsung alihkan (307 redirect)
@@ -72,7 +74,7 @@ export function proxy(request: NextRequest) {
   if (!token && !isPublicRoute(pathname)) {
     if (ctx.baseDomain) {
       const returnUrl = `https://${host}${pathname}${request.nextUrl.search}`;
-      const loginUrl = new URL('/login', `https://sso.${ctx.baseDomain}`);
+      const loginUrl = new URL('/login', `https://${envPrefix}sso.${ctx.baseDomain}`);
       loginUrl.searchParams.set('redirect', returnUrl);
       return NextResponse.redirect(loginUrl);
     } else {
@@ -97,12 +99,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Kasus 1: Permintaan berada di domain SSO / portal default
+  // Kasus 1: Permintaan berada di domain SSO / portal default (sso.polinus.cloud / demo-sso.polinus.cloud)
   if (ctx.baseDomain && ctx.isDefault) {
     const firstSegment = pathname.split('/')[1]?.toLowerCase();
     if (firstSegment && firstSegment in MODULE_LABELS && !RESERVED_SUBDOMAINS.has(firstSegment)) {
       const restPath = pathname.slice(firstSegment.length + 1);
-      const targetUrl = new URL(restPath || '/', `https://${firstSegment}.${ctx.baseDomain}`);
+      const targetUrl = new URL(restPath || '/', `https://${envPrefix}${firstSegment}.${ctx.baseDomain}`);
       targetUrl.search = request.nextUrl.search;
       return NextResponse.redirect(targetUrl);
     }

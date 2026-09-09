@@ -4,13 +4,14 @@ import { useEffect, useState, Suspense } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
+import { DemoBanner } from '@/components/layout/DemoBanner';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
 import { menuService } from '@/services/menu.service';
 import { Menu } from '@/types/menu';
 import { TOKEN_KEY, PUBLIC_ROUTES } from '@/lib/constants';
-import { getCookie, getCookieDomain } from '@/lib/domain';
+import { getCookie, getCookieDomain, getAuthTokenKey } from '@/lib/domain';
 import { Loader2 } from 'lucide-react';
 import NotFoundPage from '@/app/not-found';
 
@@ -38,12 +39,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   };
 
   useEffect(() => {
-    let token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+    const tokenKey = getAuthTokenKey();
+    let token = typeof window !== 'undefined' ? localStorage.getItem(tokenKey) : null;
     if (!token && typeof document !== 'undefined') {
-      const cookieToken = getCookie(TOKEN_KEY);
+      const cookieToken = getCookie(tokenKey);
       if (cookieToken) {
         token = cookieToken;
-        localStorage.setItem(TOKEN_KEY, cookieToken);
+        localStorage.setItem(tokenKey, cookieToken);
       }
     }
 
@@ -159,6 +161,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         />
       )}
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+        <DemoBanner />
         <Navbar />
         <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-8">
           {children}

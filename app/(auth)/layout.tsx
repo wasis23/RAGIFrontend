@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Layers } from 'lucide-react';
+import { DemoBanner } from '@/components/layout/DemoBanner';
 
 export const metadata: Metadata = {
   title: 'Autentikasi - SSO Campus',
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex flex-col min-h-screen">
+      <DemoBanner />
+      <div className="flex flex-1 min-h-screen bg-white">
       {/* ── Left Panel: Form (45-50%) ── */}
       <div className="w-full lg:w-[45%] xl:w-[40%] flex flex-col px-6 sm:px-12 lg:px-16 xl:px-24 py-8 lg:py-10 min-h-screen relative">
         {/* Top Logo */}
@@ -53,6 +56,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
