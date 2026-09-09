@@ -7,6 +7,7 @@ import { AxiosError } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
 import { ROUTES } from '@/lib/constants';
+import { getDefaultLandingPath } from '@/lib/domain';
 import type { LoginRequest, User, Permission } from '@/types/auth.types';
 
 // Helper set cookie untuk middleware Next.js (24 jam = 86400 detik)
@@ -34,6 +35,13 @@ export function useAuth() {
     logout: clearAuth,
   } = useAuthStore();
 
+  // Landing default mengikuti subdomain (multi-tenant):
+  // subdomain modul -> /<module>, portal SSO -> /dashboard
+  const defaultLanding = () => {
+    if (typeof window === 'undefined') return ROUTES.DASHBOARD;
+    return getDefaultLandingPath(window.location.hostname);
+  };
+
   // Login dengan Backend API Laravel Sanctum
   const login = useCallback(
     async (payload: LoginRequest, redirectPath?: string | null) => {
@@ -53,7 +61,7 @@ export function useAuth() {
           if (redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
             router.push(redirectPath);
           } else {
-            router.push(ROUTES.DASHBOARD);
+            router.push(defaultLanding());
           }
         } else {
           toast.error(res?.message || 'Gagal autentikasi dari server.');
@@ -96,7 +104,7 @@ export function useAuth() {
           if (redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
             router.push(redirectPath);
           } else {
-            router.push(ROUTES.DASHBOARD);
+            router.push(defaultLanding());
           }
         } else {
           // Fallback if backend doesn't return token

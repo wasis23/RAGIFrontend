@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { Menu, LogOut, User, Shield, Bell } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUiStore } from '@/store/uiStore';
+import { useDomain } from '@/hooks/useDomain';
 
 import { AppLauncher } from '@/components/layout/AppLauncher';
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const { toggleSidebar } = useUiStore();
+  const { moduleLabel } = useDomain();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const isMahasiswa = (user?.roles || []).some((r: any) => {
@@ -30,7 +32,9 @@ export function Navbar() {
         </button>
 
         <div className="topbar-section">
-          <span className="topbar-title hide-mobile">Single Sign-On (SSO) Portal</span>
+          <span className="topbar-title hide-mobile">
+            {moduleLabel ? `${moduleLabel} Portal` : 'Single Sign-On (SSO) Portal'}
+          </span>
           <span className="badge badge-blue hide-mobile">TERINTEGRASI</span>
         </div>
       </div>
