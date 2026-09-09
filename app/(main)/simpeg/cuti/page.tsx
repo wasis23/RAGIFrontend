@@ -187,7 +187,7 @@ export default function CutiPage() {
           <div className="text-slate-600 text-xs">{row.alasan}</div>
           {row.file_pendukung && (
             <a
-              href={row.file_pendukung.startsWith('http') ? row.file_pendukung : `http://localhost:8000/${row.file_pendukung}`}
+              href={row.file_pendukung.startsWith('http') ? row.file_pendukung : `${process.env.NEXT_PUBLIC_API_URL || ''}/${row.file_pendukung}`}
               target="_blank"
               rel="noreferrer"
               className="text-[11px] text-primary-600 hover:underline font-semibold block"

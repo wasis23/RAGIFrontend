@@ -66,7 +66,7 @@ export default function SippmDashboardPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <a
-              href="http://localhost:8000/api/sippm/pengumuman/1/html-draft"
+              href={`${process.env.NEXT_PUBLIC_API_URL || ''}/api/sippm/pengumuman/1/html-draft`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition backdrop-blur-md flex items-center gap-1.5"

@@ -324,7 +324,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
 
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
                       <a 
-                        href={`http://localhost:8000/storage/${berkas.file_path}`} 
+                        href={`${process.env.NEXT_PUBLIC_API_URL || ''}/storage/${berkas.file_path}`} 
                         target="_blank" 
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-800 font-extrabold hover:underline"
