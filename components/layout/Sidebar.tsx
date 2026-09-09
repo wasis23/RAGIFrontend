@@ -41,6 +41,7 @@ import {
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { SYSTEM_MODULES } from '@/lib/constants';
+import { resolveDomainContext } from '@/lib/domain';
 import { menuService } from '@/services/menu.service';
 import { Menu } from '@/types/menu';
 
@@ -260,6 +261,10 @@ export function Sidebar() {
 
   // Determine module based on pathname or hostname dynamically without hardcoding
   const getModule = () => {
+    if (typeof window !== 'undefined') {
+      const ctx = resolveDomainContext(window.location.hostname);
+      if (ctx.isModule && ctx.moduleSlug) return ctx.moduleSlug;
+    }
     let mod = 'sso';
     if (pathname.startsWith('/simpeg')) mod = 'simpeg';
     else if (pathname.startsWith('/sippm')) mod = 'sippm';
@@ -267,15 +272,6 @@ export function Sidebar() {
     else if (pathname.startsWith('/spmb')) mod = 'spmb';
     else if (pathname.startsWith('/sinapra')) mod = 'sinapra';
     else if (pathname.startsWith('/siakad')) mod = 'siakad';
-    else if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      if (hostname.startsWith('spmb.')) mod = 'spmb';
-      else if (hostname.startsWith('simpeg.')) mod = 'simpeg';
-      else if (hostname.startsWith('sippm.')) mod = 'sippm';
-      else if (hostname.startsWith('sikeu.')) mod = 'sikeu';
-      else if (hostname.startsWith('sinapra.')) mod = 'sinapra';
-      else if (hostname.startsWith('siakad.')) mod = 'siakad';
-    }
 
     if (typeof window !== 'undefined') {
       if (pathname.startsWith('/profile')) {

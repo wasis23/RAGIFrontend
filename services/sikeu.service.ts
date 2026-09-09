@@ -8,10 +8,12 @@ import {
   DetailJurnalUmum
 } from '@/types/sikeu.types';
 
+import { getCookie } from '@/lib/domain';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
 async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('sso_access_token') : null;
+  const token = typeof window !== 'undefined' ? (localStorage.getItem('sso_access_token') || getCookie('sso_access_token')) : null;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -71,7 +73,7 @@ export const sikeuService = {
   },
 
   downloadPiutangExcel: async (params?: any) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('sso_access_token') : null;
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('sso_access_token') || getCookie('sso_access_token')) : null;
     const cleanParams: Record<string, string> = {};
     if (params) {
       Object.entries(params).forEach(([key, val]) => {
@@ -267,25 +269,25 @@ export const sikeuService = {
 
   // Master Jenis Biaya Pendidikan
   getJenisBiayaList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/jenis-biaya');
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/master-biaya');
   },
 
   storeJenisBiaya: async (payload: { kode: string; nama: string; tipe: string; nominal_standar?: number; deskripsi?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/jenis-biaya', {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/master-biaya', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
   updateJenisBiaya: async (id: number, payload: { nama?: string; tipe?: string; nominal_standar?: number; deskripsi?: string; is_active?: boolean }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/jenis-biaya/${id}`, {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/master-biaya/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
   },
 
   deleteJenisBiaya: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/jenis-biaya/${id}`, {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/master-biaya/${id}`, {
       method: 'DELETE',
     });
   },

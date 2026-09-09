@@ -7,16 +7,20 @@ import { AxiosError } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
 import { ROUTES } from '@/lib/constants';
-import { getDefaultLandingPath } from '@/lib/domain';
+import { getDefaultLandingPath, getCookieDomain } from '@/lib/domain';
 import type { LoginRequest, User, Permission } from '@/types/auth.types';
 
-// Helper set cookie untuk middleware Next.js (24 jam = 86400 detik)
+// Helper set cookie untuk middleware Next.js & sharing lintas subdomain (24 jam = 86400 detik)
 function setAuthCookies(token: string, userRole: string) {
-  document.cookie = `sso_access_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-  document.cookie = `sso_user_role=${userRole}; path=/; max-age=86400; SameSite=Lax`;
+  const domainAttr = getCookieDomain();
+  document.cookie = `sso_access_token=${token}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+  document.cookie = `sso_user_role=${userRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
 }
 
 function clearAuthCookies() {
+  const domainAttr = getCookieDomain();
+  document.cookie = `sso_access_token=; ${domainAttr}path=/; max-age=0; SameSite=Lax`;
+  document.cookie = `sso_user_role=; ${domainAttr}path=/; max-age=0; SameSite=Lax`;
   document.cookie = 'sso_access_token=; path=/; max-age=0; SameSite=Lax';
   document.cookie = 'sso_user_role=; path=/; max-age=0; SameSite=Lax';
 }

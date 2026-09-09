@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { API_BASE_URL, TOKEN_KEY, REFRESH_TOKEN_KEY, ROUTES } from '@/lib/constants';
+import { getCookie, getCookieDomain } from '@/lib/domain';
 
 // ============================================================
 // Axios Instance
@@ -18,7 +19,13 @@ const apiClient = axios.create({
 // ============================================================
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    let token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+    if (!token) {
+      token = getCookie(TOKEN_KEY);
+      if (token && typeof window !== 'undefined') {
+        localStorage.setItem(TOKEN_KEY, token);
+      }
+    }
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -108,6 +115,9 @@ function handleLogout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem('sso-auth-storage');
+  const domainAttr = getCookieDomain();
+  document.cookie = `sso_access_token=; ${domainAttr}path=/; max-age=0; SameSite=Lax`;
+  document.cookie = `sso_user_role=; ${domainAttr}path=/; max-age=0; SameSite=Lax`;
   document.cookie = 'sso_access_token=; path=/; max-age=0; SameSite=Lax';
   document.cookie = 'sso_user_role=; path=/; max-age=0; SameSite=Lax';
 

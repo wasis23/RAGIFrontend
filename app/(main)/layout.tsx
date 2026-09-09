@@ -10,6 +10,7 @@ import { authService } from '@/services/auth.service';
 import { menuService } from '@/services/menu.service';
 import { Menu } from '@/types/menu';
 import { TOKEN_KEY, PUBLIC_ROUTES } from '@/lib/constants';
+import { getCookie, getCookieDomain } from '@/lib/domain';
 import NotFoundPage from '@/app/not-found';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -36,7 +37,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   };
 
   useEffect(() => {
-    const token = localStorage.getItem(TOKEN_KEY);
+    let token = typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+    if (!token && typeof document !== 'undefined') {
+      const cookieToken = getCookie(TOKEN_KEY);
+      if (cookieToken) {
+        token = cookieToken;
+        localStorage.setItem(TOKEN_KEY, cookieToken);
+      }
+    }
+
     if (token) {
       authService
         .getMe()
@@ -48,7 +57,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
             );
             const primaryRole = userRoleSlugs[0] || 'user';
-            document.cookie = `sso_user_role=${primaryRole}; path=/; max-age=3600; SameSite=Lax`;
+            const domainAttr = getCookieDomain();
+            document.cookie = `sso_user_role=${primaryRole}; ${domainAttr}path=/; max-age=3600; SameSite=Lax`;
 
             const isSuperOrAdmin = userRoleSlugs.some((s: string) => ['admin', 'superadmin', 'super-admin'].includes(s));
             if (isSuperOrAdmin) {

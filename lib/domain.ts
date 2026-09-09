@@ -124,3 +124,75 @@ export function getCurrentDomainContext(): DomainContext {
   if (typeof window === 'undefined') return resolveDomainContext('');
   return resolveDomainContext(window.location.hostname);
 }
+
+/**
+ * Dapatkan atribut cookie domain (misal: "domain=.polinus.cloud; " atau "")
+ * agar cookie SSO dapat diakses oleh seluruh subdomain (*.polinus.cloud).
+ */
+export function getCookieDomain(hostname?: string): string {
+  if (typeof window === 'undefined' && !hostname) return '';
+  const host = (hostname || (typeof window !== 'undefined' ? window.location.hostname : '')).trim().toLowerCase().split(':')[0];
+  const ctx = resolveDomainContext(host);
+  if (ctx.baseDomain) {
+    return `domain=.${ctx.baseDomain}; `;
+  }
+  return '';
+}
+
+/**
+ * Baca nilai cookie dari document.cookie berdasarkan nama.
+ */
+export function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Buat URL modul berdasarkan konteks multi-tenant:
+ * - Di lingkungan domain (mis. sso.polinus.cloud):
+ *     getModuleUrl('siakad') -> "https://siakad.polinus.cloud"
+ *     getModuleUrl('sso')    -> "https://sso.polinus.cloud/dashboard"
+ *     getModuleUrl('siakad', '/krs') -> "https://siakad.polinus.cloud/krs"
+ * - Di lingkungan lokal (localhost / IP tanpa base domain terdaftar):
+ *     getModuleUrl('siakad') -> "/siakad"
+ *     getModuleUrl('sso')    -> "/dashboard"
+ *     getModuleUrl('siakad', '/krs') -> "/siakad/krs"
+ */
+export function getModuleUrl(moduleCode: string, path: string = '', currentHostname?: string): string {
+  const host = (currentHostname || (typeof window !== 'undefined' ? window.location.hostname : '')).trim().toLowerCase().split(':')[0];
+  const ctx = resolveDomainContext(host);
+  const code = (moduleCode || '').toLowerCase().trim();
+
+  let cleanPath = path.trim();
+  if (cleanPath && !cleanPath.startsWith('/')) {
+    cleanPath = `/${cleanPath}`;
+  }
+
+  // Jika di localhost / non-base domain, gunakan relative path internal
+  if (!ctx.baseDomain) {
+    if (RESERVED_SUBDOMAINS.has(code)) {
+      return cleanPath || ROUTES.DASHBOARD;
+    }
+    return `/${code}${cleanPath}`;
+  }
+
+  const protocol = typeof window !== 'undefined' && window.location.protocol ? window.location.protocol : 'https:';
+
+  // Jika target adalah portal SSO / domain default
+  if (RESERVED_SUBDOMAINS.has(code)) {
+    const ssoPath = cleanPath || ROUTES.DASHBOARD;
+    return `${protocol}//sso.${ctx.baseDomain}${ssoPath.startsWith('/') ? ssoPath : `/${ssoPath}`}`;
+  }
+
+  // Jika target adalah subdomain modul (misal siakad, sikeu, spmb)
+  // Potong prefix `/${code}` jika ada di path agar tidak menjadi siakad.polinus.cloud/siakad
+  if (cleanPath === `/${code}`) {
+    cleanPath = '';
+  } else if (cleanPath.startsWith(`/${code}/`)) {
+    cleanPath = cleanPath.slice(code.length + 1);
+  }
+
+  return `${protocol}//${code}.${ctx.baseDomain}${cleanPath || ''}`;
+}
+

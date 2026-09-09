@@ -17,40 +17,41 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { moduleService, AppModule } from '@/services/module.service';
+import { getModuleUrl } from '@/lib/domain';
 
 const MODULE_META: Record<string, any> = {
   sso: {
-    href: '/admin/users',
+    subpath: '/admin/users',
     icon: Shield,
     badgeColor: 'bg-blue-50 text-blue-600',
   },
   simpeg: {
-    href: '/simpeg',
+    subpath: '',
     icon: Users,
     badgeColor: 'bg-emerald-50 text-emerald-600',
   },
   sippm: {
-    href: '/sippm/proposal',
+    subpath: '/proposal',
     icon: FlaskConical,
     badgeColor: 'bg-purple-50 text-purple-600',
   },
   sikeu: {
-    href: '/sikeu',
+    subpath: '',
     icon: CreditCard,
     badgeColor: 'bg-amber-50 text-amber-600',
   },
   spmb: {
-    href: '/spmb',
+    subpath: '',
     icon: UserPlus,
     badgeColor: 'bg-indigo-50 text-indigo-600',
   },
   siakad: {
-    href: '/siakad',
+    subpath: '',
     icon: BookOpen,
     badgeColor: 'bg-cyan-50 text-cyan-600',
   },
   sinapra: {
-    href: '/sinapra/gedung-ruangan',
+    subpath: '/gedung-ruangan',
     icon: Building2,
     badgeColor: 'bg-rose-50 text-rose-600',
   },
@@ -154,16 +155,17 @@ export function AppLauncher() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {accessibleModules.map((app) => {
                 const meta = MODULE_META[app.code] || {
-                  href: `/${app.code}`,
+                  subpath: '',
                   icon: LayoutGrid,
                   badgeColor: 'bg-slate-100 text-slate-700',
                 };
+                const targetHref = getModuleUrl(app.code, meta.subpath);
 
                 const IconComp = meta.icon;
                 return (
                   <Link
                     key={app.id}
-                    href={meta.href}
+                    href={targetHref}
                     onClick={() => setIsOpen(false)}
                     className="group flex items-center sm:flex-col sm:items-start p-3 rounded-xl border border-slate-100 hover:border-primary-200 bg-slate-50/60 hover:bg-primary-50/40 transition-all text-left"
                     role="menuitem"

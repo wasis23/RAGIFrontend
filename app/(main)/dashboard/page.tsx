@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { formatDateTime } from '@/lib/utils';
 import { moduleService, AppModule } from '@/services/module.service';
+import { getModuleUrl } from '@/lib/domain';
 
 interface SummaryItem {
   id: string;
@@ -270,7 +271,8 @@ export default function DashboardPage() {
                     icon={<ArrowRight size={15} />}
                     onClick={() => {
                       toast.success(`Membuka ${mod.name}…`);
-                      window.open(`/${mod.code}`, '_blank', 'noopener,noreferrer');
+                      const targetUrl = getModuleUrl(mod.code);
+                      window.open(targetUrl, '_blank', 'noopener,noreferrer');
                     }}
                   >
                     Buka Aplikasi
