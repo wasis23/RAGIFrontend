@@ -17,6 +17,11 @@ import { resolveDomainContext, MODULE_LABELS, RESERVED_SUBDOMAINS } from '@/lib/
 // ============================================================
 
 export function proxy(request: NextRequest) {
+  // 0. Cegah re-processing jika request sudah pernah di-rewrite secara internal
+  if (request.headers.get('x-proxy-rewritten') === '1') {
+    return NextResponse.next();
+  }
+
   const host =
     request.headers.get('x-forwarded-host') ||
     request.headers.get('host') ||
@@ -41,28 +46,13 @@ export function proxy(request: NextRequest) {
     const modSlug = ctx.moduleSlug;
     const modPath = ctx.modulePath as string; // misal '/siakad'
 
-    // 2a. Root path '/' -> rewrite internal ke '/siakad' (URL browser tetap siakad.polinus.cloud)
-    if (pathname === '/') {
-      return NextResponse.rewrite(new URL(modPath, request.url));
+    // 2a. Jika pathname sudah memiliki prefix modul (misal '/siakad' atau '/siakad/krs'),
+    // langsung lanjutkan tanpa rewrite/redirect agar tidak terjadi redirect loop
+    if (pathname === modPath || pathname.startsWith(`${modPath}/`)) {
+      return NextResponse.next();
     }
 
-    // 2b. Mengakses langsung '/siakad' di subdomain siakad -> redirect ke '/'
-    if (pathname === modPath) {
-      const targetUrl = new URL('/', request.url);
-      targetUrl.search = request.nextUrl.search;
-      return NextResponse.redirect(targetUrl);
-    }
-
-    // 2c. Mengakses '/siakad/xyz' di subdomain siakad -> redirect ke '/xyz'
-    if (pathname.startsWith(`${modPath}/`)) {
-      const cleanPath = pathname.slice(modPath.length);
-      const targetUrl = new URL(cleanPath, request.url);
-      targetUrl.search = request.nextUrl.search;
-      return NextResponse.redirect(targetUrl);
-    }
-
-    // 2d. Subpath bersih (misal '/krs', '/dashboard', '/nilai')
-    // Rewrite internal ke '/siakad/krs', dsb.
+    // 2b. Abaikan rute auth & system global (login, profile, api, dll.)
     const isExcluded = [
       '/login',
       '/register',
@@ -75,10 +65,35 @@ export function proxy(request: NextRequest) {
       '/error',
     ].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-    if (!isExcluded && !pathname.startsWith('/api/')) {
-      const internalPath = `${modPath}${pathname}`;
-      return NextResponse.rewrite(new URL(internalPath, request.url));
+    if (isExcluded || pathname.startsWith('/api/')) {
+      return NextResponse.next();
     }
+
+    // Pasang penanda request header pada rewrite internal
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-proxy-rewritten', '1');
+
+    // 2c. Root path '/' -> rewrite internal ke modPath (misal '/siakad')
+    if (pathname === '/') {
+      const targetUrl = new URL(modPath, request.url);
+      targetUrl.search = request.nextUrl.search;
+      return NextResponse.rewrite(targetUrl, {
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
+
+    // 2d. Subpath bersih (misal '/krs', '/dashboard', '/nilai')
+    // Rewrite internal ke modPath + pathname (misal '/siakad/krs')
+    const internalPath = `${modPath}${pathname}`;
+    const targetUrl = new URL(internalPath, request.url);
+    targetUrl.search = request.nextUrl.search;
+    return NextResponse.rewrite(targetUrl, {
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
   return NextResponse.next();
