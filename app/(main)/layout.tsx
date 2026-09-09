@@ -11,6 +11,7 @@ import { menuService } from '@/services/menu.service';
 import { Menu } from '@/types/menu';
 import { TOKEN_KEY, PUBLIC_ROUTES } from '@/lib/constants';
 import { getCookie, getCookieDomain } from '@/lib/domain';
+import { Loader2 } from 'lucide-react';
 import NotFoundPage from '@/app/not-found';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -114,24 +115,36 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           }
         })
         .catch(() => {
-          const currentUrl = pathname + (typeof window !== 'undefined' ? window.location.search : '');
+          const currentUrl = typeof window !== 'undefined' ? window.location.href : pathname;
           router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
         })
         .finally(() => {
           setCheckingAccess(false);
         });
     } else {
-      setCheckingAccess(false);
       const isPublic = (PUBLIC_ROUTES as readonly string[]).includes(pathname);
       if (!isPublic) {
-        const currentUrl = pathname + (typeof window !== 'undefined' ? window.location.search : '');
+        const currentUrl = typeof window !== 'undefined' ? window.location.href : pathname;
         router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
+      } else {
+        setCheckingAccess(false);
       }
     }
   }, [setUser, pathname, router]);
 
   if (isNotFound) {
     return <NotFoundPage />;
+  }
+
+  if (checkingAccess) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="animate-spin text-primary" size={32} />
+          <p className="text-sm font-medium text-gray-500">Memeriksa otentikasi...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

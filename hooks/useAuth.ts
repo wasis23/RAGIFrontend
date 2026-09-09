@@ -62,11 +62,17 @@ export function useAuth() {
           setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
           toast.success(res?.message || `Selamat datang, ${userObj.username || 'Pengguna'}!`);
           
-          if (redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
-            router.push(redirectPath);
-          } else {
-            router.push(defaultLanding());
+          if (redirectPath) {
+            if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
+              window.location.href = redirectPath;
+              return;
+            }
+            if (redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
+              router.push(redirectPath);
+              return;
+            }
           }
+          router.push(defaultLanding());
         } else {
           toast.error(res?.message || 'Gagal autentikasi dari server.');
         }
@@ -105,11 +111,17 @@ export function useAuth() {
         if (tokenStr && userObj) {
           setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
           setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
-          if (redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
-            router.push(redirectPath);
-          } else {
-            router.push(defaultLanding());
+          if (redirectPath) {
+            if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
+              window.location.href = redirectPath;
+              return;
+            }
+            if (redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
+              router.push(redirectPath);
+              return;
+            }
           }
+          router.push(defaultLanding());
         } else {
           // Fallback if backend doesn't return token
           toast.success('Pendaftaran berhasil! Silakan login.');
