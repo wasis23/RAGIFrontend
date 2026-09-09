@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-export default function SpmbIndexPage() {
-  redirect('/spmb/dashboard');
-}
+import SPMBDashboardPage from './dashboard/page';
+
+export default SPMBDashboardPage;
