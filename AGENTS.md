@@ -68,6 +68,7 @@ Termasuk juga membuat **array literal statis** untuk `options` pada komponen UI 
    - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali yang menyesuaikan warna primary modul di `PageHeader`.
    - Gunakan prop `label` pada `<Input>` / `<Select>` langsung di Drawer.
 9. **Wajib 3-Dots Action Dropdown Menu (<DropdownMenu />)**: Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />` dari `@/components/ui/DropdownMenu`). Dilarang keras menyejajarkan tombol aksi secara horizontal di sel tabel (*inefficient space*).
+10. **Dilarang Dialog Native Browser & Wajib Modal Konfirmasi UI (<ConfirmDialog />)**: DILARANG KERAS menggunakan dialog bawaan browser (`confirm()`, `window.confirm()`, `alert()`, `prompt()`). Seluruh konfirmasi aksi hapus atau aksi destruktif WAJIB menggunakan modal konfirmasi bertema UI (`<ConfirmDialog />` dari `@/components/ui/ConfirmDialog` atau `<Modal />`) dengan tombol Batal dan Hapus serta indikator loading.
 </RULE[admin_crud_reviewer]>
 
 <RULE[form_validation_reviewer]>

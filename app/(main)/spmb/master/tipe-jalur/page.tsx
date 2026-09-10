@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { DataTable } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -52,6 +53,17 @@ export default function MasterTipeJalurPage() {
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<MasterTipeJalur | null>(null);
+
+  // Delete modal state
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    item: MasterTipeJalur | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    item: null,
+    isLoading: false,
+  });
 
   // Filter drawer state
   const [showFilter, setShowFilter] = useState(false);
@@ -166,14 +178,21 @@ export default function MasterTipeJalurPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus tipe jalur ini?')) return;
+  const handleOpenDelete = (item: MasterTipeJalur) => {
+    setDeleteModal({ isOpen: true, item, isLoading: false });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.item) return;
     try {
-      await spmbService.deleteMasterTipeJalur(id);
+      setDeleteModal((prev) => ({ ...prev, isLoading: true }));
+      await spmbService.deleteMasterTipeJalur(deleteModal.item.id);
       toast.success('Tipe jalur berhasil dihapus');
+      setDeleteModal({ isOpen: false, item: null, isLoading: false });
       fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Gagal menghapus data');
+      setDeleteModal((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -237,7 +256,7 @@ export default function MasterTipeJalurPage() {
                   {
                     label: 'Hapus',
                     icon: <Trash2 size={14} className="text-red-500" />,
-                    onClick: () => handleDelete(row.id),
+                    onClick: () => handleOpenDelete(row),
                     variant: 'danger',
                   },
                 ]}
@@ -371,6 +390,22 @@ export default function MasterTipeJalurPage() {
           </div>
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, item: null, isLoading: false })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteModal.isLoading}
+        title="Hapus Tipe Jalur"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus tipe jalur <strong>{deleteModal.item?.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   );
 }

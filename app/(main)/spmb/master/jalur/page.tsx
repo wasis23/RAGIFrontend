@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 export default function MasterJalurPage() {
@@ -107,14 +108,33 @@ export default function MasterJalurPage() {
     setShowFilter(false);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus jalur ini?')) return;
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({
+    isOpen: false,
+    id: null,
+    label: '',
+  });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleOpenDelete = (row: any) => {
+    setDeleteModal({
+      isOpen: true,
+      id: row.id,
+      label: row.nama,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await spmbService.deleteJalurMasuk(id);
-      toast.success('Jalur masuk berhasil dihapus');
+      setDeleteLoading(true);
+      await spmbService.deleteJalurMasuk(deleteModal.id);
+      toast.success(`Jalur masuk "${deleteModal.label || ''}" berhasil dihapus`);
+      setDeleteModal({ isOpen: false, id: null, label: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Gagal menghapus data');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -170,7 +190,7 @@ export default function MasterJalurPage() {
                   {
                     label: 'Hapus',
                     icon: <Trash2 size={14} className="text-red-500" />,
-                    onClick: () => handleDelete(row.id),
+                    onClick: () => handleOpenDelete(row),
                     variant: 'danger',
                   },
                 ]}
@@ -242,6 +262,22 @@ export default function MasterJalurPage() {
           </div>
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Jalur Masuk"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus jalur masuk <strong>&quot;{deleteModal.label}&quot;</strong>?
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { DataTable } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -50,6 +51,15 @@ export default function TarifUktProgramStudiDetailPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    item: any | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    item: null,
+    isLoading: false,
+  });
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { nama: '', deskripsi: '' } });
 
   const fetchData = useCallback(async () => {
@@ -131,7 +141,23 @@ export default function TarifUktProgramStudiDetailPage() {
       toast.success('Biaya daftar ulang berhasil disimpan'); setShowModal(false); fetchData();
     } catch (error: any) { toast.error(error?.response?.data?.message || 'Gagal menyimpan biaya daftar ulang'); } finally { setSubmitting(false); }
   };
-  const remove = async (id: number) => { if (!confirm('Hapus biaya daftar ulang ini?')) return; await spmbService.deleteTarifUktSpmb(id); toast.success('Biaya daftar ulang dihapus'); fetchData(); };
+  const openDelete = (item: any) => {
+    setDeleteModal({ isOpen: true, item, isLoading: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal.item) return;
+    try {
+      setDeleteModal((prev) => ({ ...prev, isLoading: true }));
+      await spmbService.deleteTarifUktSpmb(deleteModal.item.id);
+      toast.success('Biaya daftar ulang berhasil dihapus');
+      setDeleteModal({ isOpen: false, item: null, isLoading: false });
+      fetchData();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Gagal menghapus biaya daftar ulang');
+      setDeleteModal((prev) => ({ ...prev, isLoading: false }));
+    }
+  };
 
   return (
     <div className="w-full animate-fade-in flex flex-col gap-4 sm:gap-6">
@@ -141,7 +167,7 @@ export default function TarifUktProgramStudiDetailPage() {
         { key: 'master_sikeu_biaya', label: 'Komponen Biaya', render: (row) => row.master_sikeu_biaya?.nama || '-' },
         { key: 'nominal', label: 'Nominal', render: (row) => formatRupiah(Number(row.master_sikeu_biaya?.nominal_standar || 0)) },
         { key: 'deskripsi', label: 'Deskripsi', render: (row) => row.deskripsi || '-' },
-        { key: 'actions', label: 'Aksi', align: 'right', render: (row) => <DropdownMenu items={[{ label: 'Edit', icon: <Edit size={14} />, onClick: () => openEdit(row) }, { label: 'Hapus', icon: <Trash2 size={14} />, onClick: () => remove(row.id), variant: 'danger' }]} /> },
+        { key: 'actions', label: 'Aksi', align: 'right', render: (row) => <DropdownMenu items={[{ label: 'Edit', icon: <Edit size={14} />, onClick: () => openEdit(row) }, { label: 'Hapus', icon: <Trash2 size={14} />, onClick: () => openDelete(row), variant: 'danger' }]} /> },
       ]} />
       <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Biaya Daftar Ulang" footer={<div className="flex justify-end gap-3"><Button variant="secondary" onClick={() => setShowFilter(false)}>Batal</Button><Button onClick={applyFilter}>Terapkan</Button></div>}>
         <div className="flex flex-col gap-4">
@@ -176,6 +202,22 @@ export default function TarifUktProgramStudiDetailPage() {
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100"><Button type="button" variant="secondary" onClick={() => setShowModal(false)}>Batal</Button><Button type="submit" loading={submitting}>Simpan</Button></div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, item: null, isLoading: false })}
+        onConfirm={confirmDelete}
+        isLoading={deleteModal.isLoading}
+        title="Hapus Biaya Daftar Ulang"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus biaya <strong>{deleteModal.item?.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   );
 }

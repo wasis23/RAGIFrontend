@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter } from 'next/navigation';
 
 export default function MasterBerkasRequirementPage() {
@@ -77,18 +78,37 @@ export default function MasterBerkasRequirementPage() {
     }
   };
 
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({
+    isOpen: false,
+    id: null,
+    label: '',
+  });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, [page, limit, sortBy, sortDir, appliedFilters]);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus syarat berkas ini?')) return;
+  const handleOpenDelete = (row: any) => {
+    setDeleteModal({
+      isOpen: true,
+      id: row.id,
+      label: row.label,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await spmbService.deleteBerkasRequirement(id);
-      toast.success('Syarat berkas berhasil dihapus');
+      setDeleteLoading(true);
+      await spmbService.deleteBerkasRequirement(deleteModal.id);
+      toast.success(`Syarat berkas "${deleteModal.label || ''}" berhasil dihapus`);
+      setDeleteModal({ isOpen: false, id: null, label: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Gagal menghapus data');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -153,7 +173,7 @@ export default function MasterBerkasRequirementPage() {
                   label: 'Hapus',
                   icon: <Trash2 size={14} />,
                   variant: 'danger',
-                  onClick: () => handleDelete(row.id)
+                  onClick: () => handleOpenDelete(row)
                 }
               ]}
             />
@@ -235,6 +255,22 @@ export default function MasterBerkasRequirementPage() {
           </div>
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Syarat Berkas"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus syarat berkas <strong>&quot;{deleteModal.label}&quot;</strong>?
+            Pendaftar tidak akan lagi diwajibkan mengunggah dokumen ini.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </div>
   );
 }

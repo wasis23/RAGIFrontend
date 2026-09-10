@@ -171,10 +171,63 @@ Semua halaman admin yang membutuhkan filter **WAJIB**:
             label: 'Hapus',
             icon: <Trash2 size={14} />,
             variant: 'danger',
-            onClick: () => handleDelete(row.id, row.name)
+            onClick: () => handleOpenDelete(row)
           }
         ]}
       />
     </div>
   )}
   ```
+
+---
+
+## 10. Aturan Modal Konfirmasi Aksi Destruktif & Dilarang Dialog Native Browser
+- **DILARANG KERAS Dialog Native Browser**: Dilarang keras memanggil `confirm()`, `window.confirm()`, `alert()`, `window.alert()`, `prompt()`, atau `window.prompt()` untuk konfirmasi penghapusan data atau pesan peringatan. Dialog bawaan browser merusak estetika UI, tidak responsif, dan tidak konsisten.
+- **Wajib Komponen Modal Konfirmasi UI**: Seluruh aksi penghapusan (Delete) atau aksi destruktif lainnya **WAJIB** menggunakan modal konfirmasi bertema UI aplikasi, yaitu menggunakan `<ConfirmDialog />` dari `@/components/ui/ConfirmDialog` (atau `<Modal />` dengan tombol Batal dan Aksi Destruktif yang memiliki status `isLoading`).
+- **Contoh Penggunaan `<ConfirmDialog />`**:
+  ```tsx
+  import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+
+  // State
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    item: TItem | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    item: null,
+    isLoading: false,
+  });
+
+  const handleOpenDelete = (item: TItem) => {
+    setDeleteModal({ isOpen: true, item, isLoading: false });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.item) return;
+    try {
+      setDeleteModal(prev => ({ ...prev, isLoading: true }));
+      await apiService.delete(deleteModal.item.id);
+      toast.success('Data berhasil dihapus');
+      setDeleteModal({ isOpen: false, item: null, isLoading: false });
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menghapus data');
+      setDeleteModal(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  // Di dalam JSX:
+  <ConfirmDialog
+    isOpen={deleteModal.isOpen}
+    onClose={() => setDeleteModal({ isOpen: false, item: null, isLoading: false })}
+    onConfirm={handleConfirmDelete}
+    isLoading={deleteModal.isLoading}
+    title="Hapus Data"
+    message={<span>Apakah Anda yakin ingin menghapus <strong>{deleteModal.item?.nama}</strong>? Tindakan ini tidak dapat dibatalkan.</span>}
+    confirmText="Hapus"
+    cancelText="Batal"
+    variant="danger"
+  />
+  ```
+

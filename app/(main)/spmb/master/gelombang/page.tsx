@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, MoreVertical } from 'lucide-react';
 import { spmbService } from '@/services/spmb.service';
 import { GelombangPenerimaan, JalurMasuk } from '@/types/spmb.types';
 import toast from 'react-hot-toast';
@@ -11,6 +11,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useRouter } from 'next/navigation';
 
 export default function MasterGelombangPage() {
@@ -60,14 +62,33 @@ export default function MasterGelombangPage() {
     fetchJalur();
   }, []);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus gelombang ini?')) return;
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({
+    isOpen: false,
+    id: null,
+    label: '',
+  });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleOpenDelete = (row: any) => {
+    setDeleteModal({
+      isOpen: true,
+      id: row.id,
+      label: row.nama,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await spmbService.deleteGelombang(id);
-      toast.success('Gelombang berhasil dihapus');
+      setDeleteLoading(true);
+      await spmbService.deleteGelombang(deleteModal.id);
+      toast.success(`Gelombang "${deleteModal.label || ''}" berhasil dihapus`);
+      setDeleteModal({ isOpen: false, id: null, label: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error.message || 'Gagal menghapus data');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -107,7 +128,7 @@ export default function MasterGelombangPage() {
               Tambah Gelombang
             </Button>
             <Button 
-              variant="outline"
+              variant="outline" 
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
@@ -152,10 +173,22 @@ export default function MasterGelombangPage() {
                 return <span className={`badge ${badgeClass}`}>{row.status}</span>;
               }},
               { key: 'actions', label: 'Aksi', align: 'right', render: (row) => (
-                <div className="flex justify-end gap-2">
-                  <Button variant="ghost" size="sm" icon={<Edit size={14} />} onClick={() => router.push(`/spmb/master/gelombang/${row.id}/edit`)} />
-                  <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => handleDelete(row.id)} />
-                </div>
+                <DropdownMenu
+                  triggerIcon={<MoreVertical size={16} />}
+                  items={[
+                    {
+                      label: 'Edit',
+                      icon: <Edit size={14} />,
+                      onClick: () => router.push(`/spmb/master/gelombang/${row.id}/edit`)
+                    },
+                    {
+                      label: 'Hapus',
+                      icon: <Trash2 size={14} />,
+                      variant: 'danger',
+                      onClick: () => handleOpenDelete(row)
+                    }
+                  ]}
+                />
               )}
             ]}
           />
@@ -262,6 +295,22 @@ export default function MasterGelombangPage() {
           </div>
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Gelombang"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus gelombang <strong>&quot;{deleteModal.label}&quot;</strong>?
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </div>
   );
 }
