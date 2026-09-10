@@ -80,23 +80,32 @@ export interface TahunAkademik {
 export interface BerkasRequirement {
   id: number;
   jalur_masuk_id: number;
-  kode: string;
-  nama_dokumen: string;
+  jenis_dokumen?: string;
+  label?: string;
+  wajib?: boolean;
+  kode?: string;
+  nama_dokumen?: string;
   deskripsi?: string | null;
-  is_wajib: boolean;
+  is_wajib?: boolean;
   urutan?: number;
+  is_active?: boolean;
   created_at?: string;
   updated_at?: string;
+  deleted_at?: string | null;
   jalur_masuk?: JalurMasuk;
 }
 
 export interface BerkasRequirementPayload {
   jalur_masuk_id: number;
-  kode: string;
-  nama_dokumen: string;
-  deskripsi?: string;
-  is_wajib: boolean;
+  label?: string;
+  wajib?: boolean;
+  is_active?: boolean;
+  jenis_dokumen?: string;
   urutan?: number;
+  kode?: string;
+  nama_dokumen?: string;
+  deskripsi?: string;
+  is_wajib?: boolean;
 }
 
 export interface TarifUktSpmb {

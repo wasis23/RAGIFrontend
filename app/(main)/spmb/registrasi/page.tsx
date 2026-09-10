@@ -118,6 +118,7 @@ const STEPS = [
 ];
 
 interface DokumenItemConfig {
+  id?: number;
   key: string;
   label: string;
   required: boolean;
@@ -125,25 +126,69 @@ interface DokumenItemConfig {
   icon: any;
 }
 
-const REQUIRED_DOCUMENTS: DokumenItemConfig[] = [
+const DEFAULT_FALLBACK_DOCUMENTS: DokumenItemConfig[] = [
+  { key: 'ktp', label: 'KTP / Kartu Identitas', required: true, hint: 'Format PDF/JPG/PNG, NIK terlihat jelas, maks 5MB', icon: CreditCard },
+  { key: 'kk', label: 'Kartu Keluarga (KK)', required: true, hint: 'Format PDF/JPG/PNG, lembar KK asli/legalisir, maks 5MB', icon: FileText },
   { key: 'pas_foto', label: 'Pas Foto Resmi (3x4)', required: true, hint: 'Format PDF/JPG/PNG, latar merah/biru, maks 5MB', icon: Camera },
-  { key: 'ktp', label: 'KTP / Kartu Identitas / Kartu Pelajar', required: true, hint: 'Format PDF/JPG/PNG, NIK terlihat jelas', icon: CreditCard },
-  { key: 'kk', label: 'Kartu Keluarga (KK)', required: true, hint: 'Format PDF/JPG/PNG, lembar KK asli/legalisir', icon: FileText },
-  { key: 'ijazah', label: 'Ijazah / Surat Keterangan Lulus (SKL)', required: true, hint: 'Format PDF/JPG/PNG, lembar nilai & stempel', icon: Award },
-  { key: 'rapor', label: 'Transkrip Nilai / Rapor Semester 1-5', required: false, hint: 'Format PDF/JPG/PNG, gabungan halaman nilai rapor', icon: FileSpreadsheet },
+  { key: 'ijazah', label: 'Ijazah / SKL', required: true, hint: 'Format PDF/JPG/PNG, lembar nilai & stempel, maks 5MB', icon: Award },
+  { key: 'rapor', label: 'Transkrip Nilai / Rapor Semester 1-5', required: false, hint: 'Format PDF/JPG/PNG, gabungan halaman nilai rapor, maks 5MB', icon: FileSpreadsheet },
 ];
 
+function getDokumenConfigFromRequirement(req: any): DokumenItemConfig {
+  const key = req.jenis_dokumen || String(req.id);
+  const label = req.label || req.nama_dokumen || 'Dokumen';
+  const required = Boolean(req.wajib ?? req.is_wajib ?? true);
+
+  const lowerKey = (key + ' ' + label).toLowerCase();
+  let icon = FileText;
+  let defaultHint = 'Format PDF/JPG/PNG, Maks 5MB';
+
+  if (lowerKey.includes('foto') || lowerKey.includes('photo')) {
+    icon = Camera;
+    defaultHint = 'Format PDF/JPG/PNG, latar merah/biru, maks 5MB';
+  } else if (lowerKey.includes('ktp') || lowerKey.includes('identitas') || lowerKey.includes('kartu pelajar')) {
+    icon = CreditCard;
+    defaultHint = 'Format PDF/JPG/PNG, NIK terlihat jelas, maks 5MB';
+  } else if (lowerKey.includes('kk') || lowerKey.includes('keluarga')) {
+    icon = FileText;
+    defaultHint = 'Format PDF/JPG/PNG, lembar KK asli/legalisir, maks 5MB';
+  } else if (lowerKey.includes('ijazah') || lowerKey.includes('skl') || lowerKey.includes('lulus')) {
+    icon = Award;
+    defaultHint = 'Format PDF/JPG/PNG, lembar nilai & stempel, maks 5MB';
+  } else if (lowerKey.includes('rapor') || lowerKey.includes('transkrip') || lowerKey.includes('nilai')) {
+    icon = FileSpreadsheet;
+    defaultHint = 'Format PDF/JPG/PNG, gabungan halaman nilai rapor, maks 5MB';
+  } else if (lowerKey.includes('prestasi') || lowerKey.includes('sertifikat') || lowerKey.includes('piagam')) {
+    icon = Award;
+    defaultHint = 'Format PDF/JPG/PNG, piagam kejuaraan/sertifikat resmi, maks 5MB';
+  }
+
+  return {
+    id: req.id,
+    key,
+    label,
+    required,
+    hint: req.deskripsi || defaultHint,
+    icon,
+  };
+}
+
 function DokumenUploadPanel({
+  documents = [],
+  loading = false,
   uploadedBerkas = {},
   onUpload,
   uploadingState = {}
 }: {
+  documents?: DokumenItemConfig[];
+  loading?: boolean;
   uploadedBerkas?: Record<string, any>;
-  onUpload: (jenisBerkas: string, file: File) => void;
+  onUpload: (jenisBerkas: string, file: File, requirementId?: number) => void;
   uploadingState?: Record<string, boolean>;
 }) {
   const safeUploaded = uploadedBerkas || {};
   const safeUploading = uploadingState || {};
+  const displayDocs = documents && documents.length > 0 ? documents : DEFAULT_FALLBACK_DOCUMENTS;
 
   return (
     <div className="space-y-5">
@@ -157,108 +202,120 @@ function DokumenUploadPanel({
         </div>
       </div>
 
-      {/* Vertical Single-Column List (Ke bawah) */}
-      <div className="space-y-3 pt-1">
-        {REQUIRED_DOCUMENTS.map((doc) => {
-          const IconComp = doc.icon;
-          const berkas = safeUploaded[doc.key];
-          const isUploading = Boolean(safeUploading[doc.key]);
-          const isUploaded = Boolean(berkas?.file_path || berkas?.file_url);
+      {loading ? (
+        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center gap-3">
+          <Loader2 size={24} className="animate-spin text-primary-600" />
+          <p className="text-xs font-semibold text-slate-600">Memuat daftar syarat dokumen untuk jalur ini...</p>
+        </div>
+      ) : displayDocs.length === 0 ? (
+        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100">
+          <FileText size={32} className="mx-auto text-slate-400 mb-2" />
+          <p className="text-sm font-bold text-slate-700">Tidak ada syarat berkas khusus</p>
+          <p className="text-xs text-slate-500 mt-1">Jalur pendaftaran ini tidak memerlukan unggah berkas khusus. Anda dapat melanjutkan ke langkah berikutnya.</p>
+        </div>
+      ) : (
+        <div className="space-y-3 pt-1">
+          {displayDocs.map((doc) => {
+            const IconComp = doc.icon;
+            const berkas = safeUploaded[doc.key] || (doc.id ? safeUploaded[`req_${doc.id}`] : undefined);
+            const isUploading = Boolean(safeUploading[doc.key]);
+            const isUploaded = Boolean(berkas?.file_path || berkas?.file_url);
 
-          return (
-            <div
-              key={doc.key}
-              className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                isUploaded
-                  ? 'bg-emerald-50/40 border-emerald-200/90 hover:border-emerald-300'
-                  : 'bg-slate-50/70 border-slate-200/90 hover:border-primary-300'
-              }`}
-            >
-              {/* Document Info Left */}
-              <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  isUploaded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/80 text-slate-600'
-                }`}>
-                  <IconComp size={20} />
-                </div>
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-bold text-slate-900 text-sm sm:text-base">
-                      {doc.label}
-                    </h4>
-                    {doc.required ? (
-                      <span className="text-2xs font-extrabold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-                        Wajib
-                      </span>
-                    ) : (
-                      <span className="text-2xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-                        Opsional
-                      </span>
-                    )}
-                    {isUploaded ? (
-                      <span className="text-2xs font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                        ✓ Terunggah
-                      </span>
-                    ) : (
-                      <span className="text-2xs font-semibold text-slate-500 bg-slate-200/70 px-2.5 py-0.5 rounded-full">
-                        Belum Diunggah
-                      </span>
-                    )}
+            return (
+              <div
+                key={doc.key + '_' + (doc.id || '')}
+                className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                  isUploaded
+                    ? 'bg-emerald-50/40 border-emerald-200/90 hover:border-emerald-300'
+                    : 'bg-slate-50/70 border-slate-200/90 hover:border-primary-300'
+                }`}
+              >
+                {/* Document Info Left */}
+                <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    isUploaded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200/80 text-slate-600'
+                  }`}>
+                    <IconComp size={20} />
                   </div>
-                  <p className="text-xs text-slate-500 font-medium">{doc.hint}</p>
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-slate-900 text-sm sm:text-base">
+                        {doc.label}
+                      </h4>
+                      {doc.required ? (
+                        <span className="text-2xs font-extrabold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                          Wajib
+                        </span>
+                      ) : (
+                        <span className="text-2xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                          Opsional
+                        </span>
+                      )}
+                      {isUploaded ? (
+                        <span className="text-2xs font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                          ✓ Terunggah
+                        </span>
+                      ) : (
+                        <span className="text-2xs font-semibold text-slate-500 bg-slate-200/70 px-2.5 py-0.5 rounded-full">
+                          Belum Diunggah
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium">{doc.hint}</p>
+                  </div>
+                </div>
+
+                {/* Document Action Right */}
+                <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                  {isUploaded && (
+                    <a
+                      href={berkas.file_url || (berkas.file_path ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/storage/${berkas.file_path.replace(/^public\//, '')}` : '#')}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-white border border-emerald-200 px-3 py-2 rounded-xl shadow-2xs transition-colors"
+                    >
+                      <FileCheck size={15} /> Lihat File
+                    </a>
+                  )}
+
+                  <label className={`inline-flex items-center gap-1.5 cursor-pointer px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs ${
+                    isUploading
+                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      : isUploaded
+                      ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+                      : 'bg-primary-600 text-white hover:bg-primary-700'
+                  }`}>
+                    {isUploading ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Mengunggah...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UploadCloud size={15} />
+                        <span>{isUploaded ? 'Ganti File' : 'Unggah File'}</span>
+                      </>
+                    )}
+                    <Input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      disabled={isUploading}
+                      className="hidden"
+                      onChange={(e: any) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          onUpload(doc.key, file, doc.id);
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
-
-              {/* Document Action Right */}
-              <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                {isUploaded && (
-                  <a
-                    href={berkas.file_url || (berkas.file_path ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/storage/${berkas.file_path.replace(/^public\//, '')}` : '#')}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-white border border-emerald-200 px-3 py-2 rounded-xl shadow-2xs transition-colors"
-                  >
-                    <FileCheck size={15} /> Lihat File
-                  </a>
-                )}
-
-                <label className={`inline-flex items-center gap-1.5 cursor-pointer px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs ${
-                  isUploading
-                    ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                    : isUploaded
-                    ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                    : 'bg-primary-600 text-white hover:bg-primary-700'
-                }`}>
-                  {isUploading ? (
-                    <>
-                      <Loader2 size={15} className="animate-spin" />
-                      <span>Mengunggah...</span>
-                    </>
-                  ) : (
-                    <>
-                      <UploadCloud size={15} />
-                      <span>{isUploaded ? 'Ganti File' : 'Unggah File'}</span>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    disabled={isUploading}
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        onUpload(doc.key, file);
-                      }
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -345,12 +402,38 @@ export default function RegistrasiSpmbPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [tipeJalurOptions, setTipeJalurOptions] = useState<{ value: string; label: string }[]>([]);
   const [referensiMap, setReferensiMap] = useState<Record<string, { value: string; label: string }[]>>({});
+  const [berkasRequirements, setBerkasRequirements] = useState<DokumenItemConfig[]>(DEFAULT_FALLBACK_DOCUMENTS);
+  const [loadingBerkas, setLoadingBerkas] = useState(false);
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
   const selectedProdi = watch('program_studi_id');
   const { activeGelombang, fetchActiveGelombang } = useSpmbStore();
   const { module_color: moduleColor, fetchModuleColor } = useUiStore();
+
+  const fetchBerkasRequirements = async (jalurId: string | number) => {
+    if (!jalurId) return;
+    setLoadingBerkas(true);
+    try {
+      const res = await spmbService.getBerkasRequirements({
+        jalur_masuk_id: Number(jalurId),
+        is_active: true,
+        limit: 100,
+      });
+      const items = res.data?.data || res.data || [];
+      if (Array.isArray(items) && items.length > 0) {
+        const configs = items.map(getDokumenConfigFromRequirement);
+        setBerkasRequirements(configs);
+      } else {
+        setBerkasRequirements(DEFAULT_FALLBACK_DOCUMENTS);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch berkas requirements from API:', err);
+      setBerkasRequirements(DEFAULT_FALLBACK_DOCUMENTS);
+    } finally {
+      setLoadingBerkas(false);
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -363,6 +446,12 @@ export default function RegistrasiSpmbPage() {
     fetchModuleColor(currentModuleCode);
     fetchActiveGelombang();
   }, []);
+
+  useEffect(() => {
+    if (selectedJalur) {
+      fetchBerkasRequirements(selectedJalur);
+    }
+  }, [selectedJalur]);
 
   const prefetchReferensi = async () => {
     try {
@@ -491,16 +580,25 @@ export default function RegistrasiSpmbPage() {
           ket_info_daftar: p.ket_info_daftar || '',
         });
 
+        const initialJalurId = p.gelombang_penerimaan?.jalur_masuk_id || p.jalur_id;
+        if (initialJalurId) {
+          fetchBerkasRequirements(initialJalurId);
+        }
+
         if (p.dokumen_pendaftaran && Array.isArray(p.dokumen_pendaftaran)) {
           const berkasMap: Record<string, any> = {};
           p.dokumen_pendaftaran.forEach((b: any) => {
             const fileUrl = b.file_url || (b.file_path ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/storage/${b.file_path.replace(/^public\//, '')}` : '');
-            berkasMap[b.jenis_berkas] = {
+            const key = b.jenis_dokumen || b.jenis_berkas;
+            const docObj = {
               id: b.id,
+              berkas_requirement_id: b.berkas_requirement_id,
               file_path: b.file_path,
               file_url: fileUrl,
               is_verified: b.is_verified,
             };
+            if (key) berkasMap[key] = docObj;
+            if (b.berkas_requirement_id) berkasMap[`req_${b.berkas_requirement_id}`] = docObj;
           });
           setUploadedBerkas(berkasMap);
         }
@@ -547,7 +645,7 @@ export default function RegistrasiSpmbPage() {
   const [uploadingState, setUploadingState] = useState<Record<string, boolean>>({});
   const [uploadedBerkas, setUploadedBerkas] = useState<Record<string, any>>({});
 
-  const handleFileUpload = async (jenisBerkas: string, file: File) => {
+  const handleFileUpload = async (jenisBerkas: string, file: File, requirementId?: number) => {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
@@ -558,15 +656,20 @@ export default function RegistrasiSpmbPage() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('jenis_berkas', jenisBerkas);
+    formData.append('jenis_dokumen', jenisBerkas);
+    if (requirementId) {
+      formData.append('berkas_requirement_id', String(requirementId));
+    }
 
     setUploadingState((prev) => ({ ...prev, [jenisBerkas]: true }));
     try {
       const res = await spmbService.uploadBerkas(formData);
-      toast.success(`Dokumen ${jenisBerkas.toUpperCase()} berhasil diunggah!`);
+      toast.success(`Dokumen berhasil diunggah!`);
       if (res.data) {
         setUploadedBerkas((prev) => ({
           ...prev,
           [jenisBerkas]: res.data,
+          ...(requirementId ? { [`req_${requirementId}`]: res.data } : {}),
         }));
       }
     } catch (err: any) {
@@ -908,11 +1011,13 @@ export default function RegistrasiSpmbPage() {
           {/* ── UNGGAH BERKAS / DOKUMEN PENDAFTARAN (DI ATAS RINCIAN PEMBAYARAN) ── */}
           <div className="card p-5 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs mb-6 text-left">
             <DokumenUploadPanel
+              documents={berkasRequirements}
+              loading={loadingBerkas}
               uploadedBerkas={uploadedBerkas}
               onUpload={handleFileUpload}
               uploadingState={uploadingState}
-                 />
-               </div>
+            />
+          </div>
 
 
           {/* Payment Card (Production Ready & Premium) */}
@@ -1762,6 +1867,8 @@ export default function RegistrasiSpmbPage() {
           {currentStep === 6 && (
             <div className="space-y-5 animate-fade-in">
               <DokumenUploadPanel
+                documents={berkasRequirements}
+                loading={loadingBerkas}
                 uploadedBerkas={uploadedBerkas}
                 onUpload={handleFileUpload}
                 uploadingState={uploadingState}
@@ -1850,10 +1957,14 @@ export default function RegistrasiSpmbPage() {
                     </button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                    {REQUIRED_DOCUMENTS.map((doc) => {
-                      const isUp = Boolean(uploadedBerkas[doc.key]?.file_path || uploadedBerkas[doc.key]?.file_url);
+                    {berkasRequirements.map((doc) => {
+                      const isUp = Boolean(
+                        uploadedBerkas[doc.key]?.file_path ||
+                        uploadedBerkas[doc.key]?.file_url ||
+                        (doc.id && (uploadedBerkas[`req_${doc.id}`]?.file_path || uploadedBerkas[`req_${doc.id}`]?.file_url))
+                      );
                       return (
-                        <div key={doc.key} className="flex items-center gap-1.5 font-medium">
+                        <div key={doc.key + '_' + (doc.id || '')} className="flex items-center gap-1.5 font-medium">
                           <span className={isUp ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
                             {isUp ? '✓' : '○'} {doc.label.split(' ')[0]}
                           </span>

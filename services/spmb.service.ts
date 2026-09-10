@@ -327,7 +327,7 @@ export const spmbService = {
   },
 
   // Berkas Requirement
-  getBerkasRequirements: async (params?: { search?: string; jalur_masuk_id?: number; page?: number; limit?: number }) => {
+  getBerkasRequirements: async (params?: { search?: string; jalur_masuk_id?: number | string; is_active?: boolean | string; page?: number; limit?: number; sort_by?: string; sort_dir?: string }) => {
     const response = await api.get('/spmb/master/berkas-requirement', { params });
     return response.data;
   },
