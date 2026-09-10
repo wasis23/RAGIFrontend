@@ -27,6 +27,8 @@ export const RESERVED_SUBDOMAINS = new Set([
   'ragife',
   'ragibe',
   'localhost',
+  'demo-sso',
+  'demo',
 ]);
 
 // Label tampilan per modul (untuk branding navbar/header)
@@ -91,17 +93,21 @@ export function resolveDomainContext(hostname: string): DomainContext {
   }
 
   const sub = subdomain.toLowerCase();
-  const isDemo = sub.startsWith('demo-');
-  const effectiveSub = isDemo ? sub.slice(5) : sub;
-  const isReserved = effectiveSub === '' || RESERVED_SUBDOMAINS.has(effectiveSub);
-  const moduleSlug = isReserved ? null : effectiveSub;
+
+  // Environment demo: subdomain "demo" atau "demo-<module>" (mis. demo-sso,
+  // demo-spmb, demo-siakad). Prefix "demo-" dilepas agar modul tetap terdeteksi.
+  const isDemoEnv = sub === 'demo' || sub.startsWith('demo-');
+  const moduleSub = isDemoEnv ? (sub === 'demo' ? '' : sub.slice('demo-'.length)) : sub;
+
+  const isReserved = moduleSub === '' || RESERVED_SUBDOMAINS.has(moduleSub);
+  const moduleSlug = isReserved ? null : moduleSub;
   const modulePath = moduleSlug ? `/${moduleSlug}` : null;
 
   return {
     hostname: host,
     baseDomain,
     subdomain: sub,
-    effectiveSubdomain: effectiveSub,
+    effectiveSubdomain: moduleSub,
     moduleSlug,
     modulePath,
     moduleLabel: moduleSlug
@@ -109,7 +115,7 @@ export function resolveDomainContext(hostname: string): DomainContext {
       : null,
     isModule: moduleSlug !== null,
     isDefault: moduleSlug === null,
-    isDemo,
+    isDemo: isDemoEnv,
   };
 }
 
