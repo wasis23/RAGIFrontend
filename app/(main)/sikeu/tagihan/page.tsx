@@ -71,23 +71,36 @@ export default function TagihanListPage() {
   const fetchTagihan = async () => {
     setLoading(true);
     try {
-      const res = await sikeuService.getStudentBillingTypes({ page: 1, per_page: 50 });
+      const res = await sikeuService.getTagihanList({
+        page: 1,
+        per_page: 50,
+        search: appliedFilters.search || undefined,
+        status: appliedFilters.status !== 'all' ? appliedFilters.status : undefined,
+      });
+
       const raw = Array.isArray(res.data) ? res.data : [];
-      const mapped = raw.map((item: any) => ({
-        id: item.id,
-        nomor: `INV-SIAKAD-2026-${String(item.id).padStart(3, '0')}`,
-        nim: item.nim || '-',
-        nama: item.nama_mahasiswa || 'Mahasiswa',
-        angkatan: item.tahun_angkatan || 2025,
-        jalur: item.jalur_kelas || 'Reguler',
-        kelompok_ukt: `Level ${item.kelompok_ukt || 3}`,
-        prodi: 'Teknik Informatika',
-        total: item.kelompok_ukt === 4 ? 5500000 : item.kelompok_ukt === 1 ? 500000 : 3500000,
-        status: item.beasiswa ? 'lunas' : 'belum_bayar',
-        jatuhTempo: '2026-08-31',
-        source: item.status_pendaftaran || 'SIAKAD',
-      }));
-      setData(mapped);
+      if (raw.length > 0) {
+        setData(raw);
+      } else {
+        // Fallback to student billing types mapping if no generated tagihan exists yet
+        const altRes = await sikeuService.getStudentBillingTypes({ page: 1, per_page: 50 });
+        const altRaw = Array.isArray(altRes.data) ? altRes.data : [];
+        const mapped = altRaw.map((item: any) => ({
+          id: item.id,
+          nomor: `INV-SIAKAD-2026-${String(item.id).padStart(3, '0')}`,
+          nim: item.nim || '-',
+          nama: item.nama_mahasiswa || 'Mahasiswa',
+          angkatan: item.tahun_angkatan || 2025,
+          jalur: item.jalur_kelas || 'Reguler',
+          kelompok_ukt: `Level ${item.kelompok_ukt || 3}`,
+          prodi: 'Teknik Informatika',
+          total: item.kelompok_ukt === 4 ? 5500000 : item.kelompok_ukt === 1 ? 500000 : 3500000,
+          status: item.beasiswa ? 'lunas' : 'belum_bayar',
+          jatuhTempo: '2026-08-31',
+          source: item.status_pendaftaran || 'SIAKAD',
+        }));
+        setData(mapped);
+      }
     } catch {
       setData([]);
       toast.error('Gagal memuat data tagihan mahasiswa');
@@ -98,17 +111,23 @@ export default function TagihanListPage() {
 
   useEffect(() => {
     fetchTagihan();
-  }, []);
+  }, [appliedFilters]);
 
   const onSubmitMassTagihan = async (formData: MassFormValues) => {
     setSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      toast.success(`Berhasil mengaktifkan & menerbitkan tagihan masal ${formData.semester_aktif} (Angkatan ${formData.target_angkatan})`);
+      const res = await sikeuService.generateMassTagihan({
+        tahun_angkatan: parseInt(formData.target_angkatan),
+        jalur_kelas: formData.target_jalur,
+        semester: parseInt(formData.target_kelompok) || undefined,
+        jatuh_tempo: formData.jatuh_tempo,
+        semester_label: formData.semester_aktif,
+      });
+      toast.success(res.message || `Berhasil menerbitkan tagihan masal ${formData.semester_aktif}`);
       setIsMassModalOpen(false);
       fetchTagihan();
-    } catch {
-      toast.error('Gagal menerbitkan tagihan masal');
+    } catch (err: any) {
+      toast.error(err?.message || 'Gagal menerbitkan tagihan masal');
     } finally {
       setSubmitting(false);
     }

@@ -42,7 +42,7 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
 export const sikeuService = {
   // External Bill Generation
   createExternalBill: async (payload: any) => {
-    return fetchWithAuth<ApiResponse<{ tagihan: TagihanMahasiswa }>>('/v1/sikeu/tagihan/external', {
+    return fetchWithAuth<ApiResponse<{ tagihan: TagihanMahasiswa; virtual_account?: any }>>('/v1/sikeu/tagihan/external', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -490,6 +490,108 @@ export const sikeuService = {
 
   setorPajak: async (id: number, payload: { ntpn: string; tanggal_setor?: string; unit_kas_id?: number }) => {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pajak/${id}/setor`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Setting Tarif per Angkatan/Prodi/Semester
+  getSettingTarifList: async (params?: {
+    tahun_angkatan?: number;
+    program_studi_id?: number;
+    semester?: number;
+    jalur_kelas?: string;
+    is_active?: boolean;
+    search?: string;
+    page?: number;
+    per_page?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          query.append(key, String(val));
+        }
+      });
+    }
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/master/setting-tarif?${query.toString()}`);
+  },
+
+  storeSettingTarif: async (payload: {
+    master_biaya_id: number;
+    tahun_angkatan: number;
+    program_studi_id?: number;
+    semester?: number;
+    jalur_kelas: string;
+    nominal: number;
+    is_active?: boolean;
+    keterangan?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/setting-tarif', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updateSettingTarif: async (id: number, payload: any) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/setting-tarif/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteSettingTarif: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/setting-tarif/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Pembayaran Kasir (Offline / Loket Kampus)
+  processKasirPayment: async (payload: {
+    tagihan_id: number;
+    jumlah_bayar: number;
+    channel_bayar: 'LOKET_TUNAI' | 'LOKET_TRANSFER';
+    catatan?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran/kasir', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  koreksiPembayaran: async (id: number, payload: { alasan_koreksi: string }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/koreksi`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Daftar Tagihan Mahasiswa (Real Tagihan Index & Detail)
+  getTagihanList: async (params?: { page?: number; per_page?: number; search?: string; status?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    if (params?.search) query.append('search', params.search);
+    if (params?.status) query.append('status', params.status);
+    return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/tagihan?${query.toString()}`);
+  },
+
+  getTagihanDetail: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${id}`);
+  },
+
+  // Generate Tagihan Semester Masal
+  generateMassTagihan: async (payload: {
+    tahun_angkatan: number;
+    jalur_kelas: string;
+    semester?: number;
+    program_studi_id?: number;
+    jatuh_tempo: string;
+    semester_label?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/tagihan/generate-mass', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

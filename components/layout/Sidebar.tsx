@@ -229,6 +229,7 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
       { id: 6041, parent_id: 604, name: 'Master Tarif Gaji Pegawai', url: '/sikeu/master/gaji-pegawai', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
     ]
   },
+  { id: 606, parent_id: null, name: 'Panduan & Alur SIKEU', url: '/sikeu/panduan', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 6, is_active: true },
 ];
 
 export function Sidebar() {

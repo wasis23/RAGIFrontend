@@ -39,13 +39,17 @@ interface FormValues {
 }
 
 const TIPE_OPTIONS = [
-  { value: 'ukt', label: 'UKT / SPP Semester' },
-  { value: 'spp', label: 'SPP Perkuliahan' },
-  { value: 'sks', label: 'Biaya Per-SKS' },
-  { value: 'praktikum', label: 'Biaya Praktikum' },
-  { value: 'wisuda', label: 'Biaya Wisuda' },
-  { value: 'spmb_adm', label: 'Administrasi SPMB' },
-  { value: 'lainnya', label: 'Lainnya / Umum' },
+  { value: 'ukt', label: '[P] UKT / SPP Tetap Semester (Pendidikan)' },
+  { value: 'spp', label: '[P] SPP Perkuliahan Reguler' },
+  { value: 'sks', label: '[P] Biaya SKS Tambahan / Remedial' },
+  { value: 'spmb_adm', label: '[D] Biaya Pendaftaran SPMB (Awal Masuk)' },
+  { value: 'daftar_ulang', label: '[D] Biaya Registrasi & Daftar Ulang Mhs Baru' },
+  { value: 'praktikum', label: '[L] Biaya Praktikum / Laboratorium' },
+  { value: 'wisuda', label: '[L] Biaya Kelulusan & Wisuda' },
+  { value: 'kemahasiswaan', label: '[L] Iuran Kegiatan Mahasiswa / BEM' },
+  { value: 'sertifikasi', label: '[L] Uji Kompetensi & Sertifikasi Profesi' },
+  { value: 'cuti', label: '[L] Biaya Administrasi Cuti Kuliah' },
+  { value: 'lainnya', label: '[L] Biaya Insidental / Lain-Lain' },
 ];
 
 const formatRupiah = (val: number) =>

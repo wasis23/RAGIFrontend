@@ -116,26 +116,60 @@ export default function CreateTagihanPage() {
 
     setSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      if (paymentMethod === 'tunai_loket') {
+        // Real kasir payment via API
+        const firstBill = bills.find((b) => selectedBillIds.includes(b.id));
+        if (firstBill) {
+          const res = await sikeuService.processKasirPayment({
+            tagihan_id: firstBill.id,
+            jumlah_bayar: combinedTotal,
+            channel_bayar: 'LOKET_TUNAI',
+            catatan: catatan,
+          });
 
-      const vaNum = `88012${selectedStudent.nim}${Math.floor(Math.random() * 100)}`;
-      setResult({
-        nama: selectedStudent.nama_mahasiswa,
-        nim: selectedStudent.nim,
-        va_number: vaNum,
-        bank: 'Bank BNI',
-        total: combinedTotal,
-        method: paymentMethod,
-        expired: '2026-08-31 23:59:59',
-      });
+          setResult({
+            nama: selectedStudent.nama_mahasiswa,
+            nim: selectedStudent.nim,
+            kode_transaksi: res.data?.kuitansi?.kode_transaksi || 'TRX-LOKET-XXX',
+            total: combinedTotal,
+            method: paymentMethod,
+            sisa: res.data?.kuitansi?.sisa_setelah_bayar || 0,
+          });
 
-      toast.success(
-        paymentMethod === 'va_bank'
-          ? 'Virtual Account berhasil diterbitkan!'
-          : 'Pembayaran loket kasir berhasil diproses!'
-      );
-    } catch {
-      toast.error('Gagal menerbitkan tagihan');
+          toast.success('Pembayaran loket kasir berhasil diproses!');
+        }
+      } else {
+        // Generate VA via external bill API
+        const res = await sikeuService.createExternalBill({
+          mahasiswa_id: selectedStudent.id,
+          source_system: 'SIKEU_LOKET',
+          requires_approval: false,
+          jatuh_tempo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          keterangan: catatan,
+          details: bills
+            .filter((b) => selectedBillIds.includes(b.id))
+            .map((b) => ({
+              master_biaya_kode: 'UKT_REG',
+              nominal: b.total_tagihan,
+              keterangan: b.jenis,
+            })),
+        });
+
+        const vaData = res.data?.virtual_account;
+        setResult({
+          nama: selectedStudent.nama_mahasiswa,
+          nim: selectedStudent.nim,
+          va_number: vaData?.va_number || `88012${selectedStudent.nim}${Math.floor(Math.random() * 100)}`,
+          bank: vaData?.bank_nama || 'Bank BNI',
+          total: combinedTotal,
+          method: paymentMethod,
+          expired: vaData?.expired_at || '2026-08-31 23:59:59',
+        });
+
+        toast.success('Virtual Account berhasil diterbitkan!');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Gagal memproses pembayaran');
     } finally {
       setSubmitting(false);
     }
