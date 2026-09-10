@@ -57,7 +57,6 @@ const spmbRegistrasiSchema = z.object({
   program_studi_id: z.string().min(1, 'Program Studi Utama wajib dipilih'),
   program_studi_pilihan2_id: z.string().optional(),
   master_tipe_jalur_id: z.string().min(1, 'Jenis pendaftaran wajib dipilih'),
-  master_jalur_kelas_id: z.string().min(1, 'Kelas wajib dipilih'),
   info_daftar: z.string().min(1, 'Info pendaftaran wajib dipilih'),
   ket_info_daftar: z.string().min(1, 'Keterangan info pendaftaran wajib diisi'),
   
@@ -273,7 +272,6 @@ export default function RegistrasiSpmbPage() {
       gelombang_id: '',
       program_studi_id: '',
       master_tipe_jalur_id: '',
-      master_jalur_kelas_id: '',
       info_daftar: '',
       ket_info_daftar: '',
       nama_lengkap: '',
@@ -337,7 +335,6 @@ export default function RegistrasiSpmbPage() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [tipeJalurOptions, setTipeJalurOptions] = useState<{ value: string; label: string }[]>([]);
-  const [jalurKelasOptions, setJalurKelasOptions] = useState<{ value: string; label: string }[]>([]);
   const [referensiMap, setReferensiMap] = useState<Record<string, { value: string; label: string }[]>>({});
 
   const selectedJalur = watch('jalur_id');
@@ -351,7 +348,6 @@ export default function RegistrasiSpmbPage() {
     fetchJalur();
     fetchProdi();
     loadTipeJalur('');
-    loadJalurKelas('');
     checkExistingRegistration();
     const currentModuleCode = window.location.pathname.split('/')[1] || '';
     fetchModuleColor(currentModuleCode);
@@ -391,16 +387,6 @@ export default function RegistrasiSpmbPage() {
     } catch (e) { return []; }
   };
 
-  const loadJalurKelas = async (inputValue: string) => {
-    try {
-      const res = await spmbService.getMasterJalurKelas();
-      const mapped = (res.data || []).map((k: any) => ({ value: String(k.id), label: k.nama_jalur || k.nama }));
-      setJalurKelasOptions(mapped);
-      if (inputValue) return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
-      return mapped;
-    } catch (e) { return []; }
-  };
-
   const fetchProdi = async () => {
     try {
       const res = await spmbService.getProgramStudi();
@@ -428,7 +414,6 @@ export default function RegistrasiSpmbPage() {
         if (p.program_studi_id) setValue('program_studi_id', String(p.program_studi_id));
         if (p.program_studi_pilihan2_id) setValue('program_studi_pilihan2_id', String(p.program_studi_pilihan2_id));
         if (p.master_tipe_jalur_id) setValue('master_tipe_jalur_id', String(p.master_tipe_jalur_id));
-        if (p.master_jalur_kelas_id) setValue('master_jalur_kelas_id', String(p.master_jalur_kelas_id));
         if (p.nama_lengkap) setValue('nama_lengkap', p.nama_lengkap);
         if (p.nik) setValue('nik', p.nik);
         if (p.tanggal_lahir) setValue('tanggal_lahir', p.tanggal_lahir.split('T')[0]);
@@ -681,7 +666,7 @@ export default function RegistrasiSpmbPage() {
 
   const handleNextStep = async () => {
     let fieldsToValidate: string[] = [];
-    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id', 'master_tipe_jalur_id', 'master_jalur_kelas_id'];
+    if (currentStep === 1) fieldsToValidate = ['jalur_id', 'gelombang_id', 'program_studi_id', 'master_tipe_jalur_id'];
     else if (currentStep === 2) fieldsToValidate = ['nama_lengkap', 'nik', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'status_sipil'];
     else if (currentStep === 3) fieldsToValidate = ['no_hp', 'provinsi', 'kota_kabupaten', 'kecamatan', 'alamat'];
     else if (currentStep === 4) fieldsToValidate = ['asal_sekolah', 'alamat_sekolah', 'jurusan_sekolah', 'tahun_lulus'];
@@ -1201,7 +1186,7 @@ export default function RegistrasiSpmbPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
                 <Controller
                   name="master_tipe_jalur_id"
                   control={control}
@@ -1214,21 +1199,7 @@ export default function RegistrasiSpmbPage() {
                       loadOptions={loadTipeJalur}
                       value={tipeJalurOptions.find((o) => o.value === String(field.value)) || (field.value ? { value: String(field.value), label: String(field.value) } : null)}
                       onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-                    />
-                  )}
-                />
-                <Controller
-                  name="master_jalur_kelas_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Kelas *"
-                      placeholder="-- Pilih Kelas --"
-                      error={errors.master_jalur_kelas_id?.message}
-                      defaultOptions={jalurKelasOptions.length > 0 ? jalurKelasOptions : true}
-                      loadOptions={loadJalurKelas}
-                      value={jalurKelasOptions.find((o) => o.value === String(field.value)) || (field.value ? { value: String(field.value), label: String(field.value) } : null)}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+                      hint="Kategori seleksi pendaftaran yang Anda ikuti."
                     />
                   )}
                 />

@@ -316,10 +316,6 @@ export const spmbService = {
     const response = await api.delete(`/spmb/master-tipe-jalur/${id}`);
     return response.data;
   },
-  getMasterJalurKelas: async () => {
-    const response = await api.get('/spmb/master-jalur-kelas');
-    return response.data;
-  },
   getReferensi: async (tipe: string) => {
     const response = await api.get(`/v1/sikeu/master/referensi/${tipe}`);
     return response.data;
