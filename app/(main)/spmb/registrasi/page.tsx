@@ -265,7 +265,7 @@ function DokumenUploadPanel({
 
 export default function RegistrasiSpmbPage() {
   const router = useRouter();
-  const { register, handleSubmit, control, watch, trigger, getValues, setValue, formState: { errors } } = useForm<SpmbFormValues>({
+  const { register, handleSubmit, control, watch, trigger, getValues, setValue, reset, formState: { errors } } = useForm<SpmbFormValues>({
     resolver: zodResolver(spmbRegistrasiSchema),
     defaultValues: {
       jalur_id: '',
@@ -314,7 +314,16 @@ export default function RegistrasiSpmbPage() {
     },
   });
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('spmb_reg_current_step');
+      if (saved && !isNaN(Number(saved))) {
+        const n = Number(saved);
+        if (n >= 1 && n <= STEPS.length) return n;
+      }
+    }
+    return 1;
+  });
   const [jalurRaw, setJalurRaw] = useState<any[]>([]);
   const [gelombangRaw, setGelombangRaw] = useState<any[]>([]);
   const [prodiRaw, setProdiRaw] = useState<any[]>([]);
@@ -409,51 +418,59 @@ export default function RegistrasiSpmbPage() {
       if (res.data && res.data.pendaftaran) {
         const { pendaftaran, tagihan } = res.data;
         const p = pendaftaran;
-        if (p.gelombang_penerimaan?.jalur_masuk_id) setValue('jalur_id', String(p.gelombang_penerimaan.jalur_masuk_id));
-        if (p.gelombang_id) setValue('gelombang_id', String(p.gelombang_id));
-        if (p.program_studi_id) setValue('program_studi_id', String(p.program_studi_id));
-        if (p.program_studi_pilihan2_id) setValue('program_studi_pilihan2_id', String(p.program_studi_pilihan2_id));
-        if (p.master_tipe_jalur_id) setValue('master_tipe_jalur_id', String(p.master_tipe_jalur_id));
-        if (p.nama_lengkap) setValue('nama_lengkap', p.nama_lengkap);
-        if (p.nik) setValue('nik', p.nik);
-        if (p.tanggal_lahir) setValue('tanggal_lahir', p.tanggal_lahir.split('T')[0]);
-        if (p.tempat_lahir) setValue('tempat_lahir', p.tempat_lahir);
-        if (p.jenis_kelamin) setValue('jenis_kelamin', p.jenis_kelamin);
-        if (p.status_sipil) setValue('status_sipil', p.status_sipil);
-        if (p.agama) setValue('agama', p.agama);
-        if (p.kewarganegaraan) setValue('kewarganegaraan', p.kewarganegaraan);
-        if (p.no_hp) setValue('no_hp', p.no_hp);
-        if (p.alamat) setValue('alamat', p.alamat);
-        if (p.provinsi) setValue('provinsi', p.provinsi);
-        if (p.kota_kabupaten) setValue('kota_kabupaten', p.kota_kabupaten);
-        if (p.kecamatan) setValue('kecamatan', p.kecamatan);
-        if (p.kode_pos) setValue('kode_pos', p.kode_pos);
-        if (p.asal_lulusan) setValue('asal_lulusan', p.asal_lulusan);
-        if (p.asal_sekolah) setValue('asal_sekolah', p.asal_sekolah);
-        if (p.jurusan_sekolah) setValue('jurusan_sekolah', p.jurusan_sekolah);
-        if (p.npsn_sekolah) setValue('npsn_sekolah', p.npsn_sekolah);
-        if (p.tahun_lulus) setValue('tahun_lulus', p.tahun_lulus);
-        if (p.nilai_rata_rapor) setValue('nilai_rata_rapor', String(p.nilai_rata_rapor));
-        if (p.asal_pt) setValue('asal_pt', p.asal_pt);
-        if (p.jenis_pt) setValue('jenis_pt', p.jenis_pt);
-        if (p.alamat_pt) setValue('alamat_pt', p.alamat_pt);
-        if (p.jenjang_pt) setValue('jenjang_pt', p.jenjang_pt);
-        if (p.progdi_pt) setValue('progdi_pt', p.progdi_pt);
-        if (p.ipk_pt) setValue('ipk_pt', p.ipk_pt);
-        if (p.nim_pt) setValue('nim_pt', p.nim_pt);
-        if (p.tahun_lulus_pt) setValue('tahun_lulus_pt', p.tahun_lulus_pt);
-        if (p.nama_ayah) setValue('nama_ayah', p.nama_ayah);
-        if (p.pekerjaan_ayah) setValue('pekerjaan_ayah', p.pekerjaan_ayah);
-        if (p.nama_ibu) setValue('nama_ibu', p.nama_ibu);
-        if (p.pekerjaan_ibu) setValue('pekerjaan_ibu', p.pekerjaan_ibu);
-        if (p.penghasilan_ortu) setValue('penghasilan_ortu', p.penghasilan_ortu);
-        if (p.nama_ortu) setValue('nama_ortu', p.nama_ortu);
-        if (p.alamat_ortu) setValue('alamat_ortu', p.alamat_ortu);
-        if (p.telp_ortu) setValue('telp_ortu', p.telp_ortu);
-        if (p.nama_wali) setValue('nama_wali', p.nama_wali);
-        if (p.telepon_wali) setValue('telepon_wali', p.telepon_wali);
-        if (p.info_daftar) setValue('info_daftar', p.info_daftar);
-        if (p.ket_info_daftar) setValue('ket_info_daftar', p.ket_info_daftar);
+
+        const jalurId = p.gelombang_penerimaan?.jalur_masuk_id ? String(p.gelombang_penerimaan.jalur_masuk_id) : '';
+        if (jalurId) {
+          await fetchGelombang(jalurId);
+        }
+
+        reset({
+          jalur_id: jalurId,
+          gelombang_id: p.gelombang_id ? String(p.gelombang_id) : '',
+          program_studi_id: p.program_studi_id ? String(p.program_studi_id) : '',
+          program_studi_pilihan2_id: p.program_studi_pilihan2_id ? String(p.program_studi_pilihan2_id) : '',
+          master_tipe_jalur_id: p.master_tipe_jalur_id ? String(p.master_tipe_jalur_id) : '',
+          nama_lengkap: p.nama_lengkap || '',
+          nik: p.nik || '',
+          tanggal_lahir: p.tanggal_lahir ? p.tanggal_lahir.split('T')[0] : '',
+          tempat_lahir: p.tempat_lahir || '',
+          jenis_kelamin: p.jenis_kelamin || '',
+          status_sipil: p.status_sipil || '',
+          agama: p.agama || '',
+          kewarganegaraan: p.kewarganegaraan || 'WNI',
+          no_hp: p.no_hp || '',
+          alamat: p.alamat || '',
+          provinsi: p.provinsi || '',
+          kota_kabupaten: p.kota_kabupaten || '',
+          kecamatan: p.kecamatan || '',
+          kode_pos: p.kode_pos || '',
+          asal_lulusan: p.asal_lulusan || 'sekolah',
+          asal_sekolah: p.asal_sekolah || '',
+          jurusan_sekolah: p.jurusan_sekolah || '',
+          npsn_sekolah: p.npsn_sekolah || '',
+          tahun_lulus: p.tahun_lulus || '',
+          nilai_rata_rapor: p.nilai_rata_rapor ? String(p.nilai_rata_rapor) : '',
+          asal_pt: p.asal_pt || '',
+          jenis_pt: p.jenis_pt || 'non-komputer',
+          alamat_pt: p.alamat_pt || '',
+          jenjang_pt: p.jenjang_pt || '',
+          progdi_pt: p.progdi_pt || '',
+          ipk_pt: p.ipk_pt || '',
+          nim_pt: p.nim_pt || '',
+          tahun_lulus_pt: p.tahun_lulus_pt || '',
+          nama_ayah: p.nama_ayah || '',
+          pekerjaan_ayah: p.pekerjaan_ayah || '',
+          nama_ibu: p.nama_ibu || '',
+          pekerjaan_ibu: p.pekerjaan_ibu || '',
+          penghasilan_ortu: p.penghasilan_ortu || '',
+          nama_ortu: p.nama_ortu || '',
+          alamat_ortu: p.alamat_ortu || '',
+          telp_ortu: p.telp_ortu || '',
+          nama_wali: p.nama_wali || '',
+          telepon_wali: p.telepon_wali || '',
+          info_daftar: p.info_daftar || '',
+          ket_info_daftar: p.ket_info_daftar || '',
+        });
 
         if (p.dokumen_pendaftaran && Array.isArray(p.dokumen_pendaftaran)) {
           const berkasMap: Record<string, any> = {};
@@ -475,30 +492,33 @@ export default function RegistrasiSpmbPage() {
         } else {
           // Status masih DRAFT: Pulihkan posisi langkah form terakhir
           const savedStep = typeof window !== 'undefined' ? localStorage.getItem('spmb_reg_current_step') : null;
-          if (savedStep && !isNaN(Number(savedStep)) && Number(savedStep) >= 1 && Number(savedStep) <= STEPS.length) {
-            setCurrentStep(Number(savedStep));
-          } else {
+          let targetStep = savedStep ? Number(savedStep) : 1;
+          if (isNaN(targetStep) || targetStep < 1 || targetStep > STEPS.length) {
             // Inferensi langkah berdasarkan data yang telah terisi
             if (p.dokumen_pendaftaran && Array.isArray(p.dokumen_pendaftaran) && p.dokumen_pendaftaran.length > 0) {
-              setCurrentStep(7);
+              targetStep = 7;
             } else if (p.nama_ayah || p.nama_ibu || p.nama_ortu) {
-              setCurrentStep(6);
+              targetStep = 6;
             } else if (p.asal_sekolah) {
-              setCurrentStep(5);
+              targetStep = 5;
             } else if (p.no_hp || p.alamat) {
-              setCurrentStep(4);
+              targetStep = 4;
             } else if (p.nama_lengkap && p.nik) {
-              setCurrentStep(3);
+              targetStep = 3;
             } else if (p.program_studi_id && (p.gelombang_id || p.gelombang_penerimaan?.jalur_masuk_id)) {
-              setCurrentStep(2);
+              targetStep = 2;
             } else {
-              setCurrentStep(1);
+              targetStep = 1;
             }
+          }
+          setCurrentStep(targetStep);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('spmb_reg_current_step', String(targetStep));
           }
         }
       }
-    } catch {
-      // Belum ada pendaftaran, lanjutkan wizard
+    } catch (err) {
+      console.error('Failed to load existing registration:', err);
     } finally {
       setIsCheckingRegistration(false);
     }
