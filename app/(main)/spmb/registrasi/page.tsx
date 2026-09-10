@@ -651,7 +651,7 @@ export default function RegistrasiSpmbPage() {
         .filter((g: any) => String(g.jalur_masuk_id) === String(jalurId) && g.status === 'aktif')
         .map((g: any) => ({
           value: String(g.id),
-          label: `${g.nama} (${g.status === 'aktif' ? 'Sedang Dibuka' : 'Tutup'})`,
+          label: g.nama,
         }));
       setGelombangOptions(options);
       return options;
@@ -1152,37 +1152,35 @@ export default function RegistrasiSpmbPage() {
                   )}
                 />
 
-                {/* Gelombang Penerimaan (Auto-fill berdasarkan Jalur Pendaftaran) */}
-                <div className="flex flex-col">
-                  <label className="text-xs font-bold text-slate-700 mb-1">
-                    Gelombang Penerimaan <span className="text-slate-400 font-normal">(Otomatis Terisi dari Jalur)</span>
-                  </label>
-                  {selectedGelombangObj ? (
-                    <div className="p-3 bg-gradient-to-br from-primary-50/80 via-white to-primary-50/40 border border-primary-200 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
-                      <div className="flex items-center gap-2">
-                        <Clock size={16} className="text-primary-600 shrink-0" />
-                        <span className="text-xs font-black text-slate-900">
-                          {selectedGelombangObj.nama}
-                        </span>
-                      </div>
-                      <Badge variant="green" className="text-2xs font-extrabold px-2.5 py-0.5 shrink-0">
-                        ✓ Otomatis
-                      </Badge>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-slate-50 border border-dashed border-slate-300 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
-                      <div className="flex items-center gap-2">
-                        <Clock size={16} className="text-slate-400 shrink-0" />
-                        <span className="text-xs font-medium text-slate-400">
-                          Pilih Jalur Pendaftaran terlebih dahulu
-                        </span>
-                      </div>
-                    </div>
+                {/* Gelombang Penerimaan (Terisi Otomatis Berdasarkan Jalur) */}
+                <Controller
+                  name="gelombang_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Gelombang Penerimaan *"
+                      options={gelombangOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder={
+                        !selectedJalur
+                          ? 'Pilih Jalur Pendaftaran terlebih dahulu'
+                          : gelombangOptions.length === 0
+                          ? 'Tidak ada gelombang aktif untuk jalur ini'
+                          : '-- Pilih Gelombang --'
+                      }
+                      isDisabled={!selectedJalur || gelombangOptions.length === 0}
+                      error={errors.gelombang_id?.message}
+                      hint={
+                        !selectedJalur
+                          ? 'Pilih jalur pendaftaran terlebih dahulu.'
+                          : gelombangOptions.length === 0
+                          ? 'Belum ada gelombang pendaftaran aktif untuk jalur ini.'
+                          : 'Gelombang pendaftaran otomatis terpilih sesuai jalur.'
+                      }
+                    />
                   )}
-                  <span className="text-2xs text-slate-500 font-medium mt-1">
-                    Gelombang penerimaan otomatis mengikuti jalur pendaftaran yang Anda pilih.
-                  </span>
-                </div>
+                />
               </div>
 
               <div>
