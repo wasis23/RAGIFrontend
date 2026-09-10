@@ -1,4 +1,4 @@
-import React, { forwardRef, useState, useEffect } from 'react';
+import React, { forwardRef, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactAsyncSelect from 'react-select/async';
 import { cn } from '@/lib/utils';
 
@@ -9,7 +9,7 @@ interface AsyncSelectProps {
   required?: boolean;
   loadOptions: (inputValue: string) => Promise<any[]>;
   value?: any;
-  onChange?: (val: any) => void;
+  onChange?: (val: any, actionMeta?: any) => void;
   placeholder?: string;
   className?: string;
   id?: string;
@@ -21,12 +21,148 @@ interface AsyncSelectProps {
 }
 
 export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
-  ({ label, error, hint, required, loadOptions, value, onChange, placeholder, className, id, defaultOptions = true, isClearable = false, isDisabled = false, isMulti = false, formatOptionLabel, ...props }, ref) => {
+  (
+    {
+      label,
+      error,
+      hint,
+      required,
+      loadOptions,
+      value,
+      onChange,
+      placeholder,
+      className,
+      id,
+      defaultOptions = true,
+      isClearable = false,
+      isDisabled = false,
+      isMulti = false,
+      formatOptionLabel,
+      ...props
+    },
+    ref
+  ) => {
     const [isMounted, setIsMounted] = useState(false);
+    const [tick, setTick] = useState(0);
+    const optionsMapRef = useRef<Map<string, any>>(new Map());
+    const initialFetchedRef = useRef(false);
+
+    const forceUpdate = useCallback(() => setTick((t) => t + 1), []);
 
     useEffect(() => {
       setIsMounted(true);
     }, []);
+
+    // Seed optionsMapRef from defaultOptions if it's an array
+    useEffect(() => {
+      if (Array.isArray(defaultOptions)) {
+        let added = false;
+        defaultOptions.forEach((opt: any) => {
+          if (opt && opt.value !== undefined) {
+            const key = String(opt.value);
+            if (!optionsMapRef.current.has(key)) {
+              optionsMapRef.current.set(key, opt);
+              added = true;
+            }
+          }
+        });
+        if (added) forceUpdate();
+      }
+    }, [defaultOptions, forceUpdate]);
+
+    // Intercept loadOptions to cache returned options
+    const wrappedLoadOptions = useCallback(
+      async (inputValue: string) => {
+        try {
+          const results = await loadOptions(inputValue);
+          if (Array.isArray(results)) {
+            let added = false;
+            results.forEach((opt: any) => {
+              if (opt && opt.value !== undefined) {
+                const key = String(opt.value);
+                const existing = optionsMapRef.current.get(key);
+                if (!existing || existing.label !== opt.label) {
+                  optionsMapRef.current.set(key, opt);
+                  added = true;
+                }
+              }
+            });
+            if (added) {
+              forceUpdate();
+            }
+          }
+          return results || [];
+        } catch (err) {
+          console.error('AsyncSelect loadOptions error:', err);
+          return [];
+        }
+      },
+      [loadOptions, forceUpdate]
+    );
+
+    // Initial fetch to populate options cache when defaultOptions is true
+    useEffect(() => {
+      if (defaultOptions === true && !initialFetchedRef.current) {
+        initialFetchedRef.current = true;
+        wrappedLoadOptions('');
+      }
+    }, [defaultOptions, wrappedLoadOptions]);
+
+    const handleChange = (selected: any, actionMeta: any) => {
+      if (selected) {
+        if (Array.isArray(selected)) {
+          selected.forEach((s: any) => {
+            if (s && s.value !== undefined) {
+              optionsMapRef.current.set(String(s.value), s);
+            }
+          });
+        } else if (selected.value !== undefined) {
+          optionsMapRef.current.set(String(selected.value), selected);
+        }
+      }
+      if (onChange) {
+        onChange(selected, actionMeta);
+      }
+    };
+
+    const resolveSingleValue = useCallback((val: any) => {
+      if (val === null || val === undefined || val === '') return null;
+
+      // 1. If val is a primitive (string or number)
+      if (typeof val !== 'object') {
+        const key = String(val);
+        if (optionsMapRef.current.has(key)) {
+          return optionsMapRef.current.get(key);
+        }
+        return { value: val, label: String(val) };
+      }
+
+      // 2. If val is an object
+      const valKey = String(val.value ?? '');
+      const labelStr = String(val.label ?? '');
+
+      // If the label is just the raw value or empty (e.g. { value: "3", label: "3" })
+      if (!val.label || labelStr === valKey) {
+        if (optionsMapRef.current.has(valKey)) {
+          return optionsMapRef.current.get(valKey);
+        }
+        return val;
+      }
+
+      // If it already has a meaningful label, cache it
+      if (!optionsMapRef.current.has(valKey) || optionsMapRef.current.get(valKey)?.label !== val.label) {
+        optionsMapRef.current.set(valKey, val);
+      }
+      return val;
+    }, []);
+
+    const resolvedValue = useMemo(() => {
+      if (isMulti) {
+        if (!Array.isArray(value)) return [];
+        return value.map(resolveSingleValue).filter(Boolean);
+      }
+      return resolveSingleValue(value);
+    }, [value, isMulti, tick, resolveSingleValue]);
 
     const generatedId = React.useId();
     const selectId = id || `async-select-${generatedId}`;
@@ -92,9 +228,9 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
             inputId={selectId}
             cacheOptions
             defaultOptions={defaultOptions}
-            loadOptions={loadOptions}
-            value={value}
-            onChange={onChange}
+            loadOptions={wrappedLoadOptions}
+            value={resolvedValue}
+            onChange={handleChange}
             isClearable={isClearable}
             isDisabled={isDisabled}
             isMulti={isMulti}

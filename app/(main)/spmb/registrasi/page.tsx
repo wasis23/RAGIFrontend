@@ -336,6 +336,9 @@ export default function RegistrasiSpmbPage() {
   const [loadingReset, setLoadingReset] = useState(false);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [tipeJalurOptions, setTipeJalurOptions] = useState<{ value: string; label: string }[]>([]);
+  const [jalurKelasOptions, setJalurKelasOptions] = useState<{ value: string; label: string }[]>([]);
+  const [referensiMap, setReferensiMap] = useState<Record<string, { value: string; label: string }[]>>({});
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
@@ -347,18 +350,20 @@ export default function RegistrasiSpmbPage() {
     setIsMounted(true);
     fetchJalur();
     fetchProdi();
+    loadTipeJalur('');
+    loadJalurKelas('');
     checkExistingRegistration();
     const currentModuleCode = window.location.pathname.split('/')[1] || '';
     fetchModuleColor(currentModuleCode);
     fetchActiveGelombang();
   }, []);
 
-
   const createLoadOptions = (tipe: string) => async (inputValue: string) => {
     try {
       const res = await spmbService.getReferensi(tipe);
       const data = res.data || [];
       const mapped = data.map((r: any) => ({ value: String(r.kode), label: r.nama }));
+      setReferensiMap((prev) => ({ ...prev, [tipe]: mapped }));
       if (inputValue) {
         return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
       }
@@ -368,10 +373,19 @@ export default function RegistrasiSpmbPage() {
     }
   };
 
+  const getReferensiOption = (tipe: string, val: any) => {
+    if (!val) return null;
+    const list = referensiMap[tipe] || [];
+    const found = list.find((item) => item.value === String(val));
+    if (found) return found;
+    return { value: String(val), label: String(val) };
+  };
+
   const loadTipeJalur = async (inputValue: string) => {
     try {
       const res = await spmbService.getMasterTipeJalur();
       const mapped = (res.data || []).map((t: any) => ({ value: String(t.id), label: t.nama }));
+      setTipeJalurOptions(mapped);
       if (inputValue) return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
       return mapped;
     } catch (e) { return []; }
@@ -381,6 +395,7 @@ export default function RegistrasiSpmbPage() {
     try {
       const res = await spmbService.getMasterJalurKelas();
       const mapped = (res.data || []).map((k: any) => ({ value: String(k.id), label: k.nama_jalur || k.nama }));
+      setJalurKelasOptions(mapped);
       if (inputValue) return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
       return mapped;
     } catch (e) { return []; }
@@ -412,11 +427,14 @@ export default function RegistrasiSpmbPage() {
         if (p.gelombang_id) setValue('gelombang_id', String(p.gelombang_id));
         if (p.program_studi_id) setValue('program_studi_id', String(p.program_studi_id));
         if (p.program_studi_pilihan2_id) setValue('program_studi_pilihan2_id', String(p.program_studi_pilihan2_id));
+        if (p.master_tipe_jalur_id) setValue('master_tipe_jalur_id', String(p.master_tipe_jalur_id));
+        if (p.master_jalur_kelas_id) setValue('master_jalur_kelas_id', String(p.master_jalur_kelas_id));
         if (p.nama_lengkap) setValue('nama_lengkap', p.nama_lengkap);
         if (p.nik) setValue('nik', p.nik);
         if (p.tanggal_lahir) setValue('tanggal_lahir', p.tanggal_lahir.split('T')[0]);
         if (p.tempat_lahir) setValue('tempat_lahir', p.tempat_lahir);
         if (p.jenis_kelamin) setValue('jenis_kelamin', p.jenis_kelamin);
+        if (p.status_sipil) setValue('status_sipil', p.status_sipil);
         if (p.agama) setValue('agama', p.agama);
         if (p.kewarganegaraan) setValue('kewarganegaraan', p.kewarganegaraan);
         if (p.no_hp) setValue('no_hp', p.no_hp);
@@ -444,8 +462,13 @@ export default function RegistrasiSpmbPage() {
         if (p.nama_ibu) setValue('nama_ibu', p.nama_ibu);
         if (p.pekerjaan_ibu) setValue('pekerjaan_ibu', p.pekerjaan_ibu);
         if (p.penghasilan_ortu) setValue('penghasilan_ortu', p.penghasilan_ortu);
+        if (p.nama_ortu) setValue('nama_ortu', p.nama_ortu);
+        if (p.alamat_ortu) setValue('alamat_ortu', p.alamat_ortu);
+        if (p.telp_ortu) setValue('telp_ortu', p.telp_ortu);
         if (p.nama_wali) setValue('nama_wali', p.nama_wali);
         if (p.telepon_wali) setValue('telepon_wali', p.telepon_wali);
+        if (p.info_daftar) setValue('info_daftar', p.info_daftar);
+        if (p.ket_info_daftar) setValue('ket_info_daftar', p.ket_info_daftar);
 
         if (p.dokumen_pendaftaran && Array.isArray(p.dokumen_pendaftaran)) {
           const berkasMap: Record<string, any> = {};
@@ -1189,12 +1212,11 @@ export default function RegistrasiSpmbPage() {
                       label="Jenis Pendaftaran *"
                       placeholder="-- Pilih Jenis Pendaftaran --"
                       error={errors.master_tipe_jalur_id?.message}
-                    
-                      defaultOptions
+                      defaultOptions={tipeJalurOptions.length > 0 ? tipeJalurOptions : true}
                       loadOptions={loadTipeJalur}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      value={tipeJalurOptions.find((o) => o.value === String(field.value)) || (field.value ? { value: String(field.value), label: String(field.value) } : null)}
                       onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                    />
                   )}
                 />
                 <Controller
@@ -1205,12 +1227,11 @@ export default function RegistrasiSpmbPage() {
                       label="Kelas *"
                       placeholder="-- Pilih Kelas --"
                       error={errors.master_jalur_kelas_id?.message}
-                    
-                      defaultOptions
+                      defaultOptions={jalurKelasOptions.length > 0 ? jalurKelasOptions : true}
                       loadOptions={loadJalurKelas}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      value={jalurKelasOptions.find((o) => o.value === String(field.value)) || (field.value ? { value: String(field.value), label: String(field.value) } : null)}
                       onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                    />
                   )}
                 />
               </div>
@@ -1301,12 +1322,11 @@ export default function RegistrasiSpmbPage() {
                       label="Status Sipil *"
                       placeholder="-- Pilih Status Sipil --"
                       error={errors.status_sipil?.message}
-                    
                       defaultOptions
                       loadOptions={createLoadOptions('status_sipil')}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      value={getReferensiOption('status_sipil', field.value)}
                       onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                    />
                   )}
                 />
                 <Controller
@@ -1316,12 +1336,11 @@ export default function RegistrasiSpmbPage() {
                     <AsyncSelect
                       label="Agama"
                       placeholder="-- Pilih Agama --"
-                    
                       defaultOptions
                       loadOptions={createLoadOptions('agama')}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      value={getReferensiOption('agama', field.value)}
                       onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                    />
                   )}
                 />
               </div>
@@ -1420,12 +1439,11 @@ export default function RegistrasiSpmbPage() {
                       label="Asal Lulusan *"
                       placeholder="-- Pilih Asal Lulusan --"
                       error={errors.asal_lulusan?.message}
-                    
                       defaultOptions
                       loadOptions={createLoadOptions('asal_lulusan')}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      value={getReferensiOption('asal_lulusan', field.value)}
                       onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                    />
                   )}
                 />
               </div>
@@ -1493,12 +1511,11 @@ export default function RegistrasiSpmbPage() {
                           label="Jenis Perguruan Tinggi *"
                           placeholder="-- Pilih Jenis PT --"
                           error={errors.jenis_pt?.message}
-                        
-                      defaultOptions
-                      loadOptions={createLoadOptions('jenis_pt')}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                          defaultOptions
+                          loadOptions={createLoadOptions('jenis_pt')}
+                          value={getReferensiOption('jenis_pt', field.value)}
+                          onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+                        />
                       )}
                     />
                   </div>
@@ -1520,12 +1537,11 @@ export default function RegistrasiSpmbPage() {
                           label="Jenjang Program Studi *"
                           placeholder="-- Pilih Jenjang --"
                           error={errors.jenjang_pt?.message}
-                        
-                      defaultOptions
-                      loadOptions={createLoadOptions('jenjang_pt')}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                          defaultOptions
+                          loadOptions={createLoadOptions('jenjang_pt')}
+                          value={getReferensiOption('jenjang_pt', field.value)}
+                          onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+                        />
                       )}
                     />
                     <Input
@@ -1648,12 +1664,11 @@ export default function RegistrasiSpmbPage() {
                     <AsyncSelect
                       label="Rata-rata Penghasilan Orang Tua per Bulan"
                       placeholder="-- Pilih Range Penghasilan --"
-                    
                       defaultOptions
                       loadOptions={createLoadOptions('penghasilan_ortu')}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
+                      value={getReferensiOption('penghasilan_ortu', field.value)}
                       onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                    />
                   )}
                 />
               </div>
@@ -1671,12 +1686,11 @@ export default function RegistrasiSpmbPage() {
                         label="Info Pendaftaran *"
                         placeholder="-- Pilih Sumber Info --"
                         error={errors.info_daftar?.message}
-                      
-                      defaultOptions
-                      loadOptions={createLoadOptions('info_daftar')}
-                      value={field.value ? { value: String(field.value), label: field.value } : null}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-        />
+                        defaultOptions
+                        loadOptions={createLoadOptions('info_daftar')}
+                        value={getReferensiOption('info_daftar', field.value)}
+                        onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+                      />
                     )}
                   />
                   <Input
