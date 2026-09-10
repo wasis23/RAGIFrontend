@@ -27,6 +27,8 @@ export const RESERVED_SUBDOMAINS = new Set([
   'ragife',
   'ragibe',
   'localhost',
+  'demo-sso',
+  'demo',
 ]);
 
 // Label tampilan per modul (untuk branding navbar/header)
@@ -88,14 +90,20 @@ export function resolveDomainContext(hostname: string): DomainContext {
   }
 
   const sub = subdomain.toLowerCase();
-  const isReserved = sub === '' || RESERVED_SUBDOMAINS.has(sub);
-  const moduleSlug = isReserved ? null : sub;
+
+  // Environment demo: subdomain "demo" atau "demo-<module>" (mis. demo-sso,
+  // demo-spmb, demo-siakad). Prefix "demo-" dilepas agar modul tetap terdeteksi.
+  const isDemoEnv = sub === 'demo' || sub.startsWith('demo-');
+  const moduleSub = isDemoEnv ? (sub === 'demo' ? '' : sub.slice('demo-'.length)) : sub;
+
+  const isReserved = moduleSub === '' || RESERVED_SUBDOMAINS.has(moduleSub);
+  const moduleSlug = isReserved ? null : moduleSub;
   const modulePath = moduleSlug ? `/${moduleSlug}` : null;
 
   return {
     hostname: host,
     baseDomain,
-    subdomain: sub,
+    subdomain: moduleSub,
     moduleSlug,
     modulePath,
     moduleLabel: moduleSlug
@@ -179,10 +187,13 @@ export function getModuleUrl(moduleCode: string, path: string = '', currentHostn
 
   const protocol = typeof window !== 'undefined' && window.location.protocol ? window.location.protocol : 'https:';
 
+  // Pertahankan environment demo: host demo-* -> bangun URL demo-<modul>.
+  const demoPrefix = /^demo(-|\.|$)/.test(host) ? 'demo-' : '';
+
   // Jika target adalah portal SSO / domain default
   if (RESERVED_SUBDOMAINS.has(code)) {
     const ssoPath = cleanPath || ROUTES.DASHBOARD;
-    return `${protocol}//sso.${ctx.baseDomain}${ssoPath.startsWith('/') ? ssoPath : `/${ssoPath}`}`;
+    return `${protocol}//${demoPrefix}sso.${ctx.baseDomain}${ssoPath.startsWith('/') ? ssoPath : `/${ssoPath}`}`;
   }
 
   // Jika target adalah subdomain modul (misal siakad, sikeu, spmb)
@@ -193,6 +204,6 @@ export function getModuleUrl(moduleCode: string, path: string = '', currentHostn
     cleanPath = cleanPath.slice(code.length + 1);
   }
 
-  return `${protocol}//${code}.${ctx.baseDomain}${cleanPath || ''}`;
+  return `${protocol}//${demoPrefix}${code}.${ctx.baseDomain}${cleanPath || ''}`;
 }
 
