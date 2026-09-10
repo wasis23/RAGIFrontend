@@ -469,7 +469,33 @@ export default function RegistrasiSpmbPage() {
           setUploadedBerkas(berkasMap);
         }
 
-        setSuksesData({ pendaftaran, tagihan });
+        // Tampilkan layar sukses / tagihan hanya jika pendaftaran sudah final (bukan draft)
+        if (p.status && p.status !== 'draft') {
+          setSuksesData({ pendaftaran, tagihan });
+        } else {
+          // Status masih DRAFT: Pulihkan posisi langkah form terakhir
+          const savedStep = typeof window !== 'undefined' ? localStorage.getItem('spmb_reg_current_step') : null;
+          if (savedStep && !isNaN(Number(savedStep)) && Number(savedStep) >= 1 && Number(savedStep) <= STEPS.length) {
+            setCurrentStep(Number(savedStep));
+          } else {
+            // Inferensi langkah berdasarkan data yang telah terisi
+            if (p.dokumen_pendaftaran && Array.isArray(p.dokumen_pendaftaran) && p.dokumen_pendaftaran.length > 0) {
+              setCurrentStep(7);
+            } else if (p.nama_ayah || p.nama_ibu || p.nama_ortu) {
+              setCurrentStep(6);
+            } else if (p.asal_sekolah) {
+              setCurrentStep(5);
+            } else if (p.no_hp || p.alamat) {
+              setCurrentStep(4);
+            } else if (p.nama_lengkap && p.nik) {
+              setCurrentStep(3);
+            } else if (p.program_studi_id && (p.gelombang_id || p.gelombang_penerimaan?.jalur_masuk_id)) {
+              setCurrentStep(2);
+            } else {
+              setCurrentStep(1);
+            }
+          }
+        }
       }
     } catch {
       // Belum ada pendaftaran, lanjutkan wizard
@@ -559,6 +585,9 @@ export default function RegistrasiSpmbPage() {
 
       setIsEditingBiodata(true);
       setCurrentStep(1);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('spmb_reg_current_step', '1');
+      }
     }
   };
 
@@ -688,22 +717,31 @@ export default function RegistrasiSpmbPage() {
           payload.program_studi_pilihan2_id = Number(rawValues.program_studi_pilihan2_id);
         }
         await spmbService.submitBiodata(payload);
+        const nextStep = Math.min(currentStep + 1, STEPS.length);
+        setCurrentStep(nextStep);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('spmb_reg_current_step', String(nextStep));
+        }
         toast.success(`Draft Langkah ${currentStep} tersimpan`, { duration: 1500 });
-      } catch (err) {
-        console.warn('Auto-save step warning:', err);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err: any) {
+        console.error('Auto-save step error:', err);
+        toast.error(err?.response?.data?.message || 'Gagal menyimpan draft langkah ini. Silakan coba lagi.');
+        return;
       } finally {
         setSavingStepLoading(false);
       }
-
-      setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       toast.error('Mohon lengkapi kolom bertanda * yang wajib diisi');
     }
   };
 
   const handlePrevStep = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    const prevStep = Math.max(currentStep - 1, 1);
+    setCurrentStep(prevStep);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('spmb_reg_current_step', String(prevStep));
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -713,6 +751,14 @@ export default function RegistrasiSpmbPage() {
       data.program_studi_id = data.program_studi_id ? Number(data.program_studi_id) : 1;
       const res = await spmbService.submitBiodata(data);
       if (res.status === 'success' || res.data) {
+        try {
+          await spmbService.finalizePendaftaran();
+        } catch (finErr) {
+          console.warn('Finalize call warning:', finErr);
+        }
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('spmb_reg_current_step');
+        }
         toast.success(res.message || 'Pendaftaran Berhasil Dikirim!');
         setSuksesData(res.data);
       }
