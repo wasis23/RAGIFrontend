@@ -317,8 +317,13 @@ export const spmbService = {
     return response.data;
   },
   getReferensi: async (tipe: string) => {
-    const response = await api.get(`/v1/sikeu/master/referensi/${tipe}`);
-    return response.data;
+    try {
+      const response = await api.get(`/spmb/referensi/${tipe}`);
+      return response.data;
+    } catch {
+      const fallback = await api.get(`/v1/sikeu/master/referensi/${tipe}`);
+      return fallback.data;
+    }
   },
 
   // Berkas Requirement

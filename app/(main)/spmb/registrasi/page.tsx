@@ -357,11 +357,30 @@ export default function RegistrasiSpmbPage() {
     fetchJalur();
     fetchProdi();
     loadTipeJalur('');
+    prefetchReferensi();
     checkExistingRegistration();
     const currentModuleCode = window.location.pathname.split('/')[1] || '';
     fetchModuleColor(currentModuleCode);
     fetchActiveGelombang();
   }, []);
+
+  const prefetchReferensi = async () => {
+    try {
+      const [sipilRes, agamaRes] = await Promise.all([
+        spmbService.getReferensi('status_sipil'),
+        spmbService.getReferensi('agama'),
+      ]);
+      const sipilData = (sipilRes.data || []).map((r: any) => ({ value: String(r.kode), label: r.nama }));
+      const agamaData = (agamaRes.data || []).map((r: any) => ({ value: String(r.kode), label: r.nama }));
+      setReferensiMap((prev) => ({
+        ...prev,
+        status_sipil: sipilData,
+        agama: agamaData,
+      }));
+    } catch (e) {
+      console.warn('Prefetch referensi warning:', e);
+    }
+  };
 
   const createLoadOptions = (tipe: string) => async (inputValue: string) => {
     try {
