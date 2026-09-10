@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -12,19 +12,47 @@ import {
   Clock, 
   Info, 
   DollarSign, 
-  ChevronRight,
   Layers
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { spmbService } from '@/services/spmb.service';
-import { moduleService } from '@/services/module.service';
-import { GelombangPenerimaan, JalurMasuk } from '@/types/spmb.types';
+import { GelombangPenerimaan } from '@/types/spmb.types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/layout/PageHeader';
+import api from '@/lib/axios';
+
+// ============================================================
+// VALIDATION SCHEMA (MANDATORY ZOD STANDARD)
+// ============================================================
+const gelombangFormSchema = z.object({
+  nama: z.string().min(1, 'Nama gelombang wajib diisi').max(255, 'Nama gelombang maksimal 255 karakter'),
+  jalur_masuk_id: z.number().min(1, 'Jalur masuk wajib dipilih'),
+  tahun_akademik_id: z.number().min(1, 'Tahun akademik wajib dipilih'),
+  master_biaya_id: z.number().min(1, 'Tarif biaya pendaftaran SIKEU wajib dipilih'),
+  biaya_pendaftaran: z.number().min(0, 'Biaya pendaftaran minimal 0').optional(),
+  kuota_total: z.number().min(1, 'Kuota pendaftar minimal 1'),
+  tanggal_buka: z.string().min(1, 'Tanggal buka pendaftaran wajib diisi'),
+  tanggal_tutup: z.string().min(1, 'Tanggal tutup pendaftaran wajib diisi'),
+  tanggal_pengumuman: z.string().optional().nullable(),
+  status: z.enum(['draft', 'aktif', 'ditutup', 'selesai']),
+}).refine((data) => {
+  if (data.tanggal_buka && data.tanggal_tutup) {
+    return new Date(data.tanggal_tutup) >= new Date(data.tanggal_buka);
+  }
+  return true;
+}, {
+  message: 'Tanggal tutup pendaftaran harus setelah tanggal buka',
+  path: ['tanggal_tutup'],
+});
+
+type GelombangFormValues = z.infer<typeof gelombangFormSchema>;
 
 // ============================================================
 // MOLECULES: SECTION HEADER
@@ -104,70 +132,80 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
-  const [jalurList, setJalurList] = useState<JalurMasuk[]>([]);
-  const [tahunAkademikOptions, setTahunAkademikOptions] = useState<Array<{ value: string; label: string }>>([]);
-  const [sikeuTarifOptions, setSikeuTarifOptions] = useState<Array<{ value: string; label: string }>>([]);
 
-  const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<Partial<GelombangPenerimaan>>({
+  // Selected Option States for AsyncSelects to ensure instant label display
+  const [selectedTahunAkademik, setSelectedTahunAkademik] = useState<any>(null);
+  const [selectedJalur, setSelectedJalur] = useState<any>(null);
+  const [selectedMasterBiaya, setSelectedMasterBiaya] = useState<any>(null);
+
+  const { register, handleSubmit, control, reset, watch, setValue, formState: { errors } } = useForm<GelombangFormValues>({
+    resolver: zodResolver(gelombangFormSchema) as any,
     defaultValues: {
+      nama: '',
       kuota_total: 100,
       status: 'draft',
+      biaya_pendaftaran: 0,
+      tanggal_buka: '',
+      tanggal_tutup: '',
+      tanggal_pengumuman: '',
     }
   });
 
+  const selectedMasterBiayaId = watch('master_biaya_id');
   const selectedBiaya = watch('biaya_pendaftaran');
   const selectedStatus = watch('status');
   const tglBuka = watch('tanggal_buka');
   const tglTutup = watch('tanggal_tutup');
 
-  // Load Jalur Masuk, Tahun Akademik & SIKEU Master Tariffs dynamically from API
-  useEffect(() => {
-    const fetchMasterData = async () => {
-      try {
-        const [jalurRes, modules, tahunRes] = await Promise.all([
-          spmbService.getJalurMasuk(),
-          moduleService.getAllModules().catch(() => []),
-          spmbService.getTahunAkademikList().catch(() => null),
-        ]);
+  const loadTahunAkademik = useCallback(async (input: string) => {
+    try {
+      const res = await spmbService.getTahunAkademikList();
+      const list = res?.data || [];
+      return list
+        .filter((t: any) => (t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`).toLowerCase().includes(input.toLowerCase()))
+        .map((t: any) => ({
+          value: t.id,
+          label: t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`,
+          ...t
+        }));
+    } catch {
+      return [];
+    }
+  }, []);
 
-        setJalurList(jalurRes.data.filter((j: any) => j.is_active));
+  const loadJalurMasuk = useCallback(async (input: string) => {
+    try {
+      const res = await spmbService.getJalurMasuk();
+      const list = res?.data || [];
+      return list
+        .filter((j: any) => j.is_active && (j.nama || '').toLowerCase().includes(input.toLowerCase()))
+        .map((j: any) => ({
+          value: j.id,
+          label: j.nama,
+          ...j
+        }));
+    } catch {
+      return [];
+    }
+  }, []);
 
-        const rawTahunList = tahunRes?.data || [];
-        if (Array.isArray(rawTahunList) && rawTahunList.length > 0) {
-          const mappedTahun = rawTahunList.map((t: any) => ({
-            value: t.id.toString(),
-            label: t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`
-          }));
-          setTahunAkademikOptions(mappedTahun);
-        }
-
-        // Find SPMB module dynamically from DB modules list by code
-        const spmbModule = (modules || []).find((m: any) => m.code.toLowerCase() === 'spmb');
-        const sikeuRes = await spmbService.getSikeuTarifList(spmbModule?.id).catch(() => null);
-
-        const rawTarifList = sikeuRes?.data || [];
-        if (Array.isArray(rawTarifList) && rawTarifList.length > 0) {
-          const mapped = rawTarifList.map((t: any) => {
-            const nominal = Number(t.nominal_standar ?? t.nominal ?? t.nominal_tarif ?? 0);
-            const kode = t.kode || t.jenis_biaya?.kode || 'SIKEU';
-            const nama = t.nama || t.jenis_biaya?.nama || 'Biaya Pendaftaran SPMB';
-            return {
-              value: Math.round(nominal).toString(),
-              label: `[${kode}] ${nama} (Rp ${new Intl.NumberFormat('id-ID').format(nominal)})`
-            };
-          });
-          setSikeuTarifOptions(mapped);
-        } else {
-          setSikeuTarifOptions([
-            { value: '250000', label: '[SPMB_ADM] Biaya Pendaftaran SPMB (Rp 250.000)' },
-            { value: '3500000', label: '[UKT_REG] Uang Kuliah Tunggal (UKT) Reguler (Rp 3.500.000)' },
-          ]);
-        }
-      } catch (error) {
-        console.error('Failed to load master data', error);
-      }
-    };
-    fetchMasterData();
+  const loadMasterBiaya = useCallback(async (input: string) => {
+    try {
+      const response = await api.get('/v1/sikeu/master/master-biaya?module_code=spmb');
+      const list = response.data?.data || [];
+      return list
+        .filter((item: any) => 
+          (item.nama || '').toLowerCase().includes(input.toLowerCase()) || 
+          (item.kode || '').toLowerCase().includes(input.toLowerCase())
+        )
+        .map((item: any) => ({
+          value: item.id,
+          label: `[${item.kode}] ${item.nama} (Rp ${Number(item.nominal_standar || 0).toLocaleString('id-ID')})`,
+          ...item
+        }));
+    } catch {
+      return [];
+    }
   }, []);
 
   // Load Existing Gelombang Detail
@@ -179,26 +217,50 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
         setFetching(true);
         const res = await spmbService.getGelombangById(id);
         const row = res.data;
-        const rowNominal = Math.round(Number(row.biaya_pendaftaran || 0));
+        const mbId = row.master_biaya_id || row.master_biaya?.id;
+        const rowNominal = Math.round(Number(row.biaya_pendaftaran || row.master_biaya?.nominal_standar || 0));
         
-        // Dynamically append existing nominal to options if not present
-        setSikeuTarifOptions((prev) => {
-          const exists = prev.some((o) => Math.round(Number(o.value)) === rowNominal);
-          if (!exists && rowNominal > 0) {
-            return [
-              ...prev,
-              { value: rowNominal.toString(), label: `Master Tarif SIKEU (Rp ${new Intl.NumberFormat('id-ID').format(rowNominal)})` }
-            ];
-          }
-          return prev;
-        });
+        if (row.tahun_akademik) {
+          setSelectedTahunAkademik({
+            value: row.tahun_akademik.id,
+            label: row.tahun_akademik.nama || `${row.tahun_akademik.tahun_mulai}/${row.tahun_akademik.tahun_selesai}`,
+            ...row.tahun_akademik
+          });
+        } else if (row.tahun_akademik_id) {
+          setSelectedTahunAkademik({
+            value: row.tahun_akademik_id,
+            label: `Tahun Akademik #${row.tahun_akademik_id}`
+          });
+        }
+
+        if (row.jalur_masuk) {
+          setSelectedJalur({
+            value: row.jalur_masuk.id,
+            label: row.jalur_masuk.nama,
+            ...row.jalur_masuk
+          });
+        } else if (row.jalur_masuk_id) {
+          setSelectedJalur({
+            value: row.jalur_masuk_id,
+            label: `Jalur Masuk #${row.jalur_masuk_id}`
+          });
+        }
+
+        if (row.master_biaya) {
+          setSelectedMasterBiaya({
+            value: row.master_biaya.id,
+            label: `[${row.master_biaya.kode}] ${row.master_biaya.nama} (Rp ${Number(row.master_biaya.nominal_standar || 0).toLocaleString('id-ID')})`,
+            ...row.master_biaya
+          });
+        }
 
         reset({
           nama: row.nama,
-          jalur_masuk_id: row.jalur_masuk_id,
-          tahun_akademik_id: row.tahun_akademik_id,
-          kuota_total: row.kuota_total,
+          jalur_masuk_id: row.jalur_masuk_id ? Number(row.jalur_masuk_id) : undefined,
+          tahun_akademik_id: row.tahun_akademik_id ? Number(row.tahun_akademik_id) : undefined,
+          master_biaya_id: mbId ? Number(mbId) : undefined,
           biaya_pendaftaran: rowNominal,
+          kuota_total: row.kuota_total,
           status: row.status,
           tanggal_buka: row.tanggal_buka ? new Date(row.tanggal_buka).toISOString().split('T')[0] : '',
           tanggal_tutup: row.tanggal_tutup ? new Date(row.tanggal_tutup).toISOString().split('T')[0] : '',
@@ -217,7 +279,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
 
   // Submit Handler
   const onSubmit = async (data: Partial<GelombangPenerimaan>) => {
-    // Client-side date comparison check
     if (data.tanggal_buka && data.tanggal_tutup && new Date(data.tanggal_tutup) < new Date(data.tanggal_buka)) {
       toast.error('Tanggal tutup pendaftaran harus setelah tanggal buka');
       return;
@@ -227,6 +288,9 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
       setLoading(true);
       const payload = {
         ...data,
+        jalur_masuk_id: Number(data.jalur_masuk_id),
+        tahun_akademik_id: Number(data.tahun_akademik_id),
+        master_biaya_id: data.master_biaya_id ? Number(data.master_biaya_id) : undefined,
         biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
       };
       await spmbService.updateGelombang(id, payload as any);
@@ -239,7 +303,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  // Date Relationship Validation Error Check
   const isDateInvalid = Boolean(tglBuka && tglTutup && new Date(tglTutup) < new Date(tglBuka));
 
   if (fetching) {
@@ -267,12 +330,15 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
         title="Edit Gelombang"
         description="Perbarui informasi, biaya, status, dan jadwal gelombang pendaftaran SPMB."
         action={
-          <button 
+          <Button 
+            variant="outline"
+            size="sm"
             onClick={() => router.push('/spmb/master/gelombang')} 
-            className="btn bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm font-bold text-xs flex items-center gap-1.5 px-4 py-2 rounded-lg"
+            icon={<ArrowLeft size={16} />}
+            className="font-bold text-xs px-4 py-2"
           >
-            <ArrowLeft size={16} /> Kembali
-          </button>
+            Kembali
+          </Button>
         }
       />
 
@@ -284,7 +350,7 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
           <div className="space-y-5">
             <SectionHeader 
               title="Informasi Umum"
-              description="Atur nama, jalur masuk, kuota pendaftar, biaya, dan status keaktifan gelombang."
+              description="Atur nama, tahun akademik, jalur masuk, kuota pendaftar, biaya, dan status keaktifan gelombang."
               icon={Layers}
             />
 
@@ -294,14 +360,17 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
               <Controller
                 name="tahun_akademik_id"
                 control={control}
-                rules={{ required: 'Tahun akademik wajib dipilih' }}
                 render={({ field }) => (
-                  <Select
+                  <AsyncSelect
                     label="Tahun Akademik *"
-                    placeholder="Pilih Tahun Akademik..."
-                    options={tahunAkademikOptions}
-                    value={field.value?.toString()}
-                    onChange={(val) => field.onChange(val ? Number(val) : '')}
+                    placeholder="Pilih atau cari Tahun Akademik..."
+                    loadOptions={loadTahunAkademik}
+                    defaultOptions
+                    value={selectedTahunAkademik ?? field.value}
+                    onChange={(opt: any) => {
+                      setSelectedTahunAkademik(opt);
+                      field.onChange(opt ? Number(opt.value) : undefined);
+                    }}
                     error={errors.tahun_akademik_id?.message}
                     hint="Tahun akademik penerimaan mahasiswa."
                   />
@@ -312,14 +381,17 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
               <Controller
                 name="jalur_masuk_id"
                 control={control}
-                rules={{ required: 'Jalur masuk wajib dipilih' }}
                 render={({ field }) => (
-                  <Select
+                  <AsyncSelect
                     label="Jalur Masuk *"
-                    placeholder="Pilih Jalur Masuk..."
-                    options={jalurList.map((j) => ({ value: j.id.toString(), label: j.nama }))}
-                    value={field.value?.toString()}
-                    onChange={(val) => field.onChange(val ? Number(val) : '')}
+                    placeholder="Pilih atau cari Jalur Masuk..."
+                    loadOptions={loadJalurMasuk}
+                    defaultOptions
+                    value={selectedJalur ?? field.value}
+                    onChange={(opt: any) => {
+                      setSelectedJalur(opt);
+                      field.onChange(opt ? Number(opt.value) : undefined);
+                    }}
                     error={errors.jalur_masuk_id?.message}
                     hint="Jalur penerimaan yang dinaungi gelombang ini."
                   />
@@ -331,8 +403,8 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                 label="Nama Gelombang *"
                 placeholder="Contoh: Gelombang 1 - Prestasi"
                 required
-                error={errors.nama ? 'Nama gelombang wajib diisi' : undefined}
-                {...register('nama', { required: true })} 
+                error={errors.nama?.message}
+                {...register('nama')} 
               />
 
               {/* Kuota Pendaftar */}
@@ -342,24 +414,32 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                 placeholder="100"
                 required
                 hint="Jumlah maksimal pendaftar pada gelombang ini."
-                error={errors.kuota_total ? 'Kuota pendaftar minimal 1' : undefined}
-                {...register('kuota_total', { required: true, min: 1 })} 
+                error={errors.kuota_total?.message}
+                {...register('kuota_total', { valueAsNumber: true })} 
               />
 
               {/* Select Tarif Keuangan SIKEU (Mapping Master Tarif SIKEU) */}
               <div className="space-y-2">
                 <Controller
-                  name="biaya_pendaftaran"
+                  name="master_biaya_id"
                   control={control}
-                  rules={{ required: 'Tarif SIKEU wajib dipilih' }}
                   render={({ field }) => (
-                    <Select
+                    <AsyncSelect
                       label="Tarif Biaya Pendaftaran (Mapping SIKEU) *"
-                      placeholder="-- Pilih Master Tarif Keuangan SIKEU --"
-                      options={sikeuTarifOptions}
-                      value={field.value !== undefined && field.value !== null && field.value !== 0 ? Math.round(Number(field.value)).toString() : ''}
-                      onChange={(val) => field.onChange(val ? Number(val) : undefined)}
-                      error={errors.biaya_pendaftaran?.message}
+                      placeholder="Pilih atau cari Master Tarif Keuangan SIKEU..."
+                      loadOptions={loadMasterBiaya}
+                      defaultOptions
+                      value={selectedMasterBiaya ?? field.value}
+                      onChange={(opt: any) => {
+                        setSelectedMasterBiaya(opt);
+                        const idVal = opt ? Number(opt.value) : undefined;
+                        field.onChange(idVal);
+                        if (opt) {
+                          const nominal = Number(opt.nominal_standar ?? opt.nominal ?? 0);
+                          setValue('biaya_pendaftaran', nominal);
+                        }
+                      }}
+                      error={errors.master_biaya_id?.message}
                       hint="Pilih opsi tarif yang berasal dari Master Tarif Modul Keuangan SIKEU."
                     />
                   )}
@@ -384,7 +464,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                 <Controller
                   name="status"
                   control={control}
-                  rules={{ required: true }}
                   render={({ field }) => (
                     <Select
                       label="Status Gelombang *"
@@ -397,6 +476,7 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                       value={field.value}
                       onChange={field.onChange}
                       hint="Status menentukan keaktifan gelombang pada portal pendaftaran calon mahasiswa."
+                      error={errors.status?.message}
                     />
                   )}
                 />
@@ -421,8 +501,8 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                 type="date"
                 label="Tanggal Buka Pendaftaran *"
                 required
-                error={errors.tanggal_buka ? 'Tanggal buka wajib diisi' : undefined}
-                {...register('tanggal_buka', { required: true })} 
+                error={errors.tanggal_buka?.message}
+                {...register('tanggal_buka')} 
               />
 
               <div className="space-y-1">
@@ -430,8 +510,8 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                   type="date"
                   label="Tanggal Tutup Pendaftaran *"
                   required
-                  error={errors.tanggal_tutup ? 'Tanggal tutup wajib diisi' : undefined}
-                  {...register('tanggal_tutup', { required: true })} 
+                  error={errors.tanggal_tutup?.message}
+                  {...register('tanggal_tutup')} 
                 />
                 {isDateInvalid && (
                   <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800 text-xs font-bold animate-fade-in mt-1">
@@ -445,6 +525,7 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
                 type="date"
                 label="Tanggal Pengumuman (Opsional)"
                 hint="Jadwal pengumuman kelulusan peserta."
+                error={errors.tanggal_pengumuman?.message}
                 {...register('tanggal_pengumuman')} 
               />
 

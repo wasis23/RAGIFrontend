@@ -28,6 +28,7 @@ export interface GelombangPenerimaan {
   id: number;
   jalur_masuk_id: number;
   tahun_akademik_id: number;
+  master_biaya_id?: number | null;
   nama: string;
   tanggal_buka: string;
   tanggal_tutup: string;
@@ -39,6 +40,19 @@ export interface GelombangPenerimaan {
   created_at: string;
   updated_at: string;
   jalur_masuk?: JalurMasuk;
+  tahun_akademik?: {
+    id: number;
+    nama?: string;
+    kode?: string;
+    tahun_mulai?: number;
+    tahun_selesai?: number;
+  };
+  master_biaya?: {
+    id: number;
+    kode: string;
+    nama: string;
+    nominal_standar: number;
+  };
 }
 
 export interface ProgramStudi {

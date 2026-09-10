@@ -129,7 +129,18 @@ export default function MasterGelombangPage() {
                 </span>
               )},
               { key: 'kuota_total', label: 'Kuota', render: (row) => `${row.kuota_terisi || 0} / ${row.kuota_total}` },
-              { key: 'biaya_pendaftaran', label: 'Biaya', render: (row) => `Rp ${(Number(row.biaya_pendaftaran) || 0).toLocaleString('id-ID')}` },
+              { key: 'biaya_pendaftaran', label: 'Biaya Pendaftaran', render: (row) => (
+                <div className="flex flex-col">
+                  <span className="font-semibold text-slate-900">
+                    Rp {(Number(row.biaya_pendaftaran) || 0).toLocaleString('id-ID')}
+                  </span>
+                  {row.master_biaya && (
+                    <span className="text-2xs text-emerald-700 font-medium bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 w-fit mt-0.5">
+                      [{row.master_biaya.kode}] {row.master_biaya.nama}
+                    </span>
+                  )}
+                </div>
+              )},
               { key: 'status', label: 'Status', render: (row) => {
                 const colors: any = {
                   'draft': 'badge-gray',
