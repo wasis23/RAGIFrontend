@@ -58,13 +58,14 @@ echo "$STAGED_DIFF" >> "$PROMPT_FILE"
 echo '```' >> "$PROMPT_FILE"
 
 cat << 'EOF' >> "$PROMPT_FILE"
+PENTING: Jawab HANYA secara langsung tanpa memanggil tool atau membaca file.
 Jawab HANYA salah satu:
 - PASSED jika kode bersih dan memenuhi Admin CRUD Standard.
 - REJECTED: [detail alasan pelanggaran] jika ditemukan pelanggaran Admin CRUD Standard.
 EOF
 
 if command -v opencode &> /dev/null; then
-    RESULT=$(timeout 15s opencode run -m opencode-go/deepseek-v4-flash "$(cat "$PROMPT_FILE")" 2>&1)
+    RESULT=$(timeout 25s opencode run -m opencode/muse-spark-1.3-contributor-free "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
 elif command -v agy &> /dev/null; then
     RESULT=$(timeout 15s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
