@@ -88,8 +88,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 '/siakad/nilai',
                 '/siakad/obe',
                 '/sikeu/mahasiswa/tagihan',
+                '/spmb',
                 '/spmb/dashboard',
                 '/spmb/registrasi',
+                '/spmb/daftar-ulang',
                 '/spmb/seleksi'
               ];
               
@@ -102,7 +104,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 baseAllowed.some((b) => currentPath === b || currentPath.startsWith(b + '/')) ||
                 allowedUrls.some((url) => {
                   const normUrl = url.replace(/\/$/, '');
-                  return currentPath === normUrl || currentPath.startsWith(normUrl + '/');
+                  return (
+                    currentPath === normUrl ||
+                    currentPath.startsWith(normUrl + '/') ||
+                    normUrl.startsWith(currentPath + '/')
+                  );
                 });
 
               if (!isAllowed) {

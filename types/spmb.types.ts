@@ -18,8 +18,6 @@ export interface JalurMasuk {
   kode: string;
   nama: string;
   deskripsi: string | null;
-  master_tipe_jalur_id: number;
-  master_tipe_jalur?: MasterTipeJalur;
   ada_wawancara: boolean;
   is_active: boolean;
   created_at: string;
@@ -89,13 +87,17 @@ export interface BerkasRequirementPayload {
 
 export interface TarifUktSpmb {
   id: number;
-  program_studi_id: number;
-  tahun_akademik_id: number;
-  kelompok_ukt: string;
-  nominal: number;
-  is_active: boolean;
+  nama: string;
+  deskripsi: string | null;
+  master_sikeu_biaya_id: number;
+  master_program_studi_id: number;
   program_studi?: ProgramStudi;
-  tahun_akademik?: TahunAkademik;
+  master_sikeu_biaya?: {
+    id: number;
+    kode: string;
+    nama: string;
+    nominal_standar?: string | number;
+  };
   created_at?: string;
   updated_at?: string;
 }

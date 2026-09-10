@@ -12,6 +12,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '@/lib/axios';
+import { spmbService } from '@/services/spmb.service';
 
 export default function MasterKuotaProdiPage() {
   const [data, setData] = useState([]);
@@ -23,17 +24,28 @@ export default function MasterKuotaProdiPage() {
   const [filterOrderBy, setFilterOrderBy] = useState('id');
   const [filterOrderDir, setFilterOrderDir] = useState('asc');
 
-  const [prodiOptions, setProdiOptions] = useState([
-    { value: 1, label: 'S1 Teknik Informatika' },
-    { value: 2, label: 'S1 Sistem Informasi' },
-    { value: 3, label: 'S1 Ilmu Komputer' }
-  ]);
+  const [prodiOptions, setProdiOptions] = useState<{ value: number; label: string }[]>([]);
   
   const { register, handleSubmit, control, reset } = useForm();
 
   useEffect(() => {
     fetchData();
+    fetchProdi();
   }, []);
+
+  const fetchProdi = async () => {
+    try {
+      const res = await spmbService.getProgramStudi();
+      const list = res.data || [];
+      const options = list.map((p: any) => ({
+        value: p.id,
+        label: `${p.nama} (${p.jenjang || 'S1'})`,
+      }));
+      setProdiOptions(options);
+    } catch (error) {
+      toast.error('Gagal mengambil data program studi.');
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);

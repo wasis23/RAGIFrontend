@@ -13,12 +13,10 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
 
 const schema = z.object({
   jalur_masuk_id: z.number().min(1, 'Jalur Masuk wajib dipilih'),
-  jenis_dokumen: z.string().min(1, 'Jenis dokumen wajib dipilih'),
   label: z.string().min(3, 'Label dokumen minimal 3 karakter'),
   urutan: z.number().min(0, 'Urutan minimal 0'),
   wajib: z.boolean(),
@@ -33,6 +31,7 @@ export default function EditBerkasRequirementPage() {
   const id = Number(params?.id);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [selectedJalur, setSelectedJalur] = useState<any>(null);
 
   const {
     control,
@@ -54,16 +53,22 @@ export default function EditBerkasRequirementPage() {
     const fetchDetail = async () => {
       try {
         setFetching(true);
-        const res = await spmbService.getBerkasRequirementById(id);
-        const data = res.data;
+        const [detailRes, jalurRes] = await Promise.all([
+          spmbService.getBerkasRequirementById(id),
+          spmbService.getJalurMasuk(),
+        ]);
+        const data = detailRes.data;
         reset({
           jalur_masuk_id: data.jalur_masuk_id,
-          jenis_dokumen: data.jenis_dokumen,
           label: data.label,
           urutan: data.urutan,
           wajib: data.wajib,
           is_active: data.is_active,
         });
+        const jalur = (jalurRes.data || []).find((j: any) => j.id === data.jalur_masuk_id);
+        if (jalur) {
+          setSelectedJalur({ value: jalur.id, label: jalur.nama });
+        }
       } catch (error: any) {
         toast.error(error.message || 'Gagal memuat detail syarat berkas');
         router.back();
@@ -97,14 +102,6 @@ export default function EditBerkasRequirementPage() {
       }));
   };
 
-  const loadJenisDokumenOptions = async () => {
-    const res = await spmbService.getReferensi('jenis_dokumen');
-    return res.data.map((r: any) => ({
-      value: r.kode,
-      label: r.nama,
-    }));
-  };
-
   if (fetching) return <div className="p-8 text-center text-gray-500">Memuat data...</div>;
 
   return (
@@ -135,25 +132,12 @@ export default function EditBerkasRequirementPage() {
                   loadOptions={loadJalurOptions}
                   defaultOptions
                   placeholder="Pilih Jalur Masuk..."
-                  value={field.value ? { value: field.value, label: 'Memuat Label...' } : null}
-                  onChange={(sel: any) => field.onChange(sel ? sel.value : null)}
+                  value={selectedJalur}
+                  onChange={(sel: any) => {
+                    setSelectedJalur(sel);
+                    field.onChange(sel ? sel.value : null);
+                  }}
                   error={errors.jalur_masuk_id?.message}
-                />
-              )}
-            />
-
-            <Controller
-              name="jenis_dokumen"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Jenis Dokumen *"
-                  loadOptions={loadJenisDokumenOptions}
-                  defaultOptions
-                  placeholder="Pilih Jenis Dokumen..."
-                  value={field.value ? { value: field.value, label: field.value } : null}
-                  onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-                  error={errors.jenis_dokumen?.message}
                 />
               )}
             />

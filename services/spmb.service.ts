@@ -208,17 +208,17 @@ export const spmbService = {
     return response.data;
   },
 
-  // Tarif UKT Daftar Ulang
-  getTarifUktSpmb: async (params?: { page?: number; limit?: number; search?: string; program_studi_id?: number; tahun_akademik_id?: number; is_active?: boolean; sort_by?: string; sort_dir?: string }) => {
+  // Biaya Daftar Ulang
+  getTarifUktSpmb: async (params?: { page?: number; limit?: number; search?: string; master_program_studi_id?: number; master_sikeu_biaya_id?: number; sort_by?: string; sort_dir?: string }) => {
     const response = await api.get('/spmb/master/tarif-ukt', { params });
     return response.data;
   },
 
-  storeTarifUktSpmb: async (data: { program_studi_id: number; tahun_akademik_id: number; kelompok_ukt: string; nominal: number; is_active: boolean }) => {
+  storeTarifUktSpmb: async (data: { nama: string; deskripsi?: string; master_sikeu_biaya_id: number; master_program_studi_id: number }) => {
     const response = await api.post('/spmb/master/tarif-ukt', data);
     return response.data;
   },
-  updateTarifUktSpmb: async (id: number, data: { program_studi_id: number; tahun_akademik_id: number; kelompok_ukt: string; nominal: number; is_active: boolean }) => {
+  updateTarifUktSpmb: async (id: number, data: { nama: string; deskripsi?: string; master_sikeu_biaya_id: number; master_program_studi_id: number }) => {
     const response = await api.put(`/spmb/master/tarif-ukt/${id}`, data);
     return response.data;
   },
@@ -274,16 +274,16 @@ export const spmbService = {
 
   getSikeuTarifList: async (moduleId?: number) => {
     try {
-      const url = moduleId ? `/sikeu/master/jenis-biaya?module_id=${moduleId}` : '/sikeu/master/jenis-biaya?module=spmb';
+      const url = moduleId ? `/v1/sikeu/master/master-biaya?module_id=${moduleId}` : '/v1/sikeu/master/master-biaya?module=spmb';
       const response = await api.get(url);
       if (response.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
         return response.data;
       }
-      const allBiaya = await api.get('/sikeu/master/jenis-biaya');
+      const allBiaya = await api.get('/v1/sikeu/master/master-biaya');
       if (allBiaya.data && Array.isArray(allBiaya.data.data) && allBiaya.data.data.length > 0) {
         return allBiaya.data;
       }
-      const fallback = await api.get('/sikeu/master/tarif-spmb');
+      const fallback = await api.get('/v1/sikeu/master/tarif-spmb');
       return fallback.data;
     } catch {
       return { status: 'success', data: [] };
@@ -321,7 +321,7 @@ export const spmbService = {
     return response.data;
   },
   getReferensi: async (tipe: string) => {
-    const response = await api.get(`/master/referensi/${tipe}`);
+    const response = await api.get(`/v1/sikeu/master/referensi/${tipe}`);
     return response.data;
   },
 

@@ -346,19 +346,11 @@ export default function RegistrasiSpmbPage() {
   useEffect(() => {
     setIsMounted(true);
     fetchJalur();
-
     fetchProdi();
     checkExistingRegistration();
     const currentModuleCode = window.location.pathname.split('/')[1] || '';
     fetchModuleColor(currentModuleCode);
-    fetchActiveGelombang().then((active) => {
-      if (active) {
-        setValue('gelombang_id', String(active.id));
-        setValue('jalur_id', String(active.jalur_masuk_id || '1'));
-        fetchGelombang(active.jalur_masuk_id || 1);
-        fetchTarif(active.jalur_masuk_id || 1, active.id);
-      }
-    });
+    fetchActiveGelombang();
   }, []);
 
 
@@ -590,9 +582,17 @@ export default function RegistrasiSpmbPage() {
 
   useEffect(() => {
     if (selectedJalur) {
-      fetchGelombang(selectedJalur);
+      fetchGelombang(selectedJalur).then((options: SelectOption[]) => {
+        const currentGelombang = getValues('gelombang_id');
+        const isValid = options.some((opt) => opt.value === String(currentGelombang));
+        // Auto-fill hanya jika kosong atau nilai lama tidak valid pada jalur ini
+        if (!isValid) {
+          setValue('gelombang_id', options.length > 0 ? String(options[0].value) : '');
+        }
+      });
     } else {
       setGelombangOptions([]);
+      setValue('gelombang_id', '');
     }
   }, [selectedJalur]);
 
@@ -619,20 +619,22 @@ export default function RegistrasiSpmbPage() {
     }
   };
 
-  const fetchGelombang = async (jalurId: any) => {
+  const fetchGelombang = async (jalurId: any): Promise<SelectOption[]> => {
     try {
       const res = await spmbService.getGelombang();
       const list = res.data || [];
       setGelombangRaw(list);
       const options = list
-        .filter((g: any) => String(g.jalur_masuk_id) === String(jalurId))
+        .filter((g: any) => String(g.jalur_masuk_id) === String(jalurId) && g.status === 'aktif')
         .map((g: any) => ({
           value: String(g.id),
           label: `${g.nama} (${g.status === 'aktif' ? 'Sedang Dibuka' : 'Tutup'})`,
         }));
       setGelombangOptions(options);
+      return options;
     } catch (error) {
       console.error(error);
+      return [];
     }
   };
 
@@ -1127,24 +1129,35 @@ export default function RegistrasiSpmbPage() {
                   )}
                 />
 
-                {/* Gelombang Penerimaan (Terikat permanen pada pendaftaran calon mahasiswa) */}
+                {/* Gelombang Penerimaan (Auto-fill berdasarkan Jalur Pendaftaran) */}
                 <div className="flex flex-col">
                   <label className="text-xs font-bold text-slate-700 mb-1">
-                    Gelombang Penerimaan <span className="text-slate-400 font-normal">(Terikat Permanen Pada Pendaftaran)</span>
+                    Gelombang Penerimaan <span className="text-slate-400 font-normal">(Otomatis Terisi dari Jalur)</span>
                   </label>
-                  <div className="p-3 bg-gradient-to-br from-primary-50/80 via-white to-primary-50/40 border border-primary-200 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
-                    <div className="flex items-center gap-2">
-                      <Clock size={16} className="text-primary-600 shrink-0" />
-                      <span className="text-xs font-black text-slate-900">
-                        {suksesData?.pendaftaran?.gelombang_penerimaan?.nama || activeGelombang?.nama || 'Gelombang 1 Penerimaan SPMB'}
-                      </span>
+                  {selectedGelombangObj ? (
+                    <div className="p-3 bg-gradient-to-br from-primary-50/80 via-white to-primary-50/40 border border-primary-200 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
+                      <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-primary-600 shrink-0" />
+                        <span className="text-xs font-black text-slate-900">
+                          {selectedGelombangObj.nama}
+                        </span>
+                      </div>
+                      <Badge variant="green" className="text-2xs font-extrabold px-2.5 py-0.5 shrink-0">
+                        ✓ Otomatis
+                      </Badge>
                     </div>
-                    <Badge variant="green" className="text-2xs font-extrabold px-2.5 py-0.5 shrink-0">
-                      ✓ Terdaftar &amp; Terunci
-                    </Badge>
-                  </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 border border-dashed border-slate-300 rounded-lg flex items-center justify-between gap-3 shadow-2xs h-[42px]">
+                      <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-slate-400 shrink-0" />
+                        <span className="text-xs font-medium text-slate-400">
+                          Pilih Jalur Pendaftaran terlebih dahulu
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   <span className="text-2xs text-slate-500 font-medium mt-1">
-                    Gelombang pendaftaran Anda telah terikat permanen di database dan tidak akan terdampak jika Admin membuka gelombang baru.
+                    Gelombang penerimaan otomatis mengikuti jalur pendaftaran yang Anda pilih.
                   </span>
                 </div>
               </div>

@@ -17,10 +17,11 @@ interface AsyncSelectProps {
   isClearable?: boolean;
   isDisabled?: boolean;
   isMulti?: boolean;
+  formatOptionLabel?: (option: any, meta: any) => React.ReactNode;
 }
 
 export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
-  ({ label, error, hint, required, loadOptions, value, onChange, placeholder, className, id, defaultOptions = true, isClearable = false, isDisabled = false, isMulti = false, ...props }, ref) => {
+  ({ label, error, hint, required, loadOptions, value, onChange, placeholder, className, id, defaultOptions = true, isClearable = false, isDisabled = false, isMulti = false, formatOptionLabel, ...props }, ref) => {
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
@@ -97,6 +98,7 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
             isClearable={isClearable}
             isDisabled={isDisabled}
             isMulti={isMulti}
+            formatOptionLabel={formatOptionLabel}
             placeholder={placeholder || 'Cari...'}
             styles={customStyles}
             className={cn('react-select-container', className)}

@@ -147,15 +147,6 @@ export default function MasterJalurPage() {
           { key: 'kode', label: 'Kode', sortable: true },
           { key: 'nama', label: 'Nama Jalur', sortable: true },
           { 
-            key: 'master_tipe_jalur', 
-            label: 'Tipe Jalur', 
-            render: (row) => (
-              <Badge variant="secondary">
-                {row.master_tipe_jalur?.nama || '-'}
-              </Badge>
-            ) 
-          },
-          { 
             key: 'is_active', 
             label: 'Status', 
             render: (row) => row.is_active ? (

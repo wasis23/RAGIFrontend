@@ -13,14 +13,11 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
 
 const schema = z.object({
   jalur_masuk_id: z.number().min(1, 'Jalur Masuk wajib dipilih'),
-  jenis_dokumen: z.string().min(1, 'Jenis dokumen wajib dipilih'),
   label: z.string().min(3, 'Label dokumen minimal 3 karakter'),
-  urutan: z.number().min(0, 'Urutan minimal 0'),
   wajib: z.boolean(),
   is_active: z.boolean(),
 });
@@ -30,6 +27,7 @@ type FormData = z.infer<typeof schema>;
 export default function CreateBerkasRequirementPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [selectedJalur, setSelectedJalur] = useState<any>(null);
 
   const {
     control,
@@ -39,7 +37,6 @@ export default function CreateBerkasRequirementPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       label: '',
-      urutan: 0,
       wajib: true,
       is_active: true,
     },
@@ -66,14 +63,6 @@ export default function CreateBerkasRequirementPage() {
         value: j.id,
         label: j.nama,
       }));
-  };
-
-  const loadJenisDokumenOptions = async () => {
-    const res = await spmbService.getReferensi('jenis_dokumen');
-    return res.data.map((r: any) => ({
-      value: r.kode,
-      label: r.nama,
-    }));
   };
 
   return (
@@ -104,25 +93,12 @@ export default function CreateBerkasRequirementPage() {
                   loadOptions={loadJalurOptions}
                   defaultOptions
                   placeholder="Pilih Jalur Masuk..."
-                  value={field.value ? { value: field.value, label: 'Loading...' } : null}
-                  onChange={(sel: any) => field.onChange(sel ? sel.value : null)}
+                  value={selectedJalur}
+                  onChange={(sel: any) => {
+                    setSelectedJalur(sel);
+                    field.onChange(sel ? sel.value : null);
+                  }}
                   error={errors.jalur_masuk_id?.message}
-                />
-              )}
-            />
-
-            <Controller
-              name="jenis_dokumen"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Jenis Dokumen *"
-                  loadOptions={loadJenisDokumenOptions}
-                  defaultOptions
-                  placeholder="Pilih Jenis Dokumen..."
-                  value={field.value ? { value: field.value, label: 'Loading...' } : null}
-                  onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-                  error={errors.jenis_dokumen?.message}
                 />
               )}
             />
@@ -136,21 +112,6 @@ export default function CreateBerkasRequirementPage() {
                   placeholder="Contoh: Ijazah SMA/SMK"
                   error={errors.label?.message}
                   {...field}
-                />
-              )}
-            />
-
-            <Controller
-              name="urutan"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  label="Urutan Tampil *"
-                  type="number"
-                  placeholder="Contoh: 1"
-                  error={errors.urutan?.message}
-                  {...field}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
                 />
               )}
             />

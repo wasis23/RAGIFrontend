@@ -60,12 +60,12 @@ export default function TarifUktProgramStudiPage() {
 
   return (
     <div className="w-full animate-fade-in flex flex-col gap-4 sm:gap-6">
-      <PageHeader title="Tarif UKT Daftar Ulang" description="Pilih program studi untuk mengelola kelompok UKT dari master SIKEU" action={<Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>Filter</Button>} />
+      <PageHeader title="Biaya Daftar Ulang" description="Pilih program studi untuk mengelola biaya daftar ulang dari master SIKEU" action={<Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>Filter</Button>} />
       <DataTable data={data} meta={meta} isLoading={loading} columns={[
         { key: 'kode_prodi', label: 'Kode Prodi', sortable: true },
         { key: 'nama', label: 'Program Studi', sortable: true },
         { key: 'jenjang', label: 'Jenjang' },
-        { key: 'actions', label: 'Aksi', align: 'right', render: (row) => <DropdownMenu items={[{ label: 'Kelola Tarif', icon: <ChevronRight size={14} />, onClick: () => router.push(`/spmb/master/tarif-ukt/${row.id}`) }]} /> },
+        { key: 'actions', label: 'Aksi', align: 'right', render: (row) => <DropdownMenu items={[{ label: 'Kelola Biaya', icon: <ChevronRight size={14} />, onClick: () => router.push(`/spmb/master/tarif-ukt/${row.id}`) }]} /> },
       ]} />
       <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Program Studi" footer={<div className="flex justify-end gap-3"><Button variant="secondary" onClick={() => setShowFilter(false)}>Batal</Button><Button onClick={applyFilter}>Terapkan</Button></div>}>
         <div className="flex flex-col gap-4">

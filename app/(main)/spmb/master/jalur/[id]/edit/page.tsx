@@ -3,13 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Save } from 'lucide-react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { spmbService } from '@/services/spmb.service';
 import { Input } from '@/components/ui/Input';
-import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -19,7 +18,6 @@ const schema = z.object({
   kode: z.string().min(1, 'Kode jalur wajib diisi'),
   nama: z.string().min(1, 'Nama jalur wajib diisi'),
   deskripsi: z.string().optional().nullable(),
-  master_tipe_jalur_id: z.number().min(1, 'Tipe jalur wajib dipilih'),
   ada_wawancara: z.boolean(),
   is_active: z.boolean(),
 });
@@ -34,25 +32,13 @@ export default function EditJalurPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       is_active: true,
       ada_wawancara: false
     }
   });
-
-  const fetchTipeJalur = async () => {
-    try {
-      const res = await spmbService.getMasterTipeJalur();
-      return (res.data || []).map((t: any) => ({
-        value: t.id,
-        label: t.nama
-      }));
-    } catch {
-      return [];
-    }
-  };
 
   useEffect(() => {
     if (!id) return;
@@ -124,24 +110,6 @@ export default function EditJalurPage() {
                 error={errors.nama?.message}
                 {...register('nama')} 
               />
-              
-              <div className="md:col-span-2">
-                <Controller
-                  name="master_tipe_jalur_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Tipe Jalur *"
-                      placeholder="Pilih tipe jalur..."
-                      loadOptions={fetchTipeJalur}
-                      value={field.value}
-                      onChange={field.onChange}
-                      error={errors.master_tipe_jalur_id?.message}
-                      defaultOptions
-                    />
-                  )}
-                />
-              </div>
               
               <div className="md:col-span-2">
                 <Textarea 

@@ -46,6 +46,7 @@ export default function SPMBDashboardPage() {
   const [gelombangList, setGelombangList] = useState<GelombangPenerimaan[]>([]);
   const [prodiList, setProdiList] = useState<any[]>([]);
   const [adminPendaftarList, setAdminPendaftarList] = useState<PendaftaranCalonMhs[]>([]);
+  const [berkasRequirements, setBerkasRequirements] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { module_color: moduleColor, fetchModuleColor } = useUiStore();
 
@@ -67,11 +68,12 @@ export default function SPMBDashboardPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [pendaftaranRes, gelombangRes, prodiRes, adminPendaftarRes] = await Promise.all([
+      const [pendaftaranRes, gelombangRes, prodiRes, adminPendaftarRes, berkasRes] = await Promise.all([
         spmbService.getMyPendaftaran().catch(() => null),
         spmbService.getGelombang().catch(() => null),
         spmbService.getProgramStudi().catch(() => null),
         isPanitiaAdmin ? spmbService.getPendaftaran({ per_page: 20 }).catch(() => null) : Promise.resolve(null),
+        spmbService.getBerkasRequirements({ limit: 100 }).catch(() => null),
       ]);
 
       const currentModuleCode = window.location.pathname.split('/')[1] || '';
@@ -102,6 +104,13 @@ export default function SPMBDashboardPage() {
           ? adminPendaftarRes.data
           : adminPendaftarRes.data.data || [];
         setAdminPendaftarList(pList);
+      }
+
+      if (berkasRes?.data) {
+        const bList = Array.isArray(berkasRes.data)
+          ? berkasRes.data
+          : berkasRes.data.data || [];
+        setBerkasRequirements(bList);
       }
     } catch (e) {
       console.error(e);
@@ -406,10 +415,10 @@ export default function SPMBDashboardPage() {
 
       {/* ── Stepper / Progress Flow Section ───────────────────────────── */}
       <div className="card spmb-stepper-card">
-        <div className="card-header border-b border-slate-100">
+        <div className="card-header border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-primary-600" />
-            <h3 className="font-bold text-slate-900 text-base">Alur &amp; Tahapan Pendaftaran</h3>
+            <Sparkles size={18} className="text-primary-600 shrink-0" />
+            <h3 className="font-bold text-slate-900 text-sm sm:text-base">Alur &amp; Tahapan Pendaftaran</h3>
           </div>
           <span className="text-xs font-semibold text-slate-500">
             {completedCount} dari 6 Tahap Selesai
@@ -489,16 +498,16 @@ export default function SPMBDashboardPage() {
             
             <div className="p-4 sm:p-6 overflow-x-auto">
               {pendaftaran?.progress_alur && pendaftaran.progress_alur.length > 0 ? (
-                <div className="spmb-stepper-card p-0 shadow-none border-0 bg-transparent min-w-[500px]">
+                <div className="spmb-stepper-card p-0 shadow-none border-0 bg-transparent">
                   <div className="spmb-stepper-track bg-slate-200 top-4"></div>
-                  <div className="flex justify-between relative z-10 w-full">
+                  <div className="flex justify-between relative z-10 w-full min-w-[420px]">
                     {pendaftaran.progress_alur.map((alur: any, idx: number) => {
                       const isComplete = alur.status === 'completed';
                       const isCurrent = alur.status === 'in_progress';
                       const isPending = alur.status === 'pending';
                       const isFailed = alur.status === 'failed';
                       return (
-                        <div key={alur.id} className={`spmb-stepper-item flex-1 text-center flex flex-col items-center min-w-[80px] ${isComplete ? 'is-done' : isCurrent ? 'is-current' : isPending ? 'is-pending' : ''}`}>
+                        <div key={alur.id} className={`spmb-stepper-item flex-1 text-center flex flex-col items-center min-w-[72px] ${isComplete ? 'is-done' : isCurrent ? 'is-current' : isPending ? 'is-pending' : ''}`}>
                           <div className={`spmb-stepper-circle z-10 w-8 h-8 rounded-full flex items-center justify-center border-2 mb-2 bg-white ${isComplete ? 'border-emerald-500 text-emerald-500' : isCurrent ? 'border-indigo-500 text-indigo-500 ring-4 ring-indigo-50' : isFailed ? 'border-red-500 text-red-500' : 'border-slate-200 text-slate-300'}`}>
                             {isComplete ? <CheckCircle size={14} /> : isFailed ? <AlertCircle size={14} /> : <span className="text-xs font-bold">{idx + 1}</span>}
                           </div>
@@ -522,88 +531,110 @@ export default function SPMBDashboardPage() {
 
           {/* Document Status Section */}
           <div className="card overflow-hidden">
-            <div className="card-header border-b border-slate-100 flex items-center justify-between">
+            <div className="card-header border-b border-slate-100 flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <FileText size={18} className="text-primary-600" />
-                <h3 className="font-bold text-slate-900 text-base">Berkas Pendaftaran Saya</h3>
+                <FileText size={18} className="text-primary-600 shrink-0" />
+                <h3 className="font-bold text-slate-900 text-sm sm:text-base">Berkas Pendaftaran Saya</h3>
               </div>
-              <Link href="/spmb/registrasi" className="text-xs font-semibold text-primary-600 hover:underline">
+              <Link href="/spmb/registrasi" className="text-xs font-semibold text-primary-600 hover:underline shrink-0">
                 Kelola Berkas →
               </Link>
             </div>
 
             <div className="card-body p-0">
               <div className="divide-y divide-slate-100">
-                {[
-                  { key: 'pas_foto', label: 'Pas Foto Resmi (3x4)', required: true },
-                  { key: 'ktp', label: 'KTP / Kartu Pelajar', required: true },
-                  { key: 'kk', label: 'Kartu Keluarga (KK)', required: true },
-                  { key: 'ijazah', label: 'Ijazah / SKL', required: true },
-                  { key: 'rapor', label: 'Transkrip Nilai / Rapor', required: false },
-                ].map((masterItem) => {
-                  const uploaded = uploadedDocs.find(
-                    (d) => (d.jenis_berkas || d.jenis_dokumen) === masterItem.key
-                  );
-                  const isUploaded = Boolean(uploaded);
+                {(() => {
+                  // Ambil syarat berkas dari API master berkas-requirement
+                  const masterList = berkasRequirements.length > 0
+                    ? berkasRequirements
+                        .filter((b: any) => b.is_active !== false)
+                        .sort((a: any, b: any) => (a.urutan || 0) - (b.urutan || 0))
+                        .map((b: any) => ({
+                          key: b.jenis_dokumen,
+                          label: b.label,
+                          required: b.wajib,
+                        }))
+                    : [
+                        { key: 'pas_foto', label: 'Pas Foto Resmi (3x4)', required: true },
+                        { key: 'ktp', label: 'KTP / Kartu Pelajar', required: true },
+                        { key: 'kk', label: 'Kartu Keluarga (KK)', required: true },
+                        { key: 'ijazah', label: 'Ijazah / SKL', required: true },
+                        { key: 'rapor', label: 'Transkrip Nilai / Rapor', required: false },
+                      ];
 
-                  return (
-                    <div
-                      key={masterItem.key}
-                      className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`p-2 rounded-lg shrink-0 ${
-                            uploaded?.is_verified
-                              ? 'bg-emerald-50 text-emerald-600'
-                              : isUploaded
-                              ? 'bg-amber-50 text-amber-600'
-                              : 'bg-slate-100 text-slate-400'
-                          }`}
-                        >
-                          <FileText size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
-                            {masterItem.label}
-                            {masterItem.required && (
-                              <span className="text-red-500 font-bold ml-1">*</span>
+                  if (masterList.length === 0) {
+                    return (
+                      <div className="p-6 text-center text-slate-400 text-sm">
+                        Belum ada syarat berkas yang diatur. Silakan atur di menu Master Berkas.
+                      </div>
+                    );
+                  }
+
+                  return masterList.map((masterItem) => {
+                    const uploaded = uploadedDocs.find(
+                      (d) => (d.jenis_berkas || d.jenis_dokumen) === masterItem.key
+                    );
+                    const isUploaded = Boolean(uploaded);
+
+                    return (
+                      <div
+                        key={masterItem.key}
+                        className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`p-2 rounded-lg shrink-0 ${
+                              uploaded?.is_verified
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : isUploaded
+                                ? 'bg-amber-50 text-amber-600'
+                                : 'bg-slate-100 text-slate-400'
+                            }`}
+                          >
+                            <FileText size={18} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">
+                              {masterItem.label}
+                              {masterItem.required && (
+                                <span className="text-red-500 font-bold ml-1">*</span>
+                              )}
+                            </p>
+                            {uploaded?.catatan ? (
+                              <p className="text-2xs text-rose-500 mt-0.5">
+                                Catatan: {uploaded.catatan}
+                              </p>
+                            ) : (
+                              <p className="text-2xs text-slate-400 font-medium">
+                                {isUploaded ? 'Dokumen tersimpan' : 'Belum diunggah'}
+                              </p>
                             )}
-                          </p>
-                          {uploaded?.catatan ? (
-                            <p className="text-2xs text-rose-500 mt-0.5">
-                              Catatan: {uploaded.catatan}
-                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          {isUploaded ? (
+                            uploaded?.is_verified ? (
+                              <span className="badge badge-green text-xs">✓ Terverifikasi</span>
+                            ) : (
+                              <span className="badge badge-yellow text-xs">Dalam Pemeriksaan</span>
+                            )
                           ) : (
-                            <p className="text-2xs text-slate-400 font-medium">
-                              {isUploaded ? 'Dokumen tersimpan' : 'Belum diunggah'}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="badge badge-gray text-xs text-slate-400">Belum Diunggah</span>
+                              <Link
+                                href="/spmb/registrasi"
+                                className="text-2xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 px-2 py-1 rounded-md border border-primary-200"
+                              >
+                                Unggah
+                              </Link>
+                            </div>
                           )}
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2.5 shrink-0">
-                        {isUploaded ? (
-                          uploaded?.is_verified ? (
-                            <span className="badge badge-green text-xs">✓ Terverifikasi</span>
-                          ) : (
-                            <span className="badge badge-yellow text-xs">Dalam Pemeriksaan</span>
-                          )
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="badge badge-gray text-xs text-slate-400">Belum Diunggah</span>
-                            <Link
-                              href="/spmb/registrasi"
-                              className="text-2xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 px-2 py-1 rounded-md border border-primary-200"
-                            >
-                              Unggah
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>

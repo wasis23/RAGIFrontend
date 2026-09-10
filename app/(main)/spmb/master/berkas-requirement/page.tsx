@@ -133,7 +133,6 @@ export default function MasterBerkasRequirementPage() {
         columns={[
           { key: 'label', label: 'Nama Dokumen / Label' },
           { key: 'jalur_masuk', label: 'Jalur Masuk', render: (row) => row.jalur_masuk?.nama },
-          { key: 'jenis_dokumen', label: 'Jenis Dokumen', render: (row) => row.jenis_dokumen },
           { key: 'wajib', label: 'Kewajiban', render: (row) => (
             row.wajib ? <Badge variant="spmb">Wajib</Badge> : <Badge variant="gray">Opsional</Badge>
           )},
