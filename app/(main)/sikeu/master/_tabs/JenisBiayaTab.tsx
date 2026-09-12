@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle, Layers } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle, Layers, ArrowRight, DollarSign, Calculator, Info, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { moduleService, AppModule } from '@/services/module.service';
@@ -32,6 +33,7 @@ interface FormValues {
   kode: string;
   nama: string;
   tipe: string;
+  skema_tarif: 'dinamis' | 'flat';
   nominal_standar: number;
   deskripsi: string;
   is_active: boolean;
@@ -39,21 +41,23 @@ interface FormValues {
 }
 
 const TIPE_OPTIONS = [
-  { value: 'ukt', label: '[P] UKT / SPP Tetap Semester (Pendidikan)' },
-  { value: 'spp', label: '[P] SPP Perkuliahan Reguler' },
-  { value: 'sks', label: '[P] Biaya SKS Tambahan / Remedial' },
-  { value: 'spmb_adm', label: '[D] Biaya Pendaftaran SPMB (Awal Masuk)' },
-  { value: 'daftar_ulang', label: '[D] Biaya Registrasi & Daftar Ulang Mhs Baru' },
-  { value: 'praktikum', label: '[L] Biaya Praktikum / Laboratorium' },
-  { value: 'wisuda', label: '[L] Biaya Kelulusan & Wisuda' },
-  { value: 'kemahasiswaan', label: '[L] Iuran Kegiatan Mahasiswa / BEM' },
-  { value: 'sertifikasi', label: '[L] Uji Kompetensi & Sertifikasi Profesi' },
-  { value: 'cuti', label: '[L] Biaya Administrasi Cuti Kuliah' },
+  { value: 'ukt', label: '[P] UKT / SPP Tetap Semester (Pendidikan - Dinamis)' },
+  { value: 'spp', label: '[P] SPP Perkuliahan Reguler (Dinamis)' },
+  { value: 'sks', label: '[P] Biaya SKS Tambahan / Remedial (Dinamis)' },
+  { value: 'spmb_adm', label: '[D] Biaya Pendaftaran SPMB (Flat Institusi)' },
+  { value: 'daftar_ulang', label: '[D] Biaya Registrasi & Daftar Ulang Mhs Baru (Flat)' },
+  { value: 'praktikum', label: '[L] Biaya Praktikum / Laboratorium (Dinamis per Prodi)' },
+  { value: 'wisuda', label: '[L] Biaya Kelulusan & Wisuda (Flat)' },
+  { value: 'kemahasiswaan', label: '[L] Iuran Kegiatan Mahasiswa / BEM (Flat)' },
+  { value: 'sertifikasi', label: '[L] Uji Kompetensi & Sertifikasi Profesi (Flat)' },
+  { value: 'cuti', label: '[L] Biaya Administrasi Cuti Kuliah (Flat)' },
   { value: 'lainnya', label: '[L] Biaya Insidental / Lain-Lain' },
 ];
 
+const DYNAMIC_FEE_TYPES = ['ukt', 'spp', 'sks', 'praktikum'];
+
 const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
 
 export function JenisBiayaTab() {
   const [data, setData] = useState<JenisBiaya[]>([]);
@@ -76,10 +80,30 @@ export function JenisBiayaTab() {
   const [submitting, setSubmitting] = useState(false);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormValues>({
-    defaultValues: { kode: '', nama: '', tipe: 'ukt', nominal_standar: 0, deskripsi: '', is_active: true, is_recurring: true },
+    defaultValues: {
+      kode: '',
+      nama: '',
+      tipe: 'ukt',
+      skema_tarif: 'dinamis',
+      nominal_standar: 0,
+      deskripsi: '',
+      is_active: true,
+      is_recurring: true
+    },
   });
+
   const tipeValue = watch('tipe');
+  const skemaTarifValue = watch('skema_tarif');
   const isActiveValue = watch('is_active');
+
+  // Auto-switch skema_tarif when tipe changes
+  useEffect(() => {
+    if (DYNAMIC_FEE_TYPES.includes(tipeValue)) {
+      setValue('skema_tarif', 'dinamis');
+    } else if (tipeValue === 'spmb_adm' || tipeValue === 'wisuda' || tipeValue === 'cuti') {
+      setValue('skema_tarif', 'flat');
+    }
+  }, [tipeValue, setValue]);
 
   const fetchData = async () => {
     try {
@@ -111,18 +135,29 @@ export function JenisBiayaTab() {
   const handleOpenAdd = () => {
     setEditingItem(null);
     setSelectedModuleCodes(['sikeu']);
-    reset({ kode: '', nama: '', tipe: 'ukt', nominal_standar: 0, deskripsi: '', is_active: true, is_recurring: true });
+    reset({
+      kode: '',
+      nama: '',
+      tipe: 'ukt',
+      skema_tarif: 'dinamis',
+      nominal_standar: 0,
+      deskripsi: '',
+      is_active: true,
+      is_recurring: true
+    });
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (item: JenisBiaya) => {
     setEditingItem(item);
     setSelectedModuleCodes(item.module_codes && item.module_codes.length > 0 ? item.module_codes : ['sikeu']);
+    const isDynamic = DYNAMIC_FEE_TYPES.includes(item.tipe) || !item.nominal_standar || item.nominal_standar === 0;
     reset({
       kode: item.kode,
       nama: item.nama,
       tipe: item.tipe,
-      nominal_standar: item.nominal_standar,
+      skema_tarif: isDynamic ? 'dinamis' : 'flat',
+      nominal_standar: item.nominal_standar || 0,
       deskripsi: item.deskripsi || '',
       is_active: item.is_active !== false,
       is_recurring: item.is_recurring !== false,
@@ -156,7 +191,13 @@ export function JenisBiayaTab() {
     setSubmitting(true);
     try {
       const payload = {
-        ...formData,
+        kode: formData.kode,
+        nama: formData.nama,
+        tipe: formData.tipe,
+        nominal_standar: formData.skema_tarif === 'dinamis' ? 0 : Number(formData.nominal_standar || 0),
+        deskripsi: formData.deskripsi,
+        is_active: Boolean(formData.is_active),
+        is_recurring: Boolean(formData.is_recurring),
         module_codes: selectedModuleCodes,
       };
 
@@ -250,12 +291,35 @@ export function JenisBiayaTab() {
     },
     {
       key: 'nominal_standar',
-      label: 'NOMINAL STANDAR',
-      render: (row) => (
-        <span className="font-bold text-slate-900 tabular-nums text-sm">
-          {formatRupiah(row.nominal_standar || 0)}
-        </span>
-      ),
+      label: 'SKEMA & NOMINAL TARIF',
+      render: (row) => {
+        const isDynamic = DYNAMIC_FEE_TYPES.includes(row.tipe) || !row.nominal_standar || row.nominal_standar === 0;
+
+        if (isDynamic) {
+          return (
+            <div className="space-y-1">
+              <Link
+                href="/sikeu/mahasiswa/tarif"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-800 border border-primary-200/80 text-xs font-bold transition-colors group"
+              >
+                <Calculator size={13} className="text-primary-600" />
+                <span>Matriks Angkatan & Prodi</span>
+                <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+              <span className="text-[10px] text-slate-400 block font-normal">Tarif fleksibel per angkatan & prodi</span>
+            </div>
+          );
+        }
+
+        return (
+          <div>
+            <span className="font-bold text-slate-900 tabular-nums text-sm">
+              {formatRupiah(row.nominal_standar || 0)}
+            </span>
+            <span className="text-[10px] text-emerald-600 block font-semibold">Flat Institusi</span>
+          </div>
+        );
+      },
     },
     {
       key: 'is_active',
@@ -293,10 +357,17 @@ export function JenisBiayaTab() {
   return (
     <>
       <PageHeader
-        title="Komponen Biaya & Delegasi Modul"
-        description="Kelola komponen biaya dan delegasi penggunaannya ke beberapa modul aplikasi terintegrasi."
+        title="Katalog Komponen Biaya & Delegasi Modul"
+        description="Master kamus jenis biaya kampus. Biaya bertipe Dinamis disetel nominalnya per Angkatan, Prodi, & Semester di menu Pengaturan Tarif Mahasiswa."
         action={
           <div className="flex items-center gap-2.5 flex-wrap">
+            <Link
+              href="/sikeu/mahasiswa/tarif"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200/80 hover:bg-primary-100 transition-all shadow-2xs"
+            >
+              <Calculator size={14} />
+              Ke Matriks Tarif Mahasiswa <ArrowRight size={13} />
+            </Link>
             <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[40px]">
               Filter
             </Button>
@@ -307,6 +378,21 @@ export function JenisBiayaTab() {
         }
       />
 
+      {/* Info Box Mengenai Standarisasi Dua Nominal */}
+      <div className="p-4 bg-linear-to-r from-blue-50/80 via-primary-50/40 to-white border border-primary-200/70 rounded-2xl flex items-start gap-3 my-4">
+        <div className="p-2 bg-primary-600 text-white rounded-xl shrink-0 mt-0.5 shadow-2xs">
+          <Info size={16} />
+        </div>
+        <div className="text-xs text-slate-700 space-y-1">
+          <p className="font-bold text-slate-900">
+            Pemisahan Antara Kamus Komponen Biaya dan Matriks Tarif Riil:
+          </p>
+          <p className="text-slate-600 leading-relaxed">
+            Kamus ini berfungsi mendefinisikan <strong>identitas pungutan dan delegasi modul</strong> lintas sistem (SIAKAD, SPMB, SIKEU). Untuk biaya pendidikan yang nominalnya berbeda per Program Studi & Angkatan (UKT/SPP/Praktikum), besaran riilnya disetting pada menu <strong>Pengaturan Tarif Mahasiswa</strong>.
+          </p>
+        </div>
+      </div>
+
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data komponen biaya." />
 
       {/* Modal Create / Edit */}
@@ -314,11 +400,11 @@ export function JenisBiayaTab() {
         title={editingItem ? 'Edit Komponen Biaya & Delegasi' : 'Tambah Komponen Biaya Baru'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Kode Biaya *" placeholder="Contoh: sikeu.ukt3"
+            <Input label="Kode Biaya *" placeholder="Contoh: UKT_REG"
               {...register('kode', { required: 'Kode wajib diisi' })}
               error={errors.kode?.message}
-              hint="Kode komponen biaya (unik)" />
-            <Input label="Nama Komponen Biaya *" placeholder="Contoh: UKT Golongan 3 (Reguler)"
+              hint="Kode unik komponen biaya (misal: UKT_REG, SPMB_ADM, WISUDA_FEE)" />
+            <Input label="Nama Komponen Biaya *" placeholder="Contoh: Uang Kuliah Tunggal (UKT) Reguler"
               {...register('nama', { required: 'Nama wajib diisi' })}
               error={errors.nama?.message} />
           </div>
@@ -354,15 +440,37 @@ export function JenisBiayaTab() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select label="Tipe Biaya *"
+            <Select label="Tipe / Kategori Biaya *"
               options={TIPE_OPTIONS}
               value={tipeValue}
               onChange={(val) => setValue('tipe', val as string)} />
-            <Input type="number" label="Nominal Standar (Rp) *" placeholder="3500000"
-              {...register('nominal_standar', { required: 'Nominal wajib diisi', valueAsNumber: true, min: { value: 0, message: 'Nominal tidak boleh negatif' } })}
-              error={errors.nominal_standar?.message}
-              hint="Nominal default sebelum penyesuaian per-mahasiswa" />
+
+            <Select label="Skema Penetapan Tarif *"
+              options={[
+                { value: 'dinamis', label: 'Tarif Matriks Dinamis (per Angkatan & Prodi)' },
+                { value: 'flat', label: 'Tarif Flat Institusi (Nominal Tetap Sama)' },
+              ]}
+              value={skemaTarifValue}
+              onChange={(val) => setValue('skema_tarif', val as 'dinamis' | 'flat')} />
           </div>
+
+          {/* Skema Penjelasan */}
+          {skemaTarifValue === 'dinamis' ? (
+            <div className="p-3.5 bg-primary-50 border border-primary-200 rounded-xl text-xs text-primary-900 space-y-1">
+              <div className="flex items-center gap-2 font-bold text-primary-800">
+                <Calculator size={15} />
+                <span>Skema Tarif Dinamis Aktif</span>
+              </div>
+              <p className="text-2xs text-primary-800 leading-relaxed">
+                Nominal tagihan riil komponen ini akan diatur secara fleksibel per kombinasi <strong>Tahun Angkatan</strong>, <strong>Program Studi</strong>, <strong>Semester</strong>, dan <strong>Jalur Kelas</strong> di menu <Link href="/sikeu/mahasiswa/tarif" className="underline font-bold">Pengaturan Tarif Mahasiswa</Link>. Field nominal di bawah diset 0.
+              </p>
+            </div>
+          ) : (
+            <Input type="number" label="Nominal Standar Flat (Rp) *" placeholder="350000"
+              {...register('nominal_standar', { valueAsNumber: true, min: { value: 0, message: 'Nominal tidak boleh negatif' } })}
+              error={errors.nominal_standar?.message}
+              hint="Nominal seragam yang berlaku untuk seluruh mahasiswa/pendaftar" />
+          )}
 
           <Input label="Deskripsi / Catatan" placeholder="Penjelasan singkat mengenai komponen biaya ini..."
             {...register('deskripsi')} />

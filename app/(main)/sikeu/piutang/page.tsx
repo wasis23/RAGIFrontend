@@ -42,6 +42,7 @@ export default function PiutangMahasiswaPage() {
   const [data, setData] = useState<PiutangItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [prodiList, setProdiList] = useState<{ value: string; label: string }[]>([]);
 
   // Summary Metrics
   const [summary, setSummary] = useState({
@@ -66,15 +67,38 @@ export default function PiutangMahasiswaPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterAngkatan, setFilterAngkatan] = useState('all');
+  const [filterProdi, setFilterProdi] = useState('all');
+  const [filterCutoffDate, setFilterCutoffDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('piutang');
   const [filterTahunAkademik, setFilterTahunAkademik] = useState('all');
 
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     angkatan: 'all',
+    prodi: 'all',
+    cutoff_date: '',
     status: 'piutang',
     tahun_akademik_id: 'all',
   });
+
+  useEffect(() => {
+    const loadProdi = async () => {
+      try {
+        const res = await sikeuService.getProgramStudiList();
+        if (Array.isArray(res.data)) {
+          setProdiList(
+            res.data.map((p: any) => ({
+              value: String(p.id),
+              label: p.jenjang ? `${p.jenjang} - ${p.nama || p.nama_prodi}` : (p.nama || p.nama_prodi),
+            }))
+          );
+        }
+      } catch {
+        // Fallback
+      }
+    };
+    loadProdi();
+  }, []);
 
   const fetchPiutang = useCallback(async (page = 1) => {
     setLoading(true);
@@ -84,6 +108,8 @@ export default function PiutangMahasiswaPage() {
         per_page: pagination.per_page,
         search: appliedFilters.search,
         angkatan: appliedFilters.angkatan === 'all' ? undefined : appliedFilters.angkatan,
+        program_studi_id: appliedFilters.prodi === 'all' ? undefined : appliedFilters.prodi,
+        cutoff_date: appliedFilters.cutoff_date || undefined,
         status: appliedFilters.status === 'all' ? undefined : appliedFilters.status,
         tahun_akademik_id: appliedFilters.tahun_akademik_id === 'all' ? undefined : appliedFilters.tahun_akademik_id,
       });
@@ -117,6 +143,8 @@ export default function PiutangMahasiswaPage() {
     setAppliedFilters({
       search: filterSearch,
       angkatan: filterAngkatan,
+      prodi: filterProdi,
+      cutoff_date: filterCutoffDate,
       status: filterStatus,
       tahun_akademik_id: filterTahunAkademik,
     });
@@ -126,11 +154,15 @@ export default function PiutangMahasiswaPage() {
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterAngkatan('all');
+    setFilterProdi('all');
+    setFilterCutoffDate('');
     setFilterStatus('piutang');
     setFilterTahunAkademik('all');
     setAppliedFilters({
       search: '',
       angkatan: 'all',
+      prodi: 'all',
+      cutoff_date: '',
       status: 'piutang',
       tahun_akademik_id: 'all',
     });
@@ -143,6 +175,8 @@ export default function PiutangMahasiswaPage() {
       await sikeuService.downloadPiutangExcel({
         search: appliedFilters.search,
         angkatan: appliedFilters.angkatan === 'all' ? undefined : appliedFilters.angkatan,
+        program_studi_id: appliedFilters.prodi === 'all' ? undefined : appliedFilters.prodi,
+        cutoff_date: appliedFilters.cutoff_date || undefined,
         status: appliedFilters.status === 'all' ? undefined : appliedFilters.status,
         tahun_akademik_id: appliedFilters.tahun_akademik_id === 'all' ? undefined : appliedFilters.tahun_akademik_id,
       });
@@ -354,6 +388,29 @@ export default function PiutangMahasiswaPage() {
         </div>
       </div>
 
+      {/* Cutoff Date Active Banner */}
+      {appliedFilters.cutoff_date && (
+        <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-2xl flex items-center justify-between text-xs text-amber-900 font-medium shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-amber-200/80 text-amber-800 flex items-center justify-center shrink-0">
+              <Clock size={16} />
+            </div>
+            <span>
+              Menampilkan Posisi Piutang per Tanggal Cutoff: <strong>{appliedFilters.cutoff_date}</strong>. Transaksi pembayaran setelah tanggal ini diabaikan dalam kalkulasi saldo sisa.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setFilterCutoffDate('');
+              setAppliedFilters((prev) => ({ ...prev, cutoff_date: '' }));
+            }}
+            className="text-xs text-amber-900 font-bold underline hover:text-amber-950 shrink-0 ml-4"
+          >
+            Hapus Cutoff
+          </button>
+        </div>
+      )}
+
       {/* Main Table Card */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs p-5 space-y-4">
         {/* Search & Filter Header Bar */}
@@ -415,6 +472,16 @@ export default function PiutangMahasiswaPage() {
                 Pencarian: &quot;{appliedFilters.search}&quot;
               </span>
             )}
+            {appliedFilters.prodi !== 'all' && (
+              <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
+                Prodi: {prodiList.find((p) => p.value === appliedFilters.prodi)?.label || appliedFilters.prodi}
+              </span>
+            )}
+            {appliedFilters.cutoff_date && (
+              <span className="px-2 py-1 bg-amber-100 border border-amber-300 rounded-md font-bold text-amber-900">
+                Cutoff: {appliedFilters.cutoff_date}
+              </span>
+            )}
             {appliedFilters.angkatan !== 'all' && (
               <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
                 Angkatan: {appliedFilters.angkatan}
@@ -453,6 +520,37 @@ export default function PiutangMahasiswaPage() {
               value={filterSearch}
               onChange={(e) => setFilterSearch(e.target.value)}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Program Studi</label>
+            <Select
+              value={filterProdi}
+              onChange={(val: any) => setFilterProdi(typeof val === 'object' && val?.target ? val.target.value : (val || 'all'))}
+              options={[
+                { value: 'all', label: 'Semua Program Studi' },
+                ...prodiList,
+              ]}
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">Cutoff Tanggal (Posisi Piutang)</label>
+              <button
+                type="button"
+                onClick={() => setFilterCutoffDate(new Date().toISOString().split('T')[0])}
+                className="text-2xs text-primary-600 font-bold hover:underline"
+              >
+                Set Hari Ini
+              </button>
+            </div>
+            <Input
+              type="date"
+              value={filterCutoffDate}
+              onChange={(e) => setFilterCutoffDate(e.target.value)}
+            />
+            <p className="text-2xs text-slate-400 mt-1">Hitung saldo piutang dan tagihan hanya sampai tanggal batas ini.</p>
           </div>
 
           <div>

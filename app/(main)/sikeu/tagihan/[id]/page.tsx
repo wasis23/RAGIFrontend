@@ -107,7 +107,7 @@ export default function TagihanDetailPage() {
             Cetak Invoice (PDF)
           </Button>
           {!isLunas && (
-            <Link href={`/sikeu/pembayaran`}>
+            <Link href="/sikeu/tagihan/create">
               <Button size="sm" icon={<CreditCard size={15} />}>
                 Bayar di Kasir / Loket
               </Button>

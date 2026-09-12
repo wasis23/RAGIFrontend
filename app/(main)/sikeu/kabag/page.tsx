@@ -27,18 +27,18 @@ import { sikeuService } from '@/services/sikeu.service';
 
 export default function SikeuKabagPage() {
   const [activeTab, setActiveTab] = useState<'approval' | 'kas-utama' | 'akuntansi'>('approval');
+  const [loading, setLoading] = useState(true);
+
+  // Real Metric & Unit Kas States
+  const [saldoKasUtama, setSaldoKasUtama] = useState(0);
+  const [unitKasList, setUnitKasList] = useState<any[]>([]);
+  const [recentJurnals, setRecentJurnals] = useState<any[]>([]);
 
   // Approval Pending Lists
-  const [pendingDispensasi, setPendingDispensasi] = useState<any[]>([
-    { id: 201, mhs: 'Budi Santoso (2024010042)', prodi: 'Teknik Informatika 2024', tipe: 'Cicilan UKT 50%', nominal: 3500000, deadline: '2026-09-15', alasan: 'Kendala musibah keluarga, mohon perpanjangan cicilan 2x.' },
-    { id: 202, mhs: 'Siti Rahmawati (2025010018)', prodi: 'Sistem Informasi 2025', tipe: 'Penundaan Pembayaran', nominal: 4000000, deadline: '2026-09-30', alasan: 'Menunggu pencairan beasiswa Pemda.' },
-  ]);
-
+  const [pendingDispensasi, setPendingDispensasi] = useState<any[]>([]);
   const [pendingMutasi, setPendingMutasi] = useState<any[]>([
     { id: 301, kode: 'MUT-KAS-202608-01', dari: 'Kas Utama Kabag Keuangan', ke: 'Kas Operasional SPMB', nominal: 15000000, alasan: 'Pengisian kas operasional pendaftaran SPMB' },
-    { id: 302, kode: 'MUT-KAS-202608-02', dari: 'Kas Bank BNI Kampus', ke: 'Kas Bank Mandiri Payroll', nominal: 45000000, alasan: 'Transfer likuiditas gaji dosen & pegawai' },
   ]);
-
   const [pendingOperasional, setPendingOperasional] = useState<any[]>([
     { id: 401, no: 'EXP-OPR-202608-01', unit: 'Laboratorium Komputer TI', nama: 'Pembelian Router CISCO Lab TI', nominal: 18500000, pemohon: 'Ka. Lab Komputer' },
   ]);
@@ -56,6 +56,50 @@ export default function SikeuKabagPage() {
     nominal: '5000000',
     peruntukan: 'Pengisian kas tunai operasional kasir kampus',
   });
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [dashRes, appRes, kasRes] = await Promise.all([
+        sikeuService.getDashboardSummary().catch(() => ({ data: null })),
+        sikeuService.getPendingApprovals().catch(() => ({ data: null })),
+        sikeuService.getUnitKasList().catch(() => ({ data: null })),
+      ]);
+
+      if (dashRes.data?.metrics) {
+        setSaldoKasUtama(dashRes.data.metrics.saldo_kas_utama || 0);
+      }
+      if (Array.isArray(dashRes.data?.recent_jurnals)) {
+        setRecentJurnals(dashRes.data.recent_jurnals);
+      }
+      if (Array.isArray(kasRes.data)) {
+        setUnitKasList(kasRes.data);
+      } else if (Array.isArray((kasRes.data as any)?.data)) {
+        setUnitKasList((kasRes.data as any).data);
+      }
+
+      if (appRes.data?.dispensasi_pending) {
+        const mapped = appRes.data.dispensasi_pending.map((d: any) => ({
+          id: d.id,
+          mhs: d.nama_mahasiswa || `Mahasiswa #${d.mahasiswa_id}`,
+          prodi: 'Teknik Informatika',
+          tipe: d.tipe_dispensasi?.replace('_', ' ') || 'Dispensasi',
+          nominal: Number(d.nominal_per_cicilan) || 1500000,
+          deadline: d.jatuh_tempo_baru || '-',
+          alasan: d.alasan || 'Permohonan dispensasi pembayaran tagihan',
+        }));
+        setPendingDispensasi(mapped);
+      }
+    } catch (e) {
+      console.error('Failed to load kabag data', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const handleApprove = () => {
     if (!modalAction) return;
@@ -141,7 +185,7 @@ export default function SikeuKabagPage() {
         <div className="card p-5 flex justify-between items-center">
           <div>
             <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider">Saldo Kas Utama Kabag</span>
-            <div className="text-2xl font-mono font-extrabold text-slate-900 mt-1">Rp 383.000.000</div>
+            <div className="text-2xl font-mono font-extrabold text-slate-900 mt-1">{formatRupiah(saldoKasUtama)}</div>
             <p className="text-[11px] text-emerald-700 font-bold mt-0.5">Surplus Tersedia untuk Mutasi</p>
           </div>
           <div className="p-3 bg-slate-50 text-slate-700 rounded-2xl">
@@ -298,23 +342,25 @@ export default function SikeuKabagPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="font-bold text-primary-900">Kas Utama Kabag Keuangan</div>
-                <div className="text-xl font-mono font-extrabold text-primary-950">Rp 383.000.000</div>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">KAS UTAMA INSTANSI</span>
-              </div>
-
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="font-bold text-slate-900">Kas Bank BNI Kampus</div>
-                <div className="text-xl font-mono font-extrabold text-slate-900">Rp 125.000.000</div>
-                <span className="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded">BANK PENAMPUNG VA</span>
-              </div>
-
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="font-bold text-slate-900">Kas Operasional SPMB</div>
-                <div className="text-xl font-mono font-extrabold text-slate-900">Rp 15.000.000</div>
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded">KAS TUNAI LOKET</span>
-              </div>
+              {unitKasList.length > 0 ? (
+                unitKasList.map((u: any) => (
+                  <div key={u.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <div className="font-bold text-slate-900">{u.nama_kas}</div>
+                    <div className="text-xl font-mono font-extrabold text-slate-900">
+                      {formatRupiah(u.saldo_saat_ini || 0)}
+                    </div>
+                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
+                      u.is_kabag_kas ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {u.is_kabag_kas ? 'KAS UTAMA INSTANSI' : u.tipe_kas || 'KAS OPERASIONAL'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-3 text-center py-6 text-slate-400">
+                  Tidak ada data unit kas aktif.
+                </div>
+              )}
             </div>
           </div>
         )}

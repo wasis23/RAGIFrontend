@@ -42,6 +42,7 @@ export function TarifTab() {
   const [data, setData] = useState<Tarif[]>([]);
   const [loading, setLoading] = useState(false);
   const [jenisBiayaList, setJenisBiayaList] = useState<any[]>([]);
+  const [programStudiList, setProgramStudiList] = useState<any[]>([]);
 
   // Filter Drawer States — 2-stage
   const [showFilter, setShowFilter] = useState(false);
@@ -91,9 +92,21 @@ export function TarifTab() {
     }
   };
 
+  const fetchProgramStudi = async () => {
+    try {
+      const res = await sikeuService.getProgramStudiList();
+      if (res.data && Array.isArray(res.data)) {
+        setProgramStudiList(res.data);
+      }
+    } catch {
+      setProgramStudiList([]);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchJenisBiaya();
+    fetchProgramStudi();
   }, []);
 
   const handleOpenAdd = () => {
@@ -103,8 +116,8 @@ export function TarifTab() {
       tahun_angkatan: 2025,
       jalur_kelas: 'Reguler',
       kelompok_ukt: 1,
-      prodi: 'Teknik Informatika',
-      nama_kelompok: 'SPP Semester Teknik Informatika',
+      prodi: programStudiList[0]?.nama || 'Teknik Informatika',
+      nama_kelompok: `SPP Semester ${programStudiList[0]?.nama || 'Teknik Informatika'}`,
       nominal: 3500000,
     });
     setIsModalOpen(true);
@@ -280,9 +293,26 @@ export function TarifTab() {
               value={selectedJalurVal}
               onChange={(val) => setValue('jalur_kelas', val as string)} />
 
-            <Input label="Program Studi *" placeholder="Contoh: Teknik Informatika"
-              {...register('prodi', { required: 'Program studi wajib diisi' })}
-              error={errors.prodi?.message} />
+            {programStudiList.length > 0 ? (
+              <Select
+                label="Program Studi *"
+                options={programStudiList.map(p => ({
+                  value: p.nama,
+                  label: `${p.jenjang ? p.jenjang + ' ' : ''}${p.nama}`
+                }))}
+                value={watch('prodi')}
+                onChange={(val) => {
+                  setValue('prodi', val as string);
+                  if (!watch('nama_kelompok') || watch('nama_kelompok').startsWith('SPP Semester')) {
+                    setValue('nama_kelompok', `SPP Semester ${val}`);
+                  }
+                }}
+              />
+            ) : (
+              <Input label="Program Studi *" placeholder="Contoh: Teknik Informatika"
+                {...register('prodi', { required: 'Program studi wajib diisi' })}
+                error={errors.prodi?.message} />
+            )}
           </div>
 
           <Input label="Nama Kelompok / Keterangan Tarif *" placeholder="Contoh: SPP Semester Teknik Informatika"

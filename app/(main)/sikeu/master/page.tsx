@@ -3,258 +3,249 @@
 import { useState } from 'react';
 import {
   Layers,
-  DollarSign,
-  Bookmark,
-  Users,
-  ShieldCheck,
   Building2,
-  SlidersHorizontal,
-  GraduationCap,
+  Users,
   Sparkles,
+  ArrowRight,
   Info,
-  ChevronRight,
+  CreditCard,
+  Banknote,
+  DollarSign,
   ArrowUpRight,
+  ShieldCheck,
+  SlidersHorizontal
 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { JenisBiayaTab } from './_tabs/JenisBiayaTab';
-import { SettingTarifTab } from './_tabs/SettingTarifTab';
-import { JalurKelasTab } from './_tabs/JalurKelasTab';
-import { TarifTab } from './_tabs/TarifTab';
-import { BeasiswaTab } from './_tabs/BeasiswaTab';
-import { MappingBeasiswaTab } from './_tabs/MappingBeasiswaTab';
-import { StudentTypesTab } from './_tabs/StudentTypesTab';
 import { UnitKasTab } from './_tabs/UnitKasTab';
 
-// Kelompok Kategori Utama agar alur logis & tidak membingungkan
-type CategoryId = 'tarif' | 'mahasiswa' | 'kas';
+type GlobalMasterTab = 'jenis_biaya' | 'unit_kas';
 
-interface MasterSubTab {
-  id: string;
-  label: string;
-  badge?: string;
-  description: string;
-  icon: React.ElementType;
-}
-
-const CATEGORIES: {
-  id: CategoryId;
-  label: string;
-  shortDesc: string;
-  subTabs: MasterSubTab[];
-}[] = [
-  {
-    id: 'tarif',
-    label: '1. Tarif & Komponen Biaya',
-    shortDesc: 'Atur jenis biaya kuliah, skema tarif semesteran, & jalur masuk.',
-    subTabs: [
-      {
-        id: 'jenis_biaya',
-        label: '1. Daftar Komponen Biaya',
-        badge: 'Master Biaya',
-        description: 'Katalog jenis biaya (SPP, SKS, Praktikum, Wisuda, Formulir SPMB, Biaya Lainnya) & delegasi modul.',
-        icon: Layers,
-      },
-      {
-        id: 'setting_tarif',
-        label: '2. Matriks Tarif Angkatan & Semester',
-        badge: 'Acuan Tagihan',
-        description: 'Penetapan nominal SPP/UKT riil per Angkatan, Prodi, dan Semester untuk tagihan masal.',
-        icon: DollarSign,
-      },
-      {
-        id: 'tarif_ukt',
-        label: '3. Tarif UKT Kelompok (I - VIII)',
-        description: 'Pengelompokan besaran UKT berbasis subsidi / golongan ekonomi mahasiswa.',
-        icon: SlidersHorizontal,
-      },
-      {
-        id: 'jalur_kelas',
-        label: '4. Jalur & Kelas Kuliah',
-        description: 'Daftar jalur masuk perkuliahan (Reguler, Karyawan/Eksekutif, Internasional, Online).',
-        icon: Bookmark,
-      },
-    ],
-  },
-  {
-    id: 'mahasiswa',
-    label: '2. Mahasiswa & Keringanan',
-    shortDesc: 'Penetapan tipe tagihan mahasiswa dan pengelolaan potongan beasiswa.',
-    subTabs: [
-      {
-        id: 'student_types',
-        label: 'Penetapan Tipe Tagihan Mahasiswa',
-        badge: 'Mapping Mhs',
-        description: 'Data mahasiswa aktif beserta kelompok UKT & jalur kelasnya untuk penagihan.',
-        icon: Users,
-      },
-      {
-        id: 'beasiswa',
-        label: 'Program Beasiswa & Potongan',
-        description: 'Master program beasiswa (KIP, Yayasan, Prestasi) & tipe pemotongan tagihan.',
-        icon: ShieldCheck,
-      },
-      {
-        id: 'mapping_beasiswa',
-        label: 'Penerima Beasiswa',
-        description: 'Daftar mahasiswa penerima subsidi beasiswa yang memotong invoice secara otomatis.',
-        icon: GraduationCap,
-      },
-    ],
-  },
-  {
-    id: 'kas',
-    label: '3. Kas & Rekening',
-    shortDesc: 'Pengelolaan akun kas operasional kampus dan rekening penerimaan.',
-    subTabs: [
-      {
-        id: 'unit_kas',
-        label: 'Unit Kas & Rekening Bank',
-        description: 'Kas utama rektorat, petty cash unit fakultas, & rekening penerimaan bank.',
-        icon: Building2,
-      },
-    ],
-  },
-];
-
-export default function MasterBiayaPage() {
-  const [activeCategory, setActiveCategory] = useState<CategoryId>('tarif');
-  const [activeTab, setActiveTab] = useState<string>('jenis_biaya');
-
-  const currentCategoryData = CATEGORIES.find((c) => c.id === activeCategory);
-
-  const handleSelectCategory = (catId: CategoryId) => {
-    setActiveCategory(catId);
-    const firstSubTab = CATEGORIES.find((c) => c.id === catId)?.subTabs[0];
-    if (firstSubTab) {
-      setActiveTab(firstSubTab.id);
-    }
-  };
+export default function MasterKeuanganGlobalPage() {
+  const [activeTab, setActiveTab] = useState<GlobalMasterTab>('jenis_biaya');
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-16">
       {/* Page Header */}
       <PageHeader
-        title="Master & Konfigurasi Keuangan"
-        description="Kelola tarif perkuliahan, tipe tagihan mahasiswa, program beasiswa, dan unit kas operasional dalam alur yang terpadu."
+        title="Master & Katalog Keuangan Global"
+        description="Kelola kamus komponen biaya institusi, delegasi modul aplikasi, dan unit kas / rekening bank kampus."
         action={
-          <Link
-            href="/sikeu/panduan"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200/80 hover:bg-primary-100 transition-all shadow-xs"
-          >
-            <Sparkles size={14} className="text-primary-600" />
-            Panduan Alur Sistem Keuangan <ArrowUpRight size={14} />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/sikeu/mahasiswa/tarif"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 transition-all shadow-xs"
+            >
+              <DollarSign size={14} />
+              Pengaturan Tarif Mahasiswa <ArrowRight size={13} />
+            </Link>
+            <Link
+              href="/sikeu/panduan"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200/80 hover:bg-primary-100 transition-all shadow-2xs"
+            >
+              <Sparkles size={14} className="text-primary-600" />
+              Panduan SIKEU <ArrowUpRight size={13} />
+            </Link>
+          </div>
         }
       />
 
-      {/* Step Indicator / 3 Main Category Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {CATEGORIES.map((cat, idx) => {
-          const isSelected = activeCategory === cat.id;
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => handleSelectCategory(cat.id)}
-              className={`p-4 rounded-2xl border text-left transition-all duration-200 relative overflow-hidden group ${
-                isSelected
-                  ? 'bg-gradient-to-br from-primary-50 via-white to-blue-50/40 border-primary-300 shadow-md ring-2 ring-primary-500/20'
-                  : 'bg-white border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/60 shadow-xs'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span
-                  className={`text-2xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                    isSelected
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
-                  }`}
-                >
-                  Langkah {idx + 1}
-                </span>
-                <span className="text-2xs text-slate-400 font-semibold">
-                  {cat.subTabs.length} Menu
-                </span>
-              </div>
-              <h3
-                className={`font-bold text-sm tracking-tight mb-1 ${
-                  isSelected ? 'text-primary-900' : 'text-slate-800'
-                }`}
-              >
-                {cat.label}
-              </h3>
-              <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                {cat.shortDesc}
-              </p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Sub-Tabs Pills Selector with Descriptions */}
-      <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-2.5">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          {currentCategoryData?.subTabs.map((subTab) => {
-            const Icon = subTab.icon;
-            const isTabActive = activeTab === subTab.id;
-
-            return (
-              <button
-                key={subTab.id}
-                type="button"
-                onClick={() => setActiveTab(subTab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all duration-150 ${
-                  isTabActive
-                    ? 'bg-white text-primary-700 shadow-sm border border-slate-200/80 ring-1 ring-primary-200'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                }`}
-              >
-                <Icon
-                  size={15}
-                  className={isTabActive ? 'text-primary-600' : 'text-slate-400'}
-                />
-                <span>{subTab.label}</span>
-                {subTab.badge && (
-                  <span
-                    className={`text-2xs px-1.5 py-0.2 rounded font-semibold ${
-                      isTabActive
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'bg-slate-200 text-slate-600'
-                    }`}
-                  >
-                    {subTab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+      {/* Visual Navigation Hub for All SIKEU Master & Billing Features */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <DollarSign size={16} className="text-primary-600" />
+            Pusat Pengaturan Tarif, Beasiswa, & Biaya Pendidikan
+          </h2>
+          <Link
+            href="/sikeu/mahasiswa/tarif"
+            className="text-xs font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1"
+          >
+            Buka Pengaturan Lengkap <ArrowRight size={13} />
+          </Link>
         </div>
 
-        {/* Current Active SubTab Description Helper Banner */}
-        {(() => {
-          const currentTabMeta = currentCategoryData?.subTabs.find(
-            (t) => t.id === activeTab
-          );
-          if (!currentTabMeta) return null;
-          return (
-            <div className="mt-2.5 px-3 py-2 bg-white/70 rounded-xl border border-slate-200/60 flex items-center gap-2 text-xs text-slate-600">
-              <Info size={14} className="text-primary-600 flex-shrink-0" />
-              <span>{currentTabMeta.description}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {/* Card 1: Matriks Tarif */}
+          <Link
+            href="/sikeu/mahasiswa/tarif"
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-primary-300 hover:shadow-md transition-all space-y-2 block group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="p-2 bg-primary-50 text-primary-600 rounded-xl group-hover:scale-105 transition-transform">
+                <DollarSign size={18} />
+              </span>
+              <span className="text-2xs font-extrabold px-2 py-0.5 rounded-md bg-primary-100 text-primary-700">
+                Wajib Disetel
+              </span>
             </div>
-          );
-        })()}
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
+                1. Matriks Tarif Angkatan & Semester
+              </h3>
+              <p className="text-2xs text-slate-500 mt-0.5">Penetapan nominal biaya riil per Angkatan (2024, 2025, dst), Prodi, & Semester 1-8.</p>
+            </div>
+          </Link>
+
+          {/* Card 2: Beasiswa & Diskon */}
+          <Link
+            href="/sikeu/mahasiswa/tarif"
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 hover:shadow-md transition-all space-y-2 block group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-105 transition-transform">
+                <ShieldCheck size={18} />
+              </span>
+              <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
+                Auto-Potongan
+              </span>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                2. Beasiswa & Penetapan Penerima
+              </h3>
+              <p className="text-2xs text-slate-500 mt-0.5">Program KIP-K, Yayasan, Tahfidz & penetapan mahasiswa penerima diskon otomatis.</p>
+            </div>
+          </Link>
+
+          {/* Card 3: Golongan UKT */}
+          <Link
+            href="/sikeu/mahasiswa/tarif"
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-indigo-300 hover:shadow-md transition-all space-y-2 block group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl group-hover:scale-105 transition-transform">
+                <SlidersHorizontal size={18} />
+              </span>
+              <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700">
+                Subsidi Silang
+              </span>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                3. Tarif Golongan UKT (I - VIII)
+              </h3>
+              <p className="text-2xs text-slate-500 mt-0.5">Skema pengelompokan nominal UKT berdasarkan kemampuan finansial mahasiswa.</p>
+            </div>
+          </Link>
+        </div>
       </div>
 
-      {/* Tab Content Body Container */}
-      <div className="bg-white p-5 md:p-7 rounded-2xl border border-slate-200 shadow-xs">
-        {activeTab === 'setting_tarif' && <SettingTarifTab />}
+      {/* Global Master Direct Tabs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="p-4 rounded-2xl bg-linear-to-br from-primary-50 to-white border border-primary-200/80 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="p-2 bg-primary-100 text-primary-700 rounded-xl">
+              <Layers size={18} />
+            </span>
+            <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-primary-600 text-white uppercase tracking-wider">
+              Katalog Master
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900">Kamus Komponen Biaya</h3>
+            <p className="text-2xs text-slate-500 mt-0.5">Daftar jenis pungutan & delegasi modul lintas sistem.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('jenis_biaya')}
+            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
+              activeTab === 'jenis_biaya' ? 'bg-primary-600 text-white' : 'bg-white text-primary-700 border border-primary-200 hover:bg-primary-50'
+            }`}
+          >
+            <span>Buka Katalog Biaya</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-linear-to-br from-indigo-50 to-white border border-indigo-200/80 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
+              <Building2 size={18} />
+            </span>
+            <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-indigo-600 text-white uppercase tracking-wider">
+              Kas & Bank
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900">Unit Kas & Rekening</h3>
+            <p className="text-2xs text-slate-500 mt-0.5">Kas rektorat, petty cash unit fakultas, & bank.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('unit_kas')}
+            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
+              activeTab === 'unit_kas' ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50'
+            }`}
+          >
+            <span>Buka Unit Kas</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        <Link
+          href="/sikeu/master/gaji-pegawai"
+          className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all space-y-2 block group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-105 transition-transform">
+              <Banknote size={18} />
+            </span>
+            <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+              SIMPEG Hub
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
+              Tarif Gaji Pegawai
+            </h3>
+            <p className="text-2xs text-slate-500 mt-0.5">Setting gaji pokok, tunjangan & transport dosen/tendik.</p>
+          </div>
+          <div className="text-2xs font-bold text-primary-600 flex items-center gap-1 pt-1">
+            <span>Atur Gaji Pegawai</span>
+            <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </Link>
+
+        <Link
+          href="/sikeu/payment-gateway"
+          className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all space-y-2 block group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="p-2 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-105 transition-transform">
+              <CreditCard size={18} />
+            </span>
+            <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+              Integrasi Bank
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
+              Payment Gateway
+            </h3>
+            <p className="text-2xs text-slate-500 mt-0.5">Konfigurasi Virtual Account & Webhook Gateway.</p>
+          </div>
+          <div className="text-2xs font-bold text-primary-600 flex items-center gap-1 pt-1">
+            <span>Atur Payment Gateway</span>
+            <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </Link>
+      </div>
+
+      {/* Helper Banner */}
+      <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
+        <div className="flex items-center gap-2">
+          <Info size={16} className="text-primary-600 shrink-0" />
+          <span>
+            Sedang mengelola: <strong>{activeTab === 'jenis_biaya' ? 'Katalog Komponen Biaya Kampus' : 'Unit Kas & Rekening Bank'}</strong>.
+          </span>
+        </div>
+      </div>
+
+      {/* Main Tab Content */}
+      <div className="bg-white p-5 md:p-7 rounded-2xl border border-slate-200 shadow-2xs">
         {activeTab === 'jenis_biaya' && <JenisBiayaTab />}
-        {activeTab === 'tarif_ukt' && <TarifTab />}
-        {activeTab === 'jalur_kelas' && <JalurKelasTab />}
-        {activeTab === 'student_types' && <StudentTypesTab />}
-        {activeTab === 'beasiswa' && <BeasiswaTab />}
-        {activeTab === 'mapping_beasiswa' && <MappingBeasiswaTab />}
         {activeTab === 'unit_kas' && <UnitKasTab />}
       </div>
     </div>

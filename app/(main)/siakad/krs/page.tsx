@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   CheckCircle2,
   Lock,
@@ -703,6 +704,8 @@ export default function KrsMahasiswaPage() {
                     icon={<Plus size={15} />}
                     className="font-bold min-h-[38px] text-xs shadow-xs"
                     onClick={openClassPicker}
+                    disabled={activeKrs?.locked_by_keuangan}
+                    title={activeKrs?.locked_by_keuangan ? 'Pengisian KRS terkunci karena tagihan SPP/UKT belum lunas' : 'Pilih dan ambil mata kuliah'}
                   >
                     Ambil Mata Kuliah
                   </Button>
@@ -784,7 +787,11 @@ export default function KrsMahasiswaPage() {
                   <span className="text-2xs text-slate-300 block font-semibold" style={{ color: '#e2e8f0' }}>Status SPP (SIKEU)</span>
                   {activeKrs?.locked_by_keuangan ? (
                     <span className="badge badge-red text-xs font-bold mt-1 inline-flex items-center gap-1">
-                      <Lock size={11} /> Belum Lunas
+                      <Lock size={11} /> Terkunci (SPP)
+                    </span>
+                  ) : studentKrsData?.keuangan_status?.has_approved_dispensasi ? (
+                    <span className="badge bg-teal-500 text-white text-xs font-bold mt-1 inline-flex items-center gap-1">
+                      <ShieldCheck size={11} /> Dispensasi Aktif
                     </span>
                   ) : (
                     <span className="badge badge-green text-xs font-bold mt-1 inline-flex items-center gap-1">
@@ -803,6 +810,38 @@ export default function KrsMahasiswaPage() {
                 </div>
               </div>
             </div>
+
+            {/* Status Keuangan Alert Banners */}
+            {activeKrs?.locked_by_keuangan && (
+              <div className="bg-rose-500/20 border border-rose-400/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-100">
+                <div className="flex items-start gap-2.5">
+                  <Lock size={18} className="text-rose-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-white text-sm">Pengisian & Perubahan Rencana Studi (KRS) Terkunci</p>
+                    <p className="text-rose-200 leading-relaxed text-xs">
+                      Anda memiliki kewajiban tagihan SPP/UKT yang belum diselesaikan pada modul SIKEU. Silakan selesaikan pembayaran melalui loket kasir atau virtual account bank. Apabila membutuhkan penundaan, Anda dapat mengajukan <strong>Dispensasi Keuangan</strong> dengan izin <em>Bypass KRS</em>.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/sikeu/mahasiswa/tagihan"
+                  className="shrink-0 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition text-center shadow-xs"
+                >
+                  Lihat Tagihan
+                </Link>
+              </div>
+            )}
+
+            {!activeKrs?.locked_by_keuangan && studentKrsData?.keuangan_status?.has_approved_dispensasi && (
+              <div className="bg-teal-500/20 border border-teal-400/40 rounded-xl p-3.5 flex items-center justify-between gap-3 text-xs text-teal-100">
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck size={18} className="text-teal-400 shrink-0" />
+                  <span>
+                    <strong>Dispensasi Keuangan Disetujui:</strong> Akses pengisian dan perubahan KRS semester ini telah dibuka melalui izin dispensasi keuangan resmi (Bypass Lock KRS).
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Khusus Mahasiswa Transfer: Info Penyetaraan */}
             {isTransferStudent && (

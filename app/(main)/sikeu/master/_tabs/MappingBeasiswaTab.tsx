@@ -83,9 +83,44 @@ export function MappingBeasiswaTab() {
     fetchBeasiswaList();
   }, []);
 
+  // Student Selection state for Add Modal
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentResults, setStudentResults] = useState<any[]>([]);
+  const [selectedStudentObj, setSelectedStudentObj] = useState<any | null>(null);
+  const [searchingStudent, setSearchingStudent] = useState(false);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    if (!studentSearch || studentSearch.trim().length === 0) {
+      setStudentResults([]);
+      setSearchingStudent(false);
+      return;
+    }
+    let isMounted = true;
+    setSearchingStudent(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await sikeuService.searchMahasiswa(studentSearch.trim());
+        if (isMounted) {
+          setStudentResults(Array.isArray(res.data) ? res.data : []);
+        }
+      } catch {
+        if (isMounted) setStudentResults([]);
+      } finally {
+        if (isMounted) setSearchingStudent(false);
+      }
+    }, 250);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [studentSearch, isModalOpen]);
+
   const handleOpenAdd = () => {
+    setSelectedStudentObj(null);
+    setStudentSearch('');
     reset({
-      mahasiswa_id: 101,
+      mahasiswa_id: 0,
       beasiswa_id: beasiswaOptions[0]?.id || 1,
       berlaku_mulai: '2024-01-01',
       berlaku_sampai: '2027-12-31',
@@ -94,9 +129,17 @@ export function MappingBeasiswaTab() {
   };
 
   const onSubmit = async (formData: FormValues) => {
+    if (!formData.mahasiswa_id || formData.mahasiswa_id === 0) {
+      toast.error('Silakan pilih mahasiswa penerima terlebih dahulu');
+      return;
+    }
     setSubmitting(true);
     try {
-      await sikeuService.assignMahasiswaBeasiswa(formData);
+      await sikeuService.assignMahasiswaBeasiswa({
+        ...formData,
+        nim: selectedStudentObj?.nim,
+        nama_mahasiswa: selectedStudentObj?.nama_mahasiswa,
+      });
       toast.success('Penerima beasiswa berhasil ditetapkan');
       setIsModalOpen(false);
       fetchData();
@@ -193,9 +236,81 @@ export function MappingBeasiswaTab() {
       {/* Modal Add */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Tetapkan Penerima Beasiswa Baru">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <Input type="number" label="ID Mahasiswa *" placeholder="101"
-            {...register('mahasiswa_id', { required: 'ID Mahasiswa wajib diisi', valueAsNumber: true })}
-            error={errors.mahasiswa_id?.message} />
+          {/* Interactive Student Selector */}
+          <div className="space-y-2">
+            <label className="form-label">Pilih Mahasiswa *</label>
+            {!selectedStudentObj ? (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Input
+                    placeholder="Ketik NIM atau nama mahasiswa..."
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                  />
+                  {searchingStudent && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 size={16} className="animate-spin text-primary-500" />
+                    </div>
+                  )}
+                </div>
+
+                {studentSearch.trim().length > 0 && (
+                  studentResults.length > 0 ? (
+                    <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-48 overflow-y-auto bg-slate-50/50">
+                      <div className="px-3 py-1.5 bg-slate-100 text-2xs font-bold text-slate-500 uppercase tracking-wider">
+                        Hasil Pencarian Mahasiswa ({studentResults.length})
+                      </div>
+                      {studentResults.map((stu) => (
+                        <button
+                          key={stu.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStudentObj(stu);
+                            setValue('mahasiswa_id', stu.id);
+                            setStudentSearch('');
+                            setStudentResults([]);
+                          }}
+                          className="w-full p-2.5 text-left hover:bg-primary-50 transition flex items-center justify-between text-xs cursor-pointer"
+                        >
+                          <div>
+                            <p className="font-bold text-slate-900">{stu.nama_mahasiswa}</p>
+                            <p className="text-slate-500 font-mono text-2xs">NIM: {stu.nim} • {stu.prodi} • Angkatan {stu.tahun_angkatan}</p>
+                          </div>
+                          <span className="badge badge-purple text-2xs font-bold">{stu.jalur_kelas}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : !searchingStudent ? (
+                    <div className="p-3 border border-slate-200 rounded-xl text-center text-xs text-slate-500 bg-slate-50">
+                      Tidak ditemukan mahasiswa dengan kata kunci &ldquo;{studentSearch}&rdquo;
+                    </div>
+                  ) : null
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-primary-50/80 border border-primary-200 rounded-xl flex items-center justify-between">
+                <div>
+                  <p className="font-extrabold text-slate-900 text-sm">{selectedStudentObj.nama_mahasiswa}</p>
+                  <p className="font-mono text-xs text-slate-600">NIM: {selectedStudentObj.nim} • {selectedStudentObj.prodi} • Angkatan {selectedStudentObj.tahun_angkatan}</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setSelectedStudentObj(null);
+                    setValue('mahasiswa_id', 0);
+                    setStudentSearch('');
+                    setStudentResults([]);
+                  }}
+                  className="font-bold text-rose-600 hover:bg-rose-50"
+                >
+                  Ganti
+                </Button>
+              </div>
+            )}
+            <input type="hidden" {...register('mahasiswa_id', { required: true, min: 1 })} />
+          </div>
 
           <Select label="Program Beasiswa *"
             options={beasiswaOptions.map(b => ({ value: b.id.toString(), label: b.nama }))}

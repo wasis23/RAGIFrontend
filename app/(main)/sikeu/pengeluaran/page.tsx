@@ -15,14 +15,20 @@ import { Select } from '@/components/ui/Select';
 
 interface PengeluaranItem {
   id: number;
-  kode: string;
-  tanggal: string;
+  nomor_transaksi?: string;
+  kode?: string;
+  tanggal_transaksi?: string;
+  tanggal?: string;
   kategori: string;
   keterangan: string;
-  kas_asal: string;
-  nominal_gross: number;
-  nominal_pajak: number;
-  nominal_net: number;
+  nama_vendor?: string;
+  kas_asal?: string;
+  unit_kas?: { nama_kas?: string };
+  nominal?: number;
+  nominal_gross?: number;
+  nominal_pajak?: number;
+  net_dibayarkan?: number;
+  nominal_net?: number;
 }
 
 const formatRupiah = (val: number) =>
@@ -72,15 +78,25 @@ export default function PengeluaranListPage() {
     return data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
-        if (!item.kode?.toLowerCase().includes(q) && !item.keterangan?.toLowerCase().includes(q) && !item.kategori?.toLowerCase().includes(q)) return false;
+        const matchKode = (item.nomor_transaksi || item.kode || '')?.toLowerCase().includes(q);
+        const matchKet = item.keterangan?.toLowerCase().includes(q);
+        const matchKat = item.kategori?.toLowerCase().includes(q);
+        const matchVendor = item.nama_vendor?.toLowerCase().includes(q);
+        if (!matchKode && !matchKet && !matchKat && !matchVendor) return false;
       }
       if (appliedFilters.kategori !== 'all' && item.kategori !== appliedFilters.kategori) return false;
       return true;
     });
   }, [data, appliedFilters]);
 
-  const totalGross = useMemo(() => filteredData.reduce((acc, i) => acc + (i.nominal_gross || 0), 0), [filteredData]);
-  const totalNet = useMemo(() => filteredData.reduce((acc, i) => acc + (i.nominal_net || 0), 0), [filteredData]);
+  const totalGross = useMemo(
+    () => filteredData.reduce((acc, i) => acc + (Number(i.nominal ?? i.nominal_gross) || 0), 0),
+    [filteredData]
+  );
+  const totalNet = useMemo(
+    () => filteredData.reduce((acc, i) => acc + (Number(i.net_dibayarkan ?? i.nominal_net) || 0), 0),
+    [filteredData]
+  );
 
   const columns: ColumnDef<PengeluaranItem>[] = [
     {
@@ -89,9 +105,11 @@ export default function PengeluaranListPage() {
       render: (row) => (
         <div>
           <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
-            {row.kode || `EXP-${row.id}`}
+            {row.nomor_transaksi || row.kode || `EXP-${row.id}`}
           </span>
-          <span className="text-2xs block text-slate-400 font-semibold mt-1">{row.tanggal || '-'}</span>
+          <span className="text-2xs block text-slate-400 font-semibold mt-1">
+            {row.tanggal_transaksi || row.tanggal || '-'}
+          </span>
         </div>
       ),
     },
@@ -101,7 +119,9 @@ export default function PengeluaranListPage() {
       render: (row) => (
         <div>
           <span className="badge badge-purple text-xs font-bold uppercase">{row.kategori || 'Operasional'}</span>
-          <p className="text-xs text-slate-700 font-medium mt-1 line-clamp-1">{row.keterangan}</p>
+          <p className="text-xs text-slate-700 font-medium mt-1 line-clamp-1">
+            {row.keterangan || (row.nama_vendor ? `Pengeluaran kepada ${row.nama_vendor}` : '-')}
+          </p>
         </div>
       ),
     },
@@ -109,7 +129,9 @@ export default function PengeluaranListPage() {
       key: 'kas_asal',
       label: 'KAS / REKENING ASAL',
       render: (row) => (
-        <span className="font-semibold text-slate-700 text-xs">{row.kas_asal || 'Kas Utama Rektorat'}</span>
+        <span className="font-semibold text-slate-700 text-xs">
+          {row.unit_kas?.nama_kas || row.kas_asal || 'Kas Utama Rektorat'}
+        </span>
       ),
     },
     {
@@ -117,7 +139,7 @@ export default function PengeluaranListPage() {
       label: 'GROSS (RP)',
       render: (row) => (
         <span className="font-bold text-slate-900 tabular-nums text-sm">
-          {formatRupiah(row.nominal_gross || 0)}
+          {formatRupiah(row.nominal ?? row.nominal_gross ?? 0)}
         </span>
       ),
     },
@@ -126,7 +148,7 @@ export default function PengeluaranListPage() {
       label: 'NET BIAYA (RP)',
       render: (row) => (
         <span className="font-bold text-emerald-700 tabular-nums text-sm">
-          {formatRupiah(row.nominal_net || 0)}
+          {formatRupiah(row.net_dibayarkan ?? row.nominal_net ?? 0)}
         </span>
       ),
     },

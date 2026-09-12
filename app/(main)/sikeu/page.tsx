@@ -30,6 +30,7 @@ export default function SikeuDashboardPage() {
     totalPenerimaan: 0,
     totalPengeluaran: 0,
     saldoTotalKas: 0,
+    totalPiutangMahasiswa: 0,
     totalPendingApproval: 0,
   });
   const [recentJurnal, setRecentJurnal] = useState<RecentJurnal[]>([]);
@@ -44,6 +45,7 @@ export default function SikeuDashboardPage() {
           totalPenerimaan: m.total_penerimaan || 0,
           totalPengeluaran: m.total_pengeluaran || 0,
           saldoTotalKas: m.saldo_total_kas || 0,
+          totalPiutangMahasiswa: m.total_piutang_mahasiswa || 0,
           totalPendingApproval: m.total_pending_approval || 0,
         });
         if (Array.isArray(res.data.recent_jurnals)) {
@@ -105,7 +107,7 @@ export default function SikeuDashboardPage() {
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
       <PageHeader
         title="Dashboard Executive Keuangan"
-        description="Ringkasan arus kas, mutasi penerimaan/pengeluaran, dan status approval pimpinan."
+        description="Ringkasan arus kas, mutasi penerimaan/pengeluaran, total piutang, dan status approval pimpinan."
         action={
           <div className="flex items-center gap-2.5 flex-wrap">
             <Link href="/sikeu/master">
@@ -122,16 +124,16 @@ export default function SikeuDashboardPage() {
         }
       />
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Metric Cards - 4 Grid Real Data */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Kas & Bank Kampus</p>
-            <p className="text-xl font-extrabold text-slate-900 mt-1 tabular-nums">
+            <p className="text-lg font-extrabold text-slate-900 mt-1 tabular-nums">
               {formatRupiah(metrics.saldoTotalKas)}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
             <Wallet size={20} />
           </div>
         </div>
@@ -139,23 +141,35 @@ export default function SikeuDashboardPage() {
         <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Penerimaan (Inflow)</p>
-            <p className="text-xl font-extrabold text-emerald-700 mt-1 tabular-nums">
+            <p className="text-lg font-extrabold text-emerald-700 mt-1 tabular-nums">
               {formatRupiah(metrics.totalPenerimaan)}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
             <TrendingUp size={20} />
           </div>
         </div>
 
         <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
           <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Piutang Mahasiswa</p>
+            <p className="text-lg font-extrabold text-amber-700 mt-1 tabular-nums">
+              {formatRupiah(metrics.totalPiutangMahasiswa)}
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <CreditCard size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Pengeluaran (Outflow)</p>
-            <p className="text-xl font-extrabold text-rose-700 mt-1 tabular-nums">
+            <p className="text-lg font-extrabold text-rose-700 mt-1 tabular-nums">
               {formatRupiah(metrics.totalPengeluaran)}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
             <TrendingDown size={20} />
           </div>
         </div>

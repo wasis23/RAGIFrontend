@@ -54,6 +54,7 @@ export const sikeuService = {
     angkatan?: string | number;
     tahun_akademik_id?: string | number;
     program_studi_id?: string | number;
+    cutoff_date?: string;
     status?: string;
     page?: number;
     per_page?: number;
@@ -95,7 +96,7 @@ export const sikeuService = {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Laporan_Piutang_Mahasiswa_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `Laporan_Piutang_Mahasiswa_${new Date().toISOString().slice(0, 10)}.xls`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -114,6 +115,7 @@ export const sikeuService = {
     jatuh_tempo_baru?: string;
     jumlah_cicilan?: number;
     nominal_per_cicilan?: number;
+    allow_krs?: boolean;
     alasan: string;
     dokumen_pendukung?: string;
   }) => {
@@ -214,6 +216,36 @@ export const sikeuService = {
   getBukuBesar: async (akun_id?: number) => {
     const query = akun_id ? `?akun_id=${akun_id}` : '';
     return fetchWithAuth<ApiResponse<DetailJurnalUmum[]>>(`/v1/sikeu/akuntansi/buku-besar${query}`);
+  },
+
+  getLaporanKeuangan: async () => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/akuntansi/laporan');
+  },
+
+  // Master Tarif Gaji Pegawai
+  getMasterGajiList: async (params?: { search?: string; jenis_pegawai?: string; page?: number; per_page?: number; sort_by?: string; sort_order?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.jenis_pegawai && params.jenis_pegawai !== 'all') query.append('jenis_pegawai', params.jenis_pegawai);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    if (params?.sort_by) query.append('sort_by', params.sort_by);
+    if (params?.sort_order) query.append('sort_order', params.sort_order);
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/master/gaji-pegawai${queryString}`);
+  },
+
+  saveMasterGaji: async (payload: {
+    pegawai_id: number;
+    gaji_pokok: number;
+    tunjangan_tetap: number;
+    potongan_tetap: number;
+    tarif_transport_harian: number;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/gaji-pegawai', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   // Master Tarif UKT per Angkatan & Jalur Kelas
@@ -325,7 +357,7 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/mahasiswa-beasiswa?${query.toString()}`);
   },
 
-  assignMahasiswaBeasiswa: async (payload: { mahasiswa_id: number; beasiswa_id: number; berlaku_mulai?: string; berlaku_sampai?: string }) => {
+  assignMahasiswaBeasiswa: async (payload: { mahasiswa_id: number; nim?: string; nama_mahasiswa?: string; beasiswa_id: number; berlaku_mulai?: string; berlaku_sampai?: string }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/mahasiswa-beasiswa', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -355,18 +387,45 @@ export const sikeuService = {
     });
   },
 
+  syncStudentsFromSiakad: async (payload?: { tahun_angkatan?: number }) => {
+    return fetchWithAuth<ApiResponse<{ synced_count: number; target_angkatan?: string }>>('/v1/sikeu/master/sync-students', {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  },
+
   // Pencarian Mahasiswa untuk Tagihan & Dispensasi
   searchMahasiswa: async (q: string) => {
     return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa-search?q=${encodeURIComponent(q)}`);
   },
 
   // Portal Tagihan & Invoice Mahasiswa Mandiri
-  getMyBills: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/tagihan');
+  getMyBills: async (mahasiswaId?: number) => {
+    const q = mahasiswaId ? `?mahasiswa_id=${mahasiswaId}` : '';
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/tagihan${q}`);
+  },
+
+  getMyPaymentHistory: async (mahasiswaId?: number) => {
+    const q = mahasiswaId ? `?mahasiswa_id=${mahasiswaId}` : '';
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/riwayat-pembayaran${q}`);
   },
 
   getInvoice: async (id: number) => {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/mahasiswa/invoice/${id}`);
+  },
+
+  generateBatchInvoice: async (tagihanIds: number[]) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/mahasiswa/invoice-batch', {
+      method: 'POST',
+      body: JSON.stringify({ tagihan_ids: tagihanIds }),
+    });
+  },
+
+  payStudentBills: async (payload: { tagihan_ids: number[]; channel_bayar?: string; catatan?: string }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/mahasiswa/pay-bills', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   // Cetak Bukti Dispensasi
@@ -548,11 +607,19 @@ export const sikeuService = {
     });
   },
 
+  // Program Studi Reference for SIKEU
+  getProgramStudiList: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/program-studi');
+  },
+
   // Pembayaran Kasir (Offline / Loket Kampus)
   processKasirPayment: async (payload: {
-    tagihan_id: number;
+    tagihan_id?: number;
+    tagihan_ids?: number[];
     jumlah_bayar: number;
     channel_bayar: 'LOKET_TUNAI' | 'LOKET_TRANSFER';
+    potongan?: number;
+    alasan_potongan?: string;
     catatan?: string;
   }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran/kasir', {
@@ -569,17 +636,24 @@ export const sikeuService = {
   },
 
   // Daftar Tagihan Mahasiswa (Real Tagihan Index & Detail)
-  getTagihanList: async (params?: { page?: number; per_page?: number; search?: string; status?: string }) => {
+  getTagihanList: async (params?: { page?: number; per_page?: number; search?: string; status?: string; tahun_angkatan?: number; program_studi_id?: number }) => {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
     if (params?.search) query.append('search', params.search);
     if (params?.status) query.append('status', params.status);
+    if (params?.tahun_angkatan) query.append('tahun_angkatan', params.tahun_angkatan.toString());
+    if (params?.program_studi_id) query.append('program_studi_id', params.program_studi_id.toString());
     return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/tagihan?${query.toString()}`);
   },
 
   getTagihanDetail: async (id: number | string) => {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${id}`);
+  },
+
+  // Tagihan Belum Lunas Mahasiswa untuk Kasir / Loket
+  getStudentUnpaidBills: async (studentId: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/mahasiswa/${studentId}/unpaid-bills`);
   },
 
   // Generate Tagihan Semester Masal
@@ -588,10 +662,39 @@ export const sikeuService = {
     jalur_kelas: string;
     semester?: number;
     program_studi_id?: number;
+    master_biaya_ids?: number[];
     jatuh_tempo: string;
     semester_label?: string;
   }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/tagihan/generate-mass', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Pengaturan On/Off Skema Golongan UKT
+  getUktSetting: async () => {
+    return fetchWithAuth<ApiResponse<{ enabled: boolean; description?: string }>>('/v1/sikeu/settings/golongan-ukt');
+  },
+
+  updateUktSetting: async (enabled: boolean) => {
+    return fetchWithAuth<ApiResponse<{ enabled: boolean }>>('/v1/sikeu/settings/golongan-ukt', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    });
+  },
+
+  // Pembayaran Langsung di Kasir Loket (Direct Billing & Payment)
+  processDirectCashierPayment: async (payload: {
+    mahasiswa_id: number;
+    items: { master_biaya_id?: number; master_biaya_kode?: string; nominal: number; keterangan?: string }[];
+    jumlah_bayar: number;
+    potongan?: number;
+    alasan_potongan?: string;
+    channel_bayar: 'LOKET_TUNAI' | 'LOKET_TRANSFER';
+    catatan?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran/direct-cashier', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

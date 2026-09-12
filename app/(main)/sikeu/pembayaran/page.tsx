@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import {
-  CreditCard, DollarSign, Filter, RefreshCw, CheckCircle2, Clock, XCircle, Building, Search
+  CreditCard, DollarSign, Filter, RefreshCw, CheckCircle2, Clock, XCircle, Building, Search, Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -17,8 +18,12 @@ import { Select } from '@/components/ui/Select';
 interface PaymentItem {
   id: number;
   kode_transaksi: string;
+  nim?: string;
+  nama_mahasiswa?: string;
+  program_studi?: string;
+  rincian_pembayaran?: string;
   virtual_account?: { va_number?: string; bank_nama?: string };
-  tagihan?: { nomor_tagihan?: string; mahasiswa_id?: number };
+  tagihan?: { nomor_tagihan?: string; mahasiswa_id?: number; rincian?: string };
   jumlah_bayar: number;
   waktu_bayar: string;
   channel_bayar: string;
@@ -77,7 +82,9 @@ export default function PembayaranPage() {
         const matchKode = item.kode_transaksi?.toLowerCase().includes(q);
         const matchVA = item.virtual_account?.va_number?.toLowerCase().includes(q);
         const matchTagihan = item.tagihan?.nomor_tagihan?.toLowerCase().includes(q);
-        if (!matchKode && !matchVA && !matchTagihan) return false;
+        const matchNama = item.nama_mahasiswa?.toLowerCase().includes(q);
+        const matchNim = item.nim?.toLowerCase().includes(q);
+        if (!matchKode && !matchVA && !matchTagihan && !matchNama && !matchNim) return false;
       }
       if (appliedFilters.status && item.status !== appliedFilters.status) return false;
       if (appliedFilters.channel && item.channel_bayar !== appliedFilters.channel) return false;
@@ -105,29 +112,46 @@ export default function PembayaranPage() {
       ),
     },
     {
-      key: 'virtual_account',
-      label: 'CHANNEL / BANK VA',
+      key: 'mahasiswa',
+      label: 'MAHASISWA',
       render: (row) => (
         <div>
-          <p className="font-bold text-slate-900 text-xs">{row.virtual_account?.bank_nama || row.channel_bayar || 'VA Bank'}</p>
-          <p className="font-mono text-2xs text-slate-500">{row.virtual_account?.va_number || '-'}</p>
+          <p className="font-bold text-slate-900 text-xs">{row.nama_mahasiswa || '-'}</p>
+          <div className="flex items-center gap-1 text-2xs text-slate-500 font-medium mt-0.5">
+            <span className="font-mono text-primary-700 font-bold">{row.nim || '-'}</span>
+            <span>•</span>
+            <span className="truncate max-w-[150px]">{row.program_studi || 'Teknik Informatika'}</span>
+          </div>
         </div>
       ),
     },
     {
-      key: 'tagihan',
-      label: 'NOMOR TAGIHAN',
+      key: 'rincian_pembayaran',
+      label: 'PERIODE / RINCIAN BIAYA',
       render: (row) => (
-        <span className="font-mono text-xs text-slate-700 font-semibold">
-          {row.tagihan?.nomor_tagihan || '-'}
-        </span>
+        <div>
+          <p className="font-semibold text-slate-800 text-xs leading-snug">
+            {row.rincian_pembayaran || row.tagihan?.rincian || 'Tagihan Semester'}
+          </p>
+          <p className="font-mono text-2xs text-slate-400 mt-0.5">{row.tagihan?.nomor_tagihan || '-'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'virtual_account',
+      label: 'CHANNEL / METODE',
+      render: (row) => (
+        <div>
+          <p className="font-bold text-slate-900 text-xs">{row.virtual_account?.bank_nama || row.channel_bayar || 'VA Bank'}</p>
+          <p className="font-mono text-2xs text-slate-500">{row.virtual_account?.va_number || (row.channel_bayar === 'LOKET_TUNAI' ? 'Tunai Kasir' : '-')}</p>
+        </div>
       ),
     },
     {
       key: 'jumlah_bayar',
       label: 'JUMLAH BAYAR',
       render: (row) => (
-        <span className="font-bold text-slate-900 tabular-nums text-sm">
+        <span className="font-bold text-emerald-700 tabular-nums text-sm">
           {formatRupiah(row.jumlah_bayar || 0)}
         </span>
       ),
@@ -174,6 +198,15 @@ export default function PembayaranPage() {
             >
               Filter
             </Button>
+            <Link href="/sikeu/tagihan/create">
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                className="font-bold min-h-[40px] px-4 shadow-sm"
+              >
+                Transaksi Kasir Loket
+              </Button>
+            </Link>
           </div>
         }
       />

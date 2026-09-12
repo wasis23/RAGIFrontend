@@ -73,7 +73,7 @@ export default function SikeuApprovalPage() {
       const mappedDispensasi: ApprovalItem[] = rawDispensasi.map((d: any) => ({
         id: d.id,
         type: 'dispensasi',
-        title: `Permohonan Dispensasi #${d.id}`,
+        title: `Permohonan Dispensasi #${d.id} ${d.allow_krs ? '• [Bypass KRS Aktif]' : '• [KRS Terkunci]'}`,
         pemohon: d.nama_mahasiswa || `Mahasiswa #${d.mahasiswa_id}`,
         nominal: d.nominal_per_cicilan || 1500000,
         tanggal: d.created_at || '2026-08-01',
