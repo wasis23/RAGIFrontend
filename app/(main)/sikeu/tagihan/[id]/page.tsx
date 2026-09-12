@@ -88,7 +88,7 @@ export default function TagihanDetailPage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-16 animate-fade-in">
       {/* Top Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <Button
           variant="ghost"
           size="sm"
@@ -117,9 +117,23 @@ export default function TagihanDetailPage() {
       </div>
 
       {/* Invoice Card Container */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none">
-        {/* Header Ribbon / Status Banner */}
-        <div className="p-6 md:p-8 bg-linear-to-r from-slate-900 via-primary-950 to-slate-900 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="printable-document print-document bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none print:p-0">
+        {/* Kop Surat Resmi Khusus Cetak (Hanya tampil saat Print) */}
+        <div className="hidden print:flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
+          <div>
+            <h2 className="font-black text-lg tracking-wider uppercase text-slate-900">UNIVERSITAS SSO CAMPUS</h2>
+            <h3 className="font-bold text-xs text-slate-700 uppercase">DIREKTORAT KEUANGAN & AKUNTANSI (SIKEU)</h3>
+            <p className="text-[10px] text-slate-600">Jl. Kampus Terpadu No. 1 • Telp: (021) 789-0123 • Email: keu@campus.ac.id</p>
+          </div>
+          <div className="text-right">
+            <div className="text-base font-black text-slate-900 uppercase tracking-widest font-mono">SURAT TAGIHAN (INVOICE)</div>
+            <div className="text-xs font-mono font-bold text-slate-700">{tagihan.nomor_tagihan}</div>
+            <div className="text-[10px] font-semibold text-slate-500 mt-1">Status: <span className="uppercase font-bold">{isLunas ? 'LUNAS' : 'BELUM DIBAYAR'}</span></div>
+          </div>
+        </div>
+
+        {/* Header Ribbon / Status Banner (Layar Monitor) */}
+        <div className="print:hidden p-6 md:p-8 bg-linear-to-r from-slate-900 via-primary-950 to-slate-900 text-white flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
               <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-md bg-white/10 text-slate-200 border border-white/10">
@@ -153,12 +167,12 @@ export default function TagihanDetailPage() {
           </div>
         </div>
 
-        <div className="p-6 md:p-8 space-y-8">
+        <div className="p-6 md:p-8 print:p-0 space-y-8 print:space-y-4">
           {/* Student Profile Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80">
-            <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80 print:bg-white print:border-slate-300 print:p-3">
+            <div className="space-y-3 print:space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <User size={14} className="text-primary-600" />
+                <User size={14} className="text-primary-600 print:hidden" />
                 <span>Identitas Mahasiswa</span>
               </div>
               <div>
@@ -171,9 +185,9 @@ export default function TagihanDetailPage() {
               </div>
             </div>
 
-            <div className="space-y-3 md:border-l md:border-slate-200 md:pl-6">
+            <div className="space-y-3 md:border-l md:border-slate-200 md:pl-6 print:space-y-1 print:border-l print:border-slate-300 print:pl-4">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <CreditCard size={14} className="text-primary-600" />
+                <CreditCard size={14} className="text-primary-600 print:hidden" />
                 <span>Metode Pembayaran Mandiri</span>
               </div>
               {tagihan.virtual_account ? (
@@ -309,6 +323,28 @@ export default function TagihanDetailPage() {
               <span className="text-primary-700 text-base tabular-nums">
                 {formatRupiah(tagihan.sisa_tagihan !== undefined ? tagihan.sisa_tagihan : Math.max(0, tagihan.total_tagihan - tagihan.total_potongan - tagihan.total_bayar))}
               </span>
+            </div>
+          </div>
+
+          {/* Tanda Tangan & Keterangan Resmi Cetak (Print View) */}
+          <div className="hidden print:grid grid-cols-2 gap-8 pt-6 border-t border-slate-300 text-xs">
+            <div className="space-y-1">
+              <p className="font-bold text-slate-800">Catatan Penting:</p>
+              <ul className="list-disc list-inside text-slate-600 text-[10px] space-y-0.5">
+                <li>Pembayaran via Virtual Account terverifikasi otomatis dalam sistem tanpa perlu konfirmasi manual.</li>
+                <li>Simpan surat tagihan dan bukti transfer ini sebagai bukti pembayaran resmi pendidikan.</li>
+                <li>Apabila ada ketidaksesuaian data, hubungi Bagian Keuangan Kampus.</li>
+              </ul>
+            </div>
+            <div className="text-right space-y-12">
+              <div>
+                <p className="text-slate-600">Kota Kampus, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                <p className="font-bold text-slate-800">Bagian Keuangan & Kasir</p>
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 underline">( Petugas Keuangan Kampus )</p>
+                <p className="text-[10px] text-slate-500 font-mono">Direktorat Keuangan SIKEU</p>
+              </div>
             </div>
           </div>
         </div>
