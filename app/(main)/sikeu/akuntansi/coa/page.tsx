@@ -1,15 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, ArrowLeft, BookOpen, CheckCircle } from 'lucide-react';
+import { Plus, ArrowLeft, BookOpen, CheckCircle, Filter, Search, Eye } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 import { AkunKeuangan } from '@/types/sikeu.types';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Drawer } from '@/components/ui/Drawer';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import toast from 'react-hot-toast';
 
 export default function CoaPage() {
   const [coaList, setCoaList] = useState<AkunKeuangan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+
+  // Filter Drawer State (table-filter-ui-standard)
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterKelompok, setFilterKelompok] = useState('all');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', kelompok: 'all' });
 
   // Form states <= 5 inputs (use Modal 2-column grid per crud-ui-standard)
   const [formData, setFormData] = useState({
@@ -31,6 +46,7 @@ export default function CoaPage() {
       }
     } catch (err) {
       console.error('Failed to load COA', err);
+      toast.error('Gagal memuat Chart of Accounts (COA)');
     } finally {
       setLoading(false);
     }
@@ -47,177 +63,255 @@ export default function CoaPage() {
 
     try {
       await sikeuService.storeCoa(formData);
+      toast.success('Akun COA baru berhasil dibuat');
       setShowModal(false);
       setFormData({ kode_akun: '', nama_akun: '', kelompok: 'aset', saldo_normal: 'debet' });
       await loadCoa();
     } catch (err: any) {
-      setError(err.message || 'Gagal membuat akun COA');
+      setError(err?.response?.data?.message || err?.message || 'Gagal membuat akun COA');
+      toast.error('Gagal membuat akun COA');
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
-        <div className="flex items-center gap-3">
-          <Link href="/sikeu" className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 font-jakarta">Chart of Accounts (COA / Master Akun)</h1>
-            <p className="text-xs text-gray-500">Master pengkodean akun akuntansi (Aset, Liabilitas, Ekuitas, Pendapatan, Beban)</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
-        >
-          <Plus size={16} /> Tambah Akun COA
-        </button>
-      </div>
+  const handleApplyFilter = () => {
+    setAppliedFilters({ search: filterSearch, kelompok: filterKelompok });
+    setShowFilter(false);
+  };
 
-      {/* COA Table */}
-      <div className="card p-6">
-        {loading ? (
-          <div className="text-center py-8 text-gray-400">Loading COA...</div>
-        ) : coaList.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 text-gray-700 font-semibold text-xs uppercase">
-                <tr>
-                  <th className="px-4 py-3">Kode Akun</th>
-                  <th className="px-4 py-3">Nama Akun Keuangan</th>
-                  <th className="px-4 py-3">Kelompok</th>
-                  <th className="px-4 py-3">Saldo Normal</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {coaList.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-mono font-bold text-indigo-600">{item.kode_akun}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{item.nama_akun}</td>
-                    <td className="px-4 py-3 capitalize">
-                      <span className={`px-2.5 py-0.5 text-xs font-semibold rounded ${
-                        item.kelompok === 'aset' ? 'bg-emerald-50 text-emerald-700' :
-                        item.kelompok === 'liabilitas' ? 'bg-rose-50 text-rose-700' :
-                        item.kelompok === 'ekuitas' ? 'bg-purple-50 text-purple-700' :
-                        item.kelompok === 'pendapatan' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {item.kelompok}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 uppercase text-xs font-semibold text-gray-700">{item.saldo_normal}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="badge badge-green inline-flex items-center gap-1">
-                        <CheckCircle size={12} /> Aktif
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setFilterKelompok('all');
+    setAppliedFilters({ search: '', kelompok: 'all' });
+    setShowFilter(false);
+  };
+
+  const filteredData = useMemo(() => {
+    return coaList.filter((item) => {
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
+        const matchKode = item.kode_akun?.toLowerCase().includes(q);
+        const matchNama = item.nama_akun?.toLowerCase().includes(q);
+        if (!matchKode && !matchNama) return false;
+      }
+      if (appliedFilters.kelompok !== 'all' && item.kelompok?.toLowerCase() !== appliedFilters.kelompok) {
+        return false;
+      }
+      return true;
+    });
+  }, [coaList, appliedFilters]);
+
+  const columns: ColumnDef<AkunKeuangan>[] = [
+    {
+      key: 'kode_akun',
+      label: 'KODE AKUN',
+      render: (row) => (
+        <span className="font-mono font-bold text-xs text-primary-700 bg-primary-50 px-2 py-1 rounded-md border border-primary-100">
+          {row.kode_akun}
+        </span>
+      ),
+    },
+    {
+      key: 'nama_akun',
+      label: 'NAMA AKUN KEUANGAN',
+      render: (row) => (
+        <span className="font-bold text-slate-900 text-sm">{row.nama_akun}</span>
+      ),
+    },
+    {
+      key: 'kelompok',
+      label: 'KELOMPOK',
+      render: (row) => {
+        const k = row.kelompok?.toLowerCase();
+        const variant =
+          k === 'aset' ? 'green' :
+          k === 'liabilitas' ? 'red' :
+          k === 'ekuitas' ? 'purple' :
+          k === 'pendapatan' ? 'blue' : 'yellow';
+        return (
+          <Badge variant={variant as any} className="uppercase text-xs font-semibold">
+            {row.kelompok}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'saldo_normal',
+      label: 'SALDO NORMAL',
+      render: (row) => (
+        <span className="font-semibold text-xs text-slate-700 uppercase">
+          {row.saldo_normal}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      align: 'center',
+      render: () => (
+        <Badge variant="green" className="inline-flex items-center gap-1">
+          <CheckCircle size={12} /> Aktif
+        </Badge>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* 1. PageHeader dengan Breadcrumbs & Action Button */}
+      <PageHeader
+        title="Chart of Accounts (COA / Master Akun)"
+        description="Master pengkodean akun akuntansi (Aset, Liabilitas, Ekuitas, Pendapatan, & Beban)"
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'Modul SIKEU', href: '/sikeu' },
+          { label: 'Master Akuntansi', href: '/sikeu/akuntansi' },
+          { label: 'COA' },
+        ]}
+        action={
+          <div className="flex items-center gap-2">
+            <Link href="/sikeu/akuntansi">
+              <Button variant="outline" icon={<ArrowLeft size={16} />}>
+                Kembali
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => setShowModal(true)}
+            >
+              Tambah Akun COA
+            </Button>
           </div>
-        ) : (
-          <div className="text-center py-8 text-gray-400 text-sm">
-            Belum ada data master COA. Klik tombol **Tambah Akun COA** untuk membuat.
+        }
+      />
+
+      {/* 2. Full-Bleed DataTable Card */}
+      <DataTable
+        columns={columns}
+        data={filteredData}
+        isLoading={loading}
+        emptyMessage="Belum ada akun COA yang sesuai filter."
+      />
+
+      {/* 3. Slide-out Drawer Filter di Sisi Kanan */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Akun COA"
+        width="420px"
+        footer={
+          <div className="flex justify-end gap-3 w-full">
+            <Button variant="outline" onClick={handleResetFilter}>
+              Reset
+            </Button>
+            <Button variant="primary" onClick={handleApplyFilter}>
+              Terapkan Filter
+            </Button>
           </div>
-        )}
-      </div>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <Input
+            label="Pencarian Cepat"
+            placeholder="Cari kode atau nama akun COA..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
+
+          <Select
+            label="Kelompok Akun"
+            options={[
+              { value: 'all', label: 'Semua Kelompok' },
+              { value: 'aset', label: 'Aset' },
+              { value: 'liabilitas', label: 'Liabilitas' },
+              { value: 'ekuitas', label: 'Ekuitas' },
+              { value: 'pendapatan', label: 'Pendapatan' },
+              { value: 'beban', label: 'Beban' },
+            ]}
+            value={filterKelompok}
+            onChange={(val) => setFilterKelompok(val)}
+          />
+        </div>
+      </Drawer>
 
       {/* Modal <= 5 Input Grid 2-Column (per crud-ui-standard) */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal modal-md modal-body">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-lg font-bold text-gray-900">Tambah Akun COA Baru</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 font-bold">&times;</button>
-            </div>
+      <Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title="Tambah Akun COA Baru"
+        size="md"
+      >
+        {error && <div className="p-3 mb-4 bg-rose-50 text-rose-700 text-xs rounded-lg">{error}</div>}
 
-            {error && <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-lg">{error}</div>}
+        <form onSubmit={handleCreateCoa} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Kode Akun *"
+              placeholder="Contoh: 101.03"
+              value={formData.kode_akun}
+              onChange={(e) => setFormData({ ...formData, kode_akun: e.target.value })}
+              required
+            />
 
-            <form onSubmit={handleCreateCoa} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Input 1: Kode Akun */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kode Akun *</label>
-                  <input
-                    type="text"
-                    value={formData.kode_akun}
-                    onChange={(e) => setFormData({ ...formData, kode_akun: e.target.value })}
-                    placeholder="Contoh: 101.03"
-                    className="textarea textarea-sm w-full"
-                    required
-                  />
-                </div>
+            <Input
+              label="Nama Akun *"
+              placeholder="Kas Kecil Fakultas"
+              value={formData.nama_akun}
+              onChange={(e) => setFormData({ ...formData, nama_akun: e.target.value })}
+              required
+            />
 
-                {/* Input 2: Nama Akun */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Nama Akun *</label>
-                  <input
-                    type="text"
-                    value={formData.nama_akun}
-                    onChange={(e) => setFormData({ ...formData, nama_akun: e.target.value })}
-                    placeholder="Kas Kecil Fakultas"
-                    className="textarea textarea-sm w-full"
-                    required
-                  />
-                </div>
+            <Select
+              label="Kelompok Akun *"
+              options={[
+                { value: 'aset', label: 'Aset (100)' },
+                { value: 'liabilitas', label: 'Liabilitas (200)' },
+                { value: 'ekuitas', label: 'Ekuitas (300)' },
+                { value: 'pendapatan', label: 'Pendapatan (400)' },
+                { value: 'beban', label: 'Beban (500)' },
+              ]}
+              value={formData.kelompok}
+              onChange={(val) => setFormData({ ...formData, kelompok: val })}
+            />
 
-                {/* Input 3: Kelompok */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kelompok Akun *</label>
-                  <select
-                    value={formData.kelompok}
-                    onChange={(e) => setFormData({ ...formData, kelompok: e.target.value })}
-                    className="select select-sm"
-                    required
-                  >
-                    <option value="aset">Aset (100)</option>
-                    <option value="liabilitas">Liabilitas (200)</option>
-                    <option value="ekuitas">Ekuitas (300)</option>
-                    <option value="pendapatan">Pendapatan (400)</option>
-                    <option value="beban">Beban (500)</option>
-                  </select>
-                </div>
-
-                {/* Input 4: Saldo Normal */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Saldo Normal *</label>
-                  <select
-                    value={formData.saldo_normal}
-                    onChange={(e) => setFormData({ ...formData, saldo_normal: e.target.value })}
-                    className="select select-sm"
-                    required
-                  >
-                    <option value="debet">DEBET</option>
-                    <option value="kredit">KREDIT</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition"
-                >
-                  {submitting ? 'Simpan...' : 'Simpan Akun COA'}
-                </button>
-              </div>
-            </form>
+            <Select
+              label="Saldo Normal *"
+              options={[
+                { value: 'debet', label: 'DEBET' },
+                { value: 'kredit', label: 'KREDIT' },
+              ]}
+              value={formData.saldo_normal}
+              onChange={(val) => setFormData({ ...formData, saldo_normal: val })}
+            />
           </div>
-        </div>
-      )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowModal(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={submitting}
+            >
+              Simpan Akun COA
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

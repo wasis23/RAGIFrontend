@@ -70,14 +70,20 @@ export default function TagihanListPage() {
   const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([]);
   const [loadingFeeComponents, setLoadingFeeComponents] = useState(false);
 
+  const defaultJatuhTempo = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  }, []);
+
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<MassFormValues>({
     defaultValues: {
-      target_angkatan: '2025',
+      target_angkatan: '2023',
       target_jalur: 'Reguler',
       target_prodi: '',
       target_semester: '1',
       semester_aktif: 'Semester Ganjil 2026/2027',
-      jatuh_tempo: '2026-08-31',
+      jatuh_tempo: defaultJatuhTempo,
     },
   });
 
@@ -85,6 +91,14 @@ export default function TagihanListPage() {
   const watchJalur = watch('target_jalur');
   const watchProdi = watch('target_prodi');
   const watchSemester = watch('target_semester');
+
+  // Sinkronisasi otomatis label semester saat semester dipilih (misal Semester 3 Ganjil 2026/2027)
+  useEffect(() => {
+    const semNum = parseInt(watchSemester) || 1;
+    const isGanjil = semNum % 2 !== 0;
+    const tipeSem = isGanjil ? 'Ganjil' : 'Genap';
+    setValue('semester_aktif', `Semester ${semNum} (${tipeSem}) 2026/2027`);
+  }, [watchSemester, setValue]);
 
   useEffect(() => {
     if (!isMassModalOpen) return;
@@ -97,6 +111,8 @@ export default function TagihanListPage() {
           jalur_kelas: watchJalur,
           semester: parseInt(watchSemester),
           program_studi_id: watchProdi ? parseInt(watchProdi) : undefined,
+          is_active: true,
+          include_global: true,
           per_page: 50,
         });
         if (isMounted) {
@@ -245,6 +261,9 @@ export default function TagihanListPage() {
         if (!item.nama?.toLowerCase().includes(q) && !item.nim?.toLowerCase().includes(q) && !item.nomor?.toLowerCase().includes(q)) return false;
       }
       if (appliedFilters.angkatan !== 'all' && String(item.angkatan) !== appliedFilters.angkatan) return false;
+      if (appliedFilters.prodi !== 'all') {
+        if (item.program_studi_id && String(item.program_studi_id) !== appliedFilters.prodi) return false;
+      }
       if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
       return true;
     });
@@ -300,6 +319,20 @@ export default function TagihanListPage() {
           return (
             <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
               <CheckCircle2 size={12} /> Lunas
+            </span>
+          );
+        }
+        if (row.status === 'sebagian') {
+          return (
+            <span className="badge badge-yellow text-xs font-bold inline-flex items-center gap-1">
+              <Clock size={12} /> Bayar Sebagian
+            </span>
+          );
+        }
+        if (row.status === 'dispensasi') {
+          return (
+            <span className="badge badge-orange text-xs font-bold inline-flex items-center gap-1">
+              <AlertCircle size={12} /> Dispensasi
             </span>
           );
         }

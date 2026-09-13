@@ -31,10 +31,17 @@ import {
   ChevronDown,
   Info,
   Layers,
-  ArrowRight
+  ArrowRight,
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { sikeuService } from '@/services/sikeu.service';
+import { XenditStudentPaymentModal, PaymentChannel } from '@/components/sikeu/payment/XenditStudentPaymentModal';
+import { Drawer } from '@/components/ui/Drawer';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/layout/PageHeader';
 import toast from 'react-hot-toast';
 
 // Helper angka ke terbilang bahasa Indonesia
@@ -70,12 +77,20 @@ export default function StudentTagihanPage() {
   const [activeTab, setActiveTab] = useState<'bills' | 'history' | 'guide'>('bills');
   const [bills, setBills] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [paymentChannels, setPaymentChannels] = useState<PaymentChannel[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingPay, setProcessingPay] = useState(false);
 
-  // Filters
+  // Filters & Slide-Out Drawer (table-filter-ui-standard)
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
   const [selectedSemester, setSelectedSemester] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [appliedFilters, setAppliedFilters] = useState<{ search: string; semester: string; status: string }>({
+    search: '',
+    semester: 'ALL',
+    status: 'ALL',
+  });
 
   // Selected bills for payment / consolidated invoice
   const [selectedBillIds, setSelectedBillIds] = useState<number[]>([]);
@@ -84,7 +99,6 @@ export default function StudentTagihanPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
-  const [payMethod, setPayMethod] = useState<'BNI_VA' | 'ONLINE_PAYMENT'>('BNI_VA');
   const [copiedVa, setCopiedVa] = useState<string | null>(null);
 
   const formatRupiah = (val: number) => {
@@ -94,17 +108,18 @@ export default function StudentTagihanPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedVa(text);
-    toast.success('Nomor Virtual Account berhasil disalin!');
+    toast.success('Nomor Virtual Account / Kode Bayar berhasil disalin!');
     setTimeout(() => setCopiedVa(null), 2500);
   };
 
-  // Fetch Bills & History directly for logged in student
+  // Fetch Bills & History & Channels directly for logged in student
   const fetchStudentData = async () => {
     setLoading(true);
     try {
-      const [resBills, resHistory] = await Promise.all([
+      const [resBills, resHistory, resChannels] = await Promise.all([
         sikeuService.getMyBills(),
         sikeuService.getMyPaymentHistory().catch(() => ({ data: [] })),
+        sikeuService.getPaymentChannels().catch(() => ({ data: [] })),
       ]);
 
       if (Array.isArray(resBills.data)) {
@@ -122,6 +137,10 @@ export default function StudentTagihanPage() {
       } else {
         setPayments([]);
       }
+
+      if (Array.isArray(resChannels.data) && resChannels.data.length > 0) {
+        setPaymentChannels(resChannels.data);
+      }
     } catch (e) {
       console.error(e);
       toast.error('Gagal memuat data tagihan mahasiswa');
@@ -134,8 +153,8 @@ export default function StudentTagihanPage() {
     fetchStudentData();
   }, []);
 
-  // Mahasiswa profile info from bills or auth
-  const studentProfile = bills[0]?.mahasiswa || {
+  // Mahasiswa profile info from bills, payments, or auth
+  const studentProfile = bills[0]?.mahasiswa || payments[0]?.mahasiswa || {
     nama: (user as any)?.nama_lengkap || (user as any)?.name || user?.username || 'Ahmad Fadillah',
     nim: user?.username || '2301001001',
     prodi: 'Teknik Informatika',
@@ -153,18 +172,62 @@ export default function StudentTagihanPage() {
   ).filter((v, i, a) => a.findIndex((t) => t.semester === v.semester) === i)
     .sort((a, b) => a.semester - b.semester);
 
-  // Filtered bills
+  // Filtered bills based on appliedFilters (table-filter-ui-standard)
+  // Tagihan Berjalan HANYA menampilkan tagihan yang belum lunas
   const filteredBills = bills.filter((b) => {
-    if (selectedSemester !== 'ALL' && (b.semester?.toString() !== selectedSemester && !b.periode_label?.includes(`Semester ${selectedSemester}`))) {
+    // Exclude paid bills completely from Tagihan Berjalan
+    if (b.status === 'lunas') {
       return false;
     }
-    if (selectedStatus !== 'ALL' && b.status !== selectedStatus) {
+    // Semester filter
+    if (appliedFilters.semester !== 'ALL' && (b.semester?.toString() !== appliedFilters.semester && !b.periode_label?.includes(`Semester ${appliedFilters.semester}`))) {
       return false;
+    }
+    // Status filter
+    if (appliedFilters.status !== 'ALL' && b.status !== appliedFilters.status) {
+      return false;
+    }
+    // Search keyword filter
+    if (appliedFilters.search.trim()) {
+      const q = appliedFilters.search.toLowerCase().trim();
+      const inInvoice = b.nomor_tagihan?.toLowerCase().includes(q);
+      const inPeriode = b.periode_label?.toLowerCase().includes(q) || b.tahun_akademik?.toLowerCase().includes(q);
+      const inCatatan = b.catatan?.toLowerCase().includes(q);
+      const inDetails = b.details?.some((d: any) => 
+        (d.nama_biaya && d.nama_biaya.toLowerCase().includes(q)) ||
+        (d.keterangan && d.keterangan.toLowerCase().includes(q))
+      );
+      if (!inInvoice && !inPeriode && !inCatatan && !inDetails) {
+        return false;
+      }
     }
     return true;
   });
 
-  const unpaidFilteredBills = filteredBills.filter((b) => b.status !== 'lunas');
+  const unpaidFilteredBills = filteredBills;
+
+  const handleApplyFilter = () => {
+    setAppliedFilters({
+      search: filterSearch,
+      semester: selectedSemester,
+      status: selectedStatus,
+    });
+    setShowFilterDrawer(false);
+  };
+
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setSelectedSemester('ALL');
+    setSelectedStatus('ALL');
+    setAppliedFilters({
+      search: '',
+      semester: 'ALL',
+      status: 'ALL',
+    });
+    setShowFilterDrawer(false);
+  };
+
+  const hasActiveFilters = appliedFilters.search !== '' || appliedFilters.semester !== 'ALL' || appliedFilters.status !== 'ALL';
 
   // Toggle single bill selection
   const toggleSelectBill = (id: number) => {
@@ -194,7 +257,7 @@ export default function StudentTagihanPage() {
   const totalOutstandingAll = bills.filter((b) => b.status !== 'lunas').reduce((acc, b) => acc + (b.sisa_bayar || 0), 0);
 
   // Open Single or Consolidated Invoice Modal
-  const handleOpenInvoice = async (tagihanId?: number) => {
+  const handleOpenInvoice = async (tagihanId?: number, bankCode: string = 'BNI') => {
     try {
       const idsToFetch = tagihanId ? [tagihanId] : selectedBillIds;
       if (idsToFetch.length === 0) {
@@ -203,10 +266,10 @@ export default function StudentTagihanPage() {
       }
 
       if (idsToFetch.length === 1) {
-        const res = await sikeuService.getInvoice(idsToFetch[0]);
+        const res = await sikeuService.getInvoice(idsToFetch[0], bankCode);
         if (res.data) setSelectedInvoice(res.data);
       } else {
-        const res = await sikeuService.generateBatchInvoice(idsToFetch);
+        const res = await sikeuService.generateBatchInvoice(idsToFetch, bankCode);
         if (res.data) setSelectedInvoice(res.data);
       }
     } catch (e) {
@@ -237,8 +300,8 @@ export default function StudentTagihanPage() {
     });
   };
 
-  // Process Student Payment for selected bills
-  const handleProcessPayment = async () => {
+  // Process Student Payment for selected bills via chosen Xendit Channel
+  const handleProcessXenditPayment = async (channel: PaymentChannel, vaNumber: string) => {
     if (selectedBillIds.length === 0) {
       toast.error('Pilih minimal 1 tagihan yang akan dibayarkan');
       return;
@@ -246,14 +309,16 @@ export default function StudentTagihanPage() {
 
     setProcessingPay(true);
     try {
+      const channelBayar = channel.code === 'QRIS' ? 'QRIS' : `VA_${channel.code}`;
       const res = await sikeuService.payStudentBills({
         tagihan_ids: selectedBillIds,
-        channel_bayar: payMethod,
-        catatan: `Pelunasan Mandiri Mahasiswa (${selectedBillIds.length} Tagihan Semester)`,
+        channel_bayar: channelBayar,
+        bank_kode: channel.code,
+        catatan: `Pelunasan Mandiri via ${channel.name} (${selectedBillIds.length} Tagihan Semester)`,
       });
 
       if (res.status === 'success') {
-        toast.success(res.message || 'Pembayaran berhasil diverifikasi lunas!');
+        toast.success(res.message || `Pembayaran via ${channel.name} berhasil diverifikasi lunas!`);
         setShowPayModal(false);
         // Refresh data
         await fetchStudentData();
@@ -266,11 +331,11 @@ export default function StudentTagihanPage() {
             tanggal_bayar: new Date().toISOString().replace('T', ' ').substring(0, 19),
             jumlah_bayar: res.data.total_paid || selectedTotalSisa,
             terbilang: angkaTerbilang(res.data.total_paid || selectedTotalSisa),
-            channel_bayar: payMethod,
+            channel_bayar: channelBayar,
             periode_label: `Pelunasan ${selectedBills.map((b) => b.periode_label).join(' & ')}`,
             rincian_pembayaran: selectedBills.flatMap((b) => b.details?.map((d: any) => d.nama_biaya || d.keterangan)).join(', '),
             mahasiswa: studentProfile,
-            catatan: 'Pelunasan Mandiri Terverifikasi Sistem SIKEU',
+            catatan: `Pelunasan Mandiri via ${channel.name} Terverifikasi Sistem Xendit`,
           });
         }
       } else {
@@ -366,11 +431,11 @@ export default function StudentTagihanPage() {
 
         <div className="card p-5 bg-white border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs">
           <div>
-            <span className="text-2xs font-extrabold text-slate-500 uppercase tracking-wider block">Virtual Account BNI Utama</span>
-            <div className="text-base font-black text-indigo-900 font-mono mt-1">
-              {'88012' + studentProfile.nim}
+            <span className="text-2xs font-extrabold text-slate-500 uppercase tracking-wider block">Payment Gateway Xendit</span>
+            <div className="text-sm font-black text-indigo-900 font-mono mt-1">
+              BNI, Mandiri, BRI, BCA, QRIS
             </div>
-            <span className="text-2xs text-emerald-600 font-bold mt-1 block">● Aktif Siap Bayar</span>
+            <span className="text-2xs text-emerald-600 font-bold mt-1 block">● Multi-Channel Siap Bayar</span>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
             <QrCode size={24} />
@@ -425,101 +490,88 @@ export default function StudentTagihanPage() {
       {/* ── TAB 1: TAGIHAN BERJALAN & PEMBAYARAN ─────────────────────────────────── */}
       {activeTab === 'bills' && (
         <div className="space-y-6">
-          {/* Filter Bar & Semester Quick Selector */}
-          <div className="card p-5 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5 mr-2">
-                  <Filter size={14} className="text-primary-600" /> Filter Semester:
-                </span>
-                <button
-                  onClick={() => setSelectedSemester('ALL')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    selectedSemester === 'ALL'
-                      ? 'bg-primary-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  Semua Semester ({bills.length})
-                </button>
-                {availableSemesters.map((s) => {
-                  const count = bills.filter((b) => b.semester === s.semester || b.periode_label?.includes(`Semester ${s.semester}`)).length;
-                  return (
-                    <button
-                      key={s.semester}
-                      onClick={() => setSelectedSemester(s.semester.toString())}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                        selectedSemester === s.semester.toString()
-                          ? 'bg-primary-900 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      Semester {s.semester} ({count})
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <label className="text-2xs font-bold text-slate-500 uppercase">Status:</label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="ALL">Semua Status</option>
-                  <option value="belum_bayar">Belum Bayar</option>
-                  <option value="sebagian">Sebagian</option>
-                  <option value="dispensasi">Dispensasi</option>
-                  <option value="lunas">Lunas</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Select All / Batch Control Bar */}
-            {unpaidFilteredBills.length > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
-                <div className="flex items-center gap-3">
+          {/* Batch Action & Selection Control Bar */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {unpaidFilteredBills.length > 0 && (
                   <button
                     type="button"
                     onClick={handleSelectAllUnpaid}
                     className="flex items-center gap-2 text-xs font-extrabold text-primary-900 hover:text-primary-700 cursor-pointer"
                   >
                     {unpaidFilteredBills.length > 0 && unpaidFilteredBills.every((b) => selectedBillIds.includes(b.id)) ? (
-                      <CheckSquare size={16} className="text-primary-600" />
+                      <CheckSquare size={18} className="text-primary-600" />
                     ) : (
-                      <Square size={16} className="text-slate-400" />
+                      <Square size={18} className="text-slate-400" />
                     )}
                     <span>Pilih Semua Tagihan Belum Lunas ({unpaidFilteredBills.length})</span>
                   </button>
-                  {selectedBillIds.length > 0 && (
-                    <span className="text-2xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                      {selectedBillIds.length} tagihan dipilih
-                    </span>
-                  )}
-                </div>
-
+                )}
                 {selectedBillIds.length > 0 && (
-                  <div className="flex items-center gap-2">
+                  <span className="text-2xs font-bold text-primary-700 bg-primary-50 border border-primary-200/60 px-2.5 py-1 rounded-lg">
+                    {selectedBillIds.length} tagihan dipilih
+                  </span>
+                )}
+                {hasActiveFilters && (
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-2xs bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                      <Filter size={11} />
+                      Filter Aktif: {appliedFilters.semester !== 'ALL' ? `Semester ${appliedFilters.semester}` : ''} {appliedFilters.status !== 'ALL' ? `• ${appliedFilters.status}` : ''} {appliedFilters.search ? `• "${appliedFilters.search}"` : ''}
+                    </span>
                     <button
-                      type="button"
-                      onClick={() => handleOpenInvoice()}
-                      className="btn btn-secondary btn-sm text-xs font-bold flex items-center gap-1.5"
+                      onClick={handleResetFilter}
+                      className="text-2xs text-slate-400 hover:text-rose-600 font-bold underline cursor-pointer ml-1"
                     >
-                      <FileText size={14} /> Cetak Invoice Gabungan ({selectedBillIds.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowPayModal(true)}
-                      className="btn btn-primary btn-sm text-xs font-bold flex items-center gap-1.5 shadow-sm"
-                    >
-                      <CreditCard size={14} /> Bayar Tagihan Terpilih ({formatRupiah(selectedTotalSisa)})
+                      Reset
                     </button>
                   </div>
                 )}
               </div>
-            )}
+
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<Filter size={15} className={hasActiveFilters ? 'text-primary-600' : 'text-slate-600'} />}
+                  onClick={() => {
+                    setFilterSearch(appliedFilters.search);
+                    setSelectedSemester(appliedFilters.semester);
+                    setSelectedStatus(appliedFilters.status);
+                    setShowFilterDrawer(true);
+                  }}
+                  className={`text-xs font-bold relative ${hasActiveFilters ? 'border-primary-500 text-primary-700 bg-primary-50/50' : ''}`}
+                >
+                  Filter Tagihan
+                  {hasActiveFilters && (
+                    <span className="w-2 h-2 rounded-full bg-primary-600 absolute -top-1 -right-1 ring-2 ring-white"></span>
+                  )}
+                </Button>
+
+                {selectedBillIds.length > 0 && (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<FileText size={14} />}
+                      onClick={() => handleOpenInvoice()}
+                      className="text-xs font-bold"
+                    >
+                      Cetak Invoice ({selectedBillIds.length})
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<CreditCard size={14} />}
+                      onClick={() => setShowPayModal(true)}
+                      className="text-xs font-bold shadow-xs bg-emerald-600 hover:bg-emerald-500 border-none text-white"
+                    >
+                      Bayar ({formatRupiah(selectedTotalSisa)})
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* List of Bill Cards */}
@@ -535,8 +587,22 @@ export default function StudentTagihanPage() {
               </div>
               <h3 className="text-base font-extrabold text-slate-900">Tidak Ada Tagihan Ditemukan</h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Tidak ada tagihan yang cocok dengan filter yang dipilih. Silakan pilih semester lain atau reset filter.
+                {hasActiveFilters
+                  ? 'Tidak ada tagihan yang cocok dengan filter yang Anda pasang. Silakan reset filter untuk melihat semua tagihan.'
+                  : 'Saat ini belum ada tagihan perkuliahan aktif untuk akun Anda.'}
               </p>
+              {hasActiveFilters && (
+                <div className="pt-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<RotateCcw size={14} />}
+                    onClick={handleResetFilter}
+                  >
+                    Reset Filter
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -613,12 +679,14 @@ export default function StudentTagihanPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedBillIds([b.id]);
+                              if (!selectedBillIds.includes(b.id)) {
+                                setSelectedBillIds((prev) => [...prev, b.id]);
+                              }
                               setShowPayModal(true);
                             }}
-                            className="btn btn-primary btn-sm font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+                            className="btn btn-primary btn-sm font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer bg-emerald-600 hover:bg-emerald-500 border-none text-white"
                           >
-                            <CreditCard size={14} /> Bayar Tagihan Ini ({formatRupiah(b.sisa_bayar)})
+                            <CreditCard size={14} /> Checkout Xendit ({formatRupiah(b.sisa_bayar)})
                           </button>
                         )}
                       </div>
@@ -688,39 +756,47 @@ export default function StudentTagihanPage() {
                         </div>
                       </div>
 
-                      {/* Right: VA Box */}
-                      <div className="lg:col-span-5 bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-4 rounded-xl shadow-xs space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-2xs font-extrabold uppercase tracking-wider text-indigo-200 flex items-center gap-1.5">
-                            <Building2 size={13} /> {b.bank_nama || 'Bank BNI (Virtual Account)'}
-                          </span>
-                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-400/30">
-                            VA Auto-Detect
-                          </span>
+                      {/* Right: Xendit Payment Options Box */}
+                      <div className="lg:col-span-5 bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white p-4 rounded-xl shadow-xs space-y-3 flex flex-col justify-between">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-extrabold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                              <CreditCard size={13} className="text-indigo-400" /> Multi-Payment Gateway (1 VA)
+                            </span>
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-400/30">
+                              Xendit Checkout
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {['BNI', 'Mandiri', 'BRI', 'BCA', 'Permata', 'QRIS'].map((ch) => (
+                              <span
+                                key={ch}
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-slate-200 border border-white/10"
+                              >
+                                {ch}
+                              </span>
+                            ))}
+                          </div>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 pt-1">
-                          <span className="font-mono text-lg font-black text-amber-300 tracking-wider">
-                            {b.va_number || ('88012' + studentProfile.nim)}
-                          </span>
+                        <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                          <div className="text-[10px] text-slate-300 leading-tight">
+                            <span>Bisa digabung dengan semester lain</span>
+                          </div>
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(b.va_number || ('88012' + studentProfile.nim))}
-                            className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition text-xs flex items-center gap-1 font-bold cursor-pointer"
-                            title="Salin Nomor VA"
+                            onClick={() => {
+                              if (!isSelected) {
+                                setSelectedBillIds((prev) => [...prev, b.id]);
+                              }
+                              setShowPayModal(true);
+                            }}
+                            className="btn btn-primary btn-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-2xs border-none flex items-center gap-1 cursor-pointer shadow-sm px-3 py-1.5 rounded-lg"
                           >
-                            {copiedVa === (b.va_number || ('88012' + studentProfile.nim)) ? (
-                              <Check size={14} className="text-emerald-400" />
-                            ) : (
-                              <Copy size={14} />
-                            )}
-                            <span className="text-2xs">Salin</span>
+                            <CreditCard size={12} />
+                            {isSelected ? 'Lanjut ke Checkout' : 'Pilih & Checkout'}
                           </button>
-                        </div>
-
-                        <div className="text-[10px] text-slate-300 flex justify-between">
-                          <span>Instruksi: Transfer Tepat Nominal</span>
-                          <span>Batas: {b.jatuh_tempo || '30 Hari'}</span>
                         </div>
                       </div>
                     </div>
@@ -850,212 +926,102 @@ export default function StudentTagihanPage() {
 
       {/* ── TAB 3: TATA CARA PEMBAYARAN ────────────────────────────────────────── */}
       {activeTab === 'guide' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4">
-            <div className="flex items-center gap-3 border-b pb-3">
-              <div className="p-3 bg-indigo-50 text-indigo-700 rounded-xl">
-                <Building2 size={24} />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900">Pembayaran via Virtual Account Bank BNI</h3>
-                <p className="text-2xs text-slate-500">ATM BNI, BNI Mobile Banking, & Agen BNI 46</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-700">
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5">
-                <span className="font-bold text-slate-900 block text-xs">A. Melalui BNI Mobile Banking:</span>
-                <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-1">
-                  <li>Buka aplikasi BNI Mobile Banking dan login.</li>
-                  <li>Pilih menu <strong>Pembayaran</strong> → <strong>Virtual Account Billing</strong>.</li>
-                  <li>Masukkan <strong>Nomor Virtual Account</strong> yang tertera pada Invoice.</li>
-                  <li>Periksa detail tagihan (Nama Mahasiswa, Nominal Tagihan).</li>
-                  <li>Masukkan Password Transaksi dan selesaikan pembayaran.</li>
-                </ol>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5">
-                <span className="font-bold text-slate-900 block text-xs">B. Melalui ATM Bank BNI:</span>
-                <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-1">
-                  <li>Masukkan kartu ATM dan PIN BNI anda.</li>
-                  <li>Pilih menu <strong>Menu Lain</strong> → <strong>Pembayaran</strong> → <strong>Virtual Account Billing</strong>.</li>
-                  <li>Ketikkan <strong>Nomor Virtual Account</strong> tagihan anda.</li>
-                  <li>Konfirmasi tagihan dan tekan <strong>Ya / Benar</strong>.</li>
-                  <li>Simpan struk ATM sebagai bukti pembayaran resmi.</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-
-          <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4">
-            <div className="flex items-center gap-3 border-b pb-3">
-              <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl">
-                <DollarSign size={24} />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900">Transfer Antar Bank & Loket Kasir Kampus</h3>
-                <p className="text-2xs text-slate-500">ATM Bersama, Prima, Mandiri, BCA, BRI, & Kasir Loket</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs text-slate-700">
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5">
-                <span className="font-bold text-slate-900 block text-xs">A. Transfer Antar Bank (BCA / Mandiri / BRI):</span>
-                <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-1">
-                  <li>Pilih menu <strong>Transfer Antar Bank</strong>.</li>
-                  <li>Pilih Bank Tujuan: <strong>Bank BNI (Kode Bank: 009)</strong>.</li>
-                  <li>Masukkan Rekening Tujuan: <strong>Nomor Virtual Account</strong> anda.</li>
-                  <li>Masukkan nominal transfer <strong>persis sama</strong> dengan sisa tagihan.</li>
-                  <li>Verifikasi nama rekening terdaftar dan konfirmasi transfer.</li>
-                </ol>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5">
-                <span className="font-bold text-slate-900 block text-xs">B. Pembayaran di Loket Kasir Kampus:</span>
-                <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-1">
-                  <li>Kunjungi Kantor Bagian Keuangan Kampus.</li>
-                  <li>Sebutkan <strong>NIM ({studentProfile.nim})</strong> atau tunjukkan Invoice.</li>
-                  <li>Petugas kasir memproses pelunasan (Tunai atau Mesin EDC Debit).</li>
-                  <li>Petugas langsung menerbitkan <strong>Kuitansi Resmi Lunas</strong>.</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL PEMBAYARAN TAGIHAN TERPILIH ───────────────────────────────────── */}
-      {showPayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-2">
-                <CreditCard size={18} className="text-primary-600" />
-                <h3 className="text-sm font-extrabold text-slate-900">Pembayaran Tagihan Terpilih</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPayModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Selected Summary */}
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>Jumlah Tagihan Terpilih:</span>
-                <span className="font-bold text-slate-900">{selectedBills.length} Tagihan Semester</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Total Biaya:</span>
-                <span className="font-mono">{formatRupiah(selectedTotalTagihan)}</span>
-              </div>
-              {selectedTotalPotongan > 0 && (
-                <div className="flex justify-between text-emerald-700">
-                  <span>Potongan Beasiswa:</span>
-                  <span className="font-mono">-{formatRupiah(selectedTotalPotongan)}</span>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Guide: BNI & Mandiri VA */}
+            <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
+              <div className="flex items-center gap-3 border-b pb-3">
+                <div className="p-3 bg-indigo-50 text-indigo-700 rounded-xl">
+                  <Building2 size={24} />
                 </div>
-              )}
-              <div className="flex justify-between text-sm font-extrabold text-rose-700 border-t pt-2">
-                <span>Total Harus Dibayar:</span>
-                <span className="font-mono">{formatRupiah(selectedTotalSisa)}</span>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Virtual Account BNI & Mandiri</h3>
+                  <p className="text-2xs text-slate-500">Xendit VA Instant Confirmation</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-xs text-slate-700">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                  <span className="font-bold text-slate-900 block text-xs">1. BNI Mobile / Wondr by BNI:</span>
+                  <p className="text-slate-600 text-2xs">Pilih <strong>Bayar & Beli</strong> → <strong>Virtual Account Billing</strong> → Input VA (prefix <code>88012</code> + NIM) → Bayar.</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                  <span className="font-bold text-slate-900 block text-xs">2. Livin&apos; by Mandiri:</span>
+                  <p className="text-slate-600 text-2xs">Pilih <strong>Bayar</strong> → Masukkan kode institusi / VA (prefix <code>88800</code> + NIM) → Verifikasi nominal → Masukkan PIN.</p>
+                </div>
               </div>
             </div>
 
-            {/* Virtual Account Box */}
-            <div className="p-4 bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-xl space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-2xs font-extrabold uppercase text-indigo-200">Nomor Virtual Account BNI:</span>
-                <span className="text-2xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded">
-                  Aktif
-                </span>
+            {/* Guide: BRI & BCA VA */}
+            <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
+              <div className="flex items-center gap-3 border-b pb-3">
+                <div className="p-3 bg-blue-50 text-blue-700 rounded-xl">
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">Virtual Account BRI & BCA</h3>
+                  <p className="text-2xs text-slate-500">BRImo & myBCA / BCA Mobile</p>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xl font-black text-amber-300 tracking-wider">
-                  {'88012' + studentProfile.nim}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard('88012' + studentProfile.nim)}
-                  className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  <Copy size={13} /> Salin
-                </button>
-              </div>
-              <div className="text-[10px] text-slate-300">
-                Transfer persis <strong>{formatRupiah(selectedTotalSisa)}</strong> ke nomor VA di atas.
+
+              <div className="space-y-3 text-xs text-slate-700">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                  <span className="font-bold text-slate-900 block text-xs">1. BRImo (BRI VA):</span>
+                  <p className="text-slate-600 text-2xs">Pilih <strong>Tagihan</strong> → <strong>BRIVA</strong> → Masukkan nomor VA (prefix <code>70012</code> + NIM) → Konfirmasi pembayaran.</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                  <span className="font-bold text-slate-900 block text-xs">2. BCA Mobile / myBCA:</span>
+                  <p className="text-slate-600 text-2xs">Pilih <strong>m-Transfer</strong> → <strong>BCA Virtual Account</strong> → Masukkan nomor VA (prefix <code>10204</code> + NIM) → Konfirmasi.</p>
+                </div>
               </div>
             </div>
 
-            {/* Metode Bayar Selection */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">Metode Pembayaran:</label>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setPayMethod('BNI_VA')}
-                  className={`p-3 rounded-xl border text-left font-bold transition flex items-center gap-2 cursor-pointer ${
-                    payMethod === 'BNI_VA'
-                      ? 'border-primary-600 bg-primary-50/50 text-primary-900 ring-2 ring-primary-500/20'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <Building2 size={16} className="text-primary-600" />
-                  <div>
-                    <div>VA Bank BNI</div>
-                    <div className="text-2xs font-normal text-slate-500">Otomatis Lunas</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPayMethod('ONLINE_PAYMENT')}
-                  className={`p-3 rounded-xl border text-left font-bold transition flex items-center gap-2 cursor-pointer ${
-                    payMethod === 'ONLINE_PAYMENT'
-                      ? 'border-primary-600 bg-primary-50/50 text-primary-900 ring-2 ring-primary-500/20'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <CreditCard size={16} className="text-primary-600" />
-                  <div>
-                    <div>Online Gateway</div>
-                    <div className="text-2xs font-normal text-slate-500">QRIS / E-Wallet</div>
-                  </div>
-                </button>
+            {/* Guide: QRIS & Loket Kasir */}
+            <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
+              <div className="flex items-center gap-3 border-b pb-3">
+                <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl">
+                  <QrCode size={24} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900">QRIS & Kasir Kampus</h3>
+                  <p className="text-2xs text-slate-500">Scan Instan atau Datang ke Kampus</p>
+                </div>
               </div>
-            </div>
 
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t">
-              <button
-                type="button"
-                onClick={() => setShowPayModal(false)}
-                className="btn btn-ghost btn-sm text-xs"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleProcessPayment}
-                disabled={processingPay || selectedTotalSisa <= 0}
-                className="btn btn-primary btn-sm text-xs font-bold flex items-center gap-1.5 shadow-sm bg-emerald-600 hover:bg-emerald-500 border-none"
-              >
-                {processingPay ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" /> Memproses...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={14} /> Konfirmasi Bayar ({formatRupiah(selectedTotalSisa)})
-                  </>
-                )}
-              </button>
+              <div className="space-y-3 text-xs text-slate-700">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                  <span className="font-bold text-slate-900 block text-xs">1. QRIS (Gopay / OVO / Dana / Bank):</span>
+                  <p className="text-slate-600 text-2xs">Pilih metode <strong>QRIS</strong> pada modal pembayaran, scan barcode dengan kamera m-banking / e-wallet apapun, verifikasi nominal & bayar.</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
+                  <span className="font-bold text-slate-900 block text-xs">2. Loket Kasir Kampus:</span>
+                  <p className="text-slate-600 text-2xs">Tunjukkan NIM atau cetak Invoice ke Bagian Keuangan Kampus. Petugas akan memproses pelunasan tunai/EDC dan mencetak kuitansi.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── MODAL PEMBAYARAN MULTI-CHANNEL XENDIT ─────────────────────────────── */}
+      <XenditStudentPaymentModal
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        selectedBills={selectedBills}
+        totalAmount={selectedTotalSisa}
+        studentNim={studentProfile.nim}
+        studentName={studentProfile.nama}
+        channels={paymentChannels}
+        onConfirmPayment={handleProcessXenditPayment}
+        onPrintInvoice={(bankCode) => {
+          if (selectedBills.length === 1) {
+            handleOpenInvoice(selectedBills[0].id, bankCode);
+          } else {
+            handleOpenInvoice(undefined, bankCode);
+          }
+        }}
+        isProcessing={processingPay}
+      />
 
       {/* ── MODAL INVOICE RESMI (SINGLE / GABUNGAN) ─────────────────────────────── */}
       {selectedInvoice && (
@@ -1113,8 +1079,13 @@ export default function StudentTagihanPage() {
                 </div>
 
                 <div className="space-y-1.5 bg-white p-3 rounded-lg border border-slate-200">
-                  <div className="text-[10px] font-extrabold text-slate-700 uppercase flex items-center gap-1">
-                    <QrCode size={13} className="text-primary-600" /> Nomor Virtual Account BNI:
+                  <div className="text-[10px] font-extrabold text-slate-700 uppercase flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <QrCode size={13} className="text-primary-600" /> Nomor Virtual Account:
+                    </span>
+                    <span className="text-2xs bg-primary-50 text-primary-700 font-bold px-1.5 py-0.5 rounded">
+                      {selectedInvoice.virtual_account?.bank_kode || 'BNI'}
+                    </span>
                   </div>
                   <div className="font-mono text-base font-extrabold text-primary-900 tracking-wider">
                     {selectedInvoice.virtual_account?.va_number || ('88012' + (selectedInvoice.mahasiswa?.nim || studentProfile.nim))}
@@ -1311,6 +1282,113 @@ export default function StudentTagihanPage() {
           </div>
         </div>
       )}
+
+      {/* ── SLIDE-OUT FILTER DRAWER DI KANAN (table-filter-ui-standard) ───────── */}
+      <Drawer
+        open={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        title="Filter & Pencarian Tagihan"
+        width="400px"
+        footer={
+          <div className="flex items-center justify-between gap-3 w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<RotateCcw size={14} />}
+              onClick={handleResetFilter}
+            >
+              Reset Filter
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFilterDrawer(false)}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Filter size={14} />}
+                onClick={handleApplyFilter}
+              >
+                Terapkan
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          {/* 1. Pencarian Teks */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+              Kata Kunci Pencarian
+            </label>
+            <Input
+              placeholder="Cari No. Invoice / Biaya (misal: UKT)..."
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              prefixIcon={<Search size={15} className="text-slate-400" />}
+            />
+            <p className="text-2xs text-slate-400">
+              Mencakup nomor invoice, deskripsi komponen, atau catatan tagihan.
+            </p>
+          </div>
+
+          {/* 2. Filter Semester */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+              Semester Perkuliahan
+            </label>
+            <select
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none transition"
+            >
+              <option value="ALL">Semua Semester ({bills.length} Tagihan)</option>
+              {availableSemesters.map((s) => {
+                const count = bills.filter((b) => b.semester === s.semester || b.periode_label?.includes(`Semester ${s.semester}`)).length;
+                return (
+                  <option key={s.semester} value={s.semester.toString()}>
+                    Semester {s.semester} ({count} Tagihan)
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          {/* 3. Filter Status Tagihan */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+              Status Pembayaran
+            </label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-primary-500 focus:outline-none transition"
+            >
+              <option value="ALL">Semua Status Belum Lunas</option>
+              <option value="belum_bayar">Belum Bayar (Aktif)</option>
+              <option value="sebagian">Sebagian (Cicilan)</option>
+              <option value="dispensasi">Dispensasi Disetujui</option>
+            </select>
+          </div>
+
+          {/* Ringkasan Filter Info */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1.5">
+            <div className="text-2xs font-bold text-slate-500 uppercase tracking-wider">
+              Statistik Mahasiswa:
+            </div>
+            <div className="text-xs text-slate-700 font-semibold">
+              {studentProfile.nama} ({studentProfile.nim})
+            </div>
+            <div className="text-2xs text-slate-500">
+              Total tagihan berjalan belum lunas: <strong>{bills.length} tagihan</strong>. Riwayat yang sudah dibayar dapat dilihat pada tab <em>Riwayat Pembayaran</em>.
+            </div>
+          </div>
+        </div>
+      </Drawer>
     </div>
   );
 }

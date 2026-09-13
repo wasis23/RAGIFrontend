@@ -201,7 +201,6 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
       { id: 6022, parent_id: 602, name: 'Pembayaran & Kasir Loket', url: '/sikeu/pembayaran', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
       { id: 6029, parent_id: 602, name: 'Piutang Mahasiswa', url: '/sikeu/piutang', icon: 'FaExclamationTriangle', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
       { id: 6025, parent_id: 602, name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: 'FaClipboardCheck', module: 'sikeu', permission_id: null, order_index: 5, is_active: true },
-      { id: 60299, parent_id: 602, name: 'Tagihan Mahasiswa & VA', url: '/sikeu/mahasiswa/tagihan', icon: 'FaUserGraduate', module: 'sikeu', permission_id: null, order_index: 6, is_active: true },
     ]
   },
   {
@@ -292,8 +291,17 @@ export function Sidebar() {
       const fetchMenus = async () => {
         try {
           const mod = getModule();
-          const menus = await menuService.getMyMenus(mod);
+          let menus = await menuService.getMyMenus(mod);
+          // Pastikan menu tagihan portal mahasiswa (/sikeu/mahasiswa/tagihan) disembunyikan untuk non-mahasiswa
           if (menus && menus.length > 0) {
+            if (!isMahasiswaRole) {
+              menus = menus
+                .filter((m) => m.url !== '/sikeu/mahasiswa/tagihan')
+                .map((m) => ({
+                  ...m,
+                  children: m.children?.filter((c) => c.url !== '/sikeu/mahasiswa/tagihan'),
+                }));
+            }
             setDynamicMenus(menus);
           } else if (mod === 'simpeg') {
             setDynamicMenus(SIMPEG_FALLBACK_MENUS);

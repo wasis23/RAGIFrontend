@@ -410,18 +410,23 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/riwayat-pembayaran${q}`);
   },
 
-  getInvoice: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/mahasiswa/invoice/${id}`);
+  getPaymentChannels: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/payment-channels');
   },
 
-  generateBatchInvoice: async (tagihanIds: number[]) => {
+  getInvoice: async (id: number, bankKode?: string) => {
+    const q = bankKode ? `?bank_kode=${encodeURIComponent(bankKode)}` : '';
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/mahasiswa/invoice/${id}${q}`);
+  },
+
+  generateBatchInvoice: async (tagihanIds: number[], bankKode?: string) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/mahasiswa/invoice-batch', {
       method: 'POST',
-      body: JSON.stringify({ tagihan_ids: tagihanIds }),
+      body: JSON.stringify({ tagihan_ids: tagihanIds, bank_kode: bankKode || 'BNI' }),
     });
   },
 
-  payStudentBills: async (payload: { tagihan_ids: number[]; channel_bayar?: string; catatan?: string }) => {
+  payStudentBills: async (payload: { tagihan_ids: number[]; channel_bayar?: string; bank_kode?: string; catatan?: string }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/mahasiswa/pay-bills', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -561,6 +566,7 @@ export const sikeuService = {
     semester?: number;
     jalur_kelas?: string;
     is_active?: boolean;
+    include_global?: boolean;
     search?: string;
     page?: number;
     per_page?: number;
