@@ -22,6 +22,7 @@ import {
   Eye,
   Check,
   Copy,
+  UserX,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -51,6 +52,24 @@ const shiftFormSchema = z.object({
 
 type ShiftFormValues = z.output<typeof shiftFormSchema>;
 type ShiftFormInput = z.input<typeof shiftFormSchema>;
+
+// Skema validasi Zod untuk form keterangan ketidakhadiran (pesan Bahasa Indonesia)
+const keteranganFormSchema = z.object({
+  pegawai_id: z.coerce.number().int('Pegawai wajib dipilih').min(1, 'Pegawai wajib dipilih'),
+  tanggal: z.string().min(1, 'Tanggal wajib diisi').regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD'),
+  status_kehadiran: z.enum(['izin', 'sakit', 'dinas', 'alfa'], { message: 'Keterangan wajib dipilih' }),
+  catatan: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional().or(z.literal('')),
+});
+
+type KeteranganFormValues = z.output<typeof keteranganFormSchema>;
+type KeteranganFormInput = z.input<typeof keteranganFormSchema>;
+
+const KETERANGAN_OPTIONS = [
+  { value: 'izin', label: 'Izin' },
+  { value: 'sakit', label: 'Sakit' },
+  { value: 'dinas', label: 'Dinas Luar' },
+  { value: 'alfa', label: 'Alpa (Tanpa Keterangan)' },
+];
 
 export default function PresensiPage() {
   const { hasPermission, hasRole } = useAuth();
@@ -516,6 +535,65 @@ export default function PresensiPage() {
   };
 
   // -------------------------------------------------------------
+  // KETERANGAN KETIDAKHADIRAN (admin menetapkan izin/sakit/dinas/alfa
+  // untuk pegawai terjadwal masuk yang tidak memiliki log presensi)
+  // -------------------------------------------------------------
+  const [showKeteranganModal, setShowKeteranganModal] = useState(false);
+  const [pegawaiOptions, setPegawaiOptions] = useState<{ value: number; label: string }[]>([]);
+  const [loadingPegawaiOptions, setLoadingPegawaiOptions] = useState(false);
+  const [savingKeterangan, setSavingKeterangan] = useState(false);
+
+  const {
+    register: registerKeterangan,
+    control: controlKeterangan,
+    handleSubmit: handleSubmitKeterangan,
+    formState: { errors: keteranganErrors },
+    reset: resetKeterangan,
+  } = useForm<KeteranganFormInput, unknown, KeteranganFormValues>({
+    resolver: zodResolver(keteranganFormSchema),
+    defaultValues: { pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' },
+  });
+
+  const handleOpenKeteranganModal = async () => {
+    resetKeterangan({ pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' });
+    setShowKeteranganModal(true);
+    if (pegawaiOptions.length > 0) return;
+    setLoadingPegawaiOptions(true);
+    try {
+      const res = await simpegService.getPegawaiList({ per_page: 100 });
+      const responseData = (res as any).data ?? res;
+      const items: any[] = Array.isArray(responseData) ? responseData : responseData?.items || responseData?.data || [];
+      setPegawaiOptions(
+        items.map((p: any) => ({ value: p.id, label: `${p.nama_lengkap} — ${p.nip || '-'}` }))
+      );
+    } catch {
+      toast.error('Gagal memuat daftar pegawai');
+    } finally {
+      setLoadingPegawaiOptions(false);
+    }
+  };
+
+  const onSubmitKeterangan = async (values: KeteranganFormValues) => {
+    setSavingKeterangan(true);
+    try {
+      const res = await simpegService.setKeteranganPresensi({
+        pegawai_id: values.pegawai_id,
+        tanggal: values.tanggal,
+        status_kehadiran: values.status_kehadiran,
+        catatan: values.catatan || undefined,
+      });
+      toast.success(res.message || 'Keterangan ketidakhadiran berhasil disimpan');
+      setShowKeteranganModal(false);
+      setPage(1);
+      fetchLogPresensi();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan keterangan ketidakhadiran');
+    } finally {
+      setSavingKeterangan(false);
+    }
+  };
+
+  // -------------------------------------------------------------
   // COLUMNS: Log Presensi
   // -------------------------------------------------------------
   const logColumns: ColumnDef<any>[] = [
@@ -553,13 +631,20 @@ export default function PresensiPage() {
         let badgeVariant: 'success' | 'warning' | 'danger' | 'info' | 'purple' = 'success';
         if (st === 'terlambat') badgeVariant = 'warning';
         else if (st === 'ditolak' || st === 'alfa') badgeVariant = 'danger';
-        else if (st === 'izin' || st === 'sakit') badgeVariant = 'info';
+        else if (st === 'izin' || st === 'sakit' || st === 'dinas') badgeVariant = 'info';
         else if (st === 'menunggu_approval') badgeVariant = 'purple';
+
+        const statusLabels: Record<string, string> = {
+          hadir: 'Hadir Tepat Waktu',
+          dinas: 'Dinas Luar',
+          menunggu_approval: 'Menunggu Approval',
+          alfa: 'Alpa',
+        };
 
         return (
           <div className="space-y-1">
             <Badge variant={badgeVariant} className="capitalize font-bold text-2xs">
-              {st === 'hadir' ? 'Hadir Tepat Waktu' : st}
+              {statusLabels[st] || st}
             </Badge>
             {row.late_minutes > 0 && (
               <div className="text-[10px] text-rose-600 font-semibold">
@@ -639,6 +724,11 @@ export default function PresensiPage() {
                 <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
                   Filter Presensi
                 </Button>
+                {isAdmin && (
+                  <Button variant="outline" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
+                    Tandai Tidak Hadir
+                  </Button>
+                )}
               </>
             )}
             {activeTab === 'office' && isAdmin && (
@@ -1227,6 +1317,8 @@ export default function PresensiPage() {
               { value: 'ditolak', label: 'Ditolak' },
               { value: 'izin', label: 'Izin' },
               { value: 'sakit', label: 'Sakit' },
+              { value: 'dinas', label: 'Dinas Luar' },
+              { value: 'alfa', label: 'Alpa' },
             ]}
           />
         </div>
@@ -1451,6 +1543,74 @@ export default function PresensiPage() {
             placeholder="Contoh: SKB 3 Menteri"
             value={holidayForm.description}
             onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
+          />
+        </form>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL KETERANGAN KETIDAKHADIRAN */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showKeteranganModal}
+        onClose={() => setShowKeteranganModal(false)}
+        title="Tandai Tidak Hadir"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowKeteranganModal(false)} disabled={savingKeterangan}>
+              Batal
+            </Button>
+            <Button type="submit" loading={savingKeterangan} disabled={savingKeterangan} form="keterangan-form">
+              Simpan Keterangan
+            </Button>
+          </>
+        }
+      >
+        <form id="keterangan-form" onSubmit={handleSubmitKeterangan(onSubmitKeterangan)} noValidate className="space-y-4">
+          <p className="text-[11px] text-slate-500">
+            Untuk pegawai yang terjadwal masuk (referensi shift) tetapi tidak memiliki log presensi. Data hasil scan
+            tidak dapat ditimpa lewat form ini.
+          </p>
+          <Controller
+            control={controlKeterangan}
+            name="pegawai_id"
+            render={({ field }) => (
+              <Select
+                label="Pegawai *"
+                placeholder={loadingPegawaiOptions ? 'Memuat daftar pegawai...' : 'Pilih pegawai...'}
+                options={pegawaiOptions}
+                value={(field.value as number) || ''}
+                onChange={field.onChange}
+                error={keteranganErrors.pegawai_id?.message}
+                isDisabled={loadingPegawaiOptions}
+              />
+            )}
+          />
+          <Input
+            label="Tanggal *"
+            type="date"
+            required
+            max={new Date().toISOString().substring(0, 10)}
+            error={keteranganErrors.tanggal?.message}
+            {...registerKeterangan('tanggal')}
+          />
+          <Controller
+            control={controlKeterangan}
+            name="status_kehadiran"
+            render={({ field }) => (
+              <Select
+                label="Keterangan *"
+                options={KETERANGAN_OPTIONS}
+                value={field.value}
+                onChange={field.onChange}
+                error={keteranganErrors.status_kehadiran?.message}
+              />
+            )}
+          />
+          <Input
+            label="Catatan (opsional)"
+            placeholder="Contoh: Surat dokter / Surat tugas dinas"
+            error={keteranganErrors.catatan?.message}
+            {...registerKeterangan('catatan')}
           />
         </form>
       </Modal>

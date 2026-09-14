@@ -240,6 +240,16 @@ export const simpegService = {
     return data;
   },
 
+  setKeteranganPresensi: async (payload: {
+    pegawai_id: number;
+    tanggal: string;
+    status_kehadiran: 'izin' | 'sakit' | 'dinas' | 'alfa';
+    catatan?: string;
+  }): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/keterangan', payload);
+    return data;
+  },
+
   getPresensiSettings: async (): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/presensi/settings');
     return data;
