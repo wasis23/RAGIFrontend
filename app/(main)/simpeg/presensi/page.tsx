@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   ClipboardCheck,
   Building2,
   CalendarRange,
   SlidersHorizontal,
-  Search,
   Filter,
-  CheckCircle2,
-  XCircle,
-  Clock,
   MapPin,
   ShieldCheck,
   AlertTriangle,
@@ -19,9 +18,10 @@ import {
   Trash2,
   Edit2,
   Calendar,
-  Check,
   RefreshCw,
-  Sparkles,
+  Eye,
+  Check,
+  Copy,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -33,16 +33,30 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
 import type { PaginationMeta } from '@/types/api.types';
 
-export default function PresensiPage() {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.presensi.manage');
+// Skema validasi Zod untuk form tipe shift (pesan Bahasa Indonesia)
+const shiftFormSchema = z.object({
+  name: z.string().min(3, 'Nama tipe shift minimal 3 karakter').max(255, 'Nama tipe shift maksimal 255 karakter'),
+  description: z.string().max(500, 'Deskripsi maksimal 500 karakter').optional().or(z.literal('')),
+  late_tolerance_minutes: z.coerce.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
+  early_leave_tolerance_minutes: z.coerce.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
+  max_early_clock_in_minutes: z.coerce.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
+  applies_national_holidays: z.boolean(),
+  is_active: z.boolean(),
+});
 
-  const [activeTab, setActiveTab] = useState<'log' | 'office' | 'shift' | 'settings'>('log');
+type ShiftFormValues = z.output<typeof shiftFormSchema>;
+type ShiftFormInput = z.input<typeof shiftFormSchema>;
+
+export default function PresensiPage() {
+  const { hasPermission, hasRole } = useAuth();
+  const isAdmin = hasRole('admin') || hasRole('superadmin') || hasRole('admin_simpeg') || hasPermission('simpeg.presensi.manage');
+
+  const [activeTab, setActiveTab] = useState<'log' | 'office' | 'shift' | 'settings' | 'holiday'>('log');
 
   // -------------------------------------------------------------
   // TAB 1: LOG PRESENSI REALTIME
@@ -69,7 +83,7 @@ export default function PresensiPage() {
         status: statusFilter || undefined,
         tanggal: tanggalFilter || undefined,
         page,
-        per_page: 15,
+        per_page: 10,
       });
 
       if (res.status === 'success' && res.data) {
@@ -186,17 +200,104 @@ export default function PresensiPage() {
     try {
       const res = await simpegService.getShiftTemplates();
       if (res.status === 'success') {
-        setShifts(res.data || []);
-        if (res.data?.length > 0 && !selectedShift) {
-          setSelectedShift(res.data[0]);
-        }
+        const list = res.data || [];
+        setShifts(list);
+        setSelectedShift((prev: any) => {
+          if (!prev && list.length > 0) return list[0];
+          if (prev) {
+            const fresh = list.find((s: any) => s.id === prev.id);
+            return fresh || prev;
+          }
+          return prev;
+        });
       }
     } catch {
       toast.error('Gagal memuat jadwal shift kerja');
     } finally {
       setLoadingShifts(false);
     }
-  }, [selectedShift]);
+  }, []);
+
+  // -------------------------------------------------------------
+  // TAB 3b: KALENDER LIBUR / TANGGAL MERAH
+  // -------------------------------------------------------------
+  const [loadingHolidays, setLoadingHolidays] = useState(false);
+  const [syncingHolidays, setSyncingHolidays] = useState(false);
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [holidayYear, setHolidayYear] = useState<number>(new Date().getFullYear());
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [editingHoliday, setEditingHoliday] = useState<any | null>(null);
+  const [holidayForm, setHolidayForm] = useState({
+    holiday_date: '',
+    name: '',
+    is_mass_leave: false,
+    description: '',
+  });
+  const [savingHoliday, setSavingHoliday] = useState(false);
+
+  const fetchHolidays = useCallback(async (year: number) => {
+    setLoadingHolidays(true);
+    try {
+      const res = await simpegService.getNationalHolidays(year);
+      if (res.status === 'success') {
+        setHolidays(res.data || []);
+      }
+    } catch {
+      toast.error('Gagal memuat daftar tanggal libur');
+    } finally {
+      setLoadingHolidays(false);
+    }
+  }, []);
+
+  const handleOpenCreateHoliday = () => {
+    setEditingHoliday(null);
+    setHolidayForm({ holiday_date: `${holidayYear}-01-01`, name: '', is_mass_leave: false, description: '' });
+    setShowHolidayModal(true);
+  };
+
+  const handleOpenEditHoliday = (h: any) => {
+    setEditingHoliday(h);
+    setHolidayForm({
+      holiday_date: (h.holiday_date || '').substring(0, 10),
+      name: h.name || '',
+      is_mass_leave: !!h.is_mass_leave,
+      description: h.description || '',
+    });
+    setShowHolidayModal(true);
+  };
+
+  const handleSaveHoliday = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingHoliday(true);
+    try {
+      if (editingHoliday) {
+        await simpegService.updateNationalHoliday(editingHoliday.id, holidayForm);
+        toast.success('Tanggal libur berhasil diperbarui');
+      } else {
+        await simpegService.createNationalHoliday(holidayForm);
+        toast.success('Tanggal libur berhasil ditambahkan');
+      }
+      setShowHolidayModal(false);
+      fetchHolidays(holidayYear);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.errors?.holiday_date?.[0] || 'Gagal menyimpan tanggal libur';
+      toast.error(msg);
+    } finally {
+      setSavingHoliday(false);
+    }
+  };
+
+  const handleDeleteHoliday = async (h: any) => {
+    const label = `${h.name} (${(h.holiday_date || '').substring(0, 10)})`;
+    if (!confirm(`Hapus tanggal libur "${label}"?`)) return;
+    try {
+      await simpegService.deleteNationalHoliday(h.id);
+      toast.success('Tanggal libur berhasil dihapus');
+      fetchHolidays(holidayYear);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menghapus tanggal libur');
+    }
+  };
 
   const handleSaveShiftSchedule = async () => {
     if (!selectedShift) return;
@@ -208,6 +309,7 @@ export default function PresensiPage() {
         late_tolerance_minutes: selectedShift.late_tolerance_minutes,
         early_leave_tolerance_minutes: selectedShift.early_leave_tolerance_minutes,
         max_early_clock_in_minutes: selectedShift.max_early_clock_in_minutes,
+        applies_national_holidays: selectedShift.applies_national_holidays ?? true,
         is_active: selectedShift.is_active,
         days: selectedShift.days,
       });
@@ -217,6 +319,118 @@ export default function PresensiPage() {
       toast.error(err.response?.data?.message || 'Gagal menyimpan jadwal shift');
     } finally {
       setSavingShift(false);
+    }
+  };
+
+  // Form tambah / ubah tipe shift (bisa banyak tipe, jam beda-beda)
+  // Validasi ketat Zod + React Hook Form, pesan Bahasa Indonesia
+  const [showShiftModal, setShowShiftModal] = useState(false);
+  const [editingShift, setEditingShift] = useState<any | null>(null);
+
+  const {
+    register: registerShift,
+    control: controlShift,
+    handleSubmit: handleSubmitShift,
+    reset: resetShift,
+    formState: { errors: shiftErrors, isSubmitting: savingShiftForm },
+  } = useForm<ShiftFormInput, unknown, ShiftFormValues>({
+    resolver: zodResolver(shiftFormSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      late_tolerance_minutes: 15,
+      early_leave_tolerance_minutes: 15,
+      max_early_clock_in_minutes: 60,
+      applies_national_holidays: true,
+      is_active: true,
+    },
+  });
+
+  const handleOpenCreateShift = () => {
+    setEditingShift(null);
+    resetShift({
+      name: '',
+      description: '',
+      late_tolerance_minutes: 15,
+      early_leave_tolerance_minutes: 15,
+      max_early_clock_in_minutes: 60,
+      applies_national_holidays: true,
+      is_active: true,
+    });
+    setShowShiftModal(true);
+  };
+
+  const handleOpenEditShift = (s: any) => {
+    setEditingShift(s);
+    resetShift({
+      name: s.name || '',
+      description: s.description || '',
+      late_tolerance_minutes: s.late_tolerance_minutes ?? 15,
+      early_leave_tolerance_minutes: s.early_leave_tolerance_minutes ?? 15,
+      max_early_clock_in_minutes: s.max_early_clock_in_minutes ?? 60,
+      applies_national_holidays: s.applies_national_holidays ?? true,
+      is_active: !!s.is_active,
+    });
+    setShowShiftModal(true);
+  };
+
+  const onSubmitShiftForm = async (values: ShiftFormValues) => {
+    try {
+      if (editingShift) {
+        await simpegService.updateShiftTemplate(editingShift.id, {
+          ...values,
+          days: editingShift.days,
+        });
+        toast.success('Tipe shift berhasil diperbarui');
+      } else {
+        const res = await simpegService.createShiftTemplate(values);
+        toast.success('Tipe shift baru berhasil ditambahkan — silakan atur jam per harinya');
+        if (res.status === 'success' && res.data) {
+          setSelectedShift(res.data);
+        }
+      }
+      setShowShiftModal(false);
+      fetchShifts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.response?.data?.errors?.name?.[0] || 'Gagal menyimpan tipe shift');
+    }
+  };
+
+  const handleDeleteShift = async (s: any) => {
+    if (!confirm(`Hapus tipe shift "${s.name}"? Jadwal 7 hari di dalamnya ikut terhapus.`)) return;
+    try {
+      await simpegService.deleteShiftTemplate(s.id);
+      toast.success('Tipe shift berhasil dihapus');
+      if (selectedShift?.id === s.id) setSelectedShift(null);
+      fetchShifts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menghapus tipe shift');
+    }
+  };
+
+  const handleDuplicateShift = async (s: any) => {
+    const copyName = `${s.name} (Copy)`;
+    try {
+      const res = await simpegService.createShiftTemplate({
+        name: copyName,
+        description: s.description,
+        late_tolerance_minutes: s.late_tolerance_minutes,
+        early_leave_tolerance_minutes: s.early_leave_tolerance_minutes,
+        max_early_clock_in_minutes: s.max_early_clock_in_minutes,
+        applies_national_holidays: s.applies_national_holidays ?? true,
+        is_active: true,
+        days: (s.days || []).map((d: any) => ({
+          day_of_week: d.day_of_week,
+          start_time: d.start_time ? String(d.start_time).substring(0, 5) : null,
+          end_time: d.end_time ? String(d.end_time).substring(0, 5) : null,
+          is_day_off: !!d.is_day_off,
+        })),
+      });
+      toast.success(`Tipe shift diduplikat menjadi "${copyName}"`);
+      if (res.status === 'success' && res.data) setSelectedShift(res.data);
+      fetchShifts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menduplikat tipe shift');
     }
   };
 
@@ -266,8 +480,9 @@ export default function PresensiPage() {
     if (activeTab === 'log') fetchLogPresensi();
     else if (activeTab === 'office') fetchOffices();
     else if (activeTab === 'shift') fetchShifts();
+    else if (activeTab === 'holiday') fetchHolidays(holidayYear);
     else if (activeTab === 'settings') fetchSettings();
-  }, [activeTab, fetchLogPresensi, fetchOffices, fetchShifts, fetchSettings]);
+  }, [activeTab, fetchLogPresensi, fetchOffices, fetchShifts, fetchHolidays, fetchSettings, holidayYear]);
 
   const handleApprovePresensi = async (id: number) => {
     setApprovingId(id);
@@ -284,6 +499,19 @@ export default function PresensiPage() {
       toast.error(err.response?.data?.message || 'Gagal menyetujui presensi');
     } finally {
       setApprovingId(null);
+    }
+  };
+
+  const handleSyncHolidays = async () => {
+    setSyncingHolidays(true);
+    try {
+      const res = await simpegService.syncNationalHolidays(holidayYear);
+      toast.success(res.message || `Sinkronisasi libur nasional ${holidayYear} berhasil`);
+      fetchHolidays(holidayYear);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || `Sinkronisasi libur nasional ${holidayYear} gagal — periksa koneksi ke API publik`);
+    } finally {
+      setSyncingHolidays(false);
     }
   };
 
@@ -367,31 +595,29 @@ export default function PresensiPage() {
       key: 'aksi',
       label: 'Aksi',
       align: 'right',
-      render: (row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
+      render: (row) => {
+        const canApprove =
+          isAdmin && (row.status === 'ditolak' || row.status === 'menunggu_approval' || !row.is_approved_by_admin);
+        const items: DropdownMenuItem[] = [
+          {
+            label: 'Lihat Rincian',
+            icon: <Eye size={14} />,
+            onClick: () => {
               setSelectedLog(row);
               setShowDetailModal(true);
-            }}
-          >
-            Rincian
-          </Button>
-          {isAdmin && (row.status === 'ditolak' || row.status === 'menunggu_approval' || !row.is_approved_by_admin) && (
-            <Button
-              size="sm"
-              variant="primary"
-              loading={approvingId === row.id}
-              disabled={approvingId === row.id}
-              onClick={() => handleApprovePresensi(row.id)}
-            >
-              Setujui
-            </Button>
-          )}
-        </div>
-      ),
+            },
+          },
+        ];
+        if (canApprove) {
+          items.push({
+            label: approvingId === row.id ? 'Menyetujui...' : 'Setujui Manual',
+            icon: <Check size={14} />,
+            disabled: approvingId === row.id,
+            onClick: () => handleApprovePresensi(row.id),
+          });
+        }
+        return <DropdownMenu items={items} />;
+      },
     },
   ];
 
@@ -400,17 +626,34 @@ export default function PresensiPage() {
       {/* Page Header */}
       <PageHeader
         title="Pusat Presensi & Jadwal SIMPEG"
-        description="Kelola verifikasi absensi biometrik wajah, lokasi kantor (geofencing), jadwal shift kerja, dan parameter sistem presensi."
+        description="Kelola verifikasi absensi biometrik wajah, lokasi kantor (geofencing), jadwal shift kerja, kalender libur, dan parameter sistem presensi."
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIMPEG', href: '/simpeg' },
+          { label: 'Presensi & Jadwal' },
+        ]}
         action={
           <div className="flex items-center gap-2">
+            {activeTab === 'log' && (
+              <>
+                <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
+                  Filter Presensi
+                </Button>
+              </>
+            )}
             {activeTab === 'office' && isAdmin && (
               <Button icon={<Plus size={16} />} onClick={handleOpenCreateOffice}>
                 Tambah Lokasi Kantor
               </Button>
             )}
-            {activeTab === 'log' && (
-              <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
-                Filter Presensi
+            {activeTab === 'shift' && isAdmin && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateShift}>
+                Tambah Tipe Shift
+              </Button>
+            )}
+            {activeTab === 'holiday' && isAdmin && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateHoliday}>
+                Tambah Tanggal Libur
               </Button>
             )}
           </div>
@@ -418,9 +661,11 @@ export default function PresensiPage() {
       />
 
       {/* Tabs Navigation Bar */}
-      <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/90 flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
+      <div className="card flex items-center gap-1.5 overflow-x-auto p-1.5" role="tablist" aria-label="Navigasi menu presensi">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'log'}
           onClick={() => setActiveTab('log')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
             activeTab === 'log'
@@ -434,6 +679,8 @@ export default function PresensiPage() {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'office'}
           onClick={() => setActiveTab('office')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
             activeTab === 'office'
@@ -447,6 +694,8 @@ export default function PresensiPage() {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'shift'}
           onClick={() => setActiveTab('shift')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
             activeTab === 'shift'
@@ -460,6 +709,8 @@ export default function PresensiPage() {
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'settings'}
           onClick={() => setActiveTab('settings')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
             activeTab === 'settings'
@@ -469,6 +720,21 @@ export default function PresensiPage() {
         >
           <SlidersHorizontal size={16} className={activeTab === 'settings' ? 'text-primary-600' : 'text-slate-500'} />
           4. Parameter Sistem & Toleransi
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'holiday'}
+          onClick={() => setActiveTab('holiday')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
+            activeTab === 'holiday'
+              ? 'bg-white text-primary-800 shadow-xs border border-slate-200/80 ring-1 ring-primary-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <Calendar size={16} className={activeTab === 'holiday' ? 'text-primary-600' : 'text-slate-500'} />
+          5. Kalender Libur & Tanggal Merah
         </button>
       </div>
 
@@ -483,6 +749,7 @@ export default function PresensiPage() {
             isLoading={loadingLog}
             meta={meta}
             onPageChange={(newPage) => setPage(newPage)}
+            emptyMessage="Belum ada log presensi yang sesuai filter."
           />
         </div>
       )}
@@ -563,7 +830,35 @@ export default function PresensiPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Daftar Template Shift */}
           <div className="space-y-3 lg:col-span-1">
-            <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Template Shift</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                Template Shift ({shifts.length})
+              </h3>
+              <Button
+                size="sm"
+                variant="outline"
+                icon={<RefreshCw size={13} />}
+                onClick={fetchShifts}
+                disabled={loadingShifts}
+              >
+                Muat Ulang
+              </Button>
+            </div>
+            {loadingShifts && shifts.length === 0 && (
+              <div className="p-4 bg-white border border-slate-200 rounded-2xl text-xs text-slate-500">Memuat template shift...</div>
+            )}
+            {!loadingShifts && shifts.length === 0 && (
+              <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
+                  <AlertTriangle size={14} /> Template shift masih kosong
+                </div>
+                <p className="text-2xs text-amber-700">
+                  Penyebab umum: seeder <span className="font-mono font-bold">SimpegPresensiSettingSeeder</span> belum dijalankan
+                  (<span className="font-mono">php artisan db:seed --class=&quot;Database\\Seeders\\Simpeg\\SimpegPresensiSettingSeeder&quot;</span>).
+                  Backend sekarang otomatis membuat template default saat endpoint dibuka — klik Muat Ulang.
+                </p>
+              </div>
+            )}
             {shifts.map((s) => (
               <div
                 key={s.id}
@@ -581,9 +876,21 @@ export default function PresensiPage() {
                   </Badge>
                 </div>
                 <p className="text-2xs text-slate-500 mt-1">{s.description || 'Pola jam kerja standar'}</p>
-                <div className="mt-2 text-2xs text-slate-600 font-semibold">
-                  Toleransi Keterlambatan: {s.late_tolerance_minutes} Menit
+                <div className="mt-2 flex items-center justify-between text-2xs text-slate-600 font-semibold">
+                  <span>Toleransi: {s.late_tolerance_minutes} mnt</span>
+                  <span>{s.employees_count ?? 0} pegawai</span>
                 </div>
+                {isAdmin && (
+                  <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" icon={<Edit2 size={12} />} onClick={() => handleOpenEditShift(s)}>
+                      Ubah
+                    </Button>
+                    <Button size="sm" variant="outline" icon={<Copy size={12} />} onClick={() => handleDuplicateShift(s)}>
+                      Duplikat
+                    </Button>
+                    <Button size="sm" variant="danger" icon={<Trash2 size={12} />} onClick={() => handleDeleteShift(s)} />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -591,21 +898,26 @@ export default function PresensiPage() {
           {/* Pengaturan Detail 7 Hari Kerja */}
           {selectedShift && (
             <div className="p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-5 lg:col-span-2">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900">Jadwal Harian: {selectedShift.name}</h3>
                   <p className="text-2xs text-slate-500">Atur jam masuk, jam pulang, dan hari libur untuk Senin s/d Minggu</p>
                 </div>
                 {isAdmin && (
-                  <Button
-                    size="sm"
-                    icon={<Save size={14} />}
-                    loading={savingShift}
-                    disabled={savingShift}
-                    onClick={handleSaveShiftSchedule}
-                  >
-                    Simpan Jadwal
-                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="outline" icon={<Edit2 size={13} />} onClick={() => handleOpenEditShift(selectedShift)}>
+                      Ubah Info Shift
+                    </Button>
+                    <Button
+                      size="sm"
+                      icon={<Save size={14} />}
+                      loading={savingShift}
+                      disabled={savingShift}
+                      onClick={handleSaveShiftSchedule}
+                    >
+                      Simpan Jadwal
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -624,31 +936,33 @@ export default function PresensiPage() {
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1.5 text-xs">
                           <span className="text-2xs text-slate-400">Masuk:</span>
-                          <input
+                          <Input
                             type="time"
-                            value={day.start_time || ''}
+                            aria-label={`Jam masuk ${name}`}
+                            value={day.start_time ? String(day.start_time).substring(0, 5) : ''}
                             disabled={day.is_day_off}
                             onChange={(e) => {
                               const updatedDays = [...selectedShift.days];
                               updatedDays[idx].start_time = e.target.value;
                               setSelectedShift({ ...selectedShift, days: updatedDays });
                             }}
-                            className="text-xs font-mono p-1.5 border border-slate-200 rounded-lg disabled:bg-slate-100"
+                            className="w-28 font-mono"
                           />
                         </div>
 
                         <div className="flex items-center gap-1.5 text-xs">
                           <span className="text-2xs text-slate-400">Pulang:</span>
-                          <input
+                          <Input
                             type="time"
-                            value={day.end_time || ''}
+                            aria-label={`Jam pulang ${name}`}
+                            value={day.end_time ? String(day.end_time).substring(0, 5) : ''}
                             disabled={day.is_day_off}
                             onChange={(e) => {
                               const updatedDays = [...selectedShift.days];
                               updatedDays[idx].end_time = e.target.value;
                               setSelectedShift({ ...selectedShift, days: updatedDays });
                             }}
-                            className="text-xs font-mono p-1.5 border border-slate-200 rounded-lg disabled:bg-slate-100"
+                            className="w-28 font-mono"
                           />
                         </div>
 
@@ -687,84 +1001,58 @@ export default function PresensiPage() {
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Ambang Batas Skor Kemiripan Wajah (Face Recognition Score) *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0.1"
-                max="1.0"
-                value={systemParams.face_score_threshold}
-                onChange={(e) => setSystemParams({ ...systemParams, face_score_threshold: parseFloat(e.target.value) || 0.80 })}
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Rekomendasi model InsightFace / Facenet: <strong>0.80</strong> (Rentang 0.00 s/d 1.00). Nilai lebih tinggi menuntut kecocokan lebih presisi.
-              </p>
-            </div>
+            <Input
+              label="Ambang Batas Skor Kemiripan Wajah (Face Recognition Score) *"
+              type="number"
+              step="0.01"
+              min="0.1"
+              max="1.0"
+              hint="Rekomendasi model InsightFace / Facenet: 0.80 (rentang 0.00 s/d 1.00). Nilai lebih tinggi menuntut kecocokan lebih presisi."
+              value={systemParams.face_score_threshold}
+              onChange={(e) => setSystemParams({ ...systemParams, face_score_threshold: parseFloat(e.target.value) || 0.80 })}
+            />
 
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Batas Toleransi Akurasi GPS (Maksimal Meter) *
-              </label>
-              <Input
-                type="number"
-                step="1"
-                min="5"
-                max="500"
-                value={systemParams.gps_accuracy_threshold_meters}
-                onChange={(e) => setSystemParams({ ...systemParams, gps_accuracy_threshold_meters: parseFloat(e.target.value) || 50.0 })}
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Maksimal ketidakpastian GPS HP (default <strong>50.0 meter</strong>). Presensi ditolak jika sinyal satelit GPS lemah &gt; 50 meter.
-              </p>
-            </div>
+            <Input
+              label="Batas Toleransi Akurasi GPS (Maksimal Meter) *"
+              type="number"
+              step="1"
+              min="5"
+              max="500"
+              hint="Maksimal ketidakpastian GPS HP (default 50.0 meter). Presensi ditolak jika sinyal GPS lemah melebihi batas ini."
+              value={systemParams.gps_accuracy_threshold_meters}
+              onChange={(e) => setSystemParams({ ...systemParams, gps_accuracy_threshold_meters: parseFloat(e.target.value) || 50.0 })}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Toleransi Keterlambatan (Menit) *
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={systemParams.late_tolerance_minutes}
-                  onChange={(e) => setSystemParams({ ...systemParams, late_tolerance_minutes: parseInt(e.target.value) || 0 })}
-                />
-                <p className="text-[11px] text-slate-500 mt-1">Presensi masuk dalam toleransi tetap dihitung Tepat Waktu.</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  Toleransi Pulang Cepat (Menit) *
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={systemParams.early_leave_tolerance_minutes}
-                  onChange={(e) => setSystemParams({ ...systemParams, early_leave_tolerance_minutes: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                Batas Buka Absen Masuk Lebih Awal (Menit Sebelum Jam Shift) *
-              </label>
               <Input
+                label="Toleransi Keterlambatan (Menit) *"
                 type="number"
                 min="0"
-                max="240"
-                value={systemParams.max_early_clock_in_minutes}
-                onChange={(e) => setSystemParams({ ...systemParams, max_early_clock_in_minutes: parseInt(e.target.value) || 60 })}
+                max="120"
+                hint="Presensi masuk dalam toleransi tetap dihitung Tepat Waktu."
+                value={systemParams.late_tolerance_minutes}
+                onChange={(e) => setSystemParams({ ...systemParams, late_tolerance_minutes: parseInt(e.target.value) || 0 })}
               />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Contoh: 60 menit artinya jika shift jam 08:00, pegawai baru bisa absen mulai jam 07:00.
-              </p>
+
+              <Input
+                label="Toleransi Pulang Cepat (Menit) *"
+                type="number"
+                min="0"
+                max="120"
+                value={systemParams.early_leave_tolerance_minutes}
+                onChange={(e) => setSystemParams({ ...systemParams, early_leave_tolerance_minutes: parseInt(e.target.value) || 0 })}
+              />
             </div>
+
+            <Input
+              label="Batas Buka Absen Masuk Lebih Awal (Menit Sebelum Jam Shift) *"
+              type="number"
+              min="0"
+              max="240"
+              hint="Contoh: 60 menit artinya jika shift jam 08:00, pegawai baru bisa absen mulai jam 07:00."
+              value={systemParams.max_early_clock_in_minutes}
+              onChange={(e) => setSystemParams({ ...systemParams, max_early_clock_in_minutes: parseInt(e.target.value) || 60 })}
+            />
 
             <div className="pt-2">
               <ToggleSwitch
@@ -787,9 +1075,131 @@ export default function PresensiPage() {
       )}
 
       {/* ------------------------------------------------------------- */}
+      {/* TAB 5: KALENDER LIBUR & TANGGAL MERAH */}
+      {/* ------------------------------------------------------------- */}
+      {activeTab === 'holiday' && (
+        <div className="p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-rose-50 rounded-xl text-rose-700">
+                <Calendar size={20} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">Kalender Libur & Tanggal Merah</h3>
+                <p className="text-2xs text-slate-500">
+                  Daftar libur nasional, cuti bersama, dan libur khusus kampus. Tambah manual atau tarik otomatis via Sync API Nasional.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                aria-label="Filter tahun kalender libur"
+                value={holidayYear}
+                onChange={(e) => setHolidayYear(parseInt(e.target.value) || new Date().getFullYear())}
+                className="w-28"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                icon={<RefreshCw size={13} />}
+                onClick={() => fetchHolidays(holidayYear)}
+                disabled={loadingHolidays}
+              >
+                Muat Ulang
+              </Button>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon={<RefreshCw size={13} />}
+                  loading={syncingHolidays}
+                  disabled={syncingHolidays}
+                  onClick={handleSyncHolidays}
+                  title="Tarik daftar libur nasional & cuti bersama dari API publik Indonesia"
+                >
+                  Sync API Nasional
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {loadingHolidays ? (
+            <div className="text-xs text-slate-500 py-4 text-center">Memuat tanggal libur {holidayYear}...</div>
+          ) : holidays.length === 0 ? (
+            <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center text-xs text-slate-500">
+              Belum ada tanggal libur untuk tahun {holidayYear}. Klik Tambah Libur untuk menambahkan tanggal merah / cuti bersama.
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {holidays.map((h: any) => (
+                <div key={h.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center min-w-[64px]">
+                      <div className="text-sm font-extrabold text-slate-900">{(h.holiday_date || '').substring(8, 10)}</div>
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">
+                        {new Date(h.holiday_date).toLocaleDateString('id-ID', { month: 'short' })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-slate-900">{h.name}</div>
+                      <div className="text-2xs text-slate-500 font-mono">
+                        {new Date(h.holiday_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={h.is_mass_leave ? 'warning' : 'danger'} className="text-[10px]">
+                      {h.is_mass_leave ? 'Cuti Bersama' : 'Libur Nasional'}
+                    </Badge>
+                    {isAdmin && (
+                      <>
+                        <Button size="sm" variant="outline" icon={<Edit2 size={13} />} onClick={() => handleOpenEditHoliday(h)}>
+                          Ubah
+                        </Button>
+                        <Button size="sm" variant="danger" icon={<Trash2 size={13} />} onClick={() => handleDeleteHoliday(h)} />
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
       {/* DRAWER FILTER LOG PRESENSI */}
       {/* ------------------------------------------------------------- */}
-      <Drawer open={showFilterDrawer} onClose={() => setShowFilterDrawer(false)} title="Filter Data Presensi">
+      <Drawer
+        open={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        title="Filter Data Presensi"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('');
+                setTanggalFilter('');
+                setPage(1);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                setPage(1);
+                setShowFilterDrawer(false);
+                fetchLogPresensi();
+              }}
+            >
+              Terapkan Filter
+            </Button>
+          </div>
+        }
+      >
         <div className="space-y-4">
           <Input
             label="Cari Nama / NIP Pegawai"
@@ -819,32 +1229,110 @@ export default function PresensiPage() {
               { value: 'sakit', label: 'Sakit' },
             ]}
           />
-
-          <div className="pt-4 flex gap-2">
-            <Button
-              className="w-full"
-              onClick={() => {
-                setPage(1);
-                setShowFilterDrawer(false);
-                fetchLogPresensi();
-              }}
-            >
-              Terapkan Filter
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearch('');
-                setStatusFilter('');
-                setTanggalFilter('');
-                setPage(1);
-              }}
-            >
-              Reset
-            </Button>
-          </div>
         </div>
       </Drawer>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL TAMBAH/UBAH TIPE SHIFT */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showShiftModal}
+        onClose={() => setShowShiftModal(false)}
+        title={editingShift ? 'Ubah Tipe Shift' : 'Tambah Tipe Shift Baru'}
+        size="lg"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowShiftModal(false)} disabled={savingShiftForm}>
+              Batal
+            </Button>
+            <Button type="submit" loading={savingShiftForm} disabled={savingShiftForm} form="shift-form">
+              Simpan Tipe Shift
+            </Button>
+          </>
+        }
+      >
+        <form id="shift-form" onSubmit={handleSubmitShift(onSubmitShiftForm)} noValidate className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Nama Tipe Shift"
+                placeholder="Contoh: Shift Pagi Satpam / Shift Malam Operasional"
+                required
+                error={shiftErrors.name?.message}
+                {...registerShift('name')}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Input
+                label="Deskripsi"
+                placeholder="Contoh: Jam kerja 06:00 s/d 14:00 (Senin - Sabtu)"
+                hint="Opsional — penjelasan pola jam kerja tipe ini."
+                error={shiftErrors.description?.message}
+                {...registerShift('description')}
+              />
+            </div>
+            <Input
+              label="Toleransi Terlambat (menit)"
+              type="number"
+              min={0}
+              max={120}
+              required
+              error={shiftErrors.late_tolerance_minutes?.message}
+              {...registerShift('late_tolerance_minutes')}
+            />
+            <Input
+              label="Toleransi Pulang Cepat (menit)"
+              type="number"
+              min={0}
+              max={120}
+              required
+              error={shiftErrors.early_leave_tolerance_minutes?.message}
+              {...registerShift('early_leave_tolerance_minutes')}
+            />
+            <div className="md:col-span-2">
+              <Input
+                label="Batas Buka Absen Lebih Awal (menit)"
+                type="number"
+                min={0}
+                max={240}
+                required
+                hint="Contoh: 60 berarti shift jam 08:00 sudah bisa absen sejak 07:00."
+                error={shiftErrors.max_early_clock_in_minutes?.message}
+                {...registerShift('max_early_clock_in_minutes')}
+              />
+            </div>
+          </div>
+          <Controller
+            control={controlShift}
+            name="applies_national_holidays"
+            render={({ field }) => (
+              <ToggleSwitch
+                checked={field.value}
+                onChange={field.onChange}
+                label="Berlaku Libur Nasional"
+                description="Nonaktifkan untuk shift khusus (satpam/operasional) yang tetap wajib masuk saat tanggal merah."
+              />
+            )}
+          />
+          <Controller
+            control={controlShift}
+            name="is_active"
+            render={({ field }) => (
+              <ToggleSwitch
+                checked={field.value}
+                onChange={field.onChange}
+                label="Status Shift Aktif"
+                description="Jika dinonaktifkan, tipe shift tidak bisa dipilih untuk pegawai baru."
+              />
+            )}
+          />
+          {!editingShift && (
+            <p className="text-[11px] text-slate-500">
+              Setelah disimpan, atur jam masuk/pulang per hari (Senin s/d Minggu) pada panel Jadwal Harian.
+            </p>
+          )}
+        </form>
+      </Modal>
 
       {/* ------------------------------------------------------------- */}
       {/* MODAL TAMBAH/EDIT LOKASI KANTOR */}
@@ -899,28 +1387,70 @@ export default function PresensiPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Radius Geofence Maksimal (Meter) *
-            </label>
-            <Input
-              type="number"
-              min="10"
-              max="5000"
-              required
-              value={officeForm.radius_meters}
-              onChange={(e) => setOfficeForm({ ...officeForm, radius_meters: parseInt(e.target.value) || 150 })}
-            />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Pegawai hanya dapat absen jika jarak perangkat ke titik koordinat berada dalam batas radius ini.
-            </p>
-          </div>
+          <Input
+            label="Radius Geofence Maksimal (Meter) *"
+            type="number"
+            min="10"
+            max="5000"
+            required
+            hint="Pegawai hanya dapat absen jika jarak perangkat ke titik koordinat berada dalam batas radius ini."
+            value={officeForm.radius_meters}
+            onChange={(e) => setOfficeForm({ ...officeForm, radius_meters: parseInt(e.target.value) || 150 })}
+          />
 
           <ToggleSwitch
             checked={officeForm.is_active}
             onChange={(checked) => setOfficeForm({ ...officeForm, is_active: checked })}
             label="Status Lokasi Aktif"
             description="Jika dinonaktifkan, pegawai tidak dapat melakukan presensi di lokasi ini."
+          />
+        </form>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL TAMBAH/EDIT TANGGAL LIBUR */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showHolidayModal}
+        onClose={() => setShowHolidayModal(false)}
+        title={editingHoliday ? 'Ubah Tanggal Libur' : 'Tambah Tanggal Libur'}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowHolidayModal(false)} disabled={savingHoliday}>
+              Batal
+            </Button>
+            <Button type="submit" loading={savingHoliday} disabled={savingHoliday} form="holiday-form">
+              Simpan Libur
+            </Button>
+          </>
+        }
+      >
+        <form id="holiday-form" onSubmit={handleSaveHoliday} className="space-y-4">
+          <Input
+            label="Tanggal Libur *"
+            type="date"
+            required
+            value={holidayForm.holiday_date}
+            onChange={(e) => setHolidayForm({ ...holidayForm, holiday_date: e.target.value })}
+          />
+          <Input
+            label="Nama Libur *"
+            placeholder="Contoh: Hari Kemerdekaan RI / Cuti Bersama Lebaran"
+            required
+            value={holidayForm.name}
+            onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })}
+          />
+          <ToggleSwitch
+            checked={holidayForm.is_mass_leave}
+            onChange={(checked) => setHolidayForm({ ...holidayForm, is_mass_leave: checked })}
+            label="Cuti Bersama?"
+            description="Aktifkan bila ini cuti bersama, matikan bila libur nasional / tanggal merah."
+          />
+          <Input
+            label="Keterangan (opsional)"
+            placeholder="Contoh: SKB 3 Menteri"
+            value={holidayForm.description}
+            onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
           />
         </form>
       </Modal>

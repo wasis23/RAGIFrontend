@@ -46,6 +46,7 @@ export default function PegawaiPage() {
   const [loading, setLoading] = useState(true);
   const [pegawaiList, setPegawaiList] = useState<Pegawai[]>([]);
   const [unitList, setUnitList] = useState<UnitKerja[]>([]);
+  const [shiftList, setShiftList] = useState<any[]>([]);
 
   // Server-side Pagination & Meta State
   const [page, setPage] = useState(1);
@@ -57,6 +58,7 @@ export default function PegawaiPage() {
   const [search, setSearch] = useState('');
   const [selectedUnit, setSelectedUnit] = useState('');
   const [selectedJenis, setSelectedJenis] = useState('');
+  const [selectedShift, setSelectedShift] = useState('');
   const [filterOrderBy, setFilterOrderBy] = useState('nama_lengkap');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
 
@@ -73,15 +75,17 @@ export default function PegawaiPage() {
           setPegawaiList([]);
         }
       } else {
-        const [resPegawai, resUnit] = await Promise.all([
+        const [resPegawai, resUnit, resShift] = await Promise.all([
           simpegService.getPegawaiList({
             search: search || undefined,
             unit_kerja_id: selectedUnit ? Number(selectedUnit) : undefined,
             jenis_pegawai: selectedJenis ? (selectedJenis as JenisPegawai) : undefined,
+            shift_template_id: selectedShift ? Number(selectedShift) : undefined,
             page,
             per_page: limit,
           }),
           simpegService.getUnitKerjaList(),
+          simpegService.getShiftTemplates().catch(() => ({ status: 'error' as const, data: [] })),
         ]);
 
         const responseData = resPegawai.data || resPegawai;
@@ -101,13 +105,14 @@ export default function PegawaiPage() {
         setPegawaiList(items);
         setMeta(paginationMeta);
         setUnitList(resUnit.data || []);
+        setShiftList((resShift as any)?.data || []);
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat data Pegawai');
     } finally {
       setLoading(false);
     }
-  }, [canRead, isAdmin, page, limit, selectedUnit, selectedJenis, search]);
+  }, [canRead, isAdmin, page, limit, selectedUnit, selectedJenis, selectedShift, search]);
 
   useEffect(() => {
     loadPegawai();
@@ -123,6 +128,7 @@ export default function PegawaiPage() {
     setSearch('');
     setSelectedUnit('');
     setSelectedJenis('');
+    setSelectedShift('');
     setFilterOrderBy('nama_lengkap');
     setFilterOrderDir('asc');
     setPage(1);
@@ -198,6 +204,16 @@ export default function PegawaiPage() {
       key: 'unit_kerja',
       label: 'Unit Kerja',
       render: (peg) => peg.unit_kerja?.nama || '-',
+    },
+    {
+      key: 'shift_template',
+      label: 'Shift Kerja',
+      render: (peg) =>
+        peg.shift_template?.name ? (
+          <Badge variant="cyan">{peg.shift_template.name}</Badge>
+        ) : (
+          <span className="text-xs text-slate-400">Belum diatur</span>
+        ),
     },
     {
       key: 'telepon',
@@ -377,6 +393,19 @@ export default function PegawaiPage() {
                   ...unitList.map((u) => ({
                     value: u.id.toString(),
                     label: `[${u.kode}] ${u.nama}`,
+                  })),
+                ]}
+              />
+
+              <Select
+                label="Shift Kerja"
+                value={selectedShift}
+                onChange={(val) => setSelectedShift(val)}
+                options={[
+                  { value: '', label: '-- Semua Shift --' },
+                  ...shiftList.map((s: any) => ({
+                    value: s.id.toString(),
+                    label: s.name,
                   })),
                 ]}
               />

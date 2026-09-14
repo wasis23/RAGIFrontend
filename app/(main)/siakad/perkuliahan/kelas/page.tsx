@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CalendarCheck, MapPin, Plus, Search, Filter, Clock, Users, Edit3, Trash2, BookOpen, FileText, CheckCircle2, Award, Download, MoreVertical } from 'lucide-react';
+import { CalendarCheck, MapPin, Plus, Search, Filter, Clock, Users, Edit3, Trash2, BookOpen, FileText, CheckCircle2, Award, Download, MoreVertical, X, Save } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -809,9 +809,10 @@ export default function PerkuliahanKelasPage() {
                           setSearchDosenUtama('');
                           setIsDosenSelectOpen(true);
                         }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
+                        aria-label="Bersihkan pencarian dosen"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                       >
-                        ✕
+                        <X size={14} />
                       </button>
                     )}
                   </div>
@@ -953,9 +954,10 @@ export default function PerkuliahanKelasPage() {
                           setSearchRuangan('');
                           setIsRuanganSelectOpen(true);
                         }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 font-bold text-xs"
+                        aria-label="Bersihkan pencarian ruangan"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                       >
-                        ✕
+                        <X size={14} />
                       </button>
                     )}
                   </div>
@@ -1127,7 +1129,7 @@ export default function PerkuliahanKelasPage() {
                   Absensi Kelas: {selectedAbsenKelas.nama_kelas} ({selectedAbsenKelas.mata_kuliah?.nama})
                 </h3>
               </div>
-              <button onClick={() => setIsAbsensiModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+              <Button variant="ghost" size="sm" icon={<X size={16} />} onClick={() => setIsAbsensiModalOpen(false)} aria-label="Tutup absensi" />
             </div>
             
             <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1156,44 +1158,34 @@ export default function PerkuliahanKelasPage() {
 
                 {isNewPertemuanOpen && (
                   <form onSubmit={handleCreatePertemuan} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
-                    <div className="grid grid-cols-2 gap-2 text-2xs">
-                      <div>
-                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Pertemuan Ke</label>
-                        <input
-                          type="number"
-                          required
-                          min={1}
-                          max={16}
-                          value={newPertemuanForm.pertemuan_ke}
-                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, pertemuan_ke: Number(e.target.value) })}
-                          className="input w-full font-bold text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Tanggal</label>
-                        <input
-                          type="date"
-                          required
-                          value={newPertemuanForm.tanggal}
-                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, tanggal: e.target.value })}
-                          className="input w-full text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1 text-2xs">
-                      <label className="font-bold text-slate-500 block uppercase">Materi Pembahasan</label>
-                      <input
-                        type="text"
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="Pertemuan Ke"
+                        type="number"
                         required
-                        value={newPertemuanForm.materi}
-                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, materi: e.target.value })}
-                        className="input w-full text-xs"
-                        placeholder="Contoh: Pengenalan OOP, Analisis Kebutuhan"
+                        min={1}
+                        max={16}
+                        value={newPertemuanForm.pertemuan_ke}
+                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, pertemuan_ke: Number(e.target.value) })}
+                      />
+                      <Input
+                        label="Tanggal"
+                        type="date"
+                        required
+                        value={newPertemuanForm.tanggal}
+                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, tanggal: e.target.value })}
                       />
                     </div>
+                    <Input
+                      label="Materi Pembahasan"
+                      required
+                      value={newPertemuanForm.materi}
+                      onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, materi: e.target.value })}
+                      placeholder="Contoh: Pengenalan OOP, Analisis Kebutuhan"
+                    />
                     <div className="flex justify-end gap-1.5 pt-1">
                       <Button type="button" variant="outline" size="sm" className="text-2xs" onClick={() => setIsNewPertemuanOpen(false)}>Batal</Button>
-                      <Button type="submit" variant="primary" size="sm" className="text-2xs font-bold" disabled={savingAbsen}>Simpan</Button>
+                      <Button type="submit" variant="primary" size="sm" className="text-2xs font-bold" loading={savingAbsen} disabled={savingAbsen}>Simpan</Button>
                     </div>
                   </form>
                 )}
@@ -1233,10 +1225,12 @@ export default function PerkuliahanKelasPage() {
                       <Button
                         variant="primary"
                         className="text-xs font-bold"
+                        icon={<Save size={14} />}
                         onClick={handleSaveAttendance}
+                        loading={savingAbsen}
                         disabled={savingAbsen}
                       >
-                        {savingAbsen ? 'Menyimpan...' : 'Simpan Presensi'}
+                        Simpan Presensi
                       </Button>
                     </div>
 
@@ -1287,8 +1281,8 @@ export default function PerkuliahanKelasPage() {
                                   </div>
                                 </td>
                                 <td className="py-2.5 px-3">
-                                  <input
-                                    type="text"
+                                  <Input
+                                    aria-label={`Catatan ${item.mahasiswa?.nama_lengkap || ''}`}
                                     value={item.catatan || ''}
                                     onChange={(e) => {
                                       const next = [...attendanceList];
@@ -1296,7 +1290,6 @@ export default function PerkuliahanKelasPage() {
                                       setAttendanceList(next);
                                     }}
                                     placeholder="..."
-                                    className="input w-full text-2xs py-1 px-2 border-slate-200"
                                   />
                                 </td>
                               </tr>
@@ -1350,7 +1343,9 @@ export default function PerkuliahanKelasPage() {
                 <Button
                   variant="primary"
                   className="text-xs font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
+                  loading={savingRps}
                   disabled={savingRps}
+                  icon={<Save size={14} />}
                   onClick={async () => {
                     try {
                       setSavingRps(true);
@@ -1370,11 +1365,9 @@ export default function PerkuliahanKelasPage() {
                     }
                   }}
                 >
-                  {savingRps ? 'Menyimpan...' : '💾 Simpan Perubahan RPS'}
+                  {savingRps ? 'Menyimpan...' : 'Simpan Perubahan RPS'}
                 </Button>
-                <button onClick={() => setSelectedRpsKelas(null)} className="text-slate-400 hover:text-slate-600 font-bold p-1">
-                  ✕
-                </button>
+                <Button variant="ghost" size="sm" icon={<X size={16} />} onClick={() => setSelectedRpsKelas(null)} aria-label="Tutup RPS" />
               </div>
             </div>
 
@@ -1580,7 +1573,9 @@ export default function PerkuliahanKelasPage() {
                   <Button
                     variant="primary"
                     className="text-xs font-bold bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
+                    loading={savingRps}
                     disabled={savingRps}
+                    icon={<Save size={14} />}
                     onClick={async () => {
                       try {
                         setSavingRps(true);
@@ -1600,7 +1595,7 @@ export default function PerkuliahanKelasPage() {
                       }
                     }}
                   >
-                    {savingRps ? 'Menyimpan...' : '💾 Simpan Perubahan RPS & 16 Pertemuan'}
+                    {savingRps ? 'Menyimpan...' : 'Simpan Perubahan RPS & 16 Pertemuan'}
                   </Button>
                 </div>
               </div>
@@ -1623,7 +1618,7 @@ export default function PerkuliahanKelasPage() {
                   Absensi Kelas: {selectedAbsenKelas.nama_kelas} ({selectedAbsenKelas.mata_kuliah?.nama})
                 </h3>
               </div>
-              <button onClick={() => setIsAbsensiModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
+              <Button variant="ghost" size="sm" icon={<X size={16} />} onClick={() => setIsAbsensiModalOpen(false)} aria-label="Tutup absensi" />
             </div>
             
             <div className="p-6 overflow-y-auto flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1652,44 +1647,34 @@ export default function PerkuliahanKelasPage() {
 
                 {isNewPertemuanOpen && (
                   <form onSubmit={handleCreatePertemuan} className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
-                    <div className="grid grid-cols-2 gap-2 text-2xs">
-                      <div>
-                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Pertemuan Ke</label>
-                        <input
-                          type="number"
-                          required
-                          min={1}
-                          max={16}
-                          value={newPertemuanForm.pertemuan_ke}
-                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, pertemuan_ke: Number(e.target.value) })}
-                          className="input w-full font-bold text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="font-bold text-slate-500 block uppercase mb-0.5">Tanggal</label>
-                        <input
-                          type="date"
-                          required
-                          value={newPertemuanForm.tanggal}
-                          onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, tanggal: e.target.value })}
-                          className="input w-full text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1 text-2xs">
-                      <label className="font-bold text-slate-500 block uppercase">Materi Pembahasan</label>
-                      <input
-                        type="text"
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="Pertemuan Ke"
+                        type="number"
                         required
-                        value={newPertemuanForm.materi}
-                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, materi: e.target.value })}
-                        className="input w-full text-xs"
-                        placeholder="Contoh: Pengenalan OOP, Analisis Kebutuhan"
+                        min={1}
+                        max={16}
+                        value={newPertemuanForm.pertemuan_ke}
+                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, pertemuan_ke: Number(e.target.value) })}
+                      />
+                      <Input
+                        label="Tanggal"
+                        type="date"
+                        required
+                        value={newPertemuanForm.tanggal}
+                        onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, tanggal: e.target.value })}
                       />
                     </div>
+                    <Input
+                      label="Materi Pembahasan"
+                      required
+                      value={newPertemuanForm.materi}
+                      onChange={(e) => setNewPertemuanForm({ ...newPertemuanForm, materi: e.target.value })}
+                      placeholder="Contoh: Pengenalan OOP, Analisis Kebutuhan"
+                    />
                     <div className="flex justify-end gap-1.5 pt-1">
                       <Button type="button" variant="outline" size="sm" className="text-2xs" onClick={() => setIsNewPertemuanOpen(false)}>Batal</Button>
-                      <Button type="submit" variant="primary" size="sm" className="text-2xs font-bold" disabled={savingAbsen}>Simpan</Button>
+                      <Button type="submit" variant="primary" size="sm" className="text-2xs font-bold" loading={savingAbsen} disabled={savingAbsen}>Simpan</Button>
                     </div>
                   </form>
                 )}
@@ -1729,10 +1714,12 @@ export default function PerkuliahanKelasPage() {
                       <Button
                         variant="primary"
                         className="text-xs font-bold"
+                        icon={<Save size={14} />}
                         onClick={handleSaveAttendance}
+                        loading={savingAbsen}
                         disabled={savingAbsen}
                       >
-                        {savingAbsen ? 'Menyimpan...' : 'Simpan Presensi'}
+                        Simpan Presensi
                       </Button>
                     </div>
 
@@ -1783,8 +1770,8 @@ export default function PerkuliahanKelasPage() {
                                   </div>
                                 </td>
                                 <td className="py-2.5 px-3">
-                                  <input
-                                    type="text"
+                                  <Input
+                                    aria-label={`Catatan ${item.mahasiswa?.nama_lengkap || ''}`}
                                     value={item.catatan || ''}
                                     onChange={(e) => {
                                       const next = [...attendanceList];
@@ -1792,7 +1779,6 @@ export default function PerkuliahanKelasPage() {
                                       setAttendanceList(next);
                                     }}
                                     placeholder="..."
-                                    className="input w-full text-2xs py-1 px-2 border-slate-200"
                                   />
                                 </td>
                               </tr>

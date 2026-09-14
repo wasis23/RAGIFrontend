@@ -33,8 +33,8 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
   const resolvedParams = use(params);
   const bundleId = resolvedParams.id;
   const router = useRouter();
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.presensi.manage');
+  const { hasPermission, hasRole } = useAuth();
+  const isAdmin = hasRole('admin') || hasRole('superadmin') || hasRole('admin_simpeg') || hasPermission('simpeg.presensi.manage');
 
   const [loading, setLoading] = useState(true);
   const [bundle, setBundle] = useState<PresensiBundle | null>(null);
@@ -242,6 +242,12 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
       <PageHeader
         title={bundle ? bundle.nama_periode : 'Rincian Bundle Presensi'}
         description={`Detail log absensi pegawai periode ${bundle?.tanggal_awal || ''} s/d ${bundle?.tanggal_akhir || ''}`}
+        breadcrumbs={[
+          { label: 'Portal SSO', href: '/dashboard' },
+          { label: 'SIMPEG', href: '/simpeg' },
+          { label: 'Presensi & Jadwal', href: '/simpeg/presensi' },
+          { label: bundle ? bundle.nama_periode : 'Rincian Bundle' },
+        ]}
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" icon={<ArrowLeft size={16} />} onClick={() => router.push('/simpeg/presensi')}>

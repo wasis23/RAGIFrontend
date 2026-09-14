@@ -215,11 +215,6 @@ export const simpegService = {
     return data;
   },
 
-  resetPresensiData: async (): Promise<ApiResponse<any>> => {
-    const { data } = await apiClient.delete<ApiResponse<any>>('/simpeg/presensi/reset');
-    return data;
-  },
-
   getPresensiDetail: async (id: number | string): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/presensi/${id}`);
     return data;
@@ -285,10 +280,40 @@ export const simpegService = {
     return data;
   },
 
+  createShiftTemplate: async (payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/shift-templates', payload);
+    return data;
+  },
+
+  deleteShiftTemplate: async (id: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/simpeg/presensi/shift-templates/${id}`);
+    return data;
+  },
+
   getNationalHolidays: async (year?: number): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/presensi/national-holidays', {
       params: year ? { year } : undefined,
     });
+    return data;
+  },
+
+  createNationalHoliday: async (payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/national-holidays', payload);
+    return data;
+  },
+
+  updateNationalHoliday: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/presensi/national-holidays/${id}`, payload);
+    return data;
+  },
+
+  deleteNationalHoliday: async (id: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/simpeg/presensi/national-holidays/${id}`);
+    return data;
+  },
+
+  syncNationalHolidays: async (year?: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/national-holidays/sync', year ? { year } : {});
     return data;
   },
 

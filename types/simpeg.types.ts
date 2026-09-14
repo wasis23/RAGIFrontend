@@ -71,6 +71,10 @@ export interface Pegawai {
   bank_nama?: string | null;
   user?: User | null;
   unit_kerja?: UnitKerja | null;
+  shift_template_id?: number | null;
+  office_location_id?: number | null;
+  shift_template?: { id: number; name: string } | null;
+  office_location?: { id: number; name: string } | null;
   riwayat_jabatan?: RiwayatJabatan[];
   riwayat_pendidikan?: RiwayatPendidikanPegawai[];
   created_at?: string;
@@ -115,6 +119,7 @@ export interface PegawaiFilterParams {
   unit_kerja_id?: number;
   jenis_pegawai?: JenisPegawai;
   status?: StatusPegawai;
+  shift_template_id?: number;
   page?: number;
   per_page?: number;
 }

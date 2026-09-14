@@ -37,6 +37,8 @@ const pegawaiSchema = z.object({
   }),
   telepon: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
+  shift_template_id: z.string().optional().nullable(),
+  office_location_id: z.string().optional().nullable(),
 });
 
 type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
@@ -65,6 +67,8 @@ export default function CreatePegawaiPage() {
       jenis_kelamin: 'L',
       telepon: '',
       alamat: '',
+      shift_template_id: '',
+      office_location_id: '',
     },
   });
 
@@ -88,6 +92,40 @@ export default function CreatePegawaiPage() {
     }
   }, []);
 
+  // Server-side async loader for Shift Template AsyncSelect
+  const loadShiftOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getShiftTemplates();
+      const shifts = res.data || [];
+      return shifts
+        .filter((s: any) => s.name.toLowerCase().includes(inputValue.toLowerCase()))
+        .map((s: any) => ({
+          value: s.id.toString(),
+          label: s.is_active ? s.name : `${s.name} (Non-Aktif)`,
+        }));
+    } catch (err) {
+      console.error('Gagal memuat opsi shift kerja', err);
+      return [];
+    }
+  }, []);
+
+  // Server-side async loader for Office Location AsyncSelect
+  const loadOfficeOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getOfficeLocations();
+      const offices = res.data || [];
+      return offices
+        .filter((o: any) => o.name.toLowerCase().includes(inputValue.toLowerCase()))
+        .map((o: any) => ({
+          value: o.id.toString(),
+          label: o.is_active ? o.name : `${o.name} (Non-Aktif)`,
+        }));
+    } catch (err) {
+      console.error('Gagal memuat opsi lokasi kantor', err);
+      return [];
+    }
+  }, []);
+
   const onSubmit = async (values: PegawaiFormValues) => {
     setIsSubmitting(true);
     try {
@@ -104,6 +142,8 @@ export default function CreatePegawaiPage() {
         status: values.status,
         telepon: values.telepon || null,
         alamat: values.alamat || null,
+        shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
+        office_location_id: values.office_location_id ? Number(values.office_location_id) : null,
       };
 
       await simpegService.createPegawai(payload);
@@ -230,6 +270,41 @@ export default function CreatePegawaiPage() {
                       onChange={(opt) => field.onChange(opt ? opt.value : '')}
                       isClearable
                       error={errors.unit_kerja_id?.message}
+                    />
+                  )}
+                />
+              </div>
+
+              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Controller
+                  name="shift_template_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Shift Kerja (Jadwal Presensi)"
+                      placeholder="Cari tipe shift (contoh: Reguler / Pagi / Malam)..."
+                      hint="Menentukan jam masuk-pulang & hari libur mingguan pegawai."
+                      loadOptions={loadShiftOptions}
+                      value={field.value ? { value: field.value, label: field.value } : null}
+                      onChange={(opt) => field.onChange(opt ? opt.value : '')}
+                      isClearable
+                      error={errors.shift_template_id?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="office_location_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Lokasi Kantor (Geofence Presensi)"
+                      placeholder="Cari lokasi kantor..."
+                      hint="Titik GPS tempat pegawai wajib melakukan presensi."
+                      loadOptions={loadOfficeOptions}
+                      value={field.value ? { value: field.value, label: field.value } : null}
+                      onChange={(opt) => field.onChange(opt ? opt.value : '')}
+                      isClearable
+                      error={errors.office_location_id?.message}
                     />
                   )}
                 />

@@ -39,6 +39,8 @@ const pegawaiSchema = z.object({
   alamat: z.string().optional().nullable(),
   bank_nama: z.string().optional().nullable(),
   nomor_rekening: z.string().optional().nullable(),
+  shift_template_id: z.string().optional().nullable(),
+  office_location_id: z.string().optional().nullable(),
 });
 
 type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
@@ -51,6 +53,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUnitOption, setSelectedUnitOption] = useState<{ value: string; label: string } | null>(null);
+  const [selectedShiftOption, setSelectedShiftOption] = useState<{ value: string; label: string } | null>(null);
+  const [selectedOfficeOption, setSelectedOfficeOption] = useState<{ value: string; label: string } | null>(null);
 
   const {
     register,
@@ -75,6 +79,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       alamat: '',
       bank_nama: '',
       nomor_rekening: '',
+      shift_template_id: '',
+      office_location_id: '',
     },
   });
 
@@ -93,6 +99,38 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       }));
     } catch (err) {
       console.error('Gagal memuat opsi unit kerja', err);
+      return [];
+    }
+  }, []);
+
+  const loadShiftOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getShiftTemplates();
+      const shifts = res.data || [];
+      return shifts
+        .filter((s: any) => s.name.toLowerCase().includes(inputValue.toLowerCase()))
+        .map((s: any) => ({
+          value: s.id.toString(),
+          label: s.is_active ? s.name : `${s.name} (Non-Aktif)`,
+        }));
+    } catch (err) {
+      console.error('Gagal memuat opsi shift kerja', err);
+      return [];
+    }
+  }, []);
+
+  const loadOfficeOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getOfficeLocations();
+      const offices = res.data || [];
+      return offices
+        .filter((o: any) => o.name.toLowerCase().includes(inputValue.toLowerCase()))
+        .map((o: any) => ({
+          value: o.id.toString(),
+          label: o.is_active ? o.name : `${o.name} (Non-Aktif)`,
+        }));
+    } catch (err) {
+      console.error('Gagal memuat opsi lokasi kantor', err);
       return [];
     }
   }, []);
@@ -123,6 +161,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             alamat: peg.alamat || '',
             bank_nama: peg.bank_nama || '',
             nomor_rekening: peg.nomor_rekening || '',
+            shift_template_id: peg.shift_template_id ? String(peg.shift_template_id) : '',
+            office_location_id: peg.office_location_id ? String(peg.office_location_id) : '',
           };
           reset(formVals);
 
@@ -130,6 +170,18 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             setSelectedUnitOption({
               value: String(peg.unit_kerja.id),
               label: `[${peg.unit_kerja.kode}] ${peg.unit_kerja.nama}`,
+            });
+          }
+          if (peg.shift_template) {
+            setSelectedShiftOption({
+              value: String(peg.shift_template.id),
+              label: peg.shift_template.name,
+            });
+          }
+          if (peg.office_location) {
+            setSelectedOfficeOption({
+              value: String(peg.office_location.id),
+              label: peg.office_location.name,
             });
           }
         }
@@ -160,6 +212,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         alamat: values.alamat || null,
         bank_nama: values.bank_nama || null,
         nomor_rekening: values.nomor_rekening || null,
+        shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
+        office_location_id: values.office_location_id ? Number(values.office_location_id) : null,
       };
 
       await simpegService.updatePegawai(pegawaiId, payload);
@@ -313,6 +367,47 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                       }}
                       isClearable
                       error={errors.unit_kerja_id?.message}
+                    />
+                  )}
+                />
+              </div>
+
+              <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Controller
+                  name="shift_template_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Shift Kerja (Jadwal Presensi)"
+                      placeholder="Cari tipe shift (contoh: Reguler / Pagi / Malam)..."
+                      hint="Menentukan jam masuk-pulang & hari libur mingguan pegawai."
+                      loadOptions={loadShiftOptions}
+                      value={selectedShiftOption || (field.value ? { value: field.value, label: field.value } : null)}
+                      onChange={(opt) => {
+                        setSelectedShiftOption(opt);
+                        field.onChange(opt ? opt.value : '');
+                      }}
+                      isClearable
+                      error={errors.shift_template_id?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="office_location_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Lokasi Kantor (Geofence Presensi)"
+                      placeholder="Cari lokasi kantor..."
+                      hint="Titik GPS tempat pegawai wajib melakukan presensi."
+                      loadOptions={loadOfficeOptions}
+                      value={selectedOfficeOption || (field.value ? { value: field.value, label: field.value } : null)}
+                      onChange={(opt) => {
+                        setSelectedOfficeOption(opt);
+                        field.onChange(opt ? opt.value : '');
+                      }}
+                      isClearable
+                      error={errors.office_location_id?.message}
                     />
                   )}
                 />
