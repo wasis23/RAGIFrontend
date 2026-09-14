@@ -1,7 +1,7 @@
 'use client';
 
 import { formatRupiah } from '@/lib/utils';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -20,15 +20,22 @@ import {
   Sparkles,
   Layers,
   ShieldCheck,
-  DollarSign
+  DollarSign,
+  Plus,
+  Trash2,
+  Percent,
+  Save,
+  Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-
-
+import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 
 export default function TagihanDetailPage() {
   const params = useParams();
@@ -38,21 +45,98 @@ export default function TagihanDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tagihan, setTagihan] = useState<any>(null);
 
-  useEffect(() => {
+  // Ad-hoc Potongan Modal State
+  const [isPotonganModalOpen, setIsPotonganModalOpen] = useState(false);
+  const [potonganForm, setPotonganForm] = useState({
+    nama_potongan: '',
+    tipe_potongan: 'nominal' as 'nominal' | 'persen',
+    nilai_potongan: '',
+    keterangan: '',
+  });
+  const [savingPotongan, setSavingPotongan] = useState(false);
+
+  // Delete Potongan State
+  const [deletePotonganModal, setDeletePotonganModal] = useState<{
+    isOpen: boolean;
+    id: number | null;
+    keterangan: string;
+    nominal: number;
+  }>({
+    isOpen: false,
+    id: null,
+    keterangan: '',
+    nominal: 0,
+  });
+  const [deletingPotongan, setDeletingPotongan] = useState(false);
+
+  const fetchDetail = useCallback(async () => {
     if (!id) return;
-    const fetchDetail = async () => {
-      try {
-        setLoading(true);
-        const res = await sikeuService.getTagihanDetail(id);
-        setTagihan(res.data);
-      } catch (err: any) {
-        toast.error(err?.message || 'Gagal memuat rincian tagihan');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDetail();
+    try {
+      setLoading(true);
+      const res = await sikeuService.getTagihanDetail(id);
+      setTagihan(res.data);
+    } catch (err: any) {
+      toast.error(err?.message || 'Gagal memuat rincian tagihan');
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchDetail();
+  }, [fetchDetail]);
+
+  const handleAddPotongan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!potonganForm.nama_potongan || potonganForm.nama_potongan.trim().length === 0) {
+      toast.error('Nama atau jenis potongan wajib diisi!');
+      return;
+    }
+    const val = parseFloat(potonganForm.nilai_potongan);
+    if (isNaN(val) || val <= 0) {
+      toast.error('Nilai potongan harus lebih besar dari 0!');
+      return;
+    }
+
+    setSavingPotongan(true);
+    try {
+      await sikeuService.addPotonganTagihan(id, {
+        nama_potongan: potonganForm.nama_potongan.trim(),
+        tipe: 'diskon',
+        tipe_potongan: potonganForm.tipe_potongan,
+        nilai_potongan: val,
+        keterangan: potonganForm.keterangan?.trim() || undefined,
+      });
+      toast.success('Potongan tambahan berhasil diterapkan!');
+      setIsPotonganModalOpen(false);
+      setPotonganForm({
+        nama_potongan: '',
+        tipe_potongan: 'nominal',
+        nilai_potongan: '',
+        keterangan: '',
+      });
+      fetchDetail();
+    } catch (err: any) {
+      toast.error(err?.message || 'Gagal menerapkan potongan tambahan');
+    } finally {
+      setSavingPotongan(false);
+    }
+  };
+
+  const handleDeletePotongan = async () => {
+    if (!deletePotonganModal.id) return;
+    setDeletingPotongan(true);
+    try {
+      await sikeuService.deletePotonganTagihan(deletePotonganModal.id);
+      toast.success('Potongan tagihan berhasil dicabut!');
+      setDeletePotonganModal({ isOpen: false, id: null, keterangan: '', nominal: 0 });
+      fetchDetail();
+    } catch (err: any) {
+      toast.error(err?.message || 'Gagal membatalkan potongan');
+    } finally {
+      setDeletingPotongan(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -107,11 +191,22 @@ export default function TagihanDetailPage() {
             Cetak Invoice (PDF)
           </Button>
           {!isLunas && (
-            <Link href="/sikeu/tagihan/create">
-              <Button size="sm" icon={<CreditCard size={15} />}>
-                Bayar di Kasir / Loket
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-amber-700 border-amber-300 hover:bg-amber-50"
+                icon={<Sparkles size={14} className="text-amber-500" />}
+                onClick={() => setIsPotonganModalOpen(true)}
+              >
+                + Beri Potongan Khusus
               </Button>
-            </Link>
+              <Link href="/sikeu/tagihan/create">
+                <Button size="sm" icon={<CreditCard size={15} />}>
+                  Bayar di Kasir / Loket
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
@@ -294,6 +389,106 @@ export default function TagihanDetailPage() {
             )}
           </div>
 
+          {/* Rincian Potongan Tambahan & Keringanan Khusus */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="text-amber-500" size={18} />
+                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  Rincian Potongan & Keringanan Khusus
+                </h2>
+                {tagihan.potongan_tagihan && tagihan.potongan_tagihan.length > 0 && (
+                  <Badge variant="green" className="text-2xs font-mono">
+                    {tagihan.potongan_tagihan.length} Terdaftar
+                  </Badge>
+                )}
+              </div>
+              {!isLunas && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs font-bold text-amber-700 border-amber-300 hover:bg-amber-50 print:hidden"
+                  icon={<Plus size={14} />}
+                  onClick={() => {
+                    setPotonganForm({
+                      nama_potongan: '',
+                      tipe_potongan: 'nominal',
+                      nilai_potongan: '',
+                      keterangan: '',
+                    });
+                    setIsPotonganModalOpen(true);
+                  }}
+                >
+                  + Beri Potongan Tambahan
+                </Button>
+              )}
+            </div>
+
+            {tagihan.potongan_tagihan && tagihan.potongan_tagihan.length > 0 ? (
+              <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="p-3">Keterangan / SK Potongan</th>
+                      <th className="p-3">Tipe</th>
+                      <th className="p-3">Dicatat Oleh</th>
+                      <th className="p-3">Waktu Input</th>
+                      <th className="p-3 text-right">Nominal Pengurang</th>
+                      {!isLunas && <th className="p-3 text-center print:hidden">Aksi</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {tagihan.potongan_tagihan.map((pot: any) => (
+                      <tr key={pot.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="p-3 font-semibold text-slate-900">
+                          {pot.keterangan || 'Potongan Khusus Mahasiswa'}
+                        </td>
+                        <td className="p-3">
+                          <Badge variant={pot.tipe === 'subsidi' ? 'blue' : 'amber'} className="text-2xs uppercase">
+                            {pot.tipe || 'Diskon'}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-slate-600 font-medium">
+                          {pot.petugas_nama || 'Petugas Keuangan'}
+                        </td>
+                        <td className="p-3 text-slate-500 font-mono text-2xs">
+                          {pot.created_at || '-'}
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold text-emerald-600 tabular-nums">
+                          -{formatRupiah(pot.nominal_potongan)}
+                        </td>
+                        {!isLunas && (
+                          <td className="p-3 text-center print:hidden">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
+                              title="Batalkan Potongan"
+                              onClick={() =>
+                                setDeletePotonganModal({
+                                  isOpen: true,
+                                  id: pot.id,
+                                  keterangan: pot.keterangan,
+                                  nominal: pot.nominal_potongan,
+                                })
+                              }
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-4 bg-slate-50/70 border border-dashed border-slate-200 rounded-2xl text-center text-xs text-slate-400">
+                Belum ada potongan atau keringanan tambahan yang diterapkan pada invoice ini.
+              </div>
+            )}
+          </div>
+
           {/* Ringkasan Finansial Formula Running Balance */}
           <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/90 space-y-2.5 max-w-md ml-auto text-xs">
             <div className="flex justify-between text-slate-600">
@@ -349,6 +544,126 @@ export default function TagihanDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal Beri Potongan Tambahan / Keringanan */}
+      <Modal
+        isOpen={isPotonganModalOpen}
+        onClose={() => setIsPotonganModalOpen(false)}
+        title="Beri Potongan Tambahan / Keringanan Khusus"
+        size="md"
+      >
+        <form onSubmit={handleAddPotongan} className="space-y-4 text-xs">
+          <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 space-y-1">
+            <p className="font-bold flex items-center gap-1.5 text-xs">
+              <Sparkles size={14} className="text-amber-600" />
+              Pemberian Potongan pada Invoice #{tagihan?.nomor_tagihan}
+            </p>
+            <p className="text-2xs text-amber-800">
+              Mahasiswa: <strong>{tagihan?.nama_mahasiswa}</strong> ({tagihan?.nim})
+            </p>
+            <p className="text-2xs text-amber-800">
+              Sisa Kewajiban Saat Ini: <strong>{formatRupiah(tagihan ? (tagihan.sisa_tagihan !== undefined ? tagihan.sisa_tagihan : Math.max(0, tagihan.total_tagihan - tagihan.total_potongan - tagihan.total_bayar)) : 0)}</strong>
+            </p>
+          </div>
+
+          <Input
+            label="Nama / Alasan / SK Potongan"
+            placeholder="Contoh: Keringanan Rektorat SK-042, Diskon Kakak-Beradik..."
+            value={potonganForm.nama_potongan}
+            onChange={(e) => setPotonganForm((prev) => ({ ...prev, nama_potongan: e.target.value }))}
+            required
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Select
+              label="Tipe Potongan"
+              value={potonganForm.tipe_potongan}
+              onChange={(e) => setPotonganForm((prev) => ({ ...prev, tipe_potongan: e.target.value as 'nominal' | 'persen' }))}
+              options={[
+                { value: 'nominal', label: 'Nominal Rupiah (Rp)' },
+                { value: 'persen', label: 'Persentase (%) dari Sisa' },
+              ]}
+            />
+
+            <Input
+              label={potonganForm.tipe_potongan === 'persen' ? 'Persentase (%)' : 'Besaran Nominal (Rp)'}
+              type="number"
+              step="any"
+              placeholder={potonganForm.tipe_potongan === 'persen' ? 'Contoh: 20' : 'Contoh: 1000000'}
+              value={potonganForm.nilai_potongan}
+              onChange={(e) => setPotonganForm((prev) => ({ ...prev, nilai_potongan: e.target.value }))}
+              required
+            />
+          </div>
+
+          {/* Live Preview Box */}
+          {(() => {
+            const currentSisa = tagihan ? (tagihan.sisa_tagihan !== undefined ? Number(tagihan.sisa_tagihan) : Math.max(0, Number(tagihan.total_tagihan) - Number(tagihan.total_potongan) - Number(tagihan.total_bayar))) : 0;
+            const num = parseFloat(potonganForm.nilai_potongan) || 0;
+            const potonganNominal = potonganForm.tipe_potongan === 'persen' ? Math.round((currentSisa * num) / 100) : num;
+            const sisaBaru = Math.max(0, currentSisa - potonganNominal);
+
+            return (
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <div className="flex justify-between text-2xs text-slate-600">
+                  <span>Nominal Pengurang:</span>
+                  <span className="font-bold text-emerald-600 font-mono">-{formatRupiah(potonganNominal)}</span>
+                </div>
+                <div className="flex justify-between text-2xs text-slate-900 font-bold pt-1 border-t border-slate-200">
+                  <span>Estimasi Sisa Baru:</span>
+                  <span className="font-mono text-primary-700">{formatRupiah(sisaBaru)}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div>
+            <label className="text-2xs font-semibold text-slate-700 block mb-1">
+              Catatan / Dasar Permohonan (Opsional)
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Catatan tambahan permohonan dispensasi potongan..."
+              className="w-full text-xs rounded-xl border border-slate-200 p-2.5 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+              value={potonganForm.keterangan}
+              onChange={(e) => setPotonganForm((prev) => ({ ...prev, keterangan: e.target.value }))}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPotonganModalOpen(false)}
+              disabled={savingPotongan}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              icon={savingPotongan ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              disabled={savingPotongan}
+            >
+              {savingPotongan ? 'Menerapkan...' : 'Terapkan Potongan'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Dialog Konfirmasi Pembatalan Potongan */}
+      <ConfirmDialog
+        isOpen={deletePotonganModal.isOpen}
+        onClose={() => setDeletePotonganModal({ isOpen: false, id: null, keterangan: '', nominal: 0 })}
+        onConfirm={handleDeletePotongan}
+        title="Batalkan Potongan Tagihan"
+        message={`Apakah Anda yakin ingin membatalkan potongan "${deletePotonganModal.keterangan}" sebesar ${formatRupiah(deletePotonganModal.nominal)}? Nilai tagihan mahasiswa akan kembali bertambah sesuai nominal potongan ini.`}
+        confirmText="Ya, Batalkan Potongan"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deletingPotongan}
+      />
     </div>
   );
 }

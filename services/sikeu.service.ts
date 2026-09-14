@@ -39,6 +39,29 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
   return data;
 }
 
+export interface PotonganMahasiswa {
+  id: number;
+  mahasiswa_id: number;
+  nim: string;
+  nama_mahasiswa: string;
+  nama_potongan: string;
+  tipe_potongan: 'nominal' | 'persen' | string;
+  nilai_potongan: number;
+  potongan_text?: string;
+  master_biaya_id?: number | null;
+  komponen_biaya?: string;
+  semester?: number | null;
+  tahun_akademik?: string | null;
+  berlaku_mulai?: string | null;
+  berlaku_sampai?: string | null;
+  nomor_sk?: string | null;
+  keterangan?: string | null;
+  status: 'aktif' | 'nonaktif' | 'selesai' | string;
+  diinput_oleh?: number | null;
+  petugas_nama?: string;
+  created_at?: string;
+}
+
 export const sikeuService = {
   // External Bill Generation
   createExternalBill: async (payload: any) => {
@@ -357,10 +380,69 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/mahasiswa-beasiswa?${query.toString()}`);
   },
 
-  assignMahasiswaBeasiswa: async (payload: { mahasiswa_id: number; nim?: string; nama_mahasiswa?: string; beasiswa_id: number; berlaku_mulai?: string; berlaku_sampai?: string }) => {
+  assignMahasiswaBeasiswa: async (payload: { mahasiswa_id: number; nim?: string; nama_mahasiswa?: string; beasiswa_id: number; berlaku_mulai?: string; berlaku_sampai?: string; status?: string }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/mahasiswa-beasiswa', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+
+  updateMahasiswaBeasiswa: async (id: number, payload: { beasiswa_id?: number; berlaku_mulai?: string; berlaku_sampai?: string; status?: string }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/mahasiswa-beasiswa/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteMahasiswaBeasiswa: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/mahasiswa-beasiswa/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Master Setting Potongan Khusus Mahasiswa (Di Luar Beasiswa)
+  getPotonganMahasiswaList: async (params?: { page?: number; per_page?: number; search?: string; q?: string; status?: string; mahasiswa_id?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    if (params?.search || params?.q) query.append('search', (params.search || params.q)!);
+    if (params?.status) query.append('status', params.status);
+    if (params?.mahasiswa_id) query.append('mahasiswa_id', params.mahasiswa_id.toString());
+    return fetchWithAuth<ApiResponse<PotonganMahasiswa[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/potongan-mahasiswa?${query.toString()}`);
+  },
+
+  createPotonganMahasiswa: async (payload: {
+    mahasiswa_id: number;
+    nim?: string;
+    nama_mahasiswa?: string;
+    nama_potongan: string;
+    tipe_potongan: 'nominal' | 'persen';
+    nilai_potongan: number;
+    master_biaya_id?: number | null;
+    semester?: number | null;
+    tahun_akademik?: string | null;
+    berlaku_mulai?: string | null;
+    berlaku_sampai?: string | null;
+    nomor_sk?: string | null;
+    keterangan?: string | null;
+    status?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<PotonganMahasiswa>>('/v1/sikeu/master/potongan-mahasiswa', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updatePotonganMahasiswa: async (id: number, payload: Partial<PotonganMahasiswa>) => {
+    return fetchWithAuth<ApiResponse<PotonganMahasiswa>>(`/v1/sikeu/master/potongan-mahasiswa/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deletePotonganMahasiswa: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/potongan-mahasiswa/${id}`, {
+      method: 'DELETE',
     });
   },
 
@@ -655,6 +737,26 @@ export const sikeuService = {
 
   getTagihanDetail: async (id: number | string) => {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${id}`);
+  },
+
+  // Ad-hoc Potongan Tambahan pada Tagihan Terbit
+  addPotonganTagihan: async (tagihanId: number | string, payload: {
+    nama_potongan: string;
+    tipe?: string;
+    tipe_potongan?: 'nominal' | 'persen';
+    nilai_potongan: number;
+    keterangan?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${tagihanId}/potongan`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deletePotonganTagihan: async (potonganId: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/potongan/${potonganId}`, {
+      method: 'DELETE',
+    });
   },
 
   // Tagihan Belum Lunas Mahasiswa untuk Kasir / Loket

@@ -13,14 +13,18 @@ import {
   DollarSign,
   ArrowUpRight,
   ShieldCheck,
-  SlidersHorizontal
+  SlidersHorizontal,
+  UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { JenisBiayaTab } from './_tabs/JenisBiayaTab';
 import { UnitKasTab } from './_tabs/UnitKasTab';
+import { BeasiswaTab } from './_tabs/BeasiswaTab';
+import { MappingBeasiswaTab } from './_tabs/MappingBeasiswaTab';
+import { PotonganKhususTab } from './_tabs/PotonganKhususTab';
 
-type GlobalMasterTab = 'jenis_biaya' | 'unit_kas';
+type GlobalMasterTab = 'jenis_biaya' | 'beasiswa' | 'mapping_beasiswa' | 'potongan_khusus' | 'unit_kas';
 
 export default function MasterKeuanganGlobalPage() {
   const [activeTab, setActiveTab] = useState<GlobalMasterTab>('jenis_biaya');
@@ -30,7 +34,7 @@ export default function MasterKeuanganGlobalPage() {
       {/* Page Header */}
       <PageHeader
         title="Master & Katalog Keuangan Global"
-        description="Kelola kamus komponen biaya institusi, delegasi modul aplikasi, dan unit kas / rekening bank kampus."
+        description="Kelola kamus komponen biaya institusi, skema beasiswa/diskon, penetapan potongan mahasiswa, dan unit kas kampus."
         action={
           <div className="flex items-center gap-2">
             <Link
@@ -51,7 +55,7 @@ export default function MasterKeuanganGlobalPage() {
         }
       />
 
-      {/* Visual Navigation Hub for All SIKEU Master & Billing Features */}
+      {/* Visual Navigation Hub */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
@@ -66,7 +70,7 @@ export default function MasterKeuanganGlobalPage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {/* Card 1: Matriks Tarif */}
           <Link
             href="/sikeu/mahasiswa/tarif"
@@ -82,34 +86,57 @@ export default function MasterKeuanganGlobalPage() {
             </div>
             <div>
               <h3 className="text-xs font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
-                1. Matriks Tarif Angkatan & Semester
+                1. Matriks Tarif Angkatan
               </h3>
-              <p className="text-2xs text-slate-500 mt-0.5">Penetapan nominal biaya riil per Angkatan (2024, 2025, dst), Prodi, & Semester 1-8.</p>
+              <p className="text-2xs text-slate-500 mt-0.5">Penetapan nominal biaya per Angkatan, Prodi, & Semester.</p>
             </div>
           </Link>
 
-          {/* Card 2: Beasiswa & Diskon */}
-          <Link
-            href="/sikeu/mahasiswa/tarif"
-            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 hover:shadow-md transition-all space-y-2 block group"
+          {/* Card 2: Skema Beasiswa & Diskon */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('beasiswa')}
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-emerald-300 hover:shadow-md transition-all space-y-2 block text-left group cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-105 transition-transform">
                 <ShieldCheck size={18} />
               </span>
               <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700">
-                Auto-Potongan
+                Program Beasiswa
               </span>
             </div>
             <div>
               <h3 className="text-xs font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                2. Beasiswa & Penetapan Penerima
+                2. Skema Beasiswa & Diskon
               </h3>
-              <p className="text-2xs text-slate-500 mt-0.5">Program KIP-K, Yayasan, Tahfidz & penetapan mahasiswa penerima diskon otomatis.</p>
+              <p className="text-2xs text-slate-500 mt-0.5">KIP-K, Tahfidz, Yayasan & persentase/nominal potongan.</p>
             </div>
-          </Link>
+          </button>
 
-          {/* Card 3: Golongan UKT */}
+          {/* Card 3: Penetapan Potongan Mahasiswa */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('mapping_beasiswa')}
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-amber-300 hover:shadow-md transition-all space-y-2 block text-left group cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <span className="p-2 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-105 transition-transform">
+                <UserCheck size={18} />
+              </span>
+              <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700">
+                Potongan Khusus
+              </span>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
+                3. Penetapan Mahasiswa Tertentu
+              </h3>
+              <p className="text-2xs text-slate-500 mt-0.5">Alokasi diskon khusus & beasiswa per individu mahasiswa.</p>
+            </div>
+          </button>
+
+          {/* Card 4: Golongan UKT */}
           <Link
             href="/sikeu/mahasiswa/tarif"
             className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-indigo-300 hover:shadow-md transition-all space-y-2 block group"
@@ -124,28 +151,31 @@ export default function MasterKeuanganGlobalPage() {
             </div>
             <div>
               <h3 className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                3. Tarif Golongan UKT (I - VIII)
+                4. Golongan UKT (I - VIII)
               </h3>
-              <p className="text-2xs text-slate-500 mt-0.5">Skema pengelompokan nominal UKT berdasarkan kemampuan finansial mahasiswa.</p>
+              <p className="text-2xs text-slate-500 mt-0.5">Skema pengelompokan nominal UKT berjenjang.</p>
             </div>
           </Link>
         </div>
       </div>
 
-      {/* Global Master Direct Tabs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-linear-to-br from-primary-50 to-white border border-primary-200/80 shadow-2xs space-y-2">
+      {/* Global Master Direct Tabs Selection */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        {/* Tab 1: Kamus Komponen Biaya */}
+        <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
+          activeTab === 'jenis_biaya' ? 'bg-primary-50/60 border-primary-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
+        }`}>
           <div className="flex items-center justify-between">
             <span className="p-2 bg-primary-100 text-primary-700 rounded-xl">
               <Layers size={18} />
             </span>
             <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-primary-600 text-white uppercase tracking-wider">
-              Katalog Master
+              Katalog
             </span>
           </div>
           <div>
-            <h3 className="text-xs font-bold text-slate-900">Kamus Komponen Biaya</h3>
-            <p className="text-2xs text-slate-500 mt-0.5">Daftar jenis pungutan & delegasi modul lintas sistem.</p>
+            <h3 className="text-xs font-bold text-slate-900">Komponen Biaya Institusi</h3>
+            <p className="text-2xs text-slate-500 mt-0.5">Kamus master jenis biaya, tagihan, & akun COA.</p>
           </div>
           <button
             type="button"
@@ -154,12 +184,99 @@ export default function MasterKeuanganGlobalPage() {
               activeTab === 'jenis_biaya' ? 'bg-primary-600 text-white' : 'bg-white text-primary-700 border border-primary-200 hover:bg-primary-50'
             }`}
           >
-            <span>Buka Katalog Biaya</span>
+            <span>Buka Komponen</span>
             <ArrowRight size={13} />
           </button>
         </div>
 
-        <div className="p-4 rounded-2xl bg-linear-to-br from-indigo-50 to-white border border-indigo-200/80 shadow-2xs space-y-2">
+        {/* Tab 2: Skema Beasiswa & Diskon */}
+        <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
+          activeTab === 'beasiswa' ? 'bg-emerald-50/60 border-emerald-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
+              <ShieldCheck size={18} />
+            </span>
+            <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-emerald-600 text-white uppercase tracking-wider">
+              Program
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900">Program Beasiswa</h3>
+            <p className="text-2xs text-slate-500 mt-0.5">Skema program beasiswa KIP, Tahfidz, & Yayasan.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('beasiswa')}
+            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
+              activeTab === 'beasiswa' ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50'
+            }`}
+          >
+            <span>Buka Program Beasiswa</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        {/* Tab 3: Penetapan Penerima Beasiswa */}
+        <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
+          activeTab === 'mapping_beasiswa' ? 'bg-blue-50/60 border-blue-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="p-2 bg-blue-100 text-blue-700 rounded-xl">
+              <UserCheck size={18} />
+            </span>
+            <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-blue-600 text-white uppercase tracking-wider">
+              Beasiswa Mhs
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900">Penerima Beasiswa</h3>
+            <p className="text-2xs text-slate-500 mt-0.5">Penetapan program beasiswa per mahasiswa.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('mapping_beasiswa')}
+            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
+              activeTab === 'mapping_beasiswa' ? 'bg-blue-600 text-white' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'
+            }`}
+          >
+            <span>Buka Penerima Beasiswa</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        {/* Tab 4: Potongan Khusus Mahasiswa (Non-Beasiswa) */}
+        <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
+          activeTab === 'potongan_khusus' ? 'bg-amber-50/60 border-amber-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="p-2 bg-amber-100 text-amber-700 rounded-xl">
+              <Sparkles size={18} />
+            </span>
+            <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-amber-600 text-white uppercase tracking-wider">
+              Khusus Non-Beasiswa
+            </span>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-slate-900">Potongan & Keringanan Khusus</h3>
+            <p className="text-2xs text-slate-500 mt-0.5">SK Rektor, diskon saudara kandung, anak staf/dosen.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('potongan_khusus')}
+            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
+              activeTab === 'potongan_khusus' ? 'bg-amber-600 text-white' : 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50'
+            }`}
+          >
+            <span>Buka Potongan Khusus</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        {/* Tab 5: Unit Kas & Rekening */}
+        <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
+          activeTab === 'unit_kas' ? 'bg-indigo-50/60 border-indigo-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
+        }`}>
           <div className="flex items-center justify-between">
             <span className="p-2 bg-indigo-100 text-indigo-700 rounded-xl">
               <Building2 size={18} />
@@ -170,7 +287,7 @@ export default function MasterKeuanganGlobalPage() {
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-900">Unit Kas & Rekening</h3>
-            <p className="text-2xs text-slate-500 mt-0.5">Kas rektorat, petty cash unit fakultas, & bank.</p>
+            <p className="text-2xs text-slate-500 mt-0.5">Kas utama rektorat, petty cash unit fakultas, & bank.</p>
           </div>
           <button
             type="button"
@@ -183,54 +300,6 @@ export default function MasterKeuanganGlobalPage() {
             <ArrowRight size={13} />
           </button>
         </div>
-
-        <Link
-          href="/sikeu/master/gaji-pegawai"
-          className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all space-y-2 block group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-105 transition-transform">
-              <Banknote size={18} />
-            </span>
-            <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
-              SIMPEG Hub
-            </span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
-              Tarif Gaji Pegawai
-            </h3>
-            <p className="text-2xs text-slate-500 mt-0.5">Setting gaji pokok, tunjangan & transport dosen/tendik.</p>
-          </div>
-          <div className="text-2xs font-bold text-primary-600 flex items-center gap-1 pt-1">
-            <span>Atur Gaji Pegawai</span>
-            <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </Link>
-
-        <Link
-          href="/sikeu/payment-gateway"
-          className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all space-y-2 block group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="p-2 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-105 transition-transform">
-              <CreditCard size={18} />
-            </span>
-            <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
-              Integrasi Bank
-            </span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-slate-900 group-hover:text-primary-600 transition-colors">
-              Payment Gateway
-            </h3>
-            <p className="text-2xs text-slate-500 mt-0.5">Konfigurasi Virtual Account & Webhook Gateway.</p>
-          </div>
-          <div className="text-2xs font-bold text-primary-600 flex items-center gap-1 pt-1">
-            <span>Atur Payment Gateway</span>
-            <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </Link>
       </div>
 
       {/* Helper Banner */}
@@ -238,7 +307,19 @@ export default function MasterKeuanganGlobalPage() {
         <div className="flex items-center gap-2">
           <Info size={16} className="text-primary-600 shrink-0" />
           <span>
-            Sedang mengelola: <strong>{activeTab === 'jenis_biaya' ? 'Katalog Komponen Biaya Kampus' : 'Unit Kas & Rekening Bank'}</strong>.
+            Sedang mengelola:{' '}
+            <strong>
+              {activeTab === 'jenis_biaya'
+                ? 'Katalog Komponen Biaya Kampus'
+                : activeTab === 'beasiswa'
+                ? 'Master Skema Program Beasiswa Institusi'
+                : activeTab === 'mapping_beasiswa'
+                ? 'Penetapan Penerima Beasiswa Mahasiswa'
+                : activeTab === 'potongan_khusus'
+                ? 'Setting Potongan & Keringanan Khusus Mahasiswa (Di Luar Beasiswa)'
+                : 'Unit Kas & Rekening Bank'}
+            </strong>
+            .
           </span>
         </div>
       </div>
@@ -246,6 +327,9 @@ export default function MasterKeuanganGlobalPage() {
       {/* Main Tab Content */}
       <div className="bg-white p-5 md:p-7 rounded-2xl border border-slate-200 shadow-2xs">
         {activeTab === 'jenis_biaya' && <JenisBiayaTab />}
+        {activeTab === 'beasiswa' && <BeasiswaTab />}
+        {activeTab === 'mapping_beasiswa' && <MappingBeasiswaTab />}
+        {activeTab === 'potongan_khusus' && <PotonganKhususTab />}
         {activeTab === 'unit_kas' && <UnitKasTab />}
       </div>
     </div>
