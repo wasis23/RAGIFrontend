@@ -89,7 +89,7 @@ export default function FeederSyncPage() {
     fetchLogsAndMappings();
   }, [activeTab, appliedMappingFilters]);
 
-  const handleTriggerSync = async (entity: 'mahasiswa' | 'biodata_mahasiswa' | 'riwayat_pendidikan_mahasiswa' | 'dosen' | 'mata_kuliah' | 'kelas' | 'penugasan_dosen') => {
+  const handleTriggerSync = async (entity: 'mahasiswa' | 'biodata_mahasiswa' | 'riwayat_pendidikan_mahasiswa' | 'dosen' | 'pull_dosen' | 'penugasan_dosen' | 'ajar_dosen' | 'mata_kuliah' | 'kelas') => {
     try {
       setSyncingEntity(entity);
       const res = await feederService.triggerSync(entity);
@@ -452,7 +452,7 @@ export default function FeederSyncPage() {
               </div>
             </div>
 
-            {/* Card 2: Dosen */}
+            {/* Card: Dosen Langkah 1 - Biodata NIDN */}
             <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -460,25 +460,70 @@ export default function FeederSyncPage() {
                     <Users size={18} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Data Dosen</h4>
-                    <p className="text-2xs text-slate-500">Kirim data NIDN, NIP & homebase program studi</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-slate-900">1. Biodata Dosen (PULL & MATCH)</h4>
+                      <Badge variant="blue">Langkah 1</Badge>
+                    </div>
+                    <p className="text-2xs text-slate-500">Tarik dosen resmi PDDikti ke SIAKAD atau cocokkan NIDN lokal</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-2.5 bg-slate-50 rounded-lg text-2xs text-slate-600 space-y-1 border border-slate-100">
+                <p>💡 <strong>Alur NIP &amp; NIDN</strong>: Dosen baru ber-NIP internal tetap aman mengajar di SIAKAD lokal. Begitu NIDN terbit, klik <em>Cocokkan NIDN</em> atau <em>Tarik Feeder</em>.</p>
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: GetListDosen &amp; DetailBiodataDosen</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="text-xs font-bold"
+                    disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
+                    onClick={() => handleTriggerSync('dosen')}
+                  >
+                    {syncingEntity === 'dosen' ? 'Mencocokkan...' : 'Cocokkan NIDN →'}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
+                    onClick={() => handleTriggerSync('pull_dosen')}
+                  >
+                    {syncingEntity === 'pull_dosen' ? 'Menarik Data...' : 'Tarik dari Feeder (PULL) →'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Card: Dosen Langkah 2 - Penugasan Dosen PT */}
+            <div className="card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-slate-900">2. Pencocokan Penugasan PT</h4>
+                      <Badge variant="indigo">Langkah 2</Badge>
+                    </div>
+                    <p className="text-2xs text-slate-500">Ambil id_registrasi_dosen per Prodi & Tahun Ajaran aktif</p>
                   </div>
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_dosen</span>
+                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: GetListPenugasanDosen</span>
                 <Button
                   variant="primary"
-                  className="text-xs font-bold"
-                  disabled={syncingEntity === 'dosen'}
-                  onClick={() => handleTriggerSync('dosen')}
+                  className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white border-none"
+                  disabled={syncingEntity === 'penugasan_dosen'}
+                  onClick={() => handleTriggerSync('penugasan_dosen')}
                 >
-                  {syncingEntity === 'dosen' ? 'Menyinkronkan...' : 'Push Dosen →'}
+                  {syncingEntity === 'penugasan_dosen' ? 'Mencocokkan...' : 'Cocokkan Penugasan PT →'}
                 </Button>
               </div>
             </div>
 
-            {/* Card 3: Mata Kuliah */}
+            {/* Card: Mata Kuliah */}
             <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -486,7 +531,7 @@ export default function FeederSyncPage() {
                     <BookOpen size={18} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Mata Kuliah & Kurikulum</h4>
+                    <h4 className="font-bold text-sm text-slate-900">Mata Kuliah & Kurikulum</h4>
                     <p className="text-2xs text-slate-500">Kirim kode MK, total SKS tatap muka & praktek</p>
                   </div>
                 </div>
@@ -504,7 +549,7 @@ export default function FeederSyncPage() {
               </div>
             </div>
 
-            {/* Card 4: Kelas Perkuliahan */}
+            {/* Card: Kelas Perkuliahan */}
             <div className="card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -512,13 +557,13 @@ export default function FeederSyncPage() {
                     <CalendarCheck size={18} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Kelas & Nilai</h4>
+                    <h4 className="font-bold text-sm text-slate-900">Kelas Perkuliahan & Nilai</h4>
                     <p className="text-2xs text-slate-500">Kirim kelas kuliah aktif, KRS mahasiswa & nilai semester</p>
                   </div>
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_kelas & siakad_nilai</span>
+                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_kelas</span>
                 <Button
                   variant="primary"
                   className="text-xs font-bold"
@@ -530,28 +575,31 @@ export default function FeederSyncPage() {
               </div>
             </div>
 
-            {/* Card 5: Penugasan Dosen */}
-            <div className="card p-5 space-y-3">
+            {/* Card: Dosen Langkah 3 - Pengajar Kelas */}
+            <div className="card p-5 space-y-3 md:col-span-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
                     <Users size={18} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Penugasan Dosen Ajar</h4>
-                    <p className="text-2xs text-slate-500">Kirim data dosen pengajar kelas, SKS ajar, & 16 pertemuan ke Neo Feeder</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-slate-900">3. Pengiriman Ajar Dosen ke Kelas Kuliah</h4>
+                      <Badge variant="amber">Langkah 3 (Eksekusi Akhir)</Badge>
+                    </div>
+                    <p className="text-2xs text-slate-500">Lapor dosen pengajar ke kelas perkuliahan (id_registrasi_dosen, id_kelas_kuliah, 16 pertemuan)</p>
                   </div>
                 </div>
               </div>
               <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_dosen_pengampu</span>
+                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: InsertDosenPengajarKelasKuliah</span>
                 <Button
                   variant="primary"
                   className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white border-none"
-                  disabled={syncingEntity === 'penugasan_dosen'}
-                  onClick={() => handleTriggerSync('penugasan_dosen')}
+                  disabled={syncingEntity === 'ajar_dosen'}
+                  onClick={() => handleTriggerSync('ajar_dosen')}
                 >
-                  {syncingEntity === 'penugasan_dosen' ? 'Menyinkronkan...' : 'Push Penugasan Dosen →'}
+                  {syncingEntity === 'ajar_dosen' ? 'Mengirim Data Ajar...' : 'Kirim Pengajar Kelas →'}
                 </Button>
               </div>
             </div>
