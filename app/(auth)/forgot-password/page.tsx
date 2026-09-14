@@ -31,8 +31,11 @@ export default function ForgotPasswordPage() {
       await authService.forgotPassword({ email: data.email });
       setSentEmail(data.email);
       setIsSuccess(true);
-    } catch {
-      toast.error('Gagal mengirim email. Pastikan email terdaftar di sistem.');
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        'Gagal mengirim email. Silakan coba beberapa saat lagi.';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

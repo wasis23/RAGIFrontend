@@ -72,6 +72,7 @@ function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
+  const email = searchParams.get('email') ?? '';
 
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -84,23 +85,39 @@ function ResetPasswordForm() {
   const password = watch('password', '');
 
   const onSubmit = async (data: FormValues) => {
-    if (!token) { toast.error('Token reset tidak valid.'); return; }
+    if (!token || !email) {
+      toast.error('Tautan reset password tidak lengkap atau tidak valid.');
+      return;
+    }
     setIsLoading(true);
     try {
-      await authService.resetPassword({ token, ...data });
+      await authService.resetPassword({
+        token,
+        email,
+        password: data.password,
+        password_confirmation: data.password_confirmation,
+      });
       setIsSuccess(true);
-    } catch {
-      toast.error('Gagal reset password. Token mungkin sudah kadaluarsa.');
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        'Gagal reset password. Token mungkin sudah kedaluwarsa atau tidak valid.';
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!token) {
+  if (!token || !email) {
     return (
       <div className="alert alert-danger">
         <span>⚠️</span>
-        <span>Token reset tidak ditemukan. Silakan <Link href="/forgot-password" className="font-bold">kirim ulang email</Link>.</span>
+        <span>
+          Tautan reset password tidak valid atau tidak lengkap. Silakan{' '}
+          <Link href="/forgot-password" className="font-bold underline">
+            kirim ulang permintaan reset password
+          </Link>.
+        </span>
       </div>
     );
   }
