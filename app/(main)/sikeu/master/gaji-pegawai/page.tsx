@@ -29,8 +29,8 @@ interface MasterGajiItem {
 }
 
 export default function MasterGajiPegawaiSikeuPage() {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('sikeu.manage') || hasPermission('simpeg.payroll.manage');
+  const { isAdmin, hasPermission } = useAuth();
+  const canAccess = isAdmin || hasPermission('sikeu.manage') || hasPermission('simpeg.payroll.manage');
 
   const [loading, setLoading] = useState(true);
   const [masterList, setMasterList] = useState<MasterGajiItem[]>([]);
@@ -193,7 +193,7 @@ export default function MasterGajiPegawaiSikeuPage() {
     },
   ];
 
-  if (!isAdmin) {
+  if (!canAccess) {
     return (
       <div className="animate-fade-in space-y-6 max-w-6xl mx-auto">
         <PageHeader

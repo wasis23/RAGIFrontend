@@ -11,7 +11,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
+import { formatRupiah } from '@/lib/utils';
 
 interface Tarif {
   id: number;
@@ -34,9 +36,6 @@ interface FormValues {
   nama_kelompok: string;
   nominal: number;
 }
-
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export function TarifTab() {
   const [data, setData] = useState<Tarif[]>([]);
@@ -137,14 +136,25 @@ export function TarifTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: number, nama?: string) => {
-    if (!confirm(`Yakin ingin menghapus tarif "${nama || 'ini'}"?`)) return;
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({ isOpen: false, id: null, label: '' });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleOpenDelete = (id: number, nama?: string) => {
+    setDeleteModal({ isOpen: true, id, label: nama || '' });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await sikeuService.deleteTarif(id);
+      setDeleteLoading(true);
+      await sikeuService.deleteTarif(deleteModal.id);
       toast.success('Tarif berhasil dihapus');
+      setDeleteModal({ isOpen: false, id: null, label: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Gagal menghapus tarif');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -239,7 +249,7 @@ export function TarifTab() {
             className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
             Edit
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleDelete(row.id, row.nama_kelompok)} icon={<Trash2 size={14} />}
+          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama_kelompok)} icon={<Trash2 size={14} />}
             className="font-semibold text-rose-600 hover:bg-rose-50">
             Hapus
           </Button>
@@ -376,6 +386,22 @@ export function TarifTab() {
             ]} />
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Nominal Tarif"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus tarif <strong>&quot;{deleteModal.label}&quot;</strong>?
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </>
   );
 }

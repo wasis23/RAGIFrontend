@@ -8,21 +8,13 @@ import {
   ShieldCheck,
   CheckCircle,
   XCircle,
-  Clock,
   ArrowLeft,
   AlertCircle,
   FileText,
   User,
   ArrowRightLeft,
   BookOpen,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Building2,
-  CheckCircle2,
-  Lock,
-  Sparkles,
-  Plus
+  CheckCircle2
 } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 
@@ -37,22 +29,14 @@ export default function SikeuKabagPage() {
 
   // Approval Pending Lists
   const [pendingDispensasi, setPendingDispensasi] = useState<any[]>([]);
-  const [pendingMutasi, setPendingMutasi] = useState<any[]>([]);
-  const [pendingOperasional, setPendingOperasional] = useState<any[]>([]);
+  const [pendingTagihan, setPendingTagihan] = useState<any[]>([]);
 
   // Modal Approval Action
   const [modalAction, setModalAction] = useState<{ id: number; title: string; type: string } | null>(null);
+  const [modalDecision, setModalDecision] = useState<'setujui' | 'tolak'>('setujui');
   const [catatan, setCatatan] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  // Modal Mutasi Kas Kabag
-  const [isMutasiModalOpen, setIsMutasiModalOpen] = useState(false);
-  const [mutasiForm, setMutasiForm] = useState({
-    unit_asal: '',
-    unit_tujuan: '',
-    nominal: '',
-    peruntukan: 'Pengisian kas tunai operasional kasir kampus',
-  });
+  const [approving, setApproving] = useState(false);
 
   const loadData = async () => {
     try {
@@ -87,6 +71,17 @@ export default function SikeuKabagPage() {
         }));
         setPendingDispensasi(mapped);
       }
+    if (Array.isArray(appRes.data?.tagihan_pending)) {
+        const mappedTagihan = appRes.data.tagihan_pending.map((t: any) => ({
+          id: t.id,
+          kode: t.nomor_tagihan || `TG-${t.id}`,
+          mhs: t.mahasiswa?.nama_lengkap || `Mahasiswa #${t.mahasiswa_id}`,
+          nominal: Number(t.total_tagihan) || 0,
+          jenis: (t.source_system || 'SIAKAD').toUpperCase(),
+          jatuh_tempo: t.jatuh_tempo || '-',
+        }));
+        setPendingTagihan(mappedTagihan);
+      }
     } catch (e) {
       console.error('Failed to load kabag data', e);
     } finally {
@@ -98,32 +93,49 @@ export default function SikeuKabagPage() {
     loadData();
   }, []);
 
-  const handleApprove = () => {
-    if (!modalAction) return;
-    setFeedback({
-      type: 'success',
-      message: `Berhasil MENYETUJUI pengajuan ${modalAction.title}. Status disetujui Kabag Keuangan & jurnal terposting otomatis.`,
-    });
-
-    if (modalAction.type === 'dispensasi') {
-      setPendingDispensasi(prev => prev.filter(i => i.id !== modalAction.id));
-    } else if (modalAction.type === 'mutasi') {
-      setPendingMutasi(prev => prev.filter(i => i.id !== modalAction.id));
-    } else {
-      setPendingOperasional(prev => prev.filter(i => i.id !== modalAction.id));
-    }
-
-    setModalAction(null);
+  const handleOpenDecision = (id: number, title: string, type: string) => {
+    setModalAction({ id, title, type });
+    setModalDecision('setujui');
     setCatatan('');
   };
 
-  const handleCreateMutasi = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFeedback({
-      type: 'success',
-      message: `Berhasil menerbitkan pengajuan Mutasi Kas (${mutasiForm.unit_asal} -> ${mutasiForm.unit_tujuan}) sebesar Rp ${Number(mutasiForm.nominal).toLocaleString('id-ID')}.`,
-    });
-    setIsMutasiModalOpen(false);
+  const handleSubmitDecision = async () => {
+    if (!modalAction) return;
+    setApproving(true);
+    try {
+      if (modalAction.type === 'dispensasi') {
+        if (modalDecision === 'setujui') {
+          await sikeuService.approveDispensasi(modalAction.id, catatan);
+        } else {
+          await sikeuService.rejectDispensasi(modalAction.id, catatan);
+        }
+        setPendingDispensasi(prev => prev.filter(i => i.id !== modalAction.id));
+        setFeedback({
+          type: 'success',
+          message: `Keputusan ${modalDecision === 'setujui' ? 'SETUJUI' : 'TOLAK'} dispensasi ${modalAction.title} berhasil diproses.`,
+        });
+      } else if (modalAction.type === 'tagihan') {
+        if (modalDecision === 'setujui') {
+          await sikeuService.approveTagihan(modalAction.id, catatan);
+        } else {
+          await sikeuService.rejectTagihan(modalAction.id, catatan);
+        }
+        setPendingTagihan(prev => prev.filter(i => i.id !== modalAction.id));
+        setFeedback({
+          type: 'success',
+          message: `Keputusan ${modalDecision === 'setujui' ? 'SETUJUI' : 'TOLAK'} pengajuan ${modalAction.title} berhasil diproses.`,
+        });
+      }
+      setModalAction(null);
+      setCatatan('');
+    } catch (error: any) {
+      setFeedback({
+        type: 'error',
+        message: error?.response?.data?.message || 'Gagal memproses keputusan. Silakan coba lagi.',
+      });
+    } finally {
+      setApproving(false);
+    }
   };
 
   return (
@@ -145,17 +157,11 @@ export default function SikeuKabagPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsMutasiModalOpen(true)}
-            className="btn btn-primary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
-          >
-            <ArrowRightLeft size={16} /> Buat Mutasi Kas Kabag
-          </button>
           <Link
             href="/sikeu/approval"
             className="btn btn-secondary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
           >
-            <ShieldCheck size={16} /> Portal Approval ({pendingDispensasi.length + pendingMutasi.length + pendingOperasional.length})
+            <ShieldCheck size={16} /> Portal Approval ({pendingDispensasi.length + pendingTagihan.length})
           </Link>
         </div>
       </div>
@@ -190,7 +196,7 @@ export default function SikeuKabagPage() {
           <div>
             <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Pengajuan Menunggu Persetujuan Kabag</span>
             <div className="text-2xl font-mono font-extrabold text-amber-900 mt-1">
-              {pendingDispensasi.length + pendingMutasi.length + pendingOperasional.length} Item Pending
+              {pendingDispensasi.length + pendingTagihan.length} Item Pending
             </div>
             <p className="text-[11px] text-amber-700 font-medium mt-0.5">Membutuhkan Keputusan Kabag</p>
           </div>
@@ -201,9 +207,11 @@ export default function SikeuKabagPage() {
 
         <div className="card p-5 flex justify-between items-center">
           <div>
-            <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider">Total Mutasi Kas Ter-Otorisasi</span>
-            <div className="text-2xl font-mono font-extrabold text-indigo-900 mt-1">Rp 60.000.000</div>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">Bulan Ini (2 Transaksi Mutasi)</p>
+            <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider">Total Saldo Seluruh Unit Kas</span>
+            <div className="text-2xl font-mono font-extrabold text-indigo-900 mt-1">
+              {formatRupiah(unitKasList.reduce((s: number, u: any) => s + (Number(u.saldo_saat_ini) || 0), 0))}
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{unitKasList.length} Unit Kas Terdaftar</p>
           </div>
           <div className="p-3 bg-indigo-50 text-indigo-700 rounded-2xl">
             <ArrowRightLeft size={24} />
@@ -222,7 +230,7 @@ export default function SikeuKabagPage() {
                 : 'text-slate-600 hover:bg-slate-200/60'
             }`}
           >
-            <ShieldCheck size={16} /> 1. Otorisasi Approval ({pendingDispensasi.length + pendingMutasi.length + pendingOperasional.length})
+            <ShieldCheck size={16} /> 1. Otorisasi Approval ({pendingDispensasi.length + pendingTagihan.length})
           </button>
           <button
             onClick={() => setActiveTab('kas-utama')}
@@ -232,7 +240,7 @@ export default function SikeuKabagPage() {
                 : 'text-slate-600 hover:bg-slate-200/60'
             }`}
           >
-            <Wallet size={16} /> 2. Kas Utama Kabag & Mutasi Unit
+            <Wallet size={16} /> 2. Kas Utama Kabag & Unit Kas
           </button>
           <button
             onClick={() => setActiveTab('akuntansi')}
@@ -275,7 +283,7 @@ export default function SikeuKabagPage() {
                     <div className="text-right space-y-2 shrink-0">
                       <div className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(d.nominal)}</div>
                       <button
-                        onClick={() => setModalAction({ id: d.id, title: `Dispensasi ${d.mhs}`, type: 'dispensasi' })}
+                        onClick={() => handleOpenDecision(d.id, `Dispensasi ${d.mhs}`, 'dispensasi')}
                         className="btn btn-secondary btn-xs font-bold border-none"
                       >
                         Proses Keputusan &rarr;
@@ -286,33 +294,38 @@ export default function SikeuKabagPage() {
               </div>
             </div>
 
-            {/* SEKSI 2: PERIZINAN MUTASI KAS UNTUK KABAG */}
+            {/* SEKSI 2: TAGIHAN PERLU PERSETUJUAN */}
             <div className="space-y-3 pt-4 border-t">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-primary-950 flex items-center gap-1.5">
-                  <ArrowRightLeft size={16} className="text-slate-700" /> Permohonan Mutasi Kas Antar Unit ({pendingMutasi.length}):
+                <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <FileText size={16} className="text-slate-700" /> Tagihan Menunggu Persetujuan Kabag ({pendingTagihan.length}):
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                {pendingMutasi.map((k) => (
+                {pendingTagihan.map((k) => (
                   <div key={k.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2 flex justify-between items-center">
                     <div>
                       <div className="font-mono font-bold text-primary-900">{k.kode}</div>
-                      <div className="text-[11px] text-slate-700 font-bold">{k.dari} &rarr; {k.ke}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{k.alasan}</div>
+                      <div className="text-[11px] text-slate-700 font-bold">{k.jenis} | {k.mhs}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">Jatuh tempo: {k.jatuh_tempo}</div>
                     </div>
                     <div className="text-right space-y-2 shrink-0">
                       <div className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(k.nominal)}</div>
                       <button
-                        onClick={() => setModalAction({ id: k.id, title: `Mutasi Kas ${k.kode}`, type: 'mutasi' })}
+                        onClick={() => handleOpenDecision(k.id, `Tagihan ${k.kode}`, 'tagihan')}
                         className="btn btn-primary btn-xs font-bold border-none"
                       >
-                        Setujui Mutasi &rarr;
+                        Proses Keputusan &rarr;
                       </button>
                     </div>
                   </div>
                 ))}
+                {pendingTagihan.length === 0 && (
+                  <div className="col-span-2 text-center py-6 text-slate-400">
+                    Tidak ada tagihan yang menunggu persetujuan.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -324,14 +337,8 @@ export default function SikeuKabagPage() {
             <div className="flex items-center justify-between border-b pb-3">
               <div>
                 <h2 className="text-base font-extrabold text-slate-900">Kas Utama Kabag Keuangan & Unit Kas Kampus</h2>
-                <p className="text-xs text-slate-500">Daftar saldo unit kas aktif & fasilitas mutasi likuiditas dana institusi</p>
+                <p className="text-xs text-slate-500">Daftar saldo unit kas aktif & saldo kas utama instansi</p>
               </div>
-              <button
-                onClick={() => setIsMutasiModalOpen(true)}
-                className="btn btn-primary btn-xs font-bold border-none"
-              >
-                + Buat Mutasi Kas Baru
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -383,92 +390,40 @@ export default function SikeuKabagPage() {
         <div className="modal-overlay">
           <div className="modal modal-sm">
             <h3 className="text-base font-extrabold text-slate-900">Otorisasi Kabag Keuangan: {modalAction.title}</h3>
+            <div className="flex items-center gap-2 pt-1 pb-3">
+              <button
+                onClick={() => setModalDecision('setujui')}
+                className={`btn btn-xs font-bold border-none flex-1 ${modalDecision === 'setujui' ? 'btn-primary' : 'btn-ghost'}`}
+              >
+                <CheckCircle size={14} /> Setujui
+              </button>
+              <button
+                onClick={() => setModalDecision('tolak')}
+                className={`btn btn-xs font-bold border-none flex-1 ${modalDecision === 'tolak' ? 'btn-danger' : 'btn-ghost'}`}
+              >
+                <XCircle size={14} /> Tolak
+              </button>
+            </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">Catatan Instruksi Kabag Keuangan (Opsional)</label>
               <textarea
                 value={catatan}
                 onChange={(e) => setCatatan(e.target.value)}
-                placeholder="Tuliskan catatan persetujuan atau dispensasi..."
+                placeholder="Tuliskan catatan persetujuan atau penolakan..."
                 className="textarea textarea-sm w-full"
                 rows={3}
               />
             </div>
             <div className="flex justify-end gap-2 pt-2 border-t">
-              <button onClick={() => setModalAction(null)} className="btn btn-ghost btn-sm font-bold">Batal</button>
+              <button onClick={() => setModalAction(null)} className="btn btn-ghost btn-sm font-bold" disabled={approving}>Batal</button>
               <button
-                onClick={handleApprove}
-                className="btn btn-primary btn-sm font-bold border-none"
+                onClick={handleSubmitDecision}
+                disabled={approving}
+                className={`btn btn-sm font-bold border-none ${modalDecision === 'setujui' ? 'btn-primary' : 'btn-danger'}`}
               >
-                Setujui & Terbitkan Otorisasi
+                {approving ? 'Memproses...' : modalDecision === 'setujui' ? 'Terbitkan Persetujuan' : 'Tolak Pengajuan'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL BUAT MUTASI KAS KABAG */}
-      {isMutasiModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal modal-sm">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">Form Mutasi Dana Kas Kabag Keuangan</h3>
-              <button onClick={() => setIsMutasiModalOpen(false)} className="btn btn-ghost btn-xs font-bold">✕</button>
-            </div>
-            <form onSubmit={handleCreateMutasi} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Unit Kas Asal (Sumber Dana) *</label>
-                <select
-                  value={mutasiForm.unit_asal}
-                  onChange={(e) => setMutasiForm({ ...mutasiForm, unit_asal: e.target.value })}
-                  className="select select-sm border-slate-300 w-full font-bold"
-                >
-                  <option value="Kas Utama Kabag Keuangan">Kas Utama Kabag Keuangan</option>
-                  <option value="Kas Bank BNI Kampus">Kas Bank BNI Kampus</option>
-                  <option value="Kas Bank Mandiri Payroll">Kas Bank Mandiri Payroll</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Unit Kas Tujuan *</label>
-                <select
-                  value={mutasiForm.unit_tujuan}
-                  onChange={(e) => setMutasiForm({ ...mutasiForm, unit_tujuan: e.target.value })}
-                  className="select select-sm border-slate-300 w-full font-bold"
-                >
-                  <option value="Kas Operasional SPMB">Kas Operasional SPMB</option>
-                  <option value="Kas Operasional Laboratorium">Kas Operasional Laboratorium</option>
-                  <option value="Kas Bank Mandiri Payroll">Kas Bank Mandiri Payroll</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Nominal Mutasi Dana (Rp) *</label>
-                <input
-                  type="number"
-                  required
-                  value={mutasiForm.nominal}
-                  onChange={(e) => setMutasiForm({ ...mutasiForm, nominal: e.target.value })}
-                  className="input input-sm border-slate-300 w-full font-mono font-extrabold text-emerald-800 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Peruntukan / Catatan Mutasi</label>
-                <textarea
-                  rows={2}
-                  value={mutasiForm.peruntukan}
-                  onChange={(e) => setMutasiForm({ ...mutasiForm, peruntukan: e.target.value })}
-                  className="textarea textarea-sm border-slate-300 w-full text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <button type="button" onClick={() => setIsMutasiModalOpen(false)} className="btn btn-ghost btn-sm font-bold">Batal</button>
-                <button type="submit" className="btn btn-primary btn-sm font-bold border-none">
-                  Terbitkan Mutasi Kas
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

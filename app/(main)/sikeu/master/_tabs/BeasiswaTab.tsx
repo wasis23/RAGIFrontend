@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Filter, Loader2, Save } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
@@ -11,7 +11,10 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
+import { formatRupiah } from '@/lib/utils';
 
 interface Beasiswa {
   id: number;
@@ -20,8 +23,8 @@ interface Beasiswa {
   sumber: string;
   tipe_potongan: string;
   nilai_potongan: number;
-  jenis_biaya_id?: number;
-  jenis_biaya?: { nama: string };
+  jenis_biaya_ids: number[];
+  jenis_biaya?: { id: number; nama: string; kode: string }[];
   berlaku_angkatan_mulai?: number;
   berlaku_angkatan_sampai?: number;
   deskripsi?: string;
@@ -33,27 +36,22 @@ interface FormValues {
   sumber: string;
   tipe_potongan: string;
   nilai_potongan: number;
-  jenis_biaya_id: number;
+  jenis_biaya_ids: number[];
   berlaku_angkatan_mulai: number;
   berlaku_angkatan_sampai: number;
   deskripsi: string;
 }
-
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export function BeasiswaTab() {
   const [data, setData] = useState<Beasiswa[]>([]);
   const [loading, setLoading] = useState(false);
   const [jenisBiayaList, setJenisBiayaList] = useState<any[]>([]);
 
-  // Filter Drawer — 2-stage
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterSumber, setFilterSumber] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({ search: '', sumber: '' });
 
-  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Beasiswa | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -65,7 +63,7 @@ export function BeasiswaTab() {
       sumber: 'internal',
       tipe_potongan: 'persen',
       nilai_potongan: 100,
-      jenis_biaya_id: 0,
+      jenis_biaya_ids: [],
       berlaku_angkatan_mulai: 2023,
       berlaku_angkatan_sampai: 2027,
       deskripsi: '',
@@ -73,6 +71,13 @@ export function BeasiswaTab() {
   });
 
   const tipePotonganVal = watch('tipe_potongan');
+  const selectedJenisBiayaIds = watch('jenis_biaya_ids') || [];
+
+  const toggleJenisBiaya = (id: number) => {
+    const current = watch('jenis_biaya_ids') || [];
+    const next = current.includes(id) ? current.filter((i) => i !== id) : [...current, id];
+    setValue('jenis_biaya_ids', next, { shouldValidate: true });
+  };
 
   const fetchData = async () => {
     try {
@@ -109,7 +114,7 @@ export function BeasiswaTab() {
       sumber: 'internal',
       tipe_potongan: 'persen',
       nilai_potongan: 100,
-      jenis_biaya_id: 0,
+      jenis_biaya_ids: [],
       berlaku_angkatan_mulai: 2023,
       berlaku_angkatan_sampai: 2027,
       deskripsi: '',
@@ -125,7 +130,7 @@ export function BeasiswaTab() {
       sumber: item.sumber || 'internal',
       tipe_potongan: item.tipe_potongan || 'persen',
       nilai_potongan: item.nilai_potongan || 0,
-      jenis_biaya_id: item.jenis_biaya_id || 0,
+      jenis_biaya_ids: item.jenis_biaya_ids || [],
       berlaku_angkatan_mulai: item.berlaku_angkatan_mulai || 2023,
       berlaku_angkatan_sampai: item.berlaku_angkatan_sampai || 2027,
       deskripsi: item.deskripsi || '',
@@ -133,25 +138,44 @@ export function BeasiswaTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: number, nama: string) => {
-    if (!confirm(`Yakin ingin menghapus beasiswa "${nama}"?`)) return;
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; nama?: string }>({
+    isOpen: false,
+    id: null,
+    nama: '',
+  });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleOpenDelete = (id: number, nama: string) => {
+    setDeleteModal({ isOpen: true, id, nama });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await sikeuService.deleteBeasiswa(id);
+      setDeleteLoading(true);
+      await sikeuService.deleteBeasiswa(deleteModal.id);
       toast.success('Program beasiswa berhasil dihapus');
+      setDeleteModal({ isOpen: false, id: null, nama: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Gagal menghapus beasiswa');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
   const onSubmit = async (formData: FormValues) => {
     setSubmitting(true);
     try {
+      const payload = {
+        ...formData,
+        jenis_biaya_ids: formData.jenis_biaya_ids || [],
+      };
       if (editingItem) {
-        await sikeuService.updateBeasiswa(editingItem.id, formData);
+        await sikeuService.updateBeasiswa(editingItem.id, payload);
         toast.success('Program beasiswa berhasil diperbarui');
       } else {
-        await sikeuService.storeBeasiswa(formData);
+        await sikeuService.storeBeasiswa(payload);
         toast.success('Program beasiswa baru berhasil ditambahkan');
       }
       setIsModalOpen(false);
@@ -186,6 +210,13 @@ export function BeasiswaTab() {
     });
   }, [data, appliedFilters]);
 
+  const getCakupanBiayaText = (item: Beasiswa) => {
+    if (!item.jenis_biaya_ids || item.jenis_biaya_ids.length === 0) return 'Semua Komponen Biaya';
+    const names = (item.jenis_biaya || []).map((j) => j.nama);
+    if (names.length === 0) return `${item.jenis_biaya_ids.length} komponen biaya`;
+    return names.join(', ');
+  };
+
   const columns: ColumnDef<Beasiswa>[] = [
     {
       key: 'kode',
@@ -214,6 +245,13 @@ export function BeasiswaTab() {
       ),
     },
     {
+      key: 'cakupan_biaya',
+      label: 'CAKUPAN KOMPONEN',
+      render: (row) => (
+        <span className="text-xs text-slate-700 font-medium">{getCakupanBiayaText(row)}</span>
+      ),
+    },
+    {
       key: 'nilai_potongan',
       label: 'BESARAN POTONGAN',
       render: (row) => (
@@ -232,7 +270,7 @@ export function BeasiswaTab() {
             className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
             Edit
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleDelete(row.id, row.nama)} icon={<Trash2 size={14} />}
+          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama)} icon={<Trash2 size={14} />}
             className="font-semibold text-rose-600 hover:bg-rose-50">
             Hapus
           </Button>
@@ -245,7 +283,7 @@ export function BeasiswaTab() {
     <>
       <PageHeader
         title="Master Program Beasiswa"
-        description="Kelola skema beasiswa, sumber dana, dan besaran potongan tagihan perkuliahan."
+        description="Kelola skema beasiswa, sumber dana, besaran potongan, dan cakupan komponen biaya."
         action={
           <div className="flex items-center gap-2.5 flex-wrap">
             <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[40px]">
@@ -298,14 +336,48 @@ export function BeasiswaTab() {
               placeholder={tipePotonganVal === 'persen' ? '100' : '1500000'}
               {...register('nilai_potongan', { required: 'Nilai potongan wajib diisi', valueAsNumber: true })}
               error={errors.nilai_potongan?.message} />
+          </div>
 
-            <Select label="Berlaku Untuk Komponen Biaya"
-              options={[
-                { value: '0', label: 'Semua Komponen Biaya (Global)' },
-                ...jenisBiayaList.map(j => ({ value: j.id.toString(), label: j.nama })),
-              ]}
-              value={watch('jenis_biaya_id')?.toString() || '0'}
-              onChange={(val) => setValue('jenis_biaya_id', Number(val))} />
+          {/* Multi Komponen Biaya */}
+          <div className="space-y-3">
+            <label className="text-sm font-semibold text-slate-700 block">
+              Berlaku Untuk Komponen Biaya (Multi Pilih)
+            </label>
+            <p className="text-xs text-slate-500">
+              Pilih satu atau lebih komponen biaya. Jika tidak ada yang dipilih, beasiswa berlaku global untuk semua komponen biaya.
+            </p>
+
+            {errors.jenis_biaya_ids && (
+              <p className="text-xs text-red-500">{errors.jenis_biaya_ids.message}</p>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl max-h-60 overflow-y-auto">
+              {jenisBiayaList.length > 0 ? (
+                jenisBiayaList.map((jb) => (
+                  <Checkbox
+                    key={jb.id}
+                    label={`${jb.nama || jb.nama_biaya || '-'} (${jb.kode || jb.kode_biaya || '-'})`}
+                    checked={selectedJenisBiayaIds.includes(jb.id)}
+                    onChange={() => toggleJenisBiaya(jb.id)}
+                  />
+                ))
+              ) : (
+                <p className="col-span-2 text-xs text-slate-400 text-center py-2">Data komponen biaya belum tersedia di master.</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <CheckCircle2 size={12} className="text-emerald-500" />
+              {selectedJenisBiayaIds.length === 0
+                ? 'Berlaku untuk SEMUA komponen biaya (Global)'
+                : `Berlaku pada ${selectedJenisBiayaIds.length} komponen biaya: ${
+                    jenisBiayaList
+                      .filter((jb) => selectedJenisBiayaIds.includes(jb.id))
+                      .map((jb) => jb.nama || jb.nama_biaya)
+                      .join(', ')
+                  }`
+              }
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -358,6 +430,22 @@ export function BeasiswaTab() {
             ]} />
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, nama: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Program Beasiswa"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus beasiswa <strong>&quot;{deleteModal.nama}&quot;</strong>?
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </>
   );
 }

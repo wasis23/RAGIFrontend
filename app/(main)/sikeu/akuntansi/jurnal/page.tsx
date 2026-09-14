@@ -70,8 +70,14 @@ export default function JurnalListPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-slate-500">Total: <strong className="text-slate-900">Rp {Number(j.total_debet).toLocaleString('id-ID')}</strong></span>
-                      <Badge variant="green">
-                        <CheckCircle size={12} /> Posted
+                      <Badge variant={j.status_posting === 'posted' ? 'green' : 'amber'}>
+                        {j.status_posting === 'posted' ? (
+                          <>
+                            <CheckCircle size={12} /> Posted
+                          </>
+                        ) : (
+                          'Draft'
+                        )}
                       </Badge>
                     </div>
                   </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, ArrowLeft, BookOpen, CheckCircle, Filter, Search, Eye } from 'lucide-react';
+import { Plus, ArrowLeft, BookOpen, CheckCircle, XCircle, Filter, Search, Eye } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 import { AkunKeuangan } from '@/types/sikeu.types';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -149,11 +149,16 @@ export default function CoaPage() {
       key: 'status',
       label: 'STATUS',
       align: 'center',
-      render: () => (
-        <Badge variant="green" className="inline-flex items-center gap-1">
-          <CheckCircle size={12} /> Aktif
-        </Badge>
-      ),
+      render: (row) =>
+        row.is_active ? (
+          <Badge variant="green" className="inline-flex items-center gap-1">
+            <CheckCircle size={12} /> Aktif
+          </Badge>
+        ) : (
+          <Badge variant="red" className="inline-flex items-center gap-1">
+            <XCircle size={12} /> Non-Aktif
+          </Badge>
+        ),
     },
   ];
 

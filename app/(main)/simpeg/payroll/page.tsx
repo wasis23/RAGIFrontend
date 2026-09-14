@@ -16,10 +16,11 @@ import { simpegService } from '@/services/simpeg.service';
 import type { GajiPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
+import { formatRupiah } from '@/lib/utils';
 
 export default function PayrollPage() {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.payroll.manage');
+  const { isAdmin, hasPermission } = useAuth();
+  const canAccess = isAdmin || hasPermission('simpeg.payroll.manage');
   const canRead = hasPermission('simpeg.payroll.read') || hasPermission('simpeg.payroll.view') || hasPermission('simpeg.payroll.manage');
   const canCreate = hasPermission('simpeg.payroll.create') || hasPermission('simpeg.payroll.manage');
 
@@ -116,10 +117,6 @@ export default function PayrollPage() {
   useEffect(() => {
     loadPayroll();
   }, [loadPayroll]);
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
-  };
 
   const handleExecuteSubmitToSikeu = async () => {
     setIsSubmittingToSikeu(true);
@@ -231,7 +228,7 @@ export default function PayrollPage() {
           });
         }
 
-        if (row.status_transfer === 'submitted_to_sikeu' && isAdmin) {
+        if (row.status_transfer === 'submitted_to_sikeu' && canAccess) {
           menuItems.push({
             label: 'Eksekusi Pembayaran SIKEU (Approve & Pay)',
             icon: <CheckCircle2 size={14} className="text-emerald-600" />,

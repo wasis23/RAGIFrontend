@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  TrendingUp, Plus, Filter, CheckCircle2, Building, Handshake, Gift, Search
+  TrendingUp, Plus, Filter, Building, Handshake, Gift, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -135,15 +135,6 @@ export default function PemasukanListPage() {
       label: 'NOMINAL DITERIMA (RP)',
       render: (row) => (
         <CurrencyText value={row.nominal} prefix="+" variant="positive" size="sm" />
-      ),
-    },
-    {
-      key: 'status',
-      label: 'STATUS JURNAL',
-      render: () => (
-        <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
-          <CheckCircle2 size={12} /> Auto-Posted
-        </span>
       ),
     },
   ];

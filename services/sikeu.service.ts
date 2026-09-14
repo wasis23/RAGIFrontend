@@ -329,7 +329,7 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/beasiswa');
   },
 
-  storeBeasiswa: async (payload: { kode: string; nama: string; sumber: string; tipe_potongan: string; nilai_potongan: number; jenis_biaya_id?: number; berlaku_angkatan_mulai?: number; berlaku_angkatan_sampai?: number; deskripsi?: string }) => {
+  storeBeasiswa: async (payload: { kode: string; nama: string; sumber: string; tipe_potongan: string; nilai_potongan: number; jenis_biaya_ids?: number[]; berlaku_angkatan_mulai?: number; berlaku_angkatan_sampai?: number; deskripsi?: string }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/beasiswa', {
       method: 'POST',
       body: JSON.stringify(payload),

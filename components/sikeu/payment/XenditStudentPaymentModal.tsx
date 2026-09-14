@@ -24,6 +24,7 @@ import {
   Info
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatRupiah } from '@/lib/utils';
 
 export interface PaymentChannel {
   id: string;
@@ -71,14 +72,6 @@ export function XenditStudentPaymentModal({
   const [currentStep, setCurrentStep] = useState<'checkout' | 'payment_detail'>('checkout');
 
   if (!isOpen) return null;
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(val || 0);
-  };
 
   const defaultChannels: PaymentChannel[] = [
     {

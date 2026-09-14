@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
 
 interface UnitKas {
@@ -121,14 +122,25 @@ export function UnitKasTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: number, nama: string) => {
-    if (!confirm(`Yakin ingin menghapus unit kas "${nama}"?`)) return;
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({ isOpen: false, id: null, label: '' });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleOpenDelete = (id: number, nama: string) => {
+    setDeleteModal({ isOpen: true, id, label: nama });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await sikeuService.deleteUnitKas(id);
+      setDeleteLoading(true);
+      await sikeuService.deleteUnitKas(deleteModal.id);
       toast.success('Unit kas berhasil dihapus');
+      setDeleteModal({ isOpen: false, id: null, label: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Gagal menghapus unit kas');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -230,7 +242,7 @@ export function UnitKasTab() {
             className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
             Edit
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleDelete(row.id, row.nama_kas)} icon={<Trash2 size={14} />}
+          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama_kas)} icon={<Trash2 size={14} />}
             className="font-semibold text-rose-600 hover:bg-rose-50">
             Hapus
           </Button>
@@ -351,6 +363,22 @@ export function UnitKasTab() {
             ]} />
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Unit Kas"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus unit kas <strong>&quot;{deleteModal.label}&quot;</strong>?
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </>
   );
 }

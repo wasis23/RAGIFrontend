@@ -152,8 +152,8 @@ export default function StudentTagihanPage() {
 
   // Mahasiswa profile info from bills, payments, or auth
   const studentProfile = bills[0]?.mahasiswa || payments[0]?.mahasiswa || {
-    nama: (user as any)?.nama_lengkap || (user as any)?.name || user?.username || 'Ahmad Fadillah',
-    nim: user?.username || '2301001001',
+    nama: (user as any)?.nama_lengkap || (user as any)?.name || user?.username || '-',
+    nim: user?.username || '-',
     prodi: 'Teknik Informatika',
     angkatan: 2023,
   };

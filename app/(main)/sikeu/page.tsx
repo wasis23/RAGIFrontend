@@ -95,11 +95,16 @@ export default function SikeuDashboardPage() {
     {
       key: 'status',
       label: 'STATUS',
-      render: (row) => (
-        <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
-          <CheckCircle2 size={12} /> Balanced
-        </span>
-      ),
+      render: (row) =>
+        row.status === 'posted' || row.status === 'balanced' ? (
+          <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+            <CheckCircle2 size={12} /> Posted
+          </span>
+        ) : (
+          <span className="badge badge-amber text-xs font-bold inline-flex items-center gap-1">
+            Draft
+          </span>
+        ),
     },
   ];
 

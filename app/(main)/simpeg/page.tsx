@@ -34,8 +34,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function SimpegDashboardPage() {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.pegawai.manage') || hasPermission('simpeg.unit_kerja.manage');
+  const { user, isAdmin, hasPermission } = useAuth();
+  const canAccess = isAdmin || hasPermission('simpeg.pegawai.manage') || hasPermission('simpeg.unit_kerja.manage');
 
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +85,7 @@ export default function SimpegDashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (isAdmin) {
+      if (canAccess) {
         // Load Admin View
         const [resPegawai, resUnit] = await Promise.all([
           simpegService.getPegawaiList({ per_page: 100 }),
@@ -148,7 +148,7 @@ export default function SimpegDashboardPage() {
 
   useEffect(() => {
     fetchData();
-  }, [isAdmin]);
+  }, [canAccess]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,7 +225,7 @@ export default function SimpegDashboardPage() {
   // -------------------------------------------------------------
   // RENDER VIEW FOR REGULAR DOSEN / TENDIK (PERSONAL PORTAL)
   // -------------------------------------------------------------
-  if (!isAdmin) {
+  if (!canAccess) {
     const namaDosen = myPegawai?.nama_lengkap || user?.username || 'Dosen';
 
     return (

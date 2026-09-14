@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
 
 interface ProgramStudiItem {
@@ -169,14 +170,25 @@ export function SettingTarifTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Yakin ingin menghapus setting tarif ini?')) return;
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({ isOpen: false, id: null, label: '' });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleOpenDelete = (id: number, label?: string) => {
+    setDeleteModal({ isOpen: true, id, label: label || '' });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await sikeuService.deleteSettingTarif(id);
+      setDeleteLoading(true);
+      await sikeuService.deleteSettingTarif(deleteModal.id);
       toast.success('Setting tarif berhasil dihapus');
+      setDeleteModal({ isOpen: false, id: null, label: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error?.message || 'Gagal menghapus setting tarif');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -354,7 +366,7 @@ export function SettingTarifTab() {
             className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
             Edit
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleDelete(row.id)} icon={<Trash2 size={14} />}
+          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.master_biaya?.nama)} icon={<Trash2 size={14} />}
             className="font-semibold text-rose-600 hover:bg-rose-50">
             Hapus
           </Button>
@@ -609,6 +621,22 @@ export function SettingTarifTab() {
           />
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Setting Tarif"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus setting tarif <strong>&quot;{deleteModal.label}&quot;</strong>?
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </>
   );
 }

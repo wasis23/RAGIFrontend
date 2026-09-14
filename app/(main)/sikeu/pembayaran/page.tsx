@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { formatRupiah } from '@/lib/utils';
 import {
   CreditCard, DollarSign, Filter, RefreshCw, CheckCircle2, Clock, XCircle, Building, Search, Plus
 } from 'lucide-react';
@@ -29,9 +30,6 @@ interface PaymentItem {
   channel_bayar: string;
   status: 'success' | 'pending' | 'failed' | string;
 }
-
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 export default function PembayaranPage() {
   const [payments, setPayments] = useState<PaymentItem[]>([]);

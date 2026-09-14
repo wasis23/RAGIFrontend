@@ -17,8 +17,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function UsulanJafungPage() {
-  const { user, hasPermission } = useAuth();
-  const isAdmin = user?.user_type === 'admin' || hasPermission('simpeg.usulan_jafung.verify') || hasPermission('simpeg.usulan_jafung.manage');
+  const { isAdmin, hasPermission } = useAuth();
+  const canAccess = isAdmin || hasPermission('simpeg.usulan_jafung.verify') || hasPermission('simpeg.usulan_jafung.manage');
   const canRead = hasPermission('simpeg.usulan_jafung.read') || hasPermission('simpeg.usulan_jafung.request') || hasPermission('simpeg.usulan_jafung.verify');
   const canCreate = hasPermission('simpeg.usulan_jafung.create') || hasPermission('simpeg.usulan_jafung.request');
 
@@ -40,7 +40,7 @@ export default function UsulanJafungPage() {
     if (!canRead) return;
     setLoading(true);
     try {
-      if (!isAdmin) {
+      if (!canAccess) {
         const resMe = await simpegService.getPegawaiMe();
         if (resMe.data) {
           const pegId = resMe.data.id;

@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { useForm } from 'react-hook-form';
+import { formatRupiah } from '@/lib/utils';
 
 interface DispensasiItem {
   id: number;
@@ -64,9 +65,6 @@ const TIPE_DISPENSASI_OPTIONS = [
   { value: 'pembayaran_cicilan', label: 'Skema Pembayaran Per-Cicilan' },
   { value: 'keringanan_potongan', label: 'Permohonan Keringanan Khusus' },
 ];
-
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
 
 export default function DispensasiListPage() {
   const [data, setData] = useState<DispensasiItem[]>([]);

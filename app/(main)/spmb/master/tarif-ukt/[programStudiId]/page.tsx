@@ -20,6 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { spmbService } from '@/services/spmb.service';
 import api from '@/lib/axios';
+import { formatRupiah } from '@/lib/utils';
 
 const schema = z.object({
   nama: z.string().min(1, 'Nama wajib diisi'),
@@ -27,8 +28,6 @@ const schema = z.object({
   master_sikeu_biaya_id: z.number().int().positive('Komponen biaya wajib dipilih'),
 });
 type FormValues = z.infer<typeof schema>;
-
-const formatRupiah = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
 
 export default function TarifUktProgramStudiDetailPage() {
   const router = useRouter();

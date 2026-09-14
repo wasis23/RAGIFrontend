@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
 
 interface JalurKelas {
@@ -72,14 +73,25 @@ export function JalurKelasTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: number, nama: string) => {
-    if (!confirm(`Yakin ingin menghapus jalur kelas "${nama}"?`)) return;
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({ isOpen: false, id: null, label: '' });
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleOpenDelete = (id: number, nama: string) => {
+    setDeleteModal({ isOpen: true, id, label: nama });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
     try {
-      await sikeuService.deleteJalurKelas(id);
+      setDeleteLoading(true);
+      await sikeuService.deleteJalurKelas(deleteModal.id);
       toast.success('Jalur kelas berhasil dihapus');
+      setDeleteModal({ isOpen: false, id: null, label: '' });
       fetchData();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Gagal menghapus jalur kelas');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -157,7 +169,7 @@ export function JalurKelasTab() {
             className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
             Edit
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleDelete(row.id, row.nama_jalur)} icon={<Trash2 size={14} />}
+          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama_jalur)} icon={<Trash2 size={14} />}
             className="font-semibold text-rose-600 hover:bg-rose-50">
             Hapus
           </Button>
@@ -226,6 +238,22 @@ export function JalurKelasTab() {
             value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
+        onConfirm={handleConfirmDelete}
+        isLoading={deleteLoading}
+        title="Hapus Jalur Kelas"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus jalur kelas <strong>&quot;{deleteModal.label}&quot;</strong>?
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+      />
     </>
   );
 }

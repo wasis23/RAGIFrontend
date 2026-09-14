@@ -116,15 +116,15 @@ export default function AccountingJournalPage() {
 
         return {
           id: item.id,
-          nomor_jurnal: item.nomor_jurnal || `JRN-2026-${String(item.id).padStart(4, '0')}`,
-          tanggal_jurnal: item.tanggal_jurnal || '2026-08-01',
+          nomor_jurnal: item.nomor_jurnal || '-',
+          tanggal_jurnal: item.tanggal_jurnal || '-',
           jenis_sumber: item.jenis_sumber || (isMasuk ? 'pemasukan' : 'pengeluaran'),
-          keterangan: item.keterangan || 'Transaksi Keuangan Kampus',
+          keterangan: item.keterangan || '-',
           uang_masuk: uangMasuk,
           uang_keluar: uangKeluar,
-          kode_coa: item.kode_coa || '1101',
-          nama_akun_terkait: isMasuk ? 'Kas Penerimaan' : 'Kas Operasional',
-          status_posting: item.status_posting || 'posted',
+          kode_coa: item.kode_coa || '-',
+          nama_akun_terkait: item.nama_akun_terkait || '-',
+          status_posting: item.status_posting || 'draft',
         };
       });
 

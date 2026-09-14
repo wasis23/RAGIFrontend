@@ -185,26 +185,7 @@ export default function TagihanListPage() {
       if (raw.length > 0) {
         setData(raw);
       } else {
-        // Fallback to student billing types mapping if no generated tagihan exists yet
-        const altRes = await sikeuService.getStudentBillingTypes({ page: 1, per_page: 50 });
-        const altRaw = Array.isArray(altRes.data) ? altRes.data : [];
-        const mapped = altRaw.map((item: any) => ({
-          id: item.id,
-          nomor: `INV-SIAKAD-2026-${String(item.id).padStart(3, '0')}`,
-          nim: item.nim || '-',
-          nama: item.nama_mahasiswa || 'Mahasiswa',
-          angkatan: item.tahun_angkatan || 2025,
-          jalur: item.jalur_kelas || 'Reguler',
-          kelompok_ukt: `Level ${item.kelompok_ukt || 3}`,
-          prodi: 'Teknik Informatika',
-          total: item.kelompok_ukt === 4 ? 5500000 : item.kelompok_ukt === 1 ? 500000 : 3500000,
-          total_bayar: item.beasiswa ? 3500000 : 0,
-          sisa: item.beasiswa ? 0 : 3500000,
-          status: item.beasiswa ? 'lunas' : 'belum_bayar',
-          jatuhTempo: '2026-08-31',
-          source: item.status_pendaftaran || 'SIAKAD',
-        }));
-        setData(mapped);
+        setData([]);
       }
     } catch {
       setData([]);

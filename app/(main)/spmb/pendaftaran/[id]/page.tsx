@@ -30,7 +30,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { SPMB_STATUS_CONFIG, SpmbStatusBadge, SpmbPaymentBadge } from '../page';
+import { SPMB_STATUS_CONFIG, SpmbStatusBadge, SpmbPaymentBadge } from '@/components/spmb/SpmbStatusBadge';
 
 // ============================================================
 // CLEAN KEY-VALUE METADATA ITEM

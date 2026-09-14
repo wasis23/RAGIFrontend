@@ -12,6 +12,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { Hero } from '@/components/ui/Hero';
+import { formatRupiah } from '@/lib/utils';
 
 interface SippmHeroProps {
   title?: string;
@@ -33,13 +34,6 @@ export function SippmHero({
   activePeriodeName = 'TA 2026/2027',
   showActions = true,
 }: SippmHeroProps) {
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   return (
     <Hero
