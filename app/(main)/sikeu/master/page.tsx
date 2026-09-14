@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Layers,
   Building2,
@@ -17,6 +17,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { JenisBiayaTab } from './_tabs/JenisBiayaTab';
 import { UnitKasTab } from './_tabs/UnitKasTab';
@@ -27,7 +28,15 @@ import { PotonganKhususTab } from './_tabs/PotonganKhususTab';
 type GlobalMasterTab = 'jenis_biaya' | 'beasiswa' | 'mapping_beasiswa' | 'potongan_khusus' | 'unit_kas';
 
 export default function MasterKeuanganGlobalPage() {
-  const [activeTab, setActiveTab] = useState<GlobalMasterTab>('jenis_biaya');
+  const searchParams = useSearchParams();
+  const tabQuery = searchParams.get('tab') as GlobalMasterTab | null;
+  const [activeTab, setActiveTab] = useState<GlobalMasterTab>(tabQuery || 'jenis_biaya');
+
+  useEffect(() => {
+    if (tabQuery && ['jenis_biaya', 'beasiswa', 'mapping_beasiswa', 'potongan_khusus', 'unit_kas'].includes(tabQuery)) {
+      setActiveTab(tabQuery);
+    }
+  }, [tabQuery]);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-16">

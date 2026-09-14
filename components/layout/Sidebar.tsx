@@ -36,7 +36,8 @@ import {
   PieChart,
   Search,
   RefreshCw,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -86,6 +87,7 @@ const getIcon = (iconName: string) => {
     'FaDatabase': List,
     'FaCogs': List,
     'FaChartBar': PieChart,
+    'FaSparkles': Sparkles,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -197,10 +199,11 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
     id: 602, parent_id: null, name: 'KEUANGAN MAHASISWA', url: '#mhs_sikeu', icon: 'FaGraduationCap', module: 'sikeu', permission_id: null, order_index: 2, is_active: true,
     children: [
       { id: 6020, parent_id: 602, name: 'Pengaturan Tarif & Beasiswa', url: '/sikeu/mahasiswa/tarif', icon: 'FaDollarSign', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
-      { id: 6021, parent_id: 602, name: 'Tagihan SPP & UKT', url: '/sikeu/tagihan', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
-      { id: 6022, parent_id: 602, name: 'Pembayaran & Kasir Loket', url: '/sikeu/pembayaran', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
-      { id: 6029, parent_id: 602, name: 'Piutang Mahasiswa', url: '/sikeu/piutang', icon: 'FaExclamationTriangle', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
-      { id: 6025, parent_id: 602, name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: 'FaClipboardCheck', module: 'sikeu', permission_id: null, order_index: 5, is_active: true },
+      { id: 60210, parent_id: 602, name: 'Potongan Khusus Mahasiswa', url: '/sikeu/mahasiswa/potongan', icon: 'FaSparkles', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
+      { id: 6021, parent_id: 602, name: 'Tagihan SPP & UKT', url: '/sikeu/tagihan', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
+      { id: 6022, parent_id: 602, name: 'Pembayaran & Kasir Loket', url: '/sikeu/pembayaran', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
+      { id: 6029, parent_id: 602, name: 'Piutang Mahasiswa', url: '/sikeu/piutang', icon: 'FaExclamationTriangle', module: 'sikeu', permission_id: null, order_index: 5, is_active: true },
+      { id: 6025, parent_id: 602, name: 'Dispensasi Pembayaran', url: '/sikeu/dispensasi', icon: 'FaClipboardCheck', module: 'sikeu', permission_id: null, order_index: 6, is_active: true },
     ]
   },
   {
