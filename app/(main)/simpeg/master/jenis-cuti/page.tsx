@@ -47,8 +47,8 @@ type MasterJenisCutiFormValues = z.infer<typeof masterJenisCutiSchema>;
 
 export default function MasterJenisCutiPage() {
   const { hasPermission } = useAuth();
-  const canRead = hasPermission('simpeg.cuti.read') || hasPermission('simpeg.cuti.manage');
-  const canManage = hasPermission('simpeg.cuti.manage');
+  const canRead = hasPermission('simpeg.cuti.read') || hasPermission('simpeg.cuti.manage') || hasPermission('simpeg.cuti.update');
+  const canManage = hasPermission('simpeg.cuti.manage') || hasPermission('simpeg.cuti.update') || hasPermission('simpeg.cuti.create');
 
   const [loading, setLoading] = useState(true);
   const [dataList, setDataList] = useState<MasterJenisCuti[]>([]);
