@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useEffect, useState, useCallback } from 'react';
 import { DollarSign, Edit, Save, ShieldAlert, RefreshCw, Filter, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -126,10 +127,6 @@ export default function MasterGajiPegawaiSikeuPage() {
     setTempFilterJenis('all');
     setPage(1);
     setShowFilterDrawer(false);
-  };
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   };
 
   const columns: ColumnDef<MasterGajiItem>[] = [

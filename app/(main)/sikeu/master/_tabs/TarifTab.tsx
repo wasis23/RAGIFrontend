@@ -60,11 +60,11 @@ export function TarifTab() {
     defaultValues: {
       jenis_biaya_id: 1,
       tahun_angkatan: 2025,
-      jalur_kelas: 'Reguler',
+      jalur_kelas: '',
       kelompok_ukt: 1,
-      prodi: 'Teknik Informatika',
-      nama_kelompok: 'SPP Semester Teknik Informatika',
-      nominal: 3500000,
+      prodi: '',
+      nama_kelompok: '',
+      nominal: 0,
     },
   });
 
@@ -114,11 +114,11 @@ export function TarifTab() {
     reset({
       jenis_biaya_id: jenisBiayaList[0]?.id || 1,
       tahun_angkatan: 2025,
-      jalur_kelas: 'Reguler',
+      jalur_kelas: '',
       kelompok_ukt: 1,
-      prodi: programStudiList[0]?.nama || 'Teknik Informatika',
-      nama_kelompok: `SPP Semester ${programStudiList[0]?.nama || 'Teknik Informatika'}`,
-      nominal: 3500000,
+      prodi: programStudiList[0]?.nama || '',
+      nama_kelompok: '',
+      nominal: 0,
     });
     setIsModalOpen(true);
   };

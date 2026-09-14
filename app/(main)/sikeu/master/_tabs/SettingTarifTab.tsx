@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle, GraduationCap, Calculator, Info, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -57,8 +58,7 @@ interface FormValues {
   keterangan?: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
+
 
 export function SettingTarifTab() {
   const [data, setData] = useState<SettingTarifItem[]>([]);
@@ -146,8 +146,8 @@ export function SettingTarifTab() {
       tahun_angkatan: 2025,
       program_studi_id: '',
       semester: '',
-      jalur_kelas: 'Reguler',
-      nominal: 3500000,
+      jalur_kelas: '',
+      nominal: 0,
       is_active: true,
       keterangan: '',
     });

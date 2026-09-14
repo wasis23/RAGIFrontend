@@ -65,6 +65,11 @@ export function formatCurrency(amount: number | null | undefined): string {
 }
 
 // ============================================================
+// formatRupiah — Alias untuk formatCurrency (konsisten SIKEU/SIMPEG)
+// ============================================================
+export const formatRupiah = formatCurrency;
+
+// ============================================================
 // truncate — Potong teks dengan ellipsis
 // ============================================================
 export function truncate(text: string, maxLength: number = 50): string {

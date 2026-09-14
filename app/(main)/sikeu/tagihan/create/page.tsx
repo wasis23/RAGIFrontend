@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -59,8 +60,7 @@ interface DirectItem {
   keterangan: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function CreateTagihanPage() {
   const router = useRouter();
@@ -79,9 +79,7 @@ export default function CreateTagihanPage() {
 
   // Master Biaya List for Direct Cashier Billing
   const [masterBiayaList, setMasterBiayaList] = useState<any[]>([]);
-  const [directItems, setDirectItems] = useState<DirectItem[]>([
-    { master_biaya_kode: 'UKT_REG', nama_biaya: 'UKT / SPP Semester Aktif', nominal: 3500000, keterangan: 'Pembayaran UKT Semester Aktif' }
-  ]);
+  const [directItems, setDirectItems] = useState<DirectItem[]>([]);
 
   // Potongan / Diskon Tambahan Kasir
   const [potonganTambahan, setPotonganTambahan] = useState<number>(0);
@@ -164,11 +162,16 @@ export default function CreateTagihanPage() {
       } else {
         setBills([]);
         setSelectedBillIds([]);
-        // Default standard direct billing items based on student
-        const defaultUkt = mhs.kelompok_ukt === 1 ? 500000 : mhs.kelompok_ukt === 2 ? 1000000 : 3500000;
-        setDirectItems([
-          { master_biaya_kode: 'UKT_REG', nama_biaya: 'UKT / SPP Semester Aktif', nominal: defaultUkt, keterangan: 'Pembayaran UKT Semester' }
-        ]);
+        // Default direct billing items from master biaya (katalog dari database)
+        const firstBiaya = masterBiayaList[0];
+        setDirectItems(firstBiaya
+          ? [{
+              master_biaya_kode: firstBiaya.kode || firstBiaya.kode_biaya || '',
+              nama_biaya: firstBiaya.nama || firstBiaya.nama_biaya || 'Komponen Biaya',
+              nominal: Number(firstBiaya.nominal_standar) || 0,
+              keterangan: '',
+            }]
+          : []);
       }
     } catch {
       toast.error('Gagal mengambil daftar tagihan mahasiswa dari database');
@@ -188,7 +191,7 @@ export default function CreateTagihanPage() {
   const handleAddDirectItem = () => {
     setDirectItems((prev) => [
       ...prev,
-      { master_biaya_kode: 'PRAKTIKUM', nama_biaya: 'Biaya Praktikum / Ujian', nominal: 750000, keterangan: 'Biaya Praktikum Laboratorium' }
+      { master_biaya_kode: '', nama_biaya: '', nominal: 0, keterangan: '' }
     ]);
   };
 
@@ -282,7 +285,7 @@ export default function CreateTagihanPage() {
             details: bills
               .filter((b) => selectedBillIds.includes(b.id))
               .map((b) => ({
-                master_biaya_kode: 'UKT_REG',
+                master_biaya_kode: '',
                 nominal: b.sisa || b.total_tagihan,
                 keterangan: b.jenis,
               })),
@@ -312,7 +315,7 @@ export default function CreateTagihanPage() {
             jatuh_tempo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             keterangan: catatan,
             details: directItems.map((it) => ({
-              master_biaya_kode: it.master_biaya_kode || 'UKT_REG',
+              master_biaya_kode: it.master_biaya_kode || '',
               nominal: Number(it.nominal),
               keterangan: it.keterangan || it.nama_biaya,
             })),
@@ -340,7 +343,7 @@ export default function CreateTagihanPage() {
           const res = await sikeuService.processDirectCashierPayment({
             mahasiswa_id: selectedStudent.id,
             items: directItems.map((it) => ({
-              master_biaya_kode: it.master_biaya_kode || 'UKT_REG',
+              master_biaya_kode: it.master_biaya_kode || '',
               nominal: Number(it.nominal),
               keterangan: it.keterangan || it.nama_biaya,
             })),
@@ -707,12 +710,9 @@ export default function CreateTagihanPage() {
                                 );
                               })}
                               {masterBiayaList.length === 0 && (
-                                <>
-                                  <option value="UKT_REG">UKT / SPP Semester (UKT_REG)</option>
-                                  <option value="PRAKTIKUM">Biaya Praktikum Lab (PRAKTIKUM)</option>
-                                  <option value="WISUDA">Biaya Wisuda (WISUDA)</option>
-                                  <option value="LAINNYA">Biaya Lainnya (LAINNYA)</option>
-                                </>
+                                <option value="" disabled>
+                                  Data jenis biaya belum tersedia di katalog master
+                                </option>
                               )}
                             </select>
                           </div>

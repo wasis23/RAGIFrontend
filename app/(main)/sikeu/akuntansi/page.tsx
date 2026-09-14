@@ -81,7 +81,7 @@ export default function AccountingJournalPage() {
     defaultValues: {
       tanggal_jurnal: new Date().toISOString().split('T')[0],
       tipe_transaksi: 'pemasukan',
-      nominal: 1000000,
+      nominal: 0,
       akun_kas_id: 1,
       keterangan: '',
     },

@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import {
   FileText, Filter, CheckCircle2, XCircle, Loader2, Save, Download
@@ -32,8 +33,7 @@ interface SetorFormValues {
   ntpn: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function TaxReportPage() {
   const [data, setData] = useState<TaxItem[]>([]);

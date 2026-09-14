@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -100,10 +101,6 @@ export default function StudentTagihanPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const [showPayModal, setShowPayModal] = useState(false);
   const [copiedVa, setCopiedVa] = useState<string | null>(null);
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
-  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

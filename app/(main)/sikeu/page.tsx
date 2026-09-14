@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
@@ -21,8 +22,7 @@ interface RecentJurnal {
   status: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function SikeuDashboardPage() {
   const [loading, setLoading] = useState(true);

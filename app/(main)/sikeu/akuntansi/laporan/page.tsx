@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Download, PieChart, TrendingUp, DollarSign, Layers, Printer, Loader2 } from 'lucide-react';
@@ -9,8 +10,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
+
 
 export default function LaporanKeuanganPage() {
   const [activeTab, setActiveTab] = useState<'laba_rugi' | 'neraca' | 'arus_kas' | 'ekuitas'>('laba_rugi');

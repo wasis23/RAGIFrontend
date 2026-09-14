@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Plus, Filter, TrendingDown, RefreshCw, Eye, FileText, CheckCircle2 } from 'lucide-react';
@@ -31,8 +32,7 @@ interface PengeluaranItem {
   nominal_net?: number;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function PengeluaranListPage() {
   const [data, setData] = useState<PengeluaranItem[]>([]);

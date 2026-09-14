@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import {
   Plus, Filter, DollarSign, Wallet, Building, CheckCircle2, XCircle, Loader2, Save, Send
@@ -37,8 +38,7 @@ interface PengajuanFormValues {
   deskripsi: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function UnitKasPage() {
   const [data, setData] = useState<UnitKas[]>([]);

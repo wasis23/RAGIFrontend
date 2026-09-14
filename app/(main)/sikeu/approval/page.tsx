@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck, CheckCircle2, XCircle, Clock, Filter, Loader2, Save, Eye
@@ -31,8 +32,7 @@ interface DecisionFormValues {
   catatan: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function SikeuApprovalPage() {
   const [data, setData] = useState<ApprovalItem[]>([]);

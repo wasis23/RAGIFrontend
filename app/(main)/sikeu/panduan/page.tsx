@@ -207,13 +207,13 @@ const GUIDES: GuideSection[] = [
     category: 'akun',
     categoryLabel: 'Akun & Hak Akses',
     summary:
-      'Informasi akun login siap pakai untuk simulasi alur kasir, kabag keuangan, pimpinan pengambil keputusan, dan mahasiswa.',
+      'Kredensial akun tidak disimpan di aplikasi (hardcode). Akun penguji disediakan oleh seeder database sesuai role, kelola dan ganti passwordnya lewat modul IAM.',
     rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'pimpinan', 'mahasiswa'],
     steps: [
-      'Kasir Operasional: Email kasir.sikeu@kampus.ac.id | Password: password (Role: operator_sikeu)',
-      'Kabag Keuangan: Email kabag.keuangan@kampus.ac.id | Password: password (Role: kabag_keuangan)',
-      'Pimpinan / WR II: Email pimpinan@kampus.ac.id | Password: password (Role: pimpinan)',
-      'Mahasiswa Mandiri: Email mahasiswa.test@kampus.ac.id | Password: password (Role: mahasiswa)',
+      'Kasir Operasional: akun dengan role operator_sikeu (buat via seeder IAM/PermissionSeeder).',
+      'Kabag Keuangan: akun dengan role kabag_keuangan (buat via seeder IAM/PermissionSeeder).',
+      'Pimpinan / WR II: akun dengan role pimpinan (buat via seeder IAM/PermissionSeeder).',
+      'Mahasiswa Mandiri: akun dengan role mahasiswa (buat via seeder IAM/PermissionSeeder).',
     ],
     tips: [
       'Gunakan mode Penyamaran (Incognito) atau browser berbeda saat menguji perpindahan peran antara Operator dan Pimpinan.',

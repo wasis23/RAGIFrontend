@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Download, Filter, Search, RefreshCw, AlertCircle, CheckCircle2, Clock, ShieldAlert, FileSpreadsheet, UserX, FileText
@@ -35,8 +36,7 @@ interface PiutangItem {
   has_dispensasi: boolean;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function PiutangMahasiswaPage() {
   const [data, setData] = useState<PiutangItem[]>([]);

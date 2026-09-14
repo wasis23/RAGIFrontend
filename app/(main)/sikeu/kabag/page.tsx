@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -36,12 +37,8 @@ export default function SikeuKabagPage() {
 
   // Approval Pending Lists
   const [pendingDispensasi, setPendingDispensasi] = useState<any[]>([]);
-  const [pendingMutasi, setPendingMutasi] = useState<any[]>([
-    { id: 301, kode: 'MUT-KAS-202608-01', dari: 'Kas Utama Kabag Keuangan', ke: 'Kas Operasional SPMB', nominal: 15000000, alasan: 'Pengisian kas operasional pendaftaran SPMB' },
-  ]);
-  const [pendingOperasional, setPendingOperasional] = useState<any[]>([
-    { id: 401, no: 'EXP-OPR-202608-01', unit: 'Laboratorium Komputer TI', nama: 'Pembelian Router CISCO Lab TI', nominal: 18500000, pemohon: 'Ka. Lab Komputer' },
-  ]);
+  const [pendingMutasi, setPendingMutasi] = useState<any[]>([]);
+  const [pendingOperasional, setPendingOperasional] = useState<any[]>([]);
 
   // Modal Approval Action
   const [modalAction, setModalAction] = useState<{ id: number; title: string; type: string } | null>(null);
@@ -51,9 +48,9 @@ export default function SikeuKabagPage() {
   // Modal Mutasi Kas Kabag
   const [isMutasiModalOpen, setIsMutasiModalOpen] = useState(false);
   const [mutasiForm, setMutasiForm] = useState({
-    unit_asal: 'Kas Utama Kabag Keuangan',
-    unit_tujuan: 'Kas Operasional SPMB',
-    nominal: '5000000',
+    unit_asal: '',
+    unit_tujuan: '',
+    nominal: '',
     peruntukan: 'Pengisian kas tunai operasional kasir kampus',
   });
 
@@ -82,9 +79,9 @@ export default function SikeuKabagPage() {
         const mapped = appRes.data.dispensasi_pending.map((d: any) => ({
           id: d.id,
           mhs: d.nama_mahasiswa || `Mahasiswa #${d.mahasiswa_id}`,
-          prodi: 'Teknik Informatika',
+          prodi: d.prodi || '-',
           tipe: d.tipe_dispensasi?.replace('_', ' ') || 'Dispensasi',
-          nominal: Number(d.nominal_per_cicilan) || 1500000,
+          nominal: Number(d.nominal_per_cicilan) || 0,
           deadline: d.jatuh_tempo_baru || '-',
           alasan: d.alasan || 'Permohonan dispensasi pembayaran tagihan',
         }));
@@ -127,10 +124,6 @@ export default function SikeuKabagPage() {
       message: `Berhasil menerbitkan pengajuan Mutasi Kas (${mutasiForm.unit_asal} -> ${mutasiForm.unit_tujuan}) sebesar Rp ${Number(mutasiForm.nominal).toLocaleString('id-ID')}.`,
     });
     setIsMutasiModalOpen(false);
-  };
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
   };
 
   return (

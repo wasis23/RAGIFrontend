@@ -1,5 +1,6 @@
 'use client';
 
+import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, Calculator } from 'lucide-react';
@@ -29,8 +30,7 @@ interface FormValues {
   keterangan: string;
 }
 
-const formatRupiah = (val: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
+
 
 export default function CreatePengeluaranPage() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function CreatePengeluaranPage() {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       kategori: 'operasional',
-      nominal: 5000000,
+      nominal: 0,
       tanggal_transaksi: new Date().toISOString().split('T')[0],
       nama_vendor: '',
       npwp_vendor: '',

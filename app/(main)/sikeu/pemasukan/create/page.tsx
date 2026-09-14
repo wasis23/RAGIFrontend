@@ -28,7 +28,7 @@ export default function CreatePemasukanPage() {
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       sumber_pemasukan: 'hibah_sippm',
-      nominal: 10000000,
+      nominal: 0,
       tanggal_terima: new Date().toISOString().split('T')[0],
       nama_donor_instansi: '',
       nomor_kontrak_ref: '',
