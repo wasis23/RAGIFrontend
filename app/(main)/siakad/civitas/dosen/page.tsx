@@ -162,9 +162,17 @@ export default function DosenPage() {
       render: (row) => (
         <div>
           <span className="font-bold text-slate-900 text-sm block">{row.nama_lengkap}</span>
-          {row.nip && (
-            <span className="text-2xs text-slate-400 font-mono">NIP: {row.nip}</span>
-          )}
+          <div className="flex items-center gap-2 mt-0.5">
+            {row.nip && (
+              <span className="text-2xs text-slate-400 font-mono">NIP: {row.nip}</span>
+            )}
+            {row.agama && (
+              <span className="text-2xs text-slate-500">• {row.agama}</span>
+            )}
+            {row.jenis_kelamin && (
+              <span className="text-2xs text-slate-500">• {row.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
+            )}
+          </div>
         </div>
       ),
     },
@@ -190,7 +198,11 @@ export default function DosenPage() {
       key: 'status',
       label: 'STATUS',
       align: 'center',
-      render: () => <Badge variant="green">Aktif</Badge>,
+      render: (row) => (
+        <Badge variant={row.is_active ? 'green' : 'gray'}>
+          {row.status_aktif || (row.is_active ? 'Aktif' : 'Tidak Aktif')}
+        </Badge>
+      ),
     },
     {
       key: 'aksi',
