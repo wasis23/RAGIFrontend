@@ -116,6 +116,28 @@ export const simpegService = {
     return data;
   },
 
+  downloadPegawaiTemplate: async (): Promise<Blob> => {
+    const response = await apiClient.get('/simpeg/pegawai/template', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  importPegawai: async (formData: FormData): Promise<ApiResponse<{
+    total: number;
+    success: number;
+    failed: number;
+    errors: string[];
+    data: any[];
+  }>> => {
+    const { data } = await apiClient.post('/simpeg/pegawai/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
   // ── RIWAYAT ──────────────────────────────────────────────────
   getRiwayatJabatan: async (pegawaiId: number): Promise<ApiResponse<RiwayatJabatan[]>> => {
     const { data } = await apiClient.get<ApiResponse<RiwayatJabatan[]>>(`/simpeg/pegawai/${pegawaiId}/riwayat-jabatan`);

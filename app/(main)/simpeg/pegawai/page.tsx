@@ -17,6 +17,13 @@ import {
   CheckCircle,
   ShieldAlert,
   RotateCcw,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  AlertCircle,
+  Info,
+  CheckCircle2,
+  FileText,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +31,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Drawer } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
@@ -61,6 +69,75 @@ export default function PegawaiPage() {
   const [selectedShift, setSelectedShift] = useState('');
   const [filterOrderBy, setFilterOrderBy] = useState('nama_lengkap');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
+
+  // Import Modal State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    total: number;
+    success: number;
+    failed: number;
+    errors: string[];
+  } | null>(null);
+
+  const handleDownloadTemplate = async () => {
+    setDownloadingTemplate(true);
+    try {
+      const blob = await simpegService.downloadPegawaiTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'template_import_pegawai.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Template impor berhasil diunduh!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengunduh template impor');
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      toast.error('Pilih berkas template terlebih dahulu.');
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+
+      const res = await simpegService.importPegawai(formData);
+      if (res.data) {
+        setImportResult(res.data);
+        if (res.data.success > 0) {
+          toast.success(`Berhasil mengimpor ${res.data.success} data pegawai!`);
+          loadPegawai();
+        }
+        if (res.data.failed > 0) {
+          toast.error(`Terdapat ${res.data.failed} data yang gagal diimpor.`);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal memproses berkas impor.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleCloseImportModal = () => {
+    if (importing) return;
+    setShowImportModal(false);
+    setImportFile(null);
+    setImportResult(null);
+  };
 
   const loadPegawai = useCallback(async () => {
     if (!canRead) return;
@@ -313,9 +390,22 @@ export default function PegawaiPage() {
               </Button>
 
               {canCreate && (
-                <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
-                  Tambah Pegawai
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    icon={<Upload size={16} />}
+                    onClick={() => {
+                      setImportFile(null);
+                      setImportResult(null);
+                      setShowImportModal(true);
+                    }}
+                  >
+                    Import Pegawai
+                  </Button>
+                  <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+                    Tambah Pegawai
+                  </Button>
+                </>
               )}
             </div>
           ) : undefined
@@ -628,6 +718,136 @@ export default function PegawaiPage() {
           )}
         </div>
       )}
+
+      {/* Modal Import Pegawai */}
+      <Modal
+        open={showImportModal}
+        onClose={handleCloseImportModal}
+        title="Import Data Pegawai (CSV / Excel)"
+        size="lg"
+        footer={
+          <div className="flex justify-between items-center w-full">
+            <Button
+              variant="outline"
+              onClick={handleCloseImportModal}
+              disabled={importing}
+            >
+              {importResult ? 'Selesai / Tutup' : 'Batal'}
+            </Button>
+            <Button
+              onClick={handleImport}
+              loading={importing}
+              disabled={!importFile || importing}
+              icon={<Upload size={16} />}
+            >
+              Mulai Import Data
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          {/* Card Info SSO */}
+          <div className="p-4 rounded-xl bg-primary-50 border border-primary-200 text-primary-900 flex items-start gap-3">
+            <Info size={22} className="text-primary-600 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-primary-900">Pembuatan Akun SSO Otomatis</p>
+              <p className="text-primary-700 mt-1">
+                Seluruh pegawai yang berhasil di-impor akan secara otomatis dibuatkan akun SSO (<code className="font-mono bg-primary-100 px-1 py-0.5 rounded text-xs">core_users</code>) dengan default password: <strong className="font-mono bg-primary-100 px-1.5 py-0.5 rounded text-primary-800">indonusa</strong> dan role sesuai jenis pegawai (<span className="font-medium">dosen</span> / <span className="font-medium">tendik</span>).
+              </p>
+            </div>
+          </div>
+
+          {/* Langkah 1: Download Template */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <FileSpreadsheet size={20} />
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-800 text-sm">Unduh Template Berkas</h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Format CSV terstandarisasi dengan contoh format kolom NIP, NIK, Nama, dan Unit Kerja.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Download size={14} />}
+              loading={downloadingTemplate}
+              disabled={downloadingTemplate}
+              onClick={handleDownloadTemplate}
+              className="shrink-0 bg-white"
+            >
+              Unduh Template
+            </Button>
+          </div>
+
+          {/* Langkah 2: Upload File Area */}
+          <div className="flex flex-col gap-2">
+            <Input
+              type="file"
+              label="Pilih Berkas yang Akan Di-impor (.csv, .xlsx, .xls)"
+              accept=".csv, .xlsx, .xls, text/csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+              disabled={importing}
+              required
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setImportFile(file);
+                  setImportResult(null);
+                }
+              }}
+              hint="Format berkas: .csv atau .xlsx (maksimal 10MB)"
+            />
+            {importFile && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-center gap-2">
+                <FileText size={16} className="text-primary-600 shrink-0" />
+                <span className="font-semibold text-slate-800">{importFile.name}</span>
+                <span className="text-slate-400">({(importFile.size / 1024).toFixed(1)} KB)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Ringkasan Hasil Impor */}
+          {importResult && (
+            <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 animate-fade-in">
+              <h4 className="font-semibold text-sm text-slate-800 flex items-center gap-2">
+                <CheckCircle2 size={18} className="text-emerald-600" />
+                Hasil Proses Impor
+              </h4>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="block text-xs text-slate-500">Total Baris</span>
+                  <span className="text-lg font-bold text-slate-800">{importResult.total}</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100">
+                  <span className="block text-xs text-emerald-600">Berhasil</span>
+                  <span className="text-lg font-bold text-emerald-700">{importResult.success}</span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-100">
+                  <span className="block text-xs text-rose-600">Gagal</span>
+                  <span className="text-lg font-bold text-rose-700">{importResult.failed}</span>
+                </div>
+              </div>
+
+              {importResult.errors && importResult.errors.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-xs font-semibold text-rose-700 flex items-center gap-1.5 mb-1.5">
+                    <AlertCircle size={14} />
+                    Catatan Error / Peringatan:
+                  </span>
+                  <div className="max-h-36 overflow-y-auto rounded-lg bg-rose-50 border border-rose-100 p-2.5 text-xs text-rose-800 space-y-1">
+                    {importResult.errors.map((err, idx) => (
+                      <div key={idx}>• {err}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

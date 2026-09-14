@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Info } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ import type { UnitKerja } from '@/types/simpeg.types';
 
 const pegawaiSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
+  email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
   nip: z.string().optional().nullable(),
   nik: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
@@ -56,6 +57,7 @@ export default function CreatePegawaiPage() {
     resolver: zodResolver(pegawaiSchema),
     defaultValues: {
       nama_lengkap: '',
+      email: '',
       nip: '',
       nik: '',
       unit_kerja_id: '',
@@ -129,7 +131,7 @@ export default function CreatePegawaiPage() {
   const onSubmit = async (values: PegawaiFormValues) => {
     setIsSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : null,
         nip: values.nip || null,
         nik: values.nik || null,
@@ -146,8 +148,12 @@ export default function CreatePegawaiPage() {
         office_location_id: values.office_location_id ? Number(values.office_location_id) : null,
       };
 
+      if (values.email) {
+        payload.email = values.email;
+      }
+
       await simpegService.createPegawai(payload);
-      toast.success('Data Pegawai berhasil ditambahkan!');
+      toast.success('Data Pegawai berhasil ditambahkan! Akun SSO telah dibuat.');
       router.push('/simpeg/pegawai');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal menyimpan data pegawai');
@@ -174,6 +180,17 @@ export default function CreatePegawaiPage() {
 
       <div className="card">
         <div className="card-body p-6">
+          {/* Info Banner SSO */}
+          <div className="mb-6 p-4 rounded-xl bg-primary-50 border border-primary-200 text-primary-900 flex items-start gap-3">
+            <Info size={20} className="text-primary-600 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-primary-900">Pembuatan Akun SSO Otomatis</p>
+              <p className="text-primary-700 mt-0.5">
+                Pegawai yang ditambahkan akan secara otomatis dibuatkan akun SSO (IAM) dengan default password: <strong className="font-mono bg-primary-100 px-1.5 py-0.5 rounded text-primary-800">indonusa</strong>.
+              </p>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
@@ -183,6 +200,14 @@ export default function CreatePegawaiPage() {
                 placeholder="Contoh: Dr. Wasis Utama, M.Kom."
                 error={errors.nama_lengkap?.message}
                 {...register('nama_lengkap')}
+              />
+
+              <Input
+                type="email"
+                label="Alamat Email (Opsional)"
+                placeholder="Contoh: nama@campus.ac.id"
+                error={errors.email?.message}
+                {...register('email')}
               />
 
               <Input
