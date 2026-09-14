@@ -258,7 +258,7 @@ export default function PegawaiPage() {
         <div>
           <div className="font-bold text-slate-800">{peg.nama_lengkap}</div>
           <div className="text-xs text-slate-400">
-            {peg.jenis_kelamin === 'L' ? 'Laki-Laki' : 'Perempuan'}
+            {peg.jenis_kelamin ? (peg.jenis_kelamin === 'L' ? 'Laki-Laki' : 'Perempuan') : '-'}
           </div>
         </div>
       ),
@@ -268,12 +268,18 @@ export default function PegawaiPage() {
       label: 'Jenis & Status',
       render: (peg) => (
         <div className="flex flex-col gap-1 items-start">
-          <Badge variant={peg.jenis_pegawai === 'dosen' ? 'purple' : 'blue'}>
-            {peg.jenis_pegawai?.toUpperCase()}
-          </Badge>
-          <span className="text-xs text-slate-500 capitalize">
-            {peg.status_kepegawaian?.replace('_', ' ')}
-          </span>
+          {peg.jenis_pegawai ? (
+            <Badge variant={peg.jenis_pegawai === 'dosen' ? 'purple' : 'blue'}>
+              {peg.jenis_pegawai.toUpperCase()}
+            </Badge>
+          ) : (
+            <span className="text-xs text-slate-400">-</span>
+          )}
+          {peg.status_kepegawaian ? (
+            <span className="text-xs text-slate-500 capitalize">
+              {peg.status_kepegawaian.replace('_', ' ')}
+            </span>
+          ) : null}
         </div>
       ),
     },
