@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Calendar, Upload, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, Upload, Image as ImageIcon, Clock, CalendarDays, Info, AlertCircle } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,8 +13,9 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
+import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
-import type { Pegawai, JenisCuti } from '@/types/simpeg.types';
+import type { Pegawai, MasterJenisCuti } from '@/types/simpeg.types';
 import { useAuth } from '@/hooks/useAuth';
 
 interface OptionType {
@@ -24,9 +25,7 @@ interface OptionType {
 
 const cutiSchema = z.object({
   pegawai_id: z.string().min(1, 'Pegawai Pemohon wajib dipilih'),
-  jenis_cuti: z.enum(['tahunan', 'sakit', 'alasan_penting', 'melahirkan', 'besar'], {
-    message: 'Jenis Cuti wajib dipilih',
-  }),
+  master_jenis_cuti_id: z.string().min(1, 'Jenis Cuti / Izin wajib dipilih'),
   tanggal_mulai: z.string().min(1, 'Tanggal Mulai wajib diisi'),
   tanggal_selesai: z.string().min(1, 'Tanggal Selesai wajib diisi'),
   jumlah_hari: z.number().min(1, 'Jumlah hari minimal 1 hari'),
@@ -40,9 +39,12 @@ export default function PengajuanCutiPage() {
   const canCreate = hasPermission('simpeg.cuti.create') || hasPermission('simpeg.cuti.request') || hasPermission('simpeg.cuti.manage');
   const router = useRouter();
 
+  const [masterList, setMasterList] = useState<MasterJenisCuti[]>([]);
+  const [selectedMaster, setSelectedMaster] = useState<MasterJenisCuti | null>(null);
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<OptionType | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingMaster, setLoadingMaster] = useState(true);
 
   const {
     register,
@@ -55,7 +57,7 @@ export default function PengajuanCutiPage() {
     resolver: zodResolver(cutiSchema),
     defaultValues: {
       pegawai_id: '',
-      jenis_cuti: 'tahunan',
+      master_jenis_cuti_id: '',
       tanggal_mulai: '',
       tanggal_selesai: '',
       jumlah_hari: 1,
@@ -66,20 +68,79 @@ export default function PengajuanCutiPage() {
   const tglMulai = watch('tanggal_mulai');
   const tglSelesai = watch('tanggal_selesai');
 
-  // Auto calculate working days estimation if start & end dates are picked
-  const handleDateChange = (start: string, end: string) => {
-    if (start && end) {
-      const d1 = new Date(start);
-      const d2 = new Date(end);
+  // Load active master cuti types from backend API (Zero Hardcode Policy)
+  useEffect(() => {
+    const fetchMaster = async () => {
+      setLoadingMaster(true);
+      try {
+        const res: any = await simpegService.getMasterJenisCutiList({ is_active: 1, all: 1 });
+        const list: MasterJenisCuti[] = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setMasterList(list);
+      } catch (err) {
+        console.error('Gagal mengambil master jenis cuti', err);
+        toast.error('Gagal memuat jenis cuti dari server.');
+      } finally {
+        setLoadingMaster(false);
+      }
+    };
+    fetchMaster();
+  }, []);
+
+  // Calculate dates based on start date & duration type
+  const calculateEndDateForFixed = useCallback((startDateStr: string, durasi: number) => {
+    if (!startDateStr || durasi < 1) return;
+    const parts = startDateStr.split('-');
+    if (parts.length !== 3) return;
+    const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    start.setDate(start.getDate() + durasi - 1);
+    const y = start.getFullYear();
+    const m = String(start.getMonth() + 1).padStart(2, '0');
+    const d = String(start.getDate()).padStart(2, '0');
+    const endDateStr = `${y}-${m}-${d}`;
+    setValue('tanggal_selesai', endDateStr);
+    setValue('jumlah_hari', durasi);
+  }, [setValue]);
+
+  // Handle Jenis Cuti Change
+  const handleMasterChange = (masterId: string) => {
+    setValue('master_jenis_cuti_id', masterId);
+    const found = masterList.find((m) => m.id.toString() === masterId) || null;
+    setSelectedMaster(found);
+
+    if (found?.tipe_durasi === 'ditetapkan' && tglMulai) {
+      calculateEndDateForFixed(tglMulai, found.durasi_hari);
+    }
+  };
+
+  // Handle start date change
+  const handleStartDateChange = (newStart: string) => {
+    setValue('tanggal_mulai', newStart);
+    if (selectedMaster?.tipe_durasi === 'ditetapkan') {
+      calculateEndDateForFixed(newStart, selectedMaster.durasi_hari);
+    } else if (newStart && tglSelesai) {
+      const d1 = new Date(newStart);
+      const d2 = new Date(tglSelesai);
       if (d2 >= d1) {
-        const diffTime = Math.abs(d2.getTime() - d1.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const diffDays = Math.ceil(Math.abs(d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         setValue('jumlah_hari', diffDays);
       }
     }
   };
 
-  // Async loader for Pegawai AsyncSelect: Pulls ALL pegawai in database with high per_page
+  // Handle end date change for flexible leave
+  const handleEndDateChange = (newEnd: string) => {
+    setValue('tanggal_selesai', newEnd);
+    if (tglMulai && newEnd) {
+      const d1 = new Date(tglMulai);
+      const d2 = new Date(newEnd);
+      if (d2 >= d1) {
+        const diffDays = Math.ceil(Math.abs(d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        setValue('jumlah_hari', diffDays);
+      }
+    }
+  };
+
+  // Async loader for Pegawai AsyncSelect
   const loadPegawaiOptions = useCallback(async (inputValue: string) => {
     try {
       const res: any = await simpegService.getPegawaiList({ per_page: 500 });
@@ -106,9 +167,17 @@ export default function PengajuanCutiPage() {
     }
   }, []);
 
+  const isFixed = selectedMaster?.tipe_durasi === 'ditetapkan';
+  const isAttachmentMandatory = Boolean(selectedMaster?.lampiran_wajib);
+
   const onSubmit = async (values: CutiFormValues) => {
     if (!canCreate) {
       toast.error('Akses Ditolak: Anda tidak memiliki permission mengajukan Cuti.');
+      return;
+    }
+
+    if (isAttachmentMandatory && !selectedFile) {
+      toast.error(`Surat / berkas lampiran pendukung wajib diunggah untuk jenis cuti: ${selectedMaster?.nama}`);
       return;
     }
 
@@ -116,7 +185,7 @@ export default function PengajuanCutiPage() {
     try {
       const formData = new FormData();
       formData.append('pegawai_id', values.pegawai_id);
-      formData.append('jenis_cuti', values.jenis_cuti);
+      formData.append('master_jenis_cuti_id', values.master_jenis_cuti_id);
       formData.append('tanggal_mulai', values.tanggal_mulai);
       formData.append('tanggal_selesai', values.tanggal_selesai);
       formData.append('jumlah_hari', values.jumlah_hari.toString());
@@ -138,10 +207,9 @@ export default function PengajuanCutiPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Mandatory RAGI Admin CRUD Rule 8: Back button on separate form page (>5 inputs) must use bg-orange-500 text-white */}
       <PageHeader
         title="Formulir Pengajuan Cuti Online"
-        description="Lengkapi data permohonan cuti kerja dan unggah foto/dokumen surat keterangan atau lampiran izin"
+        description="Lengkapi data permohonan cuti kerja dan unggah berkas pendukung sesuai jenis izin yang dipilih"
         action={
           <Button
             onClick={() => router.back()}
@@ -158,6 +226,7 @@ export default function PengajuanCutiPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
+              {/* Pemohon Pegawai */}
               <div className="lg:col-span-3">
                 <Controller
                   name="pegawai_id"
@@ -166,7 +235,7 @@ export default function PengajuanCutiPage() {
                     <AsyncSelect
                       label="Pilih Pegawai Pemohon *"
                       required
-                      placeholder="Ketik nama pegawai / NIP untuk mencari dari seluruh database..."
+                      placeholder="Ketik nama pegawai / NIP untuk mencari dari database..."
                       loadOptions={loadPegawaiOptions}
                       value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
                       onChange={(opt) => {
@@ -180,60 +249,121 @@ export default function PengajuanCutiPage() {
                 />
               </div>
 
-              <Controller
-                name="jenis_cuti"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    label="Jenis Cuti *"
-                    required
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={errors.jenis_cuti?.message}
-                    options={[
-                      { value: 'tahunan', label: 'Cuti Tahunan' },
-                      { value: 'sakit', label: 'Cuti Sakit (Lampiran Surat Dokter)' },
-                      { value: 'alasan_penting', label: 'Cuti Alasan Penting' },
-                      { value: 'melahirkan', label: 'Cuti Melahirkan' },
-                      { value: 'besar', label: 'Cuti Besar' },
-                    ]}
-                  />
-                )}
-              />
+              {/* Dynamic Jenis Cuti Dropdown from DB */}
+              <div className="lg:col-span-3">
+                <Controller
+                  name="master_jenis_cuti_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Jenis Izin & Cuti *"
+                      required
+                      value={field.value}
+                      onChange={(val) => handleMasterChange(val)}
+                      error={errors.master_jenis_cuti_id?.message}
+                      disabled={loadingMaster}
+                      options={[
+                        { value: '', label: loadingMaster ? 'Memuat data jenis cuti...' : '-- Pilih Jenis Cuti / Izin --' },
+                        ...masterList.map((m) => ({
+                          value: m.id.toString(),
+                          label: `${m.nama} ${m.tipe_durasi === 'ditetapkan' ? `(Durasi Ditetapkan: ${m.durasi_hari} Hari)` : '(Durasi Fleksibel)'}`,
+                        })),
+                      ]}
+                    />
+                  )}
+                />
 
+                {/* Banner Info Tipe Durasi */}
+                {selectedMaster && (
+                  <div className={`mt-2 p-3 rounded-xl border flex items-start gap-3 transition-all ${
+                    isFixed 
+                      ? 'bg-amber-50/80 border-amber-200 text-amber-900' 
+                      : 'bg-blue-50/80 border-blue-200 text-blue-900'
+                  }`}>
+                    {isFixed ? (
+                      <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <CalendarDays className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="text-xs space-y-1">
+                      <div className="font-bold flex items-center gap-2">
+                        <span>{selectedMaster.nama}</span>
+                        <Badge variant={isFixed ? 'warning' : 'info'} className="text-[10px] py-0 px-1.5">
+                          {isFixed ? 'Durasi Baku Ditetapkan' : 'Durasi Fleksibel'}
+                        </Badge>
+                      </div>
+                      <p className="text-slate-600 leading-relaxed">
+                        {isFixed
+                          ? `Jenis izin ini memiliki durasi baku ${selectedMaster.durasi_hari} ${selectedMaster.satuan || 'hari'}. Saat Anda memilih Tanggal Mulai, Tanggal Selesai dan Jumlah Hari akan otomatis terisi dan terkunci.`
+                          : 'Jenis izin ini bersifat fleksibel. Anda bebas menentukan Tanggal Mulai dan Tanggal Selesai permohonan.'}
+                      </p>
+                      {selectedMaster.keterangan && (
+                        <p className="text-slate-500 italic">Ketentuan: {selectedMaster.keterangan}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Tanggal Mulai */}
               <Input
                 label="Tanggal Mulai *"
                 type="date"
                 required
                 error={errors.tanggal_mulai?.message}
                 {...register('tanggal_mulai', {
-                  onChange: (e) => handleDateChange(e.target.value, tglSelesai),
+                  onChange: (e) => handleStartDateChange(e.target.value),
                 })}
               />
 
-              <Input
-                label="Tanggal Selesai *"
-                type="date"
-                required
-                error={errors.tanggal_selesai?.message}
-                {...register('tanggal_selesai', {
-                  onChange: (e) => handleDateChange(tglMulai, e.target.value),
-                })}
-              />
+              {/* Tanggal Selesai (Readonly if Fixed Duration) */}
+              <div>
+                <Input
+                  label={`Tanggal Selesai * ${isFixed ? '(Otomatis Ditetapkan)' : ''}`}
+                  type="date"
+                  required
+                  readOnly={isFixed}
+                  className={isFixed ? 'bg-slate-100 cursor-not-allowed font-semibold text-slate-700' : ''}
+                  error={errors.tanggal_selesai?.message}
+                  {...register('tanggal_selesai', {
+                    onChange: (e) => handleEndDateChange(e.target.value),
+                  })}
+                />
+                {isFixed && (
+                  <span className="text-[11px] text-amber-700 font-medium block mt-1">
+                    * Terkunci otomatis {selectedMaster?.durasi_hari} hari dari tanggal mulai
+                  </span>
+                )}
+              </div>
 
-              <Input
-                label="Durasi Total (Hari Kerja) *"
-                type="number"
-                required
-                placeholder="Contoh: 3"
-                error={errors.jumlah_hari?.message}
-                {...register('jumlah_hari', { valueAsNumber: true })}
-              />
+              {/* Durasi Hari (Readonly if Fixed Duration) */}
+              <div>
+                <Input
+                  label={`Durasi (Hari Kalender / Kerja) * ${isFixed ? '(Baku)' : ''}`}
+                  type="number"
+                  required
+                  readOnly={isFixed}
+                  placeholder="Contoh: 3"
+                  className={isFixed ? 'bg-slate-100 cursor-not-allowed font-bold text-slate-700' : ''}
+                  error={errors.jumlah_hari?.message}
+                  {...register('jumlah_hari', { valueAsNumber: true })}
+                />
+                {isFixed && (
+                  <span className="text-[11px] text-amber-700 font-medium block mt-1">
+                    * Durasi baku ditetapkan sistem
+                  </span>
+                )}
+              </div>
 
               {/* Input Foto / Berkas Lampiran Izin */}
-              <div className="lg:col-span-2 space-y-1">
-                <label className="block text-sm font-semibold text-slate-700">
+              <div className="lg:col-span-3 space-y-1">
+                <label className="block text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                   Foto / Berkas Lampiran Surat Izin Cuti (Surat Dokter / Undangan / Bukti)
+                  {isAttachmentMandatory ? (
+                    <span className="text-rose-500 font-bold">* (Wajib Lampirkan Berkas)</span>
+                  ) : (
+                    <span className="text-slate-400 font-normal">(Opsional)</span>
+                  )}
                 </label>
                 <input
                   type="file"
@@ -246,10 +376,14 @@ export default function PengajuanCutiPage() {
                     <ImageIcon size={14} /> Berkas Lampiran Terpilih: <strong>{selectedFile.name}</strong> ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
                   </p>
                 ) : (
-                  <p className="text-xs text-slate-400">Format yang didukung: JPG, PNG, PDF (Maksimal 10MB)</p>
+                  <p className="text-xs text-slate-400">
+                    Format yang didukung: JPG, PNG, PDF (Maksimal 10MB)
+                    {isAttachmentMandatory && <span className="text-rose-500 font-semibold ml-1">— Wajib untuk jenis cuti ini</span>}
+                  </p>
                 )}
               </div>
 
+              {/* Alasan Pengajuan */}
               <div className="lg:col-span-3">
                 <Controller
                   name="alasan"

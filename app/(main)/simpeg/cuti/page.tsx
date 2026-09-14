@@ -15,7 +15,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
-import type { PengajuanCuti, StatusApprovalCuti } from '@/types/simpeg.types';
+import type { PengajuanCuti, StatusApprovalCuti, MasterJenisCuti } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -28,6 +28,7 @@ export default function CutiPage() {
 
   const [loading, setLoading] = useState(true);
   const [cutiList, setCutiList] = useState<PengajuanCuti[]>([]);
+  const [masterList, setMasterList] = useState<MasterJenisCuti[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | undefined>();
 
   // Filter & Pagination state
@@ -46,6 +47,14 @@ export default function CutiPage() {
   const [catatanApproval, setCatatanApproval] = useState('');
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
 
+  // Fetch dynamic master jenis cuti
+  useEffect(() => {
+    simpegService.getMasterJenisCutiList({ all: 1 }).then((res: any) => {
+      const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setMasterList(list);
+    }).catch((err) => console.error('Gagal memuat master jenis cuti', err));
+  }, []);
+
   const loadCuti = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
@@ -54,7 +63,7 @@ export default function CutiPage() {
         page,
         limit,
         search: search || undefined,
-        jenis_cuti: filterJenis || undefined,
+        master_jenis_cuti_id: filterJenis || undefined,
         status_approval: filterStatus || undefined,
         sort_by: filterOrderBy,
         sort_dir: filterOrderDir,
@@ -74,7 +83,9 @@ export default function CutiPage() {
           );
         }
         if (filterJenis) {
-          items = items.filter((c) => c.jenis_cuti === filterJenis);
+          items = items.filter(
+            (c) => c.master_jenis_cuti_id?.toString() === filterJenis || c.jenis_cuti === filterJenis
+          );
         }
         if (filterStatus) {
           items = items.filter((c) => c.status_approval === filterStatus);
@@ -162,12 +173,25 @@ export default function CutiPage() {
     },
     {
       key: 'jenis_cuti',
-      label: 'Jenis Cuti',
-      render: (row) => (
-        <Badge variant="purple" className="uppercase">
-          {(row.jenis_cuti || 'tahunan').replace('_', ' ')}
-        </Badge>
-      ),
+      label: 'Jenis Cuti / Izin',
+      render: (row) => {
+        const nama = row.master_jenis_cuti?.nama || (row.jenis_cuti ? row.jenis_cuti.replace('_', ' ') : 'Cuti');
+        const isDitetapkan = row.master_jenis_cuti?.tipe_durasi === 'ditetapkan';
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold text-slate-800">{nama}</span>
+            {row.master_jenis_cuti ? (
+              <Badge variant={isDitetapkan ? 'amber' : 'secondary'} className="text-[10px] w-fit">
+                {isDitetapkan ? `${row.master_jenis_cuti.durasi_hari} Hari (Ditetapkan)` : 'Fleksibel'}
+              </Badge>
+            ) : (
+              <Badge variant="purple" className="uppercase text-[10px] w-fit">
+                {(row.jenis_cuti || 'tahunan').replace('_', ' ')}
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'periode',
@@ -319,19 +343,18 @@ export default function CutiPage() {
           />
 
           <Select
-            label="Jenis Cuti"
+            label="Jenis Cuti / Izin"
             value={filterJenis}
             onChange={(val) => {
               setFilterJenis(val);
               setPage(1);
             }}
             options={[
-              { value: '', label: 'Semua Jenis Cuti' },
-              { value: 'tahunan', label: 'Cuti Tahunan' },
-              { value: 'sakit', label: 'Cuti Sakit' },
-              { value: 'alasan_penting', label: 'Cuti Alasan Penting' },
-              { value: 'melahirkan', label: 'Cuti Melahirkan' },
-              { value: 'besar', label: 'Cuti Besar' },
+              { value: '', label: 'Semua Jenis Cuti / Izin' },
+              ...masterList.map((m) => ({
+                value: m.id.toString(),
+                label: `${m.nama} ${m.tipe_durasi === 'ditetapkan' ? `(${m.durasi_hari} Hari)` : ''}`,
+              })),
             ]}
           />
 

@@ -189,6 +189,7 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
     children: [
       { id: 5021, parent_id: 502, name: 'Unit Kerja', url: '/simpeg/unit-kerja', icon: 'FaSitemap', module: 'simpeg', permission_id: null, order_index: 1, is_active: true },
       { id: 5022, parent_id: 502, name: 'Jabatan & Jafung', url: '/simpeg/jabatan', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: 2, is_active: true },
+      { id: 5023, parent_id: 502, name: 'Master Jenis Izin & Cuti', url: '/simpeg/master/jenis-cuti', icon: 'FaCalendarCheck', module: 'simpeg', permission_id: null, order_index: 3, is_active: true },
     ]
   },
 ];

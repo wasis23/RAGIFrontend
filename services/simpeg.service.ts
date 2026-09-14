@@ -9,6 +9,7 @@ import type {
   RiwayatPendidikanPegawai,
   PegawaiFilterParams,
   DokumenPegawai,
+  MasterJenisCuti,
   PengajuanCuti,
   PresensiPegawai,
   GajiPegawai,
@@ -167,6 +168,32 @@ export const simpegService = {
 
   deleteDokumen: async (id: number): Promise<ApiResponse<null>> => {
     const { data } = await apiClient.delete<ApiResponse<null>>(`/simpeg/dokumen/${id}`);
+    return data;
+  },
+
+  // Master Jenis Izin & Cuti
+  getMasterJenisCutiList: async (params?: any): Promise<ApiResponse<MasterJenisCuti[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterJenisCuti[]>>('/simpeg/master-jenis-cuti', { params });
+    return data;
+  },
+
+  getMasterJenisCutiDetail: async (id: number): Promise<ApiResponse<MasterJenisCuti>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterJenisCuti>>(`/simpeg/master-jenis-cuti/${id}`);
+    return data;
+  },
+
+  createMasterJenisCuti: async (payload: Partial<MasterJenisCuti>): Promise<ApiResponse<MasterJenisCuti>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterJenisCuti>>('/simpeg/master-jenis-cuti', payload);
+    return data;
+  },
+
+  updateMasterJenisCuti: async (id: number, payload: Partial<MasterJenisCuti>): Promise<ApiResponse<MasterJenisCuti>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterJenisCuti>>(`/simpeg/master-jenis-cuti/${id}`, payload);
+    return data;
+  },
+
+  deleteMasterJenisCuti: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/simpeg/master-jenis-cuti/${id}`);
     return data;
   },
 

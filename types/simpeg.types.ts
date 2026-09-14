@@ -145,13 +145,30 @@ export interface DokumenPegawai {
   updated_at?: string;
 }
 
-export type JenisCuti = 'tahunan' | 'sakit' | 'melahirkan' | 'alasan_penting' | 'besar';
+export type TipeDurasiCuti = 'ditetapkan' | 'fleksibel';
+
+export interface MasterJenisCuti {
+  id: number;
+  nama: string;
+  kode?: string | null;
+  tipe_durasi: TipeDurasiCuti;
+  durasi_hari: number;
+  satuan: string;
+  lampiran_wajib: boolean;
+  keterangan?: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type JenisCuti = 'tahunan' | 'sakit' | 'melahirkan' | 'alasan_penting' | 'besar' | string;
 export type StatusApprovalCuti = 'pending' | 'approved' | 'rejected';
 
 export interface PengajuanCuti {
   id: number;
   pegawai_id: number;
-  jenis_cuti: JenisCuti;
+  master_jenis_cuti_id?: number | null;
+  jenis_cuti?: string | null;
   tanggal_mulai: string;
   tanggal_selesai: string;
   jumlah_hari: number;
@@ -161,6 +178,7 @@ export interface PengajuanCuti {
   catatan_approval?: string | null;
   file_pendukung?: string | null;
   pegawai?: Pegawai | null;
+  master_jenis_cuti?: MasterJenisCuti | null;
   approver?: User | null;
   created_at?: string;
   updated_at?: string;
