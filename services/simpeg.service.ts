@@ -220,6 +220,11 @@ export const simpegService = {
     return data;
   },
 
+  getPresensiDetail: async (id: number | string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/presensi/${id}`);
+    return data;
+  },
+
   getPresensiBundleDetail: async (id: number | string, params?: any): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/presensi/${id}`, { params });
     return data;
@@ -232,6 +237,58 @@ export const simpegService = {
 
   processBundlePayroll: async (id: number | string): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/presensi/${id}/payroll`);
+    return data;
+  },
+
+  approvePresensi: async (id: number | string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/presensi/${id}/approve`);
+    return data;
+  },
+
+  getPresensiSettings: async (): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/presensi/settings');
+    return data;
+  },
+
+  updatePresensiSettings: async (payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>('/simpeg/presensi/settings', payload);
+    return data;
+  },
+
+  getOfficeLocations: async (): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/presensi/office-locations');
+    return data;
+  },
+
+  createOfficeLocation: async (payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/office-locations', payload);
+    return data;
+  },
+
+  updateOfficeLocation: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/presensi/office-locations/${id}`, payload);
+    return data;
+  },
+
+  deleteOfficeLocation: async (id: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/simpeg/presensi/office-locations/${id}`);
+    return data;
+  },
+
+  getShiftTemplates: async (): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/presensi/shift-templates');
+    return data;
+  },
+
+  updateShiftTemplate: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/presensi/shift-templates/${id}`, payload);
+    return data;
+  },
+
+  getNationalHolidays: async (year?: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/presensi/national-holidays', {
+      params: year ? { year } : undefined,
+    });
     return data;
   },
 

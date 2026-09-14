@@ -15,8 +15,19 @@ import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { PresensiPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
-import type { PresensiBundle } from '../page';
 import { useAuth } from '@/hooks/useAuth';
+
+export interface PresensiBundle {
+  id: number;
+  nama_periode: string;
+  tanggal_awal: string;
+  tanggal_akhir: string;
+  bulan_tahun?: string;
+  total_record: number;
+  total_pegawai?: number;
+  catatan?: string;
+  created_at: string;
+}
 
 export default function PresensiBundleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
