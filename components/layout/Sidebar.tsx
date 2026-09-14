@@ -233,6 +233,63 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
   { id: 606, parent_id: null, name: 'Panduan & Alur SIKEU', url: '/sikeu/panduan', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 6, is_active: true },
 ];
 
+const SIPPM_FALLBACK_MENUS: Menu[] = [
+  { id: 401, parent_id: null, name: 'Dashboard SIPPM', url: '/sippm', icon: 'FaChartPie', module: 'sippm', permission_id: null, order_index: 1, is_active: true },
+  {
+    id: 402, parent_id: null, name: 'MANAJEMEN PROPOSAL', url: '#proposal_sippm', icon: 'FaFileAlt', module: 'sippm', permission_id: null, order_index: 2, is_active: true,
+    children: [
+      { id: 4021, parent_id: 402, name: 'Daftar Proposal', url: '/sippm/proposal', icon: 'FaFileAlt', module: 'sippm', permission_id: null, order_index: 1, is_active: true },
+      { id: 4022, parent_id: 402, name: 'Kontrak Penelitian', url: '/sippm/kontrak', icon: 'FaClipboardCheck', module: 'sippm', permission_id: null, order_index: 2, is_active: true },
+      { id: 4023, parent_id: 402, name: 'Pencairan Dana', url: '/sippm/pencairan', icon: 'FaCreditCard', module: 'sippm', permission_id: null, order_index: 3, is_active: true },
+      { id: 4024, parent_id: 402, name: 'Pengumuman Hibah', url: '/sippm/pengumuman', icon: 'FaAward', module: 'sippm', permission_id: null, order_index: 4, is_active: true },
+    ]
+  },
+  {
+    id: 403, parent_id: null, name: 'LUARAN & STANDAR IKU', url: '#luaran_sippm', icon: 'FaAward', module: 'sippm', permission_id: null, order_index: 3, is_active: true,
+    children: [
+      { id: 4031, parent_id: 403, name: 'Luaran Publikasi', url: '/sippm/luaran/publikasi', icon: 'FaBookOpen', module: 'sippm', permission_id: null, order_index: 1, is_active: true },
+      { id: 4032, parent_id: 403, name: 'Luaran HKI & Paten', url: '/sippm/luaran/hki', icon: 'FaAward', module: 'sippm', permission_id: null, order_index: 2, is_active: true },
+      { id: 4033, parent_id: 403, name: 'Standar IKU 5', url: '/sippm/iku5-standards', icon: 'FaChartPie', module: 'sippm', permission_id: null, order_index: 3, is_active: true },
+    ]
+  },
+  {
+    id: 404, parent_id: null, name: 'REVIEWER & PRODI', url: '#reviewer_sippm', icon: 'FaUsers', module: 'sippm', permission_id: null, order_index: 4, is_active: true,
+    children: [
+      { id: 4041, parent_id: 404, name: 'Evaluasi Reviewer', url: '/sippm/reviewer', icon: 'FaClipboardCheck', module: 'sippm', permission_id: null, order_index: 1, is_active: true },
+      { id: 4042, parent_id: 404, name: 'Laporan Prodi', url: '/sippm/prodi', icon: 'FaBuilding', module: 'sippm', permission_id: null, order_index: 2, is_active: true },
+    ]
+  },
+  {
+    id: 405, parent_id: null, name: 'MASTER DATA SIPPM', url: '#master_sippm', icon: 'FaDatabase', module: 'sippm', permission_id: null, order_index: 5, is_active: true,
+    children: [
+      { id: 4051, parent_id: 405, name: 'Periode Hibah', url: '/sippm/periode', icon: 'FaCalendar', module: 'sippm', permission_id: null, order_index: 1, is_active: true },
+      { id: 4052, parent_id: 405, name: 'Skema Penelitian', url: '/sippm/skema', icon: 'FaList', module: 'sippm', permission_id: null, order_index: 2, is_active: true },
+      { id: 4053, parent_id: 405, name: 'Rubrik Penilaian', url: '/sippm/rubrik', icon: 'FaCheckSquare', module: 'sippm', permission_id: null, order_index: 3, is_active: true },
+    ]
+  },
+];
+
+const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean }) => Menu[]> = {
+  simpeg: () => SIMPEG_FALLBACK_MENUS,
+  sippm: () => SIPPM_FALLBACK_MENUS,
+  sikeu: () => SIKEU_FALLBACK_MENUS,
+  sinapra: () => SINAPRA_FALLBACK_MENUS,
+  spmb: ({ isPanitia }) => (!isPanitia ? SPMB_STUDENT_FALLBACK_MENUS : []),
+  siakad: ({ isMahasiswa, isDosen }) => {
+    if (isMahasiswa) return SIAKAD_MAHASISWA_MENUS;
+    if (isDosen) return SIAKAD_DOSEN_MENUS;
+    return SIAKAD_ADMIN_MENUS;
+  },
+};
+
+const getFallbackMenusForModule = (
+  mod: string,
+  opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean }
+): Menu[] => {
+  const handler = FALLBACK_MENUS_REGISTRY[mod];
+  return handler ? handler(opts) : [];
+};
+
 export function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -303,45 +360,13 @@ export function Sidebar() {
                 }));
             }
             setDynamicMenus(menus);
-          } else if (mod === 'simpeg') {
-            setDynamicMenus(SIMPEG_FALLBACK_MENUS);
-          } else if (mod === 'sikeu') {
-            setDynamicMenus(SIKEU_FALLBACK_MENUS);
-          } else if (mod === 'spmb' && !isPanitiaAdmin) {
-            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
-          } else if (mod === 'sinapra') {
-            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
-          } else if (mod === 'siakad') {
-            if (isMahasiswaRole) {
-              setDynamicMenus(SIAKAD_MAHASISWA_MENUS);
-            } else if (isDosenRole) {
-              setDynamicMenus(SIAKAD_DOSEN_MENUS);
-            } else {
-              setDynamicMenus(SIAKAD_ADMIN_MENUS);
-            }
           } else {
-            setDynamicMenus([]);
+            setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin }));
           }
         } catch (error) {
           console.error("Failed to load menus", error);
           const mod = getModule();
-          if (mod === 'simpeg') {
-            setDynamicMenus(SIMPEG_FALLBACK_MENUS);
-          } else if (mod === 'sikeu') {
-            setDynamicMenus(SIKEU_FALLBACK_MENUS);
-          } else if (mod === 'spmb' && !isPanitiaAdmin) {
-            setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
-          } else if (mod === 'sinapra') {
-            setDynamicMenus(SINAPRA_FALLBACK_MENUS);
-          } else if (mod === 'siakad') {
-            if (isMahasiswaRole) {
-              setDynamicMenus(SIAKAD_MAHASISWA_MENUS);
-            } else if (isDosenRole) {
-              setDynamicMenus(SIAKAD_DOSEN_MENUS);
-            } else {
-              setDynamicMenus(SIAKAD_ADMIN_MENUS);
-            }
-          }
+          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin }));
         } finally {
           setLoading(false);
         }
@@ -349,17 +374,7 @@ export function Sidebar() {
       fetchMenus();
     } else {
       const mod = getModule();
-      if (mod === 'simpeg') {
-        setDynamicMenus(SIMPEG_FALLBACK_MENUS);
-      } else if (mod === 'sikeu') {
-        setDynamicMenus(SIKEU_FALLBACK_MENUS);
-      } else if (mod === 'spmb' && !isPanitiaAdmin) {
-        setDynamicMenus(SPMB_STUDENT_FALLBACK_MENUS);
-      } else if (mod === 'sinapra') {
-        setDynamicMenus(SINAPRA_FALLBACK_MENUS);
-      } else if (mod === 'siakad') {
-        setDynamicMenus(SIAKAD_ADMIN_MENUS);
-      }
+      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin }));
       setLoading(false);
     }
   }, [user, pathname]);
