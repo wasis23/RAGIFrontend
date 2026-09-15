@@ -111,9 +111,17 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <Badge variant={pegawai.jenis_pegawai === 'dosen' ? 'purple' : 'blue'} className="text-xs uppercase font-bold">
-                  {pegawai.jenis_pegawai.toUpperCase()}
-                </Badge>
+                {pegawai.roles && pegawai.roles.length > 0 ? (
+                  pegawai.roles.map((r) => (
+                    <Badge key={r.id} variant="purple" className="text-xs uppercase font-bold">
+                      {r.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge variant={pegawai.jenis_pegawai === 'dosen' ? 'purple' : 'blue'} className="text-xs uppercase font-bold">
+                    {pegawai.jenis_pegawai?.toUpperCase()}
+                  </Badge>
+                )}
                 <Badge variant={pegawai.status === 'aktif' ? 'green' : 'gray'} className="text-xs uppercase">
                   {pegawai.status}
                 </Badge>
@@ -238,6 +246,23 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             )}
+
+            <div>
+              <div className="text-xs text-slate-400 uppercase font-semibold mb-1">Peran / Jenis Pegawai (Role SSO)</div>
+              <div className="flex flex-wrap gap-1.5 mt-0.5">
+                {pegawai.roles && pegawai.roles.length > 0 ? (
+                  pegawai.roles.map((r) => (
+                    <Badge key={r.id} variant="purple" className="text-xs font-semibold">
+                      {r.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge variant="blue" className="text-xs font-semibold uppercase">
+                    {pegawai.jenis_pegawai}
+                  </Badge>
+                )}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

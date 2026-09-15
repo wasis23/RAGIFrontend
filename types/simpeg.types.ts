@@ -74,7 +74,9 @@ export interface Pegawai {
   tempat_lahir?: string | null;
   jenis_kelamin: 'L' | 'P';
   agama?: string | null;
-  jenis_pegawai: JenisPegawai;
+  jenis_pegawai?: string | null;
+  roles?: { id: number; name: string; slug: string; description?: string }[];
+  role_ids?: number[];
   status_kepegawaian: StatusKepegawaian;
   tanggal_masuk?: string | null;
   tanggal_keluar?: string | null;
@@ -133,7 +135,8 @@ export interface RiwayatPendidikanPegawai {
 export interface PegawaiFilterParams {
   search?: string;
   unit_kerja_id?: number;
-  jenis_pegawai?: JenisPegawai;
+  role_id?: number | string;
+  jenis_pegawai?: string;
   status?: StatusPegawai;
   shift_template_id?: number;
   page?: number;

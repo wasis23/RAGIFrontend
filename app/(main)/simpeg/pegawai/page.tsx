@@ -56,6 +56,7 @@ export default function PegawaiPage() {
   const [pegawaiList, setPegawaiList] = useState<Pegawai[]>([]);
   const [unitList, setUnitList] = useState<UnitKerja[]>([]);
   const [shiftList, setShiftList] = useState<any[]>([]);
+  const [roleList, setRoleList] = useState<{ id: number; name: string; slug: string }[]>([]);
 
   // Server-side Pagination & Meta State
   const [page, setPage] = useState(1);
@@ -68,6 +69,7 @@ export default function PegawaiPage() {
   const [selectedUnit, setSelectedUnit] = useState('');
   const [selectedJenis, setSelectedJenis] = useState('');
   const [selectedShift, setSelectedShift] = useState('');
+  const [selectedRoleId, setSelectedRoleId] = useState('');
   const [filterOrderBy, setFilterOrderBy] = useState('nama_lengkap');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
 
@@ -153,17 +155,19 @@ export default function PegawaiPage() {
           setPegawaiList([]);
         }
       } else {
-        const [resPegawai, resUnit, resShift] = await Promise.all([
+        const [resPegawai, resUnit, resShift, resRoles] = await Promise.all([
           simpegService.getPegawaiList({
             search: search || undefined,
             unit_kerja_id: selectedUnit ? Number(selectedUnit) : undefined,
             jenis_pegawai: selectedJenis ? (selectedJenis as JenisPegawai) : undefined,
             shift_template_id: selectedShift ? Number(selectedShift) : undefined,
+            role_id: selectedRoleId ? Number(selectedRoleId) : undefined,
             page,
             per_page: limit,
           }),
           simpegService.getUnitKerjaList(),
           simpegService.getShiftTemplates().catch(() => ({ status: 'error' as const, data: [] })),
+          simpegService.getAvailableRoles(),
         ]);
 
         const responseData = resPegawai.data || resPegawai;
@@ -184,13 +188,16 @@ export default function PegawaiPage() {
         setMeta(paginationMeta);
         setUnitList(resUnit.data || []);
         setShiftList((resShift as any)?.data || []);
+        if (resRoles?.data) {
+          setRoleList(resRoles.data);
+        }
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat data Pegawai');
     } finally {
       setLoading(false);
     }
-  }, [canRead, isAdmin, page, limit, selectedUnit, selectedJenis, selectedShift, search]);
+  }, [canRead, isAdmin, page, limit, selectedUnit, selectedJenis, selectedShift, selectedRoleId, search]);
 
   useEffect(() => {
     loadPegawai();
@@ -207,6 +214,7 @@ export default function PegawaiPage() {
     setSelectedUnit('');
     setSelectedJenis('');
     setSelectedShift('');
+    setSelectedRoleId('');
     setFilterOrderBy('nama_lengkap');
     setFilterOrderDir('asc');
     setPage(1);
@@ -296,12 +304,20 @@ export default function PegawaiPage() {
     },
     {
       key: 'jenis_pegawai',
-      label: 'Jenis & Status',
+      label: 'Jenis Pegawai / Role',
       render: (peg) => (
         <div className="flex flex-col gap-1 items-start">
-          {peg.jenis_pegawai ? (
-            <Badge variant={peg.jenis_pegawai === 'dosen' ? 'purple' : 'blue'}>
-              {peg.jenis_pegawai.toUpperCase()}
+          {peg.roles && peg.roles.length > 0 ? (
+            <div className="flex flex-wrap gap-1 max-w-[220px]">
+              {peg.roles.map((r) => (
+                <Badge key={r.id} variant="purple" className="text-2xs font-semibold">
+                  {r.name}
+                </Badge>
+              ))}
+            </div>
+          ) : peg.jenis_pegawai ? (
+            <Badge variant="blue" className="text-2xs">
+              {peg.jenis_pegawai}
             </Badge>
           ) : (
             <span className="text-xs text-slate-400">-</span>
@@ -509,14 +525,15 @@ export default function PegawaiPage() {
               />
 
               <Select
-                label="Jenis Pegawai"
-                value={selectedJenis}
-                onChange={(val) => setSelectedJenis(val)}
+                label="Jenis Pegawai / Peran SSO"
+                value={selectedRoleId}
+                onChange={(val) => setSelectedRoleId(val)}
                 options={[
-                  { value: '', label: '-- Semua Jenis Pegawai --' },
-                  { value: 'dosen', label: 'Dosen' },
-                  { value: 'tendik', label: 'Tenaga Kependidikan' },
-                  { value: 'honorer', label: 'Honorer' },
+                  { value: '', label: '-- Semua Jenis Pegawai / Role --' },
+                  ...roleList.map((r) => ({
+                    value: r.id.toString(),
+                    label: r.name,
+                  })),
                 ]}
               />
 

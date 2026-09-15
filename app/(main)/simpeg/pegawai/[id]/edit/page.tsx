@@ -21,9 +21,7 @@ const pegawaiSchema = z.object({
   nip: z.string().optional().nullable(),
   nik: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
-  jenis_pegawai: z.enum(['dosen', 'tendik', 'honorer'], {
-    message: 'Jenis Pegawai wajib dipilih',
-  }),
+  role_ids: z.array(z.string().or(z.number())).min(1, 'Pilih minimal satu jenis pegawai / peran SSO'),
   status_kepegawaian: z.enum(['pns', 'non_pns', 'kontrak', 'tetap_yayasan'], {
     message: 'Status Kepegawaian wajib dipilih',
   }),
@@ -55,6 +53,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const [selectedUnitOption, setSelectedUnitOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedShiftOption, setSelectedShiftOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedOfficeOption, setSelectedOfficeOption] = useState<{ value: string; label: string } | null>(null);
+  const [selectedRoleOptions, setSelectedRoleOptions] = useState<{ value: string; label: string }[]>([]);
 
   const {
     register,
@@ -69,7 +68,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       nip: '',
       nik: '',
       unit_kerja_id: '',
-      jenis_pegawai: 'dosen',
+      role_ids: [],
       status_kepegawaian: 'tetap_yayasan',
       status: 'aktif',
       tempat_lahir: '',
@@ -83,6 +82,25 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       office_location_id: '',
     },
   });
+
+  const loadRoleOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getAvailableRoles();
+      const roles = res.data || [];
+      const filtered = roles.filter(
+        (r) =>
+          r.name.toLowerCase().includes(inputValue.toLowerCase()) ||
+          r.slug.toLowerCase().includes(inputValue.toLowerCase())
+      );
+      return filtered.map((r) => ({
+        value: r.id.toString(),
+        label: `${r.name}${r.description ? ` (${r.description})` : ''}`,
+      }));
+    } catch (err) {
+      console.error('Gagal memuat opsi role SSO', err);
+      return [];
+    }
+  }, []);
 
   const loadUnitKerjaOptions = useCallback(async (inputValue: string) => {
     try {
@@ -146,15 +164,21 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
 
         const peg = resPegawai.data;
         if (peg) {
+          const initialRoles = (peg.roles || []).map((r: any) => ({
+            value: String(r.id),
+            label: `${r.name}${r.description ? ` (${r.description})` : ''}`,
+          }));
+          setSelectedRoleOptions(initialRoles);
+
           const formVals: PegawaiFormValues = {
             unit_kerja_id: peg.unit_kerja_id ? String(peg.unit_kerja_id) : '',
             nip: peg.nip || '',
             nik: peg.nik || '',
             nama_lengkap: peg.nama_lengkap || '',
+            role_ids: initialRoles.map((r: any) => r.value),
             tempat_lahir: peg.tempat_lahir || '',
             tanggal_lahir: peg.tanggal_lahir || '',
             jenis_kelamin: peg.jenis_kelamin || 'L',
-            jenis_pegawai: peg.jenis_pegawai || 'dosen',
             status_kepegawaian: peg.status_kepegawaian || 'tetap_yayasan',
             status: peg.status || 'aktif',
             telepon: peg.telepon || '',
@@ -202,10 +226,10 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         nip: values.nip || null,
         nik: values.nik || null,
         nama_lengkap: values.nama_lengkap,
+        role_ids: values.role_ids.map(Number),
         tempat_lahir: values.tempat_lahir || null,
         tanggal_lahir: values.tanggal_lahir || null,
         jenis_kelamin: values.jenis_kelamin,
-        jenis_pegawai: values.jenis_pegawai,
         status_kepegawaian: values.status_kepegawaian,
         status: values.status,
         telepon: values.telepon || null,
@@ -293,24 +317,28 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 {...register('nik')}
               />
 
-              <Controller
-                name="jenis_pegawai"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    label="Jenis Pegawai *"
-                    required
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={errors.jenis_pegawai?.message}
-                    options={[
-                      { value: 'dosen', label: 'Dosen Pengajar' },
-                      { value: 'tendik', label: 'Tenaga Kependidikan' },
-                      { value: 'honorer', label: 'Honorer' },
-                    ]}
-                  />
-                )}
-              />
+              <div className="md:col-span-2 lg:col-span-3">
+                <Controller
+                  name="role_ids"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Jenis Pegawai / Peran SSO (Dapat Memilih Lebih Dari 1) *"
+                      required
+                      isMulti
+                      placeholder="Cari dan pilih jenis pegawai / role..."
+                      value={selectedRoleOptions}
+                      onChange={(selectedOptions: any) => {
+                        const opts = Array.isArray(selectedOptions) ? selectedOptions : [];
+                        setSelectedRoleOptions(opts);
+                        field.onChange(opts.map((opt: any) => opt.value));
+                      }}
+                      loadOptions={loadRoleOptions}
+                      error={errors.role_ids?.message as string}
+                    />
+                  )}
+                />
+              </div>
 
               <Controller
                 name="status_kepegawaian"

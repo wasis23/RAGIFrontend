@@ -96,6 +96,11 @@ export const simpegService = {
     return data;
   },
 
+  getAvailableRoles: async (): Promise<ApiResponse<{ id: number; name: string; slug: string; description?: string }[]>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/pegawai/roles');
+    return data;
+  },
+
   getPegawaiDetail: async (id: number): Promise<ApiResponse<Pegawai>> => {
     const { data } = await apiClient.get<ApiResponse<Pegawai>>(`/simpeg/pegawai/${id}`);
     return data;

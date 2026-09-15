@@ -22,9 +22,7 @@ const pegawaiSchema = z.object({
   nip: z.string().optional().nullable(),
   nik: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
-  jenis_pegawai: z.enum(['dosen', 'tendik', 'honorer'], {
-    message: 'Jenis Pegawai wajib dipilih',
-  }),
+  role_ids: z.array(z.string().or(z.number())).min(1, 'Pilih minimal satu jenis pegawai / peran SSO'),
   status_kepegawaian: z.enum(['pns', 'non_pns', 'kontrak', 'tetap_yayasan'], {
     message: 'Status Kepegawaian wajib dipilih',
   }),
@@ -61,7 +59,7 @@ export default function CreatePegawaiPage() {
       nip: '',
       nik: '',
       unit_kerja_id: '',
-      jenis_pegawai: 'dosen',
+      role_ids: [],
       status_kepegawaian: 'tetap_yayasan',
       status: 'aktif',
       tempat_lahir: '',
@@ -73,6 +71,26 @@ export default function CreatePegawaiPage() {
       office_location_id: '',
     },
   });
+
+  // Server-side async loader for SSO Roles
+  const loadRoleOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getAvailableRoles();
+      const roles = res.data || [];
+      const filtered = roles.filter(
+        (r) =>
+          r.name.toLowerCase().includes(inputValue.toLowerCase()) ||
+          r.slug.toLowerCase().includes(inputValue.toLowerCase())
+      );
+      return filtered.map((r) => ({
+        value: r.id.toString(),
+        label: `${r.name}${r.description ? ` (${r.description})` : ''}`,
+      }));
+    } catch (err) {
+      console.error('Gagal memuat opsi role SSO', err);
+      return [];
+    }
+  }, []);
 
   // Server-side async loader for Unit Kerja AsyncSelect
   const loadUnitKerjaOptions = useCallback(async (inputValue: string) => {
@@ -139,7 +157,7 @@ export default function CreatePegawaiPage() {
         tempat_lahir: values.tempat_lahir || null,
         tanggal_lahir: values.tanggal_lahir || null,
         jenis_kelamin: values.jenis_kelamin,
-        jenis_pegawai: values.jenis_pegawai,
+        role_ids: values.role_ids.map(Number),
         status_kepegawaian: values.status_kepegawaian,
         status: values.status,
         telepon: values.telepon || null,
@@ -224,24 +242,38 @@ export default function CreatePegawaiPage() {
                 {...register('nik')}
               />
 
-              <Controller
-                name="jenis_pegawai"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    label="Jenis Pegawai"
-                    required
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={errors.jenis_pegawai?.message}
-                    options={[
-                      { value: 'dosen', label: 'Dosen Pengajar' },
-                      { value: 'tendik', label: 'Tenaga Kependidikan' },
-                      { value: 'honorer', label: 'Honorer' },
-                    ]}
-                  />
-                )}
-              />
+              <div className="md:col-span-2 lg:col-span-3">
+                <Controller
+                  name="role_ids"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Jenis Pegawai / Peran SSO (Dapat Memilih Lebih Dari 1) *"
+                      required
+                      isMulti
+                      placeholder="Cari dan pilih jenis pegawai / role..."
+                      value={
+                        Array.isArray(field.value)
+                          ? field.value.map((v: any) =>
+                              typeof v === 'object' && v !== null
+                                ? v
+                                : { value: String(v), label: `Role ID: ${v}` }
+                            )
+                          : []
+                      }
+                      onChange={(selectedOptions: any) => {
+                        field.onChange(
+                          Array.isArray(selectedOptions)
+                            ? selectedOptions.map((opt: any) => opt.value)
+                            : []
+                        );
+                      }}
+                      loadOptions={loadRoleOptions}
+                      error={errors.role_ids?.message as string}
+                    />
+                  )}
+                />
+              </div>
 
               <Controller
                 name="status_kepegawaian"
