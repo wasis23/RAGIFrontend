@@ -94,7 +94,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       );
       return filtered.map((r) => ({
         value: r.id.toString(),
-        label: `${r.name}${r.description ? ` (${r.description})` : ''}`,
+        label: r.name,
       }));
     } catch (err) {
       console.error('Gagal memuat opsi role SSO', err);
@@ -166,7 +166,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         if (peg) {
           const initialRoles = (peg.roles || []).map((r: any) => ({
             value: String(r.id),
-            label: `${r.name}${r.description ? ` (${r.description})` : ''}`,
+            label: r.name,
           }));
           setSelectedRoleOptions(initialRoles);
 

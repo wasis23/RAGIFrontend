@@ -84,7 +84,7 @@ export default function CreatePegawaiPage() {
       );
       return filtered.map((r) => ({
         value: r.id.toString(),
-        label: `${r.name}${r.description ? ` (${r.description})` : ''}`,
+        label: r.name,
       }));
     } catch (err) {
       console.error('Gagal memuat opsi role SSO', err);
