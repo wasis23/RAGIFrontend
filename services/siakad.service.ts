@@ -283,11 +283,6 @@ export const siakadService = {
     return response.data;
   },
 
-  syncDosenFromSimpeg: async (): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post('/v1/siakad/akademik/dosen/sync-from-simpeg');
-    return response.data;
-  },
-
   // Nilai & Transkrip
   getNilai: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/perkuliahan/nilai', { params });
