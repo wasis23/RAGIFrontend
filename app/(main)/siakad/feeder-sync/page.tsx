@@ -385,7 +385,7 @@ export default function FeederSyncPage() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Card: Biodata Mahasiswa */}
-              <div className="card p-4 space-y-3">
+              <div className="card p-4 flex flex-col">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                     <User size={18} />
@@ -395,7 +395,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">NIK, NISN, Ibu Kandung, Alamat</p>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-2xs text-slate-400 font-semibold font-mono">InsertBiodataMahasiswa</span>
                   <Button
                     variant="primary"
@@ -409,7 +409,7 @@ export default function FeederSyncPage() {
               </div>
 
               {/* Card: Riwayat Pendidikan Mahasiswa */}
-              <div className="card p-4 space-y-3">
+              <div className="card p-4 flex flex-col">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <GraduationCap size={18} />
@@ -419,7 +419,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">NIM, Prodi, Jalur Masuk, SKS Transfer</p>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-2xs text-slate-400 font-semibold font-mono">InsertRiwayatPendidikan</span>
                   <Button
                     variant="primary"
@@ -433,7 +433,7 @@ export default function FeederSyncPage() {
               </div>
 
               {/* Card: Batch All Mahasiswa */}
-              <div className="card p-4 space-y-3 border-2 border-dashed border-primary-200 bg-primary-50/30">
+              <div className="card p-4 flex flex-col border-2 border-dashed border-primary-200 bg-primary-50/30">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-primary-100 text-primary-700 flex items-center justify-center">
                     <Users size={18} />
@@ -443,7 +443,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Biodata + Riwayat Pendidikan sekaligus</p>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-2xs text-slate-400 font-semibold font-mono">Orkestrasi: All</span>
                   <Button
                     variant="primary"
@@ -471,7 +471,7 @@ export default function FeederSyncPage() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Card: Dosen Langkah 1 - Biodata NIDN */}
-              <div className="card p-4 space-y-3">
+              <div className="card p-4 flex flex-col">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                     <User size={18} />
@@ -484,15 +484,12 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">PULL & cocokkan NIDN dari PDDikti</p>
                   </div>
                 </div>
-                <div className="p-2 bg-slate-50 rounded-lg text-2xs text-slate-600 border border-slate-100">
-                  <p>💡 Dosen baru ber-NIP tetap aman mengajar. Begitu NIDN terbit, cocokkan atau tarik dari Feeder.</p>
-                </div>
-                <div className="pt-3 border-t border-slate-100 space-y-2">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono block">WS: GetListDosen &amp; DetailBiodataDosen</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">GetListDosen</span>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
-                      className="text-xs font-bold flex-1"
+                      className="text-xs font-bold"
                       disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
                       onClick={() => handleTriggerSync('dosen')}
                     >
@@ -500,7 +497,7 @@ export default function FeederSyncPage() {
                     </Button>
                     <Button
                       variant="primary"
-                      className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                      className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
                       disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
                       onClick={() => handleTriggerSync('pull_dosen')}
                     >
@@ -511,7 +508,7 @@ export default function FeederSyncPage() {
               </div>
 
               {/* Card: Dosen Langkah 2 - Penugasan Dosen PT */}
-              <div className="card p-4 space-y-3">
+              <div className="card p-4 flex flex-col">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <Users size={18} />
@@ -524,7 +521,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">id_registrasi_dosen per Prodi & TA aktif</p>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-2xs text-slate-400 font-semibold font-mono">GetListPenugasanDosen</span>
                   <Button
                     variant="primary"
@@ -538,7 +535,7 @@ export default function FeederSyncPage() {
               </div>
 
               {/* Card: Dosen Langkah 3 - Pengajar Kelas */}
-              <div className="card p-4 space-y-3">
+              <div className="card p-4 flex flex-col">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                     <Users size={18} />
@@ -551,7 +548,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Kirim pengajar ke kelas (16 pertemuan)</p>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-2xs text-slate-400 font-semibold font-mono">InsertDosenPengajarKelas</span>
                   <Button
                     variant="primary"
@@ -579,7 +576,7 @@ export default function FeederSyncPage() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Card: Mata Kuliah */}
-              <div className="card p-4 space-y-3">
+              <div className="card p-4 flex flex-col">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
                     <BookOpen size={18} />
@@ -589,7 +586,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Kode MK, total SKS tatap muka & praktek</p>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_mata_kuliah</span>
                   <Button
                     variant="primary"
@@ -603,7 +600,7 @@ export default function FeederSyncPage() {
               </div>
 
               {/* Card: Kelas Perkuliahan */}
-              <div className="card p-4 space-y-3">
+              <div className="card p-4 flex flex-col">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <CalendarCheck size={18} />
@@ -613,7 +610,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Kelas aktif, KRS mahasiswa & nilai semester</p>
                   </div>
                 </div>
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_kelas</span>
                   <Button
                     variant="primary"
