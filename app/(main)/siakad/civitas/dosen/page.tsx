@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserCheck, Plus, Filter, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { UserCheck, Plus, Filter, Edit2, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -40,7 +40,6 @@ export default function DosenPage() {
     jabatan_akademik: 'Lektor',
   });
   const [saving, setSaving] = useState(false);
-  const [syncingSimpeg, setSyncingSimpeg] = useState(false);
 
   const fetchProdis = async () => {
     try {
@@ -55,6 +54,7 @@ export default function DosenPage() {
       const res = await siakadService.getDosens({
         search: appliedFilters.search,
         program_studi_id: appliedFilters.prodi,
+        per_page: 500,
       });
       if (res.data) {
         let list = res.data;
@@ -130,19 +130,6 @@ export default function DosenPage() {
       fetchDosens();
     } catch (err: any) {
       toast.error('Gagal menghapus dosen');
-    }
-  };
-
-  const handleSyncSimpeg = async () => {
-    try {
-      setSyncingSimpeg(true);
-      const res = await siakadService.syncDosenFromSimpeg();
-      toast.success(res.message || 'Data dosen berhasil disinkronkan dari SIMPEG');
-      fetchDosens();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal sinkronisasi data dari SIMPEG');
-    } finally {
-      setSyncingSimpeg(false);
     }
   };
 
@@ -262,23 +249,13 @@ export default function DosenPage() {
           { label: 'Dosen' },
         ]}
         action={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              icon={<RefreshCw size={15} className={syncingSimpeg ? 'animate-spin' : ''} />}
-              onClick={handleSyncSimpeg}
-              disabled={syncingSimpeg}
-            >
-              {syncingSimpeg ? 'Menyinkronkan...' : 'Sinkronkan SIMPEG'}
-            </Button>
-            <Button
-              variant="outline"
-              icon={<Filter size={16} />}
-              onClick={() => setShowFilter(true)}
-            >
-              Filter
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            icon={<Filter size={16} />}
+            onClick={() => setShowFilter(true)}
+          >
+            Filter
+          </Button>
         }
       />
 
