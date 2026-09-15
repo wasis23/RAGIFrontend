@@ -312,9 +312,9 @@ export default function FeederSyncPage() {
 
       {/* Tab 1: Sync Operations */}
       {activeTab === 'sync' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Connection Status Banner */}
-          <div className="card p-5 flex items-center justify-between">
+          <div className="card p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -372,235 +372,258 @@ export default function FeederSyncPage() {
             </Button>
           </div>
 
-          {/* Sync Action Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Card 1: Biodata Mahasiswa */}
-            <div className="card p-5 space-y-3">
-              <div className="flex items-center justify-between">
+          {/* ── SECTION: MAHASISWA ── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary-100 text-primary-700 flex items-center justify-center">
+                <GraduationCap size={16} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">Data Mahasiswa</h3>
+                <p className="text-2xs text-slate-500">Push biodata, riwayat pendidikan, dan registrasi mahasiswa ke PDDikti</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Card: Biodata Mahasiswa */}
+              <div className="card p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                     <User size={18} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Biodata Mahasiswa (WS Feeder)</h4>
-                    <p className="text-2xs text-slate-500">InsertBiodataMahasiswa (NIK, NISN, Ibu Kandung, Alamat)</p>
+                    <h4 className="font-bold text-sm text-slate-900">Biodata Mahasiswa</h4>
+                    <p className="text-2xs text-slate-500">NIK, NISN, Ibu Kandung, Alamat</p>
                   </div>
                 </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">InsertBiodataMahasiswa</span>
+                  <Button
+                    variant="primary"
+                    className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                    disabled={syncingEntity === 'biodata_mahasiswa'}
+                    onClick={() => handleTriggerSync('biodata_mahasiswa')}
+                  >
+                    {syncingEntity === 'biodata_mahasiswa' ? 'Menyinkronkan...' : 'Push Biodata →'}
+                  </Button>
+                </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: InsertBiodataMahasiswa</span>
-                <Button
-                  variant="primary"
-                  className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white"
-                  disabled={syncingEntity === 'biodata_mahasiswa'}
-                  onClick={() => handleTriggerSync('biodata_mahasiswa')}
-                >
-                  {syncingEntity === 'biodata_mahasiswa' ? 'Menyinkronkan...' : 'Push Biodata →'}
-                </Button>
-              </div>
-            </div>
 
-            {/* Card 2: Riwayat Pendidikan Mahasiswa */}
-            <div className="card p-5 space-y-3">
-              <div className="flex items-center justify-between">
+              {/* Card: Riwayat Pendidikan Mahasiswa */}
+              <div className="card p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <GraduationCap size={18} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Riwayat Pendidikan & Registrasi</h4>
-                    <p className="text-2xs text-slate-500">InsertRiwayatPendidikanMahasiswa (NIM, Prodi, Jalur Masuk, SKS Transfer)</p>
+                    <h4 className="font-bold text-sm text-slate-900">Riwayat Pendidikan</h4>
+                    <p className="text-2xs text-slate-500">NIM, Prodi, Jalur Masuk, SKS Transfer</p>
                   </div>
                 </div>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: InsertRiwayatPendidikanMahasiswa</span>
-                <Button
-                  variant="primary"
-                  className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
-                  disabled={syncingEntity === 'riwayat_pendidikan_mahasiswa'}
-                  onClick={() => handleTriggerSync('riwayat_pendidikan_mahasiswa')}
-                >
-                  {syncingEntity === 'riwayat_pendidikan_mahasiswa' ? 'Menyinkronkan...' : 'Push Riwayat →'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Card 3: Batch All Mahasiswa */}
-            <div className="card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center font-bold">
-                    <Users size={18} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Penuh Mahasiswa</h4>
-                    <p className="text-2xs text-slate-500">Orkestrasi gabungan Biodata + Riwayat Pendidikan PDDikti</p>
-                  </div>
-                </div>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">Orkestrasi: All Mahasiswa</span>
-                <Button
-                  variant="primary"
-                  className="text-xs font-bold"
-                  disabled={syncingEntity === 'mahasiswa'}
-                  onClick={() => handleTriggerSync('mahasiswa')}
-                >
-                  {syncingEntity === 'mahasiswa' ? 'Menyinkronkan...' : 'Push All Mahasiswa →'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Card: Dosen Langkah 1 - Biodata NIDN */}
-            <div className="card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                    <Users size={18} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-slate-900">1. Biodata Dosen (PULL & MATCH)</h4>
-                      <Badge variant="blue">Langkah 1</Badge>
-                    </div>
-                    <p className="text-2xs text-slate-500">Tarik dosen resmi PDDikti ke SIAKAD atau cocokkan NIDN lokal</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-2.5 bg-slate-50 rounded-lg text-2xs text-slate-600 space-y-1 border border-slate-100">
-                <p>💡 <strong>Alur NIP &amp; NIDN</strong>: Dosen baru ber-NIP internal tetap aman mengajar di SIAKAD lokal. Begitu NIDN terbit, klik <em>Cocokkan NIDN</em> atau <em>Tarik Feeder</em>.</p>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: GetListDosen &amp; DetailBiodataDosen</span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className="text-xs font-bold"
-                    disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
-                    onClick={() => handleTriggerSync('dosen')}
-                  >
-                    {syncingEntity === 'dosen' ? 'Mencocokkan...' : 'Cocokkan NIDN →'}
-                  </Button>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">InsertRiwayatPendidikan</span>
                   <Button
                     variant="primary"
-                    className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white"
-                    disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
-                    onClick={() => handleTriggerSync('pull_dosen')}
+                    className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={syncingEntity === 'riwayat_pendidikan_mahasiswa'}
+                    onClick={() => handleTriggerSync('riwayat_pendidikan_mahasiswa')}
                   >
-                    {syncingEntity === 'pull_dosen' ? 'Menarik Data...' : 'Tarik dari Feeder (PULL) →'}
+                    {syncingEntity === 'riwayat_pendidikan_mahasiswa' ? 'Menyinkronkan...' : 'Push Riwayat →'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Card: Batch All Mahasiswa */}
+              <div className="card p-4 space-y-3 border-2 border-dashed border-primary-200 bg-primary-50/30">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-primary-100 text-primary-700 flex items-center justify-center">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">Sinkronisasi Penuh</h4>
+                    <p className="text-2xs text-slate-500">Biodata + Riwayat Pendidikan sekaligus</p>
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">Orkestrasi: All</span>
+                  <Button
+                    variant="primary"
+                    className="text-xs font-bold"
+                    disabled={syncingEntity === 'mahasiswa'}
+                    onClick={() => handleTriggerSync('mahasiswa')}
+                  >
+                    {syncingEntity === 'mahasiswa' ? 'Menyinkronkan...' : 'Push All →'}
                   </Button>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Card: Dosen Langkah 2 - Penugasan Dosen PT */}
-            <div className="card p-5 space-y-3">
-              <div className="flex items-center justify-between">
+          {/* ── SECTION: DOSEN ── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                <Users size={16} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">Data Dosen</h3>
+                <p className="text-2xs text-slate-500">Pull biodata, cocokkan NIDN, penugasan PT, dan kirim pengajar kelas kuliah</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Card: Dosen Langkah 1 - Biodata NIDN */}
+              <div className="card p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <User size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-slate-900">Biodata Dosen</h4>
+                      <Badge variant="blue">Langkah 1</Badge>
+                    </div>
+                    <p className="text-2xs text-slate-500">PULL & cocokkan NIDN dari PDDikti</p>
+                  </div>
+                </div>
+                <div className="p-2 bg-slate-50 rounded-lg text-2xs text-slate-600 border border-slate-100">
+                  <p>💡 Dosen baru ber-NIP tetap aman mengajar. Begitu NIDN terbit, cocokkan atau tarik dari Feeder.</p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 space-y-2">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono block">WS: GetListDosen &amp; DetailBiodataDosen</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="text-xs font-bold flex-1"
+                      disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
+                      onClick={() => handleTriggerSync('dosen')}
+                    >
+                      {syncingEntity === 'dosen' ? 'Mencocokkan...' : 'Cocokkan NIDN →'}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                      disabled={syncingEntity === 'dosen' || syncingEntity === 'pull_dosen'}
+                      onClick={() => handleTriggerSync('pull_dosen')}
+                    >
+                      {syncingEntity === 'pull_dosen' ? 'Menarik...' : 'Tarik Feeder →'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card: Dosen Langkah 2 - Penugasan Dosen PT */}
+              <div className="card p-4 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <Users size={18} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-slate-900">2. Pencocokan Penugasan PT</h4>
+                      <h4 className="font-bold text-sm text-slate-900">Penugasan PT</h4>
                       <Badge variant="indigo">Langkah 2</Badge>
                     </div>
-                    <p className="text-2xs text-slate-500">Ambil id_registrasi_dosen per Prodi & Tahun Ajaran aktif</p>
+                    <p className="text-2xs text-slate-500">id_registrasi_dosen per Prodi & TA aktif</p>
                   </div>
                 </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">GetListPenugasanDosen</span>
+                  <Button
+                    variant="primary"
+                    className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white border-none"
+                    disabled={syncingEntity === 'penugasan_dosen'}
+                    onClick={() => handleTriggerSync('penugasan_dosen')}
+                  >
+                    {syncingEntity === 'penugasan_dosen' ? 'Mencocokkan...' : 'Cocokkan →'}
+                  </Button>
+                </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: GetListPenugasanDosen</span>
-                <Button
-                  variant="primary"
-                  className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white border-none"
-                  disabled={syncingEntity === 'penugasan_dosen'}
-                  onClick={() => handleTriggerSync('penugasan_dosen')}
-                >
-                  {syncingEntity === 'penugasan_dosen' ? 'Mencocokkan...' : 'Cocokkan Penugasan PT →'}
-                </Button>
+
+              {/* Card: Dosen Langkah 3 - Pengajar Kelas */}
+              <div className="card p-4 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-slate-900">Ajar Dosen</h4>
+                      <Badge variant="amber">Langkah 3</Badge>
+                    </div>
+                    <p className="text-2xs text-slate-500">Kirim pengajar ke kelas (16 pertemuan)</p>
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">InsertDosenPengajarKelas</span>
+                  <Button
+                    variant="primary"
+                    className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white border-none"
+                    disabled={syncingEntity === 'ajar_dosen'}
+                    onClick={() => handleTriggerSync('ajar_dosen')}
+                  >
+                    {syncingEntity === 'ajar_dosen' ? 'Mengirim...' : 'Kirim Pengajar →'}
+                  </Button>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Card: Mata Kuliah */}
-            <div className="card p-5 space-y-3">
-              <div className="flex items-center justify-between">
+          {/* ── SECTION: KURIKULUM & PERKULIAHAN ── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                <BookOpen size={16} />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">Kurikulum & Perkuliahan</h3>
+                <p className="text-2xs text-slate-500">Push mata kuliah, kelas perkuliahan, KRS, dan nilai semester ke PDDikti</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Card: Mata Kuliah */}
+              <div className="card p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
                     <BookOpen size={18} />
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900">Mata Kuliah & Kurikulum</h4>
-                    <p className="text-2xs text-slate-500">Kirim kode MK, total SKS tatap muka & praktek</p>
+                    <p className="text-2xs text-slate-500">Kode MK, total SKS tatap muka & praktek</p>
                   </div>
                 </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_mata_kuliah</span>
+                  <Button
+                    variant="primary"
+                    className="text-xs font-bold"
+                    disabled={syncingEntity === 'mata_kuliah'}
+                    onClick={() => handleTriggerSync('mata_kuliah')}
+                  >
+                    {syncingEntity === 'mata_kuliah' ? 'Menyinkronkan...' : 'Push Mata Kuliah →'}
+                  </Button>
+                </div>
               </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_mata_kuliah</span>
-                <Button
-                  variant="primary"
-                  className="text-xs font-bold"
-                  disabled={syncingEntity === 'mata_kuliah'}
-                  onClick={() => handleTriggerSync('mata_kuliah')}
-                >
-                  {syncingEntity === 'mata_kuliah' ? 'Menyinkronkan...' : 'Push Mata Kuliah →'}
-                </Button>
-              </div>
-            </div>
 
-            {/* Card: Kelas Perkuliahan */}
-            <div className="card p-5 space-y-3">
-              <div className="flex items-center justify-between">
+              {/* Card: Kelas Perkuliahan */}
+              <div className="card p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <CalendarCheck size={18} />
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900">Kelas Perkuliahan & Nilai</h4>
-                    <p className="text-2xs text-slate-500">Kirim kelas kuliah aktif, KRS mahasiswa & nilai semester</p>
+                    <p className="text-2xs text-slate-500">Kelas aktif, KRS mahasiswa & nilai semester</p>
                   </div>
                 </div>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_kelas</span>
-                <Button
-                  variant="primary"
-                  className="text-xs font-bold"
-                  disabled={syncingEntity === 'kelas'}
-                  onClick={() => handleTriggerSync('kelas')}
-                >
-                  {syncingEntity === 'kelas' ? 'Menyinkronkan...' : 'Push Kelas & Nilai →'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Card: Dosen Langkah 3 - Pengajar Kelas */}
-            <div className="card p-5 space-y-3 md:col-span-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                    <Users size={18} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-slate-900">3. Pengiriman Ajar Dosen ke Kelas Kuliah</h4>
-                      <Badge variant="amber">Langkah 3 (Eksekusi Akhir)</Badge>
-                    </div>
-                    <p className="text-2xs text-slate-500">Lapor dosen pengajar ke kelas perkuliahan (id_registrasi_dosen, id_kelas_kuliah, 16 pertemuan)</p>
-                  </div>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_kelas</span>
+                  <Button
+                    variant="primary"
+                    className="text-xs font-bold"
+                    disabled={syncingEntity === 'kelas'}
+                    onClick={() => handleTriggerSync('kelas')}
+                  >
+                    {syncingEntity === 'kelas' ? 'Menyinkronkan...' : 'Push Kelas & Nilai →'}
+                  </Button>
                 </div>
-              </div>
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-2xs text-slate-400 font-semibold font-mono">WS: InsertDosenPengajarKelasKuliah</span>
-                <Button
-                  variant="primary"
-                  className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white border-none"
-                  disabled={syncingEntity === 'ajar_dosen'}
-                  onClick={() => handleTriggerSync('ajar_dosen')}
-                >
-                  {syncingEntity === 'ajar_dosen' ? 'Mengirim Data Ajar...' : 'Kirim Pengajar Kelas →'}
-                </Button>
               </div>
             </div>
           </div>
