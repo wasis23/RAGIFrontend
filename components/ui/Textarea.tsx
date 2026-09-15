@@ -10,13 +10,14 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, error, hint, required, className, id, ...props }, ref) => {
-    const textareaId = id || label?.toLowerCase().replace(/\s+/g, '-');
+    const cleanLabel = label ? label.replace(/\s*\*+$/, '') : undefined;
+    const textareaId = id || cleanLabel?.toLowerCase().replace(/\s+/g, '-');
 
     return (
       <div className="form-group">
-        {label && (
+        {cleanLabel && (
           <label className="form-label" htmlFor={textareaId}>
-            {label}
+            {cleanLabel}
             {required && <span className="required">*</span>}
           </label>
         )}

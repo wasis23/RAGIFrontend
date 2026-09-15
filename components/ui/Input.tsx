@@ -13,13 +13,14 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, prefixIcon, suffixIcon, onSuffixClick, required, className, id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+    const cleanLabel = label ? label.replace(/\s*\*+$/, '') : undefined;
+    const inputId = id || cleanLabel?.toLowerCase().replace(/\s+/g, '-');
 
     return (
       <div className="form-group">
-        {label && (
+        {cleanLabel && (
           <label className="form-label" htmlFor={inputId}>
-            {label}
+            {cleanLabel}
             {required && <span className="required">*</span>}
           </label>
         )}

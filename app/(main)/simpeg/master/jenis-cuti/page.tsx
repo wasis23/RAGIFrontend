@@ -465,7 +465,7 @@ export default function MasterJenisCutiPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Nama Jenis Cuti / Izin *"
+              label="Nama Jenis Cuti / Izin"
               placeholder="Contoh: Izin Menikah"
               required
               error={errors.nama?.message}
@@ -484,7 +484,7 @@ export default function MasterJenisCutiPage() {
               control={control}
               render={({ field }) => (
                 <Select
-                  label="Tipe Durasi *"
+                  label="Tipe Durasi"
                   required
                   value={field.value}
                   onChange={(val) => {
@@ -504,7 +504,7 @@ export default function MasterJenisCutiPage() {
 
             {watchTipeDurasi === 'ditetapkan' ? (
               <Input
-                label="Durasi Baku (Hari) *"
+                label="Durasi Baku (Hari)"
                 type="number"
                 min={1}
                 required
@@ -526,7 +526,7 @@ export default function MasterJenisCutiPage() {
               control={control}
               render={({ field }) => (
                 <Select
-                  label="Kebutuhan Berkas Lampiran *"
+                  label="Kebutuhan Berkas Lampiran"
                   value={field.value ? '1' : '0'}
                   onChange={(val) => field.onChange(val === '1')}
                   options={[
@@ -542,7 +542,7 @@ export default function MasterJenisCutiPage() {
               control={control}
               render={({ field }) => (
                 <Select
-                  label="Status Aktif *"
+                  label="Status Aktif"
                   value={field.value ? '1' : '0'}
                   onChange={(val) => field.onChange(val === '1')}
                   options={[

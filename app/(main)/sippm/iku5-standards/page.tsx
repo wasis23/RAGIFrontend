@@ -459,42 +459,42 @@ export default function Iku5StandardsPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Target Artikel Scopus *"
+                  label="Target Artikel Scopus"
                   type="number"
                   error={errors.target_scopus?.message}
                   {...register('target_scopus', { valueAsNumber: true })}
                 />
 
                 <Input
-                  label="Target Artikel Sinta *"
+                  label="Target Artikel Sinta"
                   type="number"
                   error={errors.target_sinta?.message}
                   {...register('target_sinta', { valueAsNumber: true })}
                 />
 
                 <Input
-                  label="Target Hibah DIKTI *"
+                  label="Target Hibah DIKTI"
                   type="number"
                   error={errors.target_dikti?.message}
                   {...register('target_dikti', { valueAsNumber: true })}
                 />
 
                 <Input
-                  label="Target Hibah Internal *"
+                  label="Target Hibah Internal"
                   type="number"
                   error={errors.target_internal?.message}
                   {...register('target_internal', { valueAsNumber: true })}
                 />
 
                 <Input
-                  label="Target HKI & Paten *"
+                  label="Target HKI & Paten"
                   type="number"
                   error={errors.target_hki?.message}
                   {...register('target_hki', { valueAsNumber: true })}
                 />
 
                 <Input
-                  label="Target Min Capaian (%) *"
+                  label="Target Min Capaian (%)"
                   type="number"
                   error={errors.min_capaian_iku?.message}
                   {...register('min_capaian_iku', { valueAsNumber: true })}

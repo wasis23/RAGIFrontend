@@ -417,7 +417,7 @@ export default function PublikasiRegistryPage() {
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
-            label="Judul Artikel Ilmiah *"
+            label="Judul Artikel Ilmiah"
             placeholder="Ketik judul artikel ilmiah..."
             error={errors.judul_artikel?.message}
             {...register('judul_artikel')}
@@ -426,14 +426,14 @@ export default function PublikasiRegistryPage() {
           {/* Grid 2 Kolom per crud-ui-standard */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Nama Jurnal / Proceedings *"
+              label="Nama Jurnal / Proceedings"
               placeholder="Misal: IEEE Access / Jurnal Sains Kampus"
               error={errors.nama_jurnal?.message}
               {...register('nama_jurnal')}
             />
 
             <Select
-              label="Kategori Pengindeks *"
+              label="Kategori Pengindeks"
               value={selectedKategori}
               onChange={(val) => setValue('kategori_publikasi', val as any)}
               options={[
@@ -448,7 +448,7 @@ export default function PublikasiRegistryPage() {
             />
 
             <Input
-              label="Tahun Terbit *"
+              label="Tahun Terbit"
               type="number"
               placeholder="2026"
               error={errors.tahun?.message}

@@ -165,6 +165,7 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
     }, [value, isMulti, tick, resolveSingleValue]);
 
     const generatedId = React.useId();
+    const cleanLabel = label ? label.replace(/\s*\*+$/, '') : undefined;
     const selectId = id || `async-select-${generatedId}`;
 
     const customStyles = {
@@ -202,9 +203,9 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
     if (!isMounted) {
       return (
         <div className="form-group">
-          {label && (
+          {cleanLabel && (
             <label className="form-label" htmlFor={selectId}>
-              {label}
+              {cleanLabel}
               {required && <span className="required">*</span>}
             </label>
           )}
@@ -215,9 +216,9 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
 
     return (
       <div className="form-group">
-        {label && (
+        {cleanLabel && (
           <label className="form-label" htmlFor={selectId}>
-            {label}
+            {cleanLabel}
             {required && <span className="required">*</span>}
           </label>
         )}

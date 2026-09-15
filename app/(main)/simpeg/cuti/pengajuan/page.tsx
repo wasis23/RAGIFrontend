@@ -233,7 +233,7 @@ export default function PengajuanCutiPage() {
                   control={control}
                   render={({ field }) => (
                     <AsyncSelect
-                      label="Pilih Pegawai Pemohon *"
+                      label="Pilih Pegawai Pemohon"
                       required
                       placeholder="Ketik nama pegawai / NIP untuk mencari dari database..."
                       loadOptions={loadPegawaiOptions}
@@ -256,7 +256,7 @@ export default function PengajuanCutiPage() {
                   control={control}
                   render={({ field }) => (
                     <Select
-                      label="Jenis Izin & Cuti *"
+                      label="Jenis Izin & Cuti"
                       required
                       value={field.value}
                       onChange={(val) => handleMasterChange(val)}
@@ -307,7 +307,7 @@ export default function PengajuanCutiPage() {
 
               {/* Tanggal Mulai */}
               <Input
-                label="Tanggal Mulai *"
+                label="Tanggal Mulai"
                 type="date"
                 required
                 error={errors.tanggal_mulai?.message}
@@ -390,7 +390,7 @@ export default function PengajuanCutiPage() {
                   control={control}
                   render={({ field }) => (
                     <Textarea
-                      label="Alasan Detail Pengajuan Cuti *"
+                      label="Alasan Detail Pengajuan Cuti"
                       required
                       rows={3}
                       placeholder="Ketikkan alasan detail permohonan pengajuan cuti..."

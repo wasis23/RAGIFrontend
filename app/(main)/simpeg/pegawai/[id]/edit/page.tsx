@@ -296,7 +296,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               <Input
-                label="Nama Lengkap & Gelar *"
+                label="Nama Lengkap & Gelar"
                 required
                 placeholder="Ketik Nama Lengkap & Gelar..."
                 error={errors.nama_lengkap?.message}
@@ -323,7 +323,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                   control={control}
                   render={({ field }) => (
                     <AsyncSelect
-                      label="Jenis Pegawai / Peran SSO (Dapat Memilih Lebih Dari 1) *"
+                      label="Jenis Pegawai / Peran SSO (Dapat Memilih Lebih Dari 1)"
                       required
                       isMulti
                       placeholder="Cari dan pilih jenis pegawai / role..."
@@ -345,7 +345,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <Select
-                    label="Status Kepegawaian *"
+                    label="Status Kepegawaian"
                     required
                     value={field.value}
                     onChange={field.onChange}
@@ -365,7 +365,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <Select
-                    label="Status Keaktifan *"
+                    label="Status Keaktifan"
                     required
                     value={field.value}
                     onChange={field.onChange}
@@ -460,7 +460,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <Select
-                    label="Jenis Kelamin *"
+                    label="Jenis Kelamin"
                     required
                     value={field.value}
                     onChange={field.onChange}

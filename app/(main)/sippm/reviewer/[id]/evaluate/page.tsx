@@ -183,7 +183,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Field 1: Rekam Jejak (25%) */}
             <Input
-              label="Skor Rekam Jejak (Bobot 25%) *"
+              label="Skor Rekam Jejak (Bobot 25%)"
               type="number"
               min={0}
               max={100}
@@ -194,7 +194,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
 
             {/* Field 2: Substansi (50%) */}
             <Input
-              label="Skor Substansi Usulan (Bobot 50%) *"
+              label="Skor Substansi Usulan (Bobot 50%)"
               type="number"
               min={0}
               max={100}
@@ -205,7 +205,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
 
             {/* Field 3: RAB (25%) */}
             <Input
-              label="Skor Kelayakan RAB (Bobot 25%) *"
+              label="Skor Kelayakan RAB (Bobot 25%)"
               type="number"
               min={0}
               max={100}
@@ -226,7 +226,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
             {/* Rekomendasi Select */}
             <div className="col-span-full md:col-span-1">
               <Select
-                label="Rekomendasi Akhir Reviewer *"
+                label="Rekomendasi Akhir Reviewer"
                 value={rekomendasiVal}
                 onChange={(val) => setValue('rekomendasi', val as any)}
                 options={[
@@ -241,7 +241,7 @@ export default function EvaluateProposalPage({ params }: { params: Promise<{ id:
             {/* Catatan Masukan Reviewer */}
             <div className="col-span-full">
               <Textarea
-                label="Catatan & Masukan Kritis Reviewer *"
+                label="Catatan & Masukan Kritis Reviewer"
                 rows={5}
                 placeholder="Ketik uraian evaluasi substansi, masukan perbaikan metode, serta kewajaran alokasi dana RAB..."
                 error={errors.catatan_reviewer?.message}

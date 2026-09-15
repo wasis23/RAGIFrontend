@@ -550,7 +550,7 @@ export default function PencairanPage() {
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Select
-            label="Pilih Kontrak SPK Hibah *"
+            label="Pilih Kontrak SPK Hibah"
             value={selectedKontrakId}
             onChange={(val) => {
               const idNum = Number(val);
@@ -574,7 +574,7 @@ export default function PencairanPage() {
           {/* Grid 2 Kolom per crud-ui-standard */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
-              label="Termin Ke- *"
+              label="Termin Ke-"
               value={selectedTermin}
               onChange={(val) => {
                 const tNum = Number(val);
@@ -592,7 +592,7 @@ export default function PencairanPage() {
             />
 
             <Input
-              label="Nominal Pencairan (Rp) *"
+              label="Nominal Pencairan (Rp)"
               type="number"
               placeholder="17500000"
               error={errors.nominal_cair?.message}
@@ -601,14 +601,14 @@ export default function PencairanPage() {
             />
 
             <Input
-              label="Nama Bank Rekening *"
+              label="Nama Bank Rekening"
               placeholder="Misal: Bank Mandiri / BNI"
               error={errors.nama_bank?.message}
               {...register('nama_bank')}
             />
 
             <Input
-              label="Nomor Rekening Tujuan *"
+              label="Nomor Rekening Tujuan"
               placeholder="137000xxxx"
               error={errors.nomor_rekening?.message}
               {...register('nomor_rekening')}

@@ -392,7 +392,7 @@ export default function HkiRegistryPage() {
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
-            label="Judul HKI / Ciptaan / Paten *"
+            label="Judul HKI / Ciptaan / Paten"
             placeholder="Ketik judul HKI atau karya..."
             error={errors.judul_hki?.message}
             {...register('judul_hki')}
@@ -401,7 +401,7 @@ export default function HkiRegistryPage() {
           {/* Grid 2 Kolom per crud-ui-standard */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
-              label="Kategori Kekayaan Intelektual *"
+              label="Kategori Kekayaan Intelektual"
               value={selectedKategori}
               onChange={(val) => setValue('kategori_hki', val as any)}
               options={[
@@ -417,7 +417,7 @@ export default function HkiRegistryPage() {
             />
 
             <Input
-              label="Tahun Registrasi *"
+              label="Tahun Registrasi"
               type="number"
               placeholder="2026"
               error={errors.tahun?.message}

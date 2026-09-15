@@ -248,7 +248,7 @@ export default function CreatePegawaiPage() {
                   control={control}
                   render={({ field }) => (
                     <AsyncSelect
-                      label="Jenis Pegawai / Peran SSO (Dapat Memilih Lebih Dari 1) *"
+                      label="Jenis Pegawai / Peran SSO (Dapat Memilih Lebih Dari 1)"
                       required
                       isMulti
                       placeholder="Cari dan pilih jenis pegawai / role..."

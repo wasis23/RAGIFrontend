@@ -515,7 +515,7 @@ export default function KontrakPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Select
-              label="Pilih Proposal Tahap 3 Disetujui *"
+              label="Pilih Proposal Tahap 3 Disetujui"
               value={selectedPropId}
               onChange={(val) => {
                 const idNum = Number(val);
@@ -540,7 +540,7 @@ export default function KontrakPage() {
             {/* Grid 2 Kolom per crud-ui-standard */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Nomor Surat SPK Kontrak *"
+                label="Nomor Surat SPK Kontrak"
                 placeholder="001/LPPM/SPK/2026"
                 error={errors.nomor_kontrak?.message}
                 {...register('nomor_kontrak')}
@@ -548,7 +548,7 @@ export default function KontrakPage() {
               />
 
               <Input
-                label="Nominal Dana Disetujui (Rp) *"
+                label="Nominal Dana Disetujui (Rp)"
                 type="number"
                 placeholder="25000000"
                 error={errors.nominal_disetujui?.message}
@@ -557,14 +557,14 @@ export default function KontrakPage() {
               />
 
               <Input
-                label="Tanggal Mulai SPK *"
+                label="Tanggal Mulai SPK"
                 type="date"
                 error={errors.tgl_mulai?.message}
                 {...register('tgl_mulai')}
               />
 
               <Input
-                label="Tanggal Selesai SPK *"
+                label="Tanggal Selesai SPK"
                 type="date"
                 error={errors.tgl_selesai?.message}
                 {...register('tgl_selesai')}

@@ -441,7 +441,7 @@ export default function PayrollPage() {
             </div>
 
             <Input
-              label="Pilih Periode Penggajian yang Ingin Diajukan *"
+              label="Pilih Periode Penggajian yang Ingin Diajukan"
               type="month"
               value={periodeSubmit}
               onChange={(e) => setPeriodeSubmit(e.target.value)}
