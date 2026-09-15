@@ -30,7 +30,7 @@ export const feederService = {
    * Trigger sinkronisasi batch berdasarkan entity_type
    */
   triggerSync: async (entity_type: 'mahasiswa' | 'biodata_mahasiswa' | 'riwayat_pendidikan_mahasiswa' | 'dosen' | 'pull_dosen' | 'penugasan_dosen' | 'ajar_dosen' | 'mata_kuliah' | 'kelas'): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post('/v1/siakad/feeder-sync/trigger', { entity_type });
+    const response = await apiClient.post('/v1/siakad/feeder-sync/trigger', { entity_type }, { timeout: 120000 });
     return response.data;
   },
 
