@@ -101,6 +101,17 @@ export const simpegService = {
     return data;
   },
 
+  getDashboardStats: async (): Promise<ApiResponse<{
+    total_pegawai: number;
+    total_dosen: number;
+    total_tendik: number;
+    total_unit_kerja: number;
+    recent_pegawai: Pegawai[];
+  }>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/dashboard-stats');
+    return data;
+  },
+
   getPegawaiDetail: async (id: number): Promise<ApiResponse<Pegawai>> => {
     const { data } = await apiClient.get<ApiResponse<Pegawai>>(`/simpeg/pegawai/${id}`);
     return data;

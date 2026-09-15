@@ -28,6 +28,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Hero } from '@/components/ui/Hero';
 import { StatCard } from '@/components/ui/StatCard';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, UnitKerja, DokumenPegawai, PengajuanCuti, PresensiPegawai, GajiPegawai, UsulanJafung } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
@@ -86,30 +88,22 @@ export default function SimpegDashboardPage() {
     setLoading(true);
     try {
       if (canAccess) {
-        // Load Admin View
-        const [resPegawai, resUnit] = await Promise.all([
-          simpegService.getPegawaiList({ per_page: 100 }),
+        // Load Real-time Admin View
+        const [resStats, resUnit] = await Promise.all([
+          simpegService.getDashboardStats(),
           simpegService.getUnitKerjaList(),
         ]);
 
-        const items: Pegawai[] = Array.isArray(resPegawai.data)
-          ? resPegawai.data
-          : resPegawai.data?.items || (resPegawai as any).data?.data || [];
-
-        setPegawaiList(items.slice(0, 5));
-        const units = resUnit.data || [];
-        setUnitKerjaList(units);
-
-        const realTotal = (resPegawai as any).meta?.total || (resPegawai as any).data?.total || items.length;
-        const dosen = items.filter((p) => p.jenis_pegawai === 'dosen').length;
-        const tendik = items.filter((p) => p.jenis_pegawai === 'tendik').length;
-
-        setStats({
-          totalPegawai: realTotal || items.length,
-          totalDosen: dosen,
-          totalTendik: tendik,
-          totalUnitKerja: units.length,
-        });
+        if (resStats?.data) {
+          setStats({
+            totalPegawai: resStats.data.total_pegawai,
+            totalDosen: resStats.data.total_dosen,
+            totalTendik: resStats.data.total_tendik,
+            totalUnitKerja: resStats.data.total_unit_kerja,
+          });
+          setPegawaiList(resStats.data.recent_pegawai || []);
+        }
+        setUnitKerjaList(resUnit?.data || []);
       } else {
         // Load Personal Dosen View (Anisa / Dosen Ybs)
         const resMe = await simpegService.getPegawaiMe();
@@ -148,6 +142,13 @@ export default function SimpegDashboardPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Auto-refresh interval (setiap 30 detik) untuk sinkronisasi realtime
+    const interval = setInterval(() => {
+      fetchData();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [canAccess]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -567,6 +568,62 @@ export default function SimpegDashboardPage() {
   // -------------------------------------------------------------
   // RENDER ADMIN VIEW (FOR SUPER ADMIN / OPERATOR SDM)
   // -------------------------------------------------------------
+  const recentColumns: ColumnDef<Pegawai>[] = [
+    {
+      key: 'identity',
+      label: 'NIDN / NUPTK / NIP',
+      render: (p) => {
+        const nidn = p.nidn || p.dosen?.nidn;
+        const nuptk = p.nuptk || p.dosen?.nuptk;
+        const identity = nidn || nuptk || p.nip || p.nik || '-';
+        return <span className="font-mono font-bold text-primary-700">{identity}</span>;
+      },
+    },
+    {
+      key: 'nama_lengkap',
+      label: 'Nama Lengkap',
+      render: (p) => (
+        <div>
+          <div className="font-bold text-slate-800">{p.nama_gelar || p.nama_lengkap}</div>
+          <div className="text-xs text-slate-400">{p.telepon || '-'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'jenis_pegawai',
+      label: 'Jenis Pegawai / Role',
+      render: (p) => (
+        <div className="flex flex-wrap gap-1">
+          {p.roles && p.roles.length > 0 ? (
+            p.roles.map((r) => (
+              <Badge key={r.id} variant="purple" className="text-2xs font-semibold">
+                {r.name}
+              </Badge>
+            ))
+          ) : (
+            <Badge variant="blue" className="text-2xs">
+              {p.jenis_pegawai}
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'unit_kerja',
+      label: 'Unit Kerja',
+      render: (p) => <span className="text-sm text-slate-700">{p.unit_kerja?.nama || '-'}</span>,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (p) => (
+        <Badge variant={p.status === 'aktif' ? 'green' : 'gray'} className="capitalize text-xs">
+          {p.status}
+        </Badge>
+      ),
+    },
+  ];
+
   return (
     <div className="animate-fade-in space-y-7">
       <PageHeader
@@ -693,51 +750,12 @@ export default function SimpegDashboardPage() {
           </Link>
         </div>
 
-        {loading ? (
-          <div className="p-8 text-center text-slate-400">
-            Memuat data pegawai...
-          </div>
-        ) : pegawaiList.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">
-            Belum ada data pegawai terdaftar.
-          </div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>NIP / NIK</th>
-                  <th>Nama Lengkap</th>
-                  <th>Jenis Pegawai</th>
-                  <th>Unit Kerja</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pegawaiList.map((p) => (
-                  <tr key={p.id}>
-                    <td className="font-mono font-semibold">{p.nip || p.nik || '-'}</td>
-                    <td>
-                      <div className="font-bold">{p.nama_lengkap}</div>
-                      <div className="text-xs text-slate-400">{p.telepon || '-'}</div>
-                    </td>
-                    <td>
-                      <span className={`badge ${p.jenis_pegawai === 'dosen' ? 'badge-green' : 'badge-cyan'}`}>
-                        {p.jenis_pegawai}
-                      </span>
-                    </td>
-                    <td>{p.unit_kerja?.nama || 'Rektorat'}</td>
-                    <td>
-                      <span className="badge badge-green capitalize">
-                        {p.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={recentColumns}
+          data={pegawaiList}
+          isLoading={loading}
+          emptyMessage="Belum ada data pegawai terdaftar."
+        />
       </div>
     </div>
   );
