@@ -19,6 +19,8 @@ import type { UnitKerja } from '@/types/simpeg.types';
 const pegawaiSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
   email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
+  nidn: z.string().optional().nullable(),
+  nuptk: z.string().optional().nullable(),
   nip: z.string().optional().nullable(),
   nik: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
@@ -56,6 +58,8 @@ export default function CreatePegawaiPage() {
     defaultValues: {
       nama_lengkap: '',
       email: '',
+      nidn: '',
+      nuptk: '',
       nip: '',
       nik: '',
       unit_kerja_id: '',
@@ -151,6 +155,8 @@ export default function CreatePegawaiPage() {
     try {
       const payload: any = {
         unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : null,
+        nidn: values.nidn || null,
+        nuptk: values.nuptk || null,
         nip: values.nip || null,
         nik: values.nik || null,
         nama_lengkap: values.nama_lengkap,
@@ -226,6 +232,20 @@ export default function CreatePegawaiPage() {
                 placeholder="Contoh: nama@campus.ac.id"
                 error={errors.email?.message}
                 {...register('email')}
+              />
+
+              <Input
+                label="NIDN (Nomor Induk Dosen Nasional)"
+                placeholder="Contoh: 0415018501"
+                error={errors.nidn?.message}
+                {...register('nidn')}
+              />
+
+              <Input
+                label="NUPTK (Nomor Pendidik & Tenaga Kependidikan)"
+                placeholder="Contoh: 3560763664230001"
+                error={errors.nuptk?.message}
+                {...register('nuptk')}
               />
 
               <Input

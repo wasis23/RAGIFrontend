@@ -18,6 +18,8 @@ import type { UnitKerja } from '@/types/simpeg.types';
 
 const pegawaiSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
+  nidn: z.string().optional().nullable(),
+  nuptk: z.string().optional().nullable(),
   nip: z.string().optional().nullable(),
   nik: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
@@ -172,6 +174,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
 
           const formVals: PegawaiFormValues = {
             unit_kerja_id: peg.unit_kerja_id ? String(peg.unit_kerja_id) : '',
+            nidn: peg.nidn || '',
+            nuptk: peg.nuptk || '',
             nip: peg.nip || '',
             nik: peg.nik || '',
             nama_lengkap: peg.nama_lengkap || '',
@@ -223,6 +227,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
     try {
       const payload = {
         unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : null,
+        nidn: values.nidn || null,
+        nuptk: values.nuptk || null,
         nip: values.nip || null,
         nik: values.nik || null,
         nama_lengkap: values.nama_lengkap,
@@ -301,6 +307,20 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 placeholder="Ketik Nama Lengkap & Gelar..."
                 error={errors.nama_lengkap?.message}
                 {...register('nama_lengkap')}
+              />
+
+              <Input
+                label="NIDN (Nomor Induk Dosen Nasional)"
+                placeholder="Ketik NIDN dosen..."
+                error={errors.nidn?.message}
+                {...register('nidn')}
+              />
+
+              <Input
+                label="NUPTK (Nomor Pendidik & Tenaga Kependidikan)"
+                placeholder="Ketik NUPTK..."
+                error={errors.nuptk?.message}
+                {...register('nuptk')}
               />
 
               <Input
