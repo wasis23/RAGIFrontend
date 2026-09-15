@@ -1,53 +1,58 @@
 #!/bin/bash
+#
+# Audit 1/8: Zero Hardcode & RBAC (deterministik, tanpa AI).
+# Memeriksa baris baru (+) pada tsx/ts yang di-stage terhadap:
+#  1. Opsi dropdown statis HURUF KAPITAL (mis. value: 'REGULER').
+#     Pengecualian: boolean, placeholder 'Semua ...', opsi struktural lowercase.
+#  2. Akses user_type / userType statis.
+#  3. Perbandingan string nama modul/role dalam logika (==, ===, !=, !==).
+#
+# Cakupan: app/, components/, lib/, hooks/.
 
-echo "🤖 [Audit 1/7: Zero Hardcode & RBAC] Memeriksa staged changes..."
+echo "🤖 [Audit 1/8: Zero Hardcode & RBAC] Memeriksa staged changes..."
 
-STAGED_DIFF=$(git diff --cached)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "app/**/*.tsx" "app/*.tsx" "app/**/*.ts" "app/*.ts" "components/**/*.tsx" "components/*.tsx" "lib/*.ts" "hooks/*.ts")
 
-if [ -z "$STAGED_DIFF" ]; then
+if [ -z "$STAGED_FILES" ]; then
+    echo "ℹ️ [Audit Zero Hardcode & RBAC] Tidak ada file frontend yang di-stage. Skip."
     exit 0
 fi
 
-PROMPT_FILE=$(mktemp)
+FAILED=0
 
-cat << 'EOF' > "$PROMPT_FILE"
-Kamu adalah Code Auditor khusus Zero Hardcode & RBAC.
-Periksa Git Diff berikut HANYA terhadap aturan Zero Hardcode & RBAC Policy:
+while IFS= read -r file; do
+    ADDED=$(git diff --cached -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
+    [ -z "$ADDED" ] && continue
 
-Aturan:
-1. DILARANG KERAS ADA HARDCODE string atau array literal untuk opsi/pilihan data MASTER (misalnya wilayah, program studi, jenis pendaftaran). Semua data referensi WAJIB diambil secara dinamis (fetch dari API) yang merujuk pada tabel master di database. PENGECUALIAN: Untuk data struktural berjenis boolean (Aktif/Nonaktif, Wajib/Opsional) atau placeholder UI (seperti 'Semua Jalur', 'Semua Status'), DIPERBOLEHKAN menggunakan array/string literal statis pada properti options.
-2. DILARANG ADA HARDCODE string nama modul/role (seperti 'spmb', 'sikeu', 'admin', 'mahasiswa') dalam pengujian logika IF/ELSE atau perbandingan statis.
-3. DILARANG menggunakan properti statis user.user_type atau user_type.
-4. Seluruh otorisasi dan relasi WAJIB berbasis ID entitas atau hook RBAC (seperti hasRole / hasPermission).
+    # 1. Nilai opsi statis huruf kapital.
+    CAPS_HIT=$(echo "$ADDED" | grep -nP "value:\s*['\"][A-Z0-9_]{2,}['\"]" | head -n 3)
+    if [ -n "$CAPS_HIT" ]; then
+        echo "❌ [Audit Zero Hardcode] Opsi dropdown statis (huruf kapital) di $file:"
+        echo "$CAPS_HIT" | sed 's/^/    /'
+        echo "   💡 Opsi master WAJIB diambil dinamis dari API tabel referensi (AsyncSelect), bukan array literal."
+        FAILED=1
+    fi
 
-Git Diff:
-EOF
+    # 2. Akses user_type statis.
+    USERTYPE_HIT=$(echo "$ADDED" | grep -nP '\buser_type\b|\buserType\b' | head -n 3)
+    if [ -n "$USERTYPE_HIT" ]; then
+        echo "❌ [Audit Zero Hardcode] Akses user_type statis di $file:"
+        echo "$USERTYPE_HIT" | sed 's/^/    /'
+        echo "   💡 Otorisasi WAJIB via hook RBAC (hasRole/hasPermission), bukan user_type."
+        FAILED=1
+    fi
 
-echo '```diff' >> "$PROMPT_FILE"
-echo "$STAGED_DIFF" >> "$PROMPT_FILE"
-echo '```' >> "$PROMPT_FILE"
+    # 3. Perbandingan nama modul/role dalam logika.
+    SLUG_HIT=$(echo "$ADDED" | grep -nP '(==|===|!=|!==)' | grep -P "'(spmb|sikeu|siakad|simpeg|sinapra|sippm|lms|upm|admin|superadmin|mahasiswa|dosen|tendik|calon_mhs)'" | head -n 3)
+    if [ -n "$SLUG_HIT" ]; then
+        echo "❌ [Audit Zero Hardcode] Hardcode nama modul/role dalam logika di $file:"
+        echo "$SLUG_HIT" | sed 's/^/    /'
+        echo "   💡 Relasi/filter WAJIB memakai referensi ID entitas dari database."
+        FAILED=1
+    fi
+done <<< "$STAGED_FILES"
 
-cat << 'EOF' >> "$PROMPT_FILE"
-PENTING: Jawab HANYA secara langsung tanpa memanggil tool atau membaca file.
-Jawab HANYA salah satu:
-- PASSED jika kode bersih dari hardcode dan sesuai RBAC.
-- REJECTED: [detail alasan pelanggaran] jika ditemukan hardcode/pelanggaran RBAC.
-EOF
-
-if command -v opencode &> /dev/null; then
-    RESULT=$(timeout 25s opencode run -m opencode/muse-spark-1.3-contributor-free "$(cat "$PROMPT_FILE")" 2>&1)
-    AI_EXIT_CODE=$?
-elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 15s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
-    AI_EXIT_CODE=$?
-else
-    AI_EXIT_CODE=127
-fi
-rm -f "$PROMPT_FILE"
-
-if echo "$RESULT" | grep -qi "REJECTED"; then
-    echo "❌ [Audit Zero Hardcode & RBAC] REJECTED!"
-    echo "$RESULT" | grep -i "REJECTED"
+if [ $FAILED -ne 0 ]; then
     exit 1
 else
     echo "✅ [Audit Zero Hardcode & RBAC] PASSED."

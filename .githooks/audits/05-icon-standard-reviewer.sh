@@ -1,57 +1,42 @@
 #!/bin/bash
+#
+# Audit 5/8: Icon Standard (deterministik, tanpa AI).
+#  - REJECT: tag <svg> mentah inline di komponen/halaman.
+#  - REJECT: ikon FontAwesome (fa-*) atau paket ikon non-standar.
 
-echo "🤖 [Audit 5/7: Icon Standard] Memeriksa staged changes..."
+echo "🤖 [Audit 5/8: Icon Standard] Memeriksa staged changes..."
 
-# Cek apakah ada file komponen/halaman yang di-stage
-STAGED_DIFF=$(git diff --cached -- "app/**" "components/**")
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "app/**/*.tsx" "components/**/*.tsx")
 
-if [ -z "$STAGED_DIFF" ]; then
+if [ -z "$STAGED_FILES" ]; then
     echo "ℹ️ [Audit Icon Standard] Tidak ada perubahan komponen/halaman yang di-stage. Skip."
     exit 0
 fi
 
-PROMPT_FILE=$(mktemp)
+FAILED=0
 
-cat << 'EOF' > "$PROMPT_FILE"
-Kamu adalah Code Auditor khusus Icon Standard.
-Periksa Git Diff berikut HANYA terhadap Aturan Penggunaan Ikon:
+while IFS= read -r file; do
+    ADDED=$(git diff --cached -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
+    [ -z "$ADDED" ] && continue
 
-Aturan Penggunaan Ikon:
-1. MANDATORY LUCIDE-REACT:
-   - Seluruh ikon visual WAJIB meng-import dan menggunakan pustaka `lucide-react` (seperti `<Plus size={16} />`, `<Trash2 size={16} />`, `<Filter size={16} />`, dsb.).
+    SVG_HIT=$(echo "$ADDED" | grep -nP '<svg[\s>]' | head -n 3)
+    if [ -n "$SVG_HIT" ]; then
+        echo "❌ [Audit Icon Standard] Tag <svg> mentah di $file:"
+        echo "$SVG_HIT" | sed 's/^/    /'
+        echo "   💡 Seluruh ikon WAJIB memakai lucide-react (pengecualian hanya logo custom di public/icons/)."
+        FAILED=1
+    fi
 
-2. DILARANG SVG MENTAH INLINE & ICON THIRD-PARTY NON-STANDAR:
-   - DILARANG KERAS menyisipkan tag `<svg>` mentah inline dengan `<path>` panjang di file komponen jika ikon sudah tersedia di `lucide-react`.
-   - DILARANG KERAS menggunakan `<i className="fa ...">` (FontAwesome legacy) atau meng-import pustaka ikon pihak ketiga lainnya.
+    FA_HIT=$(echo "$ADDED" | grep -nP 'fa-[a-z-]+|font-?awesome' | head -n 3)
+    if [ -n "$FA_HIT" ]; then
+        echo "❌ [Audit Icon Standard] Ikon non-standar (FontAwesome) di $file:"
+        echo "$FA_HIT" | sed 's/^/    /'
+        echo "   💡 DILARANG <i className=\"fa ...\"> atau paket ikon pihak ketiga. Pakai lucide-react."
+        FAILED=1
+    fi
+done <<< "$STAGED_FILES"
 
-Git Diff yang di-stage:
-EOF
-
-echo '```diff' >> "$PROMPT_FILE"
-echo "$STAGED_DIFF" >> "$PROMPT_FILE"
-echo '```' >> "$PROMPT_FILE"
-
-cat << 'EOF' >> "$PROMPT_FILE"
-PENTING: Jawab HANYA secara langsung tanpa memanggil tool atau membaca file.
-Jawab HANYA salah satu:
-- PASSED jika kode bersih dan memenuhi Icon Standard.
-- REJECTED: [detail alasan pelanggaran] jika ditemukan penggunaan ikon non-standar / SVG mentah.
-EOF
-
-if command -v opencode &> /dev/null; then
-    RESULT=$(timeout 25s opencode run -m opencode/muse-spark-1.3-contributor-free "$(cat "$PROMPT_FILE")" 2>&1)
-    AI_EXIT_CODE=$?
-elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 15s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
-    AI_EXIT_CODE=$?
-else
-    AI_EXIT_CODE=127
-fi
-rm -f "$PROMPT_FILE"
-
-if echo "$RESULT" | grep -qi "REJECTED"; then
-    echo "❌ [Audit Icon Standard] REJECTED!"
-    echo "$RESULT" | grep -i "REJECTED"
+if [ $FAILED -ne 0 ]; then
     exit 1
 else
     echo "✅ [Audit Icon Standard] PASSED."
