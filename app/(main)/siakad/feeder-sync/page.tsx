@@ -395,8 +395,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">NIK, NISN, Ibu Kandung, Alamat</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">InsertBiodataMahasiswa</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end">
                   <Button
                     variant="primary"
                     className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white"
@@ -419,8 +418,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">NIM, Prodi, Jalur Masuk, SKS Transfer</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">InsertRiwayatPendidikan</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end">
                   <Button
                     variant="primary"
                     className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -443,8 +441,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Biodata + Riwayat Pendidikan sekaligus</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">Orkestrasi: All</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end">
                   <Button
                     variant="primary"
                     className="text-xs font-bold"
@@ -484,9 +481,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">PULL & cocokkan NIDN dari PDDikti</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">GetListDosen</span>
-                  <div className="flex items-center gap-2">
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                     <Button
                       variant="outline"
                       className="text-xs font-bold"
@@ -503,7 +498,6 @@ export default function FeederSyncPage() {
                     >
                       {syncingEntity === 'pull_dosen' ? 'Menarik...' : 'Tarik Feeder →'}
                     </Button>
-                  </div>
                 </div>
               </div>
 
@@ -521,8 +515,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">id_registrasi_dosen per Prodi & TA aktif</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">GetListPenugasanDosen</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end">
                   <Button
                     variant="primary"
                     className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white border-none"
@@ -548,8 +541,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Kirim pengajar ke kelas (16 pertemuan)</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">InsertDosenPengajarKelas</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end">
                   <Button
                     variant="primary"
                     className="text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white border-none"
@@ -586,8 +578,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Kode MK, total SKS tatap muka & praktek</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_mata_kuliah</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end">
                   <Button
                     variant="primary"
                     className="text-xs font-bold"
@@ -610,8 +601,7 @@ export default function FeederSyncPage() {
                     <p className="text-2xs text-slate-500">Kelas aktif, KRS mahasiswa & nilai semester</p>
                   </div>
                 </div>
-                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-2xs text-slate-400 font-semibold font-mono">Tabel: siakad_kelas</span>
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-end">
                   <Button
                     variant="primary"
                     className="text-xs font-bold"
