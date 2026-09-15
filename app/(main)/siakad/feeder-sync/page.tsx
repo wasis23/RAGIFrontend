@@ -365,7 +365,7 @@ export default function FeederSyncPage() {
               type="button"
               variant="secondary"
               size="sm"
-              onClick={() => router.push('/iam/settings')}
+              onClick={() => router.push('/admin/settings')}
               className="w-full sm:w-auto shrink-0"
             >
               Buka IAM Settings
