@@ -244,12 +244,20 @@ export default function PegawaiPage() {
   const columns: ColumnDef<Pegawai>[] = [
     {
       key: 'nip',
-      label: 'NIP / Identitas',
-      render: (peg) => (
-        <span className="font-mono font-bold text-primary-600">
-          {peg.nip || peg.nik || `ID-${peg.id}`}
-        </span>
-      ),
+      label: 'NIP / NIDN',
+      render: (peg) => {
+        const nidn = peg.nidn || peg.dosen?.nidn;
+        return (
+          <div>
+            <span className="font-mono font-bold text-primary-600 block">
+              {nidn || peg.nip || peg.nik || `ID-${peg.id}`}
+            </span>
+            {peg.nip && nidn && peg.nip !== nidn && (
+              <span className="text-2xs text-slate-400 font-mono block">NIP: {peg.nip}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'nama_lengkap',

@@ -54,7 +54,9 @@ export interface Pegawai {
   user_id?: number | null;
   unit_kerja_id?: number | null;
   nip?: string | null;
+  nidn?: string | null;
   nik?: string | null;
+  dosen?: { id: number; nidn?: string | null; nuptk?: string | null; } | null;
   nama_lengkap: string;
   tanggal_lahir?: string | null;
   tempat_lahir?: string | null;
