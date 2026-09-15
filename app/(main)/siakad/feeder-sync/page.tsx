@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
@@ -26,16 +26,11 @@ import {
 } from 'lucide-react';
 
 export default function FeederSyncPage() {
-  const [activeTab, setActiveTab] = useState<'sync' | 'config' | 'mappings' | 'logs'>('sync');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'sync' | 'mappings' | 'logs'>('sync');
   const [isLoading, setIsLoading] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<string | null>(null);
-
-  // Config state
-  const [configForm, setConfigForm] = useState({
-    url: 'http://localhost:8100/ws/live2.php',
-    username: 'admin_siakad',
-    password: '',
-  });
+  const [tokenStaging, setTokenStaging] = useState(false);
 
   // Mappings & Logs state
   const [mappings, setMappings] = useState<any[]>([]);
@@ -56,8 +51,14 @@ export default function FeederSyncPage() {
     try {
       const res = await feederService.getToken();
       if (res?.data?.token) {
+        const isStaging = res.data.is_staging === true;
         setTokenInfo(res.data.token);
-        toast.success('Berhasil terhubung ke Neo Feeder / Staging');
+        setTokenStaging(isStaging);
+        if (isStaging) {
+          toast(res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
+        } else {
+          toast.success('Berhasil terhubung ke Neo Feeder / Staging');
+        }
       } else {
         toast.error(res?.message || 'Token tidak ditemukan');
       }
@@ -66,19 +67,6 @@ export default function FeederSyncPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const fetchConfig = async () => {
-    try {
-      const res = await feederService.getConfig();
-      if (res.data) {
-        setConfigForm({
-          url: res.data.url,
-          username: res.data.username,
-          password: '',
-        });
-      }
-    } catch (err) {}
   };
 
   const fetchLogsAndMappings = async () => {
@@ -95,26 +83,11 @@ export default function FeederSyncPage() {
 
   useEffect(() => {
     checkToken();
-    fetchConfig();
   }, []);
 
   useEffect(() => {
     fetchLogsAndMappings();
   }, [activeTab, appliedMappingFilters]);
-
-  const handleSaveConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsLoading(true);
-      await feederService.saveConfig(configForm);
-      toast.success('Konfigurasi Neo Feeder berhasil disimpan');
-      checkToken();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan konfigurasi');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleTriggerSync = async (entity: 'mahasiswa' | 'biodata_mahasiswa' | 'riwayat_pendidikan_mahasiswa' | 'dosen' | 'mata_kuliah' | 'kelas' | 'penugasan_dosen') => {
     try {
@@ -335,18 +308,6 @@ export default function FeederSyncPage() {
           <History size={16} />
           Riwayat Log Sync
         </button>
-
-        <button
-          onClick={() => setActiveTab('config')}
-          className={`flex items-center gap-2 px-5 py-3 text-xs font-bold border-b-2 transition -mb-px cursor-pointer ${
-            activeTab === 'config'
-              ? 'border-primary-600 text-primary-600 bg-primary-50/50 rounded-t-xl'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
-          }`}
-        >
-          <Settings size={16} />
-          Konfigurasi Kredensial
-        </button>
       </div>
 
       {/* Tab 1: Sync Operations */}
@@ -357,7 +318,11 @@ export default function FeederSyncPage() {
             <div className="flex items-center gap-3">
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  tokenInfo ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                  tokenInfo
+                    ? tokenStaging
+                      ? 'bg-amber-50 text-amber-600'
+                      : 'bg-emerald-50 text-emerald-600'
+                    : 'bg-rose-50 text-rose-600'
                 }`}
               >
                 {tokenInfo ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
@@ -367,13 +332,44 @@ export default function FeederSyncPage() {
                   Status Koneksi Feeder / Staging
                 </p>
                 <p className="font-mono text-xs font-bold text-slate-900 mt-0.5 break-all">
-                  {tokenInfo ? `Token Aktif: ${tokenInfo}` : 'Koneksi belum terverifikasi'}
+                  {tokenInfo
+                    ? `${tokenStaging ? 'Mode Staging' : 'Token Aktif'}: ${tokenInfo}`
+                    : 'Koneksi belum terverifikasi'}
+                </p>
+                {tokenInfo && tokenStaging && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    WS Feeder tidak terjangkau. Data ditampung secara lokal (staging).
+                  </p>
+                )}
+              </div>
+            </div>
+            <Badge variant={tokenInfo ? (tokenStaging ? 'amber' : 'green') : 'rose'}>
+              {tokenInfo ? (tokenStaging ? 'STAGING' : 'TERHUBUNG') : 'OFFLINE'}
+            </Badge>
+          </div>
+
+          {/* Notice: kredensial dikelola di IAM */}
+          <div className="card p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between bg-slate-50 border border-slate-200">
+            <div className="flex items-start gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
+                <Settings size={18} />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-slate-900">Kredensial Neo Feeder</h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  URL, username, dan password WS Feeder kini dikelola terpusat di IAM → Pengaturan Sistem.
                 </p>
               </div>
             </div>
-            <Badge variant={tokenInfo ? 'green' : 'rose'}>
-              {tokenInfo ? 'TERHUBUNG' : 'OFFLINE'}
-            </Badge>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push('/iam/settings')}
+              className="w-full sm:w-auto shrink-0"
+            >
+              Buka IAM Settings
+            </Button>
           </div>
 
           {/* Sync Action Cards Grid */}
@@ -581,50 +577,6 @@ export default function FeederSyncPage() {
           isLoading={isLoading}
           emptyMessage="Belum ada riwayat log sinkronisasi Neo Feeder."
         />
-      )}
-
-      {/* Tab 4: Configuration */}
-      {activeTab === 'config' && (
-        <div className="card p-6 max-w-2xl space-y-4">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900">Pengaturan Kredensial Neo Feeder</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Konfigurasikan URL endpoint Web Service (WS) Neo Feeder PDDIKTI kampus Anda.
-            </p>
-          </div>
-
-          <form onSubmit={handleSaveConfig} className="space-y-4 pt-2">
-            <Input
-              label="URL Web Service Feeder (ws/live2.php atau sandbox) *"
-              required
-              value={configForm.url}
-              onChange={(e) => setConfigForm({ ...configForm, url: e.target.value })}
-              placeholder="http://localhost:8100/ws/live2.php"
-            />
-
-            <Input
-              label="Username / Kode PT Feeder *"
-              required
-              value={configForm.username}
-              onChange={(e) => setConfigForm({ ...configForm, username: e.target.value })}
-              placeholder="admin_siakad"
-            />
-
-            <Input
-              label="Password Feeder (Kosongkan jika tidak ingin mengubah)"
-              type="password"
-              value={configForm.password}
-              onChange={(e) => setConfigForm({ ...configForm, password: e.target.value })}
-              placeholder="••••••••"
-            />
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
-              <Button type="submit" variant="primary" disabled={isLoading}>
-                {isLoading ? 'Menyimpan...' : 'Simpan Konfigurasi'}
-              </Button>
-            </div>
-          </form>
-        </div>
       )}
 
       {/* Filter Drawer for Mappings */}

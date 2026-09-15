@@ -25,9 +25,11 @@ import {
   Send,
   Eye,
   EyeOff,
+  Database,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/axios';
+import { feederService } from '@/services/feeder.service';
 
 const SCHEME_OPTIONS: SelectOption[] = [
   { value: 'smtps', label: 'SSL / SMTPS (Port 465)' },
@@ -51,9 +53,22 @@ const settingsSchema = z.object({
     .min(1, 'Alamat email pengirim wajib diisi')
     .email('Format email pengirim tidak valid'),
   mail_from_name: z.string().min(1, 'Nama pengirim wajib diisi'),
+  restricted_role_ids: z.array(z.number().int().positive()),
+  feeder_url: z
+    .string()
+    .min(1, 'URL WS Feeder wajib diisi')
+    .url('Format URL WS Feeder tidak valid'),
+  feeder_username: z.string().min(1, 'Username Feeder wajib diisi'),
+  feeder_password: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
+
+const testSmtpEmailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Email penerima uji coba wajib diisi')
+  .email('Format email penerima uji coba tidak valid');
 
 const defaultValues: SettingsFormValues = {
   default_register_role: 'calon_mhs',
@@ -68,6 +83,10 @@ const defaultValues: SettingsFormValues = {
   mail_password: '',
   mail_from_address: '',
   mail_from_name: 'Sistem Terintegrasi Kampus',
+  restricted_role_ids: [],
+  feeder_url: 'http://localhost:8100/ws/live2.php',
+  feeder_username: 'admin_siakad',
+  feeder_password: '',
 };
 
 export default function SystemSettingsPage() {
@@ -76,7 +95,12 @@ export default function SystemSettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  const [testEmailError, setTestEmailError] = useState<string | undefined>(undefined);
   const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+  const [showFeederPassword, setShowFeederPassword] = useState(false);
+  const [isTestingFeeder, setIsTestingFeeder] = useState(false);
+  const [feederTokenInfo, setFeederTokenInfo] = useState<string | null>(null);
+  const [feederTokenStaging, setFeederTokenStaging] = useState(false);
 
   const {
     register,
@@ -100,6 +124,31 @@ export default function SystemSettingsPage() {
         value: r.slug,
         label: `${r.name} (${r.slug})`,
       }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadRoleIdOptions = async (query: string) => {
+    try {
+      const res = await apiClient.get('/admin/roles', {
+        params: { search: query, limit: 50 },
+      });
+      const rawRoles = res.data?.data?.data || res.data?.data || [];
+      return (Array.isArray(rawRoles) ? rawRoles : []).map((r: any) => ({
+        value: r.id,
+        label: `${r.name} (${r.slug})`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const parseRestrictedRoleIds = (raw: unknown): number[] => {
+    try {
+      const parsed = JSON.parse((raw as string) ?? '[]');
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((id) => Number.isInteger(id) && (id as number) > 0);
     } catch {
       return [];
     }
@@ -132,6 +181,10 @@ export default function SystemSettingsPage() {
         mail_from_address:
           settingsData?.mail_from_address?.value ?? defaultValues.mail_from_address,
         mail_from_name: settingsData?.mail_from_name?.value ?? defaultValues.mail_from_name,
+        restricted_role_ids: parseRestrictedRoleIds(settingsData?.restricted_role_ids?.value),
+        feeder_url: settingsData?.feeder_url?.value ?? defaultValues.feeder_url,
+        feeder_username: settingsData?.feeder_username?.value ?? defaultValues.feeder_username,
+        feeder_password: settingsData?.feeder_password?.value ?? defaultValues.feeder_password,
       };
 
       reset(loadedValues);
@@ -164,6 +217,10 @@ export default function SystemSettingsPage() {
           { key: 'mail_password', value: data.mail_password || '' },
           { key: 'mail_from_address', value: data.mail_from_address },
           { key: 'mail_from_name', value: data.mail_from_name },
+          { key: 'restricted_role_ids', value: JSON.stringify(data.restricted_role_ids ?? []) },
+          { key: 'feeder_url', value: data.feeder_url },
+          { key: 'feeder_username', value: data.feeder_username },
+          { key: 'feeder_password', value: data.feeder_password || '' },
         ],
       });
       reset(data);
@@ -178,15 +235,20 @@ export default function SystemSettingsPage() {
   };
 
   const handleTestSmtp = async () => {
-    if (!testEmail || !testEmail.includes('@')) {
-      toast.error('Masukkan alamat email tujuan uji coba yang valid.');
+    const parsed = testSmtpEmailSchema.safeParse(testEmail);
+    if (!parsed.success) {
+      const msg =
+        parsed.error.issues[0]?.message || 'Masukkan alamat email tujuan uji coba yang valid.';
+      setTestEmailError(msg);
+      toast.error(msg);
       return;
     }
+    setTestEmailError(undefined);
     setIsTestingSmtp(true);
     const formVals = getValues();
     try {
       const res = await apiClient.post('/admin/system-settings/test-smtp', {
-        email: testEmail,
+        email: parsed.data,
         mail_host: formVals.mail_host,
         mail_port: formVals.mail_port,
         mail_scheme: formVals.mail_scheme,
@@ -203,6 +265,31 @@ export default function SystemSettingsPage() {
       toast.error(msg);
     } finally {
       setIsTestingSmtp(false);
+    }
+  };
+
+  const handleTestFeeder = async () => {
+    setIsTestingFeeder(true);
+    setFeederTokenInfo(null);
+    setFeederTokenStaging(false);
+    try {
+      const res = await feederService.getToken();
+      if (res?.data?.token) {
+        const isStaging = res.data.is_staging === true;
+        setFeederTokenInfo(res.data.token);
+        setFeederTokenStaging(isStaging);
+        if (isStaging) {
+          toast(res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
+        } else {
+          toast.success('Berhasil terhubung ke Neo Feeder.');
+        }
+      } else {
+        toast.error(res?.message || 'Token Feeder tidak ditemukan.');
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal terhubung ke Neo Feeder.');
+    } finally {
+      setIsTestingFeeder(false);
     }
   };
 
@@ -317,26 +404,28 @@ export default function SystemSettingsPage() {
                     </div>
 
                     {/* Sub-Card: Test SMTP Connection */}
-                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 dark:bg-slate-800/40 dark:border-slate-700 space-y-3">
+                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
                       <div className="flex items-center gap-2">
                         <Mail size={16} className="text-amber-600" />
-                        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        <h3 className="text-sm font-semibold text-slate-800">
                           Uji Coba Pengiriman Email (Test SMTP)
                         </h3>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-slate-500">
                         Kirim email percobaan untuk memastikan pengaturan host, port, dan kredensial di atas berfungsi dengan normal sebelum disimpan.
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-                        <div className="flex-1">
-                          <Input
-                            label="Email Penerima Uji Coba"
-                            type="email"
-                            value={testEmail}
-                            onChange={(e) => setTestEmail(e.target.value)}
-                            placeholder="nama-anda@domain.com"
-                          />
-                        </div>
+                      <div className="space-y-3">
+                        <Input
+                          label="Email Penerima Uji Coba"
+                          type="email"
+                          value={testEmail}
+                          onChange={(e) => {
+                            setTestEmail(e.target.value);
+                            if (testEmailError) setTestEmailError(undefined);
+                          }}
+                          placeholder="nama-anda@domain.com"
+                          error={testEmailError}
+                        />
                         <Button
                           type="button"
                           variant="secondary"
@@ -344,7 +433,7 @@ export default function SystemSettingsPage() {
                           onClick={handleTestSmtp}
                           loading={isTestingSmtp}
                           icon={<Send size={15} />}
-                          className="shrink-0 mb-0.5"
+                          className="w-full sm:w-auto"
                         >
                           {isTestingSmtp ? 'Mengirim...' : 'Kirim Email Uji Coba'}
                         </Button>
@@ -441,7 +530,142 @@ export default function SystemSettingsPage() {
               </div>
             </div>
 
-            {/* Section 4: Google Workspace */}
+            {/* Section 4: Restriksi Role Tampil */}
+            <div className="settings-section-card card">
+              <div className="settings-section-header">
+                <div className="settings-section-icon bg-rose-100 text-rose-700">
+                  <EyeOff size={18} />
+                </div>
+                <div className="settings-section-title-group">
+                  <h2 className="settings-section-title">Restriksi Role Tampil</h2>
+                  <p className="settings-section-desc">
+                    Pilih Role yang disembunyikan dari daftar roles (GET /admin/roles) untuk pengguna tanpa izin kelola roles di semua modul, kecuali modul IAM.
+                  </p>
+                </div>
+              </div>
+
+              <div className="settings-section-divider" />
+
+              <div className="settings-section-body">
+                {isLoading ? (
+                  <div className="settings-loading">
+                    <Loader2 size={20} className="animate-spin text-slate-400" />
+                    <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                  </div>
+                ) : (
+                  <Controller
+                    name="restricted_role_ids"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Restricted Roles"
+                        loadOptions={loadRoleIdOptions}
+                        defaultOptions
+                        isMulti
+                        isClearable
+                        value={field.value ?? []}
+                        onChange={(selected: any) =>
+                          field.onChange((Array.isArray(selected) ? selected : []).map((opt: any) => opt.value))
+                        }
+                        placeholder="Pilih role yang disembunyikan..."
+                        error={errors.restricted_role_ids?.message}
+                        hint="Pengelola IAM (pemegang izin kelola roles) tetap melihat semua roles. Role lain yang tidak dipilih tetap tampil normal."
+                      />
+                    )}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Section 5: Koneksi Neo Feeder PDDikti */}
+            <div className="settings-section-card card">
+              <div className="settings-section-header">
+                <div className="settings-section-icon bg-emerald-100 text-emerald-700">
+                  <Database size={18} />
+                </div>
+                <div className="settings-section-title-group">
+                  <h2 className="settings-section-title">Koneksi Neo Feeder PDDikti</h2>
+                  <p className="settings-section-desc">
+                    Kredensial URL endpoint Web Service (WS) Neo Feeder untuk sinkronisasi data SIAKAD ke PDDikti.
+                  </p>
+                </div>
+              </div>
+
+              <div className="settings-section-divider" />
+
+              <div className="settings-section-body space-y-4">
+                {isLoading ? (
+                  <div className="settings-loading">
+                    <Loader2 size={20} className="animate-spin text-slate-400" />
+                    <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      label="URL Web Service Feeder"
+                      placeholder="http://localhost:8100/ws/live2.php"
+                      error={errors.feeder_url?.message}
+                      hint="Alamat endpoint ws/live2.php atau sandbox Feeder."
+                      {...register('feeder_url')}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="Username / Kode PT Feeder"
+                        placeholder="admin_siakad"
+                        error={errors.feeder_username?.message}
+                        hint="Username atau kode perguruan tinggi Feeder."
+                        {...register('feeder_username')}
+                      />
+                      <Input
+                        label="Password Feeder"
+                        type={showFeederPassword ? 'text' : 'password'}
+                        placeholder="••••••••••••••••"
+                        suffixIcon={showFeederPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        onSuffixClick={() => setShowFeederPassword(!showFeederPassword)}
+                        error={errors.feeder_password?.message}
+                        hint="Password akun WS Feeder kampus."
+                        {...register('feeder_password')}
+                      />
+                    </div>
+
+                    {/* Sub-Card: Test Koneksi Feeder */}
+                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Database size={16} className="text-emerald-600" />
+                        <h3 className="text-sm font-semibold text-slate-800">
+                          Uji Koneksi Neo Feeder
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Simpan konfigurasi di bawah terlebih dahulu, lalu uji koneksi untuk memastikan URL dan kredensial di atas berfungsi.
+                      </p>
+                      <div className="space-y-3">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="md"
+                          onClick={handleTestFeeder}
+                          loading={isTestingFeeder}
+                          icon={<Send size={15} />}
+                          className="w-full sm:w-auto"
+                        >
+                          {isTestingFeeder ? 'Menghubungkan...' : 'Tes Koneksi Feeder'}
+                        </Button>
+                        {feederTokenInfo && (
+                          <p className={`font-mono text-xs font-bold break-all ${feederTokenStaging ? 'text-amber-700' : 'text-emerald-700'}`}>
+                            {feederTokenStaging
+                              ? `Mode Staging (WS tidak terjangkau): ${feederTokenInfo}`
+                              : `Token Aktif: ${feederTokenInfo}`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Section 6: Google Workspace */}
             <div className="settings-section-card card">
               <div className="settings-section-header">
                 <div className="settings-section-icon bg-green-100 text-green-700">
@@ -557,16 +781,26 @@ export default function SystemSettingsPage() {
                   <ShieldCheck size={14} className="text-indigo-600 shrink-0 mt-0.5" />
                   <span><strong>Superadmin Role:</strong> Role yang dikonfigurasi sebagai pemegang akses penuh tanpa batas ke seluruh modul sistem.</span>
                 </div>
+                <div className="flex items-start gap-2">
+                  <EyeOff size={14} className="text-rose-600 shrink-0 mt-0.5" />
+                  <span><strong>Restriksi Role:</strong> Role terpilih disembunyikan dari daftar roles di luar modul IAM.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Database size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span><strong>Neo Feeder:</strong> Kredensial WS PDDikti untuk sinkronisasi data SIAKAD.</span>
+                </div>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={fetchData}
-                className="settings-refresh-btn mt-4"
+                icon={<RefreshCw size={13} />}
                 title="Muat ulang pengaturan"
+                className="mt-4 self-start"
               >
-                <RefreshCw size={13} />
                 Muat ulang
-              </button>
+              </Button>
             </div>
           </aside>
         </div>
