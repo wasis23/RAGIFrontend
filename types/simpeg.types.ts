@@ -57,7 +57,18 @@ export interface Pegawai {
   nidn?: string | null;
   nuptk?: string | null;
   nik?: string | null;
-  dosen?: { id: number; nidn?: string | null; nuptk?: string | null; } | null;
+  gelar_depan?: string | null;
+  gelar_belakang?: string | null;
+  nama_gelar?: string | null;
+  dosen?: {
+    id: number;
+    nidn?: string | null;
+    nuptk?: string | null;
+    gelar_depan?: string | null;
+    gelar_belakang?: string | null;
+    nama_gelar?: string | null;
+    program_studi?: { id: number; nama: string; kode?: string; jenjang?: string; } | null;
+  } | null;
   nama_lengkap: string;
   tanggal_lahir?: string | null;
   tempat_lahir?: string | null;
@@ -104,10 +115,12 @@ export interface RiwayatJabatan {
 export interface RiwayatPendidikanPegawai {
   id: number;
   pegawai_id: number;
-  jenjang: JenjangPendidikan;
+  jenjang: string;
   nama_institusi: string;
   program_studi?: string | null;
   bidang_ilmu?: string | null;
+  gelar_akademik?: string | null;
+  singkatan_gelar?: string | null;
   tahun_masuk?: number | null;
   tahun_lulus?: number | null;
   nomor_ijazah?: string | null;

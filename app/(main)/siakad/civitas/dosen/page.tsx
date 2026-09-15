@@ -182,7 +182,7 @@ export default function DosenPage() {
       label: 'NAMA LENGKAP & GELAR',
       render: (row) => (
         <div>
-          <span className="font-bold text-slate-900 text-sm block">{row.nama_lengkap}</span>
+          <span className="font-bold text-slate-900 text-sm block">{row.nama_gelar || row.nama_lengkap}</span>
           <div className="flex items-center gap-2 mt-0.5">
             {row.nip && (
               <span className="text-2xs text-slate-400 font-mono">NIP: {row.nip}</span>

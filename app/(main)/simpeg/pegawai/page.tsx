@@ -24,6 +24,7 @@ import {
   Info,
   CheckCircle2,
   FileText,
+  GraduationCap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -283,10 +284,10 @@ export default function PegawaiPage() {
     },
     {
       key: 'nama_lengkap',
-      label: 'Nama Lengkap',
+      label: 'Nama Lengkap & Gelar',
       render: (peg) => (
         <div>
-          <div className="font-bold text-slate-800">{peg.nama_lengkap}</div>
+          <div className="font-bold text-slate-800">{peg.nama_gelar || peg.nama_lengkap}</div>
           <div className="text-xs text-slate-400">
             {peg.jenis_kelamin ? (peg.jenis_kelamin === 'L' ? 'Laki-Laki' : 'Perempuan') : '-'}
           </div>
@@ -315,8 +316,17 @@ export default function PegawaiPage() {
     },
     {
       key: 'unit_kerja',
-      label: 'Unit Kerja',
-      render: (peg) => peg.unit_kerja?.nama || '-',
+      label: 'Unit Kerja / Homebase',
+      render: (peg) => (
+        <div>
+          <span className="text-xs font-medium text-slate-800 block">
+            {peg.dosen?.program_studi?.nama || peg.unit_kerja?.nama || '-'}
+          </span>
+          {peg.dosen?.program_studi && peg.unit_kerja && (
+            <span className="text-2xs text-slate-400 block">{peg.unit_kerja.nama}</span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'shift_template',
@@ -589,7 +599,7 @@ export default function PegawaiPage() {
                         </div>
                         <div>
                           <div className="text-sm opacity-85 font-medium text-white">Profil Pegawai Kampus</div>
-                          <h2 className="text-2xl font-extrabold my-1 text-white">{peg.nama_lengkap}</h2>
+                          <h2 className="text-2xl font-extrabold my-1 text-white">{peg.nama_gelar || peg.nama_lengkap}</h2>
                           <div className="flex gap-3 items-center flex-wrap text-sm opacity-90 text-white">
                             <span>NIP: <strong>{peg.nip || '199208252022012004'}</strong></span>
                             <span>•</span>
@@ -624,7 +634,7 @@ export default function PegawaiPage() {
                       <div className="flex flex-col gap-4">
                         <div>
                           <div className="text-xs text-slate-400 uppercase font-semibold">Nama Lengkap &amp; Gelar</div>
-                          <div className="text-[0.9375rem] font-bold text-slate-800">{peg.nama_lengkap}</div>
+                          <div className="text-[0.9375rem] font-bold text-slate-800">{peg.nama_gelar || peg.nama_lengkap}</div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -747,6 +757,49 @@ export default function PegawaiPage() {
                       </div>
                     </div>
 
+                    {/* Card 3: Riwayat Pendidikan Resmi & Gelar Akademik */}
+                    {peg.riwayat_pendidikan && peg.riwayat_pendidikan.length > 0 && (
+                      <div className="card p-6 lg:col-span-2">
+                        <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
+                          <GraduationCap size={20} className="text-primary-600" />
+                          <h3 className="text-lg font-bold m-0 text-slate-800">
+                            Riwayat Pendidikan Resmi &amp; Gelar Akademik
+                          </h3>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {peg.riwayat_pendidikan.map((edu) => (
+                            <div
+                              key={edu.id}
+                              className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between gap-3 hover:border-primary-200 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <Badge variant="blue" className="uppercase font-mono text-xs">
+                                  {edu.jenjang}
+                                </Badge>
+                                {edu.is_pendidikan_terakhir && (
+                                  <Badge variant="green">Pendidikan Terakhir</Badge>
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-800 text-sm">{edu.nama_institusi}</div>
+                                <div className="text-xs text-slate-500 mt-0.5">{edu.program_studi || '-'}</div>
+                              </div>
+                              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs">
+                                <span className="font-semibold text-primary-700">
+                                  {edu.singkatan_gelar
+                                    ? `${edu.gelar_akademik ? edu.gelar_akademik + ' ' : ''}(${edu.singkatan_gelar})`
+                                    : (edu.gelar_akademik || '-')}
+                                </span>
+                                <span className="font-mono text-slate-500">
+                                  Lulus: {edu.tahun_lulus || '-'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               );
