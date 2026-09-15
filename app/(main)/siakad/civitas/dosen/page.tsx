@@ -149,12 +149,33 @@ export default function DosenPage() {
   const columns: ColumnDef<any>[] = [
     {
       key: 'nidn',
-      label: 'NIDN',
-      render: (row) => (
-        <span className="font-mono font-bold text-slate-900 text-xs">
-          {row.nidn || '-'}
-        </span>
-      ),
+      label: 'NIDN / NUPTK / NIP',
+      render: (row) => {
+        let displayValue = '-';
+        let label = '';
+
+        if (row.nidn) {
+          displayValue = row.nidn;
+          label = 'NIDN';
+        } else if (row.nuptk) {
+          displayValue = row.nuptk;
+          label = 'NUPTK';
+        } else if (row.nip) {
+          displayValue = row.nip;
+          label = 'NIP';
+        }
+
+        return (
+          <div>
+            <span className="font-mono font-bold text-slate-900 text-xs block">
+              {displayValue}
+            </span>
+            {label && (
+              <span className="text-2xs text-slate-400 font-mono block">{label}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'nama_lengkap',
@@ -313,7 +334,7 @@ export default function DosenPage() {
       >
         <div className="flex flex-col gap-5">
           <Input
-            label="NIDN, NIP, atau Nama Dosen"
+            label="NIDN, NUPTK, NIP, atau Nama Dosen"
             placeholder="Ketik kata kunci pencarian..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}

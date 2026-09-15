@@ -244,16 +244,38 @@ export default function PegawaiPage() {
   const columns: ColumnDef<Pegawai>[] = [
     {
       key: 'nip',
-      label: 'NIP / NIDN',
+      label: 'NIDN / NUPTK / NIP',
       render: (peg) => {
         const nidn = peg.nidn || peg.dosen?.nidn;
+        const nuptk = peg.nuptk || peg.dosen?.nuptk;
+        const nip = peg.nip;
+
+        let displayValue = '-';
+        let label = '';
+
+        if (nidn) {
+          displayValue = nidn;
+          label = 'NIDN';
+        } else if (nuptk) {
+          displayValue = nuptk;
+          label = 'NUPTK';
+        } else if (nip) {
+          displayValue = nip;
+          label = 'NIP';
+        } else if (peg.nik) {
+          displayValue = peg.nik;
+          label = 'NIK';
+        } else {
+          displayValue = `ID-${peg.id}`;
+        }
+
         return (
           <div>
             <span className="font-mono font-bold text-primary-600 block">
-              {nidn || peg.nip || peg.nik || `ID-${peg.id}`}
+              {displayValue}
             </span>
-            {peg.nip && nidn && peg.nip !== nidn && (
-              <span className="text-2xs text-slate-400 font-mono block">NIP: {peg.nip}</span>
+            {label && (
+              <span className="text-2xs text-slate-400 font-mono block">{label}</span>
             )}
           </div>
         );
