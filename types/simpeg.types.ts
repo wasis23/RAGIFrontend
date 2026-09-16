@@ -78,6 +78,7 @@ export interface Pegawai {
   roles?: { id: number; name: string; slug: string; description?: string }[];
   role_ids?: number[];
   status_kepegawaian: StatusKepegawaian;
+  jabatan_terakhir?: string | null;
   tanggal_masuk?: string | null;
   tanggal_keluar?: string | null;
   status: StatusPegawai;
@@ -264,19 +265,58 @@ export interface UsulanJafung {
 
 export type SemesterKinerja = 'ganjil' | 'genap' | 'tahunan';
 export type PredikatKinerja = 'sangat_baik' | 'baik' | 'cukup' | 'kurang' | 'sangat_kurang';
+export type StatusSkp = 'draft' | 'diajukan' | 'disetujui' | 'dinilai';
+
+export interface MasterKategoriSkp {
+  id: number;
+  nama: string;
+  kode: string;
+  deskripsi?: string | null;
+  urutan: number;
+  is_active: boolean;
+}
+
+export interface SkpItem {
+  id: number;
+  penilaian_kinerja_id: number;
+  kategori_skp_id: number;
+  uraian_tugas: string;
+  target_output: string;
+  target_mutu: number;
+  target_waktu: string;
+  target_biaya?: number | null;
+  realisasi_output?: string | null;
+  realisasi_mutu?: number | null;
+  realisasi_waktu?: string | null;
+  realisasi_biaya?: number | null;
+  nilai_capaian?: number | null;
+  berkas_bukti?: string | null;
+  keterangan?: string | null;
+  kategori?: MasterKategoriSkp;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface PenilaianKinerja {
   id: number;
   pegawai_id: number;
   tahun: number;
   semester: SemesterKinerja;
+  status: StatusSkp;
+  pejabat_penilai_id?: number | null;
+  tanggal_pengajuan?: string | null;
+  tanggal_persetujuan?: string | null;
   nilai_skp: number;
   nilai_bkd?: number | null;
   predikat: PredikatKinerja;
   catatan_evaluator?: string | null;
   evaluator_id?: number | null;
+  evaluated_at?: string | null;
   pegawai?: Pegawai | null;
+  pejabat_penilai?: Pegawai | null;
   evaluator?: User | null;
+  items?: SkpItem[];
   created_at?: string;
   updated_at?: string;
 }
+

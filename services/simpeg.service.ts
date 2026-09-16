@@ -433,7 +433,12 @@ export const simpegService = {
     return data;
   },
 
-  // Penilaian Kinerja BKD / SKP
+  // Penilaian Kinerja & SKP Butir-per-Butir
+  getKinerjaMasters: async (): Promise<ApiResponse<{ kategori_skp: any[]; pejabat_penilai: any[] }>> => {
+    const { data } = await apiClient.get<ApiResponse<{ kategori_skp: any[]; pejabat_penilai: any[] }>>('/simpeg/penilaian-kinerja/masters');
+    return data;
+  },
+
   getKinerjaList: async (params?: number | Record<string, any>): Promise<ApiResponse<PenilaianKinerja[]>> => {
     const { data } = await apiClient.get<ApiResponse<PenilaianKinerja[]>>('/simpeg/penilaian-kinerja', {
       params: typeof params === 'number' ? { pegawai_id: params } : params,
@@ -441,8 +446,45 @@ export const simpegService = {
     return data;
   },
 
-  createKinerja: async (payload: Partial<PenilaianKinerja>): Promise<ApiResponse<PenilaianKinerja>> => {
+  getKinerjaDetail: async (id: number): Promise<ApiResponse<PenilaianKinerja>> => {
+    const { data } = await apiClient.get<ApiResponse<PenilaianKinerja>>(`/simpeg/penilaian-kinerja/${id}`);
+    return data;
+  },
+
+  createKinerja: async (payload: any): Promise<ApiResponse<PenilaianKinerja>> => {
     const { data } = await apiClient.post<ApiResponse<PenilaianKinerja>>('/simpeg/penilaian-kinerja', payload);
+    return data;
+  },
+
+  updateKinerja: async (id: number, payload: any): Promise<ApiResponse<PenilaianKinerja>> => {
+    const { data } = await apiClient.put<ApiResponse<PenilaianKinerja>>(`/simpeg/penilaian-kinerja/${id}`, payload);
+    return data;
+  },
+
+  deleteKinerja: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/penilaian-kinerja/${id}`);
+    return data;
+  },
+
+  submitTargetKinerja: async (id: number): Promise<ApiResponse<PenilaianKinerja>> => {
+    const { data } = await apiClient.post<ApiResponse<PenilaianKinerja>>(`/simpeg/penilaian-kinerja/${id}/submit-target`);
+    return data;
+  },
+
+  approveTargetKinerja: async (id: number): Promise<ApiResponse<PenilaianKinerja>> => {
+    const { data } = await apiClient.post<ApiResponse<PenilaianKinerja>>(`/simpeg/penilaian-kinerja/${id}/approve-target`);
+    return data;
+  },
+
+  submitRealisasiKinerja: async (id: number, formData: FormData): Promise<ApiResponse<PenilaianKinerja>> => {
+    const { data } = await apiClient.post<ApiResponse<PenilaianKinerja>>(`/simpeg/penilaian-kinerja/${id}/submit-realisasi`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  evaluateKinerja: async (id: number, payload: any): Promise<ApiResponse<PenilaianKinerja>> => {
+    const { data } = await apiClient.post<ApiResponse<PenilaianKinerja>>(`/simpeg/penilaian-kinerja/${id}/evaluate`, payload);
     return data;
   },
 
