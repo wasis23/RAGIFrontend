@@ -19,7 +19,10 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
+import { simpegKompetensiService } from '@/services/simpeg.kompetensi.service';
 import type { Pegawai } from '@/types/simpeg.types';
+import type { SertifikasiDosen, RiwayatTes, RiwayatPelatihan } from '@/types/simpeg.kompetensi.types';
+import { FileCheck, ExternalLink } from 'lucide-react';
 
 export default function DetailPegawaiPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -27,16 +30,28 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
   const router = useRouter();
 
   const [pegawai, setPegawai] = useState<Pegawai | null>(null);
+  const [sertifikasiList, setSertifikasiList] = useState<SertifikasiDosen[]>([]);
+  const [tesList, setTesList] = useState<RiwayatTes[]>([]);
+  const [pelatihanList, setPelatihanList] = useState<RiwayatPelatihan[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDetail = async () => {
       try {
         setLoading(true);
-        const res = await simpegService.getPegawaiDetail(pegawaiId);
-        if (res.data) {
-          setPegawai(res.data);
+        const [resPeg, resSer, resTes, resPel] = await Promise.all([
+          simpegService.getPegawaiDetail(pegawaiId),
+          simpegKompetensiService.getSertifikasiList({ pegawai_id: pegawaiId, per_page: 50 }).catch(() => ({ data: [] })),
+          simpegKompetensiService.getTesList({ pegawai_id: pegawaiId, per_page: 50 }).catch(() => ({ data: [] })),
+          simpegKompetensiService.getPelatihanList({ pegawai_id: pegawaiId, per_page: 50 }).catch(() => ({ data: [] })),
+        ]);
+
+        if (resPeg.data) {
+          setPegawai(resPeg.data);
         }
+        setSertifikasiList(resSer.data || []);
+        setTesList(resTes.data || []);
+        setPelatihanList(resPel.data || []);
       } catch (err: any) {
         toast.error(err?.response?.data?.message || 'Gagal memuat rincian data pegawai.');
       } finally {
@@ -425,6 +440,185 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       )}
+
+      {/* Card 5: Rekam Jejak Kompetensi & Sertifikasi Dosen */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between gap-3 mb-5 pb-3 border-b border-slate-200 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Award size={22} className="text-primary-600" />
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 m-0">
+                Kompetensi, Sertifikasi &amp; Pelatihan
+              </h3>
+              <p className="text-xs text-slate-400 m-0">
+                Sertifikasi dosen (Serdos), tes kemampuan bahasa/akademik (TOEFL/TKDA), dan rekam jejak diklat
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/simpeg/kompetensi')}
+          >
+            Kelola di Portal Kompetensi
+          </Button>
+        </div>
+
+        {/* 3 Sub-sections */}
+        <div className="flex flex-col gap-6">
+          {/* Sub 1: Sertifikasi Dosen */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Award size={16} className="text-primary-600" />
+              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                Sertifikasi Dosen &amp; Profesi ({sertifikasiList.length})
+              </h4>
+            </div>
+
+            {sertifikasiList.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sertifikasiList.map((ser) => (
+                  <div
+                    key={ser.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between gap-2"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <Badge variant="purple" className="text-2xs">
+                          {ser.jenis_sertifikasi?.nama || 'Sertifikasi'}
+                        </Badge>
+                        <span className="text-xs font-bold text-slate-700">{ser.tahun_sertifikasi}</span>
+                      </div>
+                      <div className="font-bold text-slate-900 text-sm">{ser.nama_sertifikat}</div>
+                      <div className="text-xs text-primary-600 font-medium mt-0.5">{ser.bidang_studi}</div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/80 text-xs text-slate-500 flex items-center justify-between">
+                      <span>{ser.penyelenggara}</span>
+                      {ser.file_path && (
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/${ser.file_path}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-primary-600 font-semibold hover:underline"
+                        >
+                          <ExternalLink size={12} /> Berkas
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-dashed border-slate-200">
+                Belum ada sertifikasi dosen / profesi yang tercatat.
+              </p>
+            )}
+          </div>
+
+          {/* Sub 2: Riwayat Tes */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <FileCheck size={16} className="text-primary-600" />
+              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                Riwayat Tes Kemampuan (TOEFL / TKDA) ({tesList.length})
+              </h4>
+            </div>
+
+            {tesList.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {tesList.map((t) => (
+                  <div
+                    key={t.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between gap-2"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <Badge variant="blue" className="text-2xs">
+                          {t.jenis_tes?.nama || t.nama_tes}
+                        </Badge>
+                        <span className="font-mono font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-xs">
+                          Skor: {t.skor}
+                        </span>
+                      </div>
+                      <div className="font-bold text-slate-800 text-xs">{t.nama_tes}</div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/80 text-xs text-slate-500 flex items-center justify-between">
+                      <span>{t.tahun} • {t.penyelenggara}</span>
+                      {t.file_path && (
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/${t.file_path}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-primary-600 font-semibold hover:underline"
+                        >
+                          <ExternalLink size={12} /> Bukti
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-dashed border-slate-200">
+                Belum ada data skor tes kemampuan yang tercatat.
+              </p>
+            )}
+          </div>
+
+          {/* Sub 3: Pelatihan & Workshop */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <GraduationCap size={16} className="text-primary-600" />
+              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                Pelatihan, Diklat &amp; Workshop ({pelatihanList.length})
+              </h4>
+            </div>
+
+            {pelatihanList.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pelatihanList.map((pel) => (
+                  <div
+                    key={pel.id}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between gap-2"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <Badge variant="purple" className="text-2xs">
+                          {pel.peran?.nama || 'Peserta'}
+                        </Badge>
+                        {pel.jumlah_jam && (
+                          <span className="text-2xs font-semibold text-slate-500">{pel.jumlah_jam} JP</span>
+                        )}
+                      </div>
+                      <div className="font-bold text-slate-900 text-xs line-clamp-2">{pel.nama_kegiatan}</div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/80 text-xs text-slate-500 flex items-center justify-between">
+                      <span>{pel.tanggal_mulai ? pel.tanggal_mulai.substring(0, 10) : '-'}</span>
+                      {pel.file_path && (
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'}/${pel.file_path}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-primary-600 font-semibold hover:underline"
+                        >
+                          <ExternalLink size={12} /> Sertifikat
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-dashed border-slate-200">
+                Belum ada riwayat pelatihan &amp; diklat yang tercatat.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
