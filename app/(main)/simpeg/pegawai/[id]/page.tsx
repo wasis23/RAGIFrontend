@@ -23,12 +23,16 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  ScanFace,
+  RotateCcw,
+  MapPin,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { simpegService } from '@/services/simpeg.service';
 import { simpegKompetensiService } from '@/services/simpeg.kompetensi.service';
 import { simpegDossierService } from '@/services/simpeg.dossier.service';
@@ -48,6 +52,23 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
   const [dossier, setDossier] = useState<TridharmaDossierData | null>(null);
   const [activeTab, setActiveTab] = useState<'profil' | 'pengajaran' | 'penelitian' | 'pengabdian' | 'penunjang'>('profil');
   const [loading, setLoading] = useState(true);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetBiometric = async () => {
+    setIsResetting(true);
+    try {
+      const res = await simpegService.resetFaceBiometric(pegawaiId);
+      toast.success(res.message || 'Data biometrik wajah pegawai berhasil direset.');
+      setPegawai((prev) => (prev ? { ...prev, is_face_enrolled: false, face_enrolled_at: null } : null));
+      setShowResetConfirm(false);
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      toast.error(errorObj?.response?.data?.message || 'Gagal mereset biometrik pegawai.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -70,8 +91,9 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
         if (resDos?.data) {
           setDossier(resDos.data);
         }
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || 'Gagal memuat rincian data pegawai.');
+      } catch (err: unknown) {
+        const errorObj = err as { response?: { data?: { message?: string } } };
+        toast.error(errorObj?.response?.data?.message || 'Gagal memuat rincian data pegawai.');
       } finally {
         setLoading(false);
       }
@@ -602,6 +624,117 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
           </div>
+
+          {/* Card: Presensi Mobile & Biometrik Wajah */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 flex-wrap">
+              <div className="flex items-center gap-3">
+                <ScanFace size={22} className="text-primary-600" />
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-800 m-0">
+                    Presensi Mobile &amp; Biometrik Wajah
+                  </h3>
+                  <p className="text-xs text-slate-400 m-0">
+                    Informasi status biometrik wajah, sinkronisasi jadwal kerja, dan titik geofence presensi mobile
+                  </p>
+                </div>
+              </div>
+              {pegawai.is_face_enrolled ? (
+                <Badge variant="green" className="text-xs">
+                  <CheckCircle2 size={12} className="mr-1 inline" /> Wajah Terdaftar
+                </Badge>
+              ) : (
+                <Badge variant="gray" className="text-xs">
+                  Belum Terdaftar
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+              {/* Status Biometrik Wajah */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 uppercase font-semibold mb-1">
+                    <ScanFace size={14} className="text-slate-500" />
+                    Status Biometrik Wajah
+                  </div>
+                  <div className="font-bold text-slate-800 mt-1">
+                    {pegawai.is_face_enrolled ? 'Wajah Aktif Terverifikasi' : 'Belum Melakukan Enrollment'}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {pegawai.face_enrolled_at ? (
+                      <>Didaftarkan: {new Date(pegawai.face_enrolled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</>
+                    ) : (
+                      'Pendaftaran dilakukan mandiri via aplikasi presensi mobile.'
+                    )}
+                  </div>
+                  {pegawai.consent_pdp_at && (
+                    <div className="text-2xs text-emerald-600 mt-1 font-medium">
+                      ✓ Persetujuan PDP disetujui ({new Date(pegawai.consent_pdp_at).toLocaleDateString('id-ID')})
+                    </div>
+                  )}
+                </div>
+
+                {pegawai.is_face_enrolled && (
+                  <div className="pt-3 mt-3 border-t border-slate-200/80">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 hover:border-rose-400 text-xs font-semibold"
+                      icon={<RotateCcw size={13} />}
+                      onClick={() => setShowResetConfirm(true)}
+                      disabled={isResetting}
+                    >
+                      Reset Biometrik Wajah
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Shift Kerja */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 uppercase font-semibold mb-1">
+                    <Clock size={14} className="text-slate-500" />
+                    Shift Kerja Presensi
+                  </div>
+                  <div className="font-bold text-slate-800 mt-1">
+                    {pegawai.shift_template?.name || 'Default Kampus'}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {pegawai.shift_template?.start_time && pegawai.shift_template?.end_time
+                      ? `${pegawai.shift_template.start_time} - ${pegawai.shift_template.end_time}`
+                      : 'Mengikuti jadwal jam kerja umum instansi'}
+                  </div>
+                </div>
+                <div className="text-2xs text-slate-400 pt-3 mt-3 border-t border-slate-200/80">
+                  Konfigurasi shift dapat diubah melalui menu Edit Pegawai
+                </div>
+              </div>
+
+              {/* Lokasi Kantor Geofence */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 uppercase font-semibold mb-1">
+                    <MapPin size={14} className="text-slate-500" />
+                    Lokasi Kantor Geofence
+                  </div>
+                  <div className="font-bold text-slate-800 mt-1">
+                    {pegawai.office_location?.name || 'Kantor Utama / Kampus Pusat'}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {pegawai.office_location?.radius_meters
+                      ? `Radius presensi: ${pegawai.office_location.radius_meters} meter`
+                      : 'Radius standar kantor utama'}
+                  </div>
+                </div>
+                <div className="text-2xs text-slate-400 pt-3 mt-3 border-t border-slate-200/80">
+                  Titik GPS validasi radius absen mobile
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -881,6 +1014,25 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleResetBiometric}
+        title="Reset Biometrik Wajah"
+        message={
+          <div>
+            Apakah Anda yakin ingin mereset data biometrik wajah pegawai <strong>{displayName}</strong>?
+            <p className="mt-2 text-xs text-rose-600 font-semibold">
+              Data vektor biometrik akan dihapus dan pegawai harus mendaftarkan ulang wajahnya melalui aplikasi mobile presensi.
+            </p>
+          </div>
+        }
+        confirmText="Ya, Reset Biometrik"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isResetting}
+      />
     </div>
   );
 }

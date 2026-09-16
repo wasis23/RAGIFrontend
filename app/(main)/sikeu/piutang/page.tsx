@@ -2,8 +2,9 @@
 
 import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  Download, Filter, Search, RefreshCw, AlertCircle, CheckCircle2, Clock, ShieldAlert, FileSpreadsheet, UserX, FileText
+  Download, Filter, Search, RefreshCw, AlertCircle, CheckCircle2, XCircle, Clock, ShieldAlert, FileSpreadsheet, UserX, FileText, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -14,6 +15,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
 interface PiutangItem {
   id: number;
@@ -39,6 +41,7 @@ interface PiutangItem {
 
 
 export default function PiutangMahasiswaPage() {
+  const router = useRouter();
   const [data, setData] = useState<PiutangItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
@@ -71,6 +74,8 @@ export default function PiutangMahasiswaPage() {
   const [filterCutoffDate, setFilterCutoffDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('piutang');
   const [filterTahunAkademik, setFilterTahunAkademik] = useState('all');
+  const [filterSortBy, setFilterSortBy] = useState('sisa_piutang');
+  const [filterSortOrder, setFilterSortOrder] = useState('desc');
 
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
@@ -79,6 +84,8 @@ export default function PiutangMahasiswaPage() {
     cutoff_date: '',
     status: 'piutang',
     tahun_akademik_id: 'all',
+    sort_by: 'sisa_piutang',
+    sort_order: 'desc',
   });
 
   useEffect(() => {
@@ -112,6 +119,8 @@ export default function PiutangMahasiswaPage() {
         cutoff_date: appliedFilters.cutoff_date || undefined,
         status: appliedFilters.status === 'all' ? undefined : appliedFilters.status,
         tahun_akademik_id: appliedFilters.tahun_akademik_id === 'all' ? undefined : appliedFilters.tahun_akademik_id,
+        sort_by: appliedFilters.sort_by,
+        sort_order: appliedFilters.sort_order,
       });
 
       if (res && res.data) {
@@ -147,6 +156,8 @@ export default function PiutangMahasiswaPage() {
       cutoff_date: filterCutoffDate,
       status: filterStatus,
       tahun_akademik_id: filterTahunAkademik,
+      sort_by: filterSortBy,
+      sort_order: filterSortOrder,
     });
     setShowFilter(false);
   };
@@ -158,6 +169,8 @@ export default function PiutangMahasiswaPage() {
     setFilterCutoffDate('');
     setFilterStatus('piutang');
     setFilterTahunAkademik('all');
+    setFilterSortBy('sisa_piutang');
+    setFilterSortOrder('desc');
     setAppliedFilters({
       search: '',
       angkatan: 'all',
@@ -165,6 +178,8 @@ export default function PiutangMahasiswaPage() {
       cutoff_date: '',
       status: 'piutang',
       tahun_akademik_id: 'all',
+      sort_by: 'sisa_piutang',
+      sort_order: 'desc',
     });
     setShowFilter(false);
   };
@@ -221,23 +236,6 @@ export default function PiutangMahasiswaPage() {
 
   const columns: ColumnDef<PiutangItem>[] = [
     {
-      key: 'mahasiswa',
-      label: 'MAHASISWA & NIM',
-      render: (row) => (
-        <div>
-          <span className="font-bold text-slate-900 text-sm block">{row.nama_mahasiswa}</span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="font-mono text-xs text-slate-500 font-semibold">{row.nim}</span>
-            <span className="inline-block w-1 h-1 rounded-full bg-slate-300"></span>
-            <span className="text-xs font-semibold text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">
-              Angkatan {row.angkatan}
-            </span>
-          </div>
-          <span className="text-2xs text-slate-400 block mt-0.5">{row.program_studi}</span>
-        </div>
-      ),
-    },
-    {
       key: 'nomor_tagihan',
       label: 'NOMOR TAGIHAN',
       render: (row) => (
@@ -245,22 +243,40 @@ export default function PiutangMahasiswaPage() {
           <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
             {row.nomor_tagihan}
           </span>
-          <span className="text-2xs block text-slate-400 font-medium mt-1">
-            Period: {row.tahun_akademik}
-          </span>
+          <span className="text-2xs block text-slate-400 font-semibold mt-1">Periode: {row.tahun_akademik || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'nama_mahasiswa',
+      label: 'MAHASISWA',
+      render: (row) => (
+        <div>
+          <p className="font-bold text-slate-900 text-sm">{row.nama_mahasiswa}</p>
+          <p className="font-mono text-xs text-slate-500">NIM: {row.nim}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'angkatan',
+      label: 'ANGKATAN & PRODI',
+      render: (row) => (
+        <div>
+          <p className="text-xs font-semibold text-slate-700">{row.program_studi}</p>
+          <p className="text-2xs text-slate-500">Angkatan {row.angkatan}</p>
         </div>
       ),
     },
     {
       key: 'total_tagihan',
-      label: 'TOTAL TAGIHAN (RP)',
+      label: 'TOTAL TAGIHAN',
       render: (row) => (
         <div>
-          <span className="font-semibold text-slate-700 tabular-nums text-xs">
+          <span className="font-bold text-slate-900 tabular-nums text-sm">
             {formatRupiah(row.total_tagihan)}
           </span>
           {row.total_potongan > 0 && (
-            <span className="text-2xs text-emerald-600 block">
+            <span className="text-2xs text-emerald-600 block mt-0.5 font-medium">
               Potongan: -{formatRupiah(row.total_potongan)}
             </span>
           )}
@@ -269,23 +285,23 @@ export default function PiutangMahasiswaPage() {
     },
     {
       key: 'total_bayar',
-      label: 'TERBAYAR (RP)',
+      label: 'TERBAYAR',
       render: (row) => (
-        <span className="font-semibold text-emerald-700 tabular-nums text-xs">
+        <span className="font-bold text-emerald-700 tabular-nums text-sm">
           {formatRupiah(row.total_bayar)}
         </span>
       ),
     },
     {
       key: 'sisa_piutang',
-      label: 'SISA PIUTANG (RP)',
+      label: 'SISA PIUTANG',
       render: (row) => (
         <div>
-          <span className={`font-extrabold tabular-nums text-sm ${row.sisa_piutang > 0 ? 'text-rose-700' : 'text-slate-500'}`}>
+          <span className={`font-bold tabular-nums text-sm ${row.sisa_piutang > 0 ? 'text-rose-700' : 'text-slate-600'}`}>
             {formatRupiah(row.sisa_piutang)}
           </span>
           {row.jatuh_tempo && (
-            <span className="text-2xs text-slate-400 block">
+            <span className="text-2xs text-slate-400 block mt-0.5">
               Jatuh Tempo: {row.jatuh_tempo}
             </span>
           )}
@@ -295,7 +311,52 @@ export default function PiutangMahasiswaPage() {
     {
       key: 'status',
       label: 'STATUS',
-      render: (row) => getStatusBadge(row.status, row.has_dispensasi),
+      render: (row) => {
+        if (row.status === 'lunas') {
+          return (
+            <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+              <CheckCircle2 size={12} /> Lunas
+            </span>
+          );
+        }
+        if (row.status === 'sebagian') {
+          return (
+            <span className="badge badge-yellow text-xs font-bold inline-flex items-center gap-1">
+              <Clock size={12} /> Bayar Sebagian
+            </span>
+          );
+        }
+        if (row.has_dispensasi || row.status === 'dispensasi') {
+          return (
+            <span className="badge badge-orange text-xs font-bold inline-flex items-center gap-1">
+              <AlertCircle size={12} /> Dispensasi
+            </span>
+          );
+        }
+        return (
+          <span className="badge badge-red text-xs font-bold inline-flex items-center gap-1">
+            <XCircle size={12} /> Belum Bayar
+          </span>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Detail Tagihan',
+                icon: <Eye size={14} />,
+                onClick: () => router.push(`/sikeu/tagihan/${row.id}`),
+              },
+            ]}
+          />
+        </div>
+      ),
     },
   ];
 
@@ -309,18 +370,31 @@ export default function PiutangMahasiswaPage() {
   }, [appliedFilters]);
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Laporan & Rekapitulasi Piutang Mahasiswa"
         description="Pantau daftar tunggakan dan sisa pembayaran tagihan mahasiswa berdasarkan periode dan angkatan."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              className="font-bold min-h-[40px]"
+            >
+              Filter
+              {activeFiltersCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-2xs bg-primary-600 text-white rounded-full font-extrabold">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
             <Button
               variant="outline"
               icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
               onClick={() => fetchPiutang(pagination.current_page)}
               disabled={loading}
-              className="font-bold"
+              className="font-bold min-h-[40px]"
             >
               Refresh
             </Button>
@@ -329,7 +403,7 @@ export default function PiutangMahasiswaPage() {
               icon={<FileSpreadsheet size={16} />}
               onClick={handleDownloadExcel}
               disabled={downloading}
-              className="font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              className="font-bold min-h-[40px] px-4 shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {downloading ? 'Mengunduh...' : 'Download Excel'}
             </Button>
@@ -411,104 +485,53 @@ export default function PiutangMahasiswaPage() {
         </div>
       )}
 
-      {/* Main Table Card */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs p-5 space-y-4">
-        {/* Search & Filter Header Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Cari NIM / Nama Mahasiswa..."
-              value={filterSearch}
-              onChange={(e) => setFilterSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleApplyFilter();
-              }}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
-            />
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            {/* Quick Angkatan Filter */}
-            <select
-              value={filterAngkatan}
-              onChange={(e) => {
-                setFilterAngkatan(e.target.value);
-                setAppliedFilters((prev) => ({ ...prev, angkatan: e.target.value }));
-              }}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="all">Semua Angkatan</option>
-              <option value="2026">Angkatan 2026</option>
-              <option value="2025">Angkatan 2025</option>
-              <option value="2024">Angkatan 2024</option>
-              <option value="2023">Angkatan 2023</option>
-              <option value="2022">Angkatan 2022</option>
-            </select>
-
-            <Button
-              variant="outline"
-              icon={<Filter size={16} />}
-              onClick={() => setShowFilter(true)}
-              className="font-bold relative"
-            >
-              Filter Advanced
-              {activeFiltersCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-2xs bg-primary-600 text-white rounded-full font-extrabold">
-                  {activeFiltersCount}
-                </span>
-              )}
-            </Button>
-          </div>
+      {/* Filter Badges Display */}
+      {activeFiltersCount > 0 && (
+        <div className="flex items-center gap-2 flex-wrap text-2xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+          <span className="font-bold text-slate-500">Filter Aktif:</span>
+          {appliedFilters.search && (
+            <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
+              Pencarian: &quot;{appliedFilters.search}&quot;
+            </span>
+          )}
+          {appliedFilters.prodi !== 'all' && (
+            <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
+              Prodi: {prodiList.find((p) => p.value === appliedFilters.prodi)?.label || appliedFilters.prodi}
+            </span>
+          )}
+          {appliedFilters.cutoff_date && (
+            <span className="px-2 py-1 bg-amber-100 border border-amber-300 rounded-md font-bold text-amber-900">
+              Cutoff: {appliedFilters.cutoff_date}
+            </span>
+          )}
+          {appliedFilters.angkatan !== 'all' && (
+            <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
+              Angkatan: {appliedFilters.angkatan}
+            </span>
+          )}
+          {appliedFilters.status !== 'piutang' && (
+            <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
+              Status: {appliedFilters.status}
+            </span>
+          )}
+          <button
+            onClick={handleResetFilter}
+            className="text-xs text-rose-600 font-bold hover:underline ml-auto"
+          >
+            Reset Filter
+          </button>
         </div>
+      )}
 
-        {/* Filter Badges Display */}
-        {activeFiltersCount > 0 && (
-          <div className="flex items-center gap-2 flex-wrap text-2xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-            <span className="font-bold text-slate-500">Filter Aktif:</span>
-            {appliedFilters.search && (
-              <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
-                Pencarian: &quot;{appliedFilters.search}&quot;
-              </span>
-            )}
-            {appliedFilters.prodi !== 'all' && (
-              <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
-                Prodi: {prodiList.find((p) => p.value === appliedFilters.prodi)?.label || appliedFilters.prodi}
-              </span>
-            )}
-            {appliedFilters.cutoff_date && (
-              <span className="px-2 py-1 bg-amber-100 border border-amber-300 rounded-md font-bold text-amber-900">
-                Cutoff: {appliedFilters.cutoff_date}
-              </span>
-            )}
-            {appliedFilters.angkatan !== 'all' && (
-              <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
-                Angkatan: {appliedFilters.angkatan}
-              </span>
-            )}
-            {appliedFilters.status !== 'piutang' && (
-              <span className="px-2 py-1 bg-white border border-slate-200 rounded-md font-semibold text-slate-700">
-                Status: {appliedFilters.status}
-              </span>
-            )}
-            <button
-              onClick={handleResetFilter}
-              className="text-xs text-rose-600 font-bold hover:underline ml-auto"
-            >
-              Reset Filter
-            </button>
-          </div>
-        )}
-
-        {/* DataTable */}
-        <DataTable
-          data={data}
-          isLoading={loading}
-          columns={columns}
-          emptyMessage="Tidak ada data piutang mahasiswa yang ditemukan."
-        />
-      </div>
+      {/* DataTable */}
+      <DataTable
+        data={data}
+        isLoading={loading}
+        columns={columns}
+        meta={pagination}
+        onPageChange={(p) => fetchPiutang(p)}
+        emptyMessage="Tidak ada data piutang mahasiswa yang ditemukan."
+      />
 
       {/* Filter Drawer Slide-Out */}
       <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Piutang Mahasiswa">
@@ -583,6 +606,33 @@ export default function PiutangMahasiswaPage() {
                 { value: 'all', label: 'Semua Status (Termasuk Lunas)' },
               ]}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Urutkan Berdasarkan</label>
+              <Select
+                value={filterSortBy}
+                onChange={(val: any) => setFilterSortBy(typeof val === 'object' && val?.target ? val.target.value : (val || 'sisa_piutang'))}
+                options={[
+                  { value: 'sisa_piutang', label: 'Sisa Piutang' },
+                  { value: 'nama_mahasiswa', label: 'Nama Mahasiswa' },
+                  { value: 'nim', label: 'NIM' },
+                  { value: 'total_tagihan', label: 'Total Tagihan' },
+                ]}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Arah Urutan</label>
+              <Select
+                value={filterSortOrder}
+                onChange={(val: any) => setFilterSortOrder(typeof val === 'object' && val?.target ? val.target.value : (val || 'desc'))}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z / Kecil-Besar)' },
+                  { value: 'desc', label: 'Menurun (Z-A / Besar-Kecil)' },
+                ]}
+              />
+            </div>
           </div>
 
           <div className="pt-4 flex gap-2">

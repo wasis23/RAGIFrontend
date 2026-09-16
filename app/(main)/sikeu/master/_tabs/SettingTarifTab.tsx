@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
 interface ProgramStudiItem {
@@ -74,6 +75,8 @@ export function SettingTarifTab() {
   const [filterProdi, setFilterProdi] = useState('');
   const [filterJalur, setFilterJalur] = useState('');
   const [filterSemester, setFilterSemester] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState<'tahun_angkatan' | 'nominal' | 'master_biaya' | 'prodi'>('tahun_angkatan');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
   const [appliedFilters, setAppliedFilters] = useState({ search: '', angkatan: '', prodi: '', jalur: '', semester: '' });
 
   // Modal State
@@ -239,12 +242,14 @@ export function SettingTarifTab() {
     setFilterProdi('');
     setFilterJalur('');
     setFilterSemester('');
+    setFilterOrderBy('tahun_angkatan');
+    setFilterOrderDir('desc');
     setAppliedFilters({ search: '', angkatan: '', prodi: '', jalur: '', semester: '' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         const namaBiaya = item.master_biaya?.nama?.toLowerCase() || '';
@@ -262,7 +267,35 @@ export function SettingTarifTab() {
       if (appliedFilters.semester && String(item.semester || '') !== appliedFilters.semester) return false;
       return true;
     });
-  }, [data, appliedFilters]);
+
+    list.sort((a, b) => {
+      let valA: any = 0;
+      let valB: any = 0;
+      switch (filterOrderBy) {
+        case 'nominal':
+          valA = Number(a.nominal || 0);
+          valB = Number(b.nominal || 0);
+          break;
+        case 'tahun_angkatan':
+          valA = Number(a.tahun_angkatan || 0);
+          valB = Number(b.tahun_angkatan || 0);
+          break;
+        case 'master_biaya':
+          valA = a.master_biaya?.nama || '';
+          valB = b.master_biaya?.nama || '';
+          break;
+        case 'prodi':
+          valA = a.program_studi?.nama || '';
+          valB = b.program_studi?.nama || '';
+          break;
+      }
+      if (valA < valB) return filterOrderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return filterOrderDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return list;
+  }, [data, appliedFilters, filterOrderBy, filterOrderDir]);
 
   const columns: ColumnDef<SettingTarifItem>[] = [
     {
@@ -271,12 +304,12 @@ export function SettingTarifTab() {
       render: (row) => (
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded uppercase">
+            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md uppercase">
               {row.master_biaya?.kode || 'BIAYA'}
             </span>
             <p className="font-bold text-slate-900 text-sm">{row.master_biaya?.nama || 'Komponen Biaya'}</p>
           </div>
-          {row.keterangan && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{row.keterangan}</p>}
+          {row.keterangan && <p className="text-2xs text-slate-400 font-semibold mt-1 line-clamp-1">{row.keterangan}</p>}
         </div>
       ),
     },
@@ -287,58 +320,48 @@ export function SettingTarifTab() {
         if (row.program_studi) {
           return (
             <div>
-              <span className="badge badge-purple text-xs font-bold">
+              <p className="font-bold text-slate-900 text-sm">
                 {row.program_studi.jenjang ? `${row.program_studi.jenjang} ` : ''}{row.program_studi.nama}
-              </span>
-              {row.program_studi.kode_prodi && (
-                <span className="text-2xs text-slate-400 block font-mono mt-0.5">
-                  Kode: {row.program_studi.kode_prodi}
-                </span>
+              </p>
+              {row.program_studi.kode_prodi ? (
+                <p className="font-mono text-xs text-slate-500">Kode: {row.program_studi.kode_prodi}</p>
+              ) : (
+                <p className="text-2xs text-slate-400 font-medium">Program Studi Terdaftar</p>
               )}
             </div>
           );
         }
         return (
-          <span className="badge badge-gray text-xs font-semibold">
-            Semua Prodi (Global)
-          </span>
+          <div>
+            <p className="font-semibold text-slate-700 text-sm">Semua Program Studi</p>
+            <p className="text-2xs text-slate-400 font-medium">Tarif Berlaku Global</p>
+          </div>
         );
       },
     },
     {
-      key: 'tahun_angkatan',
-      label: 'ANGKATAN',
+      key: 'angkatan_kelas',
+      label: 'ANGKATAN & KELAS',
       render: (row) => (
-        <span className="badge badge-blue text-xs font-bold">{row.tahun_angkatan}</span>
-      ),
-    },
-    {
-      key: 'jalur_kelas',
-      label: 'JALUR KELAS',
-      render: (row) => (
-        <span className="font-semibold text-slate-700 text-xs">{row.jalur_kelas}</span>
-      ),
-    },
-    {
-      key: 'semester',
-      label: 'SEMESTER',
-      render: (row) => (
-        row.semester ? (
-          <span className="badge badge-green text-xs font-bold">Sem. {row.semester}</span>
-        ) : (
-          <span className="text-xs text-slate-400 italic">Semua Semester</span>
-        )
+        <div>
+          <p className="text-xs font-semibold text-slate-700">
+            Angkatan {row.tahun_angkatan} • {row.jalur_kelas || 'Reguler'}
+          </p>
+          <p className="text-2xs text-slate-500">
+            {row.semester ? `Semester ${row.semester}` : 'Semua Semester'}
+          </p>
+        </div>
       ),
     },
     {
       key: 'nominal',
-      label: 'NOMINAL TAGIHAN RIIL (RP)',
+      label: 'NOMINAL TAGIHAN',
       render: (row) => (
         <div>
           <span className="font-bold text-slate-900 tabular-nums text-sm">
             {formatRupiah(row.nominal || 0)}
           </span>
-          <span className="text-[10px] text-emerald-600 block font-semibold">Tarif Tagihan Aktif</span>
+          <span className="text-2xs block text-emerald-600 font-semibold mt-0.5">Tarif Tagihan Riil</span>
         </div>
       ),
     },
@@ -361,15 +384,23 @@ export function SettingTarifTab() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button size="sm" variant="ghost" onClick={() => handleOpenEdit(row)} icon={<Edit size={14} />}
-            className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
-            Edit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.master_biaya?.nama)} icon={<Trash2 size={14} />}
-            className="font-semibold text-rose-600 hover:bg-rose-50">
-            Hapus
-          </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            align="right"
+            items={[
+              {
+                label: 'Edit Setting Tarif',
+                icon: <Edit size={14} />,
+                onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Hapus Setting',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => handleOpenDelete(row.id, row.master_biaya?.nama),
+              },
+            ]}
+          />
         </div>
       ),
     },
@@ -406,6 +437,44 @@ export function SettingTarifTab() {
           </p>
         </div>
       </div>
+
+      {/* Active Filters */}
+      {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-slate-500 font-medium">Filter aktif:</span>
+          {appliedFilters.search && (
+            <span className="badge badge-blue text-xs font-medium">
+              Pencarian: &quot;{appliedFilters.search}&quot;
+            </span>
+          )}
+          {appliedFilters.angkatan && (
+            <span className="badge badge-blue text-xs font-medium">
+              Angkatan: {appliedFilters.angkatan}
+            </span>
+          )}
+          {appliedFilters.prodi && (
+            <span className="badge badge-blue text-xs font-medium">
+              Prodi: {appliedFilters.prodi === 'global' ? 'Global' : programStudiList.find(p => String(p.id) === appliedFilters.prodi)?.nama || appliedFilters.prodi}
+            </span>
+          )}
+          {appliedFilters.jalur && (
+            <span className="badge badge-blue text-xs font-medium">
+              Jalur: {appliedFilters.jalur}
+            </span>
+          )}
+          {appliedFilters.semester && (
+            <span className="badge badge-blue text-xs font-medium">
+              Semester: {appliedFilters.semester}
+            </span>
+          )}
+          <button
+            onClick={handleResetFilter}
+            className="text-xs text-red-600 hover:text-red-700 font-semibold underline cursor-pointer ml-1"
+          >
+            Reset Filter
+          </button>
+        </div>
+      )}
 
       <div className="mt-4">
         <DataTable
@@ -619,6 +688,29 @@ export function SettingTarifTab() {
               { value: '8', label: 'Semester 8' },
             ]}
           />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as any)}
+              options={[
+                { value: 'tahun_angkatan', label: 'Tahun Angkatan' },
+                { value: 'nominal', label: 'Nominal Tagihan' },
+                { value: 'master_biaya', label: 'Komponen Biaya' },
+                { value: 'prodi', label: 'Program Studi' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as any)}
+              options={[
+                { value: 'asc', label: 'Menaik (A-Z / 0-9)' },
+                { value: 'desc', label: 'Menurun (Z-A / 9-0)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 

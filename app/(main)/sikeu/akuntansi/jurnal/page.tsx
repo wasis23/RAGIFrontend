@@ -30,13 +30,13 @@ export default function JurnalListPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Jurnal Umum & Auto-Journal Feed"
         description="Rekapitulasi pencatatan jurnal transaksi otomatis & penyesuaian manual"
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/sikeu" className="btn btn-secondary btn-icon">
+            <Link href="/sikeu" className="btn btn-warning btn-icon" title="Kembali">
               <ArrowLeft size={18} />
             </Link>
             <Link href="/sikeu/akuntansi/coa" className="btn btn-secondary">

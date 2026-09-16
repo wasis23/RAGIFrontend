@@ -16,6 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
 interface UnitKas {
@@ -38,8 +39,6 @@ interface PengajuanFormValues {
   deskripsi: string;
 }
 
-
-
 export default function UnitKasPage() {
   const [data, setData] = useState<UnitKas[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +47,9 @@ export default function UnitKasPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterTipe, setFilterTipe] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', tipe: 'all' });
+  const [filterOrderBy, setFilterOrderBy] = useState('nama_kas');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', tipe: 'all', orderBy: 'nama_kas', orderDir: 'asc' as 'asc' | 'desc' });
 
   // Modal Pengajuan Kas State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -96,19 +97,21 @@ export default function UnitKasPage() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, tipe: filterTipe });
+    setAppliedFilters({ search: filterSearch, tipe: filterTipe, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterTipe('all');
-    setAppliedFilters({ search: '', tipe: 'all' });
+    setFilterOrderBy('nama_kas');
+    setFilterOrderDir('asc');
+    setAppliedFilters({ search: '', tipe: 'all', orderBy: 'nama_kas', orderDir: 'asc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (!item.nama_kas?.toLowerCase().includes(q) &&
@@ -118,6 +121,16 @@ export default function UnitKasPage() {
       }
       if (appliedFilters.tipe !== 'all' && item.tipe_kas !== appliedFilters.tipe) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof UnitKas] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof UnitKas] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -172,10 +185,41 @@ export default function UnitKasPage() {
           </span>
         ),
     },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <DropdownMenu
+          items={[
+            {
+              label: 'Ajukan Dana Pencairan',
+              icon: <Send size={14} />,
+              onClick: () => {
+                setValue('unit_kas_id', row.id);
+                setIsModalOpen(true);
+              },
+            },
+            ...(row.bank_account_number
+              ? [
+                  {
+                    label: 'Salin No. Rekening',
+                    icon: <Wallet size={14} />,
+                    onClick: () => {
+                      navigator.clipboard.writeText(row.bank_account_number || '');
+                      toast.success('Nomor rekening disalin ke clipboard');
+                    },
+                  },
+                ]
+              : []),
+          ]}
+        />
+      ),
+    },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Kas Unit & Mutasi Operasional"
         description="Kelola kas operasional fakultas, petty cash, dan mutasi saldo pencairan dari Kas Utama."
@@ -276,6 +320,32 @@ export default function UnitKasPage() {
               { value: 'operasional', label: 'Kas Operasional Unit' },
               { value: 'petty_cash', label: 'Petty Cash / Kas Kecil' },
             ]} />
+
+          <div className="pt-3 border-t border-slate-100">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Urutan Tampilan</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={filterOrderBy}
+                onChange={(val) => setFilterOrderBy(val as string)}
+                options={[
+                  { value: 'nama_kas', label: 'Nama Kas' },
+                  { value: 'tipe_kas', label: 'Tipe Kas' },
+                  { value: 'saldo_saat_ini', label: 'Saldo Saat Ini' },
+                  { value: 'penanggung_jawab', label: 'Penanggung Jawab' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={filterOrderDir}
+                onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z)' },
+                  { value: 'desc', label: 'Menurun (Z-A)' },
+                ]}
+              />
+            </div>
+          </div>
         </div>
       </Drawer>
     </div>

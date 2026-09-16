@@ -15,6 +15,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 import { formatRupiah } from '@/lib/utils';
 
@@ -33,7 +34,9 @@ interface DispensasiItem {
   has_unpaid_previous_dispensation?: boolean;
   unpaid_previous_dispensation_count?: number;
   created_at?: string;
+  tagihan_id?: number;
   tagihan?: {
+    id?: number;
     nomor_tagihan?: string;
     total_tagihan?: number;
     jatuh_tempo?: string;
@@ -74,7 +77,9 @@ export default function DispensasiListPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'all' });
+  const [filterOrderBy, setFilterOrderBy] = useState('nama_mahasiswa');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'all', orderBy: 'nama_mahasiswa', orderDir: 'asc' as 'asc' | 'desc' });
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -204,19 +209,21 @@ export default function DispensasiListPage() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, status: filterStatus });
+    setAppliedFilters({ search: filterSearch, status: filterStatus, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterStatus('all');
-    setAppliedFilters({ search: '', status: 'all' });
+    setFilterOrderBy('nama_mahasiswa');
+    setFilterOrderDir('asc');
+    setAppliedFilters({ search: '', status: 'all', orderBy: 'nama_mahasiswa', orderDir: 'asc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         const matchNama = item.nama_mahasiswa?.toLowerCase().includes(q);
@@ -227,6 +234,16 @@ export default function DispensasiListPage() {
       }
       if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof DispensasiItem] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof DispensasiItem] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -317,22 +334,36 @@ export default function DispensasiListPage() {
     {
       key: 'actions',
       label: 'AKSI',
+      align: 'right',
       render: (row) => (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => handleOpenDetail(row)}
-          icon={<Eye size={13} />}
-          className="text-xs font-bold"
-        >
-          Lihat & Cetak
-        </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Lihat & Cetak Surat',
+                icon: <Printer size={14} />,
+                onClick: () => handleOpenDetail(row),
+              },
+              {
+                label: 'Detail Tagihan Terkait',
+                icon: <Eye size={14} />,
+                onClick: () => {
+                  if (row.tagihan?.nomor_tagihan || row.tagihan_id) {
+                    window.location.href = `/sikeu/tagihan/${row.tagihan_id || row.id}`;
+                  } else {
+                    handleOpenDetail(row);
+                  }
+                },
+              },
+            ]}
+          />
+        </div>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto pb-16">
+    <div className="w-full space-y-6 animate-fade-in pb-6">
       <PageHeader
         title="Dispensasi & Keringanan Pembayaran Tagihan"
         description="Kelola permohonan cicilan, penundaan tanggal jatuh tempo, dan validasi riwayat tunggakan mahasiswa."
@@ -714,6 +745,32 @@ export default function DispensasiListPage() {
               { value: 'rejected', label: 'Ditolak' },
             ]}
           />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as string)}
+              options={[
+                { value: 'nama_mahasiswa', label: 'Nama Mahasiswa' },
+                { value: 'nim', label: 'NIM' },
+                { value: 'nominal_per_cicilan', label: 'Nominal Cicilan' },
+                { value: 'jatuh_tempo_baru', label: 'Jatuh Tempo Baru' },
+                { value: 'status', label: 'Status' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
     </div>

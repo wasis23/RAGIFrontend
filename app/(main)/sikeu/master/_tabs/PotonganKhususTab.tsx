@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
 interface FormValues {
@@ -64,6 +65,8 @@ export function PotonganKhususTab() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState<'nama_mahasiswa' | 'nama_potongan' | 'nilai_potongan' | 'status'>('nama_mahasiswa');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({ search: '', status: '' });
 
   // Add / Edit Modal State
@@ -292,7 +295,7 @@ export function PotonganKhususTab() {
 
   // Filter Logic
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       const searchMatch = !appliedFilters.search ||
         item.nama_mahasiswa.toLowerCase().includes(appliedFilters.search.toLowerCase()) ||
         item.nim.toLowerCase().includes(appliedFilters.search.toLowerCase()) ||
@@ -303,7 +306,35 @@ export function PotonganKhususTab() {
 
       return searchMatch && statusMatch;
     });
-  }, [data, appliedFilters]);
+
+    list.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+      switch (filterOrderBy) {
+        case 'nama_mahasiswa':
+          valA = a.nama_mahasiswa?.toLowerCase() || '';
+          valB = b.nama_mahasiswa?.toLowerCase() || '';
+          break;
+        case 'nama_potongan':
+          valA = a.nama_potongan?.toLowerCase() || '';
+          valB = b.nama_potongan?.toLowerCase() || '';
+          break;
+        case 'nilai_potongan':
+          valA = Number(a.nilai_potongan || 0);
+          valB = Number(b.nilai_potongan || 0);
+          break;
+        case 'status':
+          valA = a.status || '';
+          valB = b.status || '';
+          break;
+      }
+      if (valA < valB) return filterOrderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return filterOrderDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return list;
+  }, [data, appliedFilters, filterOrderBy, filterOrderDir]);
 
   // Statistics Summary
   const stats = useMemo(() => {
@@ -314,128 +345,116 @@ export function PotonganKhususTab() {
 
   const columns: ColumnDef<PotonganMahasiswa>[] = [
     {
-      label: 'Mahasiswa',
-      key: 'nama_mahasiswa',
-      render: (row: PotonganMahasiswa) => (
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
-            <User size={13} className="text-primary-600 shrink-0" />
-            <span>{row.nama_mahasiswa}</span>
-          </div>
-          <p className="text-2xs font-mono text-slate-500 pl-4.5">NIM: {row.nim}</p>
-        </div>
-      ),
-    },
-    {
-      label: 'Nama Potongan / Keringanan',
+      label: 'NAMA POTONGAN',
       key: 'nama_potongan',
       render: (row: PotonganMahasiswa) => (
-        <div className="space-y-0.5">
-          <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-            <Sparkles size={13} className="text-amber-500 shrink-0" />
-            <span>{row.nama_potongan}</span>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md uppercase">
+              {row.nomor_sk ? `SK: ${row.nomor_sk}` : 'POTONGAN'}
+            </span>
+            <p className="font-bold text-slate-900 text-sm">{row.nama_potongan}</p>
           </div>
-          {row.nomor_sk && (
-            <p className="text-2xs text-slate-500 pl-4.5 font-mono">
-              SK: <span className="font-semibold text-slate-700">{row.nomor_sk}</span>
-            </p>
-          )}
-          {row.keterangan && (
-            <p className="text-2xs text-slate-400 pl-4.5 italic line-clamp-1">{row.keterangan}</p>
-          )}
+          {row.keterangan && <p className="text-2xs text-slate-400 font-semibold mt-1 line-clamp-1">{row.keterangan}</p>}
         </div>
       ),
     },
     {
-      label: 'Besaran Potongan',
+      label: 'MAHASISWA',
+      key: 'nama_mahasiswa',
+      render: (row: PotonganMahasiswa) => (
+        <div>
+          <p className="font-bold text-slate-900 text-sm">{row.nama_mahasiswa}</p>
+          <p className="font-mono text-xs text-slate-500">NIM: {row.nim}</p>
+        </div>
+      ),
+    },
+    {
+      label: 'KOMPONEN & TARGET',
+      key: 'komponen_biaya',
+      render: (row: PotonganMahasiswa) => (
+        <div>
+          <p className="text-xs font-semibold text-slate-700">{row.komponen_biaya || 'Semua Komponen (Total Tagihan)'}</p>
+          <p className="text-2xs text-slate-500">
+            {row.semester ? `Semester ${row.semester}` : 'Semua Semester'}
+            {row.tahun_akademik ? ` • ${row.tahun_akademik}` : ''}
+          </p>
+        </div>
+      ),
+    },
+    {
+      label: 'BESARAN POTONGAN',
       key: 'nilai_potongan',
       render: (row: PotonganMahasiswa) => {
         const isPercent = row.tipe_potongan === 'persen';
         return (
-          <div className="space-y-0.5">
-            <Badge
-              variant={isPercent ? 'amber' : 'green'}
-              className="text-2xs font-bold font-mono tracking-tight"
-            >
+          <div>
+            <span className="font-bold text-slate-900 tabular-nums text-sm">
               {isPercent ? `${row.nilai_potongan}%` : formatRupiah(row.nilai_potongan)}
-            </Badge>
-            <span className="text-[10px] text-slate-400 block">
-              {isPercent ? 'Persentase Pengurang' : 'Nominal Langsung'}
+            </span>
+            <span className="text-2xs block text-emerald-600 font-semibold mt-0.5">
+              {isPercent ? 'Pengurang Persen' : 'Nominal Langsung'}
             </span>
           </div>
         );
       },
     },
     {
-      label: 'Komponen & Target',
-      key: 'komponen_biaya',
-      render: (row: PotonganMahasiswa) => (
-        <div className="space-y-0.5 text-xs">
-          <span className="font-semibold text-slate-800 text-2xs block">
-            {row.komponen_biaya || 'Semua Komponen (Total Tagihan)'}
-          </span>
-          <span className="text-[10px] text-slate-500 font-mono">
-            {row.semester ? `Semester ${row.semester}` : 'Semua Semester'}
-            {row.tahun_akademik ? ` • ${row.tahun_akademik}` : ''}
-          </span>
-        </div>
-      ),
-    },
-    {
-      label: 'Masa Berlaku',
+      label: 'MASA BERLAKU',
       key: 'berlaku_mulai',
       render: (row: PotonganMahasiswa) => (
-        <div className="text-2xs text-slate-600 font-mono space-y-0.5">
-          <div className="flex items-center gap-1">
-            <Calendar size={11} className="text-slate-400" />
-            <span>{row.berlaku_mulai || 'Sekarang'}</span>
-          </div>
-          <p className="text-[10px] text-slate-400 pl-3.5">s/d {row.berlaku_sampai || 'Seterusnya'}</p>
+        <div>
+          <p className="text-xs font-semibold text-slate-700">{row.berlaku_mulai || 'Sekarang'}</p>
+          <p className="text-2xs text-slate-500">s/d {row.berlaku_sampai || 'Seterusnya'}</p>
         </div>
       ),
     },
     {
-      label: 'Status',
+      label: 'STATUS',
       key: 'status',
-      render: (row: PotonganMahasiswa) => (
-        <Badge
-          variant={row.status === 'aktif' ? 'green' : row.status === 'selesai' ? 'blue' : 'gray'}
-          className="text-2xs uppercase font-bold"
-        >
-          {row.status}
-        </Badge>
-      ),
+      render: (row: PotonganMahasiswa) =>
+        row.status === 'aktif' ? (
+          <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+            <CheckCircle2 size={12} /> Aktif
+          </span>
+        ) : row.status === 'selesai' ? (
+          <span className="badge badge-blue text-xs font-bold inline-flex items-center gap-1">
+            <CheckCircle2 size={12} /> Selesai
+          </span>
+        ) : (
+          <span className="badge badge-red text-xs font-bold inline-flex items-center gap-1">
+            <XCircle size={12} /> Non-Aktif
+          </span>
+        ),
     },
     {
-      label: 'Aksi',
+      label: 'AKSI',
       key: 'id',
+      align: 'right',
       render: (row: PotonganMahasiswa) => (
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0 text-slate-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
-            onClick={() => openEditModal(row)}
-            title="Edit Pengaturan Potongan"
-          >
-            <Edit size={14} />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg"
-            onClick={() =>
-              setDeleteModal({
-                isOpen: true,
-                id: row.id,
-                namaMahasiswa: row.nama_mahasiswa,
-                namaPotongan: row.nama_potongan,
-              })
-            }
-            title="Hapus Potongan"
-          >
-            <Trash2 size={14} />
-          </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            align="right"
+            items={[
+              {
+                label: 'Edit Potongan',
+                icon: <Edit size={14} />,
+                onClick: () => openEditModal(row),
+              },
+              {
+                label: 'Hapus Potongan',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () =>
+                  setDeleteModal({
+                    isOpen: true,
+                    id: row.id,
+                    namaMahasiswa: row.nama_mahasiswa,
+                    namaPotongan: row.nama_potongan,
+                  }),
+              },
+            ]}
+          />
         </div>
       ),
     },
@@ -521,6 +540,35 @@ export function PotonganKhususTab() {
         </div>
       </div>
 
+      {/* Active Filters */}
+      {(appliedFilters.search || appliedFilters.status) && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-500 font-medium">Filter aktif:</span>
+          {appliedFilters.search && (
+            <span className="badge badge-blue text-xs font-medium">
+              Pencarian: &quot;{appliedFilters.search}&quot;
+            </span>
+          )}
+          {appliedFilters.status && (
+            <span className="badge badge-blue text-xs font-medium">
+              Status: {appliedFilters.status.toUpperCase()}
+            </span>
+          )}
+          <button
+            onClick={() => {
+              setFilterSearch('');
+              setFilterStatus('');
+              setFilterOrderBy('nama_mahasiswa');
+              setFilterOrderDir('asc');
+              setAppliedFilters({ search: '', status: '' });
+            }}
+            className="text-xs text-red-600 hover:text-red-700 font-semibold underline cursor-pointer ml-1"
+          >
+            Reset Filter
+          </button>
+        </div>
+      )}
+
       {/* Data Table */}
       <DataTable
         data={filteredData}
@@ -542,6 +590,8 @@ export function PotonganKhususTab() {
               onClick={() => {
                 setFilterSearch('');
                 setFilterStatus('');
+                setFilterOrderBy('nama_mahasiswa');
+                setFilterOrderDir('asc');
                 setAppliedFilters({ search: '', status: '' });
                 setShowFilter(false);
               }}
@@ -571,7 +621,7 @@ export function PotonganKhususTab() {
           <Select
             label="Status Potongan"
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(val) => setFilterStatus(val as string)}
             options={[
               { value: '', label: 'Semua Status' },
               { value: 'aktif', label: 'Aktif' },
@@ -579,6 +629,29 @@ export function PotonganKhususTab() {
               { value: 'selesai', label: 'Selesai' },
             ]}
           />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as any)}
+              options={[
+                { value: 'nama_mahasiswa', label: 'Nama Mahasiswa' },
+                { value: 'nama_potongan', label: 'Nama Potongan' },
+                { value: 'nilai_potongan', label: 'Besaran Potongan' },
+                { value: 'status', label: 'Status' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as any)}
+              options={[
+                { value: 'asc', label: 'Menaik (A-Z / 0-9)' },
+                { value: 'desc', label: 'Menurun (Z-A / 9-0)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 

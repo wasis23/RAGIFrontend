@@ -42,13 +42,13 @@ export default function LaporanKeuanganPage() {
   const periode = reportData?.periode || 'Periode Berjalan';
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto pb-16">
+    <div className="w-full space-y-6 animate-fade-in pb-6">
       <PageHeader
         title="Portal 4 Laporan Keuangan Utama"
         description="Laporan Laba Rugi, Neraca Posisi Keuangan, Arus Kas, & Laporan Perubahan Ekuitas Kampus"
         action={
           <div className="flex items-center gap-2">
-            <Link href="/sikeu/akuntansi" className="btn btn-secondary btn-icon">
+            <Link href="/sikeu/akuntansi" className="btn btn-warning btn-icon" title="Kembali">
               <ArrowLeft size={18} />
             </Link>
             <Button

@@ -195,7 +195,7 @@ export default function MasterGajiPegawaiSikeuPage() {
 
   if (!canAccess) {
     return (
-      <div className="animate-fade-in space-y-6 max-w-6xl mx-auto">
+      <div className="w-full space-y-6 animate-fade-in">
         <PageHeader
           title="Master Tarif Gaji & Transport Pegawai (SIKEU)"
           description="Penentuan Tarif Gaji Pokok, Tunjangan Tetap, Potongan Standar, dan Biaya Transport Harian Presensi"
@@ -212,7 +212,7 @@ export default function MasterGajiPegawaiSikeuPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6 max-w-6xl mx-auto pb-16">
+    <div className="w-full space-y-6 animate-fade-in pb-6">
       <PageHeader
         title="Master Tarif Gaji & Transport Pegawai (SIKEU)"
         description="Penentuan Tarif Gaji Pokok, Tunjangan Tetap, Potongan Standar, dan Biaya Transport Harian Presensi SIMPEG"
@@ -272,7 +272,7 @@ export default function MasterGajiPegawaiSikeuPage() {
           setPage(1);
         }}
         emptyMessage={
-          <div className="py-12 text-center text-slate-400 space-y-2">
+          <div className="py-6 text-center text-slate-400 space-y-2">
             <DollarSign size={40} className="mx-auto opacity-30 text-slate-400" />
             <p className="text-xs font-semibold text-slate-600">Tidak ada data pegawai yang sesuai.</p>
           </div>

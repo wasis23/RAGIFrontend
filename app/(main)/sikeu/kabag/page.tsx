@@ -14,9 +14,14 @@ import {
   User,
   ArrowRightLeft,
   BookOpen,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 
 export default function SikeuKabagPage() {
   const [activeTab, setActiveTab] = useState<'approval' | 'kas-utama' | 'akuntansi'>('approval');
@@ -139,32 +144,25 @@ export default function SikeuKabagPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6 animate-fade-in">
       {/* Header Portal Kabag Keuangan */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 card p-6">
-        <div className="flex items-center gap-3">
-          <Link href="/sikeu" className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="badge badge-teal-pill">Otoritas Finansial Tertinggi</span>
-              <span className="badge badge-indigo">Kabag Keuangan Portal</span>
-            </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Portal Khusus Kabag Keuangan</h1>
-            <p className="text-xs text-slate-500">Pusat Otorisasi Kas Utama, Persetujuan Dispensasi, Mutasi Likuiditas, & Pengawasan Akuntansi</p>
+      <PageHeader
+        title="Portal Khusus Kabag Keuangan"
+        description="Pusat Otorisasi Kas Utama, Persetujuan Dispensasi, Mutasi Likuiditas, & Pengawasan Akuntansi"
+        action={
+          <div className="flex items-center gap-2">
+            <Link href="/sikeu" className="btn btn-warning btn-icon" title="Kembali">
+              <ArrowLeft size={18} />
+            </Link>
+            <Link
+              href="/sikeu/approval"
+              className="btn btn-secondary font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            >
+              <ShieldCheck size={16} /> Portal Approval ({pendingDispensasi.length + pendingTagihan.length})
+            </Link>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/sikeu/approval"
-            className="btn btn-secondary border-none font-bold text-xs flex items-center gap-1.5 shadow-sm"
-          >
-            <ShieldCheck size={16} /> Portal Approval ({pendingDispensasi.length + pendingTagihan.length})
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {feedback && (
         <div
@@ -386,47 +384,68 @@ export default function SikeuKabagPage() {
       </div>
 
       {/* MODAL HASIL OTORISASI DECISION KABAG */}
-      {modalAction && (
-        <div className="modal-overlay">
-          <div className="modal modal-sm">
-            <h3 className="text-base font-extrabold text-slate-900">Otorisasi Kabag Keuangan: {modalAction.title}</h3>
-            <div className="flex items-center gap-2 pt-1 pb-3">
-              <button
-                onClick={() => setModalDecision('setujui')}
-                className={`btn btn-xs font-bold border-none flex-1 ${modalDecision === 'setujui' ? 'btn-primary' : 'btn-ghost'}`}
-              >
-                <CheckCircle size={14} /> Setujui
-              </button>
-              <button
-                onClick={() => setModalDecision('tolak')}
-                className={`btn btn-xs font-bold border-none flex-1 ${modalDecision === 'tolak' ? 'btn-danger' : 'btn-ghost'}`}
-              >
-                <XCircle size={14} /> Tolak
-              </button>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Catatan Instruksi Kabag Keuangan (Opsional)</label>
-              <textarea
-                value={catatan}
-                onChange={(e) => setCatatan(e.target.value)}
-                placeholder="Tuliskan catatan persetujuan atau penolakan..."
-                className="textarea textarea-sm w-full"
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <button onClick={() => setModalAction(null)} className="btn btn-ghost btn-sm font-bold" disabled={approving}>Batal</button>
-              <button
-                onClick={handleSubmitDecision}
-                disabled={approving}
-                className={`btn btn-sm font-bold border-none ${modalDecision === 'setujui' ? 'btn-primary' : 'btn-danger'}`}
-              >
-                {approving ? 'Memproses...' : modalDecision === 'setujui' ? 'Terbitkan Persetujuan' : 'Tolak Pengajuan'}
-              </button>
-            </div>
+      <Modal
+        isOpen={Boolean(modalAction)}
+        onClose={() => setModalAction(null)}
+        title={`Otorisasi Kabag Keuangan: ${modalAction?.title || ''}`}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 pt-1 pb-2">
+            <Button
+              type="button"
+              variant={modalDecision === 'setujui' ? 'primary' : 'ghost'}
+              onClick={() => setModalDecision('setujui')}
+              icon={<CheckCircle size={14} />}
+              className="flex-1 font-bold text-xs"
+            >
+              Setujui
+            </Button>
+            <Button
+              type="button"
+              variant={modalDecision === 'tolak' ? 'danger' : 'ghost'}
+              onClick={() => setModalDecision('tolak')}
+              icon={<XCircle size={14} />}
+              className="flex-1 font-bold text-xs"
+            >
+              Tolak
+            </Button>
+          </div>
+
+          <Textarea
+            label="Catatan Instruksi Kabag Keuangan (Opsional)"
+            value={catatan}
+            onChange={(e) => setCatatan(e.target.value)}
+            placeholder="Tuliskan catatan persetujuan atau penolakan..."
+            rows={3}
+          />
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setModalAction(null)}
+              disabled={approving}
+              className="font-bold text-slate-600"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant={modalDecision === 'setujui' ? 'primary' : 'danger'}
+              onClick={handleSubmitDecision}
+              disabled={approving}
+              icon={approving ? <Loader2 size={16} className="animate-spin" /> : undefined}
+              className="font-bold shadow-md"
+            >
+              {approving
+                ? 'Memproses...'
+                : modalDecision === 'setujui'
+                ? 'Terbitkan Persetujuan'
+                : 'Tolak Pengajuan'}
+            </Button>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

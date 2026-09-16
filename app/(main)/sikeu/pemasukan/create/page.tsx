@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -58,19 +59,14 @@ export default function CreatePemasukanPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Catat Pemasukan Hibah & Donasi"
         description="Pencatatan dana hibah riset SIPPM, donatur instansi, donasi alumni, atau pendapatan usaha kampus."
         action={
-          <Button
-            variant="outline"
-            icon={<ArrowLeft size={16} />}
-            onClick={() => router.push('/sikeu/pemasukan')}
-            className="font-bold min-h-[40px]"
-          >
-            Kembali
-          </Button>
+          <Link href="/sikeu/pemasukan" className="btn btn-warning btn-icon" title="Kembali">
+            <ArrowLeft size={18} />
+          </Link>
         }
       />
 

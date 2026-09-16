@@ -347,7 +347,7 @@ export default function StudentTagihanPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-24">
+    <div className="w-full space-y-6 animate-fade-in pb-6">
       {/* ── HEADER BANNER ─────────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-slate-900 via-primary-950 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -857,7 +857,7 @@ export default function StudentTagihanPage() {
           </div>
 
           {payments.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-xs space-y-2">
+            <div className="text-center py-6 text-slate-400 text-xs space-y-2">
               <Receipt size={36} className="mx-auto text-slate-300" />
               <p>Belum ada riwayat pembayaran yang tercatat untuk akun mahasiswa ini.</p>
             </div>

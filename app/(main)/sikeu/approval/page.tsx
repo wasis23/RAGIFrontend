@@ -16,6 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
 interface ApprovalItem {
@@ -42,7 +43,9 @@ export default function SikeuApprovalPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', type: 'all' });
+  const [filterOrderBy, setFilterOrderBy] = useState('tanggal');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', type: 'all', orderBy: 'tanggal', orderDir: 'desc' as 'asc' | 'desc' });
 
   // Action Modal State
   const [activeItem, setActiveItem] = useState<ApprovalItem | null>(null);
@@ -130,25 +133,37 @@ export default function SikeuApprovalPage() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, type: filterType });
+    setAppliedFilters({ search: filterSearch, type: filterType, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterType('all');
-    setAppliedFilters({ search: '', type: 'all' });
+    setFilterOrderBy('tanggal');
+    setFilterOrderDir('desc');
+    setAppliedFilters({ search: '', type: 'all', orderBy: 'tanggal', orderDir: 'desc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (!item.title?.toLowerCase().includes(q) && !item.pemohon?.toLowerCase().includes(q) && !item.keterangan?.toLowerCase().includes(q)) return false;
       }
       if (appliedFilters.type !== 'all' && item.type !== appliedFilters.type) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof ApprovalItem] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof ApprovalItem] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -191,32 +206,29 @@ export default function SikeuApprovalPage() {
       label: 'KEPUTUSAN PIMPINAN',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleOpenAction(row, 'approve')}
-            icon={<CheckCircle2 size={14} className="text-emerald-600" />}
-            className="font-bold text-emerald-700 hover:bg-emerald-50"
-          >
-            Setujui
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleOpenAction(row, 'reject')}
-            icon={<XCircle size={14} className="text-rose-600" />}
-            className="font-bold text-rose-700 hover:bg-rose-50"
-          >
-            Tolak
-          </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Setujui Pengajuan',
+                icon: <CheckCircle2 size={14} className="text-emerald-600" />,
+                onClick: () => handleOpenAction(row, 'approve'),
+              },
+              {
+                label: 'Tolak Pengajuan',
+                icon: <XCircle size={14} className="text-rose-600" />,
+                variant: 'danger',
+                onClick: () => handleOpenAction(row, 'reject'),
+              },
+            ]}
+          />
         </div>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Portal Persetujuan Pimpinan (Approval)"
         description="Verifikasi dan persetujuan bertingkat untuk pengajuan kas, dispensasi tagihan, dan pencairan anggaran."
@@ -287,6 +299,32 @@ export default function SikeuApprovalPage() {
               { value: 'tagihan', label: 'Penerbitan Invoice Special' },
               { value: 'kas', label: 'Pencairan Kas Operasional' },
             ]} />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as string)}
+              options={[
+                { value: 'tanggal', label: 'Tanggal' },
+                { value: 'title', label: 'Judul Pengajuan' },
+                { value: 'pemohon', label: 'Pemohon' },
+                { value: 'nominal', label: 'Nominal' },
+                { value: 'type', label: 'Kategori' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
     </div>

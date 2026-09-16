@@ -5,6 +5,7 @@ import { DateText } from '../atoms/DateText';
 import { CurrencyText } from '../atoms/CurrencyText';
 import { StatusBadge } from '../atoms/StatusBadge';
 import { Eye } from 'lucide-react';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
 export interface JournalItemData {
   id: number;
@@ -73,15 +74,15 @@ export const JournalRow: React.FC<JournalRowProps> = ({ data, onSelect }) => {
       </td>
 
       <td className="px-3.5 py-3 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={() => onSelect(data)}
-          className="p-1.5 hover:bg-slate-200/60 rounded-md text-slate-500 hover:text-slate-900 transition"
-          title="Lihat Detail Transaksi"
-          aria-label="Lihat detail"
-        >
-          <Eye size={15} />
-        </button>
+        <DropdownMenu
+          items={[
+            {
+              label: 'Lihat Rincian Transaksi',
+              icon: <Eye size={14} />,
+              onClick: () => onSelect(data),
+            },
+          ]}
+        />
       </td>
     </tr>
   );

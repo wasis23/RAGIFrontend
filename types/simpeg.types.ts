@@ -94,8 +94,11 @@ export interface Pegawai {
   unit_kerja?: UnitKerja | null;
   shift_template_id?: number | null;
   office_location_id?: number | null;
-  shift_template?: { id: number; name: string } | null;
-  office_location?: { id: number; name: string } | null;
+  shift_template?: { id: number; name: string; start_time?: string; end_time?: string } | null;
+  office_location?: { id: number; name: string; radius_meters?: number } | null;
+  is_face_enrolled?: boolean;
+  face_enrolled_at?: string | null;
+  consent_pdp_at?: string | null;
   riwayat_jabatan?: RiwayatJabatan[];
   riwayat_pendidikan?: RiwayatPendidikanPegawai[];
   created_at?: string;

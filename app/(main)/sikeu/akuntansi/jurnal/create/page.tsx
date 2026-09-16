@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Plus, Trash2, BookOpen } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 import { AkunKeuangan } from '@/types/sikeu.types';
+import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function CreateJurnalPage() {
   const router = useRouter();
@@ -87,19 +88,16 @@ export default function CreateJurnalPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Header & Back Button */}
-      <div className="flex items-center justify-between card p-6">
-        <div className="flex items-center gap-3">
-          <Link href="/sikeu/akuntansi/jurnal" className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition" title="Kembali ke Daftar Jurnal">
-            <ArrowLeft size={20} />
+    <div className="w-full space-y-6 animate-fade-in">
+      <PageHeader
+        title="Entry Jurnal Umum & Penyesuaian Manual"
+        description="Pencatatan entri jurnal ganda (Double-entry debet/kredit seimbang)"
+        action={
+          <Link href="/sikeu/akuntansi/jurnal" className="btn btn-warning btn-icon" title="Kembali ke Daftar Jurnal">
+            <ArrowLeft size={18} />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 font-jakarta">Entry Jurnal Umum & Penyesuaian Manual</h1>
-            <p className="text-xs text-gray-500">Pencatatan entri jurnal ganda (Double-entry debet/kredit seimbang)</p>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
       {error && (
         <div className="p-4 bg-rose-50 text-rose-700 text-sm rounded-xl border border-rose-200">

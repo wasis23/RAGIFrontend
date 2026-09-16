@@ -261,7 +261,7 @@ export default function AccountingJournalPage() {
   ];
 
   return (
-    <div className="space-y-5 animate-fade-in max-w-7xl mx-auto px-1 sm:px-4 py-2">
+    <div className="w-full space-y-6 animate-fade-in">
       {/* 1. Header Section */}
       <JournalHeader
         activeTab={activeTab}

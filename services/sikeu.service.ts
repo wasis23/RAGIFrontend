@@ -236,9 +236,13 @@ export const sikeuService = {
     });
   },
 
-  getBukuBesar: async (akun_id?: number) => {
-    const query = akun_id ? `?akun_id=${akun_id}` : '';
-    return fetchWithAuth<ApiResponse<DetailJurnalUmum[]>>(`/v1/sikeu/akuntansi/buku-besar${query}`);
+  getBukuBesar: async (akun_id?: number, page?: number, per_page?: number) => {
+    const query = new URLSearchParams();
+    if (akun_id) query.append('akun_id', akun_id.toString());
+    if (page) query.append('page', page.toString());
+    if (per_page) query.append('per_page', per_page.toString());
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/akuntansi/buku-besar${queryString}`);
   },
 
   getLaporanKeuangan: async () => {
@@ -590,8 +594,12 @@ export const sikeuService = {
   },
 
   // Dashboard Executive Summary & Live Xendit
-  getDashboardSummary: async () => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/dashboard-summary');
+  getDashboardSummary: async (params?: { start_date?: string; end_date?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.start_date) query.append('start_date', params.start_date);
+    if (params?.end_date) query.append('end_date', params.end_date);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/dashboard-summary${qs}`);
   },
 
   // Pengeluaran Kampus

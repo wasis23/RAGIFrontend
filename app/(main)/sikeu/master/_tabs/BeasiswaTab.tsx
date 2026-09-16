@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
 import { formatRupiah } from '@/lib/utils';
@@ -50,7 +51,9 @@ export function BeasiswaTab() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterSumber, setFilterSumber] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', sumber: '' });
+  const [filterOrderBy, setFilterOrderBy] = useState('nama');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', sumber: '', orderBy: 'nama', orderDir: 'asc' as 'asc' | 'desc' });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Beasiswa | null>(null);
@@ -188,25 +191,37 @@ export function BeasiswaTab() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, sumber: filterSumber });
+    setAppliedFilters({ search: filterSearch, sumber: filterSumber, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterSumber('');
-    setAppliedFilters({ search: '', sumber: '' });
+    setFilterOrderBy('nama');
+    setFilterOrderDir('asc');
+    setAppliedFilters({ search: '', sumber: '', orderBy: 'nama', orderDir: 'asc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (!item.nama?.toLowerCase().includes(q) && !item.kode?.toLowerCase().includes(q) && !item.deskripsi?.toLowerCase().includes(q)) return false;
       }
       if (appliedFilters.sumber && item.sumber !== appliedFilters.sumber) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof Beasiswa] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof Beasiswa] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -222,9 +237,11 @@ export function BeasiswaTab() {
       key: 'kode',
       label: 'KODE',
       render: (row) => (
-        <span className="font-mono text-xs font-bold px-2 py-1 bg-slate-100 text-slate-700 rounded-md uppercase">
-          {row.kode}
-        </span>
+        <div>
+          <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md uppercase">
+            {row.kode}
+          </span>
+        </div>
       ),
     },
     {
@@ -233,7 +250,7 @@ export function BeasiswaTab() {
       render: (row) => (
         <div>
           <p className="font-bold text-slate-900 text-sm">{row.nama}</p>
-          {row.deskripsi && <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{row.deskripsi}</p>}
+          {row.deskripsi && <p className="text-2xs text-slate-400 font-semibold mt-1 line-clamp-1">{row.deskripsi}</p>}
         </div>
       ),
     },
@@ -241,22 +258,43 @@ export function BeasiswaTab() {
       key: 'sumber',
       label: 'SUMBER DANA',
       render: (row) => (
-        <span className="badge badge-blue text-xs font-semibold uppercase">{row.sumber || 'Internal'}</span>
+        <span className="badge badge-blue text-xs font-bold uppercase">{row.sumber || 'Internal'}</span>
       ),
     },
     {
       key: 'cakupan_biaya',
       label: 'CAKUPAN KOMPONEN',
       render: (row) => (
-        <span className="text-xs text-slate-700 font-medium">{getCakupanBiayaText(row)}</span>
+        <div>
+          <p className="text-xs font-semibold text-slate-700">{getCakupanBiayaText(row)}</p>
+          <p className="text-2xs text-slate-500">
+            {row.berlaku_angkatan_mulai && row.berlaku_angkatan_sampai
+              ? `Angkatan ${row.berlaku_angkatan_mulai} - ${row.berlaku_angkatan_sampai}`
+              : 'Semua Angkatan'}
+          </p>
+        </div>
       ),
     },
     {
       key: 'nilai_potongan',
       label: 'BESARAN POTONGAN',
       render: (row) => (
-        <span className="font-bold text-emerald-700 text-xs">
-          {row.tipe_potongan === 'persen' ? `${row.nilai_potongan}%` : formatRupiah(row.nilai_potongan)}
+        <div>
+          <span className="font-bold text-slate-900 tabular-nums text-sm">
+            {row.tipe_potongan === 'persen' ? `${row.nilai_potongan}%` : formatRupiah(row.nilai_potongan)}
+          </span>
+          <span className="text-2xs block text-emerald-600 font-semibold mt-0.5">
+            {row.tipe_potongan === 'persen' ? 'Potongan Persentase' : 'Potongan Nominal Tetap'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: () => (
+        <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+          <CheckCircle2 size={12} /> Aktif
         </span>
       ),
     },
@@ -265,15 +303,23 @@ export function BeasiswaTab() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button size="sm" variant="ghost" onClick={() => handleOpenEdit(row)} icon={<Edit size={14} />}
-            className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
-            Edit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama)} icon={<Trash2 size={14} />}
-            className="font-semibold text-rose-600 hover:bg-rose-50">
-            Hapus
-          </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            align="right"
+            items={[
+              {
+                label: 'Edit Master Beasiswa',
+                icon: <Edit size={14} />,
+                onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Hapus',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => handleOpenDelete(row.id, row.nama),
+              },
+            ]}
+          />
         </div>
       ),
     },
@@ -295,6 +341,29 @@ export function BeasiswaTab() {
           </div>
         }
       />
+
+      {/* Active Filters */}
+      {(appliedFilters.search || appliedFilters.sumber) && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-slate-500 font-medium">Filter aktif:</span>
+          {appliedFilters.search && (
+            <span className="badge badge-blue text-xs font-medium">
+              Pencarian: &quot;{appliedFilters.search}&quot;
+            </span>
+          )}
+          {appliedFilters.sumber && (
+            <span className="badge badge-blue text-xs font-medium">
+              Sumber Dana: {appliedFilters.sumber.toUpperCase()}
+            </span>
+          )}
+          <button
+            onClick={handleResetFilter}
+            className="text-xs text-red-600 hover:text-red-700 font-semibold underline cursor-pointer ml-1"
+          >
+            Reset Filter
+          </button>
+        </div>
+      )}
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data program beasiswa." />
 
@@ -428,6 +497,32 @@ export function BeasiswaTab() {
               { value: 'mitra', label: 'Mitra / CSR' },
               { value: 'alumni', label: 'Alumni' },
             ]} />
+
+          <div className="pt-3 border-t border-slate-100">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Urutan Tampilan</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={filterOrderBy}
+                onChange={(val) => setFilterOrderBy(val as string)}
+                options={[
+                  { value: 'nama', label: 'Nama Beasiswa' },
+                  { value: 'kode', label: 'Kode Beasiswa' },
+                  { value: 'sumber', label: 'Sumber Dana' },
+                  { value: 'nilai_potongan', label: 'Besaran Potongan' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={filterOrderDir}
+                onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z)' },
+                  { value: 'desc', label: 'Menurun (Z-A)' },
+                ]}
+              />
+            </div>
+          </div>
         </div>
       </Drawer>
 

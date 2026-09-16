@@ -15,6 +15,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
 interface TaxItem {
@@ -44,7 +45,9 @@ export default function TaxReportPage() {
   const [filterSearch, setFilterSearch] = useState('');
   const [filterJenis, setFilterJenis] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', jenis: 'all', status: 'all' });
+  const [filterOrderBy, setFilterOrderBy] = useState('nominal_pajak');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', jenis: 'all', status: 'all', orderBy: 'nominal_pajak', orderDir: 'desc' as 'asc' | 'desc' });
 
   // Modal Setor State
   const [activeItem, setActiveItem] = useState<TaxItem | null>(null);
@@ -93,7 +96,7 @@ export default function TaxReportPage() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, jenis: filterJenis, status: filterStatus });
+    setAppliedFilters({ search: filterSearch, jenis: filterJenis, status: filterStatus, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
@@ -101,12 +104,14 @@ export default function TaxReportPage() {
     setFilterSearch('');
     setFilterJenis('all');
     setFilterStatus('all');
-    setAppliedFilters({ search: '', jenis: 'all', status: 'all' });
+    setFilterOrderBy('nominal_pajak');
+    setFilterOrderDir('desc');
+    setAppliedFilters({ search: '', jenis: 'all', status: 'all', orderBy: 'nominal_pajak', orderDir: 'desc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (!item.nomor?.toLowerCase().includes(q) && !item.deskripsi?.toLowerCase().includes(q) && !item.ntpn?.toLowerCase().includes(q)) return false;
@@ -114,6 +119,16 @@ export default function TaxReportPage() {
       if (appliedFilters.jenis !== 'all' && item.jenis !== appliedFilters.jenis) return false;
       if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof TaxItem] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof TaxItem] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -189,26 +204,32 @@ export default function TaxReportPage() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          {row.status !== 'disetor' ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleOpenSetor(row)}
-              className="font-bold text-primary-600 hover:bg-primary-50"
-            >
-              Input NTPN
-            </Button>
-          ) : (
-            <span className="text-2xs text-slate-400 font-semibold">Tuntas</span>
-          )}
-        </div>
+        <DropdownMenu
+          items={
+            row.status !== 'disetor'
+              ? [
+                  {
+                    label: 'Input NTPN Bukti Setor',
+                    icon: <Save size={14} />,
+                    onClick: () => handleOpenSetor(row),
+                  },
+                ]
+              : [
+                  {
+                    label: `NTPN: ${row.ntpn || 'Tercatat'}`,
+                    icon: <CheckCircle2 size={14} />,
+                    disabled: true,
+                    onClick: () => {},
+                  },
+                ]
+          }
+        />
       ),
     },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Rekapitulasi Kewajiban Pajak Kampus"
         description="Pencatatan pemotongan PPh 21, PPh 23, PPN & pelaporan bukti setor NTPN ke kas negara."
@@ -315,6 +336,33 @@ export default function TaxReportPage() {
               { value: 'disetor', label: 'Sudah Disetor (Ada NTPN)' },
               { value: 'terutang', label: 'Belum Disetor (Terutang)' },
             ]} />
+
+          <div className="pt-3 border-t border-slate-100">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Urutan Tampilan</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={filterOrderBy}
+                onChange={(val) => setFilterOrderBy(val as string)}
+                options={[
+                  { value: 'nominal_pajak', label: 'Nominal Pajak' },
+                  { value: 'nomor', label: 'Nomor Transaksi' },
+                  { value: 'jenis', label: 'Jenis Pajak' },
+                  { value: 'status', label: 'Status' },
+                  { value: 'tanggal_setor', label: 'Tanggal Setor' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={filterOrderDir}
+                onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z)' },
+                  { value: 'desc', label: 'Menurun (Z-A)' },
+                ]}
+              />
+            </div>
+          </div>
         </div>
       </Drawer>
     </div>

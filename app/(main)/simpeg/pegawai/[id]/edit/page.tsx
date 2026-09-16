@@ -2,19 +2,21 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, RefreshCw, CreditCard, Building } from 'lucide-react';
+import { ArrowLeft, Save, RefreshCw, ScanFace, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { simpegService } from '@/services/simpeg.service';
-import type { UnitKerja } from '@/types/simpeg.types';
+import type { Pegawai, UnitKerja } from '@/types/simpeg.types';
 
 const pegawaiSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
@@ -52,10 +54,28 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pegawaiData, setPegawaiData] = useState<Pegawai | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [selectedUnitOption, setSelectedUnitOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedShiftOption, setSelectedShiftOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedOfficeOption, setSelectedOfficeOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedRoleOptions, setSelectedRoleOptions] = useState<{ value: string; label: string }[]>([]);
+
+  const handleResetBiometric = async () => {
+    setIsResetting(true);
+    try {
+      const res = await simpegService.resetFaceBiometric(pegawaiId);
+      toast.success(res.message || 'Data biometrik wajah pegawai berhasil direset.');
+      setPegawaiData((prev) => (prev ? { ...prev, is_face_enrolled: false, face_enrolled_at: null } : null));
+      setShowResetConfirm(false);
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      toast.error(errorObj?.response?.data?.message || 'Gagal mereset biometrik pegawai.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   const {
     register,
@@ -126,10 +146,10 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const loadShiftOptions = useCallback(async (inputValue: string) => {
     try {
       const res = await simpegService.getShiftTemplates();
-      const shifts = res.data || [];
+      const shifts = (res.data || []) as Array<{ id: number; name: string; is_active?: boolean }>;
       return shifts
-        .filter((s: any) => s.name.toLowerCase().includes(inputValue.toLowerCase()))
-        .map((s: any) => ({
+        .filter((s) => s.name.toLowerCase().includes(inputValue.toLowerCase()))
+        .map((s) => ({
           value: s.id.toString(),
           label: s.is_active ? s.name : `${s.name} (Non-Aktif)`,
         }));
@@ -142,10 +162,10 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const loadOfficeOptions = useCallback(async (inputValue: string) => {
     try {
       const res = await simpegService.getOfficeLocations();
-      const offices = res.data || [];
+      const offices = (res.data || []) as Array<{ id: number; name: string; is_active?: boolean }>;
       return offices
-        .filter((o: any) => o.name.toLowerCase().includes(inputValue.toLowerCase()))
-        .map((o: any) => ({
+        .filter((o) => o.name.toLowerCase().includes(inputValue.toLowerCase()))
+        .map((o) => ({
           value: o.id.toString(),
           label: o.is_active ? o.name : `${o.name} (Non-Aktif)`,
         }));
@@ -159,14 +179,15 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [resPegawai, resUnit] = await Promise.all([
+        const [resPegawai] = await Promise.all([
           simpegService.getPegawaiDetail(pegawaiId),
           simpegService.getUnitKerjaList(),
         ]);
 
         const peg = resPegawai.data;
         if (peg) {
-          const initialRoles = (peg.roles || []).map((r: any) => ({
+          setPegawaiData(peg);
+          const initialRoles = (peg.roles || []).map((r: { id: number; name: string }) => ({
             value: String(r.id),
             label: r.name,
           }));
@@ -179,7 +200,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             nip: peg.nip || '',
             nik: peg.nik || '',
             nama_lengkap: peg.nama_lengkap || '',
-            role_ids: initialRoles.map((r: any) => r.value),
+            role_ids: initialRoles.map((r) => r.value),
             tempat_lahir: peg.tempat_lahir || '',
             tanggal_lahir: peg.tanggal_lahir || '',
             jenis_kelamin: peg.jenis_kelamin || 'L',
@@ -213,8 +234,9 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             });
           }
         }
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || 'Gagal memuat data pegawai');
+      } catch (err: unknown) {
+        const errorObj = err as { response?: { data?: { message?: string } } };
+        toast.error(errorObj?.response?.data?.message || 'Gagal memuat data pegawai');
       } finally {
         setLoading(false);
       }
@@ -249,8 +271,9 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       await simpegService.updatePegawai(pegawaiId, payload);
       toast.success('Data Pegawai berhasil diperbarui!');
       router.push('/simpeg/pegawai');
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memperbarui data pegawai');
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      toast.error(errorObj?.response?.data?.message || 'Gagal memperbarui data pegawai');
     } finally {
       setIsSubmitting(false);
     }
@@ -348,10 +371,12 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                       isMulti
                       placeholder="Cari dan pilih jenis pegawai / role..."
                       value={selectedRoleOptions}
-                      onChange={(selectedOptions: any) => {
-                        const opts = Array.isArray(selectedOptions) ? selectedOptions : [];
+                      onChange={(selectedOptions: unknown) => {
+                        const opts = Array.isArray(selectedOptions)
+                          ? (selectedOptions as Array<{ value: string; label: string }>)
+                          : [];
                         setSelectedRoleOptions(opts);
-                        field.onChange(opts.map((opt: any) => opt.value));
+                        field.onChange(opts.map((opt) => opt.value));
                       }}
                       loadOptions={loadRoleOptions}
                       error={errors.role_ids?.message as string}
@@ -461,6 +486,51 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
 
+              {/* SECTION: DATA BIOMETRIK WAJAH */}
+              <div className="lg:col-span-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-primary-600 shadow-sm shrink-0">
+                    <ScanFace size={22} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-bold text-slate-800">Biometrik Wajah Presensi Mobile</span>
+                      {pegawaiData?.is_face_enrolled ? (
+                        <Badge variant="green" className="text-xs">
+                          <CheckCircle2 size={12} className="mr-1 inline" /> Wajah Terdaftar
+                        </Badge>
+                      ) : (
+                        <Badge variant="gray" className="text-xs">
+                          Belum Terdaftar
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {pegawaiData?.is_face_enrolled ? (
+                        <>
+                          Data biometrik aktif untuk verifikasi presensi di aplikasi mobile
+                          {pegawaiData.face_enrolled_at ? ` (didaftarkan pada: ${new Date(pegawaiData.face_enrolled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })})` : ''}.
+                        </>
+                      ) : (
+                        'Pegawai belum mendaftarkan data wajah. Pendaftaran dilakukan secara mandiri melalui aplikasi mobile presensi.'
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {pegawaiData?.is_face_enrolled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-rose-600 border-rose-300 hover:bg-rose-50 hover:border-rose-400 text-xs shrink-0 self-start sm:self-center"
+                    icon={<RotateCcw size={14} />}
+                    onClick={() => setShowResetConfirm(true)}
+                  >
+                    Reset Biometrik Wajah
+                  </Button>
+                )}
+              </div>
+
               <Input
                 label="Tempat Lahir"
                 placeholder="Ketik Kota Tempat Lahir..."
@@ -548,6 +618,25 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
           </form>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleResetBiometric}
+        title="Reset Biometrik Wajah"
+        message={
+          <div>
+            Apakah Anda yakin ingin mereset data biometrik wajah pegawai <strong>{pegawaiData?.nama_lengkap}</strong>?
+            <p className="mt-2 text-xs text-rose-600 font-semibold">
+              Data vektor biometrik akan dihapus dan pegawai harus mendaftarkan ulang wajahnya melalui aplikasi mobile presensi.
+            </p>
+          </div>
+        }
+        confirmText="Ya, Reset Biometrik"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isResetting}
+      />
     </div>
   );
 }

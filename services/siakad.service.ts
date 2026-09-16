@@ -452,4 +452,58 @@ export const siakadService = {
     const response = await apiClient.post(`/v1/siakad/obe/kelas/${kelasId}/bulk-nilai`, payload);
     return response.data;
   },
+
+  // Penerima Beasiswa Mahasiswa (BAAK)
+  getMahasiswaBeasiswaList: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    q?: string;
+    status?: string;
+    beasiswa_id?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/civitas/beasiswa', { params });
+    return response.data;
+  },
+
+  getMahasiswaBeasiswaDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/civitas/beasiswa/${id}`);
+    return response.data;
+  },
+
+  createMahasiswaBeasiswa: async (payload: {
+    mahasiswa_id: number;
+    beasiswa_id: number;
+    berlaku_mulai?: string;
+    berlaku_sampai?: string;
+    status?: string;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/civitas/beasiswa', payload);
+    return response.data;
+  },
+
+  updateMahasiswaBeasiswa: async (
+    id: number,
+    payload: {
+      beasiswa_id?: number;
+      berlaku_mulai?: string;
+      berlaku_sampai?: string;
+      status?: string;
+    }
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/civitas/beasiswa/${id}`, payload);
+    return response.data;
+  },
+
+  deleteMahasiswaBeasiswa: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/civitas/beasiswa/${id}`);
+    return response.data;
+  },
+
+  getBeasiswaOptions: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/civitas/beasiswa/options');
+    return response.data;
+  },
 };

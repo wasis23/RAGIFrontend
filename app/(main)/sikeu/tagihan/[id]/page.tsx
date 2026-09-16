@@ -170,17 +170,15 @@ export default function TagihanDetailPage() {
   const moduleKeys = Object.keys(grouped);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16 animate-fade-in">
+    <div className="w-full space-y-6 animate-fade-in pb-6">
       {/* Top Navigation */}
       <div className="flex items-center justify-between print:hidden">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push('/sikeu/tagihan')}
-          icon={<ArrowLeft size={16} />}
-        >
-          Kembali ke Daftar Tagihan
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <Link href="/sikeu/tagihan" className="btn btn-warning btn-icon" title="Kembali ke Daftar Tagihan">
+            <ArrowLeft size={18} />
+          </Link>
+          <span className="text-xs font-bold text-slate-700 hidden sm:inline">Kembali ke Daftar Tagihan</span>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

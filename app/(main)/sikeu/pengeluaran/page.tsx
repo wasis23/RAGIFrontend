@@ -13,6 +13,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
 interface PengeluaranItem {
   id: number;
@@ -42,7 +43,9 @@ export default function PengeluaranListPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterKategori, setFilterKategori] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', kategori: 'all' });
+  const [filterOrderBy, setFilterOrderBy] = useState('tanggal_transaksi');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', kategori: 'all', orderBy: 'tanggal_transaksi', orderDir: 'desc' as 'asc' | 'desc' });
 
   const fetchPengeluaran = async () => {
     try {
@@ -63,19 +66,21 @@ export default function PengeluaranListPage() {
   }, []);
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, kategori: filterKategori });
+    setAppliedFilters({ search: filterSearch, kategori: filterKategori, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterKategori('all');
-    setAppliedFilters({ search: '', kategori: 'all' });
+    setFilterOrderBy('tanggal_transaksi');
+    setFilterOrderDir('desc');
+    setAppliedFilters({ search: '', kategori: 'all', orderBy: 'tanggal_transaksi', orderDir: 'desc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         const matchKode = (item.nomor_transaksi || item.kode || '')?.toLowerCase().includes(q);
@@ -86,6 +91,16 @@ export default function PengeluaranListPage() {
       }
       if (appliedFilters.kategori !== 'all' && item.kategori !== appliedFilters.kategori) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof PengeluaranItem] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof PengeluaranItem] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -152,10 +167,30 @@ export default function PengeluaranListPage() {
         </span>
       ),
     },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Rincian Pengeluaran',
+                icon: <Eye size={14} />,
+                onClick: () => {
+                  toast.success(`Transaksi ${row.nomor_transaksi || row.kode || row.id}: Net ${formatRupiah(row.net_dibayarkan ?? row.nominal_net ?? 0)}`);
+                },
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Daftar Pengeluaran & Beban Kampus"
         description="Pencatatan transaksi pengeluaran operasional, vendor, honorarium & potongan pajak PPh/PPN."
@@ -233,6 +268,32 @@ export default function PengeluaranListPage() {
               { value: 'pembelian', label: 'Pembelian Aset / Alat' },
               { value: 'praktikum', label: 'Bahan Praktikum' },
             ]} />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as string)}
+              options={[
+                { value: 'tanggal_transaksi', label: 'Tanggal Transaksi' },
+                { value: 'kode', label: 'Kode Transaksi' },
+                { value: 'nominal_gross', label: 'Nominal Gross' },
+                { value: 'nominal_net', label: 'Nominal Net' },
+                { value: 'kategori', label: 'Kategori' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
     </div>
