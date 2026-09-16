@@ -392,11 +392,16 @@ export const simpegService = {
     return data;
   },
 
-  // Payroll / Gaji
+  // Payroll / Gaji Fleksibel
   getPayrollList: async (params?: any): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll', {
       params: typeof params === 'number' ? { pegawai_id: params } : params,
     });
+    return data;
+  },
+
+  getPayrollDetail: async (id: number): Promise<ApiResponse<GajiPegawai>> => {
+    const { data } = await apiClient.get<ApiResponse<GajiPegawai>>(`/simpeg/payroll/${id}`);
     return data;
   },
 
@@ -405,8 +410,9 @@ export const simpegService = {
     return data;
   },
 
-  generatePayroll: async (periode: string): Promise<ApiResponse<any>> => {
-    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/generate', { periode });
+  generatePayroll: async (payload: { periode: string; pegawai_id?: number } | string): Promise<ApiResponse<any>> => {
+    const body = typeof payload === 'string' ? { periode: payload } : payload;
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/generate', body);
     return data;
   },
 
@@ -417,6 +423,38 @@ export const simpegService = {
 
   processPayrollPayment: async (id: number): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/payroll/${id}/process-payment`);
+    return data;
+  },
+
+  // Master Komponen Gaji
+  getKomponenGajiList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll/komponen', { params });
+    return data;
+  },
+
+  createKomponenGaji: async (payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/komponen', payload);
+    return data;
+  },
+
+  updateKomponenGaji: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/payroll/komponen/${id}`, payload);
+    return data;
+  },
+
+  deleteKomponenGaji: async (id: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/simpeg/payroll/komponen/${id}`);
+    return data;
+  },
+
+  // Komponen Gaji Spesifik Pegawai
+  getPegawaiKomponenList: async (pegawaiId: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/payroll/pegawai/${pegawaiId}/komponen`);
+    return data;
+  },
+
+  savePegawaiKomponenList: async (pegawaiId: number, komponen: any[]): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/payroll/pegawai/${pegawaiId}/komponen`, { komponen });
     return data;
   },
 

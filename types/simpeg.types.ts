@@ -237,6 +237,14 @@ export interface GajiPegawai {
   jumlah_hari_hadir_tepat_waktu?: number;
   total_tunjangan: number;
   total_potongan: number;
+  total_honor_sks?: number;
+  total_sks_diampu?: number;
+  total_tunjangan_fungsional?: number;
+  total_pph21?: number;
+  total_bpjs?: number;
+  jurnal_id?: number | null;
+  pengeluaran_kampus_id?: number | null;
+  details?: GajiDetail[];
   gaji_bersih: number;
   status_transfer: StatusTransferGaji;
   tanggal_transfer?: string | null;
@@ -324,3 +332,48 @@ export interface PenilaianKinerja {
   updated_at?: string;
 }
 
+
+// ── PAYROLL FLEKSIBEL & KOMPONEN GAJI ──
+export type JenisKomponenGaji = 'pendapatan' | 'potongan';
+export type TipeNilaiKomponen = 'tetap' | 'rumus_sks' | 'rumus_kehadiran' | 'rumus_pph21' | 'persentase';
+
+export interface MasterKomponenGaji {
+  id: number;
+  kode: string;
+  nama: string;
+  jenis: JenisKomponenGaji;
+  tipe_nilai: TipeNilaiKomponen;
+  nilai_default: number;
+  is_taxable: boolean;
+  is_active: boolean;
+  urutan: number;
+  keterangan?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PegawaiKomponenGaji {
+  id?: number;
+  pegawai_id?: number;
+  komponen_gaji_id: number;
+  kode?: string;
+  nama?: string;
+  jenis?: JenisKomponenGaji;
+  tipe_nilai?: TipeNilaiKomponen;
+  nilai_default?: number;
+  nominal_kustom?: number | null;
+  is_active: boolean;
+  catatan?: string | null;
+}
+
+export interface GajiDetail {
+  id: number;
+  gaji_pegawai_id: number;
+  komponen_gaji_id?: number | null;
+  nama_komponen: string;
+  jenis: JenisKomponenGaji;
+  nominal: number;
+  keterangan?: string | null;
+  komponen?: MasterKomponenGaji | null;
+  created_at?: string;
+}

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { DollarSign, Printer, Send, Filter, ShieldAlert, CheckCircle2, Clock, Info } from 'lucide-react';
+import { DollarSign, Printer, Send, Filter, ShieldAlert, CheckCircle2, Clock, Info, Eye, Layers, Calculator } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
@@ -19,6 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatRupiah } from '@/lib/utils';
 
 export default function PayrollPage() {
+  const router = useRouter();
   const { isAdmin, hasPermission } = useAuth();
   const canAccess = isAdmin || hasPermission('simpeg.payroll.manage');
   const canRead = hasPermission('simpeg.payroll.read') || hasPermission('simpeg.payroll.view') || hasPermission('simpeg.payroll.manage');
@@ -37,6 +39,11 @@ export default function PayrollPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
   const [showFilter, setShowFilter] = useState(false);
+
+  // Generate Modal State
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [periodeGenerate, setPeriodeGenerate] = useState(new Date().toISOString().substring(0, 7));
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Submit to SIKEU Modal State
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -118,6 +125,20 @@ export default function PayrollPage() {
     loadPayroll();
   }, [loadPayroll]);
 
+  const handleExecuteGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const res: any = await simpegService.generatePayroll(periodeGenerate);
+      toast.success(res?.message || 'Payroll berhasil dikalkulasi dari master, presensi, dan SKS SIAKAD!');
+      setShowGenerateModal(false);
+      loadPayroll();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengkalkulasi payroll');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleExecuteSubmitToSikeu = async () => {
     setIsSubmittingToSikeu(true);
     try {
@@ -165,21 +186,31 @@ export default function PayrollPage() {
     },
     {
       key: 'total_tunjangan',
-      label: 'Tunjangan (Tetap + Transport)',
+      label: 'Tunjangan & Insentif',
       render: (row) => (
         <div>
           <span className="font-bold text-emerald-600">+{formatRupiah(row.total_tunjangan)}</span>
-          <span className="block text-[10px] text-slate-500 font-semibold">
-            Presensi Tepat Waktu: {row.jumlah_hari_hadir_tepat_waktu ?? 0} Hari
-          </span>
+          <div className="text-[10px] text-slate-500 font-medium">
+            <span>SKS: {row.total_sks_diampu ?? 0} SKS</span>
+            <span className="mx-1">•</span>
+            <span>Hadir: {row.jumlah_hari_hadir_tepat_waktu ?? 0} Hari</span>
+          </div>
         </div>
       ),
     },
     {
       key: 'total_potongan',
-      label: 'Potongan (SIKEU)',
-      render: (row) => <span className="font-semibold text-rose-600">-{formatRupiah(row.total_potongan)}</span>,
+      label: 'Potongan (PPh + BPJS)',
+      render: (row) => (
+        <div>
+          <span className="font-semibold text-rose-600">-{formatRupiah(row.total_potongan)}</span>
+          <span className="block text-[10px] text-slate-500">
+            PPh21: {formatRupiah(row.total_pph21 || 0)}
+          </span>
+        </div>
+      ),
     },
+
     {
       key: 'gaji_bersih',
       label: 'Take Home Pay',
@@ -217,9 +248,15 @@ export default function PayrollPage() {
       render: (row) => {
         const menuItems: DropdownMenuItem[] = [];
 
+        menuItems.push({
+          label: 'Rincian Slip Gaji Lengkap',
+          icon: <Eye size={14} />,
+          onClick: () => router.push(`/simpeg/payroll/${row.id}`),
+        });
+
         if (row.status_transfer === 'paid') {
           menuItems.push({
-            label: 'Lihat / Cetak Slip Gaji PDF',
+            label: 'Cetak Slip Gaji PDF',
             icon: <Printer size={14} />,
             onClick: () => {
               setSelectedSlip(row);
@@ -280,6 +317,24 @@ export default function PayrollPage() {
         description="Rekapitulasi Gaji Bulanan, Kalkulasi Transport Presensi, dan Pengajuan Pembayaran ke Modul SIKEU"
         action={
           <div className="flex gap-2">
+            {canAccess && (
+              <Button
+                variant="outline"
+                icon={<Layers size={16} />}
+                onClick={() => router.push('/simpeg/payroll/komponen')}
+              >
+                Master Komponen Gaji
+              </Button>
+            )}
+            {canCreate && (
+              <Button
+                variant="outline"
+                icon={<Calculator size={16} />}
+                onClick={() => setShowGenerateModal(true)}
+              >
+                Kalkulasi Payroll
+              </Button>
+            )}
             {canCreate && (
               <Button
                 icon={<Send size={16} />}
@@ -407,6 +462,49 @@ export default function PayrollPage() {
           </div>
         </div>
       </Drawer>
+
+      {/* Modal Kalkulasi Payroll Terpadu */}
+      {canCreate && (
+        <Modal
+          open={showGenerateModal}
+          onClose={() => setShowGenerateModal(false)}
+          title="Kalkulasi Otomatis Payroll Bulanan"
+          footer={
+            <div className="flex gap-2 justify-end w-full">
+              <Button variant="secondary" onClick={() => setShowGenerateModal(false)}>
+                Batal
+              </Button>
+              <Button
+                variant="primary"
+                loading={isGenerating}
+                disabled={isGenerating}
+                onClick={handleExecuteGenerate}
+              >
+                <Calculator size={16} /> Proses Kalkulasi Sekarang
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-sm">
+            <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 text-primary-900 space-y-2">
+              <h4 className="font-bold flex items-center gap-2">
+                <Calculator size={18} /> Kalkulator Payroll Terpadu
+              </h4>
+              <p className="text-xs opacity-90">
+                Sistem akan secara otomatis menghitung Gaji Pokok, Tunjangan Fungsional, Honor SKS dari SIAKAD, Insentif Transport dari Presensi Hadir SIMPEG, serta potongan BPJS dan estimasi Pajak PPh 21 (TER).
+              </p>
+            </div>
+
+            <Input
+              label="Pilih Periode Penggajian (Tahun-Bulan)"
+              type="month"
+              value={periodeGenerate}
+              onChange={(e) => setPeriodeGenerate(e.target.value)}
+              required
+            />
+          </div>
+        </Modal>
+      )}
 
       {/* Modal Kirim Pengajuan ke SIKEU */}
       {canCreate && (
