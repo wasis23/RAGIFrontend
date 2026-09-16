@@ -594,8 +594,12 @@ export const sikeuService = {
   },
 
   // Dashboard Executive Summary & Live Xendit
-  getDashboardSummary: async () => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/dashboard-summary');
+  getDashboardSummary: async (params?: { start_date?: string; end_date?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.start_date) query.append('start_date', params.start_date);
+    if (params?.end_date) query.append('end_date', params.end_date);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/dashboard-summary${qs}`);
   },
 
   // Pengeluaran Kampus

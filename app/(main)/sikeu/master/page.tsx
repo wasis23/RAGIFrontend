@@ -17,26 +17,33 @@ import {
   UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { JenisBiayaTab } from './_tabs/JenisBiayaTab';
 import { UnitKasTab } from './_tabs/UnitKasTab';
 import { BeasiswaTab } from './_tabs/BeasiswaTab';
-import { MappingBeasiswaTab } from './_tabs/MappingBeasiswaTab';
-import { PotonganKhususTab } from './_tabs/PotonganKhususTab';
 
-type GlobalMasterTab = 'jenis_biaya' | 'beasiswa' | 'mapping_beasiswa' | 'potongan_khusus' | 'unit_kas';
+type GlobalMasterTab = 'jenis_biaya' | 'beasiswa' | 'unit_kas';
 
 export default function MasterKeuanganGlobalPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const tabQuery = searchParams.get('tab') as GlobalMasterTab | null;
-  const [activeTab, setActiveTab] = useState<GlobalMasterTab>(tabQuery || 'jenis_biaya');
+  const tabQuery = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<GlobalMasterTab>('jenis_biaya');
 
   useEffect(() => {
-    if (tabQuery && ['jenis_biaya', 'beasiswa', 'mapping_beasiswa', 'potongan_khusus', 'unit_kas'].includes(tabQuery)) {
-      setActiveTab(tabQuery);
+    if (tabQuery === 'mapping_beasiswa') {
+      router.replace('/siakad/civitas/beasiswa');
+      return;
     }
-  }, [tabQuery]);
+    if (tabQuery === 'potongan_khusus') {
+      router.replace('/sikeu/mahasiswa/potongan');
+      return;
+    }
+    if (tabQuery && ['jenis_biaya', 'beasiswa', 'unit_kas'].includes(tabQuery)) {
+      setActiveTab(tabQuery as GlobalMasterTab);
+    }
+  }, [tabQuery, router]);
 
   return (
     <div className="w-full space-y-6 animate-fade-in pb-16">
@@ -123,27 +130,26 @@ export default function MasterKeuanganGlobalPage() {
             </div>
           </button>
 
-          {/* Card 3: Penetapan Potongan Mahasiswa */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('mapping_beasiswa')}
-            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-amber-300 hover:shadow-md transition-all space-y-2 block text-left group cursor-pointer"
+          {/* Card 3: Potongan Khusus Mahasiswa */}
+          <Link
+            href="/sikeu/mahasiswa/potongan"
+            className="p-4 rounded-2xl bg-white border border-slate-200/90 hover:border-amber-300 hover:shadow-md transition-all space-y-2 block text-left group"
           >
             <div className="flex items-center justify-between">
               <span className="p-2 bg-amber-50 text-amber-600 rounded-xl group-hover:scale-105 transition-transform">
-                <UserCheck size={18} />
+                <Sparkles size={18} />
               </span>
               <span className="text-2xs font-semibold px-2 py-0.5 rounded-md bg-amber-100 text-amber-700">
-                Potongan Khusus
+                Menu Potongan
               </span>
             </div>
             <div>
               <h3 className="text-xs font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
-                3. Penetapan Mahasiswa Tertentu
+                3. Potongan Khusus Mahasiswa
               </h3>
-              <p className="text-2xs text-slate-500 mt-0.5">Alokasi diskon khusus & beasiswa per individu mahasiswa.</p>
+              <p className="text-2xs text-slate-500 mt-0.5">Diskon SK Rektor, saudara kandung, & anak staf/dosen.</p>
             </div>
-          </button>
+          </Link>
 
           {/* Card 4: Golongan UKT */}
           <Link
@@ -169,7 +175,7 @@ export default function MasterKeuanganGlobalPage() {
       </div>
 
       {/* Global Master Direct Tabs Selection */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Tab 1: Kamus Komponen Biaya */}
         <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
           activeTab === 'jenis_biaya' ? 'bg-primary-50/60 border-primary-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
@@ -212,7 +218,7 @@ export default function MasterKeuanganGlobalPage() {
           </div>
           <div>
             <h3 className="text-xs font-bold text-slate-900">Program Beasiswa</h3>
-            <p className="text-2xs text-slate-500 mt-0.5">Skema program beasiswa KIP, Tahfidz, & Yayasan.</p>
+            <p className="text-2xs text-slate-500 mt-0.5">Skema program beasiswa KIP, Tahfidz, & Yayasan (diatur SIKEU).</p>
           </div>
           <button
             type="button"
@@ -226,63 +232,7 @@ export default function MasterKeuanganGlobalPage() {
           </button>
         </div>
 
-        {/* Tab 3: Penetapan Penerima Beasiswa */}
-        <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
-          activeTab === 'mapping_beasiswa' ? 'bg-blue-50/60 border-blue-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="p-2 bg-blue-100 text-blue-700 rounded-xl">
-              <UserCheck size={18} />
-            </span>
-            <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-blue-600 text-white uppercase tracking-wider">
-              Beasiswa Mhs
-            </span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-slate-900">Penerima Beasiswa</h3>
-            <p className="text-2xs text-slate-500 mt-0.5">Penetapan program beasiswa per mahasiswa.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActiveTab('mapping_beasiswa')}
-            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
-              activeTab === 'mapping_beasiswa' ? 'bg-blue-600 text-white' : 'bg-white text-blue-700 border border-blue-200 hover:bg-blue-50'
-            }`}
-          >
-            <span>Buka Penerima Beasiswa</span>
-            <ArrowRight size={13} />
-          </button>
-        </div>
-
-        {/* Tab 4: Potongan Khusus Mahasiswa (Non-Beasiswa) */}
-        <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
-          activeTab === 'potongan_khusus' ? 'bg-amber-50/60 border-amber-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="p-2 bg-amber-100 text-amber-700 rounded-xl">
-              <Sparkles size={18} />
-            </span>
-            <span className="text-2xs font-bold px-2 py-0.5 rounded-md bg-amber-600 text-white uppercase tracking-wider">
-              Khusus Non-Beasiswa
-            </span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-slate-900">Potongan & Keringanan Khusus</h3>
-            <p className="text-2xs text-slate-500 mt-0.5">SK Rektor, diskon saudara kandung, anak staf/dosen.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActiveTab('potongan_khusus')}
-            className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
-              activeTab === 'potongan_khusus' ? 'bg-amber-600 text-white' : 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50'
-            }`}
-          >
-            <span>Buka Potongan Khusus</span>
-            <ArrowRight size={13} />
-          </button>
-        </div>
-
-        {/* Tab 5: Unit Kas & Rekening */}
+        {/* Tab 3: Unit Kas & Rekening */}
         <div className={`p-4 rounded-2xl border transition-all space-y-2 ${
           activeTab === 'unit_kas' ? 'bg-indigo-50/60 border-indigo-300 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'
         }`}>
@@ -321,14 +271,10 @@ export default function MasterKeuanganGlobalPage() {
               {activeTab === 'jenis_biaya'
                 ? 'Katalog Komponen Biaya Kampus'
                 : activeTab === 'beasiswa'
-                ? 'Master Skema Program Beasiswa Institusi'
-                : activeTab === 'mapping_beasiswa'
-                ? 'Penetapan Penerima Beasiswa Mahasiswa'
-                : activeTab === 'potongan_khusus'
-                ? 'Setting Potongan & Keringanan Khusus Mahasiswa (Di Luar Beasiswa)'
+                ? 'Master Skema Program Beasiswa Institusi (Pemotongan Biaya)'
                 : 'Unit Kas & Rekening Bank'}
             </strong>
-            .
+            . Penetapan penerima beasiswa dikelola oleh BAAK di modul SIAKAD, dan potongan khusus per mahasiswa dikelola di menu Potongan Khusus.
           </span>
         </div>
       </div>
@@ -337,8 +283,6 @@ export default function MasterKeuanganGlobalPage() {
       <div className="w-full space-y-6">
         {activeTab === 'jenis_biaya' && <JenisBiayaTab />}
         {activeTab === 'beasiswa' && <BeasiswaTab />}
-        {activeTab === 'mapping_beasiswa' && <MappingBeasiswaTab />}
-        {activeTab === 'potongan_khusus' && <PotonganKhususTab />}
         {activeTab === 'unit_kas' && <UnitKasTab />}
       </div>
     </div>

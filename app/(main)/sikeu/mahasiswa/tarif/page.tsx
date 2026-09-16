@@ -20,7 +20,7 @@ import {
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -29,8 +29,6 @@ import { TarifTab } from '../../master/_tabs/TarifTab';
 import { JalurKelasTab } from '../../master/_tabs/JalurKelasTab';
 import { StudentTypesTab } from '../../master/_tabs/StudentTypesTab';
 import { BeasiswaTab } from '../../master/_tabs/BeasiswaTab';
-import { MappingBeasiswaTab } from '../../master/_tabs/MappingBeasiswaTab';
-import { PotonganKhususTab } from '../../master/_tabs/PotonganKhususTab';
 
 interface TabItem {
   id: string;
@@ -41,6 +39,7 @@ interface TabItem {
 }
 
 export default function PengaturanTarifMahasiswaPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tabQuery = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<string>(tabQuery || 'setting_tarif');
@@ -49,6 +48,14 @@ export default function PengaturanTarifMahasiswaPage() {
   const [togglingUkt, setTogglingUkt] = useState(false);
 
   useEffect(() => {
+    if (tabQuery === 'mapping_beasiswa') {
+      router.replace('/siakad/civitas/beasiswa');
+      return;
+    }
+    if (tabQuery === 'potongan_khusus') {
+      router.replace('/sikeu/mahasiswa/potongan');
+      return;
+    }
     if (tabQuery) {
       const validTabs = [
         'setting_tarif',
@@ -56,14 +63,12 @@ export default function PengaturanTarifMahasiswaPage() {
         'jalur_kelas',
         'student_types',
         'beasiswa',
-        'mapping_beasiswa',
-        'potongan_khusus'
       ];
       if (validTabs.includes(tabQuery)) {
         setActiveTab(tabQuery);
       }
     }
-  }, [tabQuery]);
+  }, [tabQuery, router]);
 
   useEffect(() => {
     const fetchSetting = async () => {
@@ -133,22 +138,9 @@ export default function PengaturanTarifMahasiswaPage() {
     {
       id: 'beasiswa',
       label: '5. Program Beasiswa & Potongan',
-      badge: 'Diskon Tagihan',
-      description: 'Master program beasiswa (KIP-Kuliah, Yayasan, Prestasi, Tahfidz) beserta skema pemotongan biaya.',
+      badge: 'Master Skema',
+      description: 'Master program beasiswa (KIP-Kuliah, Yayasan, Prestasi, Tahfidz) beserta konfigurasi pemotongan biaya. Penetapan mahasiswa penerima diatur oleh BAAK di modul SIAKAD.',
       icon: ShieldCheck,
-    },
-    {
-      id: 'mapping_beasiswa',
-      label: '6. Penerima Beasiswa',
-      description: 'Daftar mahasiswa penerima subsidi beasiswa aktif yang memotong total invoice secara otomatis.',
-      icon: GraduationCap,
-    },
-    {
-      id: 'potongan_khusus',
-      label: '7. Potongan & Keringanan Khusus',
-      badge: 'Diskon Khusus',
-      description: 'Penetapan potongan tambahan/khusus di luar beasiswa (diskon anak staf/dosen, keringanan SK Rektor, saudara kandung) per individu mahasiswa.',
-      icon: Sparkles,
     },
   ];
 
@@ -298,8 +290,6 @@ export default function PengaturanTarifMahasiswaPage() {
         {activeTab === 'jalur_kelas' && <JalurKelasTab />}
         {activeTab === 'student_types' && <StudentTypesTab />}
         {activeTab === 'beasiswa' && <BeasiswaTab />}
-        {activeTab === 'mapping_beasiswa' && <MappingBeasiswaTab />}
-        {activeTab === 'potongan_khusus' && <PotonganKhususTab />}
       </div>
     </div>
   );

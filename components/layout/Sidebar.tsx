@@ -131,6 +131,7 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
       { id: 7032, parent_id: 703, name: 'Konversi Transfer', url: '/siakad/civitas/konversi', icon: 'FaExchangeAlt', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
       { id: 7033, parent_id: 703, name: 'Dosen', url: '/siakad/civitas/dosen', icon: 'FaChalkboardTeacher', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
       { id: 7034, parent_id: 703, name: 'Biodata Mahasiswa', url: '/siakad/civitas/biodata', icon: 'FaUser', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+      { id: 7035, parent_id: 703, name: 'Penerima Beasiswa', url: '/siakad/civitas/beasiswa', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
     ]
   },
   {
