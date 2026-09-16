@@ -88,6 +88,8 @@ const getIcon = (iconName: string) => {
     'FaCogs': List,
     'FaChartBar': PieChart,
     'FaSparkles': Sparkles,
+    'FaHourglassHalf': Clock,
+    'FaFileSignature': FileText,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -150,6 +152,37 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
   }
 ];
 
+// Fallback menus untuk setiap modul
+const IAM_FALLBACK_MENUS: Menu[] = [
+  { id: 101, parent_id: null, name: 'Dashboard SSO', url: '/dashboard', icon: 'FaChartPie', module: 'iam', permission_id: null, order_index: 1, is_active: true },
+  {
+    id: 102, parent_id: null, name: 'MANAJEMEN PENGGUNA', url: '#users', icon: 'FaUsers', module: 'iam', permission_id: null, order_index: 2, is_active: true,
+    children: [
+      { id: 1021, parent_id: 102, name: 'Daftar Pengguna', url: '/admin/users', icon: 'FaUsers', module: 'iam', permission_id: null, order_index: 1, is_active: true },
+      { id: 1022, parent_id: 102, name: 'Role Pengguna', url: '/admin/user-roles', icon: 'FaUserPlus', module: 'iam', permission_id: null, order_index: 2, is_active: true },
+      { id: 1023, parent_id: 102, name: 'Sesi Aktif Pengguna', url: '/admin/sessions', icon: 'FaClock', module: 'iam', permission_id: null, order_index: 3, is_active: true },
+    ]
+  },
+  {
+    id: 103, parent_id: null, name: 'ROLE & PERMISSION', url: '#roles', icon: 'FaShieldAlt', module: 'iam', permission_id: null, order_index: 3, is_active: true,
+    children: [
+      { id: 1031, parent_id: 103, name: 'Daftar Role', url: '/admin/roles', icon: 'FaShieldAlt', module: 'iam', permission_id: null, order_index: 1, is_active: true },
+      { id: 1032, parent_id: 103, name: 'Daftar Permission', url: '/admin/permissions', icon: 'FaList', module: 'iam', permission_id: null, order_index: 2, is_active: true },
+      { id: 1033, parent_id: 103, name: 'Matriks Role-Permission', url: '/admin/role-permissions', icon: 'FaClipboardCheck', module: 'iam', permission_id: null, order_index: 3, is_active: true },
+    ]
+  },
+  {
+    id: 104, parent_id: null, name: 'PENGATURAN SISTEM', url: '#settings', icon: 'FaCogs', module: 'iam', permission_id: null, order_index: 4, is_active: true,
+    children: [
+      { id: 1041, parent_id: 104, name: 'Daftar Modul Sistem', url: '/admin/modules', icon: 'FaLayers', module: 'iam', permission_id: null, order_index: 1, is_active: true },
+      { id: 1042, parent_id: 104, name: 'Daftar Menu Navigasi', url: '/admin/menus', icon: 'FaList', module: 'iam', permission_id: null, order_index: 2, is_active: true },
+      { id: 1043, parent_id: 104, name: 'Hak Akses Menu Role', url: '/admin/role-menus', icon: 'FaShieldAlt', module: 'iam', permission_id: null, order_index: 3, is_active: true },
+      { id: 1044, parent_id: 104, name: 'Audit Log Aktivitas', url: '/admin/audit-logs', icon: 'FaFileAlt', module: 'iam', permission_id: null, order_index: 4, is_active: true },
+      { id: 1045, parent_id: 104, name: 'Pengaturan Global', url: '/admin/settings', icon: 'FaCogs', module: 'iam', permission_id: null, order_index: 5, is_active: true },
+    ]
+  },
+];
+
 const SINAPRA_FALLBACK_MENUS: Menu[] = [
   { id: 901, parent_id: null, name: 'Gedung & Ruangan', url: '/sinapra/gedung-ruangan', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
   { id: 902, parent_id: null, name: 'Inventaris Aset', url: '/sinapra/aset', icon: 'FaBoxes', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
@@ -162,6 +195,13 @@ const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [
   { id: 801, parent_id: null, name: 'Dashboard SPMB', url: '/spmb/dashboard', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
   { id: 802, parent_id: null, name: 'Formulir Registrasi', url: '/spmb/registrasi', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
   { id: 803, parent_id: null, name: 'Daftar Ulang', url: '/spmb/daftar-ulang', icon: 'FaCreditCard', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
+  { id: 804, parent_id: null, name: 'Hasil Seleksi', url: '/spmb/seleksi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
+];
+
+const SPMB_FALLBACK_MENUS: Menu[] = [
+  { id: 801, parent_id: null, name: 'Dashboard SPMB', url: '/spmb', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
+  { id: 802, parent_id: null, name: 'Data Pendaftar', url: '/spmb/pendaftar', icon: 'FaUsers', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
+  { id: 803, parent_id: null, name: 'Verifikasi Berkas', url: '/spmb/verifikasi', icon: 'FaClipboardCheck', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
   { id: 804, parent_id: null, name: 'Hasil Seleksi', url: '/spmb/seleksi', icon: 'FaTrophy', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
 ];
 
@@ -182,6 +222,10 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
       { id: 5043, parent_id: 504, name: 'Payroll & Slip Gaji', url: '/simpeg/payroll', icon: 'FaMoneyBillWave', module: 'simpeg', permission_id: null, order_index: 3, is_active: true },
       { id: 5044, parent_id: 504, name: 'Usulan Jafung (KUM)', url: '/simpeg/usulan-jafung', icon: 'FaAward', module: 'simpeg', permission_id: null, order_index: 4, is_active: true },
       { id: 5045, parent_id: 504, name: 'Evaluasi Kinerja SKP', url: '/simpeg/kinerja', icon: 'FaChartPie', module: 'simpeg', permission_id: null, order_index: 5, is_active: true },
+      { id: 5046, parent_id: 504, name: 'Kompetensi & Pelatihan', url: '/simpeg/kompetensi', icon: 'FaGraduationCap', module: 'simpeg', permission_id: null, order_index: 6, is_active: true },
+      { id: 5047, parent_id: 504, name: 'Surat Tugas & LPJ', url: '/simpeg/surat-tugas', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: 7, is_active: true },
+      { id: 5048, parent_id: 504, name: 'Izin Jam Kerja', url: '/simpeg/izin-kerja', icon: 'FaHourglassHalf', module: 'simpeg', permission_id: null, order_index: 8, is_active: true },
+      { id: 5049, parent_id: 504, name: 'Arsip SK Pegawai', url: '/simpeg/sk-pegawai', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: 9, is_active: true },
     ]
   },
   {
@@ -190,6 +234,7 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
       { id: 5021, parent_id: 502, name: 'Unit Kerja', url: '/simpeg/unit-kerja', icon: 'FaSitemap', module: 'simpeg', permission_id: null, order_index: 1, is_active: true },
       { id: 5022, parent_id: 502, name: 'Jabatan & Jafung', url: '/simpeg/jabatan', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: 2, is_active: true },
       { id: 5023, parent_id: 502, name: 'Master Jenis Izin & Cuti', url: '/simpeg/master/jenis-cuti', icon: 'FaCalendarCheck', module: 'simpeg', permission_id: null, order_index: 3, is_active: true },
+      { id: 5024, parent_id: 502, name: 'Master Komponen Gaji', url: '/simpeg/payroll/komponen', icon: 'FaMoneyBillWave', module: 'simpeg', permission_id: null, order_index: 4, is_active: true },
     ]
   },
 ];
