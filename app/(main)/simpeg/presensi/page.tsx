@@ -23,11 +23,19 @@ import {
   Check,
   Copy,
   UserX,
+  Fingerprint,
+  Clock,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -38,6 +46,7 @@ import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMen
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
 import type { PaginationMeta } from '@/types/api.types';
+import type { FingerprintDevice, CutoffReport } from '@/types/simpeg.types';
 
 // Skema validasi Zod untuk form tipe shift (pesan Bahasa Indonesia)
 const shiftFormSchema = z.object({
@@ -75,7 +84,22 @@ export default function PresensiPage() {
   const { hasPermission, hasRole } = useAuth();
   const isAdmin = hasRole('admin') || hasRole('superadmin') || hasRole('admin_simpeg') || hasPermission('simpeg.presensi.manage');
 
-  const [activeTab, setActiveTab] = useState<'log' | 'office' | 'shift' | 'settings' | 'holiday'>('log');
+  const [activeTab, setActiveTab] = useState<'log' | 'office' | 'shift' | 'settings' | 'holiday' | 'devices'>('log');
+
+  // Modal Konfirmasi Hapus UI
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string | React.ReactNode;
+    onConfirm: () => Promise<void>;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    title: 'Konfirmasi Hapus',
+    message: '',
+    onConfirm: async () => {},
+    isLoading: false,
+  });
 
   // -------------------------------------------------------------
   // TAB 1: LOG PRESENSI REALTIME
@@ -195,15 +219,25 @@ export default function PresensiPage() {
     }
   };
 
-  const handleDeleteOffice = async (office: any) => {
-    if (!confirm(`Hapus lokasi kantor "${office.name}"?`)) return;
-    try {
-      await simpegService.deleteOfficeLocation(office.id);
-      toast.success('Lokasi kantor berhasil dihapus');
-      fetchOffices();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menghapus lokasi kantor');
-    }
+  const handleDeleteOffice = (office: any) => {
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Lokasi Kantor',
+      message: `Apakah Anda yakin ingin menghapus lokasi kantor "${office.name}"? Tindakan ini tidak dapat dibatalkan.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteOfficeLocation(office.id);
+          toast.success('Lokasi kantor berhasil dihapus');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          fetchOffices();
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal menghapus lokasi kantor');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   // -------------------------------------------------------------
@@ -306,16 +340,26 @@ export default function PresensiPage() {
     }
   };
 
-  const handleDeleteHoliday = async (h: any) => {
+  const handleDeleteHoliday = (h: any) => {
     const label = `${h.name} (${(h.holiday_date || '').substring(0, 10)})`;
-    if (!confirm(`Hapus tanggal libur "${label}"?`)) return;
-    try {
-      await simpegService.deleteNationalHoliday(h.id);
-      toast.success('Tanggal libur berhasil dihapus');
-      fetchHolidays(holidayYear);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menghapus tanggal libur');
-    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Tanggal Libur',
+      message: `Apakah Anda yakin ingin menghapus tanggal libur "${label}"? Tindakan ini tidak dapat dibatalkan.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteNationalHoliday(h.id);
+          toast.success('Tanggal libur berhasil dihapus');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          fetchHolidays(holidayYear);
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal menghapus tanggal libur');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const handleSaveShiftSchedule = async () => {
@@ -415,16 +459,26 @@ export default function PresensiPage() {
     }
   };
 
-  const handleDeleteShift = async (s: any) => {
-    if (!confirm(`Hapus tipe shift "${s.name}"? Jadwal 7 hari di dalamnya ikut terhapus.`)) return;
-    try {
-      await simpegService.deleteShiftTemplate(s.id);
-      toast.success('Tipe shift berhasil dihapus');
-      if (selectedShift?.id === s.id) setSelectedShift(null);
-      fetchShifts();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menghapus tipe shift');
-    }
+  const handleDeleteShift = (s: any) => {
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Tipe Shift',
+      message: `Apakah Anda yakin ingin menghapus tipe shift "${s.name}"? Jadwal 7 hari di dalamnya ikut terhapus. Tindakan ini tidak dapat dibatalkan.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteShiftTemplate(s.id);
+          toast.success('Tipe shift berhasil dihapus');
+          if (selectedShift?.id === s.id) setSelectedShift(null);
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          fetchShifts();
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal menghapus tipe shift');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const handleDuplicateShift = async (s: any) => {
@@ -494,6 +548,267 @@ export default function PresensiPage() {
     }
   };
 
+  // -------------------------------------------------------------
+  // TAB 3c: MESIN PRESENSI FINGERPRINT / BIOMETRIK
+  // -------------------------------------------------------------
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [devices, setDevices] = useState<FingerprintDevice[]>([]);
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<FingerprintDevice | null>(null);
+  const [savingDevice, setSavingDevice] = useState(false);
+  const [testingDeviceId, setTestingDeviceId] = useState<number | null>(null);
+  const [deviceForm, setDeviceForm] = useState({
+    device_name: '',
+    device_code: '',
+    ip_address: '',
+    port: 4370,
+    location: '',
+    device_model: 'ZKTeco ProCapture-X',
+    office_location_id: undefined as number | undefined,
+    is_active: true,
+  });
+
+  // Modal Simulasi / Sync Punch Logs Mesin
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [savingSync, setSavingSync] = useState(false);
+  const [syncForm, setSyncForm] = useState({
+    device_code: '',
+    nip: '',
+    timestamp: new Date().toISOString().substring(0, 16).replace('T', ' ') + ':00',
+    in_out_mode: 0,
+  });
+
+  const fetchDevices = useCallback(async () => {
+    setLoadingDevices(true);
+    try {
+      const res = await simpegService.getFingerprintDevices();
+      if (res.status === 'success' && res.data) {
+        setDevices(res.data);
+      }
+    } catch {
+      toast.error('Gagal memuat daftar mesin presensi');
+    } finally {
+      setLoadingDevices(false);
+    }
+  }, []);
+
+  const handleOpenCreateDevice = () => {
+    setEditingDevice(null);
+    setDeviceForm({
+      device_name: '',
+      device_code: `FP-TERM-${Date.now().toString().slice(-4)}`,
+      ip_address: '192.168.1.201',
+      port: 4370,
+      location: '',
+      device_model: 'ZKTeco ProCapture-X',
+      office_location_id: offices[0]?.id,
+      is_active: true,
+    });
+    setShowDeviceModal(true);
+  };
+
+  const handleOpenEditDevice = (dev: FingerprintDevice) => {
+    setEditingDevice(dev);
+    setDeviceForm({
+      device_name: dev.device_name,
+      device_code: dev.device_code,
+      ip_address: dev.ip_address,
+      port: dev.port,
+      location: dev.location || '',
+      device_model: dev.device_model || '',
+      office_location_id: dev.office_location_id || undefined,
+      is_active: dev.is_active,
+    });
+    setShowDeviceModal(true);
+  };
+
+  const handleSaveDevice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDevice(true);
+    try {
+      if (editingDevice) {
+        await simpegService.updateFingerprintDevice(editingDevice.id, deviceForm);
+        toast.success('Mesin presensi berhasil diperbarui');
+      } else {
+        await simpegService.createFingerprintDevice(deviceForm);
+        toast.success('Mesin presensi berhasil ditambahkan');
+      }
+      setShowDeviceModal(false);
+      fetchDevices();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan data mesin');
+    } finally {
+      setSavingDevice(false);
+    }
+  };
+
+  const handleDeleteDevice = (dev: FingerprintDevice) => {
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Mesin Presensi',
+      message: `Apakah Anda yakin ingin menghapus mesin presensi "${dev.device_name}" (${dev.device_code})? Tindakan ini tidak dapat dibatalkan.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteFingerprintDevice(dev.id);
+          toast.success('Mesin presensi berhasil dihapus');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          fetchDevices();
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal menghapus mesin presensi');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
+  };
+
+  const handleTestDevice = async (id: number) => {
+    setTestingDeviceId(id);
+    try {
+      const res = await simpegService.testFingerprintDevice(id);
+      if (res.status === 'success') {
+        toast.success(res.message || 'Koneksi ke mesin presensi berhasil');
+        fetchDevices();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal terhubung ke mesin presensi');
+    } finally {
+      setTestingDeviceId(null);
+    }
+  };
+
+  const handlePushSyncLogs = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!syncForm.nip || !syncForm.timestamp) {
+      toast.error('NIP dan Timestamp wajib diisi');
+      return;
+    }
+    setSavingSync(true);
+    try {
+      const res = await simpegService.syncFingerprintLogs({
+        device_code: syncForm.device_code || (devices[0]?.device_code ?? 'FP-MANUAL'),
+        logs: [
+          {
+            pin: syncForm.nip,
+            timestamp: syncForm.timestamp,
+            in_out_mode: Number(syncForm.in_out_mode),
+            verify_mode: 1,
+          },
+        ],
+      });
+      toast.success(res.message || 'Log mesin berhasil disinkronisasi');
+      setShowSyncModal(false);
+      fetchLogPresensi();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal sinkronisasi log mesin');
+    } finally {
+      setSavingSync(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // PENUGASAN SHIFT MASSAL (BULK ASSIGN)
+  // -------------------------------------------------------------
+  const [showBulkShiftModal, setShowBulkShiftModal] = useState(false);
+  const [savingBulkShift, setSavingBulkShift] = useState(false);
+  const [unitKerjaOptions, setUnitKerjaOptions] = useState<{ value: number; label: string }[]>([]);
+  const [bulkShiftForm, setBulkShiftForm] = useState({
+    shift_template_id: 0,
+    unit_kerja_id: 0,
+    jenis_pegawai: '' as '' | 'dosen' | 'tendik',
+  });
+
+  const handleOpenBulkModal = async () => {
+    if (shifts.length === 0) await fetchShifts();
+    setBulkShiftForm({
+      shift_template_id: shifts[0]?.id ?? 0,
+      unit_kerja_id: 0,
+      jenis_pegawai: '',
+    });
+    setShowBulkShiftModal(true);
+
+    if (unitKerjaOptions.length === 0) {
+      try {
+        const res = await simpegService.getUnitKerjaList();
+        const responseData = (res as any).data ?? res;
+        const items = Array.isArray(responseData) ? responseData : (responseData?.items || responseData?.data || []);
+        setUnitKerjaOptions(items.map((u: any) => ({ value: u.id, label: `${u.nama} (${u.tipe || 'Unit'})` })));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handleSaveBulkShift = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkShiftForm.shift_template_id) {
+      toast.error('Pilih tipe shift terlebih dahulu');
+      return;
+    }
+    setSavingBulkShift(true);
+    try {
+      const res = await simpegService.assignShiftBulk({
+        shift_template_id: Number(bulkShiftForm.shift_template_id),
+        unit_kerja_id: bulkShiftForm.unit_kerja_id ? Number(bulkShiftForm.unit_kerja_id) : undefined,
+        jenis_pegawai: bulkShiftForm.jenis_pegawai || undefined,
+      });
+      toast.success(res.message || 'Penugasan shift massal berhasil');
+      setShowBulkShiftModal(false);
+      fetchShifts();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menugaskan shift massal');
+    } finally {
+      setSavingBulkShift(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // OTOMASI CUT-OFF PRESENSI HARIAN (AUTO-ALFA)
+  // -------------------------------------------------------------
+  const [showCutoffModal, setShowCutoffModal] = useState(false);
+  const [runningCutoff, setRunningCutoff] = useState(false);
+  const [cutoffDate, setCutoffDate] = useState(new Date().toISOString().substring(0, 10));
+  const [cutoffUnitKerjaId, setCutoffUnitKerjaId] = useState<number>(0);
+  const [cutoffReport, setCutoffReport] = useState<CutoffReport | null>(null);
+
+  const handleOpenCutoffModal = async () => {
+    setCutoffReport(null);
+    setCutoffDate(new Date().toISOString().substring(0, 10));
+    setCutoffUnitKerjaId(0);
+    setShowCutoffModal(true);
+
+    if (unitKerjaOptions.length === 0) {
+      try {
+        const res = await simpegService.getUnitKerjaList();
+        const responseData = (res as any).data ?? res;
+        const items = Array.isArray(responseData) ? responseData : (responseData?.items || responseData?.data || []);
+        setUnitKerjaOptions(items.map((u: any) => ({ value: u.id, label: `${u.nama} (${u.tipe || 'Unit'})` })));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handleRunCutoff = async () => {
+    setRunningCutoff(true);
+    try {
+      const res = await simpegService.runDailyCutoff({
+        date: cutoffDate,
+        unit_kerja_id: cutoffUnitKerjaId ? Number(cutoffUnitKerjaId) : undefined,
+      });
+      if (res.status === 'success' && res.data) {
+        setCutoffReport(res.data);
+        toast.success(res.message || 'Cut-off presensi selesai diproses');
+        fetchLogPresensi();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengeksekusi cut-off harian');
+    } finally {
+      setRunningCutoff(false);
+    }
+  };
+
   // Effect fetch data saat tab berubah
   useEffect(() => {
     if (activeTab === 'log') fetchLogPresensi();
@@ -501,7 +816,8 @@ export default function PresensiPage() {
     else if (activeTab === 'shift') fetchShifts();
     else if (activeTab === 'holiday') fetchHolidays(holidayYear);
     else if (activeTab === 'settings') fetchSettings();
-  }, [activeTab, fetchLogPresensi, fetchOffices, fetchShifts, fetchHolidays, fetchSettings, holidayYear]);
+    else if (activeTab === 'devices') fetchDevices();
+  }, [activeTab, fetchLogPresensi, fetchOffices, fetchShifts, fetchHolidays, fetchSettings, fetchDevices, holidayYear]);
 
   const handleApprovePresensi = async (id: number) => {
     setApprovingId(id);
@@ -651,6 +967,46 @@ export default function PresensiPage() {
                 Terlambat {row.late_minutes} mnt
               </div>
             )}
+            {row.early_leave_minutes > 0 && (
+              <div className="text-[10px] text-amber-600 font-semibold">
+                Pulang Cepat {row.early_leave_minutes} mnt
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'source',
+      label: 'Sumber Presensi',
+      render: (row) => {
+        const src = (row.source || 'mobile_gps').toLowerCase();
+        let label = 'GPS Mobile';
+        let variant: 'info' | 'success' | 'danger' | 'warning' | 'secondary' = 'info';
+        if (src === 'fingerprint') {
+          label = 'Fingerprint';
+          variant = 'success';
+        } else if (src === 'system_cutoff') {
+          label = 'Auto-Alfa';
+          variant = 'danger';
+        } else if (src === 'manual_admin') {
+          label = 'Manual HR';
+          variant = 'warning';
+        } else if (src === 'import_sql') {
+          label = 'Import';
+          variant = 'secondary';
+        }
+
+        return (
+          <div className="space-y-0.5">
+            <Badge variant={variant} className="text-2xs font-semibold">
+              {label}
+            </Badge>
+            {row.device_id && (
+              <div className="text-[10px] text-slate-500 font-mono truncate max-w-[120px]">
+                {row.device_id}
+              </div>
+            )}
           </div>
         );
       },
@@ -725,20 +1081,40 @@ export default function PresensiPage() {
                   Filter Presensi
                 </Button>
                 {isAdmin && (
-                  <Button variant="outline" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
-                    Tandai Tidak Hadir
-                  </Button>
+                  <>
+                    <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
+                      Jalankan Cut-off Harian
+                    </Button>
+                    <Button variant="outline" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
+                      Tandai Tidak Hadir
+                    </Button>
+                  </>
                 )}
+              </>
+            )}
+            {activeTab === 'shift' && isAdmin && (
+              <>
+                <Button variant="outline" icon={<Users size={16} />} onClick={handleOpenBulkModal}>
+                  Penugasan Massal Shift
+                </Button>
+                <Button icon={<Plus size={16} />} onClick={handleOpenCreateShift}>
+                  Tambah Tipe Shift
+                </Button>
+              </>
+            )}
+            {activeTab === 'devices' && isAdmin && (
+              <>
+                <Button variant="outline" icon={<RefreshCw size={16} />} onClick={() => setShowSyncModal(true)}>
+                  Sinkronisasi Log Mesin
+                </Button>
+                <Button icon={<Plus size={16} />} onClick={handleOpenCreateDevice}>
+                  Tambah Mesin Presensi
+                </Button>
               </>
             )}
             {activeTab === 'office' && isAdmin && (
               <Button icon={<Plus size={16} />} onClick={handleOpenCreateOffice}>
                 Tambah Lokasi Kantor
-              </Button>
-            )}
-            {activeTab === 'shift' && isAdmin && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateShift}>
-                Tambah Tipe Shift
               </Button>
             )}
             {activeTab === 'holiday' && isAdmin && (
@@ -770,21 +1146,6 @@ export default function PresensiPage() {
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === 'office'}
-          onClick={() => setActiveTab('office')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
-            activeTab === 'office'
-              ? 'bg-white text-primary-800 shadow-xs border border-slate-200/80 ring-1 ring-primary-200'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-          }`}
-        >
-          <Building2 size={16} className={activeTab === 'office' ? 'text-primary-600' : 'text-slate-500'} />
-          2. Lokasi Kantor (Geofencing)
-        </button>
-
-        <button
-          type="button"
-          role="tab"
           aria-selected={activeTab === 'shift'}
           onClick={() => setActiveTab('shift')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
@@ -794,7 +1155,37 @@ export default function PresensiPage() {
           }`}
         >
           <CalendarRange size={16} className={activeTab === 'shift' ? 'text-primary-600' : 'text-slate-500'} />
-          3. Shift & Jadwal Jam Kerja
+          2. Shift & Jadwal Jam Kerja
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'devices'}
+          onClick={() => setActiveTab('devices')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
+            activeTab === 'devices'
+              ? 'bg-white text-primary-800 shadow-xs border border-slate-200/80 ring-1 ring-primary-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <Fingerprint size={16} className={activeTab === 'devices' ? 'text-primary-600' : 'text-slate-500'} />
+          3. Mesin Fingerprint & Biometrik
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'office'}
+          onClick={() => setActiveTab('office')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all ${
+            activeTab === 'office'
+              ? 'bg-white text-primary-800 shadow-xs border border-slate-200/80 ring-1 ring-primary-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <Building2 size={16} className={activeTab === 'office' ? 'text-primary-600' : 'text-slate-500'} />
+          4. Lokasi Kantor (Geofencing)
         </button>
 
         <button
@@ -809,7 +1200,7 @@ export default function PresensiPage() {
           }`}
         >
           <SlidersHorizontal size={16} className={activeTab === 'settings' ? 'text-primary-600' : 'text-slate-500'} />
-          4. Parameter Sistem & Toleransi
+          5. Parameter Sistem & Toleransi
         </button>
 
         <button
@@ -824,7 +1215,7 @@ export default function PresensiPage() {
           }`}
         >
           <Calendar size={16} className={activeTab === 'holiday' ? 'text-primary-600' : 'text-slate-500'} />
-          5. Kalender Libur & Tanggal Merah
+          6. Kalender Libur & Tanggal Merah
         </button>
       </div>
 
@@ -1070,6 +1461,137 @@ export default function PresensiPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* TAB 3: MESIN FINGERPRINT & BIOMETRIK */}
+      {/* ------------------------------------------------------------- */}
+      {activeTab === 'devices' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-primary-900 to-indigo-900 text-white p-6 rounded-3xl shadow-sm">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Fingerprint className="text-primary-300" size={24} />
+                <h3 className="text-base font-bold">Terminal Mesin Fingerprint & Biometrik Kampus</h3>
+              </div>
+              <p className="text-xs text-primary-100/90 max-w-2xl">
+                Kelola integrasi perangkat mesin sidik jari dan face terminal (ZKTeco, Solution, dll.) yang terhubung di jaringan LAN kampus. Punch log mesin otomatis disinkronkan ke SIMPEG dengan kalkulasi toleransi shift.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <Button
+                variant="outline"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                icon={<RefreshCw size={14} />}
+                onClick={fetchDevices}
+                disabled={loadingDevices}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
+
+          {loadingDevices && devices.length === 0 ? (
+            <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl text-xs text-slate-500">
+              Memuat data mesin biometrik...
+            </div>
+          ) : devices.length === 0 ? (
+            <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl space-y-3">
+              <Fingerprint className="mx-auto text-slate-300" size={40} />
+              <div className="font-bold text-slate-700 text-sm">Belum Ada Perangkat Mesin Terdaftar</div>
+              <p className="text-2xs text-slate-500 max-w-md mx-auto">
+                Daftarkan alamat IP dan port terminal mesin presensi di lobi/lab untuk memulai integrasi log kehadiran otomatis.
+              </p>
+              <Button icon={<Plus size={14} />} onClick={handleOpenCreateDevice}>
+                Tambah Mesin Presensi
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {devices.map((dev) => (
+                <div
+                  key={dev.id}
+                  className="bg-white border border-slate-200/90 hover:border-primary-300 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                          {dev.device_code}
+                        </span>
+                        <h4 className="font-bold text-sm text-slate-900 mt-0.5">{dev.device_name}</h4>
+                      </div>
+                      <Badge
+                        variant={dev.last_status === 'online' || dev.last_status === 'synced' ? 'success' : 'danger'}
+                        className="text-[10px] uppercase font-bold"
+                      >
+                        {dev.last_status === 'online' || dev.last_status === 'synced' ? (
+                          <span className="flex items-center gap-1">
+                            <Wifi size={10} /> Online
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <WifiOff size={10} /> Offline
+                          </span>
+                        )}
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-1.5 text-2xs text-slate-600 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">IP & Port:</span>
+                        <span className="font-mono font-bold text-slate-700">
+                          {dev.ip_address}:{dev.port}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Model:</span>
+                        <span className="font-semibold text-slate-700">{dev.device_model || '-'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Lokasi:</span>
+                        <span className="text-slate-700 font-medium truncate max-w-[150px]">{dev.location || '-'}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Terakhir Sync:</span>
+                        <span className="font-mono text-slate-500">
+                          {dev.last_sync_at ? new Date(dev.last_sync_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Belum pernah'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<Wifi size={12} />}
+                      onClick={() => handleTestDevice(dev.id)}
+                      disabled={testingDeviceId === dev.id}
+                      className="text-xs"
+                    >
+                      {testingDeviceId === dev.id ? 'Memeriksa...' : 'Uji Koneksi'}
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        icon={<Edit2 size={12} />}
+                        onClick={() => handleOpenEditDevice(dev)}
+                      />
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        icon={<Trash2 size={12} />}
+                        onClick={() => handleDeleteDevice(dev)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -1689,6 +2211,322 @@ export default function PresensiPage() {
           </div>
         )}
       </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL TAMBAH/UBAH MESIN PRESENSI */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showDeviceModal}
+        onClose={() => setShowDeviceModal(false)}
+        title={editingDevice ? 'Ubah Data Mesin Presensi' : 'Tambah Mesin Presensi Baru'}
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowDeviceModal(false)} disabled={savingDevice}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveDevice} loading={savingDevice} disabled={savingDevice}>
+              {editingDevice ? 'Simpan Perubahan' : 'Tambah Mesin'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveDevice} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Nama Mesin Presensi *"
+                placeholder="Contoh: Terminal Fingerprint Rektorat Lt. 1"
+                required
+                value={deviceForm.device_name}
+                onChange={(e) => setDeviceForm({ ...deviceForm, device_name: e.target.value })}
+              />
+            </div>
+
+            <Input
+              label="Kode Perangkat Mesin *"
+              placeholder="Contoh: FP-UTAMA-REKTORAT"
+              required
+              value={deviceForm.device_code}
+              onChange={(e) => setDeviceForm({ ...deviceForm, device_code: e.target.value })}
+            />
+
+            <Input
+              label="Alamat IP (LAN) *"
+              placeholder="Contoh: 192.168.1.201"
+              required
+              value={deviceForm.ip_address}
+              onChange={(e) => setDeviceForm({ ...deviceForm, ip_address: e.target.value })}
+            />
+
+            <Input
+              label="Port TCP *"
+              type="number"
+              required
+              value={deviceForm.port}
+              onChange={(e) => setDeviceForm({ ...deviceForm, port: parseInt(e.target.value) || 4370 })}
+            />
+
+            <Input
+              label="Model / Merk Mesin"
+              placeholder="Contoh: ZKTeco ProCapture-X / Solution X105"
+              value={deviceForm.device_model}
+              onChange={(e) => setDeviceForm({ ...deviceForm, device_model: e.target.value })}
+            />
+
+            <div className="md:col-span-2">
+              <Input
+                label="Lokasi Pemasangan"
+                placeholder="Contoh: Lobi Gedung Rektorat Sayap Timur"
+                value={deviceForm.location}
+                onChange={(e) => setDeviceForm({ ...deviceForm, location: e.target.value })}
+              />
+            </div>
+
+            {offices.length > 0 && (
+              <div className="md:col-span-2">
+                <Select
+                  label="Asosiasi Lokasi Kantor (Geofence)"
+                  value={deviceForm.office_location_id ? String(deviceForm.office_location_id) : ''}
+                  onChange={(val) => setDeviceForm({ ...deviceForm, office_location_id: val ? Number(val) : undefined })}
+                  options={[
+                    { value: '', label: '-- Pilih Lokasi Kantor --' },
+                    ...offices.map((o) => ({ value: String(o.id), label: o.name })),
+                  ]}
+                />
+              </div>
+            )}
+
+            <div className="md:col-span-2 flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div>
+                <span className="font-bold text-xs text-slate-800">Status Aktif Mesin</span>
+                <p className="text-2xs text-slate-500">Perangkat aktif akan dipindai secara berkala</p>
+              </div>
+              <ToggleSwitch
+                checked={deviceForm.is_active}
+                onChange={(checked) => setDeviceForm({ ...deviceForm, is_active: checked })}
+                label=""
+              />
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL SINKRONISASI LOG MESIN MANUAL / PUSH PUNCH LOG */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        title="Simulasi / Push Log Mesin Fingerprint"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowSyncModal(false)} disabled={savingSync}>
+              Tutup
+            </Button>
+            <Button onClick={handlePushSyncLogs} loading={savingSync} disabled={savingSync}>
+              Sinkronkan Sekarang
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handlePushSyncLogs} className="space-y-4">
+          <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-800 flex items-start gap-2">
+            <Fingerprint className="text-sky-600 mt-0.5 shrink-0" size={16} />
+            <p className="text-2xs">
+              Uji coba sinkronisasi data punch log dari mesin terminal biometrik. Sistem akan otomatis mencocokkan NIP, jadwal shift, dan mendeteksi keterlambatan.
+            </p>
+          </div>
+
+          <Select
+            label="Pilih Mesin Fingerprint"
+            value={syncForm.device_code}
+            onChange={(val) => setSyncForm({ ...syncForm, device_code: val })}
+            options={[
+              { value: '', label: '-- Pilih Mesin --' },
+              ...devices.map((d) => ({ value: d.device_code, label: `${d.device_name} (${d.device_code})` })),
+            ]}
+          />
+
+          <Input
+            label="NIP / PIN Pegawai *"
+            placeholder="Contoh: 198501152010121001 atau TENDIK-001"
+            required
+            value={syncForm.nip}
+            onChange={(e) => setSyncForm({ ...syncForm, nip: e.target.value })}
+          />
+
+          <Input
+            label="Waktu Punch (Tanggal & Jam) *"
+            placeholder="YYYY-MM-DD HH:mm:ss"
+            required
+            value={syncForm.timestamp}
+            onChange={(e) => setSyncForm({ ...syncForm, timestamp: e.target.value })}
+          />
+
+          <Select
+            label="Mode Absensi (In/Out)"
+            value={String(syncForm.in_out_mode)}
+            onChange={(val) => setSyncForm({ ...syncForm, in_out_mode: Number(val) })}
+            options={[
+              { value: '0', label: 'Clock In (Masuk)' },
+              { value: '1', label: 'Clock Out (Pulang)' },
+            ]}
+          />
+        </form>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL PENUGASAN SHIFT MASSAL */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showBulkShiftModal}
+        onClose={() => setShowBulkShiftModal(false)}
+        title="Penugasan Shift Kerja Secara Massal"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowBulkShiftModal(false)} disabled={savingBulkShift}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveBulkShift} loading={savingBulkShift} disabled={savingBulkShift}>
+              Tugaskan Sekarang
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveBulkShift} className="space-y-4">
+          <div className="p-3 bg-primary-50 border border-primary-200 rounded-xl text-xs text-primary-900 flex items-start gap-2">
+            <Users className="text-primary-600 mt-0.5 shrink-0" size={16} />
+            <p className="text-2xs">
+              Terapkan template shift ke seluruh pegawai dalam satu unit kerja atau kategori sekaligus tanpa perlu mengedit profil satu per satu.
+            </p>
+          </div>
+
+          <Select
+            label="Template Shift Target *"
+            value={bulkShiftForm.shift_template_id ? String(bulkShiftForm.shift_template_id) : ''}
+            onChange={(val) => setBulkShiftForm({ ...bulkShiftForm, shift_template_id: Number(val) })}
+            options={[
+              { value: '', label: '-- Pilih Tipe Shift --' },
+              ...shifts.map((s) => ({ value: String(s.id), label: `${s.name} (Toleransi: ${s.late_tolerance_minutes}m)` })),
+            ]}
+          />
+
+          <Select
+            label="Filter Unit Kerja (Opsional)"
+            value={bulkShiftForm.unit_kerja_id ? String(bulkShiftForm.unit_kerja_id) : ''}
+            onChange={(val) => setBulkShiftForm({ ...bulkShiftForm, unit_kerja_id: val ? Number(val) : 0 })}
+            options={[
+              { value: '', label: '-- Seluruh Unit Kerja Kampus --' },
+              ...unitKerjaOptions.map((u) => ({ value: String(u.value), label: u.label })),
+            ]}
+          />
+
+          <Select
+            label="Filter Kategori Pegawai (Opsional)"
+            value={bulkShiftForm.jenis_pegawai}
+            onChange={(val) => setBulkShiftForm({ ...bulkShiftForm, jenis_pegawai: val as any })}
+            options={[
+              { value: '', label: '-- Semua Pegawai (Dosen & Tendik) --' },
+              { value: 'dosen', label: 'Khusus Dosen' },
+              { value: 'tendik', label: 'Khusus Tenaga Kependidikan (Tendik)' },
+            ]}
+          />
+        </form>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL JALANKAN CUT-OFF PRESENSI HARIAN (AUTO-ALFA) */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showCutoffModal}
+        onClose={() => setShowCutoffModal(false)}
+        title="Otomasi Presensi: Cut-off Harian (Auto-Alfa)"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowCutoffModal(false)} disabled={runningCutoff}>
+              Tutup
+            </Button>
+            <Button onClick={handleRunCutoff} loading={runningCutoff} disabled={runningCutoff} variant="danger">
+              Eksekusi Cut-off Harian
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+            <AlertTriangle className="text-amber-600 mt-0.5 shrink-0" size={16} />
+            <p className="text-2xs">
+              Sistem akan memindai seluruh pegawai aktif yang terjadwal masuk pada tanggal yang dipilih. Pegawai yang tidak melakukan presensi scan dan tidak memiliki keterangan resmi (izin/sakit/dinas) otomatis diberi status <strong>Alfa</strong>.
+            </p>
+          </div>
+
+          <Input
+            label="Pilih Tanggal Cut-off *"
+            type="date"
+            required
+            value={cutoffDate}
+            onChange={(e) => setCutoffDate(e.target.value)}
+          />
+
+          <Select
+            label="Batasi ke Unit Kerja Tertentu (Opsional)"
+            value={cutoffUnitKerjaId ? String(cutoffUnitKerjaId) : ''}
+            onChange={(val) => setCutoffUnitKerjaId(val ? Number(val) : 0)}
+            options={[
+              { value: '', label: '-- Seluruh Unit Kerja --' },
+              ...unitKerjaOptions.map((u) => ({ value: String(u.value), label: u.label })),
+            ]}
+          />
+
+          {cutoffReport && (
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                <span className="font-bold text-xs text-slate-800">Laporan Hasil Cut-off:</span>
+                <Badge variant={cutoffReport.total_marked_alfa > 0 ? 'danger' : 'success'}>
+                  {cutoffReport.total_marked_alfa} Pegawai Alfa
+                </Badge>
+              </div>
+
+              <div className="text-2xs text-slate-600 space-y-1">
+                <div>Tanggal Evaluasi: <strong>{cutoffReport.date}</strong></div>
+                <div>Total Pegawai Terjadwal Dievaluasi: <strong>{cutoffReport.total_evaluated}</strong></div>
+                <div>Status Hari Libur: <strong>{cutoffReport.is_national_holiday ? 'Hari Libur Nasional' : 'Hari Kerja Efektif'}</strong></div>
+              </div>
+
+              {cutoffReport.marked_alfa_employees?.length > 0 && (
+                <div className="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">Daftar Pegawai Ditandai Alfa:</span>
+                  {cutoffReport.marked_alfa_employees.map((emp, i) => (
+                    <div key={i} className="text-2xs p-1.5 bg-white border border-slate-100 rounded-lg flex justify-between items-center">
+                      <div>
+                        <div className="font-semibold text-slate-900">{emp.nama}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{emp.nip}</div>
+                      </div>
+                      <Badge variant="danger" className="text-[9px]">Alfa</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirm.onConfirm}
+        title={deleteConfirm.title}
+        message={deleteConfirm.message}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deleteConfirm.isLoading}
+      />
     </div>
   );
 }

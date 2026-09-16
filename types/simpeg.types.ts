@@ -377,3 +377,60 @@ export interface GajiDetail {
   komponen?: MasterKomponenGaji | null;
   created_at?: string;
 }
+
+// ── MESIN FINGERPRINT, SHIFT KAMPUS & OTOMASI PRESENSI ──
+export interface FingerprintDevice {
+  id: number;
+  device_name: string;
+  device_code: string;
+  ip_address: string;
+  port: number;
+  location?: string | null;
+  office_location_id?: number | null;
+  office_location?: { id: number; name: string } | null;
+  device_model?: string | null;
+  is_active: boolean;
+  last_sync_at?: string | null;
+  last_status?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FingerprintSyncLogItem {
+  pin?: string;
+  nip?: string;
+  pegawai_id?: number;
+  timestamp: string;
+  verify_mode?: number;
+  in_out_mode?: number | string;
+}
+
+export interface FingerprintSyncPayload {
+  device_id?: string;
+  device_code?: string;
+  device_ip?: string;
+  logs: FingerprintSyncLogItem[];
+}
+
+export interface BulkAssignShiftPayload {
+  shift_template_id: number;
+  unit_kerja_id?: number;
+  jenis_pegawai?: 'dosen' | 'tendik';
+  pegawai_ids?: number[];
+}
+
+export interface CutoffReport {
+  date: string;
+  is_national_holiday: boolean;
+  total_evaluated: number;
+  total_marked_alfa: number;
+  marked_alfa_employees: Array<{
+    pegawai_id: number;
+    nip: string;
+    nama: string;
+    unit_kerja?: string;
+    shift?: string;
+    scheduled_start?: string;
+  }>;
+}
+

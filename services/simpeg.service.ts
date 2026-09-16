@@ -15,6 +15,10 @@ import type {
   GajiPegawai,
   UsulanJafung,
   PenilaianKinerja,
+  FingerprintDevice,
+  FingerprintSyncPayload,
+  BulkAssignShiftPayload,
+  CutoffReport,
 } from '@/types/simpeg.types';
 
 export const simpegService = {
@@ -389,6 +393,47 @@ export const simpegService = {
 
   syncNationalHolidays: async (year?: number): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/national-holidays/sync', year ? { year } : {});
+    return data;
+  },
+
+  // ── PERANGKAT FINGERPRINT & OTOMASI PRESENSI ────────────────
+  getFingerprintDevices: async (): Promise<ApiResponse<FingerprintDevice[]>> => {
+    const { data } = await apiClient.get<ApiResponse<FingerprintDevice[]>>('/simpeg/presensi/fingerprint-devices');
+    return data;
+  },
+
+  createFingerprintDevice: async (payload: Partial<FingerprintDevice>): Promise<ApiResponse<FingerprintDevice>> => {
+    const { data } = await apiClient.post<ApiResponse<FingerprintDevice>>('/simpeg/presensi/fingerprint-devices', payload);
+    return data;
+  },
+
+  updateFingerprintDevice: async (id: number, payload: Partial<FingerprintDevice>): Promise<ApiResponse<FingerprintDevice>> => {
+    const { data } = await apiClient.put<ApiResponse<FingerprintDevice>>(`/simpeg/presensi/fingerprint-devices/${id}`, payload);
+    return data;
+  },
+
+  deleteFingerprintDevice: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/presensi/fingerprint-devices/${id}`);
+    return data;
+  },
+
+  testFingerprintDevice: async (id: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/presensi/fingerprint-devices/${id}/test-connection`);
+    return data;
+  },
+
+  syncFingerprintLogs: async (payload: FingerprintSyncPayload): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/presensi/fingerprint/sync', payload);
+    return data;
+  },
+
+  runDailyCutoff: async (params?: { date?: string; unit_kerja_id?: number }): Promise<ApiResponse<CutoffReport>> => {
+    const { data } = await apiClient.post<ApiResponse<CutoffReport>>('/simpeg/presensi/daily-cutoff', params || {});
+    return data;
+  },
+
+  assignShiftBulk: async (payload: BulkAssignShiftPayload): Promise<ApiResponse<{ shift_template_id: number; shift_name: string; total_assigned: number }>> => {
+    const { data } = await apiClient.post<ApiResponse<{ shift_template_id: number; shift_name: string; total_assigned: number }>>('/simpeg/presensi/shift-assign-bulk', payload);
     return data;
   },
 
