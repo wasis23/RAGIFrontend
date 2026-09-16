@@ -79,6 +79,10 @@ export interface Pegawai {
   role_ids?: number[];
   status_kepegawaian: StatusKepegawaian;
   jabatan_terakhir?: string | null;
+  sinta_id?: string | null;
+  scopus_id?: string | null;
+  google_scholar_id?: string | null;
+  orcid_id?: string | null;
   tanggal_masuk?: string | null;
   tanggal_keluar?: string | null;
   status: StatusPegawai;
