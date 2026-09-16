@@ -132,6 +132,11 @@ export const simpegService = {
     return data;
   },
 
+  resetFaceBiometric: async (id: number): Promise<ApiResponse<Pegawai>> => {
+    const { data } = await apiClient.post<ApiResponse<Pegawai>>(`/simpeg/pegawai/${id}/reset-face`);
+    return data;
+  },
+
   downloadPegawaiTemplate: async (): Promise<Blob> => {
     const response = await apiClient.get('/simpeg/pegawai/template', {
       responseType: 'blob',
