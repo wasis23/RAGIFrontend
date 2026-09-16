@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
 import { formatRupiah } from '@/lib/utils';
@@ -71,7 +72,9 @@ export function JenisBiayaTab() {
   const [filterSearch, setFilterSearch] = useState('');
   const [filterTipe, setFilterTipe] = useState('');
   const [filterModule, setFilterModule] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', tipe: '', module: '' });
+  const [filterOrderBy, setFilterOrderBy] = useState('nama');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', tipe: '', module: '', orderBy: 'nama', orderDir: 'asc' as 'asc' | 'desc' });
 
   // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -228,7 +231,7 @@ export function JenisBiayaTab() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, tipe: filterTipe, module: filterModule });
+    setAppliedFilters({ search: filterSearch, tipe: filterTipe, module: filterModule, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
@@ -236,12 +239,14 @@ export function JenisBiayaTab() {
     setFilterSearch('');
     setFilterTipe('');
     setFilterModule('');
-    setAppliedFilters({ search: '', tipe: '', module: '' });
+    setFilterOrderBy('nama');
+    setFilterOrderDir('asc');
+    setAppliedFilters({ search: '', tipe: '', module: '', orderBy: 'nama', orderDir: 'asc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (!item.nama?.toLowerCase().includes(q) && !item.kode?.toLowerCase().includes(q) && !item.deskripsi?.toLowerCase().includes(q)) return false;
@@ -252,6 +257,16 @@ export function JenisBiayaTab() {
         if (!codes.includes(appliedFilters.module)) return false;
       }
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof JenisBiaya] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof JenisBiaya] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -350,16 +365,21 @@ export function JenisBiayaTab() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button size="sm" variant="ghost" onClick={() => handleOpenEdit(row)} icon={<Edit size={14} />}
-            className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
-            Edit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama)} icon={<Trash2 size={14} />}
-            className="font-semibold text-rose-600 hover:bg-rose-50">
-            Hapus
-          </Button>
-        </div>
+        <DropdownMenu
+          items={[
+            {
+              label: 'Edit Komponen Biaya',
+              icon: <Edit size={14} />,
+              onClick: () => handleOpenEdit(row),
+            },
+            {
+              label: 'Hapus',
+              icon: <Trash2 size={14} />,
+              variant: 'danger',
+              onClick: () => handleOpenDelete(row.id, row.nama),
+            },
+          ]}
+        />
       ),
     },
   ];
@@ -541,6 +561,32 @@ export function JenisBiayaTab() {
               { value: '', label: 'Semua Modul' },
               ...appModules.map((m) => ({ value: m.code, label: `${m.code.toUpperCase()} (${m.name})` })),
             ]} />
+
+          <div className="pt-3 border-t border-slate-100">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Urutan Tampilan</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={filterOrderBy}
+                onChange={(val) => setFilterOrderBy(val as string)}
+                options={[
+                  { value: 'nama', label: 'Nama Komponen' },
+                  { value: 'kode', label: 'Kode Biaya' },
+                  { value: 'tipe', label: 'Tipe Biaya' },
+                  { value: 'nominal_standar', label: 'Nominal Tarif' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={filterOrderDir}
+                onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z)' },
+                  { value: 'desc', label: 'Menurun (Z-A)' },
+                ]}
+              />
+            </div>
+          </div>
         </div>
       </Drawer>
 

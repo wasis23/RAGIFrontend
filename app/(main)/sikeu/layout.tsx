@@ -21,7 +21,7 @@ export default function SikeuLayout({ children }: { children: React.ReactNode })
 
   if (!canAccessSikeu) {
     return (
-      <div className="theme-sikeu animate-fade-in space-y-6 max-w-6xl mx-auto">
+      <div className="theme-sikeu animate-fade-in space-y-6 w-full">
         <PageHeader
           title="Modul Keuangan (SIKEU)"
           description="Keuangan, Akuntansi, Tarif Angkatan, Dispensasi, dan Beasiswa"
@@ -37,5 +37,5 @@ export default function SikeuLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  return <div className="theme-sikeu">{children}</div>;
+  return <div className="theme-sikeu w-full">{children}</div>;
 }

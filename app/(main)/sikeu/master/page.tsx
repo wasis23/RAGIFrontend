@@ -39,7 +39,7 @@ export default function MasterKeuanganGlobalPage() {
   }, [tabQuery]);
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-16">
+    <div className="w-full space-y-6 animate-fade-in pb-16">
       {/* Page Header */}
       <PageHeader
         title="Master & Katalog Keuangan Global"
@@ -334,7 +334,7 @@ export default function MasterKeuanganGlobalPage() {
       </div>
 
       {/* Main Tab Content */}
-      <div className="bg-white p-5 md:p-7 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="w-full space-y-6">
         {activeTab === 'jenis_biaya' && <JenisBiayaTab />}
         {activeTab === 'beasiswa' && <BeasiswaTab />}
         {activeTab === 'mapping_beasiswa' && <MappingBeasiswaTab />}

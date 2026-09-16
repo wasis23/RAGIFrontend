@@ -155,7 +155,7 @@ export default function PengaturanTarifMahasiswaPage() {
   const currentTabMeta = tabs.find((t) => t.id === activeTab);
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-16">
+    <div className="w-full space-y-6 animate-fade-in pb-16">
       {/* Page Header */}
       <PageHeader
         title="Pengaturan Tarif & Beasiswa Mahasiswa"
@@ -292,7 +292,7 @@ export default function PengaturanTarifMahasiswaPage() {
       </div>
 
       {/* Tab Content Body Container */}
-      <div className="bg-white p-5 md:p-7 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="w-full space-y-6">
         {activeTab === 'setting_tarif' && <SettingTarifTab />}
         {activeTab === 'tarif_ukt' && <TarifTab />}
         {activeTab === 'jalur_kelas' && <JalurKelasTab />}

@@ -195,7 +195,7 @@ export default function MasterGajiPegawaiSikeuPage() {
 
   if (!canAccess) {
     return (
-      <div className="animate-fade-in space-y-6 max-w-6xl mx-auto">
+      <div className="w-full space-y-6 animate-fade-in">
         <PageHeader
           title="Master Tarif Gaji & Transport Pegawai (SIKEU)"
           description="Penentuan Tarif Gaji Pokok, Tunjangan Tetap, Potongan Standar, dan Biaya Transport Harian Presensi"
@@ -212,7 +212,7 @@ export default function MasterGajiPegawaiSikeuPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6 max-w-6xl mx-auto pb-16">
+    <div className="w-full space-y-6 animate-fade-in pb-16">
       <PageHeader
         title="Master Tarif Gaji & Transport Pegawai (SIKEU)"
         description="Penentuan Tarif Gaji Pokok, Tunjangan Tetap, Potongan Standar, dan Biaya Transport Harian Presensi SIMPEG"

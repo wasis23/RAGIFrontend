@@ -3,6 +3,7 @@
 import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Plus, Sparkles, CreditCard, Filter, CheckCircle2, AlertCircle, XCircle, Clock, Search, Edit, Eye, Loader2, Save
 } from 'lucide-react';
@@ -16,6 +17,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
 interface TagihanItem {
@@ -49,6 +51,7 @@ interface MassFormValues {
 
 
 export default function TagihanListPage() {
+  const router = useRouter();
   const [data, setData] = useState<TagihanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [prodiList, setProdiList] = useState<{ value: string; label: string }[]>([]);
@@ -59,7 +62,9 @@ export default function TagihanListPage() {
   const [filterAngkatan, setFilterAngkatan] = useState('all');
   const [filterProdi, setFilterProdi] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', angkatan: 'all', prodi: 'all', status: 'all' });
+  const [filterOrderBy, setFilterOrderBy] = useState('nomor');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', angkatan: 'all', prodi: 'all', status: 'all', orderBy: 'nomor', orderDir: 'desc' as 'asc' | 'desc' });
 
   // Mass Modal State
   const [isMassModalOpen, setIsMassModalOpen] = useState(false);
@@ -222,7 +227,7 @@ export default function TagihanListPage() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, angkatan: filterAngkatan, prodi: filterProdi, status: filterStatus });
+    setAppliedFilters({ search: filterSearch, angkatan: filterAngkatan, prodi: filterProdi, status: filterStatus, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
@@ -231,12 +236,14 @@ export default function TagihanListPage() {
     setFilterAngkatan('all');
     setFilterProdi('all');
     setFilterStatus('all');
-    setAppliedFilters({ search: '', angkatan: 'all', prodi: 'all', status: 'all' });
+    setFilterOrderBy('nomor');
+    setFilterOrderDir('desc');
+    setAppliedFilters({ search: '', angkatan: 'all', prodi: 'all', status: 'all', orderBy: 'nomor', orderDir: 'desc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (!item.nama?.toLowerCase().includes(q) && !item.nim?.toLowerCase().includes(q) && !item.nomor?.toLowerCase().includes(q)) return false;
@@ -247,6 +254,16 @@ export default function TagihanListPage() {
       }
       if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof TagihanItem] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof TagihanItem] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -336,20 +353,23 @@ export default function TagihanListPage() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          <Link href={`/sikeu/tagihan/${row.id}`}>
-            <Button size="sm" variant="ghost" icon={<Eye size={14} />}
-              className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
-              Detail
-            </Button>
-          </Link>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Detail Tagihan',
+                icon: <Eye size={14} />,
+                onClick: () => router.push(`/sikeu/tagihan/${row.id}`),
+              },
+            ]}
+          />
         </div>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Set Tagihan & Invoice Semester Aktif"
         description="Aktivasi tagihan masal per Angkatan/Prodi & Layanan Pembayaran Loket / VA Mahasiswa."
@@ -575,6 +595,32 @@ export default function TagihanListPage() {
               { value: 'dispensasi', label: 'Dispensasi' },
               { value: 'pending_approval', label: 'Menunggu Verifikasi' },
             ]} />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as string)}
+              options={[
+                { value: 'nomor', label: 'Nomor Tagihan' },
+                { value: 'nama', label: 'Nama Mahasiswa' },
+                { value: 'total', label: 'Total Tagihan' },
+                { value: 'angkatan', label: 'Tahun Angkatan' },
+                { value: 'status', label: 'Status' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
     </div>

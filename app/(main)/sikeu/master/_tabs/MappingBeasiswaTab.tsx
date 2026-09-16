@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
 interface MahasiswaBeasiswa {
@@ -53,6 +54,8 @@ export function MappingBeasiswaTab() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState<'nama_mahasiswa' | 'nim' | 'nama_beasiswa' | 'status'>('nama_mahasiswa');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({ search: '', status: '' });
 
   // Add / Edit Modal
@@ -266,12 +269,14 @@ export function MappingBeasiswaTab() {
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterStatus('');
+    setFilterOrderBy('nama_mahasiswa');
+    setFilterOrderDir('asc');
     setAppliedFilters({ search: '', status: '' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (
@@ -285,12 +290,57 @@ export function MappingBeasiswaTab() {
       if (appliedFilters.status && item.status !== appliedFilters.status) return false;
       return true;
     });
-  }, [data, appliedFilters]);
+
+    list.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+      switch (filterOrderBy) {
+        case 'nama_mahasiswa':
+          valA = a.nama_mahasiswa?.toLowerCase() || '';
+          valB = b.nama_mahasiswa?.toLowerCase() || '';
+          break;
+        case 'nim':
+          valA = a.nim || '';
+          valB = b.nim || '';
+          break;
+        case 'nama_beasiswa':
+          valA = a.nama_beasiswa?.toLowerCase() || '';
+          valB = b.nama_beasiswa?.toLowerCase() || '';
+          break;
+        case 'status':
+          valA = a.status || '';
+          valB = b.status || '';
+          break;
+      }
+      if (valA < valB) return filterOrderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return filterOrderDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return list;
+  }, [data, appliedFilters, filterOrderBy, filterOrderDir]);
 
   const columns: ColumnDef<MahasiswaBeasiswa>[] = [
     {
+      key: 'nama_beasiswa',
+      label: 'SKEMA BEASISWA',
+      render: (row) => (
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md uppercase">
+              {row.nama_beasiswa.split(' ')[0] || 'BEASISWA'}
+            </span>
+            <p className="font-bold text-slate-900 text-sm">{row.nama_beasiswa}</p>
+          </div>
+          <p className="text-2xs text-slate-400 font-semibold mt-1">
+            Masa: {row.berlaku_mulai || '-'} s/d {row.berlaku_sampai || '-'}
+          </p>
+        </div>
+      ),
+    },
+    {
       key: 'nama_mahasiswa',
-      label: 'MAHASISWA PENERIMA',
+      label: 'MAHASISWA',
       render: (row) => (
         <div>
           <p className="font-bold text-slate-900 text-sm">{row.nama_mahasiswa}</p>
@@ -299,24 +349,15 @@ export function MappingBeasiswaTab() {
       ),
     },
     {
-      key: 'nama_beasiswa',
-      label: 'SKEMA POTONGAN / BEASISWA',
-      render: (row) => (
-        <div className="space-y-0.5">
-          <span className="font-semibold text-slate-900 text-xs block">{row.nama_beasiswa}</span>
-          <span className="text-[11px] text-slate-500 font-medium">
-            Masa: {row.berlaku_mulai || '-'} s/d {row.berlaku_sampai || '-'}
-          </span>
-        </div>
-      ),
-    },
-    {
       key: 'potongan_text',
       label: 'BESARAN POTONGAN',
       render: (row) => (
-        <span className="font-mono font-bold text-emerald-700 text-xs px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-lg inline-block">
-          {row.potongan_text || '-'}
-        </span>
+        <div>
+          <span className="font-bold text-slate-900 tabular-nums text-sm">
+            {row.potongan_text || '-'}
+          </span>
+          <span className="text-2xs block text-emerald-600 font-semibold mt-0.5">Potongan Tagihan</span>
+        </div>
       ),
     },
     {
@@ -346,25 +387,23 @@ export function MappingBeasiswaTab() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleOpenEdit(row)}
-            icon={<Edit size={14} />}
-            className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50"
-          >
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleOpenDelete(row)}
-            icon={<Trash2 size={14} />}
-            className="font-semibold text-rose-600 hover:bg-rose-50"
-          >
-            Cabut
-          </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            align="right"
+            items={[
+              {
+                label: 'Edit Penetapan',
+                icon: <Edit size={14} />,
+                onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Cabut Potongan',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => handleOpenDelete(row),
+              },
+            ]}
+          />
         </div>
       ),
     },
@@ -396,6 +435,29 @@ export function MappingBeasiswaTab() {
           </div>
         }
       />
+
+      {/* Active Filters */}
+      {(appliedFilters.search || appliedFilters.status) && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-slate-500 font-medium">Filter aktif:</span>
+          {appliedFilters.search && (
+            <span className="badge badge-blue text-xs font-medium">
+              Pencarian: &quot;{appliedFilters.search}&quot;
+            </span>
+          )}
+          {appliedFilters.status && (
+            <span className="badge badge-blue text-xs font-medium">
+              Status: {appliedFilters.status.toUpperCase()}
+            </span>
+          )}
+          <button
+            onClick={handleResetFilter}
+            className="text-xs text-red-600 hover:text-red-700 font-semibold underline cursor-pointer ml-1"
+          >
+            Reset Filter
+          </button>
+        </div>
+      )}
 
       <DataTable
         data={filteredData}
@@ -620,6 +682,29 @@ export function MappingBeasiswaTab() {
               { value: 'selesai', label: 'Selesai' },
             ]}
           />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as any)}
+              options={[
+                { value: 'nama_mahasiswa', label: 'Nama Mahasiswa' },
+                { value: 'nim', label: 'NIM' },
+                { value: 'nama_beasiswa', label: 'Nama Beasiswa' },
+                { value: 'status', label: 'Status' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as any)}
+              options={[
+                { value: 'asc', label: 'Menaik (A-Z)' },
+                { value: 'desc', label: 'Menurun (Z-A)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 

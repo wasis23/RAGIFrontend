@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { formatRupiah } from '@/lib/utils';
 import {
-  CreditCard, DollarSign, Filter, RefreshCw, CheckCircle2, Clock, XCircle, Building, Search, Plus
+  CreditCard, DollarSign, Filter, RefreshCw, CheckCircle2, Clock, XCircle, Building, Search, Plus, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -15,6 +15,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
 interface PaymentItem {
   id: number;
@@ -40,7 +41,9 @@ export default function PembayaranPage() {
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterChannel, setFilterChannel] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: '', channel: '' });
+  const [filterOrderBy, setFilterOrderBy] = useState('waktu_bayar');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: '', channel: '', orderBy: 'waktu_bayar', orderDir: 'desc' as 'asc' | 'desc' });
 
   const fetchPayments = async () => {
     try {
@@ -61,7 +64,7 @@ export default function PembayaranPage() {
   }, []);
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, status: filterStatus, channel: filterChannel });
+    setAppliedFilters({ search: filterSearch, status: filterStatus, channel: filterChannel, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
@@ -69,12 +72,14 @@ export default function PembayaranPage() {
     setFilterSearch('');
     setFilterStatus('');
     setFilterChannel('');
-    setAppliedFilters({ search: '', status: '', channel: '' });
+    setFilterOrderBy('waktu_bayar');
+    setFilterOrderDir('desc');
+    setAppliedFilters({ search: '', status: '', channel: '', orderBy: 'waktu_bayar', orderDir: 'desc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return payments.filter((item) => {
+    const list = payments.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         const matchKode = item.kode_transaksi?.toLowerCase().includes(q);
@@ -87,6 +92,16 @@ export default function PembayaranPage() {
       if (appliedFilters.status && item.status !== appliedFilters.status) return false;
       if (appliedFilters.channel && item.channel_bayar !== appliedFilters.channel) return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof PaymentItem] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof PaymentItem] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [payments, appliedFilters]);
 
@@ -179,10 +194,30 @@ export default function PembayaranPage() {
         );
       },
     },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Rincian Pembayaran',
+                icon: <Eye size={14} />,
+                onClick: () => {
+                  toast.success(`Transaksi ${row.kode_transaksi}: ${formatRupiah(row.jumlah_bayar)} (${row.status.toUpperCase()})`);
+                },
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Histori Transaksi Pembayaran & Virtual Account"
         description="Monitoring log pembayaran lunas, settlement payment gateway, dan mutasi masuk rekening bank."
@@ -273,6 +308,32 @@ export default function PembayaranPage() {
               { value: 'QRIS', label: 'QRIS Instant' },
               { value: 'LOKET', label: 'Loket Kasir Tunai' },
             ]} />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as string)}
+              options={[
+                { value: 'waktu_bayar', label: 'Waktu Bayar' },
+                { value: 'kode_transaksi', label: 'Kode Transaksi' },
+                { value: 'nama_mahasiswa', label: 'Nama Mahasiswa' },
+                { value: 'jumlah_bayar', label: 'Jumlah Bayar' },
+                { value: 'status', label: 'Status' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
     </div>

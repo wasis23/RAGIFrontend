@@ -3,6 +3,7 @@
 import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Save, Loader2, Calculator } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -99,19 +100,14 @@ export default function CreatePengeluaranPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Input Transaksi Pengeluaran Kampus"
         description="Pencatatan beban operasional, vendor, honorarium & perhitungan pajak PPh/PPN."
         action={
-          <Button
-            variant="outline"
-            icon={<ArrowLeft size={16} />}
-            onClick={() => router.push('/sikeu/pengeluaran')}
-            className="font-bold min-h-[40px]"
-          >
-            Kembali
-          </Button>
+          <Link href="/sikeu/pengeluaran" className="btn btn-warning btn-icon" title="Kembali">
+            <ArrowLeft size={18} />
+          </Link>
         }
       />
 

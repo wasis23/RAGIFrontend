@@ -347,7 +347,7 @@ export default function StudentTagihanPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-24">
+    <div className="w-full space-y-6 animate-fade-in pb-24">
       {/* ── HEADER BANNER ─────────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-slate-900 via-primary-950 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl pointer-events-none"></div>

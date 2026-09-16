@@ -258,7 +258,7 @@ export default function PanduanSikeuPage() {
   }, [searchQuery, selectedCategory]);
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto pb-12">
+    <div className="w-full space-y-6 animate-fade-in pb-12">
       <PageHeader
         title="Pusat Panduan & Alur Sistem SIKEU"
         description="Dokumentasi interaktif alur penerbitan tagihan, setting tarif, pembayaran kasir loket, dan prosedur operasional keuangan kampus."

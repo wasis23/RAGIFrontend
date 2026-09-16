@@ -109,7 +109,7 @@ export default function SikeuDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Dashboard Executive Keuangan"
         description="Ringkasan arus kas, mutasi penerimaan/pengeluaran, total piutang, dan status approval pimpinan."

@@ -13,7 +13,7 @@ import { PotonganKhususTab } from '../../master/_tabs/PotonganKhususTab';
 
 export default function PotonganKhususPage() {
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-16">
+    <div className="w-full space-y-6 animate-fade-in pb-16">
       {/* Page Header */}
       <PageHeader
         title="Potongan & Keringanan Khusus Mahasiswa"
@@ -54,7 +54,7 @@ export default function PotonganKhususPage() {
       </div>
 
       {/* Main Tab Interface */}
-      <div className="bg-white p-5 md:p-7 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="w-full space-y-6">
         <PotonganKhususTab />
       </div>
     </div>

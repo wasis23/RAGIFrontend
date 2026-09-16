@@ -236,9 +236,13 @@ export const sikeuService = {
     });
   },
 
-  getBukuBesar: async (akun_id?: number) => {
-    const query = akun_id ? `?akun_id=${akun_id}` : '';
-    return fetchWithAuth<ApiResponse<DetailJurnalUmum[]>>(`/v1/sikeu/akuntansi/buku-besar${query}`);
+  getBukuBesar: async (akun_id?: number, page?: number, per_page?: number) => {
+    const query = new URLSearchParams();
+    if (akun_id) query.append('akun_id', akun_id.toString());
+    if (page) query.append('page', page.toString());
+    if (per_page) query.append('per_page', per_page.toString());
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/akuntansi/buku-besar${queryString}`);
   },
 
   getLaporanKeuangan: async () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Filter, Loader2, Save } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 import { formatRupiah } from '@/lib/utils';
 
@@ -48,6 +49,8 @@ export function TarifTab() {
   const [filterSearch, setFilterSearch] = useState('');
   const [filterAngkatan, setFilterAngkatan] = useState<string>('');
   const [filterJalur, setFilterJalur] = useState<string>('');
+  const [filterOrderBy, setFilterOrderBy] = useState<'nominal' | 'tahun_angkatan' | 'nama_kelompok' | 'prodi'>('tahun_angkatan');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
   const [appliedFilters, setAppliedFilters] = useState({ search: '', angkatan: '', jalur: '' });
 
   // Modal State
@@ -186,12 +189,14 @@ export function TarifTab() {
     setFilterSearch('');
     setFilterAngkatan('');
     setFilterJalur('');
+    setFilterOrderBy('tahun_angkatan');
+    setFilterOrderDir('desc');
     setAppliedFilters({ search: '', angkatan: '', jalur: '' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         const matchNama = item.nama_kelompok?.toLowerCase().includes(q);
@@ -203,7 +208,35 @@ export function TarifTab() {
       if (appliedFilters.jalur && item.jalur_kelas !== appliedFilters.jalur) return false;
       return true;
     });
-  }, [data, appliedFilters]);
+
+    list.sort((a, b) => {
+      let valA: any = 0;
+      let valB: any = 0;
+      switch (filterOrderBy) {
+        case 'nominal':
+          valA = Number(a.nominal || 0);
+          valB = Number(b.nominal || 0);
+          break;
+        case 'tahun_angkatan':
+          valA = Number(a.tahun_angkatan || 0);
+          valB = Number(b.tahun_angkatan || 0);
+          break;
+        case 'nama_kelompok':
+          valA = a.nama_kelompok || '';
+          valB = b.nama_kelompok || '';
+          break;
+        case 'prodi':
+          valA = a.prodi || '';
+          valB = b.prodi || '';
+          break;
+      }
+      if (valA < valB) return filterOrderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return filterOrderDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return list;
+  }, [data, appliedFilters, filterOrderBy, filterOrderDir]);
 
   const columns: ColumnDef<Tarif>[] = [
     {
@@ -211,31 +244,44 @@ export function TarifTab() {
       label: 'KOMPONEN / NAMA TARIF',
       render: (row) => (
         <div>
-          <p className="font-bold text-slate-900 text-sm">{row.nama_kelompok || row.jenis_biaya?.nama || 'Tarif Biaya'}</p>
-          <p className="text-xs text-slate-500">{row.prodi || 'Semua Program Studi'}</p>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md uppercase">
+              {row.kelompok_ukt ? `UKT GOLONGAN ${row.kelompok_ukt}` : (row.jenis_biaya?.nama ? row.jenis_biaya.nama.slice(0, 8).toUpperCase() : 'TARIF')}
+            </span>
+            <p className="font-bold text-slate-900 text-sm">{row.nama_kelompok || row.jenis_biaya?.nama || 'Tarif Biaya'}</p>
+          </div>
+          <p className="text-2xs text-slate-400 font-semibold mt-1">{row.prodi || 'Semua Program Studi'}</p>
         </div>
       ),
     },
     {
-      key: 'tahun_angkatan',
-      label: 'ANGKATAN',
+      key: 'angkatan_jalur',
+      label: 'ANGKATAN & JALUR',
       render: (row) => (
-        <span className="badge badge-blue text-xs font-bold">{row.tahun_angkatan}</span>
-      ),
-    },
-    {
-      key: 'jalur_kelas',
-      label: 'JALUR / KELAS',
-      render: (row) => (
-        <span className="font-semibold text-slate-700 text-xs">{row.jalur_kelas || 'Reguler'}</span>
+        <div>
+          <p className="text-xs font-semibold text-slate-700">{row.prodi || 'Semua Program Studi'}</p>
+          <p className="text-2xs text-slate-500">Angkatan {row.tahun_angkatan} • {row.jalur_kelas || 'Reguler'}</p>
+        </div>
       ),
     },
     {
       key: 'nominal',
       label: 'NOMINAL TARIF',
       render: (row) => (
-        <span className="font-bold text-slate-900 tabular-nums text-sm">
-          {formatRupiah(row.nominal || 0)}
+        <div>
+          <span className="font-bold text-slate-900 tabular-nums text-sm">
+            {formatRupiah(row.nominal || 0)}
+          </span>
+          <span className="text-2xs block text-emerald-600 font-semibold mt-0.5">Tarif Pokok</span>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: () => (
+        <span className="badge badge-green text-xs font-bold inline-flex items-center gap-1">
+          <CheckCircle2 size={12} /> Aktif
         </span>
       ),
     },
@@ -244,15 +290,23 @@ export function TarifTab() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button size="sm" variant="ghost" onClick={() => handleOpenEdit(row)} icon={<Edit size={14} />}
-            className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
-            Edit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama_kelompok)} icon={<Trash2 size={14} />}
-            className="font-semibold text-rose-600 hover:bg-rose-50">
-            Hapus
-          </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            align="right"
+            items={[
+              {
+                label: 'Edit Tarif',
+                icon: <Edit size={14} />,
+                onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Hapus Tarif',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => handleOpenDelete(row.id, row.nama_kelompok),
+              },
+            ]}
+          />
         </div>
       ),
     },
@@ -274,6 +328,34 @@ export function TarifTab() {
           </div>
         }
       />
+
+      {/* Active Filters */}
+      {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.jalur) && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-slate-500 font-medium">Filter aktif:</span>
+          {appliedFilters.search && (
+            <span className="badge badge-blue text-xs font-medium">
+              Pencarian: &quot;{appliedFilters.search}&quot;
+            </span>
+          )}
+          {appliedFilters.angkatan && (
+            <span className="badge badge-blue text-xs font-medium">
+              Angkatan: {appliedFilters.angkatan}
+            </span>
+          )}
+          {appliedFilters.jalur && (
+            <span className="badge badge-blue text-xs font-medium">
+              Jalur: {appliedFilters.jalur}
+            </span>
+          )}
+          <button
+            onClick={handleResetFilter}
+            className="text-xs text-red-600 hover:text-red-700 font-semibold underline cursor-pointer ml-1"
+          >
+            Reset Filter
+          </button>
+        </div>
+      )}
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data nominal tarif." />
 
@@ -384,6 +466,29 @@ export function TarifTab() {
               { value: 'Internasional', label: 'Internasional' },
               { value: 'Online', label: 'Online' },
             ]} />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as any)}
+              options={[
+                { value: 'tahun_angkatan', label: 'Tahun Angkatan' },
+                { value: 'nominal', label: 'Nominal Tarif' },
+                { value: 'nama_kelompok', label: 'Nama Tarif' },
+                { value: 'prodi', label: 'Program Studi' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as any)}
+              options={[
+                { value: 'asc', label: 'Menaik (A-Z / 0-9)' },
+                { value: 'desc', label: 'Menurun (Z-A / 9-0)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 

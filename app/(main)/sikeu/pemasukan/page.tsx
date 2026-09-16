@@ -3,9 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  TrendingUp, Plus, Filter, Building, Handshake, Gift, Search
+  TrendingUp, Plus, Filter, Building, Handshake, Gift, Search, Eye, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatRupiah } from '@/lib/utils';
 import { sikeuService } from '@/services/sikeu.service';
 import { PemasukanKampus } from '@/types/sikeu.types';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -15,6 +16,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { CurrencyText } from '@/components/sikeu/akuntansi/atoms/CurrencyText';
 import { DateText } from '@/components/sikeu/akuntansi/atoms/DateText';
 
@@ -26,7 +28,9 @@ export default function PemasukanListPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterSumber, setFilterSumber] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', sumber: 'all' });
+  const [filterOrderBy, setFilterOrderBy] = useState('tanggal_terima');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', sumber: 'all', orderBy: 'tanggal_terima', orderDir: 'desc' as 'asc' | 'desc' });
 
   const fetchPemasukan = async () => {
     try {
@@ -47,19 +51,21 @@ export default function PemasukanListPage() {
   }, []);
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, sumber: filterSumber });
+    setAppliedFilters({ search: filterSearch, sumber: filterSumber, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
 
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterSumber('all');
-    setAppliedFilters({ search: '', sumber: 'all' });
+    setFilterOrderBy('tanggal_terima');
+    setFilterOrderDir('desc');
+    setAppliedFilters({ search: '', sumber: 'all', orderBy: 'tanggal_terima', orderDir: 'desc' });
     setShowFilter(false);
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    const list = data.filter((item) => {
       if (appliedFilters.search) {
         const q = appliedFilters.search.toLowerCase();
         if (
@@ -72,6 +78,16 @@ export default function PemasukanListPage() {
       if (appliedFilters.sumber !== 'all' && item.sumber_pemasukan !== appliedFilters.sumber)
         return false;
       return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.orderBy as keyof PemasukanKampus] ?? '';
+      let valB: any = b[appliedFilters.orderBy as keyof PemasukanKampus] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
+      return 0;
     });
   }, [data, appliedFilters]);
 
@@ -137,10 +153,35 @@ export default function PemasukanListPage() {
         <CurrencyText value={row.nominal} prefix="+" variant="positive" size="sm" />
       ),
     },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Rincian Transaksi',
+                icon: <Eye size={14} />,
+                onClick: () => {
+                  toast.success(`Transaksi ${row.nomor_transaksi}: ${formatRupiah(row.nominal)} (${row.nama_donor_instansi})`);
+                },
+              },
+              ...(row.file_bukti_transfer ? [{
+                label: 'Unduh Bukti Transfer',
+                icon: <Download size={14} />,
+                onClick: () => window.open(row.file_bukti_transfer, '_blank'),
+              }] : []),
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Pemasukan Non-Akademik & Dana Hibah"
         description="Pencatatan penerimaan hibah riset (SIPPM), donasi mitra, kerjasama instansi, dan pendapatan non-mahasiswa."
@@ -260,6 +301,32 @@ export default function PemasukanListPage() {
               { value: 'pendapatan_lainnya', label: 'Pendapatan Non-Akademik Lainnya' },
             ]}
           />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val as string)}
+              options={[
+                { value: 'tanggal_terima', label: 'Tanggal Terima' },
+                { value: 'nomor_transaksi', label: 'Nomor Transaksi' },
+                { value: 'nama_donor_instansi', label: 'Nama Donor/Instansi' },
+                { value: 'nominal', label: 'Nominal' },
+                { value: 'sumber_pemasukan', label: 'Sumber' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
     </div>

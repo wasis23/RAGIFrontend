@@ -25,6 +25,7 @@ import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import Link from 'next/link';
 import { Checkbox } from '@/components/ui/Checkbox';
 
 interface Student {
@@ -393,19 +394,14 @@ export default function CreateTagihanPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Pembayaran Loket & Penerbitan Virtual Account (VA)"
         description="Layanan kasir kampus untuk pembayaran gabungan & penerbitan nomor VA bank mahasiswa."
         action={
-          <Button
-            variant="outline"
-            icon={<ArrowLeft size={16} />}
-            onClick={() => router.push('/sikeu/tagihan')}
-            className="font-bold min-h-[40px]"
-          >
-            Kembali
-          </Button>
+          <Link href="/sikeu/tagihan" className="btn btn-warning btn-icon" title="Kembali">
+            <ArrowLeft size={18} />
+          </Link>
         }
       />
 
