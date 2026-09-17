@@ -26,6 +26,7 @@ import {
   Eye,
   EyeOff,
   Database,
+  Cloud,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/axios';
@@ -37,12 +38,39 @@ const SCHEME_OPTIONS: SelectOption[] = [
   { value: 'none', label: 'Tanpa Enkripsi (Port 25)' },
 ];
 
+const DISK_OPTIONS: SelectOption[] = [
+  { value: 'local', label: 'Local (Server Storage Lokal)' },
+  { value: 'r2', label: 'Cloudflare R2 (Cloud Object Storage)' },
+];
+
+const PUBLIC_DISK_OPTIONS: SelectOption[] = [
+  { value: 'public', label: 'Local Public (storage/app/public)' },
+  { value: 'r2', label: 'Cloudflare R2 Public (Bucket Publik)' },
+];
+
+const PRIVATE_DISK_OPTIONS: SelectOption[] = [
+  { value: 'public', label: 'Local Public (storage/app/public)' },
+  { value: 'local', label: 'Local Private (storage/app/private)' },
+  { value: 'r2-private', label: 'Cloudflare R2 Private (Bucket Privat / Presigned)' },
+];
+
+const PATH_STYLE_OPTIONS: SelectOption[] = [
+  { value: 'true', label: 'True (Rekomendasi R2 Cloudflare: endpoint/bucket/key)' },
+  { value: 'false', label: 'False (Virtual-Hosted Style: bucket.endpoint/key)' },
+];
+
 const settingsSchema = z.object({
+  // Role & Permissions
   default_register_role: z.string().min(1, 'Role pendaftaran wajib dipilih'),
   superadmin_role: z.string().min(1, 'Role superadmin wajib dipilih'),
+  restricted_role_ids: z.array(z.number().int().positive()),
+
+  // Google Workspace
   google_workspace_domain: z.string().optional(),
   google_workspace_admin_email: z.string().optional(),
   google_workspace_credentials: z.string().optional(),
+
+  // SMTP Mailer
   mail_host: z.string().min(1, 'Host SMTP wajib diisi'),
   mail_port: z.string().min(1, 'Port SMTP wajib diisi'),
   mail_scheme: z.string().min(1, 'Protokol enkripsi wajib dipilih'),
@@ -53,13 +81,28 @@ const settingsSchema = z.object({
     .min(1, 'Alamat email pengirim wajib diisi')
     .email('Format email pengirim tidak valid'),
   mail_from_name: z.string().min(1, 'Nama pengirim wajib diisi'),
-  restricted_role_ids: z.array(z.number().int().positive()),
+
+  // Neo Feeder
   feeder_url: z
     .string()
     .min(1, 'URL WS Feeder wajib diisi')
     .url('Format URL WS Feeder tidak valid'),
   feeder_username: z.string().min(1, 'Username Feeder wajib diisi'),
   feeder_password: z.string().optional(),
+
+  // Cloudflare R2 / Storage
+  filesystem_disk: z.string().min(1),
+  filesystem_public_disk: z.string().min(1),
+  filesystem_private_disk: z.string().min(1),
+  r2_endpoint: z.string().optional(),
+  r2_access_key_id: z.string().optional(),
+  r2_secret_access_key: z.string().optional(),
+  r2_bucket: z.string().optional(),
+  r2_url: z.string().optional(),
+  r2_private_bucket: z.string().optional(),
+  r2_private_url: z.string().optional(),
+  r2_default_region: z.string().optional(),
+  r2_use_path_style_endpoint: z.string().min(1),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -73,6 +116,7 @@ const testSmtpEmailSchema = z
 const defaultValues: SettingsFormValues = {
   default_register_role: 'calon_mhs',
   superadmin_role: 'superadmin',
+  restricted_role_ids: [],
   google_workspace_domain: 'student.campus.ac.id',
   google_workspace_admin_email: '',
   google_workspace_credentials: '',
@@ -83,36 +127,63 @@ const defaultValues: SettingsFormValues = {
   mail_password: '',
   mail_from_address: '',
   mail_from_name: 'Sistem Terintegrasi Kampus',
-  restricted_role_ids: [],
   feeder_url: 'http://localhost:8100/ws/live2.php',
   feeder_username: 'admin_siakad',
   feeder_password: '',
+  filesystem_disk: 'local',
+  filesystem_public_disk: 'public',
+  filesystem_private_disk: 'public',
+  r2_endpoint: '',
+  r2_access_key_id: '',
+  r2_secret_access_key: '',
+  r2_bucket: '',
+  r2_url: '',
+  r2_private_bucket: '',
+  r2_private_url: '',
+  r2_default_region: 'auto',
+  r2_use_path_style_endpoint: 'true',
 };
 
 export default function SystemSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [initialValues, setInitialValues] = useState<SettingsFormValues>(defaultValues);
+  const [savingSection, setSavingSection] = useState<string | null>(null);
+  const [savedSections, setSavedSections] = useState<Record<string, boolean>>({});
+
+  // SMTP state
   const [showPassword, setShowPassword] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [testEmailError, setTestEmailError] = useState<string | undefined>(undefined);
   const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+
+  // Feeder state
   const [showFeederPassword, setShowFeederPassword] = useState(false);
   const [isTestingFeeder, setIsTestingFeeder] = useState(false);
   const [feederTokenInfo, setFeederTokenInfo] = useState<string | null>(null);
   const [feederTokenStaging, setFeederTokenStaging] = useState(false);
+  const [feederStagingReason, setFeederStagingReason] = useState<string | null>(null);
+
+  // R2 state
+  const [showR2Secret, setShowR2Secret] = useState(false);
+  const [isTestingR2, setIsTestingR2] = useState(false);
+  const [r2TestResult, setR2TestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const {
     register,
-    handleSubmit,
     control,
     reset,
     getValues,
-    formState: { errors, isDirty },
+    setValue,
+    watch,
+    trigger,
+    formState: { errors },
   } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues,
   });
+
+  // Watch form values to detect changes per section
+  const currentValues = watch();
 
   const loadRolesOptions = async (query: string) => {
     try {
@@ -165,12 +236,15 @@ export default function SystemSettingsPage() {
           settingsData?.default_register_role?.value || defaultValues.default_register_role,
         superadmin_role:
           settingsData?.superadmin_role?.value || defaultValues.superadmin_role,
+        restricted_role_ids: parseRestrictedRoleIds(settingsData?.restricted_role_ids?.value),
+
         google_workspace_domain:
           settingsData?.google_workspace_domain?.value ?? defaultValues.google_workspace_domain,
         google_workspace_admin_email:
           settingsData?.google_workspace_admin_email?.value ?? defaultValues.google_workspace_admin_email,
         google_workspace_credentials:
           settingsData?.google_workspace_credentials?.value ?? defaultValues.google_workspace_credentials,
+
         mail_host: settingsData?.mail_host?.value ?? defaultValues.mail_host,
         mail_port: settingsData?.mail_port?.value
           ? String(settingsData.mail_port.value)
@@ -181,12 +255,26 @@ export default function SystemSettingsPage() {
         mail_from_address:
           settingsData?.mail_from_address?.value ?? defaultValues.mail_from_address,
         mail_from_name: settingsData?.mail_from_name?.value ?? defaultValues.mail_from_name,
-        restricted_role_ids: parseRestrictedRoleIds(settingsData?.restricted_role_ids?.value),
+
         feeder_url: settingsData?.feeder_url?.value ?? defaultValues.feeder_url,
         feeder_username: settingsData?.feeder_username?.value ?? defaultValues.feeder_username,
         feeder_password: settingsData?.feeder_password?.value ?? defaultValues.feeder_password,
+
+        filesystem_disk: settingsData?.filesystem_disk?.value ?? defaultValues.filesystem_disk,
+        filesystem_public_disk: settingsData?.filesystem_public_disk?.value ?? defaultValues.filesystem_public_disk,
+        filesystem_private_disk: settingsData?.filesystem_private_disk?.value ?? defaultValues.filesystem_private_disk,
+        r2_endpoint: settingsData?.r2_endpoint?.value ?? defaultValues.r2_endpoint,
+        r2_access_key_id: settingsData?.r2_access_key_id?.value ?? defaultValues.r2_access_key_id,
+        r2_secret_access_key: settingsData?.r2_secret_access_key?.value ?? defaultValues.r2_secret_access_key,
+        r2_bucket: settingsData?.r2_bucket?.value ?? defaultValues.r2_bucket,
+        r2_url: settingsData?.r2_url?.value ?? defaultValues.r2_url,
+        r2_private_bucket: settingsData?.r2_private_bucket?.value ?? defaultValues.r2_private_bucket,
+        r2_private_url: settingsData?.r2_private_url?.value ?? defaultValues.r2_private_url,
+        r2_default_region: settingsData?.r2_default_region?.value ?? defaultValues.r2_default_region,
+        r2_use_path_style_endpoint: settingsData?.r2_use_path_style_endpoint?.value ?? defaultValues.r2_use_path_style_endpoint,
       };
 
+      setInitialValues(loadedValues);
       reset(loadedValues);
     } catch {
       toast.error('Gagal memuat pengaturan sistem.');
@@ -199,38 +287,211 @@ export default function SystemSettingsPage() {
     fetchData();
   }, []);
 
-  const onSubmit = async (data: SettingsFormValues) => {
-    setIsSaving(true);
-    setSaveSuccess(false);
+  // Check if a specific section has unsaved changes
+  const isSectionDirty = (section: string): boolean => {
+    switch (section) {
+      case 'smtp':
+        return (
+          currentValues.mail_host !== initialValues.mail_host ||
+          currentValues.mail_port !== initialValues.mail_port ||
+          currentValues.mail_scheme !== initialValues.mail_scheme ||
+          currentValues.mail_username !== initialValues.mail_username ||
+          currentValues.mail_password !== initialValues.mail_password ||
+          currentValues.mail_from_address !== initialValues.mail_from_address ||
+          currentValues.mail_from_name !== initialValues.mail_from_name
+        );
+      case 'r2':
+        return (
+          currentValues.filesystem_disk !== initialValues.filesystem_disk ||
+          currentValues.filesystem_public_disk !== initialValues.filesystem_public_disk ||
+          currentValues.filesystem_private_disk !== initialValues.filesystem_private_disk ||
+          currentValues.r2_endpoint !== initialValues.r2_endpoint ||
+          currentValues.r2_access_key_id !== initialValues.r2_access_key_id ||
+          currentValues.r2_secret_access_key !== initialValues.r2_secret_access_key ||
+          currentValues.r2_bucket !== initialValues.r2_bucket ||
+          currentValues.r2_url !== initialValues.r2_url ||
+          currentValues.r2_private_bucket !== initialValues.r2_private_bucket ||
+          currentValues.r2_private_url !== initialValues.r2_private_url ||
+          currentValues.r2_default_region !== initialValues.r2_default_region ||
+          currentValues.r2_use_path_style_endpoint !== initialValues.r2_use_path_style_endpoint
+        );
+      case 'feeder':
+        return (
+          currentValues.feeder_url !== initialValues.feeder_url ||
+          currentValues.feeder_username !== initialValues.feeder_username ||
+          currentValues.feeder_password !== initialValues.feeder_password
+        );
+      case 'registerRole':
+        return currentValues.default_register_role !== initialValues.default_register_role;
+      case 'superadminRole':
+        return currentValues.superadmin_role !== initialValues.superadmin_role;
+      case 'restrictedRoles':
+        return JSON.stringify(currentValues.restricted_role_ids ?? []) !== JSON.stringify(initialValues.restricted_role_ids ?? []);
+      case 'googleWorkspace':
+        return (
+          currentValues.google_workspace_domain !== initialValues.google_workspace_domain ||
+          currentValues.google_workspace_admin_email !== initialValues.google_workspace_admin_email ||
+          currentValues.google_workspace_credentials !== initialValues.google_workspace_credentials
+        );
+      default:
+        return false;
+    }
+  };
+
+  // Reset a specific section's values
+  const resetSection = (section: string) => {
+    switch (section) {
+      case 'smtp':
+        setValue('mail_host', initialValues.mail_host);
+        setValue('mail_port', initialValues.mail_port);
+        setValue('mail_scheme', initialValues.mail_scheme);
+        setValue('mail_username', initialValues.mail_username);
+        setValue('mail_password', initialValues.mail_password);
+        setValue('mail_from_address', initialValues.mail_from_address);
+        setValue('mail_from_name', initialValues.mail_from_name);
+        break;
+      case 'r2':
+        setValue('filesystem_disk', initialValues.filesystem_disk);
+        setValue('filesystem_public_disk', initialValues.filesystem_public_disk);
+        setValue('filesystem_private_disk', initialValues.filesystem_private_disk);
+        setValue('r2_endpoint', initialValues.r2_endpoint);
+        setValue('r2_access_key_id', initialValues.r2_access_key_id);
+        setValue('r2_secret_access_key', initialValues.r2_secret_access_key);
+        setValue('r2_bucket', initialValues.r2_bucket);
+        setValue('r2_url', initialValues.r2_url);
+        setValue('r2_private_bucket', initialValues.r2_private_bucket);
+        setValue('r2_private_url', initialValues.r2_private_url);
+        setValue('r2_default_region', initialValues.r2_default_region);
+        setValue('r2_use_path_style_endpoint', initialValues.r2_use_path_style_endpoint);
+        break;
+      case 'feeder':
+        setValue('feeder_url', initialValues.feeder_url);
+        setValue('feeder_username', initialValues.feeder_username);
+        setValue('feeder_password', initialValues.feeder_password);
+        break;
+      case 'registerRole':
+        setValue('default_register_role', initialValues.default_register_role);
+        break;
+      case 'superadminRole':
+        setValue('superadmin_role', initialValues.superadmin_role);
+        break;
+      case 'restrictedRoles':
+        setValue('restricted_role_ids', initialValues.restricted_role_ids);
+        break;
+      case 'googleWorkspace':
+        setValue('google_workspace_domain', initialValues.google_workspace_domain);
+        setValue('google_workspace_admin_email', initialValues.google_workspace_admin_email);
+        setValue('google_workspace_credentials', initialValues.google_workspace_credentials);
+        break;
+    }
+  };
+
+  // Save specific section
+  const handleSaveSection = async (section: string) => {
+    let fieldsToValidate: (keyof SettingsFormValues)[] = [];
+    let settingsToSave: { key: string; value: string }[] = [];
+    let successMessage = 'Pengaturan berhasil disimpan.';
+    const vals = getValues();
+
+    if (section === 'smtp') {
+      fieldsToValidate = ['mail_host', 'mail_port', 'mail_scheme', 'mail_from_address', 'mail_from_name'];
+      settingsToSave = [
+        { key: 'mail_host', value: vals.mail_host },
+        { key: 'mail_port', value: String(vals.mail_port) },
+        { key: 'mail_scheme', value: vals.mail_scheme },
+        { key: 'mail_username', value: vals.mail_username || '' },
+        { key: 'mail_password', value: vals.mail_password || '' },
+        { key: 'mail_from_address', value: vals.mail_from_address },
+        { key: 'mail_from_name', value: vals.mail_from_name },
+      ];
+      successMessage = 'Konfigurasi Server SMTP berhasil disimpan.';
+    } else if (section === 'r2') {
+      settingsToSave = [
+        { key: 'filesystem_disk', value: vals.filesystem_disk || 'local' },
+        { key: 'filesystem_public_disk', value: vals.filesystem_public_disk || 'public' },
+        { key: 'filesystem_private_disk', value: vals.filesystem_private_disk || 'public' },
+        { key: 'r2_endpoint', value: vals.r2_endpoint || '' },
+        { key: 'r2_access_key_id', value: vals.r2_access_key_id || '' },
+        { key: 'r2_secret_access_key', value: vals.r2_secret_access_key || '' },
+        { key: 'r2_bucket', value: vals.r2_bucket || '' },
+        { key: 'r2_url', value: vals.r2_url || '' },
+        { key: 'r2_private_bucket', value: vals.r2_private_bucket || '' },
+        { key: 'r2_private_url', value: vals.r2_private_url || '' },
+        { key: 'r2_default_region', value: vals.r2_default_region || 'auto' },
+        { key: 'r2_use_path_style_endpoint', value: vals.r2_use_path_style_endpoint || 'true' },
+      ];
+      successMessage = 'Pengaturan Cloudflare R2 / Storage berhasil disimpan.';
+    } else if (section === 'feeder') {
+      fieldsToValidate = ['feeder_url', 'feeder_username'];
+      settingsToSave = [
+        { key: 'feeder_url', value: vals.feeder_url },
+        { key: 'feeder_username', value: vals.feeder_username },
+        { key: 'feeder_password', value: vals.feeder_password || '' },
+      ];
+      successMessage = 'Konfigurasi Neo Feeder berhasil disimpan.';
+    } else if (section === 'registerRole') {
+      fieldsToValidate = ['default_register_role'];
+      settingsToSave = [
+        { key: 'default_register_role', value: vals.default_register_role },
+      ];
+      successMessage = 'Role registrasi akun baru berhasil disimpan.';
+    } else if (section === 'superadminRole') {
+      fieldsToValidate = ['superadmin_role'];
+      settingsToSave = [
+        { key: 'superadmin_role', value: vals.superadmin_role },
+      ];
+      successMessage = 'Role superadmin sistem berhasil disimpan.';
+    } else if (section === 'restrictedRoles') {
+      settingsToSave = [
+        { key: 'restricted_role_ids', value: JSON.stringify(vals.restricted_role_ids ?? []) },
+      ];
+      successMessage = 'Pengaturan restriksi role berhasil disimpan.';
+    } else if (section === 'googleWorkspace') {
+      settingsToSave = [
+        { key: 'google_workspace_domain', value: vals.google_workspace_domain || '' },
+        { key: 'google_workspace_admin_email', value: vals.google_workspace_admin_email || '' },
+        { key: 'google_workspace_credentials', value: vals.google_workspace_credentials || '' },
+      ];
+      successMessage = 'Konfigurasi Google Workspace berhasil disimpan.';
+    }
+
+    if (fieldsToValidate.length > 0) {
+      const isValid = await trigger(fieldsToValidate);
+      if (!isValid) {
+        toast.error('Mohon periksa kembali kolom input yang bertanda merah.');
+        return;
+      }
+    }
+
+    setSavingSection(section);
     try {
       await apiClient.post('/admin/system-settings', {
-        settings: [
-          { key: 'default_register_role', value: data.default_register_role },
-          { key: 'superadmin_role', value: data.superadmin_role },
-          { key: 'google_workspace_admin_email', value: data.google_workspace_admin_email || '' },
-          { key: 'google_workspace_domain', value: data.google_workspace_domain || '' },
-          { key: 'google_workspace_credentials', value: data.google_workspace_credentials || '' },
-          { key: 'mail_host', value: data.mail_host },
-          { key: 'mail_port', value: String(data.mail_port) },
-          { key: 'mail_scheme', value: data.mail_scheme },
-          { key: 'mail_username', value: data.mail_username || '' },
-          { key: 'mail_password', value: data.mail_password || '' },
-          { key: 'mail_from_address', value: data.mail_from_address },
-          { key: 'mail_from_name', value: data.mail_from_name },
-          { key: 'restricted_role_ids', value: JSON.stringify(data.restricted_role_ids ?? []) },
-          { key: 'feeder_url', value: data.feeder_url },
-          { key: 'feeder_username', value: data.feeder_username },
-          { key: 'feeder_password', value: data.feeder_password || '' },
-        ],
+        settings: settingsToSave,
       });
-      reset(data);
-      setSaveSuccess(true);
-      toast.success('Konfigurasi sistem berhasil disimpan.');
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch {
-      toast.error('Gagal menyimpan pengaturan.');
+
+      // Update initial values for saved keys
+      setInitialValues((prev) => {
+        const next = { ...prev };
+        settingsToSave.forEach((item) => {
+          if (item.key === 'restricted_role_ids') {
+            next.restricted_role_ids = vals.restricted_role_ids;
+          } else {
+            (next as any)[item.key] = (vals as any)[item.key];
+          }
+        });
+        return next;
+      });
+
+      setSavedSections((prev) => ({ ...prev, [section]: true }));
+      toast.success(successMessage);
+      setTimeout(() => {
+        setSavedSections((prev) => ({ ...prev, [section]: false }));
+      }, 3500);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Gagal menyimpan pengaturan.';
+      toast.error(msg);
     } finally {
-      setIsSaving(false);
+      setSavingSection(null);
     }
   };
 
@@ -272,14 +533,16 @@ export default function SystemSettingsPage() {
     setIsTestingFeeder(true);
     setFeederTokenInfo(null);
     setFeederTokenStaging(false);
+    setFeederStagingReason(null);
     try {
       const res = await feederService.getToken();
       if (res?.data?.token) {
         const isStaging = res.data.is_staging === true;
         setFeederTokenInfo(res.data.token);
         setFeederTokenStaging(isStaging);
+        setFeederStagingReason(res.data.staging_reason ?? null);
         if (isStaging) {
-          toast(res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
+          toast(res.data.staging_reason || res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
         } else {
           toast.success('Berhasil terhubung ke Neo Feeder.');
         }
@@ -293,518 +556,793 @@ export default function SystemSettingsPage() {
     }
   };
 
+  const handleTestR2 = async () => {
+    setIsTestingR2(true);
+    setR2TestResult(null);
+    const formVals = getValues();
+    try {
+      const res = await apiClient.post('/admin/system-settings/test-r2', {
+        r2_endpoint: formVals.r2_endpoint,
+        r2_access_key_id: formVals.r2_access_key_id,
+        r2_secret_access_key: formVals.r2_secret_access_key,
+        r2_bucket: formVals.r2_bucket,
+        r2_default_region: formVals.r2_default_region || 'auto',
+        r2_use_path_style_endpoint: formVals.r2_use_path_style_endpoint || 'true',
+      });
+      const msg = res.data?.message || 'Koneksi ke Cloudflare R2 berhasil!';
+      setR2TestResult({ success: true, message: msg });
+      toast.success(msg);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Gagal terhubung ke Cloudflare R2.';
+      setR2TestResult({ success: false, message: msg });
+      toast.error(msg);
+    } finally {
+      setIsTestingR2(false);
+    }
+  };
+
+  // Reusable Section Footer component
+  const renderSectionFooter = (sectionKey: string, saveButtonLabel: string) => {
+    const isDirty = isSectionDirty(sectionKey);
+    const isSaved = savedSections[sectionKey];
+    const isSaving = savingSection === sectionKey;
+
+    return (
+      <div className="settings-section-footer">
+        <div className="settings-footer-left">
+          {isSaved && (
+            <span className="settings-save-success">
+              <CheckCircle2 size={14} className="text-emerald-600" />
+              Perubahan berhasil disimpan
+            </span>
+          )}
+          {isDirty && !isSaved && (
+            <span className="settings-unsaved-hint">
+              Ada perubahan belum disimpan
+            </span>
+          )}
+        </div>
+
+        <div className="settings-footer-actions">
+          {isDirty && (
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => resetSection(sectionKey)}
+              disabled={isSaving}
+            >
+              Batalkan
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => handleSaveSection(sectionKey)}
+            disabled={isSaving || isLoading || !isDirty}
+            icon={isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+          >
+            {isSaving ? 'Menyimpan...' : saveButtonLabel}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="animate-fade-in space-y-6">
       {/* Page Header */}
       <PageHeader
         title="Pengaturan Sistem"
-        description="Konfigurasi inti untuk SSO Campus, Server SMTP Email, Otoritas Superadmin, dan mapping role otomatis"
+        description="Konfigurasi terpusat untuk SMTP Email, Cloudflare R2 Storage, Neo Feeder PDDikti, dan Otoritas Role Akun"
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
-        {/* Settings Grid */}
-        <div className="settings-page-grid">
-          {/* ── Left: Settings Sections ── */}
-          <div className="settings-sections space-y-6">
-            {/* Section 1: Server SMTP & Email Notifikasi */}
-            <div className="settings-section-card card">
-              <div className="settings-section-header">
-                <div className="settings-section-icon bg-amber-100 text-amber-700">
-                  <Server size={18} />
-                </div>
-                <div className="settings-section-title-group">
-                  <h2 className="settings-section-title">Konfigurasi Server SMTP & Email</h2>
-                  <p className="settings-section-desc">
-                    Kredensial server surat keluar (SMTP) untuk pengiriman email verifikasi pendaftaran, tautan lupa password, dan notifikasi kampus.
-                  </p>
-                </div>
+      {/* Settings Grid */}
+      <div className="settings-page-grid">
+        {/* ── Left: Settings Sections ── */}
+        <div className="settings-sections space-y-6">
+
+          {/* ════════ Section 1: Server SMTP & Email Notifikasi ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-amber-100 text-amber-700">
+                <Server size={18} />
               </div>
-
-              <div className="settings-section-divider" />
-
-              <div className="settings-section-body space-y-4">
-                {isLoading ? (
-                  <div className="settings-loading">
-                    <Loader2 size={20} className="animate-spin text-slate-400" />
-                    <span className="text-sm text-slate-500">Memuat pengaturan SMTP...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Input
-                        label="Host SMTP"
-                        placeholder="smtp.gmail.com"
-                        error={errors.mail_host?.message}
-                        hint="Alamat host server SMTP mailer."
-                        {...register('mail_host')}
-                      />
-                      <Input
-                        label="Port SMTP"
-                        type="number"
-                        placeholder="465"
-                        error={errors.mail_port?.message}
-                        hint="Port SMTP (465 untuk SSL, 587 untuk TLS)."
-                        {...register('mail_port')}
-                      />
-                      <Controller
-                        name="mail_scheme"
-                        control={control}
-                        render={({ field }) => (
-                          <Select
-                            label="Protokol Enkripsi"
-                            options={SCHEME_OPTIONS}
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Pilih protokol..."
-                            isClearable={false}
-                            error={errors.mail_scheme?.message}
-                            hint="Metode enkripsi koneksi mailer."
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Username SMTP / Email Akun"
-                        type="text"
-                        placeholder="user@kampus.ac.id"
-                        error={errors.mail_username?.message}
-                        hint="Username otentikasi login SMTP."
-                        {...register('mail_username')}
-                      />
-                      <Input
-                        label="Password / App Password SMTP"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••••••••••"
-                        suffixIcon={showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        onSuffixClick={() => setShowPassword(!showPassword)}
-                        error={errors.mail_password?.message}
-                        hint="Password atau Google App Password akun email."
-                        {...register('mail_password')}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Alamat Pengirim (From Address)"
-                        type="email"
-                        placeholder="no-reply@kampus.ac.id"
-                        error={errors.mail_from_address?.message}
-                        hint="Alamat email yang tertera sebagai pengirim email."
-                        {...register('mail_from_address')}
-                      />
-                      <Input
-                        label="Nama Pengirim (From Name)"
-                        placeholder="Sistem Terintegrasi Kampus"
-                        error={errors.mail_from_name?.message}
-                        hint="Nama instansi/sistem yang tampil di inbox penerima."
-                        {...register('mail_from_name')}
-                      />
-                    </div>
-
-                    {/* Sub-Card: Test SMTP Connection */}
-                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Mail size={16} className="text-amber-600" />
-                        <h3 className="text-sm font-semibold text-slate-800">
-                          Uji Coba Pengiriman Email (Test SMTP)
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Kirim email percobaan untuk memastikan pengaturan host, port, dan kredensial di atas berfungsi dengan normal sebelum disimpan.
-                      </p>
-                      <div className="space-y-3">
-                        <Input
-                          label="Email Penerima Uji Coba"
-                          type="email"
-                          value={testEmail}
-                          onChange={(e) => {
-                            setTestEmail(e.target.value);
-                            if (testEmailError) setTestEmailError(undefined);
-                          }}
-                          placeholder="nama-anda@domain.com"
-                          error={testEmailError}
-                        />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="md"
-                          onClick={handleTestSmtp}
-                          loading={isTestingSmtp}
-                          icon={<Send size={15} />}
-                          className="w-full sm:w-auto"
-                        >
-                          {isTestingSmtp ? 'Mengirim...' : 'Kirim Email Uji Coba'}
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Konfigurasi Server SMTP & Email</h2>
+                <p className="settings-section-desc">
+                  Kredensial server surat keluar (SMTP) untuk pengiriman email verifikasi pendaftaran, tautan lupa password, dan notifikasi kampus.
+                </p>
               </div>
             </div>
 
-            {/* Section 2: Registrasi Akun Baru */}
-            <div className="settings-section-card card">
-              <div className="settings-section-header">
-                <div className="settings-section-icon">
-                  <Users size={18} />
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body space-y-4">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan SMTP...</span>
                 </div>
-                <div className="settings-section-title-group">
-                  <h2 className="settings-section-title">Registrasi Akun Baru</h2>
-                  <p className="settings-section-desc">
-                    Pilih Role yang akan otomatis diberikan kepada pengguna saat membuat akun baru melalui halaman Register.
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section-divider" />
-
-              <div className="settings-section-body">
-                {isLoading ? (
-                  <div className="settings-loading">
-                    <Loader2 size={20} className="animate-spin text-slate-400" />
-                    <span className="text-sm text-slate-500">Memuat pengaturan...</span>
-                  </div>
-                ) : (
-                  <Controller
-                    name="default_register_role"
-                    control={control}
-                    render={({ field }) => (
-                      <AsyncSelect
-                        label="Default Registration Role"
-                        loadOptions={loadRolesOptions}
-                        defaultOptions
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="Pilih role untuk pendaftar baru..."
-                        error={errors.default_register_role?.message}
-                        hint="Berdasarkan role yang dipilih, modul yang dapat diakses oleh pendaftar baru akan mengikuti mapping hak akses dari role ini."
-                      />
-                    )}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Section 3: Role Superadmin Utama */}
-            <div className="settings-section-card card">
-              <div className="settings-section-header">
-                <div className="settings-section-icon bg-indigo-50 text-indigo-600">
-                  <ShieldAlert size={18} />
-                </div>
-                <div className="settings-section-title-group">
-                  <h2 className="settings-section-title">Otoritas Role Superadmin (Sistem)</h2>
-                  <p className="settings-section-desc">
-                    Tentukan Role yang bertindak sebagai Superadmin utama di sistem. Sistem akan secara dinamis memberikan hak akses penuh tanpa batas ke semua modul bagi pengguna dengan role ini.
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section-divider" />
-
-              <div className="settings-section-body">
-                {isLoading ? (
-                  <div className="settings-loading">
-                    <Loader2 size={20} className="animate-spin text-slate-400" />
-                    <span className="text-sm text-slate-500">Memuat pengaturan...</span>
-                  </div>
-                ) : (
-                  <Controller
-                    name="superadmin_role"
-                    control={control}
-                    render={({ field }) => (
-                      <AsyncSelect
-                        label="System Superadmin Role"
-                        loadOptions={loadRolesOptions}
-                        defaultOptions
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="Pilih role superadmin..."
-                        error={errors.superadmin_role?.message}
-                        hint="Role yang dipilih akan dikenali secara dinamis oleh backend & frontend SSO sebagai Superadmin utama tanpa tergantung nilai hardcode."
-                      />
-                    )}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Section 4: Restriksi Role Tampil */}
-            <div className="settings-section-card card">
-              <div className="settings-section-header">
-                <div className="settings-section-icon bg-rose-100 text-rose-700">
-                  <EyeOff size={18} />
-                </div>
-                <div className="settings-section-title-group">
-                  <h2 className="settings-section-title">Restriksi Role Tampil</h2>
-                  <p className="settings-section-desc">
-                    Pilih Role yang disembunyikan dari daftar roles (GET /admin/roles) untuk pengguna tanpa izin kelola roles di semua modul, kecuali modul IAM.
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section-divider" />
-
-              <div className="settings-section-body">
-                {isLoading ? (
-                  <div className="settings-loading">
-                    <Loader2 size={20} className="animate-spin text-slate-400" />
-                    <span className="text-sm text-slate-500">Memuat pengaturan...</span>
-                  </div>
-                ) : (
-                  <Controller
-                    name="restricted_role_ids"
-                    control={control}
-                    render={({ field }) => (
-                      <AsyncSelect
-                        label="Restricted Roles"
-                        loadOptions={loadRoleIdOptions}
-                        defaultOptions
-                        isMulti
-                        isClearable
-                        value={field.value ?? []}
-                        onChange={(selected: any) =>
-                          field.onChange((Array.isArray(selected) ? selected : []).map((opt: any) => opt.value))
-                        }
-                        placeholder="Pilih role yang disembunyikan..."
-                        error={errors.restricted_role_ids?.message}
-                        hint="Pengelola IAM (pemegang izin kelola roles) tetap melihat semua roles. Role lain yang tidak dipilih tetap tampil normal."
-                      />
-                    )}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Section 5: Koneksi Neo Feeder PDDikti */}
-            <div className="settings-section-card card">
-              <div className="settings-section-header">
-                <div className="settings-section-icon bg-emerald-100 text-emerald-700">
-                  <Database size={18} />
-                </div>
-                <div className="settings-section-title-group">
-                  <h2 className="settings-section-title">Koneksi Neo Feeder PDDikti</h2>
-                  <p className="settings-section-desc">
-                    Kredensial URL endpoint Web Service (WS) Neo Feeder untuk sinkronisasi data SIAKAD ke PDDikti.
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section-divider" />
-
-              <div className="settings-section-body space-y-4">
-                {isLoading ? (
-                  <div className="settings-loading">
-                    <Loader2 size={20} className="animate-spin text-slate-400" />
-                    <span className="text-sm text-slate-500">Memuat pengaturan...</span>
-                  </div>
-                ) : (
-                  <>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Input
-                      label="URL Web Service Feeder"
-                      placeholder="http://localhost:8100/ws/live2.php"
-                      error={errors.feeder_url?.message}
-                      hint="Alamat endpoint ws/live2.php atau sandbox Feeder."
-                      {...register('feeder_url')}
+                      label="Host SMTP"
+                      placeholder="smtp.gmail.com"
+                      error={errors.mail_host?.message}
+                      hint="Alamat host server SMTP mailer."
+                      {...register('mail_host')}
                     />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Username / Kode PT Feeder"
-                        placeholder="admin_siakad"
-                        error={errors.feeder_username?.message}
-                        hint="Username atau kode perguruan tinggi Feeder."
-                        {...register('feeder_username')}
-                      />
-                      <Input
-                        label="Password Feeder"
-                        type={showFeederPassword ? 'text' : 'password'}
-                        placeholder="••••••••••••••••"
-                        suffixIcon={showFeederPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        onSuffixClick={() => setShowFeederPassword(!showFeederPassword)}
-                        error={errors.feeder_password?.message}
-                        hint="Password akun WS Feeder kampus."
-                        {...register('feeder_password')}
-                      />
-                    </div>
-
-                    {/* Sub-Card: Test Koneksi Feeder */}
-                    <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Database size={16} className="text-emerald-600" />
-                        <h3 className="text-sm font-semibold text-slate-800">
-                          Uji Koneksi Neo Feeder
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Simpan konfigurasi di bawah terlebih dahulu, lalu uji koneksi untuk memastikan URL dan kredensial di atas berfungsi.
-                      </p>
-                      <div className="space-y-3">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="md"
-                          onClick={handleTestFeeder}
-                          loading={isTestingFeeder}
-                          icon={<Send size={15} />}
-                          className="w-full sm:w-auto"
-                        >
-                          {isTestingFeeder ? 'Menghubungkan...' : 'Tes Koneksi Feeder'}
-                        </Button>
-                        {feederTokenInfo && (
-                          <p className={`font-mono text-xs font-bold break-all ${feederTokenStaging ? 'text-amber-700' : 'text-emerald-700'}`}>
-                            {feederTokenStaging
-                              ? `Mode Staging (WS tidak terjangkau): ${feederTokenInfo}`
-                              : `Token Aktif: ${feederTokenInfo}`}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Section 6: Google Workspace */}
-            <div className="settings-section-card card">
-              <div className="settings-section-header">
-                <div className="settings-section-icon bg-green-100 text-green-700">
-                  <Globe size={18} />
-                </div>
-                <div className="settings-section-title-group">
-                  <h2 className="settings-section-title">Integrasi Google Workspace</h2>
-                  <p className="settings-section-desc">
-                    Konfigurasi Domain-Wide Delegation API untuk otomatisasi pembuatan email kampus mahasiswa (G-Suite).
-                  </p>
-                </div>
-              </div>
-
-              <div className="settings-section-divider" />
-
-              <div className="settings-section-body space-y-4">
-                {isLoading ? (
-                  <div className="settings-loading">
-                    <Loader2 size={20} className="animate-spin text-slate-400" />
-                    <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                    <Input
+                      label="Port SMTP"
+                      type="number"
+                      placeholder="465"
+                      error={errors.mail_port?.message}
+                      hint="Port SMTP (465 untuk SSL, 587 untuk TLS)."
+                      {...register('mail_port')}
+                    />
+                    <Controller
+                      name="mail_scheme"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Protokol Enkripsi"
+                          options={SCHEME_OPTIONS}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Pilih protokol..."
+                          isClearable={false}
+                          error={errors.mail_scheme?.message}
+                          hint="Metode enkripsi koneksi mailer."
+                        />
+                      )}
+                    />
                   </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Domain Kampus"
-                        placeholder="Misal: student.campus.ac.id"
-                        error={errors.google_workspace_domain?.message}
-                        hint="Domain untuk alamat email mahasiswa (tanpa @)."
-                        {...register('google_workspace_domain')}
-                      />
-                      <Input
-                        label="Admin Email (Impersonation)"
-                        placeholder="admin@campus.ac.id"
-                        error={errors.google_workspace_admin_email?.message}
-                        hint="Email Admin G-Suite utama dengan akses Directory API."
-                        {...register('google_workspace_admin_email')}
-                      />
-                    </div>
-                    <Textarea
-                      label="Credentials JSON (Service Account)"
-                      placeholder='{"type": "service_account", "project_id": "...", ...}'
-                      rows={4}
-                      error={errors.google_workspace_credentials?.message}
-                      hint="Tempel isi file JSON Service Account dari Google Cloud Console."
-                      {...register('google_workspace_credentials')}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Username SMTP / Email Akun"
+                      type="text"
+                      placeholder="user@kampus.ac.id"
+                      error={errors.mail_username?.message}
+                      hint="Username otentikasi login SMTP."
+                      {...register('mail_username')}
                     />
-                  </>
-                )}
-              </div>
+                    <Input
+                      label="Password / App Password SMTP"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••••••••••"
+                      suffixIcon={showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      onSuffixClick={() => setShowPassword(!showPassword)}
+                      error={errors.mail_password?.message}
+                      hint="Password atau Google App Password akun email."
+                      {...register('mail_password')}
+                    />
+                  </div>
 
-              {/* Footer Action */}
-              <div className="settings-section-footer">
-                <div className="settings-footer-left">
-                  {saveSuccess && (
-                    <span className="settings-save-success">
-                      <CheckCircle2 size={14} />
-                      Konfigurasi berhasil disimpan
-                    </span>
-                  )}
-                  {isDirty && !saveSuccess && (
-                    <span className="settings-unsaved-hint">
-                      Ada perubahan yang belum disimpan
-                    </span>
-                  )}
-                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Alamat Pengirim (From Address)"
+                      type="email"
+                      placeholder="no-reply@kampus.ac.id"
+                      error={errors.mail_from_address?.message}
+                      hint="Alamat email yang tertera sebagai pengirim email."
+                      {...register('mail_from_address')}
+                    />
+                    <Input
+                      label="Nama Pengirim (From Name)"
+                      placeholder="Sistem Terintegrasi Kampus"
+                      error={errors.mail_from_name?.message}
+                      hint="Nama instansi/sistem yang tampil di inbox penerima."
+                      {...register('mail_from_name')}
+                    />
+                  </div>
 
-                <div className="settings-footer-actions">
-                  {isDirty && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      type="button"
-                      onClick={() => reset()}
-                      disabled={isSaving}
-                    >
-                      Batalkan
-                    </Button>
-                  )}
-                  <Button
-                    type="submit"
-                    disabled={isSaving || isLoading || !isDirty}
-                    icon={isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                  >
-                    {isSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}
-                  </Button>
-                </div>
-              </div>
+                  {/* Sub-Card: Test SMTP Connection */}
+                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Mail size={16} className="text-amber-600" />
+                      <h3 className="text-sm font-semibold text-slate-800">
+                        Uji Coba Pengiriman Email (Test SMTP)
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Kirim email percobaan untuk memastikan pengaturan host, port, dan kredensial di atas berfungsi dengan normal sebelum disimpan.
+                    </p>
+                    <div className="space-y-3">
+                      <Input
+                        label="Email Penerima Uji Coba"
+                        type="email"
+                        value={testEmail}
+                        onChange={(e) => {
+                          setTestEmail(e.target.value);
+                          if (testEmailError) setTestEmailError(undefined);
+                        }}
+                        placeholder="nama-anda@domain.com"
+                        error={testEmailError}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        onClick={handleTestSmtp}
+                        loading={isTestingSmtp}
+                        icon={<Send size={15} />}
+                        className="w-full sm:w-auto"
+                      >
+                        {isTestingSmtp ? 'Mengirim...' : 'Kirim Email Uji Coba'}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+
+            {renderSectionFooter('smtp', 'Simpan Pengaturan SMTP')}
           </div>
 
-          {/* ── Right: Info Panel (Desktop only) ── */}
-          <aside className="settings-info-panel">
-            <div className="settings-info-card card card-body">
-              <div className="flex items-center gap-2 mb-3">
-                <Settings size={15} className="text-primary-600" />
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tentang Konfigurasi SSO</span>
+          {/* ════════ Section 2: Cloudflare R2 Storage (Penyimpanan Berkas) ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-sky-100 text-sky-700">
+                <Cloud size={18} />
               </div>
-              <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                Konfigurasi ini menentukan perilaku dinamis SSO Campus untuk pengiriman email notifikasi, pendaftaran publik, dan penentuan otoritas Superadmin sistem.
-              </p>
-              <div className="settings-info-divider" />
-              <div className="space-y-3 mt-4 text-xs text-slate-600 leading-relaxed">
-                <div className="flex items-start gap-2">
-                  <Server size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                  <span><strong>Server SMTP:</strong> Mengontrol server keluar untuk pengiriman email lupa password, aktivasi akun, dan notifikasi kampus.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Users size={14} className="text-primary-600 shrink-0 mt-0.5" />
-                  <span><strong>Default Register Role:</strong> Role otomatis saat user baru melakukan registrasi mandiri.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <ShieldCheck size={14} className="text-indigo-600 shrink-0 mt-0.5" />
-                  <span><strong>Superadmin Role:</strong> Role yang dikonfigurasi sebagai pemegang akses penuh tanpa batas ke seluruh modul sistem.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <EyeOff size={14} className="text-rose-600 shrink-0 mt-0.5" />
-                  <span><strong>Restriksi Role:</strong> Role terpilih disembunyikan dari daftar roles di luar modul IAM.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Database size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <span><strong>Neo Feeder:</strong> Kredensial WS PDDikti untuk sinkronisasi data SIAKAD.</span>
-                </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Penyimpanan Berkas Cloud (Cloudflare R2)</h2>
+                <p className="settings-section-desc">
+                  Konfigurasi Cloudflare R2 (S3-compatible Object Storage) untuk upload berkas dokumen pendaftaran, arsip kepegawaian, dan aset statis kampus tanpa batas ruang lokal.
+                </p>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={fetchData}
-                icon={<RefreshCw size={13} />}
-                title="Muat ulang pengaturan"
-                className="mt-4 self-start"
-              >
-                Muat ulang
-              </Button>
             </div>
-          </aside>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body space-y-5">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan Cloudflare R2...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Driver Switches */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Controller
+                      name="filesystem_disk"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Default Filesystem Disk"
+                          options={DISK_OPTIONS}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Pilih disk default..."
+                          isClearable={false}
+                          hint="Driver penyimpanan utama sistem."
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="filesystem_public_disk"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Public Upload Disk"
+                          options={PUBLIC_DISK_OPTIONS}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Pilih disk publik..."
+                          isClearable={false}
+                          hint="Disk untuk file publik (foto profil, pengumuman)."
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="filesystem_private_disk"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Private / Secure Upload Disk"
+                          options={PRIVATE_DISK_OPTIONS}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Pilih disk privat..."
+                          isClearable={false}
+                          hint="Disk untuk dokumen sensitif (KTP, ijazah, e-file)."
+                        />
+                      )}
+                    />
+                  </div>
+
+                  {/* S3 API Credentials */}
+                  <div className="p-4 rounded-lg bg-sky-50/50 border border-sky-200 space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-sky-900">
+                      Kredensial S3 API Cloudflare R2
+                    </h3>
+
+                    <Input
+                      label="R2 S3 API Endpoint"
+                      placeholder="https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+                      error={errors.r2_endpoint?.message}
+                      hint="Endpoint S3 API dari dasbor Cloudflare R2."
+                      {...register('r2_endpoint')}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Input
+                        label="R2 Access Key ID"
+                        type="text"
+                        placeholder="Contoh: 7d6c8b9a0e1f2..."
+                        error={errors.r2_access_key_id?.message}
+                        hint="Access Key ID yang dibuat di Cloudflare R2 API Tokens."
+                        {...register('r2_access_key_id')}
+                      />
+                      <Input
+                        label="R2 Secret Access Key"
+                        type={showR2Secret ? 'text' : 'password'}
+                        placeholder="••••••••••••••••"
+                        suffixIcon={showR2Secret ? <EyeOff size={16} /> : <Eye size={16} />}
+                        onSuffixClick={() => setShowR2Secret(!showR2Secret)}
+                        error={errors.r2_secret_access_key?.message}
+                        hint="Secret Access Key akun Cloudflare R2."
+                        {...register('r2_secret_access_key')}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Buckets & URLs */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Nama Bucket Publik (R2_BUCKET)"
+                      placeholder="kampus-public-uploads"
+                      error={errors.r2_bucket?.message}
+                      hint="Nama bucket Cloudflare R2 untuk file publik."
+                      {...register('r2_bucket')}
+                    />
+                    <Input
+                      label="URL Domain Publik (R2_URL)"
+                      placeholder="https://pub-xxx.r2.dev atau https://cdn.kampus.ac.id"
+                      error={errors.r2_url?.message}
+                      hint="Custom domain publik atau R2.dev domain untuk file publik."
+                      {...register('r2_url')}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Nama Bucket Privat (Opsional)"
+                      placeholder="kampus-private-documents"
+                      error={errors.r2_private_bucket?.message}
+                      hint="Biarkan kosong jika menggunakan bucket yang sama dengan publik."
+                      {...register('r2_private_bucket')}
+                    />
+                    <Input
+                      label="URL Akses Privat (Opsional)"
+                      placeholder="https://priv-xxx.r2.dev"
+                      error={errors.r2_private_url?.message}
+                      hint="Domain untuk file privat berautentikasi (opsional)."
+                      {...register('r2_private_url')}
+                    />
+                  </div>
+
+                  {/* Advanced Settings */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="R2 Default Region"
+                      placeholder="auto"
+                      error={errors.r2_default_region?.message}
+                      hint="Region Cloudflare R2 selalu 'auto'."
+                      {...register('r2_default_region')}
+                    />
+                    <Controller
+                      name="r2_use_path_style_endpoint"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Use Path Style Endpoint"
+                          options={PATH_STYLE_OPTIONS}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Pilih mode endpoint..."
+                          isClearable={false}
+                          hint="Format URL bucket S3 (R2 memerlukan format path-style)."
+                        />
+                      )}
+                    />
+                  </div>
+
+                  {/* Sub-Card: Test R2 Connection */}
+                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Cloud size={16} className="text-sky-600" />
+                      <h3 className="text-sm font-semibold text-slate-800">
+                        Uji Koneksi Cloudflare R2 (Test R2 Connection)
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Uji koneksi secara langsung dengan mengirimkan file ping uji coba ke bucket Cloudflare R2 yang telah Anda konfigurasikan.
+                    </p>
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        onClick={handleTestR2}
+                        loading={isTestingR2}
+                        icon={<Send size={15} />}
+                        className="w-full sm:w-auto"
+                      >
+                        {isTestingR2 ? 'Menguji koneksi...' : 'Uji Koneksi R2'}
+                      </Button>
+
+                      {r2TestResult && (
+                        <p
+                          className={`text-xs font-semibold p-2.5 rounded border ${
+                            r2TestResult.success
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                              : 'bg-rose-50 border-rose-200 text-rose-800'
+                          }`}
+                        >
+                          {r2TestResult.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {renderSectionFooter('r2', 'Simpan Pengaturan Storage R2')}
+          </div>
+
+          {/* ════════ Section 3: Koneksi Neo Feeder PDDikti ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-emerald-100 text-emerald-700">
+                <Database size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Koneksi Neo Feeder PDDikti</h2>
+                <p className="settings-section-desc">
+                  Kredensial URL endpoint Web Service (WS) Neo Feeder untuk sinkronisasi data SIAKAD ke PDDikti.
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body space-y-4">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan Feeder...</span>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    label="URL Web Service Feeder"
+                    placeholder="http://localhost:8100/ws/live2.php"
+                    error={errors.feeder_url?.message}
+                    hint="Alamat endpoint ws/live2.php atau sandbox Feeder."
+                    {...register('feeder_url')}
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Username / Kode PT Feeder"
+                      placeholder="admin_siakad"
+                      error={errors.feeder_username?.message}
+                      hint="Username atau kode perguruan tinggi Feeder."
+                      {...register('feeder_username')}
+                    />
+                    <Input
+                      label="Password Feeder"
+                      type={showFeederPassword ? 'text' : 'password'}
+                      placeholder="••••••••••••••••"
+                      suffixIcon={showFeederPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      onSuffixClick={() => setShowFeederPassword(!showFeederPassword)}
+                      error={errors.feeder_password?.message}
+                      hint="Password akun WS Feeder kampus."
+                      {...register('feeder_password')}
+                    />
+                  </div>
+
+                  {/* Sub-Card: Test Koneksi Feeder */}
+                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Database size={16} className="text-emerald-600" />
+                      <h3 className="text-sm font-semibold text-slate-800">
+                        Uji Koneksi Neo Feeder
+                      </h3>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Simpan konfigurasi Feeder terlebih dahulu jika ada perubahan baru, kemudian klik tombol tes koneksi di bawah.
+                    </p>
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        onClick={handleTestFeeder}
+                        loading={isTestingFeeder}
+                        icon={<Send size={15} />}
+                        className="w-full sm:w-auto"
+                      >
+                        {isTestingFeeder ? 'Menghubungkan...' : 'Tes Koneksi Feeder'}
+                      </Button>
+                      {feederTokenInfo && (
+                        <p className={`font-mono text-xs font-bold break-all ${feederTokenStaging ? 'text-amber-700' : 'text-emerald-700'}`}>
+                          {feederTokenStaging
+                            ? `Mode Staging (WS tidak terjangkau): ${feederTokenInfo}`
+                            : `Token Aktif: ${feederTokenInfo}`}
+                        </p>
+                      )}
+                      {feederTokenStaging && feederStagingReason && (
+                        <p className="text-xs text-amber-700 leading-relaxed">
+                          {feederStagingReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {renderSectionFooter('feeder', 'Simpan Koneksi Feeder')}
+          </div>
+
+          {/* ════════ Section 4: Registrasi Akun Baru ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-blue-100 text-blue-700">
+                <Users size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Registrasi Akun Baru</h2>
+                <p className="settings-section-desc">
+                  Pilih Role yang akan otomatis diberikan kepada pengguna saat membuat akun baru melalui halaman Register publik.
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan role...</span>
+                </div>
+              ) : (
+                <Controller
+                  name="default_register_role"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Default Registration Role"
+                      loadOptions={loadRolesOptions}
+                      defaultOptions
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Pilih role untuk pendaftar baru..."
+                      error={errors.default_register_role?.message}
+                      hint="Modul yang dapat diakses oleh pendaftar baru akan mengikuti mapping hak akses dari role ini."
+                    />
+                  )}
+                />
+              )}
+            </div>
+
+            {renderSectionFooter('registerRole', 'Simpan Role Registrasi')}
+          </div>
+
+          {/* ════════ Section 5: Role Superadmin Utama ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-indigo-50 text-indigo-600">
+                <ShieldAlert size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Otoritas Role Superadmin (Sistem)</h2>
+                <p className="settings-section-desc">
+                  Tentukan Role yang bertindak sebagai Superadmin utama di sistem untuk akses penuh tanpa batas ke semua modul.
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                </div>
+              ) : (
+                <Controller
+                  name="superadmin_role"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="System Superadmin Role"
+                      loadOptions={loadRolesOptions}
+                      defaultOptions
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Pilih role superadmin..."
+                      error={errors.superadmin_role?.message}
+                      hint="Role yang dipilih akan dikenali secara dinamis sebagai Superadmin utama tanpa tergantung nilai hardcode."
+                    />
+                  )}
+                />
+              )}
+            </div>
+
+            {renderSectionFooter('superadminRole', 'Simpan Role Superadmin')}
+          </div>
+
+          {/* ════════ Section 6: Restriksi Role Tampil ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-rose-100 text-rose-700">
+                <EyeOff size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Restriksi Role Tampil</h2>
+                <p className="settings-section-desc">
+                  Pilih Role yang disembunyikan dari daftar roles untuk pengguna umum di luar modul IAM.
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                </div>
+              ) : (
+                <Controller
+                  name="restricted_role_ids"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Restricted Roles"
+                      loadOptions={loadRoleIdOptions}
+                      defaultOptions
+                      isMulti
+                      isClearable
+                      value={field.value ?? []}
+                      onChange={(selected: any) =>
+                        field.onChange((Array.isArray(selected) ? selected : []).map((opt: any) => opt.value))
+                      }
+                      placeholder="Pilih role yang disembunyikan..."
+                      error={errors.restricted_role_ids?.message}
+                      hint="Pengelola IAM tetap dapat melihat semua roles. Role lain yang tidak dipilih tetap tampil normal."
+                    />
+                  )}
+                />
+              )}
+            </div>
+
+            {renderSectionFooter('restrictedRoles', 'Simpan Restriksi Role')}
+          </div>
+
+          {/* ════════ Section 7: Google Workspace ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-green-100 text-green-700">
+                <Globe size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Integrasi Google Workspace</h2>
+                <p className="settings-section-desc">
+                  Konfigurasi Domain-Wide Delegation API untuk otomatisasi pembuatan email kampus mahasiswa (G-Suite).
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body space-y-4">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Domain Kampus"
+                      placeholder="Misal: student.campus.ac.id"
+                      error={errors.google_workspace_domain?.message}
+                      hint="Domain untuk alamat email mahasiswa (tanpa @)."
+                      {...register('google_workspace_domain')}
+                    />
+                    <Input
+                      label="Admin Email (Impersonation)"
+                      placeholder="admin@campus.ac.id"
+                      error={errors.google_workspace_admin_email?.message}
+                      hint="Email Admin G-Suite utama dengan akses Directory API."
+                      {...register('google_workspace_admin_email')}
+                    />
+                  </div>
+                  <Textarea
+                    label="Credentials JSON (Service Account)"
+                    placeholder='{"type": "service_account", "project_id": "...", ...}'
+                    rows={4}
+                    error={errors.google_workspace_credentials?.message}
+                    hint="Tempel isi file JSON Service Account dari Google Cloud Console."
+                    {...register('google_workspace_credentials')}
+                  />
+                </>
+              )}
+            </div>
+
+            {renderSectionFooter('googleWorkspace', 'Simpan Google Workspace')}
+          </div>
+
         </div>
-      </form>
+
+        {/* ── Right: Info Panel (Desktop only) ── */}
+        <aside className="settings-info-panel">
+          <div className="settings-info-card card card-body">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings size={15} className="text-primary-600" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Pusat Pengaturan Sistem
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 leading-relaxed mb-4">
+              Setiap formulir konfigurasi di halaman ini dapat disimpan secara mandiri melalui tombol <strong>Simpan</strong> di masing-masing bagian tanpa perlu menggulir ke bawah.
+            </p>
+
+            <div className="settings-info-divider" />
+
+            <div className="space-y-3 mt-4 text-xs text-slate-600 leading-relaxed">
+              <div className="flex items-start gap-2">
+                <Server size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                <span><strong>Server SMTP:</strong> Mengontrol email keluar untuk reset password, aktivasi akun, dan notifikasi.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Cloud size={14} className="text-sky-600 shrink-0 mt-0.5" />
+                <span><strong>Cloudflare R2:</strong> Penyimpanan berkas dokumen pendaftaran dan arsip kepegawaian berbasis Cloud S3.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Database size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                <span><strong>Neo Feeder:</strong> Endpoint dan otentikasi Web Service PDDikti untuk sinkronisasi data SIAKAD.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Users size={14} className="text-primary-600 shrink-0 mt-0.5" />
+                <span><strong>Default Register Role:</strong> Role awal bagi pengguna yang mendaftar akun baru.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ShieldCheck size={14} className="text-indigo-600 shrink-0 mt-0.5" />
+                <span><strong>Superadmin Role:</strong> Role pemilik hak akses tertinggi ke semua modul kampus.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Globe size={14} className="text-green-600 shrink-0 mt-0.5" />
+                <span><strong>Google Workspace:</strong> Integrasi Directory API untuk otomatisasi pembuatan akun email kampus.</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={fetchData}
+              icon={<RefreshCw size={13} />}
+              title="Muat ulang seluruh pengaturan dari server"
+              className="mt-5 w-full justify-center"
+            >
+              Muat Ulang Pengaturan
+            </Button>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

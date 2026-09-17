@@ -31,6 +31,7 @@ export default function FeederSyncPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<string | null>(null);
   const [tokenStaging, setTokenStaging] = useState(false);
+  const [tokenStagingReason, setTokenStagingReason] = useState<string | null>(null);
 
   // Mappings & Logs state
   const [mappings, setMappings] = useState<any[]>([]);
@@ -54,8 +55,9 @@ export default function FeederSyncPage() {
         const isStaging = res.data.is_staging === true;
         setTokenInfo(res.data.token);
         setTokenStaging(isStaging);
+        setTokenStagingReason(res.data.staging_reason ?? null);
         if (isStaging) {
-          toast(res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
+          toast(res.data.staging_reason || res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
         } else {
           toast.success('Berhasil terhubung ke Neo Feeder / Staging');
         }
@@ -338,7 +340,7 @@ export default function FeederSyncPage() {
                 </p>
                 {tokenInfo && tokenStaging && (
                   <p className="text-xs text-amber-600 mt-1">
-                    WS Feeder tidak terjangkau. Data ditampung secara lokal (staging).
+                    {tokenStagingReason || 'WS Feeder tidak terjangkau. Data ditampung secara lokal (staging).'}
                   </p>
                 )}
               </div>
