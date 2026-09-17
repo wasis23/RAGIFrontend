@@ -1413,71 +1413,91 @@ export default function MasterPresensiPage() {
             </div>
           </div>
 
-          <form onSubmit={formSettings.handleSubmit(onSubmitSettings)} className="card p-6 border border-slate-200 max-w-2xl space-y-4">
-            <Input
-              label="Ambang Batas Skor Kemiripan Wajah (Face Recognition)"
-              type="number"
-              step="0.01"
-              min="0.1"
-              max="1.0"
-              hint="Rekomendasi model InsightFace: 0.80 (rentang 0.00 s/d 1.00)."
-              error={formSettings.formState.errors.face_score_threshold?.message}
-              {...formSettings.register('face_score_threshold', { valueAsNumber: true })}
-            />
+          <form onSubmit={formSettings.handleSubmit(onSubmitSettings)} className="card p-6 border border-slate-200 w-full space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Kolom 1: Validasi Biometrik Wajah & GPS */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Validasi Biometrik Wajah & GPS
+                </h4>
 
-            <Input
-              label="Batas Toleransi Akurasi GPS (Maksimal Meter)"
-              type="number"
-              step="1"
-              min="5"
-              max="500"
-              hint="Maksimal ketidakpastian GPS HP (default 50.0 meter)."
-              error={formSettings.formState.errors.gps_accuracy_threshold_meters?.message}
-              {...formSettings.register('gps_accuracy_threshold_meters', { valueAsNumber: true })}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Toleransi Terlambat (Menit)"
-                type="number"
-                min="0"
-                max="120"
-                error={formSettings.formState.errors.late_tolerance_minutes?.message}
-                {...formSettings.register('late_tolerance_minutes', { valueAsNumber: true })}
-              />
-
-              <Input
-                label="Toleransi Pulang Cepat (Menit)"
-                type="number"
-                min="0"
-                max="120"
-                error={formSettings.formState.errors.early_leave_tolerance_minutes?.message}
-                {...formSettings.register('early_leave_tolerance_minutes', { valueAsNumber: true })}
-              />
-            </div>
-
-            <Input
-              label="Batas Buka Absen Lebih Awal (Menit Sebelum Shift)"
-              type="number"
-              min="0"
-              max="240"
-              hint="Contoh: 60 menit berarti shift jam 08:00 sudah bisa absen sejak 07:00."
-              error={formSettings.formState.errors.max_early_clock_in_minutes?.message}
-              {...formSettings.register('max_early_clock_in_minutes', { valueAsNumber: true })}
-            />
-
-            <Controller
-              control={formSettings.control}
-              name="applies_national_holidays"
-              render={({ field }) => (
-                <ToggleSwitch
-                  checked={!!field.value}
-                  onChange={field.onChange}
-                  label="Otomatis Terapkan Libur Nasional"
-                  description="Menonaktifkan kewajiban presensi pada tanggal merah dan cuti bersama resmi pemerintah."
+                <Input
+                  label="Ambang Batas Skor Kemiripan Wajah (Face Recognition)"
+                  type="number"
+                  step="0.01"
+                  min="0.1"
+                  max="1.0"
+                  hint="Rekomendasi model InsightFace: 0.80 (rentang 0.00 s/d 1.00)."
+                  error={formSettings.formState.errors.face_score_threshold?.message}
+                  {...formSettings.register('face_score_threshold', { valueAsNumber: true })}
                 />
-              )}
-            />
+
+                <Input
+                  label="Batas Toleransi Akurasi GPS (Maksimal Meter)"
+                  type="number"
+                  step="1"
+                  min="5"
+                  max="500"
+                  hint="Maksimal ketidakpastian sinyal GPS HP pegawai (default 50.0 meter)."
+                  error={formSettings.formState.errors.gps_accuracy_threshold_meters?.message}
+                  {...formSettings.register('gps_accuracy_threshold_meters', { valueAsNumber: true })}
+                />
+              </div>
+
+              {/* Kolom 2: Toleransi Waktu & Kalender Libur */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Toleransi Waktu & Kebijakan Libur
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Toleransi Terlambat (Menit)"
+                    type="number"
+                    min="0"
+                    max="120"
+                    hint="Dalam toleransi dihitung tepat waktu."
+                    error={formSettings.formState.errors.late_tolerance_minutes?.message}
+                    {...formSettings.register('late_tolerance_minutes', { valueAsNumber: true })}
+                  />
+
+                  <Input
+                    label="Toleransi Pulang Cepat (Menit)"
+                    type="number"
+                    min="0"
+                    max="120"
+                    hint="Batas toleransi clock-out."
+                    error={formSettings.formState.errors.early_leave_tolerance_minutes?.message}
+                    {...formSettings.register('early_leave_tolerance_minutes', { valueAsNumber: true })}
+                  />
+                </div>
+
+                <Input
+                  label="Batas Buka Absen Lebih Awal (Menit Sebelum Shift)"
+                  type="number"
+                  min="0"
+                  max="240"
+                  hint="Contoh: 60 menit berarti shift jam 08:00 sudah bisa absen sejak 07:00."
+                  error={formSettings.formState.errors.max_early_clock_in_minutes?.message}
+                  {...formSettings.register('max_early_clock_in_minutes', { valueAsNumber: true })}
+                />
+
+                <div className="pt-2">
+                  <Controller
+                    control={formSettings.control}
+                    name="applies_national_holidays"
+                    render={({ field }) => (
+                      <ToggleSwitch
+                        checked={!!field.value}
+                        onChange={field.onChange}
+                        label="Otomatis Terapkan Libur Nasional"
+                        description="Menonaktifkan kewajiban presensi pada tanggal merah dan cuti bersama resmi pemerintah."
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
 
             {canManage && (
               <div className="pt-4 border-t border-slate-100 flex justify-end">
