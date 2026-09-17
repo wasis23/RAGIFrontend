@@ -19,7 +19,8 @@ export default function DaftarUlangPage() {
     try {
       setLoading(true);
       const res = await spmbService.getMyPendaftaran();
-      setPendaftaran(res.data || null);
+      const pData = res?.data?.pendaftaran || res?.data || null;
+      setPendaftaran(pData);
     } catch {
       toast.error('Gagal memuat data pendaftaran');
     } finally {
@@ -50,8 +51,8 @@ export default function DaftarUlangPage() {
 
   const hasilSeleksi = pendaftaran?.hasil_seleksi ?? pendaftaran?.konversi ?? null;
   const statusDaftarUlang = pendaftaran?.hasil_seleksi?.status_daftar_ulang ?? 'belum';
-  const sudahLulus = pendaftaran?.hasil_seleksi?.status === 'lulus';
-  const sudahLunas = statusDaftarUlang === 'lunas';
+  const sudahLulus = pendaftaran?.hasil_seleksi?.status === 'lulus' || pendaftaran?.status === 'mahasiswa_baru';
+  const sudahLunas = statusDaftarUlang === 'lunas' || pendaftaran?.status === 'mahasiswa_baru';
   const menungguPembayaran = statusDaftarUlang === 'menunggu_pembayaran';
 
   if (loading) {
