@@ -9,7 +9,6 @@ import {
   Building2,
   CalendarRange,
   SlidersHorizontal,
-  Fingerprint,
   Calendar,
   Clock,
   Plus,
@@ -19,8 +18,6 @@ import {
   RefreshCw,
   Copy,
   Users,
-  Wifi,
-  WifiOff,
   ArrowLeft,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -36,7 +33,6 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
-import type { FingerprintDevice } from '@/types/simpeg.types';
 
 // ── ZOD SCHEMAS ─────────────────────────────────────────────
 
@@ -50,18 +46,6 @@ const shiftFormSchema = z.object({
   is_active: z.boolean(),
 });
 type ShiftFormValues = z.infer<typeof shiftFormSchema>;
-
-const deviceFormSchema = z.object({
-  device_name: z.string().min(3, 'Nama mesin minimal 3 karakter'),
-  device_code: z.string().min(2, 'Kode mesin minimal 2 karakter'),
-  ip_address: z.string().min(7, 'Alamat IP wajib diisi'),
-  port: z.number().int('Port harus angka').min(1, 'Port minimal 1').max(65535, 'Port maksimal 65535'),
-  device_model: z.string().optional().nullable(),
-  location: z.string().optional().nullable(),
-  office_location_id: z.number().optional().nullable(),
-  is_active: z.boolean(),
-});
-type DeviceFormValues = z.infer<typeof deviceFormSchema>;
 
 const officeFormSchema = z.object({
   name: z.string().min(3, 'Nama lokasi kantor minimal 3 karakter'),
@@ -88,14 +72,6 @@ const bulkShiftSchema = z.object({
 });
 type BulkShiftFormValues = z.infer<typeof bulkShiftSchema>;
 
-const syncLogSchema = z.object({
-  device_code: z.string().min(1, 'Pilih mesin fingerprint'),
-  nip: z.string().min(1, 'NIP / PIN pegawai wajib diisi'),
-  timestamp: z.string().min(1, 'Waktu punch wajib diisi'),
-  in_out_mode: z.number(),
-});
-type SyncLogFormValues = z.infer<typeof syncLogSchema>;
-
 const systemSettingsSchema = z.object({
   face_score_threshold: z.number().min(0.1, 'Minimal 0.1').max(1.0, 'Maksimal 1.0'),
   gps_accuracy_threshold_meters: z.number().min(5, 'Minimal 5 meter').max(500, 'Maksimal 500 meter'),
@@ -111,8 +87,8 @@ export default function MasterPresensiPage() {
   const { isAdmin, hasPermission } = useAuth();
   const canManage = isAdmin || hasPermission('simpeg.presensi.manage') || hasPermission('simpeg.master.manage');
 
-  // Active Tab: 'shift' | 'devices' | 'office' | 'holiday' | 'settings'
-  const [activeTab, setActiveTab] = useState<'shift' | 'devices' | 'office' | 'holiday' | 'settings'>('shift');
+  // Active Tab: 'shift' | 'office' | 'holiday' | 'settings'
+  const [activeTab, setActiveTab] = useState<'shift' | 'office' | 'holiday' | 'settings'>('shift');
 
   // Dialog Konfirmasi Hapus
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -144,17 +120,6 @@ export default function MasterPresensiPage() {
   // Modal Penugasan Shift Massal
   const [showBulkShiftModal, setShowBulkShiftModal] = useState(false);
   const [unitKerjaOptions, setUnitKerjaOptions] = useState<{ value: number; label: string }[]>([]);
-
-  // ── TAB 2: MESIN PRESENSI STATE ───────────────────────────
-  const [loadingDevices, setLoadingDevices] = useState(false);
-  const [devices, setDevices] = useState<FingerprintDevice[]>([]);
-  const [searchDevice, setSearchDevice] = useState('');
-  const [showDeviceModal, setShowDeviceModal] = useState(false);
-  const [editingDevice, setEditingDevice] = useState<FingerprintDevice | null>(null);
-  const [testingDeviceId, setTestingDeviceId] = useState<number | null>(null);
-
-  // Modal Simulasi Log Sync
-  const [showSyncModal, setShowSyncModal] = useState(false);
 
   // ── TAB 3: LOKASI KANTOR (GEOFENCING) STATE ───────────────
   const [loadingOffices, setLoadingOffices] = useState(false);
@@ -190,20 +155,6 @@ export default function MasterPresensiPage() {
     },
   });
 
-  const formDevice = useForm<DeviceFormValues>({
-    resolver: zodResolver(deviceFormSchema),
-    defaultValues: {
-      device_name: '',
-      device_code: '',
-      ip_address: '192.168.1.201',
-      port: 4370,
-      location: '',
-      device_model: 'ZKTeco ProCapture-X',
-      office_location_id: undefined,
-      is_active: true,
-    },
-  });
-
   const formOffice = useForm<OfficeFormValues>({
     resolver: zodResolver(officeFormSchema),
     defaultValues: {
@@ -235,16 +186,6 @@ export default function MasterPresensiPage() {
     },
   });
 
-  const formSyncLog = useForm<SyncLogFormValues>({
-    resolver: zodResolver(syncLogSchema),
-    defaultValues: {
-      device_code: '',
-      nip: '',
-      timestamp: new Date().toISOString().substring(0, 16).replace('T', ' ') + ':00',
-      in_out_mode: 0,
-    },
-  });
-
   const formSettings = useForm<SystemSettingsValues>({
     resolver: zodResolver(systemSettingsSchema),
     defaultValues: {
@@ -270,20 +211,6 @@ export default function MasterPresensiPage() {
       toast.error('Gagal memuat jadwal shift kerja');
     } finally {
       setLoadingShifts(false);
-    }
-  }, []);
-
-  const fetchDevices = useCallback(async () => {
-    setLoadingDevices(true);
-    try {
-      const res = await simpegService.getFingerprintDevices();
-      if (res.status === 'success' && res.data) {
-        setDevices(res.data);
-      }
-    } catch {
-      toast.error('Gagal memuat daftar mesin presensi');
-    } finally {
-      setLoadingDevices(false);
     }
   }, []);
 
@@ -338,13 +265,10 @@ export default function MasterPresensiPage() {
 
   useEffect(() => {
     if (activeTab === 'shift') fetchShifts();
-    else if (activeTab === 'devices') {
-      fetchDevices();
-      if (offices.length === 0) fetchOffices();
-    } else if (activeTab === 'office') fetchOffices();
+    else if (activeTab === 'office') fetchOffices();
     else if (activeTab === 'holiday') fetchHolidays(holidayYear);
     else if (activeTab === 'settings') fetchSettings();
-  }, [activeTab, fetchShifts, fetchDevices, fetchOffices, fetchHolidays, holidayYear, fetchSettings, offices.length]);
+  }, [activeTab, fetchShifts, fetchOffices, fetchHolidays, holidayYear, fetchSettings]);
 
   // ── ACTION HANDLERS: TAB 1 (SHIFT) ─────────────────────────
 
@@ -503,120 +427,6 @@ export default function MasterPresensiPage() {
       fetchShifts();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal menugaskan shift massal');
-    }
-  };
-
-  // ── ACTION HANDLERS: TAB 2 (DEVICES) ───────────────────────
-
-  const handleOpenCreateDevice = () => {
-    setEditingDevice(null);
-    formDevice.reset({
-      device_name: '',
-      device_code: `FP-TERM-${Date.now().toString().slice(-4)}`,
-      ip_address: '192.168.1.201',
-      port: 4370,
-      location: '',
-      device_model: 'ZKTeco ProCapture-X',
-      office_location_id: offices[0]?.id,
-      is_active: true,
-    });
-    setShowDeviceModal(true);
-  };
-
-  const handleOpenEditDevice = (dev: FingerprintDevice) => {
-    setEditingDevice(dev);
-    formDevice.reset({
-      device_name: dev.device_name,
-      device_code: dev.device_code,
-      ip_address: dev.ip_address,
-      port: dev.port,
-      location: dev.location || '',
-      device_model: dev.device_model || 'ZKTeco ProCapture-X',
-      office_location_id: dev.office_location_id,
-      is_active: dev.is_active,
-    });
-    setShowDeviceModal(true);
-  };
-
-  const onSubmitDevice = async (values: DeviceFormValues) => {
-    try {
-      if (editingDevice) {
-        await simpegService.updateFingerprintDevice(editingDevice.id, values);
-        toast.success('Data mesin presensi berhasil diperbarui');
-      } else {
-        await simpegService.createFingerprintDevice(values);
-        toast.success('Mesin presensi baru berhasil didaftarkan');
-      }
-      setShowDeviceModal(false);
-      fetchDevices();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan data mesin presensi');
-    }
-  };
-
-  const handleDeleteDevice = (dev: FingerprintDevice) => {
-    setDeleteConfirm({
-      isOpen: true,
-      title: 'Hapus Mesin Presensi',
-      message: `Apakah Anda yakin ingin menghapus mesin "${dev.device_name}" (${dev.device_code})?`,
-      isLoading: false,
-      onConfirm: async () => {
-        try {
-          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
-          await simpegService.deleteFingerprintDevice(dev.id);
-          toast.success('Mesin presensi berhasil dihapus');
-          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
-          fetchDevices();
-        } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Gagal menghapus mesin presensi');
-          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
-        }
-      },
-    });
-  };
-
-  const handleTestDevice = async (id: number) => {
-    setTestingDeviceId(id);
-    try {
-      const res = await simpegService.testFingerprintDevice(id);
-      if (res.status === 'success') {
-        toast.success(res.message || 'Koneksi ke mesin presensi berhasil');
-        fetchDevices();
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal terhubung ke mesin presensi');
-    } finally {
-      setTestingDeviceId(null);
-    }
-  };
-
-  const handleOpenSyncModal = (dev?: FingerprintDevice) => {
-    formSyncLog.reset({
-      device_code: dev?.device_code || devices[0]?.device_code || '',
-      nip: '',
-      timestamp: new Date().toISOString().substring(0, 16).replace('T', ' ') + ':00',
-      in_out_mode: 0,
-    });
-    setShowSyncModal(true);
-  };
-
-  const onSubmitSyncLog = async (values: SyncLogFormValues) => {
-    try {
-      const res = await simpegService.syncFingerprintLogs({
-        device_code: values.device_code,
-        logs: [
-          {
-            pin: values.nip,
-            timestamp: values.timestamp,
-            in_out_mode: Number(values.in_out_mode),
-            verify_mode: 1,
-          },
-        ],
-      });
-      toast.success(res.message || 'Log mesin presensi berhasil disinkronisasi');
-      setShowSyncModal(false);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal sinkronisasi log mesin');
     }
   };
 
@@ -786,17 +596,6 @@ export default function MasterPresensiPage() {
     );
   }, [shifts, searchShift]);
 
-  const filteredDevices = useMemo(() => {
-    if (!searchDevice) return devices;
-    const q = searchDevice.toLowerCase();
-    return devices.filter((d) =>
-      d.device_name?.toLowerCase().includes(q) ||
-      d.device_code?.toLowerCase().includes(q) ||
-      d.ip_address?.toLowerCase().includes(q) ||
-      d.location?.toLowerCase().includes(q)
-    );
-  }, [devices, searchDevice]);
-
   const filteredOffices = useMemo(() => {
     if (!searchOffice) return offices;
     const q = searchOffice.toLowerCase();
@@ -897,110 +696,6 @@ export default function MasterPresensiPage() {
                   icon: <Trash2 size={14} />,
                   variant: 'danger',
                   onClick: () => handleDeleteShift(row),
-                },
-              ]}
-            />
-          </div>
-        );
-      },
-    },
-  ];
-
-  // ── TABLE COLUMNS: DEVICES ─────────────────────────────────
-
-  const columnsDevice: ColumnDef<FingerprintDevice>[] = [
-    {
-      key: 'device_code',
-      label: 'Kode Mesin',
-      render: (row) => (
-        <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-xs">
-          {row.device_code}
-        </span>
-      ),
-    },
-    {
-      key: 'device_name',
-      label: 'Nama & Model Perangkat',
-      render: (row) => (
-        <div>
-          <span className="font-bold text-slate-900 block text-sm">{row.device_name}</span>
-          <span className="text-xs text-slate-500">Model: {row.device_model || '-'}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'ip_port',
-      label: 'IP & Port LAN',
-      render: (row) => (
-        <span className="font-mono font-semibold text-slate-700 text-sm">
-          {row.ip_address}:{row.port}
-        </span>
-      ),
-    },
-    {
-      key: 'location',
-      label: 'Lokasi Terminal',
-      render: (row) => (
-        <span className="text-sm text-slate-700">{row.location || '-'}</span>
-      ),
-    },
-    {
-      key: 'status',
-      label: 'Status Jaringan',
-      render: (row) => (
-        <Badge variant={row.last_status === 'online' || row.last_status === 'synced' ? 'green' : 'red'}>
-          {row.last_status === 'online' || row.last_status === 'synced' ? (
-            <span className="flex items-center gap-1">
-              <Wifi size={12} /> Online
-            </span>
-          ) : (
-            <span className="flex items-center gap-1">
-              <WifiOff size={12} /> Offline
-            </span>
-          )}
-        </Badge>
-      ),
-    },
-    {
-      key: 'last_sync',
-      label: 'Terakhir Sinkron',
-      render: (row) => (
-        <span className="font-mono text-xs text-slate-500">
-          {row.last_sync_at ? new Date(row.last_sync_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Belum pernah'}
-        </span>
-      ),
-    },
-    {
-      key: 'aksi',
-      label: 'Aksi',
-      align: 'right',
-      render: (row) => {
-        if (!canManage) return null;
-        return (
-          <div className="flex justify-end">
-            <DropdownMenu
-              items={[
-                {
-                  label: testingDeviceId === row.id ? 'Memeriksa Koneksi...' : 'Uji Koneksi Ping',
-                  icon: <Wifi size={14} />,
-                  disabled: testingDeviceId === row.id,
-                  onClick: () => handleTestDevice(row.id),
-                },
-                {
-                  label: 'Simulasi Push Log',
-                  icon: <RefreshCw size={14} />,
-                  onClick: () => handleOpenSyncModal(row),
-                },
-                {
-                  label: 'Ubah Mesin',
-                  icon: <Edit2 size={14} />,
-                  onClick: () => handleOpenEditDevice(row),
-                },
-                {
-                  label: 'Hapus Mesin',
-                  icon: <Trash2 size={14} />,
-                  variant: 'danger',
-                  onClick: () => handleDeleteDevice(row),
                 },
               ]}
             />
@@ -1160,7 +855,7 @@ export default function MasterPresensiPage() {
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Master Pengaturan Presensi"
-        description="Konfigurasi template shift kerja, integrasi mesin biometrik LAN, geofencing lokasi kantor, kalender libur, dan toleransi kehadiran"
+        description="Konfigurasi template shift kerja, geofencing lokasi kantor, kalender libur, dan toleransi kehadiran"
         action={
           <div className="flex gap-2">
             <Button
@@ -1187,15 +882,6 @@ export default function MasterPresensiPage() {
                   Tambah Tipe Shift
                 </Button>
               </>
-            )}
-            {canManage && activeTab === 'devices' && (
-              <Button
-                variant="primary"
-                icon={<Plus size={16} />}
-                onClick={handleOpenCreateDevice}
-              >
-                Tambah Mesin Presensi
-              </Button>
             )}
             {canManage && activeTab === 'office' && (
               <Button
@@ -1231,17 +917,6 @@ export default function MasterPresensiPage() {
           }`}
         >
           <Clock size={16} /> Template Shift & Jadwal Kerja
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('devices')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'devices'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          <Fingerprint size={16} /> Mesin Presensi & Biometrik
         </button>
         <button
           type="button"
@@ -1297,31 +972,6 @@ export default function MasterPresensiPage() {
               <div className="py-8 text-center text-slate-400">
                 <Clock size={48} className="mx-auto mb-4 opacity-40" />
                 <p>Belum ada master template shift kerja yang terdaftar.</p>
-              </div>
-            }
-          />
-        </div>
-      )}
-
-      {/* ── TAB 2: MESIN PRESENSI & BIOMETRIK ── */}
-      {activeTab === 'devices' && (
-        <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <Input
-              placeholder="Cari kode mesin, nama perangkat, alamat IP, atau lokasi..."
-              value={searchDevice}
-              onChange={(e) => setSearchDevice(e.target.value)}
-            />
-          </div>
-
-          <DataTable
-            columns={columnsDevice}
-            data={filteredDevices}
-            isLoading={loadingDevices}
-            emptyMessage={
-              <div className="py-8 text-center text-slate-400">
-                <Fingerprint size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada terminal mesin fingerprint yang terdaftar.</p>
               </div>
             }
           />
@@ -1408,7 +1058,7 @@ export default function MasterPresensiPage() {
               <SlidersHorizontal size={24} className="text-[var(--module-primary)]" />
               <div>
                 <p className="font-semibold text-slate-800 text-sm">Konfigurasi Validasi & Toleransi Absensi</p>
-                <p className="text-xs text-slate-500">Nilai parameter ini menjadi acuan server saat memproses presensi mobile dan mesin biometrik.</p>
+                <p className="text-xs text-slate-500">Nilai parameter ini menjadi acuan server saat memproses presensi mobile (face recognition & GPS).</p>
               </div>
             </div>
           </div>
@@ -1758,189 +1408,6 @@ export default function MasterPresensiPage() {
                   { value: '', label: '-- Semua Pegawai (Dosen & Tendik) --' },
                   { value: 'dosen', label: 'Khusus Dosen' },
                   { value: 'tendik', label: 'Khusus Tenaga Kependidikan (Tendik)' },
-                ]}
-              />
-            )}
-          />
-        </form>
-      </Modal>
-
-      {/* ── MODAL: TAMBAH / UBAH MESIN PRESENSI ── */}
-      <Modal
-        open={showDeviceModal}
-        onClose={() => setShowDeviceModal(false)}
-        title={editingDevice ? 'Ubah Data Mesin Presensi' : 'Tambah Mesin Presensi Baru'}
-        size="lg"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setShowDeviceModal(false)}>
-              Batal
-            </Button>
-            <Button type="submit" loading={formDevice.formState.isSubmitting} disabled={formDevice.formState.isSubmitting} form="device-form">
-              Simpan Perangkat
-            </Button>
-          </>
-        }
-      >
-        <form id="device-form" onSubmit={formDevice.handleSubmit(onSubmitDevice)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                label="Nama Mesin Presensi *"
-                placeholder="Contoh: Terminal Fingerprint Rektorat Lt. 1"
-                required
-                error={formDevice.formState.errors.device_name?.message}
-                {...formDevice.register('device_name')}
-              />
-            </div>
-
-            <Input
-              label="Kode Perangkat Mesin *"
-              placeholder="Contoh: FP-UTAMA-REKTORAT"
-              required
-              error={formDevice.formState.errors.device_code?.message}
-              {...formDevice.register('device_code')}
-            />
-
-            <Input
-              label="Alamat IP (LAN) *"
-              placeholder="Contoh: 192.168.1.201"
-              required
-              error={formDevice.formState.errors.ip_address?.message}
-              {...formDevice.register('ip_address')}
-            />
-
-            <Input
-              label="Port TCP *"
-              type="number"
-              required
-              error={formDevice.formState.errors.port?.message}
-              {...formDevice.register('port', { valueAsNumber: true })}
-            />
-
-            <Input
-              label="Model / Merk Mesin"
-              placeholder="Contoh: ZKTeco ProCapture-X"
-              error={formDevice.formState.errors.device_model?.message}
-              {...formDevice.register('device_model')}
-            />
-
-            <div className="md:col-span-2">
-              <Input
-                label="Lokasi Pemasangan"
-                placeholder="Contoh: Lobi Gedung Rektorat Sayap Timur"
-                error={formDevice.formState.errors.location?.message}
-                {...formDevice.register('location')}
-              />
-            </div>
-
-            {offices.length > 0 && (
-              <div className="md:col-span-2">
-                <Controller
-                  control={formDevice.control}
-                  name="office_location_id"
-                  render={({ field }) => (
-                    <Select
-                      label="Asosiasi Lokasi Kantor (Geofence)"
-                      value={field.value ? String(field.value) : ''}
-                      onChange={(val) => field.onChange(val ? Number(val) : undefined)}
-                      options={[
-                        { value: '', label: '-- Pilih Lokasi Kantor --' },
-                        ...offices.map((o) => ({ value: String(o.id), label: o.name })),
-                      ]}
-                    />
-                  )}
-                />
-              </div>
-            )}
-
-            <div className="md:col-span-2">
-              <Controller
-                control={formDevice.control}
-                name="is_active"
-                render={({ field }) => (
-                  <ToggleSwitch
-                    checked={!!field.value}
-                    onChange={field.onChange}
-                    label="Status Aktif Mesin"
-                    description="Perangkat aktif akan dipindai secara berkala oleh daemon sinkronisasi"
-                  />
-                )}
-              />
-            </div>
-          </div>
-        </form>
-      </Modal>
-
-      {/* ── MODAL: SIMULASI / PUSH PUNCH LOG ── */}
-      <Modal
-        open={showSyncModal}
-        onClose={() => setShowSyncModal(false)}
-        title="Simulasi / Push Log Mesin Fingerprint"
-        size="md"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setShowSyncModal(false)}>
-              Tutup
-            </Button>
-            <Button type="submit" loading={formSyncLog.formState.isSubmitting} disabled={formSyncLog.formState.isSubmitting} form="sync-log-form">
-              Sinkronkan Sekarang
-            </Button>
-          </>
-        }
-      >
-        <form id="sync-log-form" onSubmit={formSyncLog.handleSubmit(onSubmitSyncLog)} className="space-y-4">
-          <div className="p-3 bg-[var(--module-primary-subtle)] border border-[var(--module-primary)]/20 rounded-xl text-xs text-slate-800 flex items-start gap-2">
-            <Fingerprint className="text-[var(--module-primary)] mt-0.5 shrink-0" size={16} />
-            <p className="text-xs">
-              Uji coba sinkronisasi data punch log mesin terminal. Sistem akan otomatis mencocokkan NIP, toleransi, dan mendeteksi jam masuk/pulang.
-            </p>
-          </div>
-
-          <Controller
-            control={formSyncLog.control}
-            name="device_code"
-            render={({ field }) => (
-              <Select
-                label="Pilih Mesin Fingerprint *"
-                value={field.value}
-                onChange={field.onChange}
-                error={formSyncLog.formState.errors.device_code?.message}
-                options={[
-                  { value: '', label: '-- Pilih Mesin --' },
-                  ...devices.map((d) => ({ value: d.device_code, label: `${d.device_name} (${d.device_code})` })),
-                ]}
-              />
-            )}
-          />
-
-          <Input
-            label="NIP / PIN Pegawai *"
-            placeholder="Contoh: 198501152010121001 atau TENDIK-001"
-            required
-            error={formSyncLog.formState.errors.nip?.message}
-            {...formSyncLog.register('nip')}
-          />
-
-          <Input
-            label="Waktu Punch (Tanggal & Jam) *"
-            placeholder="YYYY-MM-DD HH:mm:ss"
-            required
-            error={formSyncLog.formState.errors.timestamp?.message}
-            {...formSyncLog.register('timestamp')}
-          />
-
-          <Controller
-            control={formSyncLog.control}
-            name="in_out_mode"
-            render={({ field }) => (
-              <Select
-                label="Mode Absensi (In/Out)"
-                value={String(field.value)}
-                onChange={(val) => field.onChange(Number(val))}
-                options={[
-                  { value: '0', label: 'Clock In (Masuk)' },
-                  { value: '1', label: 'Clock Out (Pulang)' },
                 ]}
               />
             )}
