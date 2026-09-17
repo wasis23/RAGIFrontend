@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Briefcase, Plus, Filter, Award, Edit2, Trash2, ShieldAlert } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Briefcase, Plus, Filter, Award, Edit2, Trash2, ShieldAlert, RefreshCw } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
@@ -61,7 +62,8 @@ export default function JabatanPage() {
   const [loading, setLoading] = useState(true);
   const [jabatanList, setJabatanList] = useState<Jabatan[]>([]);
   const [jafungList, setJafungList] = useState<JabatanFungsionalAkademik[]>([]);
-  
+  const [searchJafung, setSearchJafung] = useState('');
+
   // Pagination & Metadata
   const [metaJabatan, setMetaJabatan] = useState<PaginationMeta | undefined>();
   const [metaJafung, setMetaJafung] = useState<PaginationMeta | undefined>();
@@ -84,6 +86,21 @@ export default function JabatanPage() {
   // Modal State for Jafung
   const [showModalJafung, setShowModalJafung] = useState(false);
   const [isSubmittingJafung, setIsSubmittingJafung] = useState(false);
+
+  // Dialog Konfirmasi Hapus
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isLoading: boolean;
+    onConfirm: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    isLoading: false,
+    onConfirm: async () => {},
+  });
 
   // Form Jabatan
   const {
@@ -141,7 +158,7 @@ export default function JabatanPage() {
         setJabatanList(resJab.data || []);
         setMetaJabatan(resJab.meta);
       } else {
-        let itemsJab: Jabatan[] = Array.isArray(resJab.data) ? resJab.data : Array.isArray(resJab) ? resJab : [];
+        let itemsJab: Jabatan[] = Array.isArray(resJab?.data) ? resJab.data : Array.isArray(resJab) ? resJab : [];
         if (search) {
           const q = search.toLowerCase();
           itemsJab = itemsJab.filter((j) => j.nama.toLowerCase().includes(q));
@@ -149,13 +166,13 @@ export default function JabatanPage() {
         if (filterTipe) {
           itemsJab = itemsJab.filter((j) => j.tipe === filterTipe);
         }
-        
+
         itemsJab.sort((a, b) => {
           let valA = (a as any)[filterOrderBy] ?? '';
           let valB = (b as any)[filterOrderBy] ?? '';
           if (typeof valA === 'string') valA = valA.toLowerCase();
           if (typeof valB === 'string') valB = valB.toLowerCase();
-          
+
           if (valA < valB) return filterOrderDir === 'asc' ? -1 : 1;
           if (valA > valB) return filterOrderDir === 'asc' ? 1 : -1;
           return 0;
@@ -178,7 +195,11 @@ export default function JabatanPage() {
       }
 
       // Handle Jafung Data
-      let itemsJaf: JabatanFungsionalAkademik[] = Array.isArray(resJaf?.data) ? resJaf.data : Array.isArray(resJaf) ? resJaf : [];
+      const itemsJaf: JabatanFungsionalAkademik[] = Array.isArray(resJaf?.data)
+        ? resJaf.data
+        : Array.isArray(resJaf)
+        ? resJaf
+        : [];
       setJafungList(itemsJaf);
       setMetaJafung({
         current_page: 1,
@@ -188,7 +209,6 @@ export default function JabatanPage() {
         from: itemsJaf.length > 0 ? 1 : 0,
         to: itemsJaf.length,
       });
-
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat data Jabatan');
     } finally {
@@ -199,6 +219,17 @@ export default function JabatanPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Filtered Jafung based on local search input
+  const filteredJafung = useMemo(() => {
+    if (!searchJafung) return jafungList;
+    const q = searchJafung.toLowerCase();
+    return jafungList.filter(
+      (j) =>
+        j.nama?.toLowerCase().includes(q) ||
+        j.golongan?.toLowerCase().includes(q)
+    );
+  }, [jafungList, searchJafung]);
 
   // Async loader for Unit Kerja AsyncSelect
   const loadUnitKerjaOptions = useCallback(async (inputValue: string) => {
@@ -305,19 +336,29 @@ export default function JabatanPage() {
     }
   };
 
-  const handleDeleteJabatan = async (id: number, nama: string) => {
+  const handleDeleteJabatan = (id: number, nama: string) => {
     if (!canDelete) {
       toast.error('Akses Ditolak: Anda tidak memiliki permission menghapus Jabatan.');
       return;
     }
-    if (!confirm(`Apakah Anda yakin ingin menghapus jabatan "${nama}"?`)) return;
-    try {
-      await simpegService.deleteJabatan(id);
-      toast.success('Jabatan berhasil dihapus!');
-      loadData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus Jabatan');
-    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Jabatan Organisasi',
+      message: `Apakah Anda yakin ingin menghapus jabatan "${nama}"? Tindakan ini tidak dapat dibatalkan.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteJabatan(id);
+          toast.success('Jabatan berhasil dihapus!');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          loadData();
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || 'Gagal menghapus Jabatan');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const onSubmitJafung = async (values: JafungFormValues) => {
@@ -350,7 +391,7 @@ export default function JabatanPage() {
     {
       key: 'nama',
       label: 'Nama Jabatan',
-      render: (row) => <span className="font-bold">{row.nama}</span>,
+      render: (row) => <span className="font-bold text-slate-900">{row.nama}</span>,
     },
     {
       key: 'tipe',
@@ -364,12 +405,20 @@ export default function JabatanPage() {
     {
       key: 'unit_kerja',
       label: 'Unit Kerja',
-      render: (row) => row.unit_kerja?.nama || (row.unit_kerja_id ? `ID ${row.unit_kerja_id}` : 'Lintas Unit'),
+      render: (row) => (
+        <span className="text-slate-700">
+          {row.unit_kerja?.nama || (row.unit_kerja_id ? `ID ${row.unit_kerja_id}` : 'Lintas Unit')}
+        </span>
+      ),
     },
     {
       key: 'level_jabatan',
       label: 'Level',
-      render: (row) => `Lvl ${row.level_jabatan}`,
+      render: (row) => (
+        <span className="font-mono font-medium text-slate-800">
+          Level {row.level_jabatan}
+        </span>
+      ),
     },
     {
       key: 'is_active',
@@ -388,14 +437,14 @@ export default function JabatanPage() {
         const menuItems = [];
         if (canUpdate) {
           menuItems.push({
-            label: 'Edit',
+            label: 'Ubah Jabatan',
             icon: <Edit2 size={14} />,
             onClick: () => handleOpenEditJabatan(row),
           });
         }
         if (canDelete) {
           menuItems.push({
-            label: 'Hapus',
+            label: 'Hapus Jabatan',
             icon: <Trash2 size={14} />,
             variant: 'danger' as const,
             onClick: () => handleDeleteJabatan(row.id, row.nama),
@@ -417,12 +466,12 @@ export default function JabatanPage() {
   const columnsJafung: ColumnDef<JabatanFungsionalAkademik>[] = [
     {
       key: 'nama',
-      label: 'Nama Jafung',
-      render: (row) => <span className="font-bold">{row.nama}</span>,
+      label: 'Nama Jenjang JAFUNG',
+      render: (row) => <span className="font-bold text-slate-900">{row.nama}</span>,
     },
     {
       key: 'golongan',
-      label: 'Golongan',
+      label: 'Jenjang / Golongan',
       render: (row) => (
         <Badge variant="blue" className="uppercase">
           {row.golongan.replace('_', ' ')}
@@ -432,12 +481,12 @@ export default function JabatanPage() {
     {
       key: 'angka_kredit_min',
       label: 'Min KUM',
-      render: (row) => <span className="font-bold text-slate-800">{row.angka_kredit_min} KUM</span>,
+      render: (row) => <span className="font-bold text-slate-800 font-mono">{row.angka_kredit_min} KUM</span>,
     },
     {
       key: 'angka_kredit_max',
       label: 'Max KUM',
-      render: (row) => <span className="font-bold text-slate-800">{row.angka_kredit_max} KUM</span>,
+      render: (row) => <span className="font-bold text-slate-800 font-mono">{row.angka_kredit_max} KUM</span>,
     },
   ];
 
@@ -445,8 +494,8 @@ export default function JabatanPage() {
     return (
       <div className="animate-fade-in space-y-6">
         <PageHeader
-          title="Manajemen Jabatan & Jafung Dosen"
-          description="Kelola daftar Jabatan Struktural/Teknis serta Jabatan Fungsional Akademik Dosen"
+          title="Master Jabatan & Jenjang Fungsional (JAFUNG)"
+          description="Pengelolaan struktur jabatan struktural, fungsional, teknis, serta jenjang jabatan fungsional akademik dosen (KUM)"
         />
         <div className="card p-6 text-center">
           <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
@@ -464,94 +513,174 @@ export default function JabatanPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Manajemen Jabatan & Jafung Dosen"
-        description="Kelola daftar Jabatan Struktural/Teknis serta Jabatan Fungsional Akademik Dosen"
+        title="Master Jabatan & Jenjang Fungsional (JAFUNG)"
+        description="Pengelolaan struktur jabatan struktural, fungsional, teknis, serta jenjang jabatan fungsional akademik dosen (KUM)"
         action={
           <div className="flex gap-2">
-            {canCreate && activeTab === 'jabatan' && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateJabatan}>
-                Tambah Jabatan
-              </Button>
+            {activeTab === 'jabatan' && (
+              <>
+                <Button
+                  variant="outline"
+                  icon={<Filter size={16} />}
+                  onClick={() => setShowFilter(true)}
+                >
+                  Filter Jabatan
+                </Button>
+                {canCreate && (
+                  <Button
+                    variant="primary"
+                    icon={<Plus size={16} />}
+                    onClick={handleOpenCreateJabatan}
+                  >
+                    Tambah Jabatan
+                  </Button>
+                )}
+              </>
             )}
-            {canCreate && activeTab === 'jafung' && (
-              <Button icon={<Plus size={16} />} onClick={() => setShowModalJafung(true)}>
-                Tambah Jafung Dosen
-              </Button>
+            {activeTab === 'jafung' && (
+              <>
+                {canCreate && (
+                  <Button
+                    variant="primary"
+                    icon={<Plus size={16} />}
+                    onClick={() => setShowModalJafung(true)}
+                  >
+                    Tambah Jenjang Jafung
+                  </Button>
+                )}
+              </>
             )}
-            <Button
-              variant="outline"
-              icon={<Filter size={16} />}
-              onClick={() => setShowFilter(true)}
-            >
-              Filter
-            </Button>
           </div>
         }
       />
 
-      {/* Navigation Tabs */}
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
-          <button
-            type="button"
-            onClick={() => setActiveTab('jabatan')}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 cursor-pointer border-none ${
-              activeTab === 'jabatan'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'bg-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Briefcase size={16} /> Jabatan Struktural & Teknis ({jabatanList.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('jafung')}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 cursor-pointer border-none ${
-              activeTab === 'jafung'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'bg-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Award size={16} /> Jabatan Fungsional (Jafung) ({jafungList.length})
-          </button>
-        </div>
+      {/* Modern Navigation Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('jabatan')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'jabatan'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <Briefcase size={16} /> Struktur Jabatan Organisasi ({metaJabatan?.total ?? jabatanList.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('jafung')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'jafung'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <Award size={16} /> Jabatan Fungsional Akademik (JAFUNG) ({filteredJafung.length})
+        </button>
       </div>
 
-      {/* Tab 1: Jabatan DataTable */}
+      {/* ── TAB 1: JABATAN ORGANISASI ── */}
       {activeTab === 'jabatan' && (
-        <DataTable
-          columns={columnsJabatan}
-          data={jabatanList}
-          isLoading={loading}
-          meta={metaJabatan}
-          onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
-            setPage(1);
-          }}
-          emptyMessage={
-            <div className="py-8 text-center text-slate-400">
-              <Briefcase size={48} className="mx-auto mb-4 opacity-40" />
-              <p>Belum ada data jabatan yang sesuai filter.</p>
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200">
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="w-full sm:max-w-md">
+                <Input
+                  placeholder="Cari nama jabatan..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+                {filterTipe && (
+                  <Badge variant="purple" className="text-xs uppercase">
+                    Tipe: {filterTipe}
+                  </Badge>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<Filter size={14} />}
+                  onClick={() => setShowFilter(true)}
+                >
+                  Filter Lanjutan
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<RefreshCw size={14} />}
+                  onClick={loadData}
+                  disabled={loading}
+                >
+                  Refresh
+                </Button>
+              </div>
             </div>
-          }
-        />
+          </div>
+
+          <DataTable
+            columns={columnsJabatan}
+            data={jabatanList}
+            isLoading={loading}
+            meta={metaJabatan}
+            onPageChange={(newPage) => setPage(newPage)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Briefcase size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada data jabatan organisasi yang terdaftar.</p>
+              </div>
+            }
+          />
+        </div>
       )}
 
-      {/* Tab 2: Jafung DataTable */}
+      {/* ── TAB 2: JAFUNG DOSEN ── */}
       {activeTab === 'jafung' && (
-        <DataTable
-          columns={columnsJafung}
-          data={jafungList}
-          isLoading={loading}
-          meta={metaJafung}
-          emptyMessage={
-            <div className="py-8 text-center text-slate-400">
-              <Award size={48} className="mx-auto mb-4 opacity-40" />
-              <p>Belum ada master Jabatan Fungsional Dosen.</p>
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200">
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="w-full sm:max-w-md">
+                <Input
+                  placeholder="Cari nama jabatan fungsional atau jenjang..."
+                  value={searchJafung}
+                  onChange={(e) => setSearchJafung(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<RefreshCw size={14} />}
+                  onClick={loadData}
+                  disabled={loading}
+                >
+                  Refresh
+                </Button>
+              </div>
             </div>
-          }
-        />
+          </div>
+
+          <DataTable
+            columns={columnsJafung}
+            data={filteredJafung}
+            isLoading={loading}
+            meta={metaJafung}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Award size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada master jenjang Jabatan Fungsional Akademik (JAFUNG) dosen.</p>
+              </div>
+            }
+          />
+        </div>
       )}
 
       {/* Filter Drawer Slide Right-to-Left */}
@@ -559,6 +688,25 @@ export default function JabatanPage() {
         open={showFilter}
         onClose={() => setShowFilter(false)}
         title="Filter & Urutkan Jabatan"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch('');
+                setFilterTipe('');
+                setFilterOrderBy('nama');
+                setFilterOrderDir('asc');
+                setPage(1);
+              }}
+            >
+              Reset
+            </Button>
+            <Button onClick={() => setShowFilter(false)}>
+              Terapkan Filter
+            </Button>
+          </div>
+        }
       >
         <div className="space-y-4">
           <Input
@@ -610,24 +758,6 @@ export default function JabatanPage() {
                 { value: 'desc', label: 'Z - A (Turun)' },
               ]}
             />
-          </div>
-
-          <div className="pt-4 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearch('');
-                setFilterTipe('');
-                setFilterOrderBy('nama');
-                setFilterOrderDir('asc');
-                setPage(1);
-              }}
-            >
-              Reset Filter
-            </Button>
-            <Button onClick={() => setShowFilter(false)}>
-              Terapkan
-            </Button>
           </div>
         </div>
       </Drawer>
@@ -797,6 +927,19 @@ export default function JabatanPage() {
           </form>
         </Modal>
       )}
+
+      {/* Dialog Konfirmasi Hapus */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirm.onConfirm}
+        title={deleteConfirm.title}
+        message={deleteConfirm.message}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deleteConfirm.isLoading}
+      />
     </div>
   );
 }
