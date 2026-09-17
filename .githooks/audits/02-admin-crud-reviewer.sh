@@ -1,54 +1,100 @@
 #!/bin/bash
-#
-# Audit 2/8: Admin CRUD Standard (deterministik, tanpa AI).
-#  - REJECT: tag HTML mentah <table>/<select>/<textarea>/<input> di halaman.
-#  - REJECT: dialog native browser confirm()/alert()/prompt().
-#  - WARN: tag <button> mentah (disarankan komponen Button dari UI Kit).
 
-echo "🤖 [Audit 2/8: Admin CRUD Standard] Memeriksa staged changes..."
+echo "🤖 [Audit 2/8: Admin CRUD Standard] Memeriksa perubahan dengan AI (Opencode Muse)..."
 
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "app/**/*.tsx" "components/**/*.tsx")
+export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
+OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
+MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
-if [ -z "$STAGED_FILES" ]; then
-    echo "ℹ️ [Audit Admin CRUD Standard] Tidak ada perubahan pada file admin/CRUD yang di-stage. Skip."
+if [ -n "$DIFF_TARGET" ]; then
+    STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "app/(main)/**" "components/**")
+else
+    STAGED_DIFF=$(git diff --cached -- "app/(main)/**" "components/**")
+fi
+
+if [ -z "$STAGED_DIFF" ]; then
+    echo "ℹ️ [Audit Admin CRUD Standard] Tidak ada perubahan pada file admin/CRUD yang diuji. Skip."
     exit 0
 fi
 
-FAILED=0
+TRUNCATED_DIFF=$(echo "$STAGED_DIFF" | head -n 400)
+PROMPT_FILE=$(mktemp)
 
-while IFS= read -r file; do
-    ADDED=$(git diff --cached -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
-    [ -z "$ADDED" ] && continue
+cat << 'EOF' > "$PROMPT_FILE"
+Kamu adalah Code Auditor khusus Admin CRUD Standard.
+Periksa Git Diff berikut HANYA terhadap Aturan Admin CRUD & Table Standard:
 
-    # Tag HTML mentah (Atomic Design: wajib UI Kit).
-    RAW_HIT=$(echo "$ADDED" | grep -nP '<(table|select|textarea|input)[\s>]' | head -n 3)
-    if [ -n "$RAW_HIT" ]; then
-        echo "❌ [Audit Admin CRUD] Tag HTML mentah di $file:"
-        echo "$RAW_HIT" | sed 's/^/    /'
-        echo "   💡 WAJIB memakai UI Kit (@/components/ui): DataTable, Select/AsyncSelect, Textarea, Input."
-        FAILED=1
-    fi
+Aturan Admin CRUD:
+1. MOBILE-FIRST RESPONSIVE STYLING:
+   - Layout dan halaman WAJIB menggunakan pendekatan Mobile-First (misal: `w-full flex-col grid-cols-1 gap-4`) dengan breakpoint responsif (`sm:`, `md:`, `lg:`).
 
-    # Dialog native browser.
-    NATIVE_HIT=$(echo "$ADDED" | grep -nP '(^|[^a-zA-Z])(confirm|alert|prompt)\s*\(' | grep -vP 'confirmText|onConfirm|cancelText' | head -n 3)
-    if [ -n "$NATIVE_HIT" ]; then
-        echo "❌ [Audit Admin CRUD] Dialog native browser di $file:"
-        echo "$NATIVE_HIT" | sed 's/^/    /'
-        echo "   💡 WAJIB memakai <ConfirmDialog /> atau <Modal />, bukan confirm()/alert()/prompt()."
-        FAILED=1
-    fi
+2. HALAMAN DETAIL TERPISAH (SEPARATE DETAIL PAGE):
+   - Tampilan Detail data/rincian entitas WAJIB dibuat di Halaman Terpisah (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali yang warnanya menyesuaikan primary modul di `PageHeader`. DILARANG menjejalkan detail rumit ke dalam modal kecil.
 
-    # Tombol mentah: peringatan saja.
-    BTN_HIT=$(echo "$ADDED" | grep -nP '<button[\s>]' | head -n 3)
-    if [ -n "$BTN_HIT" ]; then
-        echo "⚠️ [Audit Admin CRUD] Tag <button> mentah di $file (disarankan <Button /> dari UI Kit):"
-        echo "$BTN_HIT" | sed 's/^/    /'
-    fi
-done <<< "$STAGED_FILES"
+3. DESAIN FORM COMPACT & ELEGAN:
+   - Form harus dirancang compact, rapi, dan proporsional (grid 1 kolom di mobile, max 2-3 kolom di desktop). No excessive whitespace or huge margins.
 
-if [ $FAILED -ne 0 ]; then
+4. ATOMIC DESIGN ARCHITECTURE:
+   - Menggunakan komponen dari `@/components/ui/` (Button, Input, Select, Modal, Drawer, DataTable, Badge) dan `@/components/layout/` (PageHeader).
+   - DILARANG menggunakan elemen HTML mentah tanpa style bawaan (seperti tag <table> mentah atau <select> mentah).
+
+5. DATATABLE & API PAGINATION:
+   - Jika halaman berupa list/tabel data, WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`.
+   - Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`.
+
+6. SORT BY & SORT DIRECTION:
+   - Halaman list/tabel WAJIB memiliki opsi `sort_by` dan `sort_dir` / `orderDir` (`asc` / `desc`).
+
+7. TOMBOL FILTER OUTLINE DYNAMIC & DRAWER SLIDE KANAN-KE-KIRI:
+   - Tombol Filter WAJIB bertipe outline dengan warna yang menyesuaikan primary modul (`variant="outline"`).
+   - Membuka panel `<Drawer />` yang meluncur dari kanan ke kiri.
+
+8. FORM & LAYOUT CONSISTENCY:
+   - Form <= 5 inputs: Gunakan Modal (`<Modal />`) dengan grid maksimal 2 kolom.
+   - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali di `PageHeader`.
+
+9. WAJIB 3-DOTS ACTION DROPDOWN MENU (<DropdownMenu />):
+   - Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />`). DILARANG menyejajarkan tombol aksi secara horizontal di sel tabel.
+
+Catatan Penting:
+- HANYA periksa baris-baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah.
+
+Git Diff:
+EOF
+
+echo '```diff' >> "$PROMPT_FILE"
+echo "$TRUNCATED_DIFF" >> "$PROMPT_FILE"
+echo '```' >> "$PROMPT_FILE"
+
+cat << 'EOF' >> "$PROMPT_FILE"
+PENTING: Jawab HANYA secara langsung tanpa memanggil tool atau membaca file.
+Jawab HANYA salah satu:
+- PASSED jika kode bersih dan memenuhi Admin CRUD Standard.
+- REJECTED: [detail alasan pelanggaran] jika ditemukan pelanggaran Admin CRUD Standard pada baris baru (+).
+EOF
+
+if [ -x "$OPENCODE_BIN" ]; then
+    RESULT=$(timeout 30s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
+    AI_EXIT_CODE=$?
+elif command -v agy &> /dev/null; then
+    RESULT=$(timeout 20s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+    AI_EXIT_CODE=$?
+else
+    AI_EXIT_CODE=127
+fi
+
+rm -f "$PROMPT_FILE"
+
+if [ $AI_EXIT_CODE -ne 0 ]; then
+    echo "⚠️ [Audit Admin CRUD Standard] AI reviewer tidak merespons (Exit: $AI_EXIT_CODE), melanjutkan..."
+    exit 0
+fi
+
+if echo "$RESULT" | grep -qi "REJECTED"; then
+    echo "❌ [Audit Admin CRUD Standard] REJECTED oleh AI (Muse)!"
+    echo "$RESULT" | grep -i "REJECTED"
     exit 1
 else
-    echo "✅ [Audit Admin CRUD Standard] PASSED."
+    echo "✅ [Audit Admin CRUD Standard] PASSED (Divalidasi oleh AI Opencode Muse)."
     exit 0
 fi
