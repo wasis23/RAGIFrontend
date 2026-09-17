@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,7 +11,7 @@ import {
   SlidersHorizontal,
   Fingerprint,
   Calendar,
-  AlertTriangle,
+  Clock,
   Plus,
   Save,
   Trash2,
@@ -20,6 +21,7 @@ import {
   Users,
   Wifi,
   WifiOff,
+  ArrowLeft,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -30,27 +32,87 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
 import type { FingerprintDevice } from '@/types/simpeg.types';
 
-// Skema validasi Zod untuk form tipe shift
+// ── ZOD SCHEMAS ─────────────────────────────────────────────
+
 const shiftFormSchema = z.object({
   name: z.string().min(3, 'Nama tipe shift minimal 3 karakter').max(255, 'Nama tipe shift maksimal 255 karakter'),
-  description: z.string().max(500, 'Deskripsi maksimal 500 karakter').optional().or(z.literal('')),
-  late_tolerance_minutes: z.coerce.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
-  early_leave_tolerance_minutes: z.coerce.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
-  max_early_clock_in_minutes: z.coerce.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
-  applies_national_holidays: z.boolean().default(true),
-  is_active: z.boolean().default(true),
+  description: z.string().max(500, 'Deskripsi maksimal 500 karakter').optional().nullable(),
+  late_tolerance_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
+  early_leave_tolerance_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
+  max_early_clock_in_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
+  applies_national_holidays: z.boolean(),
+  is_active: z.boolean(),
 });
+type ShiftFormValues = z.infer<typeof shiftFormSchema>;
 
-type ShiftFormInput = z.input<typeof shiftFormSchema>;
-type ShiftFormValues = z.output<typeof shiftFormSchema>;
+const deviceFormSchema = z.object({
+  device_name: z.string().min(3, 'Nama mesin minimal 3 karakter'),
+  device_code: z.string().min(2, 'Kode mesin minimal 2 karakter'),
+  ip_address: z.string().min(7, 'Alamat IP wajib diisi'),
+  port: z.number().int('Port harus angka').min(1, 'Port minimal 1').max(65535, 'Port maksimal 65535'),
+  device_model: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  office_location_id: z.number().optional().nullable(),
+  is_active: z.boolean(),
+});
+type DeviceFormValues = z.infer<typeof deviceFormSchema>;
+
+const officeFormSchema = z.object({
+  name: z.string().min(3, 'Nama lokasi kantor minimal 3 karakter'),
+  address: z.string().optional().nullable(),
+  latitude: z.number().min(-90, 'Latitude minimal -90').max(90, 'Latitude maksimal 90'),
+  longitude: z.number().min(-180, 'Longitude minimal -180').max(180, 'Longitude maksimal 180'),
+  radius_meters: z.number().int().min(10, 'Radius minimal 10 meter').max(5000, 'Radius maksimal 5000 meter'),
+  is_active: z.boolean(),
+});
+type OfficeFormValues = z.infer<typeof officeFormSchema>;
+
+const holidayFormSchema = z.object({
+  holiday_date: z.string().min(10, 'Tanggal libur wajib diisi'),
+  name: z.string().min(3, 'Nama hari libur minimal 3 karakter'),
+  is_mass_leave: z.boolean(),
+  description: z.string().optional().nullable(),
+});
+type HolidayFormValues = z.infer<typeof holidayFormSchema>;
+
+const bulkShiftSchema = z.object({
+  shift_template_id: z.number().min(1, 'Pilih template shift target'),
+  unit_kerja_id: z.number().optional().nullable(),
+  jenis_pegawai: z.string().optional().nullable(),
+});
+type BulkShiftFormValues = z.infer<typeof bulkShiftSchema>;
+
+const syncLogSchema = z.object({
+  device_code: z.string().min(1, 'Pilih mesin fingerprint'),
+  nip: z.string().min(1, 'NIP / PIN pegawai wajib diisi'),
+  timestamp: z.string().min(1, 'Waktu punch wajib diisi'),
+  in_out_mode: z.number(),
+});
+type SyncLogFormValues = z.infer<typeof syncLogSchema>;
+
+const systemSettingsSchema = z.object({
+  face_score_threshold: z.number().min(0.1, 'Minimal 0.1').max(1.0, 'Maksimal 1.0'),
+  gps_accuracy_threshold_meters: z.number().min(5, 'Minimal 5 meter').max(500, 'Maksimal 500 meter'),
+  late_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
+  early_leave_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
+  max_early_clock_in_minutes: z.number().min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
+  applies_national_holidays: z.boolean(),
+});
+type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
 
 export default function MasterPresensiPage() {
-  const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'shift' | 'devices' | 'office' | 'settings' | 'holiday'>('shift');
+  const router = useRouter();
+  const { isAdmin, hasPermission } = useAuth();
+  const canManage = isAdmin || hasPermission('simpeg.presensi.manage') || hasPermission('simpeg.master.manage');
+
+  // Active Tab: 'shift' | 'devices' | 'office' | 'holiday' | 'settings'
+  const [activeTab, setActiveTab] = useState<'shift' | 'devices' | 'office' | 'holiday' | 'settings'>('shift');
 
   // Dialog Konfirmasi Hapus
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -67,23 +129,55 @@ export default function MasterPresensiPage() {
     onConfirm: async () => {},
   });
 
-  // -------------------------------------------------------------
-  // TAB 1: SHIFT & JADWAL KERJA
-  // -------------------------------------------------------------
+  // ── TAB 1: SHIFT & JADWAL KERJA STATE ─────────────────────
   const [loadingShifts, setLoadingShifts] = useState(false);
   const [shifts, setShifts] = useState<any[]>([]);
-  const [selectedShift, setSelectedShift] = useState<any | null>(null);
-  const [savingShift, setSavingShift] = useState(false);
+  const [searchShift, setSearchShift] = useState('');
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [editingShift, setEditingShift] = useState<any | null>(null);
 
-  const {
-    register: registerShift,
-    control: controlShift,
-    handleSubmit: handleSubmitShift,
-    reset: resetShift,
-    formState: { errors: shiftErrors, isSubmitting: savingShiftForm },
-  } = useForm<ShiftFormInput, unknown, ShiftFormValues>({
+  // Modal Atur Jadwal Harian (Senin - Minggu)
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedShiftForSchedule, setSelectedShiftForSchedule] = useState<any | null>(null);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  // Modal Penugasan Shift Massal
+  const [showBulkShiftModal, setShowBulkShiftModal] = useState(false);
+  const [unitKerjaOptions, setUnitKerjaOptions] = useState<{ value: number; label: string }[]>([]);
+
+  // ── TAB 2: MESIN PRESENSI STATE ───────────────────────────
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [devices, setDevices] = useState<FingerprintDevice[]>([]);
+  const [searchDevice, setSearchDevice] = useState('');
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<FingerprintDevice | null>(null);
+  const [testingDeviceId, setTestingDeviceId] = useState<number | null>(null);
+
+  // Modal Simulasi Log Sync
+  const [showSyncModal, setShowSyncModal] = useState(false);
+
+  // ── TAB 3: LOKASI KANTOR (GEOFENCING) STATE ───────────────
+  const [loadingOffices, setLoadingOffices] = useState(false);
+  const [offices, setOffices] = useState<any[]>([]);
+  const [searchOffice, setSearchOffice] = useState('');
+  const [showOfficeModal, setShowOfficeModal] = useState(false);
+  const [editingOffice, setEditingOffice] = useState<any | null>(null);
+
+  // ── TAB 4: KALENDER LIBUR STATE ───────────────────────────
+  const [loadingHolidays, setLoadingHolidays] = useState(false);
+  const [syncingHolidays, setSyncingHolidays] = useState(false);
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [holidayYear, setHolidayYear] = useState<number>(new Date().getFullYear());
+  const [searchHoliday, setSearchHoliday] = useState('');
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [editingHoliday, setEditingHoliday] = useState<any | null>(null);
+
+  // ── TAB 5: PARAMETER SISTEM STATE ─────────────────────────
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // ── FORMS (ALL ZOD VALIDATED) ─────────────────────────────
+  const formShift = useForm<ShiftFormValues>({
     resolver: zodResolver(shiftFormSchema),
     defaultValues: {
       name: '',
@@ -96,21 +190,81 @@ export default function MasterPresensiPage() {
     },
   });
 
+  const formDevice = useForm<DeviceFormValues>({
+    resolver: zodResolver(deviceFormSchema),
+    defaultValues: {
+      device_name: '',
+      device_code: '',
+      ip_address: '192.168.1.201',
+      port: 4370,
+      location: '',
+      device_model: 'ZKTeco ProCapture-X',
+      office_location_id: undefined,
+      is_active: true,
+    },
+  });
+
+  const formOffice = useForm<OfficeFormValues>({
+    resolver: zodResolver(officeFormSchema),
+    defaultValues: {
+      name: '',
+      address: '',
+      latitude: -7.5675,
+      longitude: 110.8036,
+      radius_meters: 150,
+      is_active: true,
+    },
+  });
+
+  const formHoliday = useForm<HolidayFormValues>({
+    resolver: zodResolver(holidayFormSchema),
+    defaultValues: {
+      holiday_date: '',
+      name: '',
+      is_mass_leave: false,
+      description: '',
+    },
+  });
+
+  const formBulkShift = useForm<BulkShiftFormValues>({
+    resolver: zodResolver(bulkShiftSchema),
+    defaultValues: {
+      shift_template_id: 0,
+      unit_kerja_id: 0,
+      jenis_pegawai: '',
+    },
+  });
+
+  const formSyncLog = useForm<SyncLogFormValues>({
+    resolver: zodResolver(syncLogSchema),
+    defaultValues: {
+      device_code: '',
+      nip: '',
+      timestamp: new Date().toISOString().substring(0, 16).replace('T', ' ') + ':00',
+      in_out_mode: 0,
+    },
+  });
+
+  const formSettings = useForm<SystemSettingsValues>({
+    resolver: zodResolver(systemSettingsSchema),
+    defaultValues: {
+      face_score_threshold: 0.80,
+      gps_accuracy_threshold_meters: 50.0,
+      late_tolerance_minutes: 15,
+      early_leave_tolerance_minutes: 15,
+      max_early_clock_in_minutes: 60,
+      applies_national_holidays: true,
+    },
+  });
+
+  // ── FETCH HANDLERS ─────────────────────────────────────────
+
   const fetchShifts = useCallback(async () => {
     setLoadingShifts(true);
     try {
       const res = await simpegService.getShiftTemplates();
       if (res.status === 'success') {
-        const list = res.data || [];
-        setShifts(list);
-        setSelectedShift((prev: any) => {
-          if (!prev && list.length > 0) return list[0];
-          if (prev) {
-            const fresh = list.find((s: any) => s.id === prev.id);
-            return fresh || prev;
-          }
-          return prev;
-        });
+        setShifts(res.data || []);
       }
     } catch {
       toast.error('Gagal memuat jadwal shift kerja');
@@ -119,9 +273,84 @@ export default function MasterPresensiPage() {
     }
   }, []);
 
+  const fetchDevices = useCallback(async () => {
+    setLoadingDevices(true);
+    try {
+      const res = await simpegService.getFingerprintDevices();
+      if (res.status === 'success' && res.data) {
+        setDevices(res.data);
+      }
+    } catch {
+      toast.error('Gagal memuat daftar mesin presensi');
+    } finally {
+      setLoadingDevices(false);
+    }
+  }, []);
+
+  const fetchOffices = useCallback(async () => {
+    setLoadingOffices(true);
+    try {
+      const res = await simpegService.getOfficeLocations();
+      if (res.status === 'success') {
+        setOffices(res.data || []);
+      }
+    } catch {
+      toast.error('Gagal memuat master lokasi kantor');
+    } finally {
+      setLoadingOffices(false);
+    }
+  }, []);
+
+  const fetchHolidays = useCallback(async (year: number) => {
+    setLoadingHolidays(true);
+    try {
+      const res = await simpegService.getNationalHolidays(year);
+      if (res.status === 'success') {
+        setHolidays(res.data || []);
+      }
+    } catch {
+      toast.error('Gagal memuat daftar tanggal libur');
+    } finally {
+      setLoadingHolidays(false);
+    }
+  }, []);
+
+  const fetchSettings = useCallback(async () => {
+    setLoadingSettings(true);
+    try {
+      const res = await simpegService.getPresensiSettings();
+      if (res.status === 'success' && res.data) {
+        formSettings.reset({
+          face_score_threshold: res.data.face_score_threshold ?? 0.80,
+          gps_accuracy_threshold_meters: res.data.gps_accuracy_threshold_meters ?? 50.0,
+          late_tolerance_minutes: res.data.late_tolerance_minutes ?? 15,
+          early_leave_tolerance_minutes: res.data.early_leave_tolerance_minutes ?? 15,
+          max_early_clock_in_minutes: res.data.max_early_clock_in_minutes ?? 60,
+          applies_national_holidays: !!res.data.applies_national_holidays,
+        });
+      }
+    } catch {
+      toast.error('Gagal memuat parameter sistem presensi');
+    } finally {
+      setLoadingSettings(false);
+    }
+  }, [formSettings]);
+
+  useEffect(() => {
+    if (activeTab === 'shift') fetchShifts();
+    else if (activeTab === 'devices') {
+      fetchDevices();
+      if (offices.length === 0) fetchOffices();
+    } else if (activeTab === 'office') fetchOffices();
+    else if (activeTab === 'holiday') fetchHolidays(holidayYear);
+    else if (activeTab === 'settings') fetchSettings();
+  }, [activeTab, fetchShifts, fetchDevices, fetchOffices, fetchHolidays, holidayYear, fetchSettings, offices.length]);
+
+  // ── ACTION HANDLERS: TAB 1 (SHIFT) ─────────────────────────
+
   const handleOpenCreateShift = () => {
     setEditingShift(null);
-    resetShift({
+    formShift.reset({
       name: '',
       description: '',
       late_tolerance_minutes: 15,
@@ -135,7 +364,7 @@ export default function MasterPresensiPage() {
 
   const handleOpenEditShift = (s: any) => {
     setEditingShift(s);
-    resetShift({
+    formShift.reset({
       name: s.name || '',
       description: s.description || '',
       late_tolerance_minutes: s.late_tolerance_minutes ?? 15,
@@ -156,16 +385,13 @@ export default function MasterPresensiPage() {
         });
         toast.success('Tipe shift berhasil diperbarui');
       } else {
-        const res = await simpegService.createShiftTemplate(values);
-        toast.success('Tipe shift baru berhasil ditambahkan — silakan atur jam per harinya');
-        if (res.status === 'success' && res.data) {
-          setSelectedShift(res.data);
-        }
+        await simpegService.createShiftTemplate(values);
+        toast.success('Tipe shift baru berhasil ditambahkan');
       }
       setShowShiftModal(false);
       fetchShifts();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || err.response?.data?.errors?.name?.[0] || 'Gagal menyimpan tipe shift');
+      toast.error(err.response?.data?.message || 'Gagal menyimpan tipe shift');
     }
   };
 
@@ -173,14 +399,13 @@ export default function MasterPresensiPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Tipe Shift',
-      message: `Apakah Anda yakin ingin menghapus tipe shift "${s.name}"? Jadwal 7 hari di dalamnya ikut terhapus. Tindakan ini tidak dapat dibatalkan.`,
+      message: `Apakah Anda yakin ingin menghapus tipe shift "${s.name}"? Seluruh jadwal 7 hari di dalamnya ikut terhapus.`,
       isLoading: false,
       onConfirm: async () => {
         try {
           setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
           await simpegService.deleteShiftTemplate(s.id);
           toast.success('Tipe shift berhasil dihapus');
-          if (selectedShift?.id === s.id) setSelectedShift(null);
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           fetchShifts();
         } catch (err: any) {
@@ -194,7 +419,7 @@ export default function MasterPresensiPage() {
   const handleDuplicateShift = async (s: any) => {
     const copyName = `${s.name} (Copy)`;
     try {
-      const res = await simpegService.createShiftTemplate({
+      await simpegService.createShiftTemplate({
         name: copyName,
         description: s.description,
         late_tolerance_minutes: s.late_tolerance_minutes,
@@ -210,49 +435,44 @@ export default function MasterPresensiPage() {
         })),
       });
       toast.success(`Tipe shift diduplikat menjadi "${copyName}"`);
-      if (res.status === 'success' && res.data) setSelectedShift(res.data);
       fetchShifts();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal menduplikat tipe shift');
     }
   };
 
+  const handleOpenScheduleModal = (s: any) => {
+    setSelectedShiftForSchedule(JSON.parse(JSON.stringify(s)));
+    setShowScheduleModal(true);
+  };
+
   const handleSaveShiftSchedule = async () => {
-    if (!selectedShift) return;
-    setSavingShift(true);
+    if (!selectedShiftForSchedule) return;
+    setSavingSchedule(true);
     try {
-      await simpegService.updateShiftTemplate(selectedShift.id, {
-        name: selectedShift.name,
-        description: selectedShift.description,
-        late_tolerance_minutes: selectedShift.late_tolerance_minutes,
-        early_leave_tolerance_minutes: selectedShift.early_leave_tolerance_minutes,
-        max_early_clock_in_minutes: selectedShift.max_early_clock_in_minutes,
-        applies_national_holidays: selectedShift.applies_national_holidays ?? true,
-        is_active: selectedShift.is_active,
-        days: selectedShift.days,
+      await simpegService.updateShiftTemplate(selectedShiftForSchedule.id, {
+        name: selectedShiftForSchedule.name,
+        description: selectedShiftForSchedule.description,
+        late_tolerance_minutes: selectedShiftForSchedule.late_tolerance_minutes,
+        early_leave_tolerance_minutes: selectedShiftForSchedule.early_leave_tolerance_minutes,
+        max_early_clock_in_minutes: selectedShiftForSchedule.max_early_clock_in_minutes,
+        applies_national_holidays: selectedShiftForSchedule.applies_national_holidays ?? true,
+        is_active: selectedShiftForSchedule.is_active,
+        days: selectedShiftForSchedule.days,
       });
-      toast.success('Jadwal shift kerja berhasil disimpan');
+      toast.success('Jadwal 7 hari berhasil disimpan');
+      setShowScheduleModal(false);
       fetchShifts();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan jadwal shift');
     } finally {
-      setSavingShift(false);
+      setSavingSchedule(false);
     }
   };
 
-  // Bulk Shift Modal State
-  const [showBulkShiftModal, setShowBulkShiftModal] = useState(false);
-  const [savingBulkShift, setSavingBulkShift] = useState(false);
-  const [unitKerjaOptions, setUnitKerjaOptions] = useState<{ value: number; label: string }[]>([]);
-  const [bulkShiftForm, setBulkShiftForm] = useState({
-    shift_template_id: 0,
-    unit_kerja_id: 0,
-    jenis_pegawai: '' as '' | 'dosen' | 'tendik',
-  });
-
   const handleOpenBulkModal = async () => {
     if (shifts.length === 0) await fetchShifts();
-    setBulkShiftForm({
+    formBulkShift.reset({
       shift_template_id: shifts[0]?.id ?? 0,
       unit_kerja_id: 0,
       jenis_pegawai: '',
@@ -271,75 +491,26 @@ export default function MasterPresensiPage() {
     }
   };
 
-  const handleSaveBulkShift = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!bulkShiftForm.shift_template_id) {
-      toast.error('Pilih tipe shift terlebih dahulu');
-      return;
-    }
-    setSavingBulkShift(true);
+  const onSubmitBulkShift = async (values: BulkShiftFormValues) => {
     try {
       const res = await simpegService.assignShiftBulk({
-        shift_template_id: Number(bulkShiftForm.shift_template_id),
-        unit_kerja_id: bulkShiftForm.unit_kerja_id ? Number(bulkShiftForm.unit_kerja_id) : undefined,
-        jenis_pegawai: bulkShiftForm.jenis_pegawai || undefined,
+        shift_template_id: Number(values.shift_template_id),
+        unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : undefined,
+        jenis_pegawai: (values.jenis_pegawai as 'dosen' | 'tendik') || undefined,
       });
       toast.success(res.message || 'Penugasan shift massal berhasil');
       setShowBulkShiftModal(false);
       fetchShifts();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal menugaskan shift massal');
-    } finally {
-      setSavingBulkShift(false);
     }
   };
 
-  // -------------------------------------------------------------
-  // TAB 2: MESIN FINGERPRINT & BIOMETRIK
-  // -------------------------------------------------------------
-  const [loadingDevices, setLoadingDevices] = useState(false);
-  const [devices, setDevices] = useState<FingerprintDevice[]>([]);
-  const [showDeviceModal, setShowDeviceModal] = useState(false);
-  const [editingDevice, setEditingDevice] = useState<FingerprintDevice | null>(null);
-  const [savingDevice, setSavingDevice] = useState(false);
-  const [testingDeviceId, setTestingDeviceId] = useState<number | null>(null);
-  const [deviceForm, setDeviceForm] = useState({
-    device_name: '',
-    device_code: '',
-    ip_address: '',
-    port: 4370,
-    location: '',
-    device_model: 'ZKTeco ProCapture-X',
-    office_location_id: undefined as number | undefined,
-    is_active: true,
-  });
-
-  const [showSyncModal, setShowSyncModal] = useState(false);
-  const [savingSync, setSavingSync] = useState(false);
-  const [syncForm, setSyncForm] = useState({
-    device_code: '',
-    nip: '',
-    timestamp: new Date().toISOString().substring(0, 16).replace('T', ' ') + ':00',
-    in_out_mode: 0,
-  });
-
-  const fetchDevices = useCallback(async () => {
-    setLoadingDevices(true);
-    try {
-      const res = await simpegService.getFingerprintDevices();
-      if (res.status === 'success' && res.data) {
-        setDevices(res.data);
-      }
-    } catch {
-      toast.error('Gagal memuat daftar mesin presensi');
-    } finally {
-      setLoadingDevices(false);
-    }
-  }, []);
+  // ── ACTION HANDLERS: TAB 2 (DEVICES) ───────────────────────
 
   const handleOpenCreateDevice = () => {
     setEditingDevice(null);
-    setDeviceForm({
+    formDevice.reset({
       device_name: '',
       device_code: `FP-TERM-${Date.now().toString().slice(-4)}`,
       ip_address: '192.168.1.201',
@@ -354,36 +525,32 @@ export default function MasterPresensiPage() {
 
   const handleOpenEditDevice = (dev: FingerprintDevice) => {
     setEditingDevice(dev);
-    setDeviceForm({
+    formDevice.reset({
       device_name: dev.device_name,
       device_code: dev.device_code,
       ip_address: dev.ip_address,
       port: dev.port,
       location: dev.location || '',
-      device_model: dev.device_model || '',
-      office_location_id: dev.office_location_id || undefined,
+      device_model: dev.device_model || 'ZKTeco ProCapture-X',
+      office_location_id: dev.office_location_id,
       is_active: dev.is_active,
     });
     setShowDeviceModal(true);
   };
 
-  const handleSaveDevice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingDevice(true);
+  const onSubmitDevice = async (values: DeviceFormValues) => {
     try {
       if (editingDevice) {
-        await simpegService.updateFingerprintDevice(editingDevice.id, deviceForm);
-        toast.success('Mesin presensi berhasil diperbarui');
+        await simpegService.updateFingerprintDevice(editingDevice.id, values);
+        toast.success('Data mesin presensi berhasil diperbarui');
       } else {
-        await simpegService.createFingerprintDevice(deviceForm);
-        toast.success('Mesin presensi berhasil ditambahkan');
+        await simpegService.createFingerprintDevice(values);
+        toast.success('Mesin presensi baru berhasil didaftarkan');
       }
       setShowDeviceModal(false);
       fetchDevices();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan data mesin');
-    } finally {
-      setSavingDevice(false);
+      toast.error(err.response?.data?.message || 'Gagal menyimpan data mesin presensi');
     }
   };
 
@@ -391,7 +558,7 @@ export default function MasterPresensiPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Mesin Presensi',
-      message: `Apakah Anda yakin ingin menghapus mesin presensi "${dev.device_name}" (${dev.device_code})? Tindakan ini tidak dapat dibatalkan.`,
+      message: `Apakah Anda yakin ingin menghapus mesin "${dev.device_name}" (${dev.device_code})?`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -423,68 +590,41 @@ export default function MasterPresensiPage() {
     }
   };
 
-  const handlePushSyncLogs = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!syncForm.nip || !syncForm.timestamp) {
-      toast.error('NIP dan Timestamp wajib diisi');
-      return;
-    }
-    setSavingSync(true);
+  const handleOpenSyncModal = (dev?: FingerprintDevice) => {
+    formSyncLog.reset({
+      device_code: dev?.device_code || devices[0]?.device_code || '',
+      nip: '',
+      timestamp: new Date().toISOString().substring(0, 16).replace('T', ' ') + ':00',
+      in_out_mode: 0,
+    });
+    setShowSyncModal(true);
+  };
+
+  const onSubmitSyncLog = async (values: SyncLogFormValues) => {
     try {
       const res = await simpegService.syncFingerprintLogs({
-        device_code: syncForm.device_code || (devices[0]?.device_code ?? 'FP-MANUAL'),
+        device_code: values.device_code,
         logs: [
           {
-            pin: syncForm.nip,
-            timestamp: syncForm.timestamp,
-            in_out_mode: Number(syncForm.in_out_mode),
+            pin: values.nip,
+            timestamp: values.timestamp,
+            in_out_mode: Number(values.in_out_mode),
             verify_mode: 1,
           },
         ],
       });
-      toast.success(res.message || 'Log mesin berhasil disinkronisasi');
+      toast.success(res.message || 'Log mesin presensi berhasil disinkronisasi');
       setShowSyncModal(false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal sinkronisasi log mesin');
-    } finally {
-      setSavingSync(false);
     }
   };
 
-  // -------------------------------------------------------------
-  // TAB 3: LOKASI KANTOR (GEOFENCING)
-  // -------------------------------------------------------------
-  const [loadingOffices, setLoadingOffices] = useState(false);
-  const [offices, setOffices] = useState<any[]>([]);
-  const [showOfficeModal, setShowOfficeModal] = useState(false);
-  const [editingOffice, setEditingOffice] = useState<any | null>(null);
-  const [savingOffice, setSavingOffice] = useState(false);
-  const [officeForm, setOfficeForm] = useState({
-    name: '',
-    address: '',
-    latitude: -7.5675,
-    longitude: 110.8036,
-    radius_meters: 150,
-    is_active: true,
-  });
-
-  const fetchOffices = useCallback(async () => {
-    setLoadingOffices(true);
-    try {
-      const res = await simpegService.getOfficeLocations();
-      if (res.status === 'success') {
-        setOffices(res.data || []);
-      }
-    } catch {
-      toast.error('Gagal memuat master lokasi kantor');
-    } finally {
-      setLoadingOffices(false);
-    }
-  }, []);
+  // ── ACTION HANDLERS: TAB 3 (OFFICES) ───────────────────────
 
   const handleOpenCreateOffice = () => {
     setEditingOffice(null);
-    setOfficeForm({
+    formOffice.reset({
       name: '',
       address: '',
       latitude: -7.5675,
@@ -497,7 +637,7 @@ export default function MasterPresensiPage() {
 
   const handleOpenEditOffice = (office: any) => {
     setEditingOffice(office);
-    setOfficeForm({
+    formOffice.reset({
       name: office.name,
       address: office.address || '',
       latitude: office.latitude,
@@ -508,23 +648,19 @@ export default function MasterPresensiPage() {
     setShowOfficeModal(true);
   };
 
-  const handleSaveOffice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingOffice(true);
+  const onSubmitOffice = async (values: OfficeFormValues) => {
     try {
       if (editingOffice) {
-        await simpegService.updateOfficeLocation(editingOffice.id, officeForm);
+        await simpegService.updateOfficeLocation(editingOffice.id, values);
         toast.success('Lokasi kantor berhasil diperbarui');
       } else {
-        await simpegService.createOfficeLocation(officeForm);
-        toast.success('Lokasi kantor berhasil ditambahkan');
+        await simpegService.createOfficeLocation(values);
+        toast.success('Lokasi kantor baru berhasil ditambahkan');
       }
       setShowOfficeModal(false);
       fetchOffices();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal menyimpan lokasi kantor');
-    } finally {
-      setSavingOffice(false);
     }
   };
 
@@ -532,7 +668,7 @@ export default function MasterPresensiPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Lokasi Kantor',
-      message: `Apakah Anda yakin ingin menghapus lokasi kantor "${office.name}"? Tindakan ini tidak dapat dibatalkan.`,
+      message: `Apakah Anda yakin ingin menghapus lokasi kantor "${office.name}"?`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -549,87 +685,22 @@ export default function MasterPresensiPage() {
     });
   };
 
-  // -------------------------------------------------------------
-  // TAB 4: PARAMETER SISTEM
-  // -------------------------------------------------------------
-  const [, setLoadingSettings] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [systemParams, setSystemParams] = useState({
-    face_score_threshold: 0.80,
-    gps_accuracy_threshold_meters: 50.0,
-    late_tolerance_minutes: 15,
-    max_early_clock_in_minutes: 60,
-    early_leave_tolerance_minutes: 15,
-    applies_national_holidays: true,
-  });
-
-  const fetchSettings = useCallback(async () => {
-    setLoadingSettings(true);
-    try {
-      const res = await simpegService.getPresensiSettings();
-      if (res.status === 'success' && res.data) {
-        setSystemParams(res.data);
-      }
-    } catch {
-      toast.error('Gagal memuat parameter sistem presensi');
-    } finally {
-      setLoadingSettings(false);
-    }
-  }, []);
-
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingSettings(true);
-    try {
-      await simpegService.updatePresensiSettings(systemParams);
-      toast.success('Parameter presensi sistem berhasil diperbarui');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan parameter');
-    } finally {
-      setSavingSettings(false);
-    }
-  };
-
-  // -------------------------------------------------------------
-  // TAB 5: KALENDER LIBUR & TANGGAL MERAH
-  // -------------------------------------------------------------
-  const [loadingHolidays, setLoadingHolidays] = useState(false);
-  const [syncingHolidays, setSyncingHolidays] = useState(false);
-  const [holidays, setHolidays] = useState<any[]>([]);
-  const [holidayYear, setHolidayYear] = useState<number>(new Date().getFullYear());
-  const [showHolidayModal, setShowHolidayModal] = useState(false);
-  const [editingHoliday, setEditingHoliday] = useState<any | null>(null);
-  const [savingHoliday, setSavingHoliday] = useState(false);
-  const [holidayForm, setHolidayForm] = useState({
-    holiday_date: '',
-    name: '',
-    is_mass_leave: false,
-    description: '',
-  });
-
-  const fetchHolidays = useCallback(async (year: number) => {
-    setLoadingHolidays(true);
-    try {
-      const res = await simpegService.getNationalHolidays(year);
-      if (res.status === 'success') {
-        setHolidays(res.data || []);
-      }
-    } catch {
-      toast.error('Gagal memuat daftar tanggal libur');
-    } finally {
-      setLoadingHolidays(false);
-    }
-  }, []);
+  // ── ACTION HANDLERS: TAB 4 (HOLIDAYS) ──────────────────────
 
   const handleOpenCreateHoliday = () => {
     setEditingHoliday(null);
-    setHolidayForm({ holiday_date: `${holidayYear}-01-01`, name: '', is_mass_leave: false, description: '' });
+    formHoliday.reset({
+      holiday_date: `${holidayYear}-01-01`,
+      name: '',
+      is_mass_leave: false,
+      description: '',
+    });
     setShowHolidayModal(true);
   };
 
   const handleOpenEditHoliday = (h: any) => {
     setEditingHoliday(h);
-    setHolidayForm({
+    formHoliday.reset({
       holiday_date: (h.holiday_date || '').substring(0, 10),
       name: h.name || '',
       is_mass_leave: !!h.is_mass_leave,
@@ -638,33 +709,27 @@ export default function MasterPresensiPage() {
     setShowHolidayModal(true);
   };
 
-  const handleSaveHoliday = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingHoliday(true);
+  const onSubmitHoliday = async (values: HolidayFormValues) => {
     try {
       if (editingHoliday) {
-        await simpegService.updateNationalHoliday(editingHoliday.id, holidayForm);
+        await simpegService.updateNationalHoliday(editingHoliday.id, values);
         toast.success('Tanggal libur berhasil diperbarui');
       } else {
-        await simpegService.createNationalHoliday(holidayForm);
+        await simpegService.createNationalHoliday(values);
         toast.success('Tanggal libur berhasil ditambahkan');
       }
       setShowHolidayModal(false);
       fetchHolidays(holidayYear);
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.response?.data?.errors?.holiday_date?.[0] || 'Gagal menyimpan tanggal libur';
-      toast.error(msg);
-    } finally {
-      setSavingHoliday(false);
+      toast.error(err.response?.data?.message || 'Gagal menyimpan tanggal libur');
     }
   };
 
   const handleDeleteHoliday = (h: any) => {
-    const label = `${h.name} (${(h.holiday_date || '').substring(0, 10)})`;
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Tanggal Libur',
-      message: `Apakah Anda yakin ingin menghapus tanggal libur "${label}"? Tindakan ini tidak dapat dibatalkan.`,
+      message: `Apakah Anda yakin ingin menghapus hari libur "${h.name}" (${h.holiday_date})?`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -685,704 +750,747 @@ export default function MasterPresensiPage() {
     setSyncingHolidays(true);
     try {
       const res = await simpegService.syncNationalHolidays(holidayYear);
-      toast.success(res.message || 'Sinkronisasi hari libur nasional berhasil');
-      fetchHolidays(holidayYear);
+      if (res.status === 'success') {
+        toast.success(res.message || `Sinkronisasi libur nasional tahun ${holidayYear} berhasil`);
+        fetchHolidays(holidayYear);
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal sinkronisasi hari libur');
+      toast.error(err.response?.data?.message || 'Gagal sinkronisasi libur nasional');
     } finally {
       setSyncingHolidays(false);
     }
   };
 
-  // Effect Fetch Data sesuai Tab Aktif
-  useEffect(() => {
-    if (activeTab === 'shift') fetchShifts();
-    else if (activeTab === 'devices') {
-      fetchDevices();
-      if (offices.length === 0) fetchOffices();
+  // ── ACTION HANDLERS: TAB 5 (SETTINGS) ──────────────────────
+
+  const onSubmitSettings = async (values: SystemSettingsValues) => {
+    setSavingSettings(true);
+    try {
+      await simpegService.updatePresensiSettings(values);
+      toast.success('Parameter presensi sistem berhasil diperbarui');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan parameter');
+    } finally {
+      setSavingSettings(false);
     }
-    else if (activeTab === 'office') fetchOffices();
-    else if (activeTab === 'settings') fetchSettings();
-    else if (activeTab === 'holiday') fetchHolidays(holidayYear);
-  }, [activeTab, fetchShifts, fetchDevices, fetchOffices, fetchSettings, fetchHolidays, holidayYear, offices.length]);
+  };
+
+  // ── FILTERED DATA LISTS ────────────────────────────────────
+
+  const filteredShifts = useMemo(() => {
+    if (!searchShift) return shifts;
+    const q = searchShift.toLowerCase();
+    return shifts.filter((s: any) =>
+      s.name?.toLowerCase().includes(q) ||
+      s.description?.toLowerCase().includes(q)
+    );
+  }, [shifts, searchShift]);
+
+  const filteredDevices = useMemo(() => {
+    if (!searchDevice) return devices;
+    const q = searchDevice.toLowerCase();
+    return devices.filter((d) =>
+      d.device_name?.toLowerCase().includes(q) ||
+      d.device_code?.toLowerCase().includes(q) ||
+      d.ip_address?.toLowerCase().includes(q) ||
+      d.location?.toLowerCase().includes(q)
+    );
+  }, [devices, searchDevice]);
+
+  const filteredOffices = useMemo(() => {
+    if (!searchOffice) return offices;
+    const q = searchOffice.toLowerCase();
+    return offices.filter((o: any) =>
+      o.name?.toLowerCase().includes(q) ||
+      o.address?.toLowerCase().includes(q)
+    );
+  }, [offices, searchOffice]);
+
+  const filteredHolidays = useMemo(() => {
+    if (!searchHoliday) return holidays;
+    const q = searchHoliday.toLowerCase();
+    return holidays.filter((h: any) =>
+      h.name?.toLowerCase().includes(q) ||
+      h.description?.toLowerCase().includes(q) ||
+      h.holiday_date?.includes(q)
+    );
+  }, [holidays, searchHoliday]);
+
+  // ── TABLE COLUMNS: SHIFT ───────────────────────────────────
+
+  const columnsShift: ColumnDef<any>[] = [
+    {
+      key: 'name',
+      label: 'Nama Shift & Deskripsi',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 block text-sm">{row.name}</span>
+          <span className="text-xs text-slate-500">{row.description || 'Pola jam kerja standar'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'toleransi',
+      label: 'Toleransi & Batas Waktu',
+      render: (row) => (
+        <div className="text-xs text-slate-700 space-y-0.5 font-medium">
+          <div>Terlambat: <span className="font-bold text-slate-900">{row.late_tolerance_minutes ?? 0} mnt</span></div>
+          <div>Pulang cepat: <span className="font-bold text-slate-900">{row.early_leave_tolerance_minutes ?? 0} mnt</span></div>
+          <div>Buka absen: <span className="font-bold text-slate-900">{row.max_early_clock_in_minutes ?? 0} mnt</span></div>
+        </div>
+      ),
+    },
+    {
+      key: 'applies_national_holidays',
+      label: 'Libur Nasional',
+      render: (row) => (
+        <Badge variant={row.applies_national_holidays ? 'blue' : 'gray'}>
+          {row.applies_national_holidays ? 'Terapkan Libur' : 'Wajib Masuk'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'employees_count',
+      label: 'Pegawai',
+      render: (row) => (
+        <span className="font-medium text-slate-700 text-sm">
+          {row.employees_count ?? 0} Pegawai
+        </span>
+      ),
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (row) => (
+        <Badge variant={row.is_active ? 'green' : 'gray'}>
+          {row.is_active ? 'Aktif' : 'Nonaktif'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        if (!canManage) return null;
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                {
+                  label: 'Atur Jadwal Harian',
+                  icon: <CalendarRange size={14} />,
+                  onClick: () => handleOpenScheduleModal(row),
+                },
+                {
+                  label: 'Ubah Info Shift',
+                  icon: <Edit2 size={14} />,
+                  onClick: () => handleOpenEditShift(row),
+                },
+                {
+                  label: 'Duplikat Shift',
+                  icon: <Copy size={14} />,
+                  onClick: () => handleDuplicateShift(row),
+                },
+                {
+                  label: 'Hapus Shift',
+                  icon: <Trash2 size={14} />,
+                  variant: 'danger',
+                  onClick: () => handleDeleteShift(row),
+                },
+              ]}
+            />
+          </div>
+        );
+      },
+    },
+  ];
+
+  // ── TABLE COLUMNS: DEVICES ─────────────────────────────────
+
+  const columnsDevice: ColumnDef<FingerprintDevice>[] = [
+    {
+      key: 'device_code',
+      label: 'Kode Mesin',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-xs">
+          {row.device_code}
+        </span>
+      ),
+    },
+    {
+      key: 'device_name',
+      label: 'Nama & Model Perangkat',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 block text-sm">{row.device_name}</span>
+          <span className="text-xs text-slate-500">Model: {row.device_model || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'ip_port',
+      label: 'IP & Port LAN',
+      render: (row) => (
+        <span className="font-mono font-semibold text-slate-700 text-sm">
+          {row.ip_address}:{row.port}
+        </span>
+      ),
+    },
+    {
+      key: 'location',
+      label: 'Lokasi Terminal',
+      render: (row) => (
+        <span className="text-sm text-slate-700">{row.location || '-'}</span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status Jaringan',
+      render: (row) => (
+        <Badge variant={row.last_status === 'online' || row.last_status === 'synced' ? 'green' : 'red'}>
+          {row.last_status === 'online' || row.last_status === 'synced' ? (
+            <span className="flex items-center gap-1">
+              <Wifi size={12} /> Online
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              <WifiOff size={12} /> Offline
+            </span>
+          )}
+        </Badge>
+      ),
+    },
+    {
+      key: 'last_sync',
+      label: 'Terakhir Sinkron',
+      render: (row) => (
+        <span className="font-mono text-xs text-slate-500">
+          {row.last_sync_at ? new Date(row.last_sync_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Belum pernah'}
+        </span>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        if (!canManage) return null;
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                {
+                  label: testingDeviceId === row.id ? 'Memeriksa Koneksi...' : 'Uji Koneksi Ping',
+                  icon: <Wifi size={14} />,
+                  disabled: testingDeviceId === row.id,
+                  onClick: () => handleTestDevice(row.id),
+                },
+                {
+                  label: 'Simulasi Push Log',
+                  icon: <RefreshCw size={14} />,
+                  onClick: () => handleOpenSyncModal(row),
+                },
+                {
+                  label: 'Ubah Mesin',
+                  icon: <Edit2 size={14} />,
+                  onClick: () => handleOpenEditDevice(row),
+                },
+                {
+                  label: 'Hapus Mesin',
+                  icon: <Trash2 size={14} />,
+                  variant: 'danger',
+                  onClick: () => handleDeleteDevice(row),
+                },
+              ]}
+            />
+          </div>
+        );
+      },
+    },
+  ];
+
+  // ── TABLE COLUMNS: OFFICES ─────────────────────────────────
+
+  const columnsOffice: ColumnDef<any>[] = [
+    {
+      key: 'name',
+      label: 'Nama Kantor / Lokasi',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 block text-sm">{row.name}</span>
+          <span className="text-xs text-slate-500">{row.address || 'Alamat belum disetel'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'coordinates',
+      label: 'Titik Koordinat GPS',
+      render: (row) => (
+        <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+          {row.latitude}, {row.longitude}
+        </span>
+      ),
+    },
+    {
+      key: 'radius_meters',
+      label: 'Radius Geofence',
+      render: (row) => (
+        <span className="font-semibold text-xs text-slate-800 bg-[var(--module-primary-subtle)] text-[var(--module-primary)] px-2 py-0.5 rounded border border-[var(--module-primary)]/20">
+          {row.radius_meters} meter
+        </span>
+      ),
+    },
+    {
+      key: 'employees_count',
+      label: 'Pegawai Terdaftar',
+      render: (row) => (
+        <span className="text-sm font-medium text-slate-700">{row.employees_count || 0} Pegawai</span>
+      ),
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (row) => (
+        <Badge variant={row.is_active ? 'green' : 'gray'}>
+          {row.is_active ? 'Aktif' : 'Nonaktif'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        if (!canManage) return null;
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                {
+                  label: 'Ubah Lokasi',
+                  icon: <Edit2 size={14} />,
+                  onClick: () => handleOpenEditOffice(row),
+                },
+                {
+                  label: 'Hapus Lokasi',
+                  icon: <Trash2 size={14} />,
+                  variant: 'danger',
+                  onClick: () => handleDeleteOffice(row),
+                },
+              ]}
+            />
+          </div>
+        );
+      },
+    },
+  ];
+
+  // ── TABLE COLUMNS: HOLIDAYS ────────────────────────────────
+
+  const columnsHoliday: ColumnDef<any>[] = [
+    {
+      key: 'holiday_date',
+      label: 'Tanggal Libur',
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <div className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded text-center min-w-[50px]">
+            <span className="text-sm font-bold text-slate-900 block">{(row.holiday_date || '').substring(8, 10)}</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(row.holiday_date).toLocaleDateString('id-ID', { month: 'short' })}</span>
+          </div>
+          <span className="font-semibold text-slate-900 text-sm">
+            {new Date(row.holiday_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'name',
+      label: 'Nama Hari Libur / Perayaan',
+      render: (row) => (
+        <span className="font-bold text-slate-900 text-sm">{row.name}</span>
+      ),
+    },
+    {
+      key: 'is_mass_leave',
+      label: 'Kategori',
+      render: (row) => (
+        <Badge variant={row.is_mass_leave ? 'amber' : 'red'}>
+          {row.is_mass_leave ? 'Cuti Bersama' : 'Libur Nasional'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'description',
+      label: 'Keterangan',
+      render: (row) => (
+        <span className="text-xs text-slate-500">{row.description || '-'}</span>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        if (!canManage) return null;
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                {
+                  label: 'Ubah Hari Libur',
+                  icon: <Edit2 size={14} />,
+                  onClick: () => handleOpenEditHoliday(row),
+                },
+                {
+                  label: 'Hapus Hari Libur',
+                  icon: <Trash2 size={14} />,
+                  variant: 'danger',
+                  onClick: () => handleDeleteHoliday(row),
+                },
+              ]}
+            />
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-6">
-      {/* Page Header */}
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Master Pengaturan Presensi"
-        description="Konfigurasi pola shift kerja, mesin terminal fingerprint & biometrik, lokasi kantor geofencing, parameter sistem, serta kalender hari libur."
-        breadcrumbs={[
-          { label: 'Portal SSO', href: '/dashboard' },
-          { label: 'SIMPEG', href: '/simpeg' },
-          { label: 'Master Data SDM', href: '/simpeg/master/presensi' },
-          { label: 'Pengaturan Presensi' },
-        ]}
+        description="Konfigurasi template shift kerja, integrasi mesin biometrik LAN, geofencing lokasi kantor, kalender libur, dan toleransi kehadiran"
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            {activeTab === 'shift' && isAdmin && (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              icon={<ArrowLeft size={16} />}
+              onClick={() => router.push('/simpeg/presensi')}
+            >
+              Kembali ke Presensi
+            </Button>
+            {canManage && activeTab === 'shift' && (
               <>
-                <Button variant="outline" icon={<Users size={16} />} onClick={handleOpenBulkModal}>
-                  Penugasan Massal
+                <Button
+                  variant="outline"
+                  icon={<Users size={16} />}
+                  onClick={handleOpenBulkModal}
+                >
+                  Terapkan Shift Massal
                 </Button>
-                <Button icon={<Plus size={16} />} onClick={handleOpenCreateShift}>
+                <Button
+                  variant="primary"
+                  icon={<Plus size={16} />}
+                  onClick={handleOpenCreateShift}
+                >
                   Tambah Tipe Shift
                 </Button>
               </>
             )}
-
-            {activeTab === 'devices' && isAdmin && (
-              <>
-                <Button variant="outline" icon={<Fingerprint size={16} />} onClick={() => setShowSyncModal(true)}>
-                  Push Punch Log
-                </Button>
-                <Button icon={<Plus size={16} />} onClick={handleOpenCreateDevice}>
-                  Tambah Mesin
-                </Button>
-              </>
-            )}
-
-            {activeTab === 'office' && isAdmin && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateOffice}>
-                Tambah Lokasi
+            {canManage && activeTab === 'devices' && (
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={handleOpenCreateDevice}
+              >
+                Tambah Mesin Presensi
               </Button>
             )}
-
-            {activeTab === 'holiday' && isAdmin && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateHoliday}>
-                Tambah Libur
+            {canManage && activeTab === 'office' && (
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={handleOpenCreateOffice}
+              >
+                Tambah Lokasi Kantor
+              </Button>
+            )}
+            {canManage && activeTab === 'holiday' && (
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={handleOpenCreateHoliday}
+              >
+                Tambah Hari Libur
               </Button>
             )}
           </div>
         }
       />
 
-      {/* Tabs Menu Bar */}
-      <div
-        role="tablist"
-        aria-label="Menu Pengaturan Presensi"
-        className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-px"
-      >
+      {/* Modern Navigation Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
         <button
           type="button"
-          role="tab"
-          aria-selected={activeTab === 'shift'}
           onClick={() => setActiveTab('shift')}
-          className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'shift'
-              ? 'border-primary-600 text-primary-600 bg-primary-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <CalendarRange size={16} className={activeTab === 'shift' ? 'text-primary-600' : 'text-slate-500'} />
-          1. Shift & Jadwal Jam Kerja
+          <Clock size={16} /> Template Shift & Jadwal Kerja
         </button>
-
         <button
           type="button"
-          role="tab"
-          aria-selected={activeTab === 'devices'}
           onClick={() => setActiveTab('devices')}
-          className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'devices'
-              ? 'border-primary-600 text-primary-600 bg-primary-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <Fingerprint size={16} className={activeTab === 'devices' ? 'text-primary-600' : 'text-slate-500'} />
-          2. Mesin Fingerprint & Biometrik
+          <Fingerprint size={16} /> Mesin Presensi & Biometrik
         </button>
-
         <button
           type="button"
-          role="tab"
-          aria-selected={activeTab === 'office'}
           onClick={() => setActiveTab('office')}
-          className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'office'
-              ? 'border-primary-600 text-primary-600 bg-primary-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <Building2 size={16} className={activeTab === 'office' ? 'text-primary-600' : 'text-slate-500'} />
-          3. Lokasi Kantor (Geofencing)
+          <Building2 size={16} /> Lokasi Kantor (Geofencing)
         </button>
-
         <button
           type="button"
-          role="tab"
-          aria-selected={activeTab === 'settings'}
-          onClick={() => setActiveTab('settings')}
-          className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'settings'
-              ? 'border-primary-600 text-primary-600 bg-primary-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <SlidersHorizontal size={16} className={activeTab === 'settings' ? 'text-primary-600' : 'text-slate-500'} />
-          4. Parameter Sistem & Toleransi
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'holiday'}
           onClick={() => setActiveTab('holiday')}
-          className={`px-4 py-3 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'holiday'
-              ? 'border-primary-600 text-primary-600 bg-primary-50/50'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
           }`}
         >
-          <Calendar size={16} className={activeTab === 'holiday' ? 'text-primary-600' : 'text-slate-500'} />
-          5. Kalender Libur & Tanggal Merah
+          <Calendar size={16} /> Kalender Libur & Tanggal Merah
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('settings')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'settings'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <SlidersHorizontal size={16} /> Parameter Sistem & Toleransi
         </button>
       </div>
 
-      {/* ------------------------------------------------------------- */}
-      {/* KONTEN TAB 1: SHIFT KERJA & JADWAL */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── TAB 1: TEMPLATE SHIFT & JADWAL KERJA ── */}
       {activeTab === 'shift' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="space-y-3 lg:col-span-1">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-                Template Shift ({shifts.length})
-              </h3>
-              <Button
-                size="sm"
-                variant="outline"
-                icon={<RefreshCw size={13} />}
-                onClick={fetchShifts}
-                disabled={loadingShifts}
-              >
-                Muat Ulang
-              </Button>
-            </div>
-            {loadingShifts && shifts.length === 0 && (
-              <div className="p-4 bg-white border border-slate-200 rounded-2xl text-xs text-slate-500">Memuat template shift...</div>
-            )}
-            {!loadingShifts && shifts.length === 0 && (
-              <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
-                <div className="flex items-center gap-2 text-amber-800 font-bold text-xs">
-                  <AlertTriangle size={14} /> Template shift masih kosong
-                </div>
-                <p className="text-2xs text-amber-700">
-                  Klik tombol <strong>Tambah Tipe Shift</strong> untuk membuat master jam kerja baru.
-                </p>
-              </div>
-            )}
-            {shifts.map((s) => (
-              <div
-                key={s.id}
-                onClick={() => setSelectedShift(s)}
-                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                  selectedShift?.id === s.id
-                    ? 'bg-primary-50/70 border-primary-300 ring-2 ring-primary-500/20 shadow-xs'
-                    : 'bg-white border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <h4 className="font-bold text-sm text-slate-900">{s.name}</h4>
-                  <Badge variant={s.is_active ? 'success' : 'secondary'} className="text-[10px]">
-                    {s.is_active ? 'Aktif' : 'Non-Aktif'}
-                  </Badge>
-                </div>
-                <p className="text-2xs text-slate-500 mt-1">{s.description || 'Pola jam kerja standar'}</p>
-                <div className="mt-2 flex items-center justify-between text-2xs text-slate-600 font-semibold">
-                  <span>Toleransi: {s.late_tolerance_minutes} mnt</span>
-                  <span>{s.employees_count ?? 0} pegawai</span>
-                </div>
-                {isAdmin && (
-                  <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    <Button size="sm" variant="outline" icon={<Edit2 size={12} />} onClick={() => handleOpenEditShift(s)}>
-                      Ubah
-                    </Button>
-                    <Button size="sm" variant="outline" icon={<Copy size={12} />} onClick={() => handleDuplicateShift(s)}>
-                      Duplikat
-                    </Button>
-                    <Button size="sm" variant="danger" icon={<Trash2 size={12} />} onClick={() => handleDeleteShift(s)} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {selectedShift && (
-            <div className="p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-5 lg:col-span-2">
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">Jadwal Harian: {selectedShift.name}</h3>
-                  <p className="text-2xs text-slate-500">Atur jam masuk, jam pulang, dan hari libur untuk Senin s/d Minggu</p>
-                </div>
-                {isAdmin && (
-                  <div className="flex items-center gap-1.5">
-                    <Button size="sm" variant="outline" icon={<Edit2 size={13} />} onClick={() => handleOpenEditShift(selectedShift)}>
-                      Ubah Info Shift
-                    </Button>
-                    <Button
-                      size="sm"
-                      icon={<Save size={14} />}
-                      loading={savingShift}
-                      disabled={savingShift}
-                      onClick={handleSaveShiftSchedule}
-                    >
-                      Simpan Jadwal
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {selectedShift.days?.map((day: any, idx: number) => {
-                  const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                  const name = dayNames[day.day_of_week] || `Hari ${day.day_of_week}`;
-
-                  return (
-                    <div key={day.id || idx} className="py-3 flex flex-wrap items-center justify-between gap-3">
-                      <div className="w-28">
-                        <span className="font-bold text-xs text-slate-800">{name}</span>
-                        {day.is_day_off && <span className="block text-[10px] text-rose-500 font-bold">Hari Libur</span>}
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <span className="text-2xs text-slate-400">Masuk:</span>
-                          <Input
-                            type="time"
-                            aria-label={`Jam masuk ${name}`}
-                            value={day.start_time ? String(day.start_time).substring(0, 5) : ''}
-                            disabled={day.is_day_off}
-                            onChange={(e) => {
-                              const updatedDays = [...selectedShift.days];
-                              updatedDays[idx].start_time = e.target.value;
-                              setSelectedShift({ ...selectedShift, days: updatedDays });
-                            }}
-                            className="w-28 font-mono"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <span className="text-2xs text-slate-400">Pulang:</span>
-                          <Input
-                            type="time"
-                            aria-label={`Jam pulang ${name}`}
-                            value={day.end_time ? String(day.end_time).substring(0, 5) : ''}
-                            disabled={day.is_day_off}
-                            onChange={(e) => {
-                              const updatedDays = [...selectedShift.days];
-                              updatedDays[idx].end_time = e.target.value;
-                              setSelectedShift({ ...selectedShift, days: updatedDays });
-                            }}
-                            className="w-28 font-mono"
-                          />
-                        </div>
-
-                        <ToggleSwitch
-                          checked={!day.is_day_off}
-                          onChange={(checked) => {
-                            const updatedDays = [...selectedShift.days];
-                            updatedDays[idx].is_day_off = !checked;
-                            setSelectedShift({ ...selectedShift, days: updatedDays });
-                          }}
-                          label=""
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* KONTEN TAB 2: MESIN FINGERPRINT & BIOMETRIK */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'devices' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-primary-900 text-white p-6 rounded-3xl shadow-xs">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Fingerprint className="text-primary-300" size={24} />
-                <h3 className="text-base font-bold">Terminal Mesin Fingerprint & Biometrik Kampus</h3>
-              </div>
-              <p className="text-xs text-primary-100/90 max-w-2xl">
-                Kelola integrasi perangkat mesin sidik jari dan face terminal yang terhubung di jaringan LAN kampus. Punch log mesin otomatis disinkronkan ke SIMPEG dengan kalkulasi toleransi shift.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <Button
-                variant="outline"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
-                icon={<RefreshCw size={14} />}
-                onClick={fetchDevices}
-                disabled={loadingDevices}
-              >
-                Refresh
-              </Button>
-            </div>
-          </div>
-
-          {loadingDevices && devices.length === 0 ? (
-            <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl text-xs text-slate-500">
-              Memuat data mesin biometrik...
-            </div>
-          ) : devices.length === 0 ? (
-            <div className="p-8 text-center bg-white border border-slate-200 rounded-2xl space-y-3">
-              <Fingerprint className="mx-auto text-slate-300" size={40} />
-              <div className="font-bold text-slate-700 text-sm">Belum Ada Perangkat Mesin Terdaftar</div>
-              <p className="text-2xs text-slate-500 max-w-md mx-auto">
-                Daftarkan alamat IP dan port terminal mesin presensi di lobi/lab untuk memulai integrasi log kehadiran otomatis.
-              </p>
-              <Button icon={<Plus size={14} />} onClick={handleOpenCreateDevice}>
-                Tambah Mesin Presensi
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {devices.map((dev) => (
-                <div
-                  key={dev.id}
-                  className="bg-white border border-slate-200/90 hover:border-primary-300 rounded-2xl p-5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="font-mono text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-                          {dev.device_code}
-                        </span>
-                        <h4 className="font-bold text-sm text-slate-900 mt-0.5">{dev.device_name}</h4>
-                      </div>
-                      <Badge
-                        variant={dev.last_status === 'online' || dev.last_status === 'synced' ? 'success' : 'danger'}
-                        className="text-[10px] uppercase font-bold"
-                      >
-                        {dev.last_status === 'online' || dev.last_status === 'synced' ? (
-                          <span className="flex items-center gap-1">
-                            <Wifi size={10} /> Online
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <WifiOff size={10} /> Offline
-                          </span>
-                        )}
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-1.5 text-2xs text-slate-600 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">IP & Port:</span>
-                        <span className="font-mono font-bold text-slate-700">
-                          {dev.ip_address}:{dev.port}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Model:</span>
-                        <span className="font-semibold text-slate-700">{dev.device_model || '-'}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Lokasi:</span>
-                        <span className="text-slate-700 font-medium truncate max-w-[150px]">{dev.location || '-'}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Terakhir Sync:</span>
-                        <span className="font-mono text-slate-500">
-                          {dev.last_sync_at ? new Date(dev.last_sync_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Belum pernah'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      icon={<Wifi size={12} />}
-                      onClick={() => handleTestDevice(dev.id)}
-                      disabled={testingDeviceId === dev.id}
-                      className="text-xs"
-                    >
-                      {testingDeviceId === dev.id ? 'Memeriksa...' : 'Uji Koneksi'}
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        icon={<Edit2 size={12} />}
-                        onClick={() => handleOpenEditDevice(dev)}
-                      />
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        icon={<Trash2 size={12} />}
-                        onClick={() => handleDeleteDevice(dev)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* KONTEN TAB 3: LOKASI KANTOR (GEOFENCING) */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'office' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {offices.map((office) => (
-            <div
-              key={office.id}
-              className="p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-4 flex flex-col justify-between"
-            >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between">
-                  <div className="p-2.5 bg-primary-50 rounded-xl text-primary-700">
-                    <Building2 size={22} />
-                  </div>
-                  <Badge variant={office.is_active ? 'success' : 'secondary'}>
-                    {office.is_active ? 'Aktif' : 'Non-Aktif'}
-                  </Badge>
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">{office.name}</h3>
-                  <p className="text-2xs text-slate-500 mt-0.5 line-clamp-2">{office.address || 'Alamat belum disetel'}</p>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 space-y-2 text-2xs text-slate-600">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Koordinat GPS:</span>
-                  <span className="font-mono font-bold text-slate-800">
-                    {office.latitude}, {office.longitude}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Radius Geofence:</span>
-                  <span className="font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded border border-primary-200">
-                    {office.radius_meters} meter
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Pegawai Terdaftar:</span>
-                  <span className="font-semibold text-slate-700">{office.employees_count || 0} Pegawai</span>
-                </div>
-              </div>
-
-              {isAdmin && (
-                <div className="flex gap-2 pt-2 border-t border-slate-100">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full text-xs"
-                    icon={<Edit2 size={13} />}
-                    onClick={() => handleOpenEditOffice(office)}
-                  >
-                    Ubah
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    className="px-2.5"
-                    icon={<Trash2 size={13} />}
-                    onClick={() => handleDeleteOffice(office)}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* KONTEN TAB 4: PARAMETER SISTEM */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'settings' && (
-        <form onSubmit={handleSaveSettings} className="p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-6 max-w-2xl">
-          <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-            <div className="p-2.5 bg-primary-50 rounded-xl text-primary-700">
-              <SlidersHorizontal size={22} />
-            </div>
-            <div>
-              <h3 className="text-sm font-extrabold text-slate-900">Konfigurasi Validasi & Toleransi Absensi</h3>
-              <p className="text-2xs text-slate-500">Nilai parameter ini menjadi acuan server saat memproses presensi dari HP</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200">
             <Input
-              label="Ambang Batas Skor Kemiripan Wajah (Face Recognition Score) *"
+              placeholder="Cari nama template shift atau deskripsi..."
+              value={searchShift}
+              onChange={(e) => setSearchShift(e.target.value)}
+            />
+          </div>
+
+          <DataTable
+            columns={columnsShift}
+            data={filteredShifts}
+            isLoading={loadingShifts}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Clock size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada master template shift kerja yang terdaftar.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {/* ── TAB 2: MESIN PRESENSI & BIOMETRIK ── */}
+      {activeTab === 'devices' && (
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200">
+            <Input
+              placeholder="Cari kode mesin, nama perangkat, alamat IP, atau lokasi..."
+              value={searchDevice}
+              onChange={(e) => setSearchDevice(e.target.value)}
+            />
+          </div>
+
+          <DataTable
+            columns={columnsDevice}
+            data={filteredDevices}
+            isLoading={loadingDevices}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Fingerprint size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada terminal mesin fingerprint yang terdaftar.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {/* ── TAB 3: LOKASI KANTOR (GEOFENCING) ── */}
+      {activeTab === 'office' && (
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200">
+            <Input
+              placeholder="Cari nama kantor, gedung, atau alamat..."
+              value={searchOffice}
+              onChange={(e) => setSearchOffice(e.target.value)}
+            />
+          </div>
+
+          <DataTable
+            columns={columnsOffice}
+            data={filteredOffices}
+            isLoading={loadingOffices}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Building2 size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada lokasi kantor atau geofence yang terdaftar.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {/* ── TAB 4: KALENDER LIBUR & TANGGAL MERAH ── */}
+      {activeTab === 'holiday' && (
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+              <div className="md:col-span-6">
+                <Input
+                  placeholder="Cari nama hari libur atau perayaan..."
+                  value={searchHoliday}
+                  onChange={(e) => setSearchHoliday(e.target.value)}
+                />
+              </div>
+              <div className="md:col-span-3">
+                <Input
+                  type="number"
+                  value={holidayYear}
+                  onChange={(e) => setHolidayYear(parseInt(e.target.value) || new Date().getFullYear())}
+                />
+              </div>
+              <div className="md:col-span-3 flex justify-end">
+                <Button
+                  variant="outline"
+                  icon={<RefreshCw size={14} />}
+                  loading={syncingHolidays}
+                  disabled={syncingHolidays}
+                  onClick={handleSyncHolidays}
+                >
+                  Sync API Nasional
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DataTable
+            columns={columnsHoliday}
+            data={filteredHolidays}
+            isLoading={loadingHolidays}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Calendar size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada tanggal libur untuk tahun {holidayYear}.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {/* ── TAB 5: PARAMETER SISTEM & TOLERANSI ── */}
+      {activeTab === 'settings' && (
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <SlidersHorizontal size={24} className="text-[var(--module-primary)]" />
+              <div>
+                <p className="font-semibold text-slate-800 text-sm">Konfigurasi Validasi & Toleransi Absensi</p>
+                <p className="text-xs text-slate-500">Nilai parameter ini menjadi acuan server saat memproses presensi mobile dan mesin biometrik.</p>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={formSettings.handleSubmit(onSubmitSettings)} className="card p-6 border border-slate-200 max-w-2xl space-y-4">
+            <Input
+              label="Ambang Batas Skor Kemiripan Wajah (Face Recognition)"
               type="number"
               step="0.01"
               min="0.1"
               max="1.0"
-              hint="Rekomendasi model InsightFace: 0.80 (rentang 0.00 s/d 1.00). Nilai lebih tinggi menuntut kecocokan lebih presisi."
-              value={systemParams.face_score_threshold}
-              onChange={(e) => setSystemParams({ ...systemParams, face_score_threshold: parseFloat(e.target.value) || 0.80 })}
+              hint="Rekomendasi model InsightFace: 0.80 (rentang 0.00 s/d 1.00)."
+              error={formSettings.formState.errors.face_score_threshold?.message}
+              {...formSettings.register('face_score_threshold', { valueAsNumber: true })}
             />
 
             <Input
-              label="Batas Toleransi Akurasi GPS (Maksimal Meter) *"
+              label="Batas Toleransi Akurasi GPS (Maksimal Meter)"
               type="number"
               step="1"
               min="5"
               max="500"
-              hint="Maksimal ketidakpastian GPS HP (default 50.0 meter). Presensi ditolak jika sinyal GPS lemah melebihi batas ini."
-              value={systemParams.gps_accuracy_threshold_meters}
-              onChange={(e) => setSystemParams({ ...systemParams, gps_accuracy_threshold_meters: parseFloat(e.target.value) || 50.0 })}
+              hint="Maksimal ketidakpastian GPS HP (default 50.0 meter)."
+              error={formSettings.formState.errors.gps_accuracy_threshold_meters?.message}
+              {...formSettings.register('gps_accuracy_threshold_meters', { valueAsNumber: true })}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Toleransi Keterlambatan (Menit) *"
+                label="Toleransi Terlambat (Menit)"
                 type="number"
                 min="0"
                 max="120"
-                hint="Presensi masuk dalam toleransi tetap dihitung Tepat Waktu."
-                value={systemParams.late_tolerance_minutes}
-                onChange={(e) => setSystemParams({ ...systemParams, late_tolerance_minutes: parseInt(e.target.value) || 0 })}
+                error={formSettings.formState.errors.late_tolerance_minutes?.message}
+                {...formSettings.register('late_tolerance_minutes', { valueAsNumber: true })}
               />
 
               <Input
-                label="Toleransi Pulang Cepat (Menit) *"
+                label="Toleransi Pulang Cepat (Menit)"
                 type="number"
                 min="0"
                 max="120"
-                value={systemParams.early_leave_tolerance_minutes}
-                onChange={(e) => setSystemParams({ ...systemParams, early_leave_tolerance_minutes: parseInt(e.target.value) || 0 })}
+                error={formSettings.formState.errors.early_leave_tolerance_minutes?.message}
+                {...formSettings.register('early_leave_tolerance_minutes', { valueAsNumber: true })}
               />
             </div>
 
             <Input
-              label="Batas Buka Absen Masuk Lebih Awal (Menit Sebelum Jam Shift) *"
+              label="Batas Buka Absen Lebih Awal (Menit Sebelum Shift)"
               type="number"
               min="0"
               max="240"
-              hint="Contoh: 60 menit artinya jika shift jam 08:00, pegawai baru bisa absen mulai jam 07:00."
-              value={systemParams.max_early_clock_in_minutes}
-              onChange={(e) => setSystemParams({ ...systemParams, max_early_clock_in_minutes: parseInt(e.target.value) || 60 })}
+              hint="Contoh: 60 menit berarti shift jam 08:00 sudah bisa absen sejak 07:00."
+              error={formSettings.formState.errors.max_early_clock_in_minutes?.message}
+              {...formSettings.register('max_early_clock_in_minutes', { valueAsNumber: true })}
             />
 
-            <div className="pt-2">
-              <ToggleSwitch
-                checked={systemParams.applies_national_holidays}
-                onChange={(checked) => setSystemParams({ ...systemParams, applies_national_holidays: checked })}
-                label="Otomatis Terapkan Libur Nasional"
-                description="Menonaktifkan kewajiban presensi pada tanggal merah dan cuti bersama resmi pemerintah."
-              />
-            </div>
-          </div>
-
-          {isAdmin && (
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
-              <Button type="submit" icon={<Save size={16} />} loading={savingSettings} disabled={savingSettings}>
-                Simpan Perubahan Parameter
-              </Button>
-            </div>
-          )}
-        </form>
-      )}
-
-      {/* ------------------------------------------------------------- */}
-      {/* KONTEN TAB 5: KALENDER LIBUR & TANGGAL MERAH */}
-      {/* ------------------------------------------------------------- */}
-      {activeTab === 'holiday' && (
-        <div className="p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-rose-50 rounded-xl text-rose-700">
-                <Calendar size={20} />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900">Kalender Libur & Tanggal Merah</h3>
-                <p className="text-2xs text-slate-500">
-                  Daftar libur nasional, cuti bersama, dan libur khusus kampus. Tambah manual atau tarik otomatis via Sync API Nasional.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                aria-label="Filter tahun kalender libur"
-                value={holidayYear}
-                onChange={(e) => setHolidayYear(parseInt(e.target.value) || new Date().getFullYear())}
-                className="w-28"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                icon={<RefreshCw size={13} />}
-                onClick={() => fetchHolidays(holidayYear)}
-                disabled={loadingHolidays}
-              >
-                Muat Ulang
-              </Button>
-              {isAdmin && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  icon={<RefreshCw size={13} />}
-                  loading={syncingHolidays}
-                  disabled={syncingHolidays}
-                  onClick={handleSyncHolidays}
-                  title="Tarik daftar libur nasional & cuti bersama dari API publik Indonesia"
-                >
-                  Sync API Nasional
-                </Button>
+            <Controller
+              control={formSettings.control}
+              name="applies_national_holidays"
+              render={({ field }) => (
+                <ToggleSwitch
+                  checked={!!field.value}
+                  onChange={field.onChange}
+                  label="Otomatis Terapkan Libur Nasional"
+                  description="Menonaktifkan kewajiban presensi pada tanggal merah dan cuti bersama resmi pemerintah."
+                />
               )}
-            </div>
-          </div>
+            />
 
-          {loadingHolidays ? (
-            <div className="text-xs text-slate-500 py-4 text-center">Memuat tanggal libur {holidayYear}...</div>
-          ) : holidays.length === 0 ? (
-            <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center text-xs text-slate-500">
-              Belum ada tanggal libur untuk tahun {holidayYear}. Klik Tambah Libur untuk menambahkan tanggal merah / cuti bersama.
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {holidays.map((h: any) => (
-                <div key={h.id} className="py-2.5 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-center min-w-[64px]">
-                      <div className="text-sm font-extrabold text-slate-900">{(h.holiday_date || '').substring(8, 10)}</div>
-                      <div className="text-[10px] font-bold text-slate-500 uppercase">
-                        {new Date(h.holiday_date).toLocaleDateString('id-ID', { month: 'short' })}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-bold text-xs text-slate-900">{h.name}</div>
-                      <div className="text-2xs text-slate-500 font-mono">
-                        {new Date(h.holiday_date).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={h.is_mass_leave ? 'warning' : 'danger'} className="text-[10px]">
-                      {h.is_mass_leave ? 'Cuti Bersama' : 'Libur Nasional'}
-                    </Badge>
-                    {isAdmin && (
-                      <>
-                        <Button size="sm" variant="outline" icon={<Edit2 size={13} />} onClick={() => handleOpenEditHoliday(h)}>
-                          Ubah
-                        </Button>
-                        <Button size="sm" variant="danger" icon={<Trash2 size={13} />} onClick={() => handleDeleteHoliday(h)} />
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            {canManage && (
+              <div className="pt-4 border-t border-slate-100 flex justify-end">
+                <Button type="submit" icon={<Save size={16} />} loading={savingSettings} disabled={savingSettings || loadingSettings}>
+                  Simpan Perubahan Parameter
+                </Button>
+              </div>
+            )}
+          </form>
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL TAMBAH/UBAH TIPE SHIFT */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: TAMBAH / UBAH TIPE SHIFT ── */}
       <Modal
         open={showShiftModal}
         onClose={() => setShowShiftModal(false)}
@@ -1390,33 +1498,32 @@ export default function MasterPresensiPage() {
         size="lg"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowShiftModal(false)} disabled={savingShiftForm}>
+            <Button variant="outline" onClick={() => setShowShiftModal(false)}>
               Batal
             </Button>
-            <Button type="submit" loading={savingShiftForm} disabled={savingShiftForm} form="shift-form">
+            <Button type="submit" loading={formShift.formState.isSubmitting} disabled={formShift.formState.isSubmitting} form="shift-form">
               Simpan Tipe Shift
             </Button>
           </>
         }
       >
-        <form id="shift-form" onSubmit={handleSubmitShift(onSubmitShiftForm)} noValidate className="space-y-4">
+        <form id="shift-form" onSubmit={formShift.handleSubmit(onSubmitShiftForm)} noValidate className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <Input
                 label="Nama Tipe Shift"
-                placeholder="Contoh: Shift Pagi Satpam / Shift Malam Operasional"
+                placeholder="Contoh: Shift Pagi Satpam / Shift Reguler Tendik"
                 required
-                error={shiftErrors.name?.message}
-                {...registerShift('name')}
+                error={formShift.formState.errors.name?.message}
+                {...formShift.register('name')}
               />
             </div>
             <div className="md:col-span-2">
               <Input
                 label="Deskripsi"
-                placeholder="Contoh: Jam kerja 06:00 s/d 14:00 (Senin - Sabtu)"
-                hint="Opsional — penjelasan pola jam kerja tipe ini."
-                error={shiftErrors.description?.message}
-                {...registerShift('description')}
+                placeholder="Contoh: Pola jam kerja 08:00 s/d 16:00 (Senin - Jumat)"
+                error={formShift.formState.errors.description?.message}
+                {...formShift.register('description')}
               />
             </div>
             <Input
@@ -1425,8 +1532,8 @@ export default function MasterPresensiPage() {
               min={0}
               max={120}
               required
-              error={shiftErrors.late_tolerance_minutes?.message}
-              {...registerShift('late_tolerance_minutes')}
+              error={formShift.formState.errors.late_tolerance_minutes?.message}
+              {...formShift.register('late_tolerance_minutes', { valueAsNumber: true })}
             />
             <Input
               label="Toleransi Pulang Cepat (menit)"
@@ -1434,8 +1541,8 @@ export default function MasterPresensiPage() {
               min={0}
               max={120}
               required
-              error={shiftErrors.early_leave_tolerance_minutes?.message}
-              {...registerShift('early_leave_tolerance_minutes')}
+              error={formShift.formState.errors.early_leave_tolerance_minutes?.message}
+              {...formShift.register('early_leave_tolerance_minutes', { valueAsNumber: true })}
             />
             <div className="md:col-span-2">
               <Input
@@ -1445,46 +1552,123 @@ export default function MasterPresensiPage() {
                 max={240}
                 required
                 hint="Contoh: 60 berarti shift jam 08:00 sudah bisa absen sejak 07:00."
-                error={shiftErrors.max_early_clock_in_minutes?.message}
-                {...registerShift('max_early_clock_in_minutes')}
+                error={formShift.formState.errors.max_early_clock_in_minutes?.message}
+                {...formShift.register('max_early_clock_in_minutes', { valueAsNumber: true })}
               />
             </div>
           </div>
           <Controller
-            control={controlShift}
+            control={formShift.control}
             name="applies_national_holidays"
             render={({ field }) => (
               <ToggleSwitch
                 checked={!!field.value}
                 onChange={field.onChange}
                 label="Berlaku Libur Nasional"
-                description="Nonaktifkan untuk shift khusus (satpam/operasional) yang tetap wajib masuk saat tanggal merah."
+                description="Nonaktifkan untuk shift khusus yang tetap wajib masuk saat tanggal merah."
               />
             )}
           />
           <Controller
-            control={controlShift}
+            control={formShift.control}
             name="is_active"
             render={({ field }) => (
               <ToggleSwitch
                 checked={!!field.value}
                 onChange={field.onChange}
                 label="Status Shift Aktif"
-                description="Jika dinonaktifkan, tipe shift tidak bisa dipilih untuk pegawai baru."
+                description="Jika dinonaktifkan, tipe shift tidak bisa dipilih untuk penugasan baru."
               />
             )}
           />
-          {!editingShift && (
-            <p className="text-[11px] text-slate-500">
-              Setelah disimpan, atur jam masuk/pulang per hari (Senin s/d Minggu) pada panel Jadwal Harian.
-            </p>
-          )}
         </form>
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL PENUGASAN SHIFT MASSAL */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: ATUR JADWAL HARIAN (7 HARI) ── */}
+      <Modal
+        open={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        title={`Atur Jadwal Harian: ${selectedShiftForSchedule?.name || ''}`}
+        size="lg"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowScheduleModal(false)} disabled={savingSchedule}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveShiftSchedule} loading={savingSchedule} disabled={savingSchedule}>
+              Simpan Jadwal Harian
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Atur jam masuk, jam pulang, dan status hari kerja/libur untuk masing-masing hari dari Senin sampai Minggu.
+          </p>
+
+          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+            {selectedShiftForSchedule?.days?.map((day: any, idx: number) => {
+              const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+              const name = dayNames[day.day_of_week] || `Hari ${day.day_of_week}`;
+
+              return (
+                <div key={day.id || idx} className="py-2.5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="w-28">
+                    <span className="font-bold text-xs text-slate-800">{name}</span>
+                    {day.is_day_off && <span className="block text-[10px] text-rose-500 font-bold">Hari Libur</span>}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-xs text-slate-400">Masuk:</span>
+                      <Input
+                        type="time"
+                        aria-label={`Jam masuk ${name}`}
+                        value={day.start_time ? String(day.start_time).substring(0, 5) : ''}
+                        disabled={day.is_day_off}
+                        onChange={(e) => {
+                          const updatedDays = [...selectedShiftForSchedule.days];
+                          updatedDays[idx].start_time = e.target.value;
+                          setSelectedShiftForSchedule({ ...selectedShiftForSchedule, days: updatedDays });
+                        }}
+                        className="w-28 font-mono"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="text-xs text-slate-400">Pulang:</span>
+                      <Input
+                        type="time"
+                        aria-label={`Jam pulang ${name}`}
+                        value={day.end_time ? String(day.end_time).substring(0, 5) : ''}
+                        disabled={day.is_day_off}
+                        onChange={(e) => {
+                          const updatedDays = [...selectedShiftForSchedule.days];
+                          updatedDays[idx].end_time = e.target.value;
+                          setSelectedShiftForSchedule({ ...selectedShiftForSchedule, days: updatedDays });
+                        }}
+                        className="w-28 font-mono"
+                      />
+                    </div>
+
+                    <ToggleSwitch
+                      checked={!day.is_day_off}
+                      onChange={(checked) => {
+                        const updatedDays = [...selectedShiftForSchedule.days];
+                        updatedDays[idx].is_day_off = !checked;
+                        setSelectedShiftForSchedule({ ...selectedShiftForSchedule, days: updatedDays });
+                      }}
+                      label=""
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── MODAL: PENUGASAN SHIFT MASSAL ── */}
       <Modal
         open={showBulkShiftModal}
         onClose={() => setShowBulkShiftModal(false)}
@@ -1492,59 +1676,76 @@ export default function MasterPresensiPage() {
         size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowBulkShiftModal(false)} disabled={savingBulkShift}>
+            <Button variant="outline" onClick={() => setShowBulkShiftModal(false)}>
               Batal
             </Button>
-            <Button onClick={handleSaveBulkShift} loading={savingBulkShift} disabled={savingBulkShift}>
+            <Button type="submit" loading={formBulkShift.formState.isSubmitting} disabled={formBulkShift.formState.isSubmitting} form="bulk-shift-form">
               Tugaskan Sekarang
             </Button>
           </>
         }
       >
-        <form onSubmit={handleSaveBulkShift} className="space-y-4">
-          <div className="p-3 bg-primary-50 border border-primary-200 rounded-xl text-xs text-primary-900 flex items-start gap-2">
-            <Users className="text-primary-600 mt-0.5 shrink-0" size={16} />
-            <p className="text-2xs">
-              Terapkan template shift ke seluruh pegawai dalam satu unit kerja atau kategori sekaligus tanpa perlu mengedit profil satu per satu.
+        <form id="bulk-shift-form" onSubmit={formBulkShift.handleSubmit(onSubmitBulkShift)} className="space-y-4">
+          <div className="p-3 bg-[var(--module-primary-subtle)] border border-[var(--module-primary)]/20 rounded-xl text-xs text-slate-800 flex items-start gap-2">
+            <Users className="text-[var(--module-primary)] mt-0.5 shrink-0" size={16} />
+            <p className="text-xs">
+              Terapkan template shift ke seluruh pegawai dalam satu unit kerja atau kategori sekaligus secara otomatis.
             </p>
           </div>
 
-          <Select
-            label="Template Shift Target *"
-            value={bulkShiftForm.shift_template_id ? String(bulkShiftForm.shift_template_id) : ''}
-            onChange={(val) => setBulkShiftForm({ ...bulkShiftForm, shift_template_id: Number(val) })}
-            options={[
-              { value: '', label: '-- Pilih Tipe Shift --' },
-              ...shifts.map((s) => ({ value: String(s.id), label: `${s.name} (Toleransi: ${s.late_tolerance_minutes}m)` })),
-            ]}
+          <Controller
+            control={formBulkShift.control}
+            name="shift_template_id"
+            render={({ field }) => (
+              <Select
+                label="Template Shift Target *"
+                value={field.value ? String(field.value) : ''}
+                onChange={(val) => field.onChange(Number(val))}
+                error={formBulkShift.formState.errors.shift_template_id?.message}
+                options={[
+                  { value: '', label: '-- Pilih Tipe Shift --' },
+                  ...shifts.map((s) => ({ value: String(s.id), label: `${s.name} (Toleransi: ${s.late_tolerance_minutes}m)` })),
+                ]}
+              />
+            )}
           />
 
-          <Select
-            label="Filter Unit Kerja (Opsional)"
-            value={bulkShiftForm.unit_kerja_id ? String(bulkShiftForm.unit_kerja_id) : ''}
-            onChange={(val) => setBulkShiftForm({ ...bulkShiftForm, unit_kerja_id: val ? Number(val) : 0 })}
-            options={[
-              { value: '', label: '-- Seluruh Unit Kerja Kampus --' },
-              ...unitKerjaOptions.map((u) => ({ value: String(u.value), label: u.label })),
-            ]}
+          <Controller
+            control={formBulkShift.control}
+            name="unit_kerja_id"
+            render={({ field }) => (
+              <Select
+                label="Filter Unit Kerja (Opsional)"
+                value={field.value ? String(field.value) : ''}
+                onChange={(val) => field.onChange(val ? Number(val) : 0)}
+                options={[
+                  { value: '', label: '-- Seluruh Unit Kerja Kampus --' },
+                  ...unitKerjaOptions.map((u) => ({ value: String(u.value), label: u.label })),
+                ]}
+              />
+            )}
           />
 
-          <Select
-            label="Filter Kategori Pegawai (Opsional)"
-            value={bulkShiftForm.jenis_pegawai}
-            onChange={(val) => setBulkShiftForm({ ...bulkShiftForm, jenis_pegawai: val as any })}
-            options={[
-              { value: '', label: '-- Semua Pegawai (Dosen & Tendik) --' },
-              { value: 'dosen', label: 'Khusus Dosen' },
-              { value: 'tendik', label: 'Khusus Tenaga Kependidikan (Tendik)' },
-            ]}
+          <Controller
+            control={formBulkShift.control}
+            name="jenis_pegawai"
+            render={({ field }) => (
+              <Select
+                label="Filter Kategori Pegawai (Opsional)"
+                value={field.value || ''}
+                onChange={(val) => field.onChange(val)}
+                options={[
+                  { value: '', label: '-- Semua Pegawai (Dosen & Tendik) --' },
+                  { value: 'dosen', label: 'Khusus Dosen' },
+                  { value: 'tendik', label: 'Khusus Tenaga Kependidikan (Tendik)' },
+                ]}
+              />
+            )}
           />
         </form>
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL TAMBAH/EDIT MESIN PRESENSI FINGERPRINT */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: TAMBAH / UBAH MESIN PRESENSI ── */}
       <Modal
         open={showDeviceModal}
         onClose={() => setShowDeviceModal(false)}
@@ -1552,24 +1753,24 @@ export default function MasterPresensiPage() {
         size="lg"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowDeviceModal(false)} disabled={savingDevice}>
+            <Button variant="outline" onClick={() => setShowDeviceModal(false)}>
               Batal
             </Button>
-            <Button type="submit" loading={savingDevice} disabled={savingDevice} form="device-form">
+            <Button type="submit" loading={formDevice.formState.isSubmitting} disabled={formDevice.formState.isSubmitting} form="device-form">
               Simpan Perangkat
             </Button>
           </>
         }
       >
-        <form id="device-form" onSubmit={handleSaveDevice} className="space-y-4">
+        <form id="device-form" onSubmit={formDevice.handleSubmit(onSubmitDevice)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <Input
                 label="Nama Mesin Presensi *"
                 placeholder="Contoh: Terminal Fingerprint Rektorat Lt. 1"
                 required
-                value={deviceForm.device_name}
-                onChange={(e) => setDeviceForm({ ...deviceForm, device_name: e.target.value })}
+                error={formDevice.formState.errors.device_name?.message}
+                {...formDevice.register('device_name')}
               />
             </div>
 
@@ -1577,74 +1778,81 @@ export default function MasterPresensiPage() {
               label="Kode Perangkat Mesin *"
               placeholder="Contoh: FP-UTAMA-REKTORAT"
               required
-              value={deviceForm.device_code}
-              onChange={(e) => setDeviceForm({ ...deviceForm, device_code: e.target.value })}
+              error={formDevice.formState.errors.device_code?.message}
+              {...formDevice.register('device_code')}
             />
 
             <Input
               label="Alamat IP (LAN) *"
               placeholder="Contoh: 192.168.1.201"
               required
-              value={deviceForm.ip_address}
-              onChange={(e) => setDeviceForm({ ...deviceForm, ip_address: e.target.value })}
+              error={formDevice.formState.errors.ip_address?.message}
+              {...formDevice.register('ip_address')}
             />
 
             <Input
               label="Port TCP *"
               type="number"
               required
-              value={deviceForm.port}
-              onChange={(e) => setDeviceForm({ ...deviceForm, port: parseInt(e.target.value) || 4370 })}
+              error={formDevice.formState.errors.port?.message}
+              {...formDevice.register('port', { valueAsNumber: true })}
             />
 
             <Input
               label="Model / Merk Mesin"
               placeholder="Contoh: ZKTeco ProCapture-X"
-              value={deviceForm.device_model}
-              onChange={(e) => setDeviceForm({ ...deviceForm, device_model: e.target.value })}
+              error={formDevice.formState.errors.device_model?.message}
+              {...formDevice.register('device_model')}
             />
 
             <div className="md:col-span-2">
               <Input
                 label="Lokasi Pemasangan"
                 placeholder="Contoh: Lobi Gedung Rektorat Sayap Timur"
-                value={deviceForm.location}
-                onChange={(e) => setDeviceForm({ ...deviceForm, location: e.target.value })}
+                error={formDevice.formState.errors.location?.message}
+                {...formDevice.register('location')}
               />
             </div>
 
             {offices.length > 0 && (
               <div className="md:col-span-2">
-                <Select
-                  label="Asosiasi Lokasi Kantor (Geofence)"
-                  value={deviceForm.office_location_id ? String(deviceForm.office_location_id) : ''}
-                  onChange={(val) => setDeviceForm({ ...deviceForm, office_location_id: val ? Number(val) : undefined })}
-                  options={[
-                    { value: '', label: '-- Pilih Lokasi Kantor --' },
-                    ...offices.map((o) => ({ value: String(o.id), label: o.name })),
-                  ]}
+                <Controller
+                  control={formDevice.control}
+                  name="office_location_id"
+                  render={({ field }) => (
+                    <Select
+                      label="Asosiasi Lokasi Kantor (Geofence)"
+                      value={field.value ? String(field.value) : ''}
+                      onChange={(val) => field.onChange(val ? Number(val) : undefined)}
+                      options={[
+                        { value: '', label: '-- Pilih Lokasi Kantor --' },
+                        ...offices.map((o) => ({ value: String(o.id), label: o.name })),
+                      ]}
+                    />
+                  )}
                 />
               </div>
             )}
 
-            <div className="md:col-span-2 flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <div>
-                <span className="font-bold text-xs text-slate-800">Status Aktif Mesin</span>
-                <p className="text-2xs text-slate-500">Perangkat aktif akan dipindai secara berkala</p>
-              </div>
-              <ToggleSwitch
-                checked={deviceForm.is_active}
-                onChange={(checked) => setDeviceForm({ ...deviceForm, is_active: checked })}
-                label=""
+            <div className="md:col-span-2">
+              <Controller
+                control={formDevice.control}
+                name="is_active"
+                render={({ field }) => (
+                  <ToggleSwitch
+                    checked={!!field.value}
+                    onChange={field.onChange}
+                    label="Status Aktif Mesin"
+                    description="Perangkat aktif akan dipindai secara berkala oleh daemon sinkronisasi"
+                  />
+                )}
               />
             </div>
           </div>
         </form>
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL SIMULASI / PUSH PUNCH LOG */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: SIMULASI / PUSH PUNCH LOG ── */}
       <Modal
         open={showSyncModal}
         onClose={() => setShowSyncModal(false)}
@@ -1652,93 +1860,105 @@ export default function MasterPresensiPage() {
         size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowSyncModal(false)} disabled={savingSync}>
+            <Button variant="outline" onClick={() => setShowSyncModal(false)}>
               Tutup
             </Button>
-            <Button onClick={handlePushSyncLogs} loading={savingSync} disabled={savingSync}>
+            <Button type="submit" loading={formSyncLog.formState.isSubmitting} disabled={formSyncLog.formState.isSubmitting} form="sync-log-form">
               Sinkronkan Sekarang
             </Button>
           </>
         }
       >
-        <form onSubmit={handlePushSyncLogs} className="space-y-4">
-          <div className="p-3 bg-primary-50 border border-primary-200 rounded-xl text-xs text-primary-900 flex items-start gap-2">
-            <Fingerprint className="text-primary-600 mt-0.5 shrink-0" size={16} />
-            <p className="text-2xs">
-              Uji coba sinkronisasi data punch log dari mesin terminal biometrik. Sistem akan otomatis mencocokkan NIP, jadwal shift, dan mendeteksi keterlambatan.
+        <form id="sync-log-form" onSubmit={formSyncLog.handleSubmit(onSubmitSyncLog)} className="space-y-4">
+          <div className="p-3 bg-[var(--module-primary-subtle)] border border-[var(--module-primary)]/20 rounded-xl text-xs text-slate-800 flex items-start gap-2">
+            <Fingerprint className="text-[var(--module-primary)] mt-0.5 shrink-0" size={16} />
+            <p className="text-xs">
+              Uji coba sinkronisasi data punch log mesin terminal. Sistem akan otomatis mencocokkan NIP, toleransi, dan mendeteksi jam masuk/pulang.
             </p>
           </div>
 
-          <Select
-            label="Pilih Mesin Fingerprint"
-            value={syncForm.device_code}
-            onChange={(val) => setSyncForm({ ...syncForm, device_code: val })}
-            options={[
-              { value: '', label: '-- Pilih Mesin --' },
-              ...devices.map((d) => ({ value: d.device_code, label: `${d.device_name} (${d.device_code})` })),
-            ]}
+          <Controller
+            control={formSyncLog.control}
+            name="device_code"
+            render={({ field }) => (
+              <Select
+                label="Pilih Mesin Fingerprint *"
+                value={field.value}
+                onChange={field.onChange}
+                error={formSyncLog.formState.errors.device_code?.message}
+                options={[
+                  { value: '', label: '-- Pilih Mesin --' },
+                  ...devices.map((d) => ({ value: d.device_code, label: `${d.device_name} (${d.device_code})` })),
+                ]}
+              />
+            )}
           />
 
           <Input
             label="NIP / PIN Pegawai *"
             placeholder="Contoh: 198501152010121001 atau TENDIK-001"
             required
-            value={syncForm.nip}
-            onChange={(e) => setSyncForm({ ...syncForm, nip: e.target.value })}
+            error={formSyncLog.formState.errors.nip?.message}
+            {...formSyncLog.register('nip')}
           />
 
           <Input
             label="Waktu Punch (Tanggal & Jam) *"
             placeholder="YYYY-MM-DD HH:mm:ss"
             required
-            value={syncForm.timestamp}
-            onChange={(e) => setSyncForm({ ...syncForm, timestamp: e.target.value })}
+            error={formSyncLog.formState.errors.timestamp?.message}
+            {...formSyncLog.register('timestamp')}
           />
 
-          <Select
-            label="Mode Absensi (In/Out)"
-            value={String(syncForm.in_out_mode)}
-            onChange={(val) => setSyncForm({ ...syncForm, in_out_mode: Number(val) })}
-            options={[
-              { value: '0', label: 'Clock In (Masuk)' },
-              { value: '1', label: 'Clock Out (Pulang)' },
-            ]}
+          <Controller
+            control={formSyncLog.control}
+            name="in_out_mode"
+            render={({ field }) => (
+              <Select
+                label="Mode Absensi (In/Out)"
+                value={String(field.value)}
+                onChange={(val) => field.onChange(Number(val))}
+                options={[
+                  { value: '0', label: 'Clock In (Masuk)' },
+                  { value: '1', label: 'Clock Out (Pulang)' },
+                ]}
+              />
+            )}
           />
         </form>
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL TAMBAH/EDIT LOKASI KANTOR */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: TAMBAH / UBAH LOKASI KANTOR ── */}
       <Modal
         open={showOfficeModal}
         onClose={() => setShowOfficeModal(false)}
         title={editingOffice ? 'Ubah Lokasi Kantor' : 'Tambah Lokasi Kantor Baru'}
+        size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowOfficeModal(false)} disabled={savingOffice}>
+            <Button variant="outline" onClick={() => setShowOfficeModal(false)}>
               Batal
             </Button>
-            <Button type="submit" loading={savingOffice} disabled={savingOffice} form="office-form">
+            <Button type="submit" loading={formOffice.formState.isSubmitting} disabled={formOffice.formState.isSubmitting} form="office-form">
               Simpan Lokasi
             </Button>
           </>
         }
       >
-        <form id="office-form" onSubmit={handleSaveOffice} className="space-y-4">
+        <form id="office-form" onSubmit={formOffice.handleSubmit(onSubmitOffice)} className="space-y-4">
           <Input
             label="Nama Kantor / Gedung *"
-            placeholder="Contoh: Politeknik Indonusa Surakarta"
+            placeholder="Contoh: Kampus Utama Politeknik Indonusa Surakarta"
             required
-            value={officeForm.name}
-            onChange={(e) => setOfficeForm({ ...officeForm, name: e.target.value })}
+            error={formOffice.formState.errors.name?.message}
+            {...formOffice.register('name')}
           />
 
           <Input
             label="Alamat Lengkap"
             placeholder="Contoh: Jl. KH Samanhudi No.84, Surakarta"
-            value={officeForm.address}
-            onChange={(e) => setOfficeForm({ ...officeForm, address: e.target.value })}
+            error={formOffice.formState.errors.address?.message}
+            {...formOffice.register('address')}
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -1747,16 +1967,16 @@ export default function MasterPresensiPage() {
               type="number"
               step="0.0000001"
               required
-              value={officeForm.latitude}
-              onChange={(e) => setOfficeForm({ ...officeForm, latitude: parseFloat(e.target.value) || 0 })}
+              error={formOffice.formState.errors.latitude?.message}
+              {...formOffice.register('latitude', { valueAsNumber: true })}
             />
             <Input
               label="Longitude *"
               type="number"
               step="0.0000001"
               required
-              value={officeForm.longitude}
-              onChange={(e) => setOfficeForm({ ...officeForm, longitude: parseFloat(e.target.value) || 0 })}
+              error={formOffice.formState.errors.longitude?.message}
+              {...formOffice.register('longitude', { valueAsNumber: true })}
             />
           </div>
 
@@ -1766,69 +1986,80 @@ export default function MasterPresensiPage() {
             min="10"
             max="5000"
             required
-            hint="Pegawai hanya dapat absen jika jarak perangkat ke titik koordinat berada dalam batas radius ini."
-            value={officeForm.radius_meters}
-            onChange={(e) => setOfficeForm({ ...officeForm, radius_meters: parseInt(e.target.value) || 150 })}
+            hint="Pegawai hanya dapat absen jika posisi berada dalam batas radius ini."
+            error={formOffice.formState.errors.radius_meters?.message}
+            {...formOffice.register('radius_meters', { valueAsNumber: true })}
           />
 
-          <ToggleSwitch
-            checked={officeForm.is_active}
-            onChange={(checked) => setOfficeForm({ ...officeForm, is_active: checked })}
-            label="Status Lokasi Aktif"
-            description="Jika dinonaktifkan, pegawai tidak dapat melakukan presensi di lokasi ini."
+          <Controller
+            control={formOffice.control}
+            name="is_active"
+            render={({ field }) => (
+              <ToggleSwitch
+                checked={!!field.value}
+                onChange={field.onChange}
+                label="Status Lokasi Aktif"
+                description="Jika dinonaktifkan, pegawai tidak dapat melakukan presensi di lokasi ini."
+              />
+            )}
           />
         </form>
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL TAMBAH/EDIT TANGGAL LIBUR */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: TAMBAH / UBAH TANGGAL LIBUR ── */}
       <Modal
         open={showHolidayModal}
         onClose={() => setShowHolidayModal(false)}
         title={editingHoliday ? 'Ubah Tanggal Libur' : 'Tambah Tanggal Libur'}
+        size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowHolidayModal(false)} disabled={savingHoliday}>
+            <Button variant="outline" onClick={() => setShowHolidayModal(false)}>
               Batal
             </Button>
-            <Button type="submit" loading={savingHoliday} disabled={savingHoliday} form="holiday-form">
+            <Button type="submit" loading={formHoliday.formState.isSubmitting} disabled={formHoliday.formState.isSubmitting} form="holiday-form">
               Simpan Libur
             </Button>
           </>
         }
       >
-        <form id="holiday-form" onSubmit={handleSaveHoliday} className="space-y-4">
+        <form id="holiday-form" onSubmit={formHoliday.handleSubmit(onSubmitHoliday)} className="space-y-4">
           <Input
             label="Tanggal Libur *"
             type="date"
             required
-            value={holidayForm.holiday_date}
-            onChange={(e) => setHolidayForm({ ...holidayForm, holiday_date: e.target.value })}
+            error={formHoliday.formState.errors.holiday_date?.message}
+            {...formHoliday.register('holiday_date')}
           />
           <Input
             label="Nama Libur *"
-            placeholder="Contoh: Hari Kemerdekaan RI / Cuti Bersama Lebaran"
+            placeholder="Contoh: Hari Kemerdekaan RI / Cuti Bersama Idul Fitri"
             required
-            value={holidayForm.name}
-            onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })}
+            error={formHoliday.formState.errors.name?.message}
+            {...formHoliday.register('name')}
           />
-          <ToggleSwitch
-            checked={holidayForm.is_mass_leave}
-            onChange={(checked) => setHolidayForm({ ...holidayForm, is_mass_leave: checked })}
-            label="Cuti Bersama?"
-            description="Aktifkan bila ini cuti bersama, matikan bila libur nasional / tanggal merah."
+          <Controller
+            control={formHoliday.control}
+            name="is_mass_leave"
+            render={({ field }) => (
+              <ToggleSwitch
+                checked={!!field.value}
+                onChange={field.onChange}
+                label="Cuti Bersama?"
+                description="Aktifkan bila ini cuti bersama, matikan bila libur nasional / tanggal merah."
+              />
+            )}
           />
           <Input
             label="Keterangan (opsional)"
             placeholder="Contoh: SKB 3 Menteri"
-            value={holidayForm.description}
-            onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
+            error={formHoliday.formState.errors.description?.message}
+            {...formHoliday.register('description')}
           />
         </form>
       </Modal>
 
-      {/* Dialog Konfirmasi Hapus */}
+      {/* ── CONFIRM DIALOG ── */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
