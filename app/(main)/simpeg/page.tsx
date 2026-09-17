@@ -28,8 +28,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Hero } from '@/components/ui/Hero';
 import { StatCard } from '@/components/ui/StatCard';
-import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
-import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, UnitKerja, DokumenPegawai, PengajuanCuti, PresensiPegawai, GajiPegawai, UsulanJafung } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
@@ -42,7 +40,6 @@ export default function SimpegDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   // Admin Data State
-  const [pegawaiList, setPegawaiList] = useState<Pegawai[]>([]);
   const [unitKerjaList, setUnitKerjaList] = useState<UnitKerja[]>([]);
   const [stats, setStats] = useState({
     totalPegawai: 0,
@@ -101,7 +98,6 @@ export default function SimpegDashboardPage() {
             totalTendik: resStats.data.total_tendik,
             totalUnitKerja: resStats.data.total_unit_kerja,
           });
-          setPegawaiList(resStats.data.recent_pegawai || []);
         }
         setUnitKerjaList(resUnit?.data || []);
       } else {
@@ -568,61 +564,6 @@ export default function SimpegDashboardPage() {
   // -------------------------------------------------------------
   // RENDER ADMIN VIEW (FOR SUPER ADMIN / OPERATOR SDM)
   // -------------------------------------------------------------
-  const recentColumns: ColumnDef<Pegawai>[] = [
-    {
-      key: 'identity',
-      label: 'NIDN / NUPTK / NIP',
-      render: (p) => {
-        const nidn = p.nidn || p.dosen?.nidn;
-        const nuptk = p.nuptk || p.dosen?.nuptk;
-        const identity = nidn || nuptk || p.nip || p.nik || '-';
-        return <span className="font-mono font-bold text-primary-700">{identity}</span>;
-      },
-    },
-    {
-      key: 'nama_lengkap',
-      label: 'Nama Lengkap',
-      render: (p) => (
-        <div>
-          <div className="font-bold text-slate-800">{p.nama_gelar || p.nama_lengkap}</div>
-          <div className="text-xs text-slate-400">{p.telepon || '-'}</div>
-        </div>
-      ),
-    },
-    {
-      key: 'jenis_pegawai',
-      label: 'Jenis Pegawai / Role',
-      render: (p) => (
-        <div className="flex flex-wrap gap-1">
-          {p.roles && p.roles.length > 0 ? (
-            p.roles.map((r) => (
-              <Badge key={r.id} variant="purple" className="text-2xs font-semibold">
-                {r.name}
-              </Badge>
-            ))
-          ) : (
-            <Badge variant="blue" className="text-2xs">
-              {p.jenis_pegawai}
-            </Badge>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'unit_kerja',
-      label: 'Unit Kerja',
-      render: (p) => <span className="text-sm text-slate-700">{p.unit_kerja?.nama || '-'}</span>,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (p) => (
-        <Badge variant={p.status === 'aktif' ? 'green' : 'gray'} className="capitalize text-xs">
-          {p.status}
-        </Badge>
-      ),
-    },
-  ];
 
   return (
     <div className="animate-fade-in space-y-7">
@@ -731,31 +672,6 @@ export default function SimpegDashboardPage() {
             Pengaturan Jabatan Struktural serta Jabatan Fungsional Akademik (Lektor, Guru Besar).
           </p>
         </Link>
-      </div>
-
-      {/* Recent Pegawai Section */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h3 className="text-lg font-bold">
-              Data Pegawai Terkini
-            </h3>
-            <p className="text-[0.8125rem] text-slate-500">
-              Pegawai yang baru ditambahkan ke dalam database SIMPEG
-            </p>
-          </div>
-
-          <Link href="/simpeg/pegawai" className="btn btn-outline btn-sm">
-            Lihat Semua Pegawai →
-          </Link>
-        </div>
-
-        <DataTable
-          columns={recentColumns}
-          data={pegawaiList}
-          isLoading={loading}
-          emptyMessage="Belum ada data pegawai terdaftar."
-        />
       </div>
     </div>
   );
