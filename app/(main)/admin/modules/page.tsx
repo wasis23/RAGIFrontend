@@ -20,6 +20,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import type { PaginationMeta } from '@/types/api.types';
+import { useUiStore } from '@/store/uiStore';
 
 const moduleSchema = z.object({
   name: z.string().min(1, 'Nama modul wajib diisi').max(255, 'Nama modul maksimal 255 karakter'),
@@ -49,6 +50,7 @@ export default function AdminModulePage() {
   const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
 
   // Modal State
+  const { updateModuleColor } = useUiStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -195,7 +197,7 @@ export default function AdminModulePage() {
       code: mod.code,
       description: mod.description || '',
       primary_color: mod.primary_color || '#3b82f6',
-      is_active: mod.is_active,
+      is_active: Boolean(mod.is_active),
     });
     setIsModalOpen(true);
   };
@@ -212,9 +214,11 @@ export default function AdminModulePage() {
       };
       if (modalMode === 'create') {
         await moduleService.createModule(payload);
+        updateModuleColor(payload.code, payload.primary_color);
         toast.success('Modul berhasil ditambahkan');
       } else if (editId) {
         await moduleService.updateModule(editId, payload as UpdateModulePayload);
+        updateModuleColor(payload.code, payload.primary_color);
         toast.success('Modul berhasil diperbarui');
       }
       setIsModalOpen(false);
@@ -466,6 +470,7 @@ export default function AdminModulePage() {
               render={({ field }) => (
                 <Input
                   label="Warna Primary Modul"
+                  name="primary_color"
                   placeholder="#3b82f6"
                   error={errors.primary_color?.message}
                   value={field.value || ''}

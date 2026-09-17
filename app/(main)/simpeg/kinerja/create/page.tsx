@@ -135,8 +135,11 @@ export default function CreateSkpPage() {
   // Async load pegawai untuk pemilihan admin
   const loadPegawaiOptions = async (query: string) => {
     try {
-      const res = await simpegService.getPegawaiList({ search: query, per_page: 15 } as any);
-      const items = (res as any)?.data || [];
+      const res = await simpegService.getPegawaiList({ search: query, per_page: 20 } as any);
+      const responseData = (res as any)?.data || res;
+      const items: Pegawai[] = Array.isArray(responseData)
+        ? responseData
+        : responseData?.data || responseData?.items || [];
       return items.map((p: Pegawai) => ({
         value: String(p.id),
         label: `${p.nama_lengkap} ${p.nip ? `[NIP: ${p.nip}]` : ''}`,

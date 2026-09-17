@@ -497,6 +497,49 @@ export const simpegService = {
     return data;
   },
 
+  // Master Skala Gaji Pokok (Masa Kerja)
+  getSkalaGajiList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll/skala-gaji', { params });
+    return data;
+  },
+
+  createSkalaGaji: async (payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/skala-gaji', payload);
+    return data;
+  },
+
+  updateSkalaGaji: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/payroll/skala-gaji/${id}`, payload);
+    return data;
+  },
+
+  deleteSkalaGaji: async (id: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/simpeg/payroll/skala-gaji/${id}`);
+    return data;
+  },
+
+  // Tunjangan Jabatan Fungsional Akademik (Dosen)
+  getJafungTunjanganList: async (params?: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll/jafung-tunjangan', { params });
+    return data;
+  },
+
+  updateJafungTunjangan: async (id: number, tunjangan_nominal: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/payroll/jafung-tunjangan/${id}`, { tunjangan_nominal });
+    return data;
+  },
+
+  // Master Bracket Tarif PPh 21 (TER)
+  getBracketPph21List: async (): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll/bracket-pph21');
+    return data;
+  },
+
+  updateBracketPph21: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/payroll/bracket-pph21/${id}`, payload);
+    return data;
+  },
+
   // Komponen Gaji Spesifik Pegawai
   getPegawaiKomponenList: async (pegawaiId: number): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/payroll/pegawai/${pegawaiId}/komponen`);

@@ -27,6 +27,7 @@ Sebelum mengeksekusi tugas apapun, Anda WAJIB memeriksa daftar skill di bawah in
 | `module-color-theme-reviewer` | `.agent/skills/module_color_theme_reviewer/SKILL.md` | Diminta merancang, membuat, atau mereview penggunaan warna primary modul dan keselarasan tema menu modul. |
 | `rbac-refactoring-standard` | `.agent/skills/rbac_refactoring_standard/SKILL.md` | Melakukan refaktor komponen, perbaikan UI, atau mendesain pengecekan akses (RBAC) tanpa mengandalkan tipe user statis. |
 | `module-management-standard`| `../RAGIBackend/.agent/skills/module_management_standard/SKILL.md` | Merancang, menambah, atau memodifikasi modul aplikasi (Master Modul) di ekosistem kampus terintegrasi. |
+| `audit-fungsional-crud` | `.agent/skills/audit_fungsional_crud/SKILL.md` | Diminta menguji, mengaudit, atau memverifikasi fungsi operasional halaman/form CRUD, dropdown data, integrasi API, dan alur bisnis modul. |
 
 ## Aturan Wajib
 1. **BACA** SKILL.md yang relevan sebelum mulai coding. Jangan asumsikan — baca dulu.

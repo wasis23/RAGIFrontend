@@ -45,6 +45,7 @@ export interface JabatanFungsionalAkademik {
   angka_kredit_min?: number | null;
   angka_kredit_max?: number | null;
   golongan: GolonganJafung;
+  tunjangan_nominal?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -351,6 +352,31 @@ export interface MasterKomponenGaji {
   is_active: boolean;
   urutan: number;
   keterangan?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterSkalaGajiPokok {
+  id: number;
+  nama_skala: string;
+  golongan?: string | null;
+  masa_kerja_min_tahun: number;
+  masa_kerja_max_tahun: number;
+  nominal_gaji: number;
+  keterangan?: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterBracketPph21 {
+  id: number;
+  kategori: string;
+  penghasilan_bruto_min: number;
+  penghasilan_bruto_max?: number | null;
+  tarif_persen: number;
+  keterangan?: string | null;
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
 }

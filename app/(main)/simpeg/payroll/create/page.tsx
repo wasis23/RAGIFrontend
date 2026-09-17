@@ -67,13 +67,18 @@ export default function CreatePayrollPage() {
 
   const loadPegawaiOptions = useCallback(async (inputValue: string) => {
     try {
-      const res: any = await simpegService.getPegawaiList();
-      const list: Pegawai[] = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-      const filtered = list.filter(
-        (p: Pegawai) =>
-          p.nama_lengkap.toLowerCase().includes(inputValue.toLowerCase()) ||
-          (p.nip && p.nip.toLowerCase().includes(inputValue.toLowerCase()))
-      );
+      const res: any = await simpegService.getPegawaiList({ per_page: 100, search: inputValue || undefined });
+      const responseData = res?.data || res;
+      const list: Pegawai[] = Array.isArray(responseData)
+        ? responseData
+        : responseData?.data || responseData?.items || [];
+      const filtered = inputValue
+        ? list.filter(
+            (p: Pegawai) =>
+              p.nama_lengkap.toLowerCase().includes(inputValue.toLowerCase()) ||
+              (p.nip && p.nip.toLowerCase().includes(inputValue.toLowerCase()))
+          )
+        : list;
       return filtered.map((p: Pegawai) => ({
         value: p.id.toString(),
         label: `[NIP: ${p.nip || '-'}] ${p.nama_lengkap}`,

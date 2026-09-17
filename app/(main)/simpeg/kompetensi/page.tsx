@@ -176,7 +176,11 @@ export default function KompetensiPage() {
 
         if (isManager) {
           const resPeg = await simpegService.getPegawaiList({ per_page: 100 });
-          if (resPeg.data) setPegawaiList(resPeg.data);
+          const responseData = (resPeg as any)?.data || resPeg;
+          const list: Pegawai[] = Array.isArray(responseData)
+            ? responseData
+            : responseData?.data || responseData?.items || [];
+          setPegawaiList(list);
         }
       } catch (err) {
         console.error('Failed fetching masters', err);
@@ -811,7 +815,7 @@ export default function KompetensiPage() {
             {isManager && (
               <Select
                 label="Pegawai / Dosen *"
-                options={pegawaiList.map((p) => ({
+                options={(pegawaiList || []).map((p) => ({
                   value: p.id.toString(),
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
@@ -914,7 +918,7 @@ export default function KompetensiPage() {
             {isManager && (
               <Select
                 label="Pegawai / Dosen *"
-                options={pegawaiList.map((p) => ({
+                options={(pegawaiList || []).map((p) => ({
                   value: p.id.toString(),
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
@@ -1011,7 +1015,7 @@ export default function KompetensiPage() {
             {isManager && (
               <Select
                 label="Pegawai / Dosen *"
-                options={pegawaiList.map((p) => ({
+                options={(pegawaiList || []).map((p) => ({
                   value: p.id.toString(),
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}

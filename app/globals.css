@@ -673,14 +673,14 @@ p.text-white, span.text-white, div.text-white {
 }
 
 .btn-primary {
-  background-color: var(--btn-primary-bg) !important;
-  color: white !important;
-  border-color: var(--btn-primary-bg) !important;
+  background-color: var(--module-primary, var(--btn-primary-bg)) !important;
+  color: var(--module-primary-text, white) !important;
+  border-color: var(--module-primary, var(--btn-primary-bg)) !important;
 }
 .btn-primary:hover {
-  background-color: var(--btn-primary-hover) !important;
-  border-color: var(--btn-primary-hover) !important;
-  box-shadow: 0 4px 12px var(--btn-primary-shadow);
+  background-color: var(--module-primary-hover, var(--btn-primary-hover)) !important;
+  border-color: var(--module-primary-hover, var(--btn-primary-hover)) !important;
+  box-shadow: 0 4px 12px var(--module-primary-shadow, var(--btn-primary-shadow));
   transform: translateY(-1px);
 }
 .btn-primary:active { transform: translateY(0); }
@@ -1127,12 +1127,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .sidebar-item.active {
-  background: rgba(59,130,246,0.15);
-  color: var(--primary-300);
+  background: var(--module-primary-subtle, rgba(59,130,246,0.15)) !important;
+  color: var(--module-primary-light, var(--primary-300)) !important;
   font-weight: 600;
+  border-left: 3px solid var(--module-primary, var(--primary-500));
 }
 
-.sidebar-item.active .sidebar-item-icon { color: var(--primary-400); }
+.sidebar-item.active .sidebar-item-icon { 
+  color: var(--module-primary-light, var(--primary-400)) !important; 
+}
 
 .sidebar-item-icon {
   width: 18px;

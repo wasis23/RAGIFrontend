@@ -14,9 +14,10 @@ import { TOKEN_KEY, PUBLIC_ROUTES } from '@/lib/constants';
 import { getCookie, getCookieDomain, getAuthTokenKey } from '@/lib/domain';
 import { Loader2 } from 'lucide-react';
 import NotFoundPage from '@/app/not-found';
+import { generateModuleThemeStyles } from '@/lib/theme';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { sidebar_open, toggleSidebar } = useUiStore();
+  const { sidebar_open, toggleSidebar, module_colors, fetchAllModuleColors } = useUiStore();
   const { setUser } = useAuthStore();
   const pathname = usePathname();
   const router = useRouter();
@@ -140,6 +141,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     }
   }, [setUser, pathname, router]);
 
+  useEffect(() => {
+    fetchAllModuleColors();
+  }, [fetchAllModuleColors]);
+
+  // Deteksi modul aktif dari segmen awal pathname
+  const activeModuleCode = pathname.split('/').filter(Boolean)[0]?.toLowerCase() || '';
+  const activeModuleColor = module_colors?.[activeModuleCode] || null;
+  const themeStyles = generateModuleThemeStyles(activeModuleColor);
+
   if (isNotFound) {
     return <NotFoundPage />;
   }
@@ -156,7 +166,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className={`main-layout ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
+    <div 
+      className={`main-layout ${sidebar_open ? '' : 'sidebar-collapsed'}`}
+      style={themeStyles}
+    >
       <Suspense fallback={<div style={{ width: 260 }} />}>
         <Sidebar />
       </Suspense>
