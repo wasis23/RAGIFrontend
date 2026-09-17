@@ -21,6 +21,7 @@ import {
   Upload,
   FileSpreadsheet,
   Layers,
+  SlidersHorizontal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -39,16 +40,29 @@ import { useAuth } from '@/hooks/useAuth';
 import type { PaginationMeta } from '@/types/api.types';
 import type { CutoffReport } from '@/types/simpeg.types';
 
-// Skema validasi Zod untuk form keterangan ketidakhadiran
+// ── ZOD SCHEMAS ─────────────────────────────────────────────
+
 const keteranganFormSchema = z.object({
-  pegawai_id: z.coerce.number().int('Pegawai wajib dipilih').min(1, 'Pegawai wajib dipilih'),
+  pegawai_id: z.number().int('Pegawai wajib dipilih').min(1, 'Pegawai wajib dipilih'),
   tanggal: z.string().min(1, 'Tanggal wajib diisi').regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD'),
   status_kehadiran: z.enum(['izin', 'sakit', 'dinas', 'alfa'], { message: 'Keterangan wajib dipilih' }),
-  catatan: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional().or(z.literal('')),
+  catatan: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional().nullable(),
 });
+type KeteranganFormValues = z.infer<typeof keteranganFormSchema>;
 
-type KeteranganFormValues = z.output<typeof keteranganFormSchema>;
-type KeteranganFormInput = z.input<typeof keteranganFormSchema>;
+const cutoffFormSchema = z.object({
+  date: z.string().min(10, 'Tanggal cut-off wajib diisi'),
+  unit_kerja_id: z.number().optional().nullable(),
+});
+type CutoffFormValues = z.infer<typeof cutoffFormSchema>;
+
+const rekapFormSchema = z.object({
+  nama_periode: z.string().min(3, 'Nama periode minimal 3 karakter'),
+  tanggal_awal: z.string().min(10, 'Tanggal awal wajib diisi'),
+  tanggal_akhir: z.string().min(10, 'Tanggal akhir wajib diisi'),
+  catatan: z.string().optional().nullable(),
+});
+type RekapFormValues = z.infer<typeof rekapFormSchema>;
 
 const KETERANGAN_OPTIONS = [
   { value: 'izin', label: 'Izin' },
@@ -59,8 +73,11 @@ const KETERANGAN_OPTIONS = [
 
 export default function PresensiPage() {
   const router = useRouter();
-  const { hasPermission, hasRole } = useAuth();
-  const isAdmin = hasRole('admin') || hasRole('superadmin') || hasRole('admin_simpeg') || hasPermission('simpeg.presensi.manage');
+  const { hasPermission, isAdmin } = useAuth();
+  const canManage = isAdmin || hasPermission('simpeg.presensi.manage');
+
+  // Active View Tab: 'realtime' | 'bundle'
+  const [activeTab, setActiveTab] = useState<'realtime' | 'bundle'>('realtime');
 
   // Modal Konfirmasi Hapus UI
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -77,10 +94,7 @@ export default function PresensiPage() {
     isLoading: false,
   });
 
-  // -------------------------------------------------------------
-  // LOG PRESENSI REALTIME & BUNDLE REKAP
-  // -------------------------------------------------------------
-  const [logViewMode, setLogViewMode] = useState<'realtime' | 'bundle'>('realtime');
+  // ── TAB 1: LOG PRESENSI REALTIME STATE ──────────────────────
   const [loadingLog, setLoadingLog] = useState(true);
   const [presensiList, setPresensiList] = useState<any[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | undefined>();
@@ -97,21 +111,50 @@ export default function PresensiPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
-  // Bundle Presensi State
+  // ── TAB 2: BUNDLE REKAP STATE ───────────────────────────────
   const [bundleList, setBundleList] = useState<any[]>([]);
   const [loadingBundle, setLoadingBundle] = useState(false);
   const [bundleMeta, setBundleMeta] = useState<PaginationMeta | undefined>();
   const [bundleSearch, setBundleSearch] = useState('');
   const [bundlePage, setBundlePage] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [uploadingRekap, setUploadingRekap] = useState(false);
-  const [rekapForm, setRekapForm] = useState({
-    nama_periode: '',
-    tanggal_awal: '',
-    tanggal_akhir: '',
-    file_rekap: null as File | null,
-    catatan: '',
+  const [fileRekap, setFileRekap] = useState<File | null>(null);
+
+  // ── CUT-OFF OTOMASI STATE ───────────────────────────────────
+  const [showCutoffModal, setShowCutoffModal] = useState(false);
+  const [runningCutoff, setRunningCutoff] = useState(false);
+  const [cutoffReport, setCutoffReport] = useState<CutoffReport | null>(null);
+  const [unitKerjaOptions, setUnitKerjaOptions] = useState<{ value: number; label: string }[]>([]);
+
+  // ── KETERANGAN KETIDAKHADIRAN STATE ─────────────────────────
+  const [showKeteranganModal, setShowKeteranganModal] = useState(false);
+  const [savingKeterangan, setSavingKeterangan] = useState(false);
+
+  // ── FORMS (ALL ZOD RESOLVER) ───────────────────────────────
+  const formKeterangan = useForm<KeteranganFormValues>({
+    resolver: zodResolver(keteranganFormSchema),
+    defaultValues: { pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' },
   });
+
+  const formCutoff = useForm<CutoffFormValues>({
+    resolver: zodResolver(cutoffFormSchema),
+    defaultValues: {
+      date: new Date().toISOString().substring(0, 10),
+      unit_kerja_id: 0,
+    },
+  });
+
+  const formRekap = useForm<RekapFormValues>({
+    resolver: zodResolver(rekapFormSchema),
+    defaultValues: {
+      nama_periode: '',
+      tanggal_awal: '',
+      tanggal_akhir: '',
+      catatan: '',
+    },
+  });
+
+  // ── FETCH HANDLERS ─────────────────────────────────────────
 
   const fetchLogPresensi = useCallback(async () => {
     setLoadingLog(true);
@@ -159,11 +202,124 @@ export default function PresensiPage() {
     }
   }, [bundleSearch, bundlePage]);
 
+  useEffect(() => {
+    if (activeTab === 'realtime') {
+      fetchLogPresensi();
+    } else {
+      fetchBundleList();
+    }
+  }, [activeTab, fetchLogPresensi, fetchBundleList]);
+
+  // ── ACTION HANDLERS: LOG REALTIME ──────────────────────────
+
+  const handleApprovePresensi = async (id: number) => {
+    setApprovingId(id);
+    try {
+      const res = await simpegService.approvePresensi(id);
+      if (res.status === 'success') {
+        toast.success('Presensi berhasil disetujui secara manual');
+        fetchLogPresensi();
+        if (selectedLog && selectedLog.id === id) {
+          setShowDetailModal(false);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyetujui presensi');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const loadPegawaiOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getPegawaiList({
+        search: inputValue.trim() || undefined,
+        per_page: 25,
+      });
+      const responseData = (res as any).data ?? res;
+      const items: any[] = Array.isArray(responseData)
+        ? responseData
+        : responseData?.items || responseData?.data || [];
+      return items.map((p: any) => ({
+        value: p.id,
+        label: `${p.nama_lengkap} — ${p.nip || '-'}`,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const handleOpenKeteranganModal = () => {
+    formKeterangan.reset({ pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' });
+    setShowKeteranganModal(true);
+  };
+
+  const onSubmitKeterangan = async (values: KeteranganFormValues) => {
+    setSavingKeterangan(true);
+    try {
+      const res = await simpegService.setKeteranganPresensi({
+        pegawai_id: values.pegawai_id,
+        tanggal: values.tanggal,
+        status_kehadiran: values.status_kehadiran,
+        catatan: values.catatan || undefined,
+      });
+      toast.success(res.message || 'Keterangan ketidakhadiran berhasil disimpan');
+      setShowKeteranganModal(false);
+      setPage(1);
+      fetchLogPresensi();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan keterangan ketidakhadiran');
+    } finally {
+      setSavingKeterangan(false);
+    }
+  };
+
+  const handleOpenCutoffModal = async () => {
+    setCutoffReport(null);
+    formCutoff.reset({
+      date: new Date().toISOString().substring(0, 10),
+      unit_kerja_id: 0,
+    });
+    setShowCutoffModal(true);
+
+    if (unitKerjaOptions.length === 0) {
+      try {
+        const res = await simpegService.getUnitKerjaList();
+        const responseData = (res as any).data ?? res;
+        const items = Array.isArray(responseData) ? responseData : (responseData?.items || responseData?.data || []);
+        setUnitKerjaOptions(items.map((u: any) => ({ value: u.id, label: `${u.nama} (${u.tipe || 'Unit'})` })));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const onSubmitCutoff = async (values: CutoffFormValues) => {
+    setRunningCutoff(true);
+    try {
+      const res = await simpegService.runDailyCutoff({
+        date: values.date,
+        unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : undefined,
+      });
+      if (res.status === 'success' && res.data) {
+        setCutoffReport(res.data);
+        toast.success(res.message || 'Cut-off presensi selesai diproses');
+        fetchLogPresensi();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengeksekusi cut-off harian');
+    } finally {
+      setRunningCutoff(false);
+    }
+  };
+
+  // ── ACTION HANDLERS: BUNDLE REKAP ──────────────────────────
+
   const handleDeleteBundle = (bundle: any) => {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Rekap Periode Presensi',
-      message: `Apakah Anda yakin ingin menghapus bundle "${bundle.nama_periode}" beserta seluruh log presensi di dalamnya? Tindakan ini tidak dapat dibatalkan.`,
+      message: `Apakah Anda yakin ingin menghapus bundle "${bundle.nama_periode}" beserta seluruh log presensi di dalamnya?`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -189,173 +345,44 @@ export default function PresensiPage() {
     }
   };
 
-  const handleUploadRekap = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rekapForm.nama_periode || !rekapForm.tanggal_awal || !rekapForm.tanggal_akhir || !rekapForm.file_rekap) {
-      toast.error('Harap lengkapi semua field wajib dan unggah berkas rekap.');
+  const handleOpenUploadModal = () => {
+    formRekap.reset({
+      nama_periode: '',
+      tanggal_awal: '',
+      tanggal_akhir: '',
+      catatan: '',
+    });
+    setFileRekap(null);
+    setShowUploadModal(true);
+  };
+
+  const onSubmitUploadRekap = async (values: RekapFormValues) => {
+    if (!fileRekap) {
+      toast.error('Harap pilih berkas rekap presensi (.xlsx, .csv, .sql, .txt)');
       return;
     }
 
     const formData = new FormData();
-    formData.append('nama_periode', rekapForm.nama_periode);
-    formData.append('tanggal_awal', rekapForm.tanggal_awal);
-    formData.append('tanggal_akhir', rekapForm.tanggal_akhir);
-    formData.append('file_rekap', rekapForm.file_rekap);
-    if (rekapForm.catatan) {
-      formData.append('catatan', rekapForm.catatan);
+    formData.append('nama_periode', values.nama_periode);
+    formData.append('tanggal_awal', values.tanggal_awal);
+    formData.append('tanggal_akhir', values.tanggal_akhir);
+    formData.append('file_rekap', fileRekap);
+    if (values.catatan) {
+      formData.append('catatan', values.catatan);
     }
 
-    setUploadingRekap(true);
     try {
       const res = await simpegService.uploadPresensiRekap(formData);
-      toast.success(res.message || 'Berkas rekap presensi berhasil diunggah dan diproses.');
+      toast.success(res.message || 'Berkas rekap presensi berhasil diunggah.');
       setShowUploadModal(false);
-      setRekapForm({ nama_periode: '', tanggal_awal: '', tanggal_akhir: '', file_rekap: null, catatan: '' });
       fetchBundleList();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal mengunggah berkas rekap presensi.');
-    } finally {
-      setUploadingRekap(false);
     }
   };
 
-  // -------------------------------------------------------------
-  // OTOMASI CUT-OFF PRESENSI HARIAN (AUTO-ALFA)
-  // -------------------------------------------------------------
-  const [showCutoffModal, setShowCutoffModal] = useState(false);
-  const [runningCutoff, setRunningCutoff] = useState(false);
-  const [cutoffDate, setCutoffDate] = useState(new Date().toISOString().substring(0, 10));
-  const [cutoffUnitKerjaId, setCutoffUnitKerjaId] = useState<number>(0);
-  const [cutoffReport, setCutoffReport] = useState<CutoffReport | null>(null);
-  const [unitKerjaOptions, setUnitKerjaOptions] = useState<{ value: number; label: string }[]>([]);
+  // ── TABLE COLUMNS: REALTIME LOG ────────────────────────────
 
-  const handleOpenCutoffModal = async () => {
-    setCutoffReport(null);
-    setCutoffDate(new Date().toISOString().substring(0, 10));
-    setCutoffUnitKerjaId(0);
-    setShowCutoffModal(true);
-
-    if (unitKerjaOptions.length === 0) {
-      try {
-        const res = await simpegService.getUnitKerjaList();
-        const responseData = (res as any).data ?? res;
-        const items = Array.isArray(responseData) ? responseData : (responseData?.items || responseData?.data || []);
-        setUnitKerjaOptions(items.map((u: any) => ({ value: u.id, label: `${u.nama} (${u.tipe || 'Unit'})` })));
-      } catch {
-        // ignore
-      }
-    }
-  };
-
-  const handleRunCutoff = async () => {
-    setRunningCutoff(true);
-    try {
-      const res = await simpegService.runDailyCutoff({
-        date: cutoffDate,
-        unit_kerja_id: cutoffUnitKerjaId ? Number(cutoffUnitKerjaId) : undefined,
-      });
-      if (res.status === 'success' && res.data) {
-        setCutoffReport(res.data);
-        toast.success(res.message || 'Cut-off presensi selesai diproses');
-        fetchLogPresensi();
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal mengeksekusi cut-off harian');
-    } finally {
-      setRunningCutoff(false);
-    }
-  };
-
-  // -------------------------------------------------------------
-  // KETERANGAN KETIDAKHADIRAN (admin menetapkan izin/sakit/dinas/alfa)
-  // -------------------------------------------------------------
-  const [showKeteranganModal, setShowKeteranganModal] = useState(false);
-  const [savingKeterangan, setSavingKeterangan] = useState(false);
-
-  const loadPegawaiOptions = useCallback(async (inputValue: string) => {
-    try {
-      const res = await simpegService.getPegawaiList({
-        search: inputValue.trim() || undefined,
-        per_page: 25,
-      });
-      const responseData = (res as any).data ?? res;
-      const items: any[] = Array.isArray(responseData)
-        ? responseData
-        : responseData?.items || responseData?.data || [];
-      return items.map((p: any) => ({
-        value: p.id,
-        label: `${p.nama_lengkap} — ${p.nip || '-'}`,
-      }));
-    } catch {
-      return [];
-    }
-  }, []);
-
-  const {
-    control: controlKeterangan,
-    handleSubmit: handleSubmitKeterangan,
-    formState: { errors: keteranganErrors },
-    reset: resetKeterangan,
-  } = useForm<KeteranganFormInput, unknown, KeteranganFormValues>({
-    resolver: zodResolver(keteranganFormSchema),
-    defaultValues: { pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' },
-  });
-
-  const handleOpenKeteranganModal = () => {
-    resetKeterangan({ pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' });
-    setShowKeteranganModal(true);
-  };
-
-  const onSubmitKeterangan = async (values: KeteranganFormValues) => {
-    setSavingKeterangan(true);
-    try {
-      const res = await simpegService.setKeteranganPresensi({
-        pegawai_id: values.pegawai_id,
-        tanggal: values.tanggal,
-        status_kehadiran: values.status_kehadiran,
-        catatan: values.catatan || undefined,
-      });
-      toast.success(res.message || 'Keterangan ketidakhadiran berhasil disimpan');
-      setShowKeteranganModal(false);
-      setPage(1);
-      fetchLogPresensi();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan keterangan ketidakhadiran');
-    } finally {
-      setSavingKeterangan(false);
-    }
-  };
-
-  const handleApprovePresensi = async (id: number) => {
-    setApprovingId(id);
-    try {
-      const res = await simpegService.approvePresensi(id);
-      if (res.status === 'success') {
-        toast.success('Presensi berhasil disetujui secara manual');
-        fetchLogPresensi();
-        if (selectedLog && selectedLog.id === id) {
-          setShowDetailModal(false);
-        }
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyetujui presensi');
-    } finally {
-      setApprovingId(null);
-    }
-  };
-
-  // Effect fetch data saat tab/view berubah
-  useEffect(() => {
-    if (logViewMode === 'realtime') {
-      fetchLogPresensi();
-    } else {
-      fetchBundleList();
-    }
-  }, [logViewMode, fetchLogPresensi, fetchBundleList]);
-
-  // -------------------------------------------------------------
-  // COLUMNS: Log Presensi Realtime
-  // -------------------------------------------------------------
   const logColumns: ColumnDef<any>[] = [
     {
       key: 'tanggal',
@@ -365,7 +392,7 @@ export default function PresensiPage() {
           <div className="font-bold text-slate-800 text-xs">
             {new Date(row.tanggal).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
           </div>
-          <div className="text-2xs text-slate-500 font-mono">
+          <div className="text-xs text-slate-500 font-mono">
             Masuk: {row.clock_in ? row.clock_in.substring(11, 16) : (row.jam_masuk || '--:--')} | Pulang: {row.clock_out ? row.clock_out.substring(11, 16) : (row.jam_keluar || '--:--')}
           </div>
         </div>
@@ -377,7 +404,7 @@ export default function PresensiPage() {
       render: (row) => (
         <div className="space-y-0.5">
           <div className="font-semibold text-slate-900 text-xs">{row.employee?.nama_lengkap || `Pegawai #${row.pegawai_id}`}</div>
-          <div className="text-2xs text-slate-500 font-mono">NIP: {row.employee?.nip || '-'}</div>
+          <div className="text-xs text-slate-500 font-mono">NIP: {row.employee?.nip || '-'}</div>
         </div>
       ),
     },
@@ -386,10 +413,10 @@ export default function PresensiPage() {
       label: 'Status Kehadiran',
       render: (row) => {
         const st = (row.status || row.status_kehadiran || '').toLowerCase();
-        let badgeVariant: 'success' | 'warning' | 'danger' | 'info' | 'purple' = 'success';
-        if (st === 'terlambat') badgeVariant = 'warning';
-        else if (st === 'ditolak' || st === 'alfa') badgeVariant = 'danger';
-        else if (st === 'izin' || st === 'sakit' || st === 'dinas') badgeVariant = 'info';
+        let badgeVariant: 'green' | 'amber' | 'red' | 'blue' | 'purple' = 'green';
+        if (st === 'terlambat') badgeVariant = 'amber';
+        else if (st === 'ditolak' || st === 'alfa') badgeVariant = 'red';
+        else if (st === 'izin' || st === 'sakit' || st === 'dinas') badgeVariant = 'blue';
         else if (st === 'menunggu_approval') badgeVariant = 'purple';
 
         const statusLabels: Record<string, string> = {
@@ -401,16 +428,16 @@ export default function PresensiPage() {
 
         return (
           <div className="space-y-1">
-            <Badge variant={badgeVariant} className="capitalize font-bold text-2xs">
+            <Badge variant={badgeVariant} className="capitalize font-bold text-xs">
               {statusLabels[st] || st}
             </Badge>
             {row.late_minutes > 0 && (
-              <div className="text-[10px] text-rose-600 font-semibold">
+              <div className="text-[11px] text-rose-600 font-semibold">
                 Terlambat {row.late_minutes} mnt
               </div>
             )}
             {row.early_leave_minutes > 0 && (
-              <div className="text-[10px] text-amber-600 font-semibold">
+              <div className="text-[11px] text-amber-600 font-semibold">
                 Pulang Cepat {row.early_leave_minutes} mnt
               </div>
             )}
@@ -424,28 +451,28 @@ export default function PresensiPage() {
       render: (row) => {
         const src = (row.source || 'mobile_gps').toLowerCase();
         let label = 'GPS Mobile';
-        let variant: 'info' | 'success' | 'danger' | 'warning' | 'secondary' = 'info';
+        let variant: 'blue' | 'green' | 'red' | 'amber' | 'gray' = 'blue';
         if (src === 'fingerprint') {
           label = 'Fingerprint';
-          variant = 'success';
+          variant = 'green';
         } else if (src === 'system_cutoff') {
           label = 'Auto-Alfa';
-          variant = 'danger';
+          variant = 'red';
         } else if (src === 'manual_admin') {
           label = 'Manual HR';
-          variant = 'warning';
+          variant = 'amber';
         } else if (src === 'import_sql') {
           label = 'Import';
-          variant = 'secondary';
+          variant = 'gray';
         }
 
         return (
           <div className="space-y-0.5">
-            <Badge variant={variant} className="text-2xs font-semibold">
+            <Badge variant={variant} className="text-xs font-semibold">
               {label}
             </Badge>
             {row.device_id && (
-              <div className="text-[10px] text-slate-500 font-mono truncate max-w-[120px]">
+              <div className="text-xs text-slate-500 font-mono truncate max-w-[120px]">
                 {row.device_id}
               </div>
             )}
@@ -457,18 +484,18 @@ export default function PresensiPage() {
       key: 'audit',
       label: 'Audit Geofence & AI',
       render: (row) => (
-        <div className="space-y-0.5 text-2xs text-slate-600">
+        <div className="space-y-0.5 text-xs text-slate-600">
           <div className="flex items-center gap-1">
-            <MapPin size={11} className={row.clock_in_distance_meters > 150 ? 'text-amber-500' : 'text-emerald-600'} />
+            <MapPin size={12} className={row.clock_in_distance_meters > 150 ? 'text-amber-500' : 'text-emerald-600'} />
             <span>Jarak: {row.clock_in_distance_meters !== null && row.clock_in_distance_meters !== undefined ? `${Number(row.clock_in_distance_meters).toFixed(0)} m` : '-'}</span>
           </div>
           <div className="flex items-center gap-1">
-            <ShieldCheck size={11} className="text-primary-600" />
+            <ShieldCheck size={12} className="text-[var(--module-primary)]" />
             <span>Skor Wajah: {row.clock_in_face_score !== null && row.clock_in_face_score !== undefined ? `${(Number(row.clock_in_face_score) * 100).toFixed(0)}%` : '-'}</span>
           </div>
           {row.clock_in_is_mock_location ? (
-            <span className="inline-flex items-center gap-0.5 text-rose-600 font-bold text-[10px]">
-              <AlertTriangle size={10} /> Terdeteksi Mock GPS
+            <span className="inline-flex items-center gap-0.5 text-rose-600 font-bold text-[11px]">
+              <AlertTriangle size={11} /> Terdeteksi Mock GPS
             </span>
           ) : null}
         </div>
@@ -480,7 +507,7 @@ export default function PresensiPage() {
       align: 'right',
       render: (row) => {
         const canApprove =
-          isAdmin && (row.status === 'ditolak' || row.status === 'menunggu_approval' || !row.is_approved_by_admin);
+          canManage && (row.status === 'ditolak' || row.status === 'menunggu_approval' || !row.is_approved_by_admin);
         const items: DropdownMenuItem[] = [
           {
             label: 'Lihat Rincian',
@@ -504,9 +531,8 @@ export default function PresensiPage() {
     },
   ];
 
-  // -------------------------------------------------------------
-  // COLUMNS: Rekap Bundle Periode
-  // -------------------------------------------------------------
+  // ── TABLE COLUMNS: BUNDLE REKAP ────────────────────────────
+
   const bundleColumns: ColumnDef<any>[] = [
     {
       key: 'nama_periode',
@@ -514,7 +540,7 @@ export default function PresensiPage() {
       render: (row) => (
         <div>
           <div className="font-bold text-slate-900 text-xs">{row.nama_periode}</div>
-          {row.catatan && <div className="text-[11px] text-slate-500 mt-0.5">{row.catatan}</div>}
+          {row.catatan && <div className="text-xs text-slate-500 mt-0.5">{row.catatan}</div>}
         </div>
       ),
     },
@@ -523,7 +549,7 @@ export default function PresensiPage() {
       label: 'Rentang Periode',
       render: (row) => (
         <div className="flex items-center gap-1.5 text-xs text-slate-700">
-          <Calendar size={13} className="text-primary-600 shrink-0" />
+          <Calendar size={13} className="text-[var(--module-primary)] shrink-0" />
           <span>{row.tanggal_awal} s/d {row.tanggal_akhir}</span>
         </div>
       ),
@@ -567,7 +593,7 @@ export default function PresensiPage() {
             onClick: () => router.push(`/simpeg/presensi/${row.id}`),
           },
         ];
-        if (isAdmin) {
+        if (canManage) {
           items.push({
             label: 'Kalkulasi Payroll SIKEU',
             icon: <CheckCircle2 size={14} />,
@@ -586,29 +612,31 @@ export default function PresensiPage() {
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-6">
+    <div className="animate-fade-in space-y-6">
       {/* Page Header */}
       <PageHeader
         title="Presensi & Absensi Pegawai"
-        description="Monitoring log kehadiran biometrik realtime, pengelolaan rekap presensi bulanan, verifikasi persetujuan, dan otomasi cut-off presensi."
-        breadcrumbs={[
-          { label: 'Portal SSO', href: '/dashboard' },
-          { label: 'SIMPEG', href: '/simpeg' },
-          { label: 'Presensi & Absensi' },
-        ]}
+        description="Monitoring log kehadiran biometrik realtime, pengelolaan rekap presensi bulanan, verifikasi persetujuan, dan otomasi cut-off presensi"
         action={
-          <div className="flex items-center gap-2">
-            {logViewMode === 'realtime' ? (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              icon={<SlidersHorizontal size={16} />}
+              onClick={() => router.push('/simpeg/master/presensi')}
+            >
+              Pengaturan Presensi
+            </Button>
+            {activeTab === 'realtime' ? (
               <>
                 <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
                   Filter Presensi
                 </Button>
-                {isAdmin && (
+                {canManage && (
                   <>
                     <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
                       Jalankan Cut-off Harian
                     </Button>
-                    <Button variant="outline" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
+                    <Button variant="primary" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
                       Tandai Tidak Hadir
                     </Button>
                   </>
@@ -619,8 +647,8 @@ export default function PresensiPage() {
                 <Button variant="outline" icon={<RefreshCw size={16} />} onClick={() => fetchBundleList()} disabled={loadingBundle}>
                   Muat Ulang
                 </Button>
-                {isAdmin && (
-                  <Button icon={<Upload size={16} />} onClick={() => setShowUploadModal(true)}>
+                {canManage && (
+                  <Button variant="primary" icon={<Upload size={16} />} onClick={handleOpenUploadModal}>
                     Upload Rekap Presensi
                   </Button>
                 )}
@@ -630,85 +658,139 @@ export default function PresensiPage() {
         }
       />
 
-      {/* Sub-view Switcher: Realtime vs Rekap Bundle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
-        <div className="inline-flex p-1 bg-slate-100 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setLogViewMode('realtime')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              logViewMode === 'realtime'
-                ? 'bg-white text-primary-700 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Clock size={14} className={logViewMode === 'realtime' ? 'text-primary-600' : 'text-slate-400'} />
-            Log Realtime Biometrik
-          </button>
-          <button
-            type="button"
-            onClick={() => setLogViewMode('bundle')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              logViewMode === 'bundle'
-                ? 'bg-white text-primary-700 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Layers size={14} className={logViewMode === 'bundle' ? 'text-primary-600' : 'text-slate-400'} />
-            Rekap Bundle Periode
-          </button>
-        </div>
-
-        <div className="text-2xs text-slate-500 font-medium">
-          {logViewMode === 'realtime' ? (
-            <span>Menampilkan data clock-in & clock-out dari GPS Mobile dan mesin sidik jari</span>
-          ) : (
-            <span>Menampilkan kumpulan berkas rekap bulanan untuk integrasi payroll SIKEU</span>
-          )}
-        </div>
+      {/* Modern Navigation Tabs (Mengikuti Format Master Pengaturan Presensi) */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('realtime')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'realtime'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <Clock size={16} /> Log Realtime Biometrik
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('bundle')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'bundle'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          <Layers size={16} /> Rekap Bundle Periode
+        </button>
       </div>
 
-      {/* Tabel View 1: Realtime Log */}
-      {logViewMode === 'realtime' && (
-        <DataTable
-          columns={logColumns}
-          data={presensiList}
-          isLoading={loadingLog}
-          meta={meta}
-          onPageChange={(newPage) => setPage(newPage)}
-          emptyMessage="Tidak ada data presensi yang ditemukan."
-        />
-      )}
-
-      {/* Tabel View 2: Bundle Rekap Presensi */}
-      {logViewMode === 'bundle' && (
+      {/* ── TAB 1: LOG REALTIME BIOMETRIK ── */}
+      {activeTab === 'realtime' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center gap-3">
-            <div className="w-full max-w-xs">
-              <Input
-                placeholder="Cari nama periode..."
-                value={bundleSearch}
-                onChange={(e) => {
-                  setBundleSearch(e.target.value);
-                  setBundlePage(1);
-                }}
-              />
+          <div className="card p-4 border border-slate-200">
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="w-full sm:max-w-md">
+                <Input
+                  placeholder="Cari nama atau NIP pegawai..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {tanggalFilter && (
+                  <Badge variant="blue" className="text-xs">
+                    Tanggal: {tanggalFilter}
+                  </Badge>
+                )}
+                {statusFilter && (
+                  <Badge variant="amber" className="text-xs capitalize">
+                    Status: {statusFilter}
+                  </Badge>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<Filter size={14} />}
+                  onClick={() => setShowFilterDrawer(true)}
+                >
+                  Filter Lanjutan
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<RefreshCw size={14} />}
+                  onClick={fetchLogPresensi}
+                  disabled={loadingLog}
+                >
+                  Refresh
+                </Button>
+              </div>
             </div>
           </div>
+
+          <DataTable
+            columns={logColumns}
+            data={presensiList}
+            isLoading={loadingLog}
+            meta={meta}
+            onPageChange={(newPage) => setPage(newPage)}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Clock size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Tidak ada data presensi yang ditemukan.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {/* ── TAB 2: REKAP BUNDLE PERIODE ── */}
+      {activeTab === 'bundle' && (
+        <div className="space-y-4">
+          <div className="card p-4 border border-slate-200">
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="w-full sm:max-w-md">
+                <Input
+                  placeholder="Cari nama periode rekap presensi..."
+                  value={bundleSearch}
+                  onChange={(e) => {
+                    setBundleSearch(e.target.value);
+                    setBundlePage(1);
+                  }}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RefreshCw size={14} />}
+                onClick={fetchBundleList}
+                disabled={loadingBundle}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
+
           <DataTable
             columns={bundleColumns}
             data={bundleList}
             isLoading={loadingBundle}
             meta={bundleMeta}
             onPageChange={(newPage) => setBundlePage(newPage)}
-            emptyMessage="Belum ada berkas bundle rekap presensi yang diunggah."
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Layers size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada berkas bundle rekap presensi yang diunggah.</p>
+              </div>
+            }
           />
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* DRAWER FILTER LOG PRESENSI */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── DRAWER FILTER LOG PRESENSI ── */}
       <Drawer
         open={showFilterDrawer}
         onClose={() => setShowFilterDrawer(false)}
@@ -800,9 +882,7 @@ export default function PresensiPage() {
         </div>
       </Drawer>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL DETAIL LOG PRESENSI */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: DETAIL LOG PRESENSI ── */}
       <Modal
         open={showDetailModal}
         onClose={() => setShowDetailModal(false)}
@@ -812,7 +892,7 @@ export default function PresensiPage() {
             <Button variant="outline" onClick={() => setShowDetailModal(false)}>
               Tutup
             </Button>
-            {isAdmin && selectedLog && (selectedLog.status === 'ditolak' || selectedLog.status === 'menunggu_approval' || !selectedLog.is_approved_by_admin) && (
+            {canManage && selectedLog && (selectedLog.status === 'ditolak' || selectedLog.status === 'menunggu_approval' || !selectedLog.is_approved_by_admin) && (
               <Button
                 loading={approvingId === selectedLog.id}
                 disabled={approvingId === selectedLog.id}
@@ -874,9 +954,7 @@ export default function PresensiPage() {
         )}
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL KETERANGAN KETIDAKHADIRAN */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: TANDAI TIDAK HADIR (KETERANGAN) ── */}
       <Modal
         open={showKeteranganModal}
         onClose={() => setShowKeteranganModal(false)}
@@ -892,13 +970,12 @@ export default function PresensiPage() {
           </>
         }
       >
-        <form id="keterangan-form" onSubmit={handleSubmitKeterangan(onSubmitKeterangan)} noValidate className="space-y-4">
-          <p className="text-[11px] text-slate-500">
-            Untuk pegawai yang terjadwal masuk (referensi shift) tetapi tidak memiliki log presensi. Data hasil scan
-            tidak dapat ditimpa lewat form ini.
+        <form id="keterangan-form" onSubmit={formKeterangan.handleSubmit(onSubmitKeterangan)} noValidate className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Untuk pegawai yang terjadwal masuk tetapi tidak memiliki log presensi. Data hasil scan tidak dapat ditimpa lewat form ini.
           </p>
           <Controller
-            control={controlKeterangan}
+            control={formKeterangan.control}
             name="pegawai_id"
             render={({ field }) => (
               <AsyncSelect
@@ -907,27 +984,27 @@ export default function PresensiPage() {
                 loadOptions={loadPegawaiOptions}
                 value={field.value ? { value: field.value, label: `Pegawai ID: ${field.value}` } : null}
                 onChange={(opt: any) => field.onChange(opt ? opt.value : 0)}
-                error={keteranganErrors.pegawai_id?.message}
+                error={formKeterangan.formState.errors.pegawai_id?.message}
                 isClearable
               />
             )}
           />
           <Controller
-            control={controlKeterangan}
+            control={formKeterangan.control}
             name="tanggal"
             render={({ field }) => (
               <Input
                 label="Tanggal *"
                 type="date"
                 required
-                error={keteranganErrors.tanggal?.message}
+                error={formKeterangan.formState.errors.tanggal?.message}
                 value={field.value || ''}
                 onChange={field.onChange}
               />
             )}
           />
           <Controller
-            control={controlKeterangan}
+            control={formKeterangan.control}
             name="status_kehadiran"
             render={({ field }) => (
               <Select
@@ -936,18 +1013,18 @@ export default function PresensiPage() {
                 value={field.value}
                 onChange={field.onChange}
                 options={KETERANGAN_OPTIONS}
-                error={keteranganErrors.status_kehadiran?.message}
+                error={formKeterangan.formState.errors.status_kehadiran?.message}
               />
             )}
           />
           <Controller
-            control={controlKeterangan}
+            control={formKeterangan.control}
             name="catatan"
             render={({ field }) => (
               <Input
                 label="Catatan (opsional)"
                 placeholder="Alasan izin / nomor surat dinas..."
-                error={keteranganErrors.catatan?.message}
+                error={formKeterangan.formState.errors.catatan?.message}
                 value={field.value || ''}
                 onChange={field.onChange}
               />
@@ -956,9 +1033,7 @@ export default function PresensiPage() {
         </form>
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL JALANKAN CUT-OFF PRESENSI HARIAN (AUTO-ALFA) */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: JALANKAN CUT-OFF HARIAN ── */}
       <Modal
         open={showCutoffModal}
         onClose={() => setShowCutoffModal(false)}
@@ -969,17 +1044,17 @@ export default function PresensiPage() {
             <Button variant="outline" onClick={() => setShowCutoffModal(false)} disabled={runningCutoff}>
               Tutup
             </Button>
-            <Button onClick={handleRunCutoff} loading={runningCutoff} disabled={runningCutoff} variant="danger">
+            <Button type="submit" loading={runningCutoff} disabled={runningCutoff} variant="danger" form="cutoff-form">
               Eksekusi Cut-off Harian
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
+        <form id="cutoff-form" onSubmit={formCutoff.handleSubmit(onSubmitCutoff)} className="space-y-4">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
             <AlertTriangle className="text-amber-600 mt-0.5 shrink-0" size={16} />
-            <p className="text-2xs">
-              Sistem akan memindai seluruh pegawai aktif yang terjadwal masuk pada tanggal yang dipilih. Pegawai yang tidak melakukan presensi scan dan tidak memiliki keterangan resmi (izin/sakit/dinas) otomatis diberi status <strong>Alfa</strong>.
+            <p className="text-xs">
+              Sistem akan memindai seluruh pegawai aktif yang terjadwal masuk pada tanggal yang dipilih. Pegawai yang tidak melakukan presensi scan dan tidak memiliki keterangan resmi otomatis diberi status <strong>Alfa</strong>.
             </p>
           </div>
 
@@ -987,30 +1062,36 @@ export default function PresensiPage() {
             label="Pilih Tanggal Cut-off *"
             type="date"
             required
-            value={cutoffDate}
-            onChange={(e) => setCutoffDate(e.target.value)}
+            error={formCutoff.formState.errors.date?.message}
+            {...formCutoff.register('date')}
           />
 
-          <Select
-            label="Batasi ke Unit Kerja Tertentu (Opsional)"
-            value={cutoffUnitKerjaId ? String(cutoffUnitKerjaId) : ''}
-            onChange={(val) => setCutoffUnitKerjaId(val ? Number(val) : 0)}
-            options={[
-              { value: '', label: '-- Seluruh Unit Kerja --' },
-              ...unitKerjaOptions.map((u) => ({ value: String(u.value), label: u.label })),
-            ]}
+          <Controller
+            control={formCutoff.control}
+            name="unit_kerja_id"
+            render={({ field }) => (
+              <Select
+                label="Batasi ke Unit Kerja Tertentu (Opsional)"
+                value={field.value ? String(field.value) : ''}
+                onChange={(val) => field.onChange(val ? Number(val) : 0)}
+                options={[
+                  { value: '', label: '-- Seluruh Unit Kerja --' },
+                  ...unitKerjaOptions.map((u) => ({ value: String(u.value), label: u.label })),
+                ]}
+              />
+            )}
           />
 
           {cutoffReport && (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                 <span className="font-bold text-xs text-slate-800">Laporan Hasil Cut-off:</span>
-                <Badge variant={cutoffReport.total_marked_alfa > 0 ? 'danger' : 'success'}>
+                <Badge variant={cutoffReport.total_marked_alfa > 0 ? 'red' : 'green'}>
                   {cutoffReport.total_marked_alfa} Pegawai Alfa
                 </Badge>
               </div>
 
-              <div className="text-2xs text-slate-600 space-y-1">
+              <div className="text-xs text-slate-600 space-y-1">
                 <div>Tanggal Evaluasi: <strong>{cutoffReport.date}</strong></div>
                 <div>Total Pegawai Terjadwal Dievaluasi: <strong>{cutoffReport.total_evaluated}</strong></div>
                 <div>Status Hari Libur: <strong>{cutoffReport.is_national_holiday ? 'Hari Libur Nasional' : 'Hari Kerja Efektif'}</strong></div>
@@ -1018,26 +1099,24 @@ export default function PresensiPage() {
 
               {cutoffReport.marked_alfa_employees?.length > 0 && (
                 <div className="mt-2 space-y-1 max-h-40 overflow-y-auto pr-1">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">Daftar Pegawai Ditandai Alfa:</span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">Daftar Pegawai Ditandai Alfa:</span>
                   {cutoffReport.marked_alfa_employees.map((emp, i) => (
-                    <div key={i} className="text-2xs p-1.5 bg-white border border-slate-100 rounded-lg flex justify-between items-center">
+                    <div key={i} className="text-xs p-1.5 bg-white border border-slate-100 rounded-lg flex justify-between items-center">
                       <div>
                         <div className="font-semibold text-slate-900">{emp.nama}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{emp.nip}</div>
+                        <div className="text-xs text-slate-400 font-mono">{emp.nip}</div>
                       </div>
-                      <Badge variant="danger" className="text-[9px]">Alfa</Badge>
+                      <Badge variant="red" className="text-xs">Alfa</Badge>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           )}
-        </div>
+        </form>
       </Modal>
 
-      {/* ------------------------------------------------------------- */}
-      {/* MODAL UPLOAD REKAP PRESENSI PERIODE */}
-      {/* ------------------------------------------------------------- */}
+      {/* ── MODAL: UPLOAD REKAP PRESENSI ── */}
       <Modal
         open={showUploadModal}
         onClose={() => setShowUploadModal(false)}
@@ -1045,19 +1124,19 @@ export default function PresensiPage() {
         size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowUploadModal(false)} disabled={uploadingRekap}>
+            <Button variant="outline" onClick={() => setShowUploadModal(false)}>
               Batal
             </Button>
-            <Button onClick={handleUploadRekap} loading={uploadingRekap} disabled={uploadingRekap}>
+            <Button type="submit" loading={formRekap.formState.isSubmitting} disabled={formRekap.formState.isSubmitting} form="rekap-upload-form">
               Unggah & Proses
             </Button>
           </>
         }
       >
-        <form onSubmit={handleUploadRekap} className="space-y-4">
-          <div className="p-3 bg-primary-50 border border-primary-200 rounded-xl text-xs text-primary-900 flex items-start gap-2">
-            <FileSpreadsheet className="text-primary-600 mt-0.5 shrink-0" size={16} />
-            <p className="text-2xs">
+        <form id="rekap-upload-form" onSubmit={formRekap.handleSubmit(onSubmitUploadRekap)} className="space-y-4">
+          <div className="p-3 bg-[var(--module-primary-subtle)] border border-[var(--module-primary)]/20 rounded-xl text-xs text-slate-800 flex items-start gap-2">
+            <FileSpreadsheet className="text-[var(--module-primary)] mt-0.5 shrink-0" size={16} />
+            <p className="text-xs">
               Unggah file rekap presensi bulanan/periode (format: Excel, CSV, TXT, SQL). Sistem akan memproses dan mengelompokkan data presensi ke dalam bundle periode terkait.
             </p>
           </div>
@@ -1065,25 +1144,25 @@ export default function PresensiPage() {
           <Input
             label="Nama Periode Presensi *"
             placeholder="Contoh: Rekap Presensi September 2026"
-            value={rekapForm.nama_periode}
-            onChange={(e) => setRekapForm({ ...rekapForm, nama_periode: e.target.value })}
             required
+            error={formRekap.formState.errors.nama_periode?.message}
+            {...formRekap.register('nama_periode')}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Tanggal Awal Periode *"
               type="date"
-              value={rekapForm.tanggal_awal}
-              onChange={(e) => setRekapForm({ ...rekapForm, tanggal_awal: e.target.value })}
               required
+              error={formRekap.formState.errors.tanggal_awal?.message}
+              {...formRekap.register('tanggal_awal')}
             />
             <Input
               label="Tanggal Akhir Periode *"
               type="date"
-              value={rekapForm.tanggal_akhir}
-              onChange={(e) => setRekapForm({ ...rekapForm, tanggal_akhir: e.target.value })}
               required
+              error={formRekap.formState.errors.tanggal_akhir?.message}
+              {...formRekap.register('tanggal_akhir')}
             />
           </div>
 
@@ -1091,24 +1170,24 @@ export default function PresensiPage() {
             label="Berkas Rekap Presensi *"
             type="file"
             accept=".xlsx,.xls,.csv,.txt,.sql"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              setRekapForm({ ...rekapForm, file_rekap: file });
-            }}
             required
             hint="Format berkas: .xlsx, .xls, .csv, .txt, .sql"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setFileRekap(file);
+            }}
           />
 
           <Input
             label="Catatan (Opsional)"
             placeholder="Catatan tambahan untuk periode ini..."
-            value={rekapForm.catatan}
-            onChange={(e) => setRekapForm({ ...rekapForm, catatan: e.target.value })}
+            error={formRekap.formState.errors.catatan?.message}
+            {...formRekap.register('catatan')}
           />
         </form>
       </Modal>
 
-      {/* Dialog Konfirmasi Hapus */}
+      {/* ── CONFIRM DIALOG ── */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
