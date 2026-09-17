@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,6 +31,9 @@ import {
   XCircle,
   Wifi,
   WifiOff,
+  Upload,
+  FileSpreadsheet,
+  Layers,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -40,6 +44,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Badge } from '@/components/ui/Badge';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
@@ -81,6 +86,7 @@ const KETERANGAN_OPTIONS = [
 ];
 
 export default function PresensiPage() {
+  const router = useRouter();
   const { hasPermission, hasRole } = useAuth();
   const isAdmin = hasRole('admin') || hasRole('superadmin') || hasRole('admin_simpeg') || hasPermission('simpeg.presensi.manage');
 
@@ -102,14 +108,17 @@ export default function PresensiPage() {
   });
 
   // -------------------------------------------------------------
-  // TAB 1: LOG PRESENSI REALTIME
+  // TAB 1: LOG PRESENSI REALTIME & BUNDLE REKAP
   // -------------------------------------------------------------
+  const [logViewMode, setLogViewMode] = useState<'realtime' | 'bundle'>('realtime');
   const [loadingLog, setLoadingLog] = useState(true);
   const [presensiList, setPresensiList] = useState<any[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | undefined>();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [tanggalFilter, setTanggalFilter] = useState('');
+  const [sortBy, setSortBy] = useState('tanggal');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
@@ -118,6 +127,22 @@ export default function PresensiPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
 
+  // Bundle Presensi State
+  const [bundleList, setBundleList] = useState<any[]>([]);
+  const [loadingBundle, setLoadingBundle] = useState(false);
+  const [bundleMeta, setBundleMeta] = useState<PaginationMeta | undefined>();
+  const [bundleSearch, setBundleSearch] = useState('');
+  const [bundlePage, setBundlePage] = useState(1);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadingRekap, setUploadingRekap] = useState(false);
+  const [rekapForm, setRekapForm] = useState({
+    nama_periode: '',
+    tanggal_awal: '',
+    tanggal_akhir: '',
+    file_rekap: null as File | null,
+    catatan: '',
+  });
+
   const fetchLogPresensi = useCallback(async () => {
     setLoadingLog(true);
     try {
@@ -125,6 +150,8 @@ export default function PresensiPage() {
         search: search.trim() || undefined,
         status: statusFilter || undefined,
         tanggal: tanggalFilter || undefined,
+        sort_by: sortBy,
+        sort_dir: sortDir,
         page,
         per_page: 10,
       });
@@ -140,7 +167,91 @@ export default function PresensiPage() {
     } finally {
       setLoadingLog(false);
     }
-  }, [search, statusFilter, tanggalFilter, page]);
+  }, [search, statusFilter, tanggalFilter, sortBy, sortDir, page]);
+
+  const fetchBundleList = useCallback(async () => {
+    setLoadingBundle(true);
+    try {
+      const res: any = await simpegService.getPresensiList({
+        type: 'bundle',
+        search: bundleSearch.trim() || undefined,
+        page: bundlePage,
+        per_page: 10,
+      });
+      if (res.status === 'success' && res.data) {
+        setBundleList(res.data);
+        if (res.meta) setBundleMeta(res.meta);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal memuat daftar bundle presensi.');
+    } finally {
+      setLoadingBundle(false);
+    }
+  }, [bundleSearch, bundlePage]);
+
+  const handleDeleteBundle = (bundle: any) => {
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Bundle Presensi',
+      message: (
+        <span>
+          Apakah Anda yakin ingin menghapus bundle <strong>{bundle.nama_periode}</strong> ({bundle.total_record} log absensi)? Seluruh data rekap di dalamnya akan dihapus permanen.
+        </span>
+      ),
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          const res = await simpegService.deletePresensiBundle(bundle.id);
+          toast.success(res.message || 'Bundle presensi berhasil dihapus.');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          fetchBundleList();
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal menghapus bundle presensi.');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+      isLoading: false,
+    });
+  };
+
+  const handleProcessBundlePayroll = async (bundleId: number) => {
+    try {
+      const res = await simpegService.processBundlePayroll(bundleId);
+      toast.success(res.message || 'Payroll berhasil diproses dan dikirim ke SIKEU.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal memproses payroll.');
+    }
+  };
+
+  const handleUploadRekap = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rekapForm.nama_periode || !rekapForm.tanggal_awal || !rekapForm.tanggal_akhir || !rekapForm.file_rekap) {
+      toast.error('Harap lengkapi semua field wajib dan unggah berkas rekap.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('nama_periode', rekapForm.nama_periode);
+    formData.append('tanggal_awal', rekapForm.tanggal_awal);
+    formData.append('tanggal_akhir', rekapForm.tanggal_akhir);
+    formData.append('file_rekap', rekapForm.file_rekap);
+    if (rekapForm.catatan) {
+      formData.append('catatan', rekapForm.catatan);
+    }
+
+    setUploadingRekap(true);
+    try {
+      const res = await simpegService.uploadPresensiRekap(formData);
+      toast.success(res.message || 'Berkas rekap presensi berhasil diunggah dan diproses.');
+      setShowUploadModal(false);
+      setRekapForm({ nama_periode: '', tanggal_awal: '', tanggal_akhir: '', file_rekap: null, catatan: '' });
+      fetchBundleList();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengunggah berkas rekap presensi.');
+    } finally {
+      setUploadingRekap(false);
+    }
+  };
 
   // -------------------------------------------------------------
   // TAB 2: LOKASI KANTOR (OFFICE LOCATIONS)
@@ -811,13 +922,19 @@ export default function PresensiPage() {
 
   // Effect fetch data saat tab berubah
   useEffect(() => {
-    if (activeTab === 'log') fetchLogPresensi();
+    if (activeTab === 'log') {
+      if (logViewMode === 'realtime') {
+        fetchLogPresensi();
+      } else {
+        fetchBundleList();
+      }
+    }
     else if (activeTab === 'office') fetchOffices();
     else if (activeTab === 'shift') fetchShifts();
     else if (activeTab === 'holiday') fetchHolidays(holidayYear);
     else if (activeTab === 'settings') fetchSettings();
     else if (activeTab === 'devices') fetchDevices();
-  }, [activeTab, fetchLogPresensi, fetchOffices, fetchShifts, fetchHolidays, fetchSettings, fetchDevices, holidayYear]);
+  }, [activeTab, logViewMode, fetchLogPresensi, fetchBundleList, fetchOffices, fetchShifts, fetchHolidays, fetchSettings, fetchDevices, holidayYear]);
 
   const handleApprovePresensi = async (id: number) => {
     setApprovingId(id);
@@ -855,9 +972,26 @@ export default function PresensiPage() {
   // untuk pegawai terjadwal masuk yang tidak memiliki log presensi)
   // -------------------------------------------------------------
   const [showKeteranganModal, setShowKeteranganModal] = useState(false);
-  const [pegawaiOptions, setPegawaiOptions] = useState<{ value: number; label: string }[]>([]);
-  const [loadingPegawaiOptions, setLoadingPegawaiOptions] = useState(false);
   const [savingKeterangan, setSavingKeterangan] = useState(false);
+
+  const loadPegawaiOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getPegawaiList({
+        search: inputValue.trim() || undefined,
+        per_page: 25,
+      });
+      const responseData = (res as any).data ?? res;
+      const items: any[] = Array.isArray(responseData)
+        ? responseData
+        : responseData?.items || responseData?.data || [];
+      return items.map((p: any) => ({
+        value: p.id,
+        label: `${p.nama_lengkap} — ${p.nip || '-'}`,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
 
   const {
     register: registerKeterangan,
@@ -870,23 +1004,9 @@ export default function PresensiPage() {
     defaultValues: { pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' },
   });
 
-  const handleOpenKeteranganModal = async () => {
+  const handleOpenKeteranganModal = () => {
     resetKeterangan({ pegawai_id: 0, tanggal: '', status_kehadiran: 'izin', catatan: '' });
     setShowKeteranganModal(true);
-    if (pegawaiOptions.length > 0) return;
-    setLoadingPegawaiOptions(true);
-    try {
-      const res = await simpegService.getPegawaiList({ per_page: 100 });
-      const responseData = (res as any).data ?? res;
-      const items: any[] = Array.isArray(responseData) ? responseData : responseData?.items || responseData?.data || [];
-      setPegawaiOptions(
-        items.map((p: any) => ({ value: p.id, label: `${p.nama_lengkap} — ${p.nip || '-'}` }))
-      );
-    } catch {
-      toast.error('Gagal memuat daftar pegawai');
-    } finally {
-      setLoadingPegawaiOptions(false);
-    }
   };
 
   const onSubmitKeterangan = async (values: KeteranganFormValues) => {
@@ -1062,6 +1182,84 @@ export default function PresensiPage() {
     },
   ];
 
+  const bundleColumns: ColumnDef<any>[] = [
+    {
+      key: 'nama_periode',
+      label: 'Nama Periode Rekap',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-900 text-xs">{row.nama_periode}</div>
+          {row.catatan && <div className="text-[11px] text-slate-500 mt-0.5">{row.catatan}</div>}
+        </div>
+      ),
+    },
+    {
+      key: 'rentang_tanggal',
+      label: 'Rentang Periode',
+      render: (row) => (
+        <div className="flex items-center gap-1.5 text-xs text-slate-700">
+          <Calendar size={13} className="text-primary-600 shrink-0" />
+          <span>{row.tanggal_awal} s/d {row.tanggal_akhir}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'total_record',
+      label: 'Total Log',
+      render: (row) => (
+        <span className="font-mono text-xs font-bold text-slate-800">
+          {Number(row.total_record || 0).toLocaleString('id-ID')}
+        </span>
+      ),
+    },
+    {
+      key: 'total_pegawai',
+      label: 'Pegawai',
+      render: (row) => (
+        <span className="text-xs font-medium text-slate-600">
+          {row.total_pegawai !== undefined ? `${row.total_pegawai} Orang` : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'created_at',
+      label: 'Dibuat Pada',
+      render: (row) => (
+        <span className="text-xs text-slate-500">
+          {row.created_at ? new Date(row.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        const items: DropdownMenuItem[] = [
+          {
+            label: 'Buka Rincian Log',
+            icon: <Eye size={14} />,
+            onClick: () => router.push(`/simpeg/presensi/${row.id}`),
+          },
+        ];
+        if (isAdmin) {
+          items.push({
+            label: 'Kalkulasi Payroll SIKEU',
+            icon: <CheckCircle2 size={14} />,
+            onClick: () => handleProcessBundlePayroll(row.id),
+          });
+          items.push({
+            label: 'Hapus Bundle',
+            icon: <Trash2 size={14} />,
+            variant: 'danger',
+            onClick: () => handleDeleteBundle(row),
+          });
+        }
+        return <DropdownMenu items={items} />;
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in max-w-7xl mx-auto pb-16">
       {/* Page Header */}
@@ -1077,17 +1275,32 @@ export default function PresensiPage() {
           <div className="flex items-center gap-2">
             {activeTab === 'log' && (
               <>
-                <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
-                  Filter Presensi
-                </Button>
-                {isAdmin && (
+                {logViewMode === 'realtime' ? (
                   <>
-                    <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
-                      Jalankan Cut-off Harian
+                    <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
+                      Filter Presensi
                     </Button>
-                    <Button variant="outline" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
-                      Tandai Tidak Hadir
+                    {isAdmin && (
+                      <>
+                        <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
+                          Jalankan Cut-off Harian
+                        </Button>
+                        <Button variant="outline" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
+                          Tandai Tidak Hadir
+                        </Button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" icon={<RefreshCw size={16} />} onClick={() => fetchBundleList()} disabled={loadingBundle}>
+                      Muat Ulang
                     </Button>
+                    {isAdmin && (
+                      <Button icon={<Upload size={16} />} onClick={() => setShowUploadModal(true)}>
+                        Upload Rekap Presensi
+                      </Button>
+                    )}
                   </>
                 )}
               </>
@@ -1220,18 +1433,79 @@ export default function PresensiPage() {
       </div>
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 1: LOG PRESENSI */}
+      {/* TAB 1: LOG PRESENSI REALTIME & BUNDLE REKAP */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 'log' && (
         <div className="space-y-4">
-          <DataTable
-            columns={logColumns}
-            data={presensiList}
-            isLoading={loadingLog}
-            meta={meta}
-            onPageChange={(newPage) => setPage(newPage)}
-            emptyMessage="Belum ada log presensi yang sesuai filter."
-          />
+          {/* Sub-view Switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setLogViewMode('realtime')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  logViewMode === 'realtime'
+                    ? 'bg-white text-primary-700 shadow-xs ring-1 ring-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Clock size={14} className={logViewMode === 'realtime' ? 'text-primary-600' : 'text-slate-400'} />
+                <span>Log Realtime Biometrik</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLogViewMode('bundle')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  logViewMode === 'bundle'
+                    ? 'bg-white text-primary-700 shadow-xs ring-1 ring-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Layers size={14} className={logViewMode === 'bundle' ? 'text-primary-600' : 'text-slate-400'} />
+                <span>Rekap Bundle Periode</span>
+              </button>
+            </div>
+
+            {logViewMode === 'bundle' && (
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Cari nama periode bundle..."
+                  value={bundleSearch}
+                  onChange={(e) => setBundleSearch(e.target.value)}
+                  className="w-full sm:w-64"
+                />
+                {isAdmin && (
+                  <Button
+                    size="sm"
+                    icon={<Upload size={14} />}
+                    onClick={() => setShowUploadModal(true)}
+                  >
+                    Upload Rekap
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {logViewMode === 'realtime' ? (
+            <DataTable
+              columns={logColumns}
+              data={presensiList}
+              isLoading={loadingLog}
+              meta={meta}
+              onPageChange={(newPage) => setPage(newPage)}
+              emptyMessage="Belum ada log presensi yang sesuai filter."
+            />
+          ) : (
+            <DataTable
+              columns={bundleColumns}
+              data={bundleList}
+              isLoading={loadingBundle}
+              meta={bundleMeta}
+              onPageChange={(newPage) => setBundlePage(newPage)}
+              emptyMessage="Belum ada berkas bundle rekap presensi. Klik Upload Rekap untuk mengimpor data."
+            />
+          )}
         </div>
       )}
 
@@ -1795,6 +2069,8 @@ export default function PresensiPage() {
                 setSearch('');
                 setStatusFilter('');
                 setTanggalFilter('');
+                setSortBy('tanggal');
+                setSortDir('desc');
                 setPage(1);
               }}
             >
@@ -1843,6 +2119,32 @@ export default function PresensiPage() {
               { value: 'alfa', label: 'Alpa' },
             ]}
           />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={sortBy}
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'tanggal', label: 'Tanggal' },
+                { value: 'clock_in', label: 'Jam Masuk' },
+                { value: 'clock_out', label: 'Jam Pulang' },
+                { value: 'status_kehadiran', label: 'Status' },
+                { value: 'id', label: 'ID' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={sortDir}
+              onChange={(val) => setSortDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'desc', label: 'Z - A (Turun)' },
+                { value: 'asc', label: 'A - Z (Naik)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 
@@ -2096,14 +2398,14 @@ export default function PresensiPage() {
             control={controlKeterangan}
             name="pegawai_id"
             render={({ field }) => (
-              <Select
+              <AsyncSelect
                 label="Pegawai *"
-                placeholder={loadingPegawaiOptions ? 'Memuat daftar pegawai...' : 'Pilih pegawai...'}
-                options={pegawaiOptions}
-                value={(field.value as number) || ''}
-                onChange={field.onChange}
+                placeholder="Ketik nama atau NIP pegawai..."
+                loadOptions={loadPegawaiOptions}
+                value={field.value ? Number(field.value) : undefined}
+                onChange={(opt: any) => field.onChange(opt ? Number(opt.value) : 0)}
                 error={keteranganErrors.pegawai_id?.message}
-                isDisabled={loadingPegawaiOptions}
+                defaultOptions
               />
             )}
           />
@@ -2514,6 +2816,79 @@ export default function PresensiPage() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL UPLOAD REKAP PRESENSI PERIODE */}
+      {/* ------------------------------------------------------------- */}
+      <Modal
+        open={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        title="Upload Berkas Rekap Presensi Periode"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowUploadModal(false)} disabled={uploadingRekap}>
+              Batal
+            </Button>
+            <Button onClick={handleUploadRekap} loading={uploadingRekap} disabled={uploadingRekap}>
+              Unggah & Proses
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleUploadRekap} className="space-y-4">
+          <div className="p-3 bg-primary-50 border border-primary-200 rounded-xl text-xs text-primary-900 flex items-start gap-2">
+            <FileSpreadsheet className="text-primary-600 mt-0.5 shrink-0" size={16} />
+            <p className="text-2xs">
+              Unggah file rekap presensi bulanan/periode (format: Excel, CSV, TXT, SQL). Sistem akan memproses dan mengelompokkan data presensi ke dalam bundle periode terkait.
+            </p>
+          </div>
+
+          <Input
+            label="Nama Periode Presensi *"
+            placeholder="Contoh: Rekap Presensi September 2026"
+            value={rekapForm.nama_periode}
+            onChange={(e) => setRekapForm({ ...rekapForm, nama_periode: e.target.value })}
+            required
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Tanggal Awal Periode *"
+              type="date"
+              value={rekapForm.tanggal_awal}
+              onChange={(e) => setRekapForm({ ...rekapForm, tanggal_awal: e.target.value })}
+              required
+            />
+            <Input
+              label="Tanggal Akhir Periode *"
+              type="date"
+              value={rekapForm.tanggal_akhir}
+              onChange={(e) => setRekapForm({ ...rekapForm, tanggal_akhir: e.target.value })}
+              required
+            />
+          </div>
+
+          <Input
+            label="Berkas Rekap Presensi *"
+            type="file"
+            accept=".xlsx,.xls,.csv,.txt,.sql"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setRekapForm({ ...rekapForm, file_rekap: file });
+            }}
+            required
+            hint="Format berkas: .xlsx, .xls, .csv, .txt, .sql"
+          />
+
+          <Input
+            label="Catatan (Opsional)"
+            placeholder="Catatan tambahan untuk periode ini..."
+            value={rekapForm.catatan}
+            onChange={(e) => setRekapForm({ ...rekapForm, catatan: e.target.value })}
+          />
+        </form>
       </Modal>
 
       <ConfirmDialog

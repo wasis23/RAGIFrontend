@@ -204,8 +204,8 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
         }
 
         return (
-          <div className="flex items-center gap-1 text-xs font-semibold text-blue-700">
-            <Clock size={13} className="text-blue-500 shrink-0" />
+          <div className="flex items-center gap-1 text-xs font-semibold text-primary-700">
+            <Clock size={13} className="text-primary-500 shrink-0" />
             <span>{jam}</span>
           </div>
         );
@@ -279,7 +279,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="p-3 bg-primary-50 text-primary-600 rounded-xl">
               <Calendar size={20} />
             </div>
             <div>
