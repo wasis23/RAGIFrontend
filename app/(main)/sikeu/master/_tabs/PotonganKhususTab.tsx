@@ -30,24 +30,29 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
-interface FormValues {
-  mahasiswa_id: number;
-  nama_potongan: string;
-  tipe_potongan: 'nominal' | 'persen';
-  nilai_potongan: number;
-  master_biaya_id: string; // string from select, parsed to number or null
-  semester: string; // string from select, parsed to number or null
-  tahun_akademik: string;
-  berlaku_mulai: string;
-  berlaku_sampai: string;
-  nomor_sk: string;
-  keterangan: string;
-  status: string;
-}
+const potonganFormSchema = z.object({
+  mahasiswa_id: z.number().min(1, 'Silakan cari dan pilih mahasiswa terlebih dahulu'),
+  nama_potongan: z.string().trim().min(1, 'Nama atau jenis potongan wajib diisi'),
+  tipe_potongan: z.enum(['nominal', 'persen']),
+  nilai_potongan: z.number().positive('Nilai potongan harus lebih besar dari 0'),
+  master_biaya_id: z.string().optional().nullable(),
+  semester: z.string().optional().nullable(),
+  tahun_akademik: z.string().optional().nullable(),
+  berlaku_mulai: z.string().optional().nullable(),
+  berlaku_sampai: z.string().optional().nullable(),
+  nomor_sk: z.string().optional().nullable(),
+  keterangan: z.string().optional().nullable(),
+  status: z.enum(['aktif', 'nonaktif', 'selesai']),
+});
+
+type FormValues = z.infer<typeof potonganFormSchema>;
 
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 const getDefaultEndDate = () => {
@@ -94,7 +99,15 @@ export function PotonganKhususTab() {
   const [selectedStudentObj, setSelectedStudentObj] = useState<any | null>(null);
   const [searchingStudent, setSearchingStudent] = useState(false);
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors }
+  } = useForm<FormValues>({
+    resolver: zodResolver(potonganFormSchema) as any,
     defaultValues: {
       mahasiswa_id: 0,
       nama_potongan: '',
@@ -113,6 +126,9 @@ export function PotonganKhususTab() {
 
   const watchTipePotongan = watch('tipe_potongan');
   const watchNilaiPotongan = watch('nilai_potongan');
+  const watchMasterBiayaId = watch('master_biaya_id');
+  const watchSemester = watch('semester');
+  const watchStatus = watch('status');
 
   const fetchData = async () => {
     try {
@@ -199,6 +215,7 @@ export function PotonganKhususTab() {
       mahasiswa_id: item.mahasiswa_id,
       nim: item.nim,
       nama: item.nama_mahasiswa,
+      nama_mahasiswa: item.nama_mahasiswa,
       nama_lengkap: item.nama_mahasiswa,
     });
     reset({
@@ -213,7 +230,7 @@ export function PotonganKhususTab() {
       berlaku_sampai: item.berlaku_sampai || getDefaultEndDate(),
       nomor_sk: item.nomor_sk || '',
       keterangan: item.keterangan || '',
-      status: item.status || 'aktif',
+      status: (item.status as 'aktif' | 'nonaktif' | 'selesai') || 'aktif',
     });
     setIsModalOpen(true);
   };
@@ -232,16 +249,6 @@ export function PotonganKhususTab() {
       return;
     }
 
-    if (!formData.nama_potongan || formData.nama_potongan.trim().length === 0) {
-      toast.error('Nama/Jenis potongan wajib diisi!');
-      return;
-    }
-
-    if (!formData.nilai_potongan || Number(formData.nilai_potongan) <= 0) {
-      toast.error('Nilai potongan harus lebih besar dari 0!');
-      return;
-    }
-
     setSubmitting(true);
     try {
       const payload: any = {
@@ -249,8 +256,8 @@ export function PotonganKhususTab() {
         nama_potongan: formData.nama_potongan.trim(),
         tipe_potongan: formData.tipe_potongan,
         nilai_potongan: Number(formData.nilai_potongan),
-        master_biaya_id: formData.master_biaya_id ? Number(formData.master_biaya_id) : null,
-        semester: formData.semester ? Number(formData.semester) : null,
+        master_biaya_id: formData.master_biaya_id && formData.master_biaya_id !== '' ? Number(formData.master_biaya_id) : null,
+        semester: formData.semester && formData.semester !== '' ? Number(formData.semester) : null,
         tahun_akademik: formData.tahun_akademik?.trim() || null,
         berlaku_mulai: formData.berlaku_mulai || null,
         berlaku_sampai: formData.berlaku_sampai || null,
@@ -264,7 +271,7 @@ export function PotonganKhususTab() {
         toast.success('Pengaturan potongan khusus mahasiswa berhasil diperbarui');
       } else {
         payload.nim = selectedStudentObj?.nim;
-        payload.nama_mahasiswa = selectedStudentObj?.nama_lengkap || selectedStudentObj?.nama;
+        payload.nama_mahasiswa = selectedStudentObj?.nama_mahasiswa || selectedStudentObj?.nama_lengkap || selectedStudentObj?.nama;
         await sikeuService.createPotonganMahasiswa(payload);
         toast.success('Potongan khusus mahasiswa berhasil ditetapkan');
       }
@@ -687,10 +694,10 @@ export function PotonganKhususTab() {
                   </div>
                   <div>
                     <p className="font-extrabold text-emerald-950 text-sm">
-                      {selectedStudentObj.nama_lengkap || selectedStudentObj.nama}
+                      {selectedStudentObj.nama_mahasiswa || selectedStudentObj.nama_lengkap || selectedStudentObj.nama}
                     </p>
                     <p className="text-2xs text-emerald-700 font-mono">
-                      NIM: {selectedStudentObj.nim} • {selectedStudentObj.prodi_nama || selectedStudentObj.program_studi?.nama || 'Aktif'}
+                      NIM: {selectedStudentObj.nim} • {selectedStudentObj.prodi_nama || selectedStudentObj.prodi || selectedStudentObj.program_studi?.nama || 'Aktif'}
                     </p>
                   </div>
                 </div>
@@ -698,10 +705,10 @@ export function PotonganKhususTab() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-xs text-rose-600 hover:bg-rose-100/50"
+                  className="text-xs text-rose-600 hover:bg-rose-100/50 cursor-pointer"
                   onClick={() => {
                     setSelectedStudentObj(null);
-                    setValue('mahasiswa_id', 0);
+                    setValue('mahasiswa_id', 0, { shouldValidate: true });
                   }}
                 >
                   Ganti
@@ -731,9 +738,9 @@ export function PotonganKhususTab() {
                         className="p-2.5 hover:bg-primary-50/70 cursor-pointer flex items-center justify-between text-xs transition-colors"
                       >
                         <div>
-                          <p className="font-bold text-slate-800">{mhs.nama_lengkap || mhs.nama}</p>
+                          <p className="font-bold text-slate-800">{mhs.nama_mahasiswa || mhs.nama_lengkap || mhs.nama}</p>
                           <p className="text-2xs text-slate-500 font-mono">
-                            NIM: {mhs.nim} • Angkatan: {mhs.angkatan || '-'}
+                            NIM: {mhs.nim} • Angkatan: {mhs.tahun_angkatan || mhs.angkatan || '-'}
                           </p>
                         </div>
                         <Badge variant="blue" className="text-2xs">Pilih</Badge>
@@ -744,6 +751,9 @@ export function PotonganKhususTab() {
                 {studentSearch && !searchingStudent && studentResults.length === 0 && (
                   <p className="text-2xs text-slate-400 italic">Tidak ditemukan mahasiswa dengan kata kunci tersebut.</p>
                 )}
+                {errors.mahasiswa_id?.message && (
+                  <p className="text-2xs text-rose-500 font-semibold">{errors.mahasiswa_id.message}</p>
+                )}
               </div>
             )}
           </div>
@@ -751,28 +761,31 @@ export function PotonganKhususTab() {
           {/* Section 2: Detail Potongan Dinamis */}
           <div className="space-y-3">
             <Input
-              label="Nama / Jenis Potongan Tambahan"
+              label="Nama / Jenis Potongan Tambahan *"
               placeholder="Contoh: Keringanan UKT Rektorat, Diskon Saudara Kandung, Potongan Afirmasi..."
-              {...register('nama_potongan', { required: true })}
+              {...register('nama_potongan')}
+              error={errors.nama_potongan?.message}
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Select
-                label="Tipe Potongan"
+                label="Tipe Potongan *"
                 value={watchTipePotongan}
-                onChange={(e) => setValue('tipe_potongan', e.target.value as 'nominal' | 'persen')}
+                onChange={(val) => setValue('tipe_potongan', (val as 'nominal' | 'persen') || 'nominal', { shouldValidate: true })}
                 options={[
                   { value: 'nominal', label: 'Nominal Tetap (Rp)' },
                   { value: 'persen', label: 'Persentase (%)' },
                 ]}
+                error={errors.tipe_potongan?.message}
               />
 
               <Input
-                label={watchTipePotongan === 'persen' ? 'Besaran Persentase (%)' : 'Besaran Nominal (Rp)'}
+                label={watchTipePotongan === 'persen' ? 'Besaran Persentase (%) *' : 'Besaran Nominal (Rp) *'}
                 type="number"
                 step="any"
                 placeholder={watchTipePotongan === 'persen' ? 'Contoh: 25' : 'Contoh: 1500000'}
-                {...register('nilai_potongan', { required: true, min: 1 })}
+                {...register('nilai_potongan', { valueAsNumber: true })}
+                error={errors.nilai_potongan?.message}
               />
             </div>
 
@@ -788,8 +801,9 @@ export function PotonganKhususTab() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Select
-                label="Komponen Biaya yang Dipotong"
-                {...register('master_biaya_id')}
+                label="Pilihan Tagihan / Komponen yang Dipotong"
+                value={watchMasterBiayaId || ''}
+                onChange={(val) => setValue('master_biaya_id', (val as string) || '', { shouldValidate: true })}
                 options={[
                   { value: '', label: 'Semua Komponen (Total Tagihan)' },
                   ...masterBiayaList.map((mb) => ({
@@ -797,22 +811,25 @@ export function PotonganKhususTab() {
                     label: `${mb.nama} (${mb.kode || 'BIAYA'})`,
                   })),
                 ]}
+                placeholder="Pilih tagihan atau semua komponen..."
+                hint="Pilih tagihan spesifik yang akan dipotong, atau biarkan semua komponen."
+                error={errors.master_biaya_id?.message}
               />
 
               <Select
                 label="Target Semester Berlaku"
-                {...register('semester')}
+                value={watchSemester || ''}
+                onChange={(val) => setValue('semester', (val as string) || '', { shouldValidate: true })}
                 options={[
-                  { value: '', label: 'Semua Semester (Berulang)' },
-                  { value: '1', label: 'Semester 1' },
-                  { value: '2', label: 'Semester 2' },
-                  { value: '3', label: 'Semester 3' },
-                  { value: '4', label: 'Semester 4' },
-                  { value: '5', label: 'Semester 5' },
-                  { value: '6', label: 'Semester 6' },
-                  { value: '7', label: 'Semester 7' },
-                  { value: '8', label: 'Semester 8' },
+                  { value: '', label: 'Semua Semester (Berlaku Berulang)' },
+                  ...Array.from({ length: 14 }, (_, i) => ({
+                    value: String(i + 1),
+                    label: `Semester ${i + 1}`,
+                  })),
                 ]}
+                placeholder="Pilih semester atau semua semester..."
+                hint="Jika semester belum dipilih, potongan berlaku untuk semua semester."
+                error={errors.semester?.message}
               />
             </div>
 
@@ -821,11 +838,13 @@ export function PotonganKhususTab() {
                 label="Berlaku Mulai"
                 type="date"
                 {...register('berlaku_mulai')}
+                error={errors.berlaku_mulai?.message}
               />
               <Input
                 label="Berlaku Sampai"
                 type="date"
                 {...register('berlaku_sampai')}
+                error={errors.berlaku_sampai?.message}
               />
             </div>
 
@@ -834,30 +853,29 @@ export function PotonganKhususTab() {
                 label="Nomor SK / Dasar Dokumen"
                 placeholder="Contoh: SK Rektor No. 042/SK/2026"
                 {...register('nomor_sk')}
+                error={errors.nomor_sk?.message}
               />
 
               <Select
                 label="Status Potongan"
-                {...register('status')}
+                value={watchStatus || 'aktif'}
+                onChange={(val) => setValue('status', (val as 'aktif' | 'nonaktif' | 'selesai') || 'aktif', { shouldValidate: true })}
                 options={[
                   { value: 'aktif', label: 'Aktif (Diterapkan ke Tagihan)' },
                   { value: 'nonaktif', label: 'Nonaktif (Ditangguhkan)' },
                   { value: 'selesai', label: 'Selesai (Sudah Tidak Berlaku)' },
                 ]}
+                error={errors.status?.message}
               />
             </div>
 
-            <div>
-              <label className="text-2xs font-semibold text-slate-700 block mb-1">
-                Catatan / Alasan Pemberian Potongan
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Tuliskan keterangan permohonan atau pertimbangan khusus..."
-                className="w-full text-xs rounded-xl border border-slate-200 p-2.5 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                {...register('keterangan')}
-              />
-            </div>
+            <Textarea
+              label="Catatan / Alasan Pemberian Potongan"
+              rows={2}
+              placeholder="Tuliskan keterangan permohonan atau pertimbangan khusus..."
+              {...register('keterangan')}
+              error={errors.keterangan?.message}
+            />
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
