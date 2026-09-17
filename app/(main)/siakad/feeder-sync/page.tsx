@@ -30,7 +30,6 @@ export default function FeederSyncPage() {
   const [activeTab, setActiveTab] = useState<'sync' | 'mappings' | 'logs'>('sync');
   const [isLoading, setIsLoading] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<string | null>(null);
-  const [tokenStaging, setTokenStaging] = useState(false);
 
   // Mappings & Logs state
   const [mappings, setMappings] = useState<any[]>([]);
@@ -51,19 +50,15 @@ export default function FeederSyncPage() {
     try {
       const res = await feederService.getToken();
       if (res?.data?.token) {
-        const isStaging = res.data.is_staging === true;
         setTokenInfo(res.data.token);
-        setTokenStaging(isStaging);
-        if (isStaging) {
-          toast(res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
-        } else {
-          toast.success('Berhasil terhubung ke Neo Feeder / Staging');
-        }
+        toast.success(res?.message || 'Berhasil terhubung ke Web Service Neo Feeder (Live)');
       } else {
+        setTokenInfo(null);
         toast.error(res?.message || 'Token tidak ditemukan');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Gagal terhubung ke Neo Feeder');
+      setTokenInfo(null);
+      toast.error(error?.response?.data?.message || error.message || 'Gagal terhubung ke Web Service Neo Feeder (Offline / Port Tertutup)');
     } finally {
       setIsLoading(false);
     }
@@ -313,15 +308,13 @@ export default function FeederSyncPage() {
       {/* Tab 1: Sync Operations */}
       {activeTab === 'sync' && (
         <div className="space-y-6">
-          {/* Connection Status Banner */}
+          {/* Connection Status Banner (STRICT Mode) */}
           <div className="card p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                   tokenInfo
-                    ? tokenStaging
-                      ? 'bg-amber-50 text-amber-600'
-                      : 'bg-emerald-50 text-emerald-600'
+                    ? 'bg-emerald-50 text-emerald-600'
                     : 'bg-rose-50 text-rose-600'
                 }`}
               >
@@ -329,22 +322,22 @@ export default function FeederSyncPage() {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Status Koneksi Feeder / Staging
+                  Status Koneksi Web Service Neo Feeder (STRICT)
                 </p>
                 <p className="font-mono text-xs font-bold text-slate-900 mt-0.5 break-all">
                   {tokenInfo
-                    ? `${tokenStaging ? 'Mode Staging' : 'Token Aktif'}: ${tokenInfo}`
-                    : 'Koneksi belum terverifikasi'}
+                    ? `Token Aktif (Live): ${tokenInfo}`
+                    : 'Koneksi Offline / Tidak Terhubung'}
                 </p>
-                {tokenInfo && tokenStaging && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    WS Feeder tidak terjangkau. Data ditampung secara lokal (staging).
+                {!tokenInfo && (
+                  <p className="text-xs text-rose-600 mt-1">
+                    Pastikan server Web Service Neo Feeder aktif dan kredensial di Pengaturan Sistem valid.
                   </p>
                 )}
               </div>
             </div>
-            <Badge variant={tokenInfo ? (tokenStaging ? 'amber' : 'green') : 'rose'}>
-              {tokenInfo ? (tokenStaging ? 'STAGING' : 'TERHUBUNG') : 'OFFLINE'}
+            <Badge variant={tokenInfo ? 'green' : 'rose'}>
+              {tokenInfo ? 'LIVE FEEDER TERKONEKSI' : 'OFFLINE / GAGAL'}
             </Badge>
           </div>
 

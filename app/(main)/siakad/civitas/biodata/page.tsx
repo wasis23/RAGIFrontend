@@ -459,7 +459,7 @@ export default function AdminMahasiswaBiodataPage() {
                     <Database size={13} className="text-amber-400" /> ID Feeder Biodata:
                   </span>
                   <span className="font-mono font-bold text-amber-300">
-                    {mahasiswa.id_feeder_biodata || 'STG-BIO-' + mahasiswa.id}
+                    {mahasiswa.id_feeder_biodata || 'Belum Disinkronkan'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-2">
@@ -467,7 +467,7 @@ export default function AdminMahasiswaBiodataPage() {
                     <GraduationCap size={13} className="text-emerald-400" /> ID Feeder Riwayat:
                   </span>
                   <span className="font-mono font-bold text-emerald-300">
-                    {mahasiswa.id_feeder_riwayat || 'STG-REG-' + mahasiswa.id}
+                    {mahasiswa.id_feeder_riwayat || 'Belum Disinkronkan'}
                   </span>
                 </div>
               </div>

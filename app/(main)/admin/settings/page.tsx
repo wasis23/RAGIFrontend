@@ -100,7 +100,6 @@ export default function SystemSettingsPage() {
   const [showFeederPassword, setShowFeederPassword] = useState(false);
   const [isTestingFeeder, setIsTestingFeeder] = useState(false);
   const [feederTokenInfo, setFeederTokenInfo] = useState<string | null>(null);
-  const [feederTokenStaging, setFeederTokenStaging] = useState(false);
 
   const {
     register,
@@ -271,23 +270,16 @@ export default function SystemSettingsPage() {
   const handleTestFeeder = async () => {
     setIsTestingFeeder(true);
     setFeederTokenInfo(null);
-    setFeederTokenStaging(false);
     try {
       const res = await feederService.getToken();
       if (res?.data?.token) {
-        const isStaging = res.data.is_staging === true;
         setFeederTokenInfo(res.data.token);
-        setFeederTokenStaging(isStaging);
-        if (isStaging) {
-          toast(res?.message || 'WS Feeder tidak terjangkau. Mode staging aktif.');
-        } else {
-          toast.success('Berhasil terhubung ke Neo Feeder.');
-        }
+        toast.success(res?.message || 'Berhasil terhubung ke Web Service Neo Feeder (Live).');
       } else {
         toast.error(res?.message || 'Token Feeder tidak ditemukan.');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Gagal terhubung ke Neo Feeder.');
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal terhubung ke Web Service Neo Feeder (Offline / Port Tertutup).');
     } finally {
       setIsTestingFeeder(false);
     }
@@ -652,11 +644,14 @@ export default function SystemSettingsPage() {
                           {isTestingFeeder ? 'Menghubungkan...' : 'Tes Koneksi Feeder'}
                         </Button>
                         {feederTokenInfo && (
-                          <p className={`font-mono text-xs font-bold break-all ${feederTokenStaging ? 'text-amber-700' : 'text-emerald-700'}`}>
-                            {feederTokenStaging
-                              ? `Mode Staging (WS tidak terjangkau): ${feederTokenInfo}`
-                              : `Token Aktif: ${feederTokenInfo}`}
-                          </p>
+                          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded text-xs space-y-1">
+                            <span className="font-semibold text-emerald-800 flex items-center gap-1.5">
+                              <CheckCircle2 size={14} /> Terkoneksi ke Web Service Neo Feeder (Live)
+                            </span>
+                            <p className="font-mono text-xs font-bold text-emerald-700 break-all">
+                              Token Aktif: {feederTokenInfo}
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>

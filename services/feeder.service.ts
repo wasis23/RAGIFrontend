@@ -19,9 +19,9 @@ export const feederService = {
   },
 
   /**
-   * Dapatkan status token terbaru dari Feeder
+   * Dapatkan status token terbaru dari Feeder (STRICT Mode)
    */
-  getToken: async (): Promise<ApiResponse<{ token: string; is_staging: boolean }>> => {
+  getToken: async (): Promise<ApiResponse<{ token: string }>> => {
     const response = await apiClient.get('/v1/siakad/feeder-sync/token');
     return response.data;
   },
