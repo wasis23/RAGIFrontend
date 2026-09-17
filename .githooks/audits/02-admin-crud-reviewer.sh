@@ -1,4 +1,7 @@
 #!/bin/bash
+# ==============================================================================
+# AUDIT 02: Admin CRUD Standard Reviewer (FE) — STRICT HYBRID (Regex + AI Muse)
+# ==============================================================================
 
 echo "🤖 [Audit 2/8: Admin CRUD Standard] Memeriksa perubahan dengan AI (Opencode Muse)..."
 
@@ -8,8 +11,10 @@ MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "app/(main)/**" "components/**")
+    STAGED_FILES=$(git diff "$DIFF_TARGET" --name-only --diff-filter=ACM -- "app/(main)/**" "components/**")
 else
     STAGED_DIFF=$(git diff --cached -- "app/(main)/**" "components/**")
+    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "app/(main)/**" "components/**")
 fi
 
 if [ -z "$STAGED_DIFF" ]; then
@@ -17,67 +22,102 @@ if [ -z "$STAGED_DIFF" ]; then
     exit 0
 fi
 
-TRUNCATED_DIFF=$(echo "$STAGED_DIFF" | head -n 400)
+# ------------------------------------------------------------------------------
+# 1. DETERMINISTIC PRE-CHECK (Fast Rejection)
+# ------------------------------------------------------------------------------
+FAILED_REGEX=0
+
+while IFS= read -r file; do
+    [ -f "$file" ] || continue
+    if [ -n "$DIFF_TARGET" ]; then
+        ADDED=$(git diff "$DIFF_TARGET" -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
+    else
+        ADDED=$(git diff --cached -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
+    fi
+    [ -z "$ADDED" ] && continue
+
+    # Cek dialog native browser (confirm/alert/prompt)
+    NATIVE_CONFIRM=$(echo "$ADDED" | grep -nP '(?<!\w)(window\.)?(confirm|alert|prompt)\s*\(' | head -n 3)
+    if [ -n "$NATIVE_CONFIRM" ]; then
+        echo "❌ [Audit Admin CRUD] Dialog native browser terdeteksi di $file:"
+        echo "$NATIVE_CONFIRM" | sed 's/^/    /'
+        echo "   💡 DILARANG KERAS menggunakan confirm()/alert(). WAJIB menggunakan <ConfirmDialog /> (@/components/ui/ConfirmDialog)."
+        FAILED_REGEX=1
+    fi
+
+    # Cek tag table mentah di halaman CRUD
+    RAW_TABLE=$(echo "$ADDED" | grep -nP '<table[\s>]' | head -n 3)
+    if [ -n "$RAW_TABLE" ]; then
+        echo "❌ [Audit Admin CRUD] Tag <table> mentah terdeteksi di $file:"
+        echo "$RAW_TABLE" | sed 's/^/    /'
+        echo "   💡 WAJIB menggunakan komponen <DataTable /> (@/components/ui/DataTable)."
+        FAILED_REGEX=1
+    fi
+done <<< "$STAGED_FILES"
+
+if [ $FAILED_REGEX -ne 0 ]; then
+    echo "❌ [Audit Admin CRUD Standard] DITOLAK pada tahap pemeriksaan statis!"
+    exit 1
+fi
+
+# ------------------------------------------------------------------------------
+# 2. DEEP AI AUDIT (Opencode Model Muse) — FULL DIFF
+# ------------------------------------------------------------------------------
 PROMPT_FILE=$(mktemp)
 
 cat << 'EOF' > "$PROMPT_FILE"
-Kamu adalah Code Auditor khusus Admin CRUD Standard.
+Kamu adalah Code Auditor khusus Admin CRUD Standard (Strict Frontend Reviewer).
 Periksa Git Diff berikut HANYA terhadap Aturan Admin CRUD & Table Standard:
 
-Aturan Admin CRUD:
+Aturan Baku Admin CRUD (10 ATURAN KETAT):
 1. MOBILE-FIRST RESPONSIVE STYLING:
    - Layout dan halaman WAJIB menggunakan pendekatan Mobile-First (misal: `w-full flex-col grid-cols-1 gap-4`) dengan breakpoint responsif (`sm:`, `md:`, `lg:`).
-
 2. HALAMAN DETAIL TERPISAH (SEPARATE DETAIL PAGE):
    - Tampilan Detail data/rincian entitas WAJIB dibuat di Halaman Terpisah (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali yang warnanya menyesuaikan primary modul di `PageHeader`. DILARANG menjejalkan detail rumit ke dalam modal kecil.
-
 3. DESAIN FORM COMPACT & ELEGAN:
-   - Form harus dirancang compact, rapi, dan proporsional (grid 1 kolom di mobile, max 2-3 kolom di desktop). No excessive whitespace or huge margins.
-
+   - Form harus dirancang compact, rapi, dan proporsional (grid 1 kolom di mobile, max 2-3 kolom di desktop: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`). Dilarang excessive whitespace atau margin besar.
 4. ATOMIC DESIGN ARCHITECTURE:
-   - Menggunakan komponen dari `@/components/ui/` (Button, Input, Select, Modal, Drawer, DataTable, Badge) dan `@/components/layout/` (PageHeader).
-   - DILARANG menggunakan elemen HTML mentah tanpa style bawaan (seperti tag <table> mentah atau <select> mentah).
-
+   - Menggunakan komponen dari `@/components/ui/` (Button, Input, Select, Modal, Drawer, DataTable, Badge, ConfirmDialog) dan `@/components/layout/` (PageHeader). DILARANG menggunakan elemen HTML mentah tanpa style bawaan.
 5. DATATABLE & API PAGINATION:
-   - Jika halaman berupa list/tabel data, WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`.
-   - Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`.
-
-6. SORT BY & SORT DIRECTION:
-   - Halaman list/tabel WAJIB memiliki opsi `sort_by` dan `sort_dir` / `orderDir` (`asc` / `desc`).
-
+   - Jika halaman berupa list/tabel data, WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`. Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`. Dilarang <table> mentah.
+6. SORT BY & SORT DIRECTION (DEFAULT NAME/LABEL):
+   - Halaman list/tabel WAJIB memiliki opsi `sort_by` / `orderBy` dan `sort_dir` / `orderDir` (`asc`/`desc`) di dalam Drawer dengan layout grid 2 kolom.
 7. TOMBOL FILTER OUTLINE DYNAMIC & DRAWER SLIDE KANAN-KE-KIRI:
-   - Tombol Filter WAJIB bertipe outline dengan warna yang menyesuaikan primary modul (`variant="outline"`).
-   - Membuka panel `<Drawer />` yang meluncur dari kanan ke kiri.
-
+   - Tombol Filter WAJIB bertipe outline dinamis (`variant="outline"`, ikon `<Filter size={16} />`) membuka panel `<Drawer />` yang meluncur dari kanan ke kiri.
 8. FORM & LAYOUT CONSISTENCY:
    - Form <= 5 inputs: Gunakan Modal (`<Modal />`) dengan grid maksimal 2 kolom.
    - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali di `PageHeader`.
-
 9. WAJIB 3-DOTS ACTION DROPDOWN MENU (<DropdownMenu />):
-   - Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />`). DILARANG menyejajarkan tombol aksi secara horizontal di sel tabel.
+   - Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />`). DILARANG KERAS menyejajarkan tombol aksi secara horizontal di sel tabel.
+10. DILARANG DIALOG NATIVE BROWSER & WAJIB MODAL KONFIRMASI UI (<ConfirmDialog />):
+   - DILARANG KERAS menggunakan dialog bawaan browser (`confirm()`, `window.confirm()`, `alert()`, `prompt()`). Seluruh konfirmasi aksi hapus atau aksi destruktif WAJIB menggunakan modal konfirmasi bertema UI (`<ConfirmDialog />` atau `<Modal />`) dengan tombol Batal dan Hapus serta indikator loading.
 
-Catatan Penting:
+Catatan:
 - HANYA periksa baris-baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah.
 
 Git Diff:
 EOF
 
 echo '```diff' >> "$PROMPT_FILE"
-echo "$TRUNCATED_DIFF" >> "$PROMPT_FILE"
+echo "$STAGED_DIFF" >> "$PROMPT_FILE"
 echo '```' >> "$PROMPT_FILE"
 
 cat << 'EOF' >> "$PROMPT_FILE"
 PENTING: Jawab HANYA secara langsung tanpa memanggil tool atau membaca file.
-Jawab HANYA salah satu:
-- PASSED jika kode bersih dan memenuhi Admin CRUD Standard.
-- REJECTED: [detail alasan pelanggaran] jika ditemukan pelanggaran Admin CRUD Standard pada baris baru (+).
+Format Respon:
+- Jika kode bersih dan memenuhi 10 Aturan Admin CRUD Standard, jawab TEPAT: PASSED
+- Jika ditemukan pelanggaran pada baris baru (+), awali respon dengan REJECTED dan berikan rincian lengkap:
+  * File & Potongan Baris Melanggar: (nama file dan baris/kode yang melanggar)
+  * Aturan yang Dilanggar: (sebutkan nomor dan nama aturan Admin CRUD yang dilanggar)
+  * Alasan Penolakan: (penjelasan detail mengapa kode tersebut melanggar)
+  * Solusi / Rekomendasi Perbaikan: (solusi konkrit atau contoh kode perbaikan)
 EOF
 
 if [ -x "$OPENCODE_BIN" ]; then
-    RESULT=$(timeout 30s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
+    RESULT=$(timeout 45s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
 elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 20s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+    RESULT=$(timeout 30s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
 else
     AI_EXIT_CODE=127
@@ -86,13 +126,24 @@ fi
 rm -f "$PROMPT_FILE"
 
 if [ $AI_EXIT_CODE -ne 0 ]; then
-    echo "⚠️ [Audit Admin CRUD Standard] AI reviewer tidak merespons (Exit: $AI_EXIT_CODE), melanjutkan..."
-    exit 0
+    echo "❌ [Audit Admin CRUD Standard] REJECTED: AI Reviewer gagal/timeout (Exit: $AI_EXIT_CODE)!"
+    exit 1
 fi
+
+CLEAN_RESULT=$(echo "$RESULT" | sed -e '/^> build/d' -e '/^Loaded config/d' | awk '/./{p=1} p')
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
     echo "❌ [Audit Admin CRUD Standard] REJECTED oleh AI (Muse)!"
-    echo "$RESULT" | grep -i "REJECTED"
+    echo "================================ DETAIL TEMUAN AUDIT ================================"
+    echo "$CLEAN_RESULT"
+    echo "===================================================================================="
+    echo "💡 Harap perbaiki seluruh pelanggaran di atas sebelum melakukan commit."
+    exit 1
+elif ! echo "$RESULT" | grep -qi "PASSED"; then
+    echo "❌ [Audit Admin CRUD Standard] REJECTED: AI tidak memberikan keputusan PASSED yang valid!"
+    echo "================================ DETAIL OUTPUT ====================================="
+    echo "$CLEAN_RESULT"
+    echo "===================================================================================="
     exit 1
 else
     echo "✅ [Audit Admin CRUD Standard] PASSED (Divalidasi oleh AI Opencode Muse)."
