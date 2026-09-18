@@ -15,6 +15,7 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { DokumenPegawai, JenisDokumenPegawai, Pegawai } from '@/types/simpeg.types';
@@ -79,6 +80,20 @@ export default function DokumenPage() {
       nama_dokumen: '',
       jenis_dokumen: 'ijazah',
     },
+  });
+
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isLoading: boolean;
+    onConfirm: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    isLoading: false,
+    onConfirm: async () => {},
   });
 
   const loadDokumen = useCallback(async () => {
@@ -254,19 +269,29 @@ export default function DokumenPage() {
     }
   };
 
-  const handleDelete = async (id: number, nama: string) => {
+  const handleDelete = (id: number, nama: string) => {
     if (!canDelete) {
       toast.error('Akses Ditolak: Anda tidak memiliki permission menghapus dokumen.');
       return;
     }
-    if (!confirm(`Apakah Anda yakin ingin menghapus dokumen "${nama}"?`)) return;
-    try {
-      await simpegService.deleteDokumen(id);
-      toast.success('Dokumen beserta file fisiknya berhasil dihapus dari server!');
-      loadDokumen();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus dokumen');
-    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Dokumen Kepegawaian',
+      message: `Apakah Anda yakin ingin menghapus dokumen "${nama}"? Dokumen beserta file fisiknya akan dihapus secara permanen dari server.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteDokumen(id);
+          toast.success('Dokumen beserta file fisiknya berhasil dihapus dari server!');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          loadDokumen();
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || 'Gagal menghapus dokumen');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const columns: ColumnDef<DokumenPegawai>[] = [
@@ -636,6 +661,18 @@ export default function DokumenPage() {
           </div>
         )}
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirm.onConfirm}
+        title={deleteConfirm.title}
+        message={deleteConfirm.message}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deleteConfirm.isLoading}
+      />
     </div>
   );
 }
