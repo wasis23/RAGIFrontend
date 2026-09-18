@@ -73,6 +73,7 @@ const KETERANGAN_OPTIONS = [
 
 export default function PresensiPage() {
   const router = useRouter();
+  const { user, hasPermission, isAdmin } = useAuth();
   const canManage = isAdmin || hasPermission('simpeg.presensi.manage');
   const canDelete = isAdmin || hasPermission('simpeg.presensi.delete') || hasPermission('simpeg.presensi.manage');
 
@@ -359,7 +360,7 @@ export default function PresensiPage() {
           toast.success('Log presensi berhasil dihapus.');
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           setShowDetailModal(false);
-          fetchPresensiLogs();
+          fetchLogPresensi();
         } catch (err: any) {
           toast.error(err.response?.data?.message || 'Gagal menghapus log presensi.');
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
