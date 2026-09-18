@@ -3,12 +3,56 @@ import type { ApiResponse } from '@/types/api.types';
 import type {
   SuratTugas,
   SuratTugasMasters,
+  MasterKategoriKegiatanTugas,
+  MasterJenisTransportasi,
 } from '@/types/simpeg.surat-tugas.types';
 
 export const simpegSuratTugasService = {
-  // ── MASTERS ──────────────────────────────────────────────────
+  // ── MASTERS DROPDOWN ─────────────────────────────────────────
   getMasters: async (): Promise<ApiResponse<SuratTugasMasters>> => {
     const { data } = await apiClient.get<ApiResponse<SuratTugasMasters>>('/simpeg/surat-tugas/masters');
+    return data;
+  },
+
+  // ── KATEGORI KEGIATAN CRUD ──────────────────────────────────
+  getKategoriList: async (params?: any): Promise<ApiResponse<MasterKategoriKegiatanTugas[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterKategoriKegiatanTugas[]>>('/simpeg/master/kategori-kegiatan-tugas', { params });
+    return data;
+  },
+
+  createKategori: async (payload: Partial<MasterKategoriKegiatanTugas>): Promise<ApiResponse<MasterKategoriKegiatanTugas>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterKategoriKegiatanTugas>>('/simpeg/master/kategori-kegiatan-tugas', payload);
+    return data;
+  },
+
+  updateKategori: async (id: number, payload: Partial<MasterKategoriKegiatanTugas>): Promise<ApiResponse<MasterKategoriKegiatanTugas>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterKategoriKegiatanTugas>>(`/simpeg/master/kategori-kegiatan-tugas/${id}`, payload);
+    return data;
+  },
+
+  deleteKategori: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/simpeg/master/kategori-kegiatan-tugas/${id}`);
+    return data;
+  },
+
+  // ── JENIS TRANSPORTASI CRUD ─────────────────────────────────
+  getTransportasiList: async (params?: any): Promise<ApiResponse<MasterJenisTransportasi[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterJenisTransportasi[]>>('/simpeg/master/jenis-transportasi', { params });
+    return data;
+  },
+
+  createTransportasi: async (payload: Partial<MasterJenisTransportasi>): Promise<ApiResponse<MasterJenisTransportasi>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterJenisTransportasi>>('/simpeg/master/jenis-transportasi', payload);
+    return data;
+  },
+
+  updateTransportasi: async (id: number, payload: Partial<MasterJenisTransportasi>): Promise<ApiResponse<MasterJenisTransportasi>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterJenisTransportasi>>(`/simpeg/master/jenis-transportasi/${id}`, payload);
+    return data;
+  },
+
+  deleteTransportasi: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/simpeg/master/jenis-transportasi/${id}`);
     return data;
   },
 

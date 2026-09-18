@@ -13,7 +13,7 @@ export interface MasterKategoriKegiatanTugas {
   id: number;
   nama: string;
   kode: string;
-  deskripsi?: string;
+  deskripsi?: string | null;
   urutan: number;
   is_active: boolean;
 }

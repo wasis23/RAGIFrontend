@@ -15,6 +15,7 @@ import type {
   GajiPegawai,
   UsulanJafung,
   PenilaianKinerja,
+  MasterKategoriSkp,
   FingerprintDevice,
   FingerprintSyncPayload,
   BulkAssignShiftPayload,
@@ -584,6 +585,27 @@ export const simpegService = {
 
   createUsulanJafung: async (payload: Partial<UsulanJafung>): Promise<ApiResponse<UsulanJafung>> => {
     const { data } = await apiClient.post<ApiResponse<UsulanJafung>>('/simpeg/usulan-jafung', payload);
+    return data;
+  },
+
+  // Master Kategori SKP CRUD
+  getMasterKategoriSkpList: async (params?: any): Promise<ApiResponse<MasterKategoriSkp[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterKategoriSkp[]>>('/simpeg/master/kategori-skp', { params });
+    return data;
+  },
+
+  createMasterKategoriSkp: async (payload: Partial<MasterKategoriSkp>): Promise<ApiResponse<MasterKategoriSkp>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterKategoriSkp>>('/simpeg/master/kategori-skp', payload);
+    return data;
+  },
+
+  updateMasterKategoriSkp: async (id: number, payload: Partial<MasterKategoriSkp>): Promise<ApiResponse<MasterKategoriSkp>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterKategoriSkp>>(`/simpeg/master/kategori-skp/${id}`, payload);
+    return data;
+  },
+
+  deleteMasterKategoriSkp: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/kategori-skp/${id}`);
     return data;
   },
 
