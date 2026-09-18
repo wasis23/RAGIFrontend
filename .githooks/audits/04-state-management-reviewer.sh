@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==============================================================================
-# AUDIT 04: State Management Reviewer (FE) — STRICT HYBRID
+# AUDIT 04: State Management Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 4/8: State Management Standard] Memeriksa perubahan dengan AI (Opencode Muse)..."
+echo "🤖 [Audit 4/8: State Management Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -11,10 +11,8 @@ MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "store/**" "hooks/**" "app/(main)/**")
-    STAGED_FILES=$(git diff "$DIFF_TARGET" --name-only --diff-filter=ACM -- "store/**")
 else
     STAGED_DIFF=$(git diff --cached -- "store/**" "hooks/**" "app/(main)/**")
-    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "store/**")
 fi
 
 if [ -z "$STAGED_DIFF" ]; then
@@ -23,43 +21,27 @@ if [ -z "$STAGED_DIFF" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 1. DETERMINISTIC PRE-CHECK
-# ------------------------------------------------------------------------------
-FAILED_REGEX=0
-
-while IFS= read -r file; do
-    [ -f "$file" ] || continue
-    if ! grep -q "from 'zustand'" "$file"; then
-        echo "❌ [Audit State Management] $file tidak memakai Zustand:"
-        echo "   💡 Global store di @/store/ WAJIB memakai pustaka Zustand."
-        FAILED_REGEX=1
-    fi
-done <<< "$STAGED_FILES"
-
-if [ $FAILED_REGEX -ne 0 ]; then
-    echo "❌ [Audit State Management Standard] DITOLAK pada tahap pemeriksaan statis!"
-    exit 1
-fi
-
-# ------------------------------------------------------------------------------
-# 2. DEEP AI AUDIT (Opencode Model Muse) — FULL DIFF
+# DEEP AI AUDIT
 # ------------------------------------------------------------------------------
 PROMPT_FILE=$(mktemp)
 
 cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus State Management Standard (Strict Frontend Reviewer).
-Periksa Git Diff berikut HANYA terhadap Aturan State Management:
+Periksa Git Diff berikut HANYA terhadap 3 aturan di bawah. Penilaian MURNI oleh AI dari full diff ini, tanpa regex/pre-check.
 
 Aturan Baku (STRICT):
-1. ZUSTAND GLOBAL STORE:
-   - Global state WAJIB menggunakan Zustand dan berlokasi di `@/store/` dengan TypeScript interface terpisah untuk State dan Actions.
-2. LOCAL STATE SCOPING:
-   - Data transient/spesifik 1 halaman (seperti baris tabel CRUD) DILARANG dimasukkan ke Zustand global store. Wajib dikelola dalam local state (`useState` / React Query).
-3. PERSIST MIDDLEWARE:
-   - State yang memerlukan persistensi (seperti auth session / ui preferences) WAJIB menggunakan middleware `persist` dengan atribut `name` unik.
+1. WAJIB global store pakai Zustand di @/store/ + interface State & Actions terpisah + 'use client' baris atas + pola create<StoreType>() + selector useXStore((s)=>s.x).
+   - SALAH: import { createContext, useReducer } untuk global auth; export const useStore = create((set) => ({...})) tanpa tipe; interface State+Actions digabung inline di file store; tanpa 'use client'; const data = useXStore() (subscribe seluruh store).
+   - BENAR: 'use client' di baris 1; // types/auth-store.types.ts: interface AuthState { token: string | null } interface AuthActions { setToken: (t: string) => void } type AuthStore = AuthState & AuthActions; // store/auth-store.ts: export const useAuthStore = create<AuthStore>()((set) => ({...})); pakai: const token = useAuthStore((s) => s.token).
+2. WAJIB persist pakai middleware persist + name unik; WAJIB sessionStorage untuk auth/sesi, localStorage untuk preferensi (createJSONStorage).
+   - SALAH: persist tanpa name; auth token disimpan di localStorage permanen; preferensi tema disimpan di sessionStorage; localStorage.setItem manual di luar persist.
+   - BENAR: import { createJSONStorage, persist } from 'zustand/middleware'; auth: persist(..., { name: 'auth-session', storage: createJSONStorage(() => sessionStorage) }); preferensi: persist(..., { name: 'ui-preferences', storage: createJSONStorage(() => localStorage) }).
+3. DILARANG data transient/halaman-spesifik di global store; WAJIB useState/React Query (kecuali diakses lintas halaman/komponen).
+   - SALAH: menyimpan search/page/sort tabel satu halaman, baris terpilih, open modal lokal ke useXStore global padahal hanya dipakai satu halaman.
+   - BENAR: const [page, setPage] = useState(1); const { data } = useQuery(...); global store HANYA untuk state lintas halaman/komponen (auth, tema, modul aktif).
 
 Catatan:
-- HANYA periksa baris-baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah.
+- HANYA periksa baris baru (+) yaitu baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah (tanpa `+`).
 
 Git Diff:
 EOF
@@ -99,7 +81,7 @@ fi
 CLEAN_RESULT=$(echo "$RESULT" | sed -e '/^> build/d' -e '/^Loaded config/d' | awk '/./{p=1} p')
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
-    echo "❌ [Audit State Management Standard] REJECTED oleh AI (Muse)!"
+    echo "❌ [Audit State Management Standard] REJECTED oleh AI (Muse Spark)!"
     echo "================================ DETAIL TEMUAN AUDIT ================================"
     echo "$CLEAN_RESULT"
     echo "===================================================================================="
@@ -112,6 +94,6 @@ elif ! echo "$RESULT" | grep -qi "PASSED"; then
     echo "===================================================================================="
     exit 1
 else
-    echo "✅ [Audit State Management Standard] PASSED (Divalidasi oleh AI Opencode Muse)."
+    echo "✅ [Audit State Management Standard] PASSED (Divalidasi AI Muse Spark 1.3)."
     exit 0
 fi

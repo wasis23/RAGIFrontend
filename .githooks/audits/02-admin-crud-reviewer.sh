@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==============================================================================
-# AUDIT 02: Admin CRUD Standard Reviewer (FE) — STRICT HYBRID (Regex + AI Muse)
+# AUDIT 02: Admin CRUD Standard Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 2/8: Admin CRUD Standard] Memeriksa perubahan dengan AI (Opencode Muse)..."
+echo "🤖 [Audit 2/8: Admin CRUD Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -11,10 +11,8 @@ MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "app/(main)/**" "components/**")
-    STAGED_FILES=$(git diff "$DIFF_TARGET" --name-only --diff-filter=ACM -- "app/(main)/**" "components/**")
 else
     STAGED_DIFF=$(git diff --cached -- "app/(main)/**" "components/**")
-    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "app/(main)/**" "components/**")
 fi
 
 if [ -z "$STAGED_DIFF" ]; then
@@ -23,77 +21,48 @@ if [ -z "$STAGED_DIFF" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 1. DETERMINISTIC PRE-CHECK (Fast Rejection)
-# ------------------------------------------------------------------------------
-FAILED_REGEX=0
-
-while IFS= read -r file; do
-    [ -f "$file" ] || continue
-    if [ -n "$DIFF_TARGET" ]; then
-        ADDED=$(git diff "$DIFF_TARGET" -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
-    else
-        ADDED=$(git diff --cached -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
-    fi
-    [ -z "$ADDED" ] && continue
-
-    # Cek dialog native browser (confirm/alert/prompt)
-    NATIVE_CONFIRM=$(echo "$ADDED" | grep -nP '(?<!\w)(window\.)?(confirm|alert|prompt)\s*\(' | head -n 3)
-    if [ -n "$NATIVE_CONFIRM" ]; then
-        echo "❌ [Audit Admin CRUD] Dialog native browser terdeteksi di $file:"
-        echo "$NATIVE_CONFIRM" | sed 's/^/    /'
-        echo "   💡 DILARANG KERAS menggunakan confirm()/alert(). WAJIB menggunakan <ConfirmDialog /> (@/components/ui/ConfirmDialog)."
-        FAILED_REGEX=1
-    fi
-
-    # Cek tag table mentah di halaman CRUD
-    RAW_TABLE=$(echo "$ADDED" | grep -nP '<table[\s>]' | head -n 3)
-    if [ -n "$RAW_TABLE" ]; then
-        echo "❌ [Audit Admin CRUD] Tag <table> mentah terdeteksi di $file:"
-        echo "$RAW_TABLE" | sed 's/^/    /'
-        echo "   💡 WAJIB menggunakan komponen <DataTable /> (@/components/ui/DataTable)."
-        FAILED_REGEX=1
-    fi
-done <<< "$STAGED_FILES"
-
-if [ $FAILED_REGEX -ne 0 ]; then
-    echo "❌ [Audit Admin CRUD Standard] DITOLAK pada tahap pemeriksaan statis!"
-    exit 1
-fi
-
-# ------------------------------------------------------------------------------
-# 2. DEEP AI AUDIT (Opencode Model Muse) — FULL DIFF
+# DEEP AI AUDIT
 # ------------------------------------------------------------------------------
 PROMPT_FILE=$(mktemp)
 
 cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus Admin CRUD Standard (Strict Frontend Reviewer).
-Periksa Git Diff berikut HANYA terhadap Aturan Admin CRUD & Table Standard:
+Periksa Git Diff berikut HANYA terhadap 10 Aturan Admin CRUD & Table Standard di bawah. Penilaian MURNI oleh AI dari full diff ini, tanpa regex/pre-check.
 
 Aturan Baku Admin CRUD (10 ATURAN KETAT):
-1. MOBILE-FIRST RESPONSIVE STYLING:
-   - Layout dan halaman WAJIB menggunakan pendekatan Mobile-First (misal: `w-full flex-col grid-cols-1 gap-4`) dengan breakpoint responsif (`sm:`, `md:`, `lg:`).
-2. HALAMAN DETAIL TERPISAH (SEPARATE DETAIL PAGE):
-   - Tampilan Detail data/rincian entitas WAJIB dibuat di Halaman Terpisah (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali yang warnanya menyesuaikan primary modul di `PageHeader`. DILARANG menjejalkan detail rumit ke dalam modal kecil.
-3. DESAIN FORM COMPACT & ELEGAN:
-   - Form harus dirancang compact, rapi, dan proporsional (grid 1 kolom di mobile, max 2-3 kolom di desktop: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`). Dilarang excessive whitespace atau margin besar.
-4. ATOMIC DESIGN ARCHITECTURE:
-   - Menggunakan komponen dari `@/components/ui/` (Button, Input, Select, Modal, Drawer, DataTable, Badge, ConfirmDialog) dan `@/components/layout/` (PageHeader). DILARANG menggunakan elemen HTML mentah tanpa style bawaan.
-5. DATATABLE & API PAGINATION:
-   - Jika halaman berupa list/tabel data, WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`. Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`. Dilarang <table> mentah.
-6. SORT BY & SORT DIRECTION (DEFAULT NAME/LABEL):
-   - Halaman list/tabel WAJIB memiliki opsi `sort_by` / `orderBy` dan `sort_dir` / `orderDir` (`asc`/`desc`) di dalam Drawer dengan layout grid 2 kolom.
-7. TOMBOL FILTER OUTLINE DYNAMIC & DRAWER SLIDE KANAN-KE-KIRI:
-   - Tombol Filter WAJIB bertipe outline dinamis (`variant="outline"`, ikon `<Filter size={16} />`) membuka panel `<Drawer />` yang meluncur dari kanan ke kiri.
-8. FORM & LAYOUT CONSISTENCY:
-   - Form <= 5 inputs: Gunakan Modal (`<Modal />`) dengan grid maksimal 2 kolom.
-   - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali di `PageHeader`.
-9. WAJIB 3-DOTS ACTION DROPDOWN MENU (<DropdownMenu />):
-   - Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />`). DILARANG KERAS menyejajarkan tombol aksi secara horizontal di sel tabel.
-10. DILARANG DIALOG NATIVE BROWSER & WAJIB MODAL KONFIRMASI UI (<ConfirmDialog />):
-   - DILARANG KERAS menggunakan dialog bawaan browser (`confirm()`, `window.confirm()`, `alert()`, `prompt()`). Seluruh konfirmasi aksi hapus atau aksi destruktif WAJIB menggunakan modal konfirmasi bertema UI (`<ConfirmDialog />` atau `<Modal />`) dengan tombol Batal dan Hapus serta indikator loading.
+1. WAJIB Mobile-first responsive styling dengan w-full flex-col grid-cols-1 gap-4 + breakpoint sm:/md:/lg:.
+   - SALAH: <div className="flex flex-row w-[1200px]"> tanpa breakpoint; grid statis grid-cols-3 tanpa grid-cols-1 mobile.
+   - BENAR: <div className="flex w-full flex-col gap-4 md:flex-row">; <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">.
+2. WAJIB halaman Detail terpisah /[id] dengan Tombol Kembali dinamis primary modul di PageHeader action; DILARANG modal detail rumit.
+   - SALAH: <Modal><DetailRumit ... ratusan baris ... /></Modal> untuk detail entitas.
+   - BENAR: app/(main)/modul/[id]/page.tsx dengan <PageHeader title="Detail" action={<Button style={{ background: 'var(--module-primary)' }}><ArrowLeft size={16}/> Kembali</Button>} />.
+3. WAJIB desain form compact grid-cols-1 md:2 lg:3 gap-4, prop label bawaan, tanpa whitespace berlebih.
+   - SALAH: <div className="grid grid-cols-1 p-10 space-y-10"><input placeholder="Nama" /><input placeholder="NIP" /></div> (tanpa label, whitespace besar).
+   - BENAR: <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><Input label="Nama" ... /><Input label="NIP" ... /></div>.
+4. WAJIB Atomic Design: Button/Input/Select/AsyncSelect/Modal/Drawer/DataTable/Badge/StatusBadge/ConfirmDialog/DropdownMenu dari @/components/ui + PageHeader/Sidebar dari layout; DILARANG HTML mentah; Pages hanya merangkai.
+   - SALAH: <button className="btn">Simpan</button>, <input type="text" />, <select>...</select> di halaman.
+   - BENAR: import { Button, Input, Select } from '@/components/ui'; import { PageHeader } from '@/components/layout'; halaman hanya merangkai komponen atomik.
+5. WAJIB list pakai DataTable + server-side pagination page/limit + meta={meta} + onPageChange; DILARANG <table>/<thead>/<tbody>/<tr>/<td> mentah; DILARANG paginasi client-side .filter/.map; WAJIB reset page=1 saat limit berubah.
+   - SALAH: <table><thead>...</thead></table>; const shown = allData.filter(f).map(...); onLimitChange hanya setLimit(limit).
+   - BENAR: <DataTable columns={columns} data={data} meta={meta} onPageChange={(p) => setPage(p)} />; fetch(`/api/x?page=${page}&limit=${limit}`); onLimitChange={(l) => { setLimit(l); setPage(1); }}.
+6. WAJIB sort sort_by/orderBy (default name/label) + sort_dir/orderDir asc/desc di Drawer grid 2 kolom dengan separator hr.
+   - SALAH: tidak ada kontrol sort; sort hanya satu arah tanpa sort_dir.
+   - BENAR: <div className="grid grid-cols-2 gap-4"><Select label="Sort By" options={[{value:'name',label:'Nama'}]} /><Select label="Direction" options={[{value:'asc',label:'Asc'},{value:'desc',label:'Desc'}]} /></div><hr />.
+7. WAJIB tombol Filter variant outline dinamis primary modul + ikon Filter size 16 di PageHeader action (bersama Tambah Data Plus size 16) → Drawer kanan-ke-kiri.
+   - SALAH: <Button variant="solid">Filter</Button> tanpa ikon; Drawer dari kiri/atas.
+   - BENAR: <PageHeader action={<><Button variant="outline" style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}><Filter size={16} /> Filter</Button><Button><Plus size={16} /> Tambah Data</Button></>} />; <Drawer position="right">.
+8. WAJIB konsistensi form: ≤5 input = Modal grid maks 2 kolom; >5 input = halaman /create /[id]/edit + Tombol Kembali dinamis + Batal sekunder.
+   - SALAH: form 8 input dipadatkan ke <Modal className="grid-cols-4">; form 3 input dibuatkan halaman /create penuh.
+   - BENAR: ≤5 input → <Modal><div className="grid grid-cols-1 md:grid-cols-2 gap-4">...</div></Modal>; >5 input → app/.../create/page.tsx dengan Tombol Kembali + <Button variant="secondary">Batal</Button>.
+9. WAJIB aksi tabel pakai DropdownMenu 3-dots; DILARANG tombol horizontal.
+   - SALAH: <td><Button>Edit</Button><Button>Hapus</Button><Button>Detail</Button></td> sejajar horizontal.
+   - BENAR: <DropdownMenu trigger={<Button variant="ghost"><MoreVertical size={16} /></Button>} items={[{label:'Detail'},{label:'Edit'},{label:'Hapus'}]} />.
+10. DILARANG confirm/alert/prompt; WAJIB ConfirmDialog/Modal dengan Batal+Hapus+isLoading.
+   - SALAH: if (confirm('Hapus?')) doDelete(); alert('Berhasil'); const x = prompt('Nama?').
+   - BENAR: <ConfirmDialog open={open} onCancel={close} onConfirm={doDelete} cancelText="Batal" confirmText="Hapus" isLoading={isDeleting} />.
 
 Catatan:
-- HANYA periksa baris-baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah.
+- HANYA periksa baris baru (+) yaitu baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah (tanpa `+`).
 
 Git Diff:
 EOF
@@ -133,7 +102,7 @@ fi
 CLEAN_RESULT=$(echo "$RESULT" | sed -e '/^> build/d' -e '/^Loaded config/d' | awk '/./{p=1} p')
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
-    echo "❌ [Audit Admin CRUD Standard] REJECTED oleh AI (Muse)!"
+    echo "❌ [Audit Admin CRUD Standard] REJECTED oleh AI (Muse Spark)!"
     echo "================================ DETAIL TEMUAN AUDIT ================================"
     echo "$CLEAN_RESULT"
     echo "===================================================================================="
@@ -146,6 +115,6 @@ elif ! echo "$RESULT" | grep -qi "PASSED"; then
     echo "===================================================================================="
     exit 1
 else
-    echo "✅ [Audit Admin CRUD Standard] PASSED (Divalidasi oleh AI Opencode Muse)."
+    echo "✅ [Audit Admin CRUD Standard] PASSED (Divalidasi AI Muse Spark 1.3)."
     exit 0
 fi

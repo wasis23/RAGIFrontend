@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==============================================================================
-# AUDIT 01: Zero Hardcode & RBAC Reviewer (FE) — STRICT HYBRID (Regex + AI Muse)
+# AUDIT 01: Zero Hardcode & RBAC Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 1/8: Zero Hardcode & RBAC] Memeriksa perubahan dengan AI (Opencode Muse)..."
+echo "🤖 [Audit 1/8: Zero Hardcode & RBAC] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -11,10 +11,8 @@ MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "app/**" "components/**" "services/**")
-    STAGED_FILES=$(git diff "$DIFF_TARGET" --name-only --diff-filter=ACM -- "app/**" "components/**" "services/**")
 else
     STAGED_DIFF=$(git diff --cached -- "app/**" "components/**" "services/**")
-    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "app/**" "components/**" "services/**")
 fi
 
 if [ -z "$STAGED_DIFF" ]; then
@@ -23,60 +21,35 @@ if [ -z "$STAGED_DIFF" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 1. DETERMINISTIC PRE-CHECK (Fast Regex Rejection)
-# ------------------------------------------------------------------------------
-FAILED_REGEX=0
-
-while IFS= read -r file; do
-    [ -f "$file" ] || continue
-    if [ -n "$DIFF_TARGET" ]; then
-        ADDED=$(git diff "$DIFF_TARGET" -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
-    else
-        ADDED=$(git diff --cached -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
-    fi
-    [ -z "$ADDED" ] && continue
-
-    # Cek user_type statis dalam logika
-    USERTYPE_HIT=$(echo "$ADDED" | grep -P '(==|===|!=|!==|switch|case)' | grep -P 'user.type' | head -n 3)
-    if [ -n "$USERTYPE_HIT" ]; then
-        echo "❌ [Audit Zero Hardcode] Perbandingan user_type statis di $file:"
-        echo "$USERTYPE_HIT" | sed 's/^/    /'
-        echo "   💡 DILARANG menggunakan user_type. Otorisasi WAJIB via RBAC (hasRole/hasPermission/useAuth)."
-        FAILED_REGEX=1
-    fi
-
-    # Cek hardcode nama modul/role dalam branching logika
-    ROLE_HIT=$(echo "$ADDED" | grep -P '(==|===|!=|!==)' | grep -P "'(spmb|sikeu|siakad|simpeg|sinapra|sippm|lms|upm|admin|superadmin|mahasiswa|dosen|tendik|calon_mhs)'" | head -n 3)
-    if [ -n "$ROLE_HIT" ]; then
-        echo "❌ [Audit Zero Hardcode] Hardcode nama role/modul dalam logika di $file:"
-        echo "$ROLE_HIT" | sed 's/^/    /'
-        echo "   💡 Relasi/filter WAJIB berbasis ID entitas atau hook RBAC."
-        FAILED_REGEX=1
-    fi
-done <<< "$STAGED_FILES"
-
-if [ $FAILED_REGEX -ne 0 ]; then
-    echo "❌ [Audit Zero Hardcode & RBAC] DITOLAK pada tahap pemeriksaan statis!"
-    exit 1
-fi
-
-# ------------------------------------------------------------------------------
-# 2. DEEP AI AUDIT (Opencode Model Muse) — FULL DIFF TANPA PEMOTONGAN
+# DEEP AI AUDIT
 # ------------------------------------------------------------------------------
 PROMPT_FILE=$(mktemp)
 
 cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus Zero Hardcode & RBAC Policy (Strict Frontend Reviewer).
-Periksa Git Diff berikut secara SANGAT KETAT terhadap aturan Zero Hardcode & RBAC Policy:
+Periksa Git Diff berikut secara SANGAT KETAT terhadap 5 aturan di bawah. Penilaian MURNI oleh AI dari full diff ini, tanpa regex/pre-check.
 
 Aturan Baku (STRICT):
-1. DILARANG KERAS ADA HARDCODE string atau array literal untuk opsi/pilihan data MASTER (misalnya wilayah, program studi, jenis pendaftaran, jenis biaya, status sipil, agama, opsi modul). Semua data referensi/pilihan WAJIB diambil secara dinamis (fetch dari API/database). PENGECUALIAN HANYA: data struktural murni boolean (Aktif/Nonaktif, Wajib/Opsional) atau placeholder UI (seperti 'Semua Jalur', 'Semua Status'). DILARANG membuat array literal seperti `[{ value: 'spmb' }, { value: 'siakad' }]` atau sejenisnya!
-2. DILARANG ADA HARDCODE string nama modul/role (seperti 'spmb', 'sikeu', 'admin', 'mahasiswa') dalam pengujian logika IF/ELSE atau perbandingan statis.
-3. DILARANG menggunakan properti statis user.user_type atau user_type.
-4. Seluruh otorisasi dan relasi WAJIB berbasis ID entitas atau hook RBAC (seperti hasRole / hasPermission / useAuth).
+1. DILARANG array literal statis untuk options dropdown; WAJIB fetch master via API.
+   - Konteks: props options pada <Select>/<Dropdown>/AsyncSelect dan sejenisnya.
+   - SALAH: options={[{ value: 'REGULER', label: 'Reguler' }]} atau const options = [{ value: 'spmb', label: 'SPMB' }].
+   - BENAR: fetch dari API master referensi, mis. const { data } = useMasterTipeJalur(); lalu options={data.map(d => ({ value: d.id, label: d.label }))} (master_tipe_jalur, master_jalur_kelas, dsb.).
+2. DILARANG user_type di MANA PUN dalam kode baru.
+   - Mencakup: perbandingan ==/===/!=/!==, switch/case, ternary, destructure (const { user_type } = user / user.user_type / sso_user_type), definisi interface User di types/auth.types.ts, komponen UserTypeBadge statis, penyimpanan/pembacaan sso_user_type di cookie/middleware.
+   - SALAH: if (user.user_type === 'admin'), switch (user.type), interface User { user_type: string }, document.cookie = `sso_user_type=${...}`.
+   - BENAR: andalkan user.roles: Role[] dari API; cookie/middleware hanya menyimpan token + role slug dinamis; hapus field user_type dari types/auth.types.ts; hapus UserTypeBadge statis.
+3. DILARANG string slug modul/role dalam branching IF/ELSE atau perbandingan statis; WAJIB relasi/filter pakai ID entitas.
+   - SALAH: if (module === 'spmb'), role === 'mahasiswa' ? A : B, filter(m => m.slug === 'sikeu'), case 'superadmin':.
+   - BENAR: filter by ID, mis. where('module_id', currentModule.id) / items.filter(i => i.module_id === moduleId); logika akses via aturan no. 4.
+4. WAJIB otorisasi via hasRole/hasPermission dari useAuth(); WAJIB tampilkan role via user.roles?.[0]?.name.
+   - SALAH: const { user } = ...; if (user.role === 'admin'); <span>{user.user_type}</span>.
+   - BENAR: const { hasRole, hasPermission, user } = useAuth(); if (hasRole('admin')) ...; if (hasPermission('pegawai.delete')) ...; <span>{user.roles?.[0]?.name}</span>.
+5. WAJIB bedakan argumen hasRole()/hasPermission() dari hardcode: string literal di DALAM argumen hasRole()/hasPermission() adalah BENAR, bukan pelanggaran.
+   - SALAH (tetap pelanggaran): if (role === 'admin') di luar hasRole/hasPermission.
+   - BENAR (bukan pelanggaran): hasRole('admin'), hasRole(['admin','dosen']), hasPermission('spmb.pendaftar.create').
 
 Catatan:
-- HANYA periksa baris-baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah.
+- HANYA periksa baris baru (+) yaitu baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah (tanpa `+`).
 
 Git Diff:
 EOF
@@ -116,7 +89,7 @@ fi
 CLEAN_RESULT=$(echo "$RESULT" | sed -e '/^> build/d' -e '/^Loaded config/d' | awk '/./{p=1} p')
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
-    echo "❌ [Audit Zero Hardcode & RBAC] REJECTED oleh AI (Muse)!"
+    echo "❌ [Audit Zero Hardcode & RBAC] REJECTED oleh AI (Muse Spark)!"
     echo "================================ DETAIL TEMUAN AUDIT ================================"
     echo "$CLEAN_RESULT"
     echo "===================================================================================="
@@ -129,6 +102,6 @@ elif ! echo "$RESULT" | grep -qi "PASSED"; then
     echo "===================================================================================="
     exit 1
 else
-    echo "✅ [Audit Zero Hardcode & RBAC] PASSED (Divalidasi oleh AI Opencode Muse)."
+    echo "✅ [Audit Zero Hardcode & RBAC] PASSED (Divalidasi AI Muse Spark 1.3)."
     exit 0
 fi

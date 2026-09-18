@@ -1,9 +1,9 @@
 #!/bin/bash
 # ==============================================================================
-# AUDIT 05: Icon Standard Reviewer (FE) — STRICT HYBRID
+# AUDIT 05: Icon Standard Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 5/8: Icon Standard] Memeriksa perubahan dengan AI (Opencode Muse)..."
+echo "🤖 [Audit 5/8: Icon Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -11,10 +11,8 @@ MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "app/**" "components/**")
-    STAGED_FILES=$(git diff "$DIFF_TARGET" --name-only --diff-filter=ACM -- "app/**" "components/**")
 else
     STAGED_DIFF=$(git diff --cached -- "app/**" "components/**")
-    STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM -- "app/**" "components/**")
 fi
 
 if [ -z "$STAGED_DIFF" ]; then
@@ -23,59 +21,27 @@ if [ -z "$STAGED_DIFF" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 1. DETERMINISTIC PRE-CHECK (Fast Rejection)
-# ------------------------------------------------------------------------------
-FAILED_REGEX=0
-
-while IFS= read -r file; do
-    [ -f "$file" ] || continue
-    if [ -n "$DIFF_TARGET" ]; then
-        ADDED=$(git diff "$DIFF_TARGET" -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
-    else
-        ADDED=$(git diff --cached -- "$file" | grep '^+' | grep -v '^+++' | sed 's^+^^')
-    fi
-    [ -z "$ADDED" ] && continue
-
-    SVG_HIT=$(echo "$ADDED" | grep -nP '<svg[\s>]' | head -n 3)
-    if [ -n "$SVG_HIT" ]; then
-        echo "❌ [Audit Icon Standard] Tag <svg> mentah di $file:"
-        echo "$SVG_HIT" | sed 's/^/    /'
-        echo "   💡 Seluruh ikon WAJIB memakai lucide-react (pengecualian hanya logo custom di public/icons/)."
-        FAILED_REGEX=1
-    fi
-
-    FA_HIT=$(echo "$ADDED" | grep -nP 'fa-[a-z-]+|font-?awesome' | head -n 3)
-    if [ -n "$FA_HIT" ]; then
-        echo "❌ [Audit Icon Standard] Ikon non-standar (FontAwesome) di $file:"
-        echo "$FA_HIT" | sed 's/^/    /'
-        echo "   💡 DILARANG <i className=\"fa ...\"> atau paket ikon pihak ketiga. Pakai lucide-react."
-        FAILED_REGEX=1
-    fi
-done <<< "$STAGED_FILES"
-
-if [ $FAILED_REGEX -ne 0 ]; then
-    echo "❌ [Audit Icon Standard] DITOLAK pada tahap pemeriksaan statis!"
-    exit 1
-fi
-
-# ------------------------------------------------------------------------------
-# 2. DEEP AI AUDIT (Opencode Model Muse) — FULL DIFF
+# DEEP AI AUDIT
 # ------------------------------------------------------------------------------
 PROMPT_FILE=$(mktemp)
 
 cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus Icon Standard (Strict Frontend Reviewer).
-Periksa Git Diff berikut HANYA terhadap Aturan Penggunaan Ikon:
+Periksa Git Diff berikut HANYA terhadap 3 aturan di bawah. Penilaian MURNI oleh AI dari full diff ini, tanpa regex/pre-check.
 
 Aturan Baku (STRICT):
-1. MANDATORY LUCIDE-REACT:
-   - Seluruh ikon visual WAJIB meng-import dan menggunakan pustaka `lucide-react` (seperti `<Plus size={16} />`, `<Trash2 size={16} />`, `<Filter size={16} />`, dsb.).
-2. DILARANG SVG MENTAH INLINE & ICON THIRD-PARTY NON-STANDAR:
-   - DILARANG KERAS menyisipkan tag `<svg>` mentah inline dengan `<path>` panjang di file komponen jika ikon sudah tersedia di `lucide-react`.
-   - DILARANG KERAS menggunakan `<i className="fa ...">` (FontAwesome legacy) atau meng-import pustaka ikon pihak ketiga lainnya.
+1. WAJIB import dan pakai lucide-react untuk ikon (Plus/Trash2/Edit2/Filter/Search/ArrowLeft + ikon di Button).
+   - SALAH: tombol tanpa ikon padahal aksi standar (Tambah/Filter/Hapus/Edit/Cari/Kembali); ikon dibuat manual via karakter unicode/emoji.
+   - BENAR: import { Plus, Trash2, Edit2, Filter, Search, ArrowLeft } from 'lucide-react'; <Button><Plus size={16} /> Tambah Data</Button>; <Button variant="outline"><Filter size={16} /> Filter</Button>.
+2. DILARANG <svg> inline bila ikon tersedia di lucide; DILARANG FA/react-icons/heroicons/paket non-standar; pengecualian HANYA logo custom di public/icons/.
+   - SALAH: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg> untuk ikon plus; <i className="fa fa-trash" />; import { FaTrash } from 'react-icons/fa'; import { TrashIcon } from '@heroicons/react'.
+   - BENAR: <Plus size={16} />; <Trash2 size={16} />; logo kampus custom: <img src="/icons/logo-kampus.svg" /> dari public/icons/ (satu-satunya pengecualian).
+3. WAJIB ukuran konsisten + warna ikut tema: size 16/18 untuk tombol-input, 20/22 untuk avatar/card-header.
+   - SALAH: <Plus size={12} /> di tombol utama; <Search size={32} /> di input; color="#ff0000" hardcode mengabaikan tema.
+   - BENAR: <Plus size={16} /> / <Filter size={16} /> / <Search size={18} /> di tombol-input; <Bell size={20} /> di card-header/avatar; warna via className="text-muted-foreground" atau ikut tema (currentColor).
 
 Catatan:
-- HANYA periksa baris-baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah.
+- HANYA periksa baris baru (+) yaitu baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah (tanpa `+`).
 
 Git Diff:
 EOF
@@ -115,7 +81,7 @@ fi
 CLEAN_RESULT=$(echo "$RESULT" | sed -e '/^> build/d' -e '/^Loaded config/d' | awk '/./{p=1} p')
 
 if echo "$RESULT" | grep -qi "REJECTED"; then
-    echo "❌ [Audit Icon Standard] REJECTED oleh AI (Muse)!"
+    echo "❌ [Audit Icon Standard] REJECTED oleh AI (Muse Spark)!"
     echo "================================ DETAIL TEMUAN AUDIT ================================"
     echo "$CLEAN_RESULT"
     echo "===================================================================================="
@@ -128,6 +94,6 @@ elif ! echo "$RESULT" | grep -qi "PASSED"; then
     echo "===================================================================================="
     exit 1
 else
-    echo "✅ [Audit Icon Standard] PASSED (Divalidasi oleh AI Opencode Muse)."
+    echo "✅ [Audit Icon Standard] PASSED (Divalidasi AI Muse Spark 1.3)."
     exit 0
 fi
