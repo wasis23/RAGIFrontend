@@ -71,7 +71,7 @@ export default function MfaSetupPage() {
   };
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Pengaturan Autentikasi 2FA (TOTP)"
         description="Lindungi akun SSO Anda dengan lapisan keamanan tambahan berbasis Two-Factor Authentication"
@@ -123,7 +123,7 @@ export default function MfaSetupPage() {
             </h3>
           </div>
 
-          <div className="card-body flex flex-col gap-8">
+          <div className="card-body flex flex-col gap-6">
             <div className="mfa-steps">
               <div className={`mfa-step${step >= 1 ? ' active' : ''}`}>
                 <span className="badge badge-blue">Langkah 1</span>
@@ -154,7 +154,7 @@ export default function MfaSetupPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-4">
                 <div>
                   <h4 className="text-lg font-bold mb-2">
                     1. Pindai QR Code
@@ -206,7 +206,7 @@ export default function MfaSetupPage() {
             </div>
           </div>
 
-          <div className="card-body flex flex-col gap-5">
+          <div className="card-body flex flex-col gap-4">
             <p className="text-sm text-slate-500">
               Simpan kode darurat ini di tempat aman. Kode ini dapat digunakan jika Anda kehilangan akses ke HP/aplikasi autentikator Anda.
             </p>

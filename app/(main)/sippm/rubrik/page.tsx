@@ -289,11 +289,6 @@ export default function MasterRubrikPage() {
         description="Kelola indikator penilaian keilmuan untuk Reviewer 1 (Kaprodi) dan kelayakan administrasi untuk Reviewer 2 (Admin SIPPM)"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
-                Tambah Indikator Penilaian
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -301,6 +296,11 @@ export default function MasterRubrikPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+                Tambah Indikator Penilaian
+              </Button>
+            )}
           </div>
         }
       />

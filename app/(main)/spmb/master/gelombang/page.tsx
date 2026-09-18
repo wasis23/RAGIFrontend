@@ -124,15 +124,15 @@ export default function MasterGelombangPage() {
         description="Kelola jadwal dan gelombang pendaftaran SPMB"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/gelombang/create')}>
-              Tambah Gelombang
-            </Button>
             <Button 
               variant="outline" 
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/gelombang/create')}>
+              Tambah Gelombang
             </Button>
           </div>
         }

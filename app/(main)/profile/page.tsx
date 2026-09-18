@@ -82,7 +82,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Pengaturan Profil Akun"
         description="Kelola informasi identitas dan kredensial keamanan akun SSO Anda"
@@ -158,7 +158,7 @@ export default function ProfilePage() {
               <h3 className="text-base font-bold m-0">Detail Pengguna (ERD Attributes)</h3>
               <Shield size={18} color="var(--primary-600)" />
             </div>
-            <div className="card-body flex flex-col gap-5">
+            <div className="card-body flex flex-col gap-4">
               <Input
                 label="Username"
                 value={displayUser.username}
@@ -205,7 +205,7 @@ export default function ProfilePage() {
             <h3 className="text-base font-bold m-0">Form Pembaruan Password</h3>
           </div>
           <div className="card-body">
-            <form onSubmit={handleSubmit(onChangePasswordSubmit)} className="flex flex-col gap-5">
+            <form onSubmit={handleSubmit(onChangePasswordSubmit)} className="flex flex-col gap-4">
               <Input
                 label="Password Saat Ini"
                 type={showCurrent ? 'text' : 'password'}

@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { StatusBadge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
@@ -55,6 +56,10 @@ export default function AdminModulePage() {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+
+  // Delete Confirmation State
+  const [deleteTarget, setDeleteTarget] = useState<AppModule | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form handling via React Hook Form + Zod
   const {
@@ -164,15 +169,18 @@ export default function AdminModulePage() {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus modul "${name}" secara permanen?`)) {
-      try {
-        await moduleService.deleteModule(id);
-        toast.success('Modul berhasil dihapus');
-        fetchModules();
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Gagal menghapus modul');
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await moduleService.deleteModule(deleteTarget.id);
+      toast.success('Modul berhasil dihapus');
+      setDeleteTarget(null);
+      fetchModules();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal menghapus modul');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -305,7 +313,7 @@ export default function AdminModulePage() {
                 label: 'Hapus Modul',
                 icon: <Trash2 size={14} />,
                 variant: 'danger',
-                onClick: () => handleDelete(row.id, row.name),
+                onClick: () => setDeleteTarget(row),
               },
             ]}
           />
@@ -315,7 +323,7 @@ export default function AdminModulePage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Master Modul Aplikasi"
         description="Mengelola modul aplikasi yang tersedia di ekosistem kampus (seperti SSO, SPMB, dll)."
@@ -388,7 +396,7 @@ export default function AdminModulePage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input
             label="Cari Modul"
             placeholder="Ketik nama atau kode modul..."
@@ -525,6 +533,19 @@ export default function AdminModulePage() {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Modul"
+        message={`Apakah Anda yakin ingin menghapus modul "${deleteTarget?.name}" secara permanen? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

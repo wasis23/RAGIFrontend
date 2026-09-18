@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🤖 [Audit 8/8: Fast Build & TypeCheck Standard] Memeriksa integritas TypeScript & sintaks..."
+echo "🤖 [Audit 8/9: Fast Build & TypeCheck Standard] Memeriksa integritas TypeScript & sintaks..."
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_FILES=$(git diff "$DIFF_TARGET" --name-only -- "*.ts" "*.tsx")

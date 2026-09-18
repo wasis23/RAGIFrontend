@@ -306,18 +306,18 @@ export default function AsetPage() {
         description="Pencatatan barang inventaris, lokasi ruangan, kategori, & estimasi penyusutan nilai buku (Modul SINAPRA)"
         action={
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilterDrawer(true)}
+            >
+              Filter
+            </Button>
             <Button variant="secondary" icon={<Layers size={16} />} onClick={handleOpenKategoriManager}>
               Kelola Kategori
             </Button>
             <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/aset/create')}>
               Tambah Aset Baru
-            </Button>
-            <Button
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }}
-              icon={<Filter size={16} />}
-              onClick={() => setShowFilterDrawer(true)}
-            >
-              Filter
             </Button>
           </div>
         }

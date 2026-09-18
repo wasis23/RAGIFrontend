@@ -262,11 +262,6 @@ export default function KinerjaPage() {
         description="Siklus Penyusunan Target Butir Kerja, Realisasi Luaran, dan Evaluasi Kinerja Dosen/Tendik"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={() => router.push('/simpeg/kinerja/create')}>
-                Susun Sasaran Baru
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -274,6 +269,11 @@ export default function KinerjaPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={() => router.push('/simpeg/kinerja/create')}>
+                Susun Sasaran Baru
+              </Button>
+            )}
           </div>
         }
       />

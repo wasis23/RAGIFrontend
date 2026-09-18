@@ -261,11 +261,6 @@ export default function PengumumanHibahPage() {
         description="Panel Admin UPPM untuk mengelola, menerbitkan, dan mencetak surat pengumuman hibah institusi"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={() => router.push('/sippm/pengumuman/create')}>
-                Terbitkan Pengumuman Baru
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -273,6 +268,11 @@ export default function PengumumanHibahPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={() => router.push('/sippm/pengumuman/create')}>
+                Terbitkan Pengumuman Baru
+              </Button>
+            )}
           </div>
         }
       />

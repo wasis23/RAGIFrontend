@@ -183,15 +183,15 @@ export default function PengadaanPage() {
         description="Alur kerja pengusulan pengadaan barang baru per unit kerja, verifikasi rincian barang, & persetujuan anggaran (Modul SINAPRA)"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/pengadaan/create')}>
-              Buat Usulan Pengadaan
-            </Button>
             <Button
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }}
+              variant="outline"
               icon={<Filter size={16} />}
               onClick={() => setShowFilterDrawer(true)}
             >
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/pengadaan/create')}>
+              Buat Usulan Pengadaan
             </Button>
           </div>
         }

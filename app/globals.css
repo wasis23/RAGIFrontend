@@ -728,12 +728,12 @@ p.text-white, span.text-white, div.text-white {
 
 .btn-outline {
   background: transparent;
-  color: var(--primary-600);
-  border-color: var(--primary-300);
+  color: var(--module-primary, var(--primary-600));
+  border-color: var(--module-primary, var(--primary-300));
 }
 .btn-outline:hover {
-  background: var(--primary-50);
-  border-color: var(--primary-400);
+  background: var(--module-primary-light, var(--primary-50));
+  border-color: var(--module-primary, var(--primary-400));
 }
 
 .btn-sm { padding: 0.4rem 0.875rem; font-size: 0.8125rem; }
@@ -915,6 +915,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .badge-sinapra  { background: #ffedd5; color: #9a3412; border: 1px solid rgba(234, 88, 12, 0.2); }
 .badge-kerjasama{ background: #ccfbf1; color: #115e59; border: 1px solid rgba(13, 148, 136, 0.2); }
 .badge-upm      { background: #ffe4e6; color: #9f1239; border: 1px solid rgba(225, 29, 72, 0.2); }
+.badge-iam,
+.badge-sso      { background: #e0e7ff; color: #3730a3; border: 1px solid rgba(79, 70, 229, 0.2); }
 
 .bg-simpeg-hero {
   background: linear-gradient(135deg, #4f46e5 0%, #3730a3 60%, #1e1b4b 100%);
@@ -958,16 +960,24 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   overflow-x: auto;
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-light);
+  background: #ffffff;
+  box-shadow: var(--shadow-xs);
+}
+
+.table-wrapper {
+  width: 100%;
+  background: #ffffff;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  background: #ffffff;
 }
 
 .table thead {
-  background: var(--gray-50);
+  background: #ffffff;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -980,6 +990,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
+  background: #ffffff;
 }
 
 .table th.text-center, .table td.text-center {
@@ -994,18 +1005,29 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-align: right !important;
 }
 
+.table tbody {
+  background: #ffffff;
+}
+
 .table td {
   padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--gray-100);
   color: var(--text-primary);
   vertical-align: middle;
+  background: #ffffff;
 }
 
 .table tbody tr:last-child td { border-bottom: none; }
 .table tbody tr {
+  background: #ffffff;
   transition: background var(--transition-fast);
 }
-.table tbody tr:hover { background: var(--gray-50); }
+.table tbody tr:hover td { 
+  background: var(--gray-50); 
+}
+.table tbody tr:hover { 
+  background: var(--gray-50); 
+}
 
 /* ============================================================
    AUTH HERO (Left Panel)

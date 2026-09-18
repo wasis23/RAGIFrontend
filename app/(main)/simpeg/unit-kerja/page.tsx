@@ -389,11 +389,6 @@ export default function UnitKerjaPage() {
         description="Kelola Struktur Organisasi (Rektorat, Fakultas, Prodi, Biro, & Lembaga)"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-                Tambah Unit Kerja
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -401,6 +396,11 @@ export default function UnitKerjaPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
+                Tambah Unit Kerja
+              </Button>
+            )}
           </div>
         }
       />

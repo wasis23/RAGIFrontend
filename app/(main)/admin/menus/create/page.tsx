@@ -138,7 +138,7 @@ export default function CreateMenuPage() {
 
       <div className="card p-6 border border-slate-200 shadow-xs">
         <form onSubmit={handleSubmit(onSaveMenu)} className="flex flex-col gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Input
               label="Nama Menu"
               required

@@ -215,7 +215,7 @@ export default function AdminUserRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Penugasan Role Pengguna (User-Roles Table)"
         description="Hubungkan pengguna dengan satu atau lebih role sesuai wewenang (Tabel: user_roles)"
@@ -279,7 +279,7 @@ export default function AdminUserRolesPage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input
             label="Cari Pengguna"
             placeholder="Ketik username atau email..."
@@ -331,7 +331,7 @@ export default function AdminUserRolesPage() {
         onClose={() => setEditingUser(null)}
         title={`Kelola Role untuk ${editingUser?.username}`}
       >
-        <form onSubmit={handleAssignSubmit(onSaveAssignment)} className="flex flex-col gap-5">
+        <form onSubmit={handleAssignSubmit(onSaveAssignment)} className="flex flex-col gap-4">
           <p className="text-sm text-slate-500">
             Pilih role yang ingin dipasangkan ke akun <strong>{editingUser?.email}</strong>:
           </p>

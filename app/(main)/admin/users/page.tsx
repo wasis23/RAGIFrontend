@@ -359,17 +359,17 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Manajemen Pengguna (Users Table)"
         description="Kelola akun, role, dan hak akses pengguna ekosistem kampus (Tabel: users)"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-              Tambah Pengguna
-            </Button>
             <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
+              Tambah Pengguna
             </Button>
           </div>
         }
@@ -570,7 +570,7 @@ export default function AdminUsersPage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input
             label="Nama Pengguna"
             placeholder="Ketik nama pengguna..."

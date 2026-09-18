@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { StatusBadge } from '@/components/ui/Badge';
@@ -33,6 +34,8 @@ export default function AdminMenuPage() {
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [selectedModule, setSelectedModule] = useState<string>('');
+  const [deleteTarget, setDeleteTarget] = useState<FlattenedMenu | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
   // Server-Side Pagination & Meta State
@@ -105,15 +108,18 @@ export default function AdminMenuPage() {
     }
   };
 
-  const handleDelete = async (id: number, name: string) => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus menu "${name}" secara permanen?`)) {
-      try {
-        await menuService.deleteMenu(id);
-        toast.success('Menu berhasil dihapus');
-        fetchMenus();
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Gagal menghapus menu');
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await menuService.deleteMenu(deleteTarget.id);
+      toast.success('Menu berhasil dihapus');
+      setDeleteTarget(null);
+      fetchMenus();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal menghapus menu');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -224,7 +230,7 @@ export default function AdminMenuPage() {
                 label: 'Hapus Menu',
                 icon: <Trash2 size={14} />,
                 variant: 'danger',
-                onClick: () => handleDelete(row.id, row.name),
+                onClick: () => setDeleteTarget(row),
               },
             ]}
           />
@@ -234,7 +240,7 @@ export default function AdminMenuPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Manajemen Menu"
         description="Mengelola menu navigasi dan status aktif/nonaktifnya untuk setiap modul."
@@ -307,7 +313,7 @@ export default function AdminMenuPage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Select
             label="Modul Aplikasi"
             value={selectedModule}
@@ -346,6 +352,19 @@ export default function AdminMenuPage() {
           </div>
         </div>
       </Drawer>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Menu"
+        message={`Apakah Anda yakin ingin menghapus menu "${deleteTarget?.name}" secara permanen? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

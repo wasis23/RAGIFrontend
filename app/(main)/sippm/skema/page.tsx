@@ -279,11 +279,6 @@ export default function MasterSkemaPage() {
         description="Kelola skema hibah penelitian & pengabdian masyarakat beserta pagu maksimal dana"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
-                Tambah Skema Baru
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -291,6 +286,11 @@ export default function MasterSkemaPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+                Tambah Skema Baru
+              </Button>
+            )}
           </div>
         }
       />

@@ -3,7 +3,7 @@
 # AUDIT 07: Module Primary Color & Theme Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 7/8: Module Primary Color & Theme Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
+echo "🤖 [Audit 7/9: Module Primary Color & Theme Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -34,8 +34,8 @@ Aturan Baku (STRICT):
    - SALAH: <div className="bg-[#0d9488]"> permanen; const primary = '#4f46e5'; tanpa membaca API.
    - BENAR: style={{ '--module-primary': currentModule?.primary_color || '#3b82f6' }}; className="bg-[var(--module-primary)]" / style={{ background: 'var(--module-primary)' }}; const primary = currentModule?.primary_color || '#3b82f6' dari primary_color API (fallback hanya saat null).
 2. WAJIB menu aktif sidebar/nav, border aksen, badge modul, dan SEMUA tombol (Aksi Utama, Kembali, Filter Outline) refleksikan primary_color modul.
-   - SALAH: sidebar active className="bg-blue-600 text-white"; <Badge className="bg-teal-600">SIPPM</Badge> hardcode; <Button>Kembali</Button> biru statis di modul SIMPEG.
-   - BENAR: menu aktif style={{ background: 'var(--module-primary)' }}; badge modul style={{ background: currentModule?.primary_color }}; tombol: <Button style={{ background: 'var(--module-primary)' }}>Simpan</Button>, <Button variant="outline" style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}><Filter size={16}/> Filter</Button>; contoh: SIPPM Teal #0d9488, SIMPEG Indigo #4f46e5 berasal dari DB, bukan hardcode.
+   - SALAH: sidebar active className="bg-blue-600 text-white"; <Badge className="bg-teal-600">SIPPM</Badge> hardcode; tombol dengan class warna statis seperti className="bg-blue-600" atau "bg-indigo-600".
+   - BENAR: menu aktif style={{ background: 'var(--module-primary)' }}; badge modul style={{ background: currentModule?.primary_color }}; tombol: komponen baku <Button> dan <Button variant="outline"> (kelas .btn-primary dan .btn-outline sudah terikat global ke var(--module-primary) di globals.css) atau style={{ background: 'var(--module-primary)' }}. Penggunaan komponen baku <Button> dan <Button variant="outline"> tanpa penambahan class warna Tailwind statis adalah BENAR dan SAH, jangan ditolak.
 3. DILARANG hardcode hex/class Tailwind statis; WAJIB perubahan warna cukup via Master Modul /admin/modules.
    - SALAH: bg-blue-600/bg-blue-700/text-blue-600/border-blue-600, bg-teal-600, bg-indigo-600, #3b82f6/#2563eb/#0d9488/#4f46e5 tertulis permanen di halaman/komponen modul.
    - BENAR: tidak ada hex/class warna modul di kode; warna mengalir dari DB; ubah warna cukup via halaman Master Modul /admin/modules (field primary_color), tanpa edit kode.
@@ -62,14 +62,15 @@ Format Respon:
   * Solusi / Rekomendasi Perbaikan: (solusi konkrit atau contoh kode perbaikan)
 EOF
 
-if [ -x "$OPENCODE_BIN" ]; then
+AI_EXIT_CODE=1
+if [ "$AI_ENGINE" != "agy" ] && [ -x "$OPENCODE_BIN" ]; then
     RESULT=$(timeout 45s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 30s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+fi
+
+if [ $AI_EXIT_CODE -ne 0 ] && command -v agy &> /dev/null; then
+    RESULT=$(timeout 30s agy --model gemini-3.8-flash-low --print "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-else
-    AI_EXIT_CODE=127
 fi
 
 rm -f "$PROMPT_FILE"

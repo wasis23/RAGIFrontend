@@ -89,7 +89,7 @@ export default function AdminAuditLogsPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Audit Log Keamanan (Audit Logs Table)"
         description="Jejak audit otomatis seluruh peristiwa autentikasi & perubahan data (Tabel: audit_logs)"
@@ -139,7 +139,7 @@ export default function AdminAuditLogsPage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input 
             label="Pencarian Bebas"
             placeholder="Cari aksi, username, atau IP address..."

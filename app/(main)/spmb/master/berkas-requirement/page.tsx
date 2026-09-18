@@ -131,15 +131,15 @@ export default function MasterBerkasRequirementPage() {
         description="Kelola persyaratan dokumen untuk pendaftaran berdasarkan jalur masuk"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/berkas-requirement/create')}>
-              Tambah Syarat
-            </Button>
             <Button 
               variant="outline"
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/berkas-requirement/create')}>
+              Tambah Syarat
             </Button>
           </div>
         }

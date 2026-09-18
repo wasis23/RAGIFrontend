@@ -3,7 +3,7 @@
 # AUDIT 04: State Management Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 4/8: State Management Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
+echo "🤖 [Audit 4/9: State Management Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -61,14 +61,15 @@ Format Respon:
   * Solusi / Rekomendasi Perbaikan: (solusi konkrit atau contoh kode perbaikan)
 EOF
 
-if [ -x "$OPENCODE_BIN" ]; then
+AI_EXIT_CODE=1
+if [ "$AI_ENGINE" != "agy" ] && [ -x "$OPENCODE_BIN" ]; then
     RESULT=$(timeout 45s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 30s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+fi
+
+if [ $AI_EXIT_CODE -ne 0 ] && command -v agy &> /dev/null; then
+    RESULT=$(timeout 30s agy --model gemini-3.8-flash-low --print "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-else
-    AI_EXIT_CODE=127
 fi
 
 rm -f "$PROMPT_FILE"

@@ -168,7 +168,7 @@ export default function DashboardPage() {
       {/* ── Account Summary Grid ────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {summaryItems.map((item) => (
-          <div key={item.id} className="card p-5 flex flex-col justify-between gap-3">
+          <div key={item.id} className="card p-4 md:p-6 flex flex-col justify-between gap-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 {item.label}
@@ -195,9 +195,9 @@ export default function DashboardPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="card p-5 flex flex-col gap-4">
+              <div key={i} className="card p-4 md:p-6 flex flex-col gap-4">
                 <Skeleton className="w-10 h-10 rounded-xl" />
                 <Skeleton className="w-3/4 h-5 rounded" />
                 <Skeleton className="w-full h-12 rounded" />
@@ -217,14 +217,14 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {filteredModules.map((mod) => {
               const primaryColor = mod.primary_color || '#3b82f6';
 
               return (
                 <div
                   key={mod.id}
-                  className="card p-5 flex flex-col justify-between gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border border-slate-200/80 group"
+                  className="card p-4 md:p-6 flex flex-col justify-between gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border border-slate-200/80 group"
                   style={{
                     borderTop: `3px solid ${primaryColor}`,
                   }}
