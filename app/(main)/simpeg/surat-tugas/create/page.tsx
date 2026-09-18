@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Link from 'next/link';
 import {
   Briefcase,
   Car,
@@ -12,6 +13,8 @@ import {
   Plus,
   Trash2,
   Upload,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -238,6 +241,30 @@ export default function CreateSuratTugasPage() {
         backUrl="/simpeg/surat-tugas"
       />
 
+      {masters && (kategoriOptions.length === 0 || transportasiOptions.length === 0) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-800">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <p className="font-semibold">Master Data Penugasan Belum Lengkap</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {kategoriOptions.length === 0 && transportasiOptions.length === 0
+                  ? 'Kategori kegiatan dan moda transportasi dinas belum diatur di database master.'
+                  : kategoriOptions.length === 0
+                  ? 'Kategori kegiatan dinas belum diatur di database master.'
+                  : 'Moda transportasi dinas belum diatur di database master.'}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/simpeg/master/surat-tugas"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors"
+          >
+            Kelola Master Penugasan <ExternalLink size={13} />
+          </Link>
+        </div>
+      )}
+
       <form className="space-y-6">
         {/* SECTION 1: DATA UTAMA KEGIATAN */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
@@ -278,12 +305,30 @@ export default function CreateSuratTugasPage() {
                 control={control}
                 name="kategori_kegiatan_id"
                 render={({ field }) => (
-                  <Select
-                    options={kategoriOptions}
-                    value={field.value}
-                    onChange={(val: any) => field.onChange(val || '')}
-                    error={errors.kategori_kegiatan_id?.message}
-                  />
+                  <div>
+                    <Select
+                      options={kategoriOptions}
+                      value={field.value}
+                      onChange={(val: any) => field.onChange(val || '')}
+                      error={errors.kategori_kegiatan_id?.message}
+                      placeholder={
+                        kategoriOptions.length === 0
+                          ? 'Belum ada data kategori'
+                          : 'Pilih kategori kegiatan...'
+                      }
+                    />
+                    {masters && kategoriOptions.length === 0 && (
+                      <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+                        <span>Kategori kegiatan belum tersedia.</span>
+                        <Link
+                          href="/simpeg/master/surat-tugas"
+                          className="font-semibold underline hover:text-amber-800"
+                        >
+                          Tambah di Master
+                        </Link>
+                      </p>
+                    )}
+                  </div>
                 )}
               />
             </div>
@@ -395,12 +440,30 @@ export default function CreateSuratTugasPage() {
                 control={control}
                 name="jenis_transportasi_id"
                 render={({ field }) => (
-                  <Select
-                    options={transportasiOptions}
-                    value={field.value}
-                    onChange={(val: any) => field.onChange(val || '')}
-                    error={errors.jenis_transportasi_id?.message}
-                  />
+                  <div>
+                    <Select
+                      options={transportasiOptions}
+                      value={field.value}
+                      onChange={(val: any) => field.onChange(val || '')}
+                      error={errors.jenis_transportasi_id?.message}
+                      placeholder={
+                        transportasiOptions.length === 0
+                          ? 'Belum ada data moda'
+                          : 'Pilih moda transportasi...'
+                      }
+                    />
+                    {masters && transportasiOptions.length === 0 && (
+                      <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+                        <span>Moda transportasi belum tersedia.</span>
+                        <Link
+                          href="/simpeg/master/surat-tugas"
+                          className="font-semibold underline hover:text-amber-800"
+                        >
+                          Tambah di Master
+                        </Link>
+                      </p>
+                    )}
+                  </div>
                 )}
               />
             </div>

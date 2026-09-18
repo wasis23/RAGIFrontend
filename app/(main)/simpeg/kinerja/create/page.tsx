@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Link from 'next/link';
 import {
   Calendar,
   UserCheck,
@@ -13,6 +14,8 @@ import {
   Save,
   ArrowLeft,
   ListChecks,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -185,7 +188,7 @@ export default function CreateSkpPage() {
     <div className="animate-fade-in space-y-6 pb-6">
       <PageHeader
         title="Susun Sasaran Kinerja Pegawai (SKP)"
-        description="Penyusunan target luaran, mutu, dan waktu butir-per-butir tugas Tridharma & penunjang"
+        description="Rancang butir-butir indikator kinerja tridharma dan penunjang untuk dinilai oleh atasan langsung pada periode berjalan."
         action={
           <Button
             variant="outline"
@@ -196,6 +199,39 @@ export default function CreateSkpPage() {
           </Button>
         }
       />
+
+      {!loadingMasters && (kategoriList.length === 0 || penilaiList.length === 0) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-800">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <p className="font-semibold">Master Data SKP Belum Lengkap</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {kategoriList.length === 0 && penilaiList.length === 0
+                  ? 'Master kategori SKP dan data pegawai pejabat penilai belum tersedia di sistem.'
+                  : kategoriList.length === 0
+                  ? 'Kategori tugas SKP (Tridharma & Penunjang) belum dibuat di Master Data SDM.'
+                  : 'Belum ada data pegawai yang dapat dipilih sebagai pejabat penilai / atasan langsung.'}
+              </p>
+            </div>
+          </div>
+          {kategoriList.length === 0 ? (
+            <Link
+              href="/simpeg/master/kategori-skp"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors"
+            >
+              Kelola Master Kategori SKP <ExternalLink size={13} />
+            </Link>
+          ) : (
+            <Link
+              href="/simpeg/pegawai"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shrink-0 transition-colors"
+            >
+              Kelola Data Pegawai <ExternalLink size={13} />
+            </Link>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* CARD 1: INFORMASI PEGAWAI & PERIODE */}
@@ -268,14 +304,32 @@ export default function CreateSkpPage() {
                     value={field.value}
                     onChange={(val) => field.onChange(val)}
                     options={penilaiList}
-                    placeholder="Pilih Dekan / Kaprodi / Pimpinan Penilai..."
+                    placeholder={
+                      penilaiList.length === 0
+                        ? 'Belum ada data pegawai untuk pejabat penilai'
+                        : 'Pilih Dekan / Kaprodi / Pimpinan Penilai...'
+                    }
                     error={errors.pejabat_penilai_id?.message}
                   />
                 )}
               />
-              <p className="text-xs text-slate-500 mt-1">
-                Sasaran kerja yang Anda susun akan dievaluasi dan disetujui oleh Pejabat Penilai yang dipilih.
-              </p>
+              <div className="flex flex-col sm:flex-row justify-between text-xs text-slate-500 mt-1 gap-1">
+                <span>
+                  Sasaran kerja yang Anda susun akan dievaluasi dan disetujui oleh Pejabat Penilai
+                  yang dipilih.
+                </span>
+                {!loadingMasters && penilaiList.length === 0 && (
+                  <span className="text-amber-600 flex items-center gap-1 font-medium">
+                    <span>Data penilai bersumber dari pegawai.</span>
+                    <Link
+                      href="/simpeg/pegawai"
+                      className="font-semibold underline hover:text-amber-800"
+                    >
+                      Kelola Pegawai
+                    </Link>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -346,14 +400,31 @@ export default function CreateSkpPage() {
                       control={control}
                       name={`items.${index}.kategori_skp_id`}
                       render={({ field }) => (
-                        <Select
-                          label="Kategori Tugas Tridharma & Penunjang"
-                          value={field.value}
-                          onChange={(val) => field.onChange(val)}
-                          options={kategoriList}
-                          placeholder="Pilih Kategori Tugas..."
-                          error={errors.items?.[index]?.kategori_skp_id?.message}
-                        />
+                        <div>
+                          <Select
+                            label="Kategori Tugas Tridharma & Penunjang"
+                            value={field.value}
+                            onChange={(val) => field.onChange(val)}
+                            options={kategoriList}
+                            placeholder={
+                              kategoriList.length === 0
+                                ? 'Belum ada data kategori tugas'
+                                : 'Pilih Kategori Tugas (Tridharma / Penunjang)...'
+                            }
+                            error={errors.items?.[index]?.kategori_skp_id?.message}
+                          />
+                          {!loadingMasters && kategoriList.length === 0 && (
+                            <p className="text-[11px] text-amber-600 mt-1 flex items-center gap-1 font-medium">
+                              <span>Kategori SKP belum ada.</span>
+                              <Link
+                                href="/simpeg/master/kategori-skp"
+                                className="font-semibold underline hover:text-amber-800"
+                              >
+                                Tambah di Master Kategori SKP
+                              </Link>
+                            </p>
+                          )}
+                        </div>
                       )}
                     />
                   </div>
