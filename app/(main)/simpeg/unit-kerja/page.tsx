@@ -16,6 +16,7 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { UnitKerja, TipeUnitKerja } from '@/types/simpeg.types';
@@ -64,6 +65,19 @@ export default function UnitKerjaPage() {
   const [editingUnit, setEditingUnit] = useState<UnitKerja | null>(null);
   const [selectedParentOption, setSelectedParentOption] = useState<OptionType | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isLoading: boolean;
+    onConfirm: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    isLoading: false,
+    onConfirm: async () => {},
+  });
 
   const {
     register,
@@ -254,21 +268,31 @@ export default function UnitKerjaPage() {
     }
   };
 
-  const handleDelete = async (id: number, nama: string) => {
+  const handleDelete = (id: number, nama: string) => {
     if (!canDelete) {
       toast.error('Akses Ditolak: Anda tidak memiliki permission menghapus Unit Kerja.');
       return;
     }
 
-    if (!confirm(`Apakah Anda yakin ingin menghapus unit kerja "${nama}"?`)) return;
-    try {
-      await simpegService.deleteUnitKerja(id);
-      toast.success('Unit Kerja berhasil dihapus!');
-      loadData();
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Gagal menghapus Unit Kerja';
-      toast.error(msg);
-    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Unit Kerja',
+      message: `Apakah Anda yakin ingin menghapus unit kerja "${nama}"? Data yang terikat pada unit kerja ini mungkin akan terpengaruh.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteUnitKerja(id);
+          toast.success('Unit Kerja berhasil dihapus!');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          loadData();
+        } catch (err: any) {
+          const msg = err?.response?.data?.message || 'Gagal menghapus Unit Kerja';
+          toast.error(msg);
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const columns: ColumnDef<UnitKerja>[] = [
@@ -576,6 +600,18 @@ export default function UnitKerjaPage() {
           </form>
         </Modal>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirm.onConfirm}
+        title={deleteConfirm.title}
+        message={deleteConfirm.message}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deleteConfirm.isLoading}
+      />
     </div>
   );
 }
