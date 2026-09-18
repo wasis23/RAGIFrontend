@@ -153,7 +153,26 @@ export default function PengaturanTarifMahasiswaPage() {
         title="Pengaturan Tarif & Beasiswa Mahasiswa"
         description="Kelola matriks tarif per angkatan, golongan UKT, jalur kelas, dan subsidi beasiswa yang menjadi acuan penerbitan tagihan mahasiswa."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleToggleUkt}
+              disabled={togglingUkt || loadingSetting}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs border ${
+                isUktEnabled
+                  ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {togglingUkt ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : isUktEnabled ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <SlidersHorizontal size={14} />
+              )}
+              <span>Skema UKT: {isUktEnabled ? 'ON' : 'OFF'}</span>
+            </button>
             <Link
               href="/sikeu/master"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-2xs"
@@ -171,69 +190,6 @@ export default function PengaturanTarifMahasiswaPage() {
           </div>
         }
       />
-
-      {/* UKT ON/OFF Control Bar & System Context */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Toggle Switch Card */}
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-3 lg:col-span-1 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`p-2 rounded-xl ${isUktEnabled ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500'}`}>
-                <SlidersHorizontal size={18} />
-              </span>
-              <div>
-                <h3 className="text-xs font-extrabold text-slate-900">Skema Golongan UKT</h3>
-                <p className="text-2xs text-slate-500">Kategori I s/d VIII</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleToggleUkt}
-              disabled={togglingUkt || loadingSetting}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs ${
-                isUktEnabled
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-              }`}
-            >
-              {togglingUkt ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : isUktEnabled ? (
-                <CheckCircle2 size={14} />
-              ) : null}
-              <span>{isUktEnabled ? 'AKTIF (ON)' : 'NONAKTIF (OFF)'}</span>
-            </button>
-          </div>
-          <p className="text-2xs text-slate-600 leading-relaxed">
-            {isUktEnabled
-              ? '✅ Sistem mengaktifkan subsidi silang berbasis kelompok UKT mahasiswa.'
-              : '⚡ Sistem menggunakan Flat Tarif (Matriks Tarif per Angkatan/Prodi) tanpa pembagian golongan.'}
-          </p>
-        </div>
-
-        {/* Workflow Info Banner */}
-        <div className="p-4 bg-linear-to-r from-primary-500/10 via-indigo-500/5 to-transparent border border-primary-200/70 rounded-2xl flex flex-col justify-between gap-2 lg:col-span-2">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-primary-600 text-white rounded-xl shrink-0 mt-0.5 shadow-2xs">
-              <Calculator size={18} />
-            </div>
-            <div>
-              <h2 className="text-xs font-bold text-slate-900">
-                Alur Otomatisasi Tagihan Mahasiswa (SIKEU - SIAKAD - SPMB)
-              </h2>
-              <p className="text-2xs text-slate-600 mt-0.5 leading-relaxed">
-                Nominal tagihan dihitung dari <strong>Matriks Tarif Angkatan & Semester</strong> {isUktEnabled ? 'disesuaikan dengan Golongan UKT Mahasiswa' : '(Flat Tarif)'}, dikurangi <strong>Potongan Beasiswa Aktif</strong>. Setelah tarif disetel di sini, Anda dapat langsung menerbitkan tagihan di menu <Link href="/sikeu/tagihan" className="font-bold text-primary-700 underline">Tagihan SPP & UKT</Link>.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 pt-1 border-t border-primary-100 text-2xs text-primary-900 font-semibold">
-            <span>Fokus Pengaturan:</span>
-            <span className="badge badge-purple text-2xs">1. Tarif Semester</span>
-            <span className="badge badge-blue text-2xs">2. Beasiswa & Diskon</span>
-            <span className="badge badge-green text-2xs">3. Penetapan Mahasiswa</span>
-          </div>
-        </div>
-      </div>
 
       {/* Sub-Tabs Pills Selector */}
       <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-2.5 space-y-2">

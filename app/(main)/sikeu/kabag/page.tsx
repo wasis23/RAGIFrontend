@@ -177,45 +177,7 @@ export default function SikeuKabagPage() {
         </div>
       )}
 
-      {/* METRICS CARDS KHUSUS KABAG KEUANGAN */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="card p-5 flex justify-between items-center">
-          <div>
-            <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider">Saldo Kas Utama Kabag</span>
-            <div className="text-2xl font-mono font-extrabold text-slate-900 mt-1">{formatRupiah(saldoKasUtama)}</div>
-            <p className="text-[11px] text-emerald-700 font-bold mt-0.5">Surplus Tersedia untuk Mutasi</p>
-          </div>
-          <div className="p-3 bg-slate-50 text-slate-700 rounded-2xl">
-            <Wallet size={24} />
-          </div>
-        </div>
 
-        <div className="card p-5 flex justify-between items-center">
-          <div>
-            <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">Pengajuan Menunggu Persetujuan Kabag</span>
-            <div className="text-2xl font-mono font-extrabold text-amber-900 mt-1">
-              {pendingDispensasi.length + pendingTagihan.length} Item Pending
-            </div>
-            <p className="text-[11px] text-amber-700 font-medium mt-0.5">Membutuhkan Keputusan Kabag</p>
-          </div>
-          <div className="p-3 bg-amber-50 text-amber-700 rounded-2xl">
-            <ShieldCheck size={24} />
-          </div>
-        </div>
-
-        <div className="card p-5 flex justify-between items-center">
-          <div>
-            <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider">Total Saldo Seluruh Unit Kas</span>
-            <div className="text-2xl font-mono font-extrabold text-indigo-900 mt-1">
-              {formatRupiah(unitKasList.reduce((s: number, u: any) => s + (Number(u.saldo_saat_ini) || 0), 0))}
-            </div>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{unitKasList.length} Unit Kas Terdaftar</p>
-          </div>
-          <div className="p-3 bg-indigo-50 text-indigo-700 rounded-2xl">
-            <ArrowRightLeft size={24} />
-          </div>
-        </div>
-      </div>
 
       {/* TAB SUB-NAVIGASI OTORITAS KABAG */}
       <div className="card p-6 overflow-hidden">

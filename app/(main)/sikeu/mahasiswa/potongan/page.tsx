@@ -38,20 +38,7 @@ export default function PotonganKhususPage() {
         }
       />
 
-      {/* Info Context Card */}
-      <div className="p-4 bg-linear-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-200/80 rounded-2xl flex items-start gap-3">
-        <div className="p-2 bg-amber-600 text-white rounded-xl shrink-0 mt-0.5 shadow-2xs">
-          <Sparkles size={18} />
-        </div>
-        <div className="space-y-1">
-          <h2 className="text-xs font-bold text-slate-900">
-            Mekanisme Potongan Khusus Non-Beasiswa
-          </h2>
-          <p className="text-2xs text-slate-600 leading-relaxed">
-            Potongan khusus ini ditetapkan <strong>secara individu per mahasiswa</strong> dengan status aktif dan batas masa berlaku semester/tahun. Saat tagihan massal digenerate di menu Tagihan SPP & UKT, nominal potongan otomatis dipotong dari invoice dan terakumulasi secara transparan bersama beasiswa umum institusi.
-          </p>
-        </div>
-      </div>
+
 
       {/* Main Tab Interface */}
       <div className="w-full space-y-6">

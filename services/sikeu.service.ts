@@ -62,6 +62,19 @@ export interface PotonganMahasiswa {
   created_at?: string;
 }
 
+export interface MasterBiaya {
+  id: number;
+  kode: string;
+  nama: string;
+  tipe: string;
+  kode_biaya?: string;
+  nama_biaya?: string;
+  skema_tarif?: string;
+  nominal_standar?: number;
+  deskripsi?: string;
+  is_active?: boolean;
+}
+
 export const sikeuService = {
   // External Bill Generation
   createExternalBill: async (payload: any) => {
@@ -331,6 +344,10 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/master-biaya');
   },
 
+  getMasterBiayaList: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/master-biaya');
+  },
+
   storeJenisBiaya: async (payload: { kode: string; nama: string; tipe: string; nominal_standar?: number; deskripsi?: string }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/master-biaya', {
       method: 'POST',
@@ -487,8 +504,9 @@ export const sikeuService = {
 
   // Portal Tagihan & Invoice Mahasiswa Mandiri
   getMyBills: async (mahasiswaId?: number) => {
-    const q = mahasiswaId ? `?mahasiswa_id=${mahasiswaId}` : '';
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/tagihan${q}`);
+    const params = new URLSearchParams({ include_lunas: '1' });
+    if (mahasiswaId) params.append('mahasiswa_id', mahasiswaId.toString());
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/tagihan?${params.toString()}`);
   },
 
   getMyPaymentHistory: async (mahasiswaId?: number) => {

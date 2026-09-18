@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   Filter,
@@ -62,6 +63,7 @@ const getDefaultEndDate = () => {
 };
 
 export function PotonganKhususTab() {
+  const router = useRouter();
   const [data, setData] = useState<PotonganMahasiswa[]>([]);
   const [loading, setLoading] = useState(false);
   const [masterBiayaList, setMasterBiayaList] = useState<any[]>([]);
@@ -187,25 +189,7 @@ export function PotonganKhususTab() {
   }, [studentSearch, isModalOpen, editingItem]);
 
   const openAddModal = () => {
-    setEditingItem(null);
-    setSelectedStudentObj(null);
-    setStudentSearch('');
-    setStudentResults([]);
-    reset({
-      mahasiswa_id: 0,
-      nama_potongan: '',
-      tipe_potongan: 'nominal',
-      nilai_potongan: 0,
-      master_biaya_id: '',
-      semester: '',
-      tahun_akademik: '2026/2027',
-      berlaku_mulai: getTodayDate(),
-      berlaku_sampai: getDefaultEndDate(),
-      nomor_sk: '',
-      keterangan: '',
-      status: 'aktif',
-    });
-    setIsModalOpen(true);
+    router.push('/sikeu/mahasiswa/potongan/create');
   };
 
   const openEditModal = (item: PotonganMahasiswa) => {
@@ -469,53 +453,6 @@ export function PotonganKhususTab() {
 
   return (
     <div className="space-y-4">
-      {/* Notice & Context Banner */}
-      <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-3 text-xs">
-        <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800 shrink-0">
-          <Info size={16} />
-        </div>
-        <div className="space-y-1">
-          <p className="font-bold text-amber-950">
-            Penetapan Potongan & Keringanan Khusus Mahasiswa (Di Luar Program Beasiswa)
-          </p>
-          <p className="text-amber-800 leading-relaxed text-2xs">
-            Gunakan fitur ini untuk memberikan potongan biaya bagi <strong>mahasiswa tertentu saja</strong> berdasarkan pertimbangan khusus, SK Rektor/Dekanat, diskon saudara kandung (kakak-beradik), diskon anak staf/dosen, atau kompensasi finansial lainnya. Potongan ini akan secara otomatis diterapkan pada saat penerbitan tagihan mahasiswa terkait.
-          </p>
-        </div>
-      </div>
-
-      {/* Mini Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 flex items-center justify-between shadow-2xs">
-          <div>
-            <span className="text-2xs text-slate-500 font-medium">Mahasiswa Terdaftar</span>
-            <p className="text-xl font-black text-slate-900">{stats.totalMahasiswa}</p>
-          </div>
-          <span className="p-2.5 rounded-xl bg-primary-50 text-primary-600">
-            <User size={18} />
-          </span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 flex items-center justify-between shadow-2xs">
-          <div>
-            <span className="text-2xs text-slate-500 font-medium">Potongan Khusus Aktif</span>
-            <p className="text-xl font-black text-emerald-600">{stats.totalAktif}</p>
-          </div>
-          <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
-            <CheckCircle2 size={18} />
-          </span>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-white border border-slate-200/90 flex items-center justify-between shadow-2xs">
-          <div>
-            <span className="text-2xs text-slate-500 font-medium">Total Aturan Potongan</span>
-            <p className="text-xl font-black text-slate-900">{stats.totalData}</p>
-          </div>
-          <span className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
-            <SlidersHorizontal size={18} />
-          </span>
-        </div>
-      </div>
 
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">

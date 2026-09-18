@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -39,10 +40,12 @@ interface FormValues {
 }
 
 export function TarifTab() {
+  const router = useRouter();
   const [data, setData] = useState<Tarif[]>([]);
   const [loading, setLoading] = useState(false);
   const [jenisBiayaList, setJenisBiayaList] = useState<any[]>([]);
   const [programStudiList, setProgramStudiList] = useState<any[]>([]);
+  const [jalurKelasList, setJalurKelasList] = useState<{ value: string; label: string }[]>([]);
 
   // Filter Drawer States — 2-stage
   const [showFilter, setShowFilter] = useState(false);
@@ -105,24 +108,31 @@ export function TarifTab() {
     }
   };
 
+  const fetchJalurKelas = async () => {
+    try {
+      const res = await sikeuService.getJalurKelasList();
+      if (res.data && Array.isArray(res.data)) {
+        setJalurKelasList(
+          res.data.map((j: any) => ({
+            value: j.nama_jalur || j.nama || j.kode,
+            label: j.nama_jalur || j.nama || j.kode,
+          }))
+        );
+      }
+    } catch {
+      setJalurKelasList([]);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     fetchJenisBiaya();
     fetchProgramStudi();
+    fetchJalurKelas();
   }, []);
 
   const handleOpenAdd = () => {
-    setEditingItem(null);
-    reset({
-      jenis_biaya_id: jenisBiayaList[0]?.id || 1,
-      tahun_angkatan: 2025,
-      jalur_kelas: '',
-      kelompok_ukt: 1,
-      prodi: programStudiList[0]?.nama || '',
-      nama_kelompok: '',
-      nominal: 0,
-    });
-    setIsModalOpen(true);
+    router.push('/sikeu/master/tarif/create');
   };
 
   const handleOpenEdit = (item: Tarif) => {
@@ -376,12 +386,11 @@ export function TarifTab() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select label="Jalur / Kelas *"
-              options={[
-                { value: 'Reguler', label: 'Kelas Reguler' },
-                { value: 'Karyawan', label: 'Kelas Karyawan / Eksekutif' },
-                { value: 'Internasional', label: 'Kelas Internasional' },
-                { value: 'Online', label: 'Kelas Online / PJJ' },
-              ]}
+              options={
+                jalurKelasList.length > 0
+                  ? jalurKelasList
+                  : [{ value: 'Reguler', label: 'Reguler' }]
+              }
               value={selectedJalurVal}
               onChange={(val) => setValue('jalur_kelas', val as string)} />
 
@@ -461,10 +470,7 @@ export function TarifTab() {
             onChange={(val) => setFilterJalur(val as string)}
             options={[
               { value: '', label: 'Semua Jalur Kelas' },
-              { value: 'Reguler', label: 'Reguler' },
-              { value: 'Karyawan', label: 'Karyawan / Eksekutif' },
-              { value: 'Internasional', label: 'Internasional' },
-              { value: 'Online', label: 'Online' },
+              ...jalurKelasList,
             ]} />
 
           <div className="grid grid-cols-2 gap-3">

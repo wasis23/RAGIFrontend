@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -44,6 +45,7 @@ interface FormValues {
 }
 
 export function BeasiswaTab() {
+  const router = useRouter();
   const [data, setData] = useState<Beasiswa[]>([]);
   const [loading, setLoading] = useState(false);
   const [jenisBiayaList, setJenisBiayaList] = useState<any[]>([]);
@@ -110,19 +112,7 @@ export function BeasiswaTab() {
   }, []);
 
   const handleOpenAdd = () => {
-    setEditingItem(null);
-    reset({
-      kode: '',
-      nama: '',
-      sumber: 'internal',
-      tipe_potongan: 'persen',
-      nilai_potongan: 100,
-      jenis_biaya_ids: [],
-      berlaku_angkatan_mulai: 2023,
-      berlaku_angkatan_sampai: 2027,
-      deskripsi: '',
-    });
-    setIsModalOpen(true);
+    router.push('/sikeu/master/beasiswa/create');
   };
 
   const handleOpenEdit = (item: Beasiswa) => {

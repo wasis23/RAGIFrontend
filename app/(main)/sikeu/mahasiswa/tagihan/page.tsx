@@ -150,12 +150,11 @@ export default function StudentTagihanPage() {
     fetchStudentData();
   }, []);
 
-  // Mahasiswa profile info from bills, payments, or auth
   const studentProfile = bills[0]?.mahasiswa || payments[0]?.mahasiswa || {
     nama: (user as any)?.nama_lengkap || (user as any)?.name || user?.username || '-',
-    nim: user?.username || '-',
-    prodi: 'Teknik Informatika',
-    angkatan: 2023,
+    nim: (user as any)?.nim || user?.username || '-',
+    prodi: (user as any)?.program_studi?.nama || (user as any)?.prodi || '-',
+    angkatan: (user as any)?.tahun_angkatan || (user as any)?.angkatan || '-',
   };
 
   // Extract unique semesters from bills
@@ -389,56 +388,7 @@ export default function StudentTagihanPage() {
         </div>
       </div>
 
-      {/* ── KPI METRICS ───────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-5 bg-white border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-2xs font-extrabold text-slate-500 uppercase tracking-wider block">Total Tagihan Tertunggak</span>
-            <div className="text-2xl font-black text-rose-600 font-mono mt-1">{formatRupiah(totalOutstandingAll)}</div>
-            <span className="text-2xs text-slate-500 mt-1 block">
-              {bills.filter((b) => b.status !== 'lunas').length} tagihan semester aktif
-            </span>
-          </div>
-          <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
-            <CreditCard size={24} />
-          </div>
-        </div>
 
-        <div className="card p-5 bg-white border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-2xs font-extrabold text-slate-500 uppercase tracking-wider block">Nominal Terpilih Siap Bayar</span>
-            <div className="text-2xl font-black text-indigo-900 font-mono mt-1">{formatRupiah(selectedTotalSisa)}</div>
-            <span className="text-2xs text-slate-500 mt-1 block">{selectedBillIds.length} tagihan dipilih</span>
-          </div>
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-            <Layers size={24} />
-          </div>
-        </div>
-
-        <div className="card p-5 bg-white border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-2xs font-extrabold text-slate-500 uppercase tracking-wider block">Riwayat Transaksi Lunas</span>
-            <div className="text-2xl font-black text-emerald-600 font-mono mt-1">{payments.length} Transaksi</div>
-            <span className="text-2xs text-slate-500 mt-1 block">Tercatat di pembukuan kasir</span>
-          </div>
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-            <Receipt size={24} />
-          </div>
-        </div>
-
-        <div className="card p-5 bg-white border border-slate-200/80 rounded-2xl flex items-center justify-between shadow-xs">
-          <div>
-            <span className="text-2xs font-extrabold text-slate-500 uppercase tracking-wider block">Payment Gateway Xendit</span>
-            <div className="text-sm font-black text-indigo-900 font-mono mt-1">
-              BNI, Mandiri, BRI, BCA, QRIS
-            </div>
-            <span className="text-2xs text-emerald-600 font-bold mt-1 block">● Multi-Channel Siap Bayar</span>
-          </div>
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-            <QrCode size={24} />
-          </div>
-        </div>
-      </div>
 
       {/* ── TABS NAVIGATION ───────────────────────────────────────────────────── */}
       <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">

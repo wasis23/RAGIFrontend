@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -46,6 +47,7 @@ const TIPE_KAS_OPTIONS = [
 ];
 
 export function UnitKasTab() {
+  const router = useRouter();
   const [data, setData] = useState<UnitKas[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -93,18 +95,7 @@ export function UnitKasTab() {
   }, []);
 
   const handleOpenAdd = () => {
-    setEditingItem(null);
-    reset({
-      nama_kas: '',
-      tipe_kas: 'utama',
-      bank_name: 'BNI',
-      bank_account_number: '',
-      bank_account_name: '',
-      penanggung_jawab: '',
-      status: true,
-      deskripsi: '',
-    });
-    setIsModalOpen(true);
+    router.push('/sikeu/unit-kas/create');
   };
 
   const handleOpenEdit = (item: UnitKas) => {

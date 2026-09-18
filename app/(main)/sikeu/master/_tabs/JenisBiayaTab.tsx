@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle, Layers, ArrowRight, DollarSign, Calculator, Info, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -60,6 +61,7 @@ const TIPE_OPTIONS = [
 const DYNAMIC_FEE_TYPES = ['ukt', 'spp', 'sks', 'praktikum'];
 
 export function JenisBiayaTab() {
+  const router = useRouter();
   const [data, setData] = useState<JenisBiaya[]>([]);
   const [loading, setLoading] = useState(false);
   const [appModules, setAppModules] = useState<AppModule[]>([]);
@@ -135,19 +137,7 @@ export function JenisBiayaTab() {
   }, []);
 
   const handleOpenAdd = () => {
-    setEditingItem(null);
-    setSelectedModuleCodes(['sikeu']);
-    reset({
-      kode: '',
-      nama: '',
-      tipe: 'ukt',
-      skema_tarif: 'dinamis',
-      nominal_standar: 0,
-      deskripsi: '',
-      is_active: true,
-      is_recurring: true
-    });
-    setIsModalOpen(true);
+    router.push('/sikeu/master/jenis-biaya/create');
   };
 
   const handleOpenEdit = (item: JenisBiaya) => {
@@ -407,21 +397,6 @@ export function JenisBiayaTab() {
           </div>
         }
       />
-
-      {/* Info Box Mengenai Standarisasi Dua Nominal */}
-      <div className="p-4 bg-linear-to-r from-blue-50/80 via-primary-50/40 to-white border border-primary-200/70 rounded-2xl flex items-start gap-3 my-4">
-        <div className="p-2 bg-primary-600 text-white rounded-xl shrink-0 mt-0.5 shadow-2xs">
-          <Info size={16} />
-        </div>
-        <div className="text-xs text-slate-700 space-y-1">
-          <p className="font-bold text-slate-900">
-            Pemisahan Antara Kamus Komponen Biaya dan Matriks Tarif Riil:
-          </p>
-          <p className="text-slate-600 leading-relaxed">
-            Kamus ini berfungsi mendefinisikan <strong>identitas pungutan dan delegasi modul</strong> lintas sistem (SIAKAD, SPMB, SIKEU). Untuk biaya pendidikan yang nominalnya berbeda per Program Studi & Angkatan (UKT/SPP/Praktikum), besaran riilnya disetting pada menu <strong>Pengaturan Tarif Mahasiswa</strong>.
-          </p>
-        </div>
-      </div>
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data komponen biaya." />
 

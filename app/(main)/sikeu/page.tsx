@@ -2,6 +2,8 @@
 
 import { formatRupiah } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 import {
   TrendingUp, TrendingDown, Wallet, ShieldCheck, CreditCard, Building2,
@@ -28,6 +30,19 @@ interface RecentJurnal {
 type DatePreset = 'all' | 'today' | 'last_7_days' | 'this_month' | 'this_year' | 'custom';
 
 export default function SikeuDashboardPage() {
+  const router = useRouter();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
+  const userRoleSlugs = (user?.roles || []).map((r: any) =>
+    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
+  );
+  const isMahasiswa = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
+
+  useEffect(() => {
+    if (isMahasiswa) {
+      router.replace('/sikeu/mahasiswa/tagihan');
+    }
+  }, [isMahasiswa, router]);
+
   const [loading, setLoading] = useState(true);
   const [selectedPreset, setSelectedPreset] = useState<DatePreset>('this_month');
   const [startDate, setStartDate] = useState('');

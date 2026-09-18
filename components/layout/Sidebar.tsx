@@ -359,6 +359,13 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
   { id: 606, parent_id: null, name: 'Panduan & Alur SIKEU', url: '/sikeu/panduan', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 6, is_active: true },
 ];
 
+const SIKEU_MAHASISWA_MENUS: Menu[] = [
+  { id: 691, parent_id: null, name: 'Dashboard Keuangan', url: '/sikeu', icon: 'FaChartPie', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
+  { id: 692, parent_id: null, name: 'Tagihan & Pembayaran SPP', url: '/sikeu/mahasiswa/tagihan', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
+  { id: 693, parent_id: null, name: 'Pengajuan Dispensasi', url: '/sikeu/dispensasi', icon: 'FaClipboardCheck', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
+  { id: 694, parent_id: null, name: 'Panduan Pembayaran', url: '/sikeu/panduan', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
+];
+
 const SIPPM_FALLBACK_MENUS: Menu[] = [
   { id: 401, parent_id: null, name: 'Dashboard SIPPM', url: '/sippm', icon: 'FaChartPie', module: 'sippm', permission_id: null, order_index: 1, is_active: true },
   {
@@ -400,7 +407,7 @@ const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isD
   iam: () => IAM_FALLBACK_MENUS,
   simpeg: () => SIMPEG_FALLBACK_MENUS,
   sippm: () => SIPPM_FALLBACK_MENUS,
-  sikeu: () => SIKEU_FALLBACK_MENUS,
+  sikeu: ({ isMahasiswa }) => (isMahasiswa ? SIKEU_MAHASISWA_MENUS : SIKEU_FALLBACK_MENUS),
   sinapra: () => SINAPRA_FALLBACK_MENUS,
   spmb: ({ isPanitia }) => (!isPanitia ? SPMB_STUDENT_FALLBACK_MENUS : SPMB_FALLBACK_MENUS),
   siakad: ({ isMahasiswa, isDosen }) => {
@@ -479,7 +486,9 @@ export function Sidebar() {
           let menus = await menuService.getMyMenus(mod);
           // Pastikan menu tagihan portal mahasiswa (/sikeu/mahasiswa/tagihan) disembunyikan untuk non-mahasiswa
           if (menus && menus.length > 0) {
-            if (!isMahasiswaRole) {
+            if (isMahasiswaRole && mod === 'sikeu') {
+              menus = SIKEU_MAHASISWA_MENUS;
+            } else if (!isMahasiswaRole) {
               menus = menus
                 .filter((m) => m.url !== '/sikeu/mahasiswa/tagihan')
                 .map((m) => ({

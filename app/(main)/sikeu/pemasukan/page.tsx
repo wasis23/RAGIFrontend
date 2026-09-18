@@ -208,44 +208,7 @@ export default function PemasukanListPage() {
         }
       />
 
-      {/* Financial Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Hibah Riset (SIPPM)</p>
-            <p className="text-xl font-extrabold text-emerald-600 mt-1 tabular-nums">
-              <CurrencyText value={totalHibah} prefix="+" variant="positive" size="lg" />
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <Gift size={20} />
-          </div>
-        </div>
 
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Donasi & Kerjasama Mitra</p>
-            <p className="text-xl font-extrabold text-emerald-600 mt-1 tabular-nums">
-              <CurrencyText value={totalDonasi} prefix="+" variant="positive" size="lg" />
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <Handshake size={20} />
-          </div>
-        </div>
-
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Pemasukan Non-Akademik</p>
-            <p className="text-xl font-extrabold text-slate-900 mt-1 tabular-nums">
-              <CurrencyText value={totalKeseluruhan} prefix="none" variant="neutral" size="lg" />
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <TrendingUp size={20} />
-          </div>
-        </div>
-      </div>
 
       <DataTable
         data={filteredData}

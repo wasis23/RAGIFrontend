@@ -65,11 +65,24 @@ export function StudentTypesTab() {
     },
   });
 
+  const [jalurKelasList, setJalurKelasList] = useState<{ value: string; label: string }[]>([]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await sikeuService.getStudentBillingTypes();
+      const [res, resJalur] = await Promise.all([
+        sikeuService.getStudentBillingTypes(),
+        sikeuService.getJalurKelasList().catch(() => ({ data: [] })),
+      ]);
       setData(Array.isArray(res.data) ? res.data : []);
+      if (Array.isArray(resJalur.data)) {
+        setJalurKelasList(
+          resJalur.data.map((j: any) => ({
+            value: j.nama_jalur || j.nama || j.kode,
+            label: j.nama_jalur || j.nama || j.kode,
+          }))
+        );
+      }
     } catch {
       setData([]);
       toast.error('Gagal memuat data tipe tagihan mahasiswa');
@@ -402,12 +415,11 @@ export function StudentTypesTab() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select label="Jalur Kelas *"
-              options={[
-                { value: 'Reguler', label: 'Reguler' },
-                { value: 'Karyawan', label: 'Karyawan / Eksekutif' },
-                { value: 'Internasional', label: 'Internasional' },
-                { value: 'Online', label: 'Online' },
-              ]}
+              options={
+                jalurKelasList.length > 0
+                  ? jalurKelasList
+                  : [{ value: 'Reguler', label: 'Reguler' }]
+              }
               value={watch('jalur_kelas')}
               onChange={(val) => setValue('jalur_kelas', val as string)} />
 

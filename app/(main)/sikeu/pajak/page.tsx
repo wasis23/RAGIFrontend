@@ -247,32 +247,7 @@ export default function TaxReportPage() {
         }
       />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Pajak Terutang</p>
-            <p className="text-xl font-extrabold text-rose-700 mt-1 tabular-nums">
-              {formatRupiah(totalTerutang)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-            <FileText size={20} />
-          </div>
-        </div>
 
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Pajak Disetor (NTPN)</p>
-            <p className="text-xl font-extrabold text-emerald-700 mt-1 tabular-nums">
-              {formatRupiah(totalDisetor)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <CheckCircle2 size={20} />
-          </div>
-        </div>
-      </div>
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data rekapan pajak." />
 

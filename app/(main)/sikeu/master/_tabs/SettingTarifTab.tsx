@@ -2,6 +2,7 @@
 
 import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle, GraduationCap, Calculator, Info, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -63,6 +64,7 @@ interface FormValues {
 
 
 export function SettingTarifTab() {
+  const router = useRouter();
   const [data, setData] = useState<SettingTarifItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [masterBiayaList, setMasterBiayaList] = useState<any[]>([]);
@@ -144,18 +146,7 @@ export function SettingTarifTab() {
   }, []);
 
   const handleOpenAdd = () => {
-    setEditingItem(null);
-    reset({
-      master_biaya_id: masterBiayaList[0]?.id || 1,
-      tahun_angkatan: 2025,
-      program_studi_id: '',
-      semester: '',
-      jalur_kelas: '',
-      nominal: 0,
-      is_active: true,
-      keterangan: '',
-    });
-    setIsModalOpen(true);
+    router.push('/sikeu/master/setting-tarif/create');
   };
 
   const handleOpenEdit = (item: SettingTarifItem) => {
@@ -422,21 +413,6 @@ export function SettingTarifTab() {
           </div>
         }
       />
-
-      {/* Contextual Banner */}
-      <div className="p-4 bg-linear-to-r from-emerald-50/80 via-teal-50/40 to-white border border-emerald-200/80 rounded-2xl flex items-start gap-3 my-4">
-        <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0 mt-0.5 shadow-2xs">
-          <Calculator size={16} />
-        </div>
-        <div className="text-xs text-slate-700 space-y-1">
-          <p className="font-bold text-slate-900">
-            Pusat Penetapan Tarif Riil Pembayaran Mahasiswa:
-          </p>
-          <p className="text-slate-600 leading-relaxed">
-            Data pada matriks ini menjadi acuan kalkulasi penerbitan tagihan semester di menu <strong>Tagihan SPP & UKT</strong>. Anda dapat menyetel nominal berbeda untuk prodi dengan beban praktikum tinggi (misal: Teknik Informatika) vs prodi reguler lainnya.
-          </p>
-        </div>
-      </div>
 
       {/* Active Filters */}
       {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (

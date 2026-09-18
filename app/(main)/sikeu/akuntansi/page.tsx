@@ -273,32 +273,7 @@ export default function AccountingJournalPage() {
         }}
       />
 
-      {/* 2. Financial Summary Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <FinancialMetricCard
-          title="TOTAL UANG MASUK"
-          amount={totalUangMasuk}
-          type="inflow"
-          countInfo={`↑ ${filteredJurnal.filter(j => j.uang_masuk > 0).length} transaksi`}
-          loading={loading}
-        />
 
-        <FinancialMetricCard
-          title="TOTAL UANG KELUAR"
-          amount={totalUangKeluar}
-          type="outflow"
-          countInfo={`↓ ${filteredJurnal.filter(j => j.uang_keluar > 0).length} transaksi`}
-          loading={loading}
-        />
-
-        <FinancialMetricCard
-          title="NET MUTASI KAS"
-          amount={netMutasiKas}
-          type="balance"
-          countInfo="Saldo berjalan periode ini"
-          loading={loading}
-        />
-      </div>
 
       {/* Error Banner */}
       {errorState && (

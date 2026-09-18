@@ -245,18 +245,7 @@ export default function UnitKasPage() {
         }
       />
 
-      {/* Summary Card */}
-      <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-        <div>
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Kas & Rekening Utama Rektorat</p>
-          <p className="text-xl font-extrabold text-slate-900 mt-1 tabular-nums">
-            {formatRupiah(totalSaldoUtama)}
-          </p>
-        </div>
-        <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
-          <Wallet size={20} />
-        </div>
-      </div>
+
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data kas unit & rekening." />
 

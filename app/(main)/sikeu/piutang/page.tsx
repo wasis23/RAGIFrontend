@@ -411,56 +411,7 @@ export default function PiutangMahasiswaPage() {
         }
       />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 bg-white border border-rose-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-rose-600 font-bold uppercase tracking-wider">Total Nominal Piutang</p>
-            <p className="text-xl font-extrabold text-rose-700 mt-1 tabular-nums">
-              {formatRupiah(summary.total_piutang)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-            <ShieldAlert size={20} />
-          </div>
-        </div>
 
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Mahasiswa Menunggak</p>
-            <p className="text-xl font-extrabold text-slate-900 mt-1 tabular-nums">
-              {summary.total_mahasiswa_tunggakan} <span className="text-xs font-medium text-slate-500">Mhs</span>
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <UserX size={20} />
-          </div>
-        </div>
-
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total Terbayar</p>
-            <p className="text-xl font-extrabold text-emerald-700 mt-1 tabular-nums">
-              {formatRupiah(summary.total_bayar)}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <CheckCircle2 size={20} />
-          </div>
-        </div>
-
-        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Status Dispensasi</p>
-            <p className="text-xl font-extrabold text-blue-700 mt-1 tabular-nums">
-              {summary.total_record_dispensasi} <span className="text-xs font-medium text-slate-500">Tagihan</span>
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Clock size={20} />
-          </div>
-        </div>
-      </div>
 
       {/* Cutoff Date Active Banner */}
       {appliedFilters.cutoff_date && (
