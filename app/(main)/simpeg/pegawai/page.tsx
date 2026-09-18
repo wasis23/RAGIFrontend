@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, UnitKerja, JenisPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -78,6 +79,19 @@ export default function PegawaiPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isLoading: boolean;
+    onConfirm: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    isLoading: false,
+    onConfirm: async () => {},
+  });
   const [importResult, setImportResult] = useState<{
     total: number;
     success: number;
@@ -234,19 +248,29 @@ export default function PegawaiPage() {
     router.push(`/simpeg/pegawai/${peg.id}/edit`);
   };
 
-  const handleDelete = async (id: number, nama: string) => {
+  const handleDelete = (id: number, nama: string) => {
     if (!canDelete) {
       toast.error('Akses Ditolak: Anda tidak memiliki permission menghapus Pegawai.');
       return;
     }
-    if (!confirm(`Apakah Anda yakin ingin menghapus pegawai "${nama}"?`)) return;
-    try {
-      await simpegService.deletePegawai(id);
-      toast.success('Pegawai berhasil dihapus!');
-      loadPegawai();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus pegawai');
-    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Data Pegawai',
+      message: `Apakah Anda yakin ingin menghapus pegawai "${nama}"? Tindakan ini tidak dapat dibatalkan.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deletePegawai(id);
+          toast.success('Pegawai berhasil dihapus!');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          loadPegawai();
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || 'Gagal menghapus pegawai');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   // DataTable Columns definition for Admin View (with Mandatory 3-Dots Action Dropdown)
@@ -954,6 +978,18 @@ export default function PegawaiPage() {
           )}
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={() => setDeleteConfirm((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirm.onConfirm}
+        title={deleteConfirm.title}
+        message={deleteConfirm.message}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deleteConfirm.isLoading}
+      />
     </div>
   );
 }
