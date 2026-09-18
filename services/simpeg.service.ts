@@ -442,6 +442,29 @@ export const simpegService = {
     return data;
   },
 
+  getPegawaiOfficeLocations: async (pegawaiId: number): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/presensi/pegawai/${pegawaiId}/office-locations`);
+    return data;
+  },
+
+  updatePegawaiOfficeLocations: async (pegawaiId: number, officeLocationIds: number[]): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/simpeg/presensi/pegawai/${pegawaiId}/office-locations`, {
+      office_location_ids: officeLocationIds,
+    });
+    return data;
+  },
+
+  assignOfficesBulk: async (payload: {
+    office_location_ids: number[];
+    unit_kerja_id?: number | null;
+    jenis_pegawai?: string | null;
+    pegawai_ids?: number[];
+    mode?: 'attach' | 'sync';
+  }): Promise<ApiResponse<{ office_location_ids: number[]; total_assigned: number; mode: string }>> => {
+    const { data } = await apiClient.post<ApiResponse<{ office_location_ids: number[]; total_assigned: number; mode: string }>>('/simpeg/presensi/office-assign-bulk', payload);
+    return data;
+  },
+
   // Payroll / Gaji Fleksibel
   getPayrollList: async (params?: any): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll', {

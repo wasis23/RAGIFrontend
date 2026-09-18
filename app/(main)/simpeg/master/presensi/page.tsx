@@ -42,6 +42,7 @@ const shiftFormSchema = z.object({
   late_tolerance_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
   early_leave_tolerance_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
   max_early_clock_in_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
+  max_late_clock_in_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
   applies_national_holidays: z.boolean(),
   is_active: z.boolean(),
 });
@@ -72,12 +73,21 @@ const bulkShiftSchema = z.object({
 });
 type BulkShiftFormValues = z.infer<typeof bulkShiftSchema>;
 
+const bulkOfficeSchema = z.object({
+  office_location_ids: z.array(z.number()).min(1, 'Pilih minimal 1 lokasi absen'),
+  unit_kerja_id: z.number().optional().nullable(),
+  jenis_pegawai: z.string().optional().nullable(),
+  mode: z.enum(['attach', 'sync']),
+});
+type BulkOfficeFormValues = z.infer<typeof bulkOfficeSchema>;
+
 const systemSettingsSchema = z.object({
   face_score_threshold: z.number().min(0.1, 'Minimal 0.1').max(1.0, 'Maksimal 1.0'),
   gps_accuracy_threshold_meters: z.number().min(5, 'Minimal 5 meter').max(500, 'Maksimal 500 meter'),
   late_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
   early_leave_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
   max_early_clock_in_minutes: z.number().min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
+  max_late_clock_in_minutes: z.number().min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
   applies_national_holidays: z.boolean(),
 });
 type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
@@ -119,6 +129,7 @@ export default function MasterPresensiPage() {
 
   // Modal Penugasan Shift Massal
   const [showBulkShiftModal, setShowBulkShiftModal] = useState(false);
+  const [showBulkOfficeModal, setShowBulkOfficeModal] = useState(false);
   const [unitKerjaOptions, setUnitKerjaOptions] = useState<{ value: number; label: string }[]>([]);
 
   // ── TAB 3: LOKASI KANTOR (GEOFENCING) STATE ───────────────
@@ -150,6 +161,7 @@ export default function MasterPresensiPage() {
       late_tolerance_minutes: 15,
       early_leave_tolerance_minutes: 15,
       max_early_clock_in_minutes: 60,
+      max_late_clock_in_minutes: 240,
       applies_national_holidays: true,
       is_active: true,
     },
@@ -194,7 +206,18 @@ export default function MasterPresensiPage() {
       late_tolerance_minutes: 15,
       early_leave_tolerance_minutes: 15,
       max_early_clock_in_minutes: 60,
+      max_late_clock_in_minutes: 240,
       applies_national_holidays: true,
+    },
+  });
+
+  const formBulkOffice = useForm<BulkOfficeFormValues>({
+    resolver: zodResolver(bulkOfficeSchema),
+    defaultValues: {
+      office_location_ids: [],
+      unit_kerja_id: 0,
+      jenis_pegawai: '',
+      mode: 'attach',
     },
   });
 
@@ -253,6 +276,7 @@ export default function MasterPresensiPage() {
           late_tolerance_minutes: res.data.late_tolerance_minutes ?? 15,
           early_leave_tolerance_minutes: res.data.early_leave_tolerance_minutes ?? 15,
           max_early_clock_in_minutes: res.data.max_early_clock_in_minutes ?? 60,
+          max_late_clock_in_minutes: res.data.max_late_clock_in_minutes ?? 240,
           applies_national_holidays: !!res.data.applies_national_holidays,
         });
       }
@@ -280,6 +304,7 @@ export default function MasterPresensiPage() {
       late_tolerance_minutes: 15,
       early_leave_tolerance_minutes: 15,
       max_early_clock_in_minutes: 60,
+      max_late_clock_in_minutes: 240,
       applies_national_holidays: true,
       is_active: true,
     });
@@ -294,6 +319,7 @@ export default function MasterPresensiPage() {
       late_tolerance_minutes: s.late_tolerance_minutes ?? 15,
       early_leave_tolerance_minutes: s.early_leave_tolerance_minutes ?? 15,
       max_early_clock_in_minutes: s.max_early_clock_in_minutes ?? 60,
+      max_late_clock_in_minutes: s.max_late_clock_in_minutes ?? 240,
       applies_national_holidays: s.applies_national_holidays ?? true,
       is_active: !!s.is_active,
     });
@@ -349,6 +375,7 @@ export default function MasterPresensiPage() {
         late_tolerance_minutes: s.late_tolerance_minutes,
         early_leave_tolerance_minutes: s.early_leave_tolerance_minutes,
         max_early_clock_in_minutes: s.max_early_clock_in_minutes,
+        max_late_clock_in_minutes: s.max_late_clock_in_minutes ?? 240,
         applies_national_holidays: s.applies_national_holidays ?? true,
         is_active: true,
         days: (s.days || []).map((d: any) => ({
@@ -380,6 +407,7 @@ export default function MasterPresensiPage() {
         late_tolerance_minutes: selectedShiftForSchedule.late_tolerance_minutes,
         early_leave_tolerance_minutes: selectedShiftForSchedule.early_leave_tolerance_minutes,
         max_early_clock_in_minutes: selectedShiftForSchedule.max_early_clock_in_minutes,
+        max_late_clock_in_minutes: selectedShiftForSchedule.max_late_clock_in_minutes ?? 240,
         applies_national_holidays: selectedShiftForSchedule.applies_national_holidays ?? true,
         is_active: selectedShiftForSchedule.is_active,
         days: selectedShiftForSchedule.days,
@@ -431,6 +459,44 @@ export default function MasterPresensiPage() {
   };
 
   // ── ACTION HANDLERS: TAB 3 (OFFICES) ───────────────────────
+
+  const handleOpenBulkOfficeModal = async () => {
+    if (offices.length === 0) await fetchOffices();
+    formBulkOffice.reset({
+      office_location_ids: [],
+      unit_kerja_id: 0,
+      jenis_pegawai: '',
+      mode: 'attach',
+    });
+    setShowBulkOfficeModal(true);
+
+    if (unitKerjaOptions.length === 0) {
+      try {
+        const res = await simpegService.getUnitKerjaList();
+        const responseData = (res as any).data ?? res;
+        const items = Array.isArray(responseData) ? responseData : (responseData?.items || responseData?.data || []);
+        setUnitKerjaOptions(items.map((u: any) => ({ value: u.id, label: `${u.nama} (${u.tipe || 'Unit'})` })));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const onSubmitBulkOffices = async (values: BulkOfficeFormValues) => {
+    try {
+      const res = await simpegService.assignOfficesBulk({
+        office_location_ids: values.office_location_ids.map(Number),
+        unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : undefined,
+        jenis_pegawai: values.jenis_pegawai || undefined,
+        mode: values.mode,
+      });
+      toast.success(res.message || 'Penugasan lokasi massal berhasil');
+      setShowBulkOfficeModal(false);
+      fetchOffices();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menugaskan lokasi massal');
+    }
+  };
 
   const handleOpenCreateOffice = () => {
     setEditingOffice(null);
@@ -636,6 +702,7 @@ export default function MasterPresensiPage() {
           <div>Terlambat: <span className="font-bold text-slate-900">{row.late_tolerance_minutes ?? 0} mnt</span></div>
           <div>Pulang cepat: <span className="font-bold text-slate-900">{row.early_leave_tolerance_minutes ?? 0} mnt</span></div>
           <div>Buka absen: <span className="font-bold text-slate-900">{row.max_early_clock_in_minutes ?? 0} mnt</span></div>
+          <div>Tutup absen: <span className="font-bold text-slate-900">{row.max_late_clock_in_minutes ?? 240} mnt{row.max_late_clock_in_minutes === 0 ? ' (tanpa batas)' : ''}</span></div>
         </div>
       ),
     },
@@ -884,13 +951,22 @@ export default function MasterPresensiPage() {
               </>
             )}
             {canManage && activeTab === 'office' && (
-              <Button
-                variant="primary"
-                icon={<Plus size={16} />}
-                onClick={handleOpenCreateOffice}
-              >
-                Tambah Lokasi Kantor
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  icon={<Users size={16} />}
+                  onClick={handleOpenBulkOfficeModal}
+                >
+                  Akses Lokasi Massal
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={<Plus size={16} />}
+                  onClick={handleOpenCreateOffice}
+                >
+                  Tambah Lokasi Kantor
+                </Button>
+              </>
             )}
             {canManage && activeTab === 'holiday' && (
               <Button
@@ -981,6 +1057,15 @@ export default function MasterPresensiPage() {
       {/* ── TAB 3: LOKASI KANTOR (GEOFENCING) ── */}
       {activeTab === 'office' && (
         <div className="space-y-4">
+          <div className="card p-4 border border-indigo-200 bg-indigo-50/60 flex items-start gap-3">
+            <Building2 size={20} className="text-indigo-600 mt-0.5 shrink-0" />
+            <p className="text-xs text-slate-700">
+              <span className="font-bold">Multi-lokasi absen:</span> setiap pegawai memiliki 1 lokasi utama + lokasi tambahan.
+              Absen dinyatakan sah bila berada dalam radius <span className="font-bold">lokasi mana pun</span> yang ditugaskan —
+              cocok untuk dosen yang mengajar di gedung/kampus lain agar tidak bolak-balik. Gunakan tombol
+              <span className="font-bold"> Akses Lokasi Massal </span> untuk menugaskan beberapa titik sekaligus (misal ke seluruh dosen).
+            </p>
+          </div>
           <div className="card p-4 border border-slate-200">
             <Input
               placeholder="Cari nama kantor, gedung, atau alamat..."
@@ -1123,6 +1208,16 @@ export default function MasterPresensiPage() {
                 </div>
 
                 <Input
+                  label="Batas Tutup Absen Telat (Menit Setelah Shift)"
+                  type="number"
+                  min="0"
+                  max="720"
+                  hint="Contoh: 240 menit berarti shift jam 08:00 masih bisa absen (terlambat) sampai 12:00. Isi 0 = tanpa batas."
+                  error={formSettings.formState.errors.max_late_clock_in_minutes?.message}
+                  {...formSettings.register('max_late_clock_in_minutes', { valueAsNumber: true })}
+                />
+
+                <Input
                   label="Batas Buka Absen Lebih Awal (Menit Sebelum Shift)"
                   type="number"
                   min="0"
@@ -1214,18 +1309,26 @@ export default function MasterPresensiPage() {
               error={formShift.formState.errors.early_leave_tolerance_minutes?.message}
               {...formShift.register('early_leave_tolerance_minutes', { valueAsNumber: true })}
             />
-            <div className="md:col-span-2">
-              <Input
-                label="Batas Buka Absen Lebih Awal (menit)"
-                type="number"
-                min={0}
-                max={240}
-                required
-                hint="Contoh: 60 berarti shift jam 08:00 sudah bisa absen sejak 07:00."
-                error={formShift.formState.errors.max_early_clock_in_minutes?.message}
-                {...formShift.register('max_early_clock_in_minutes', { valueAsNumber: true })}
-              />
-            </div>
+            <Input
+              label="Batas Buka Absen Lebih Awal (menit)"
+              type="number"
+              min={0}
+              max={240}
+              required
+              hint="Contoh: 60 berarti shift jam 08:00 sudah bisa absen sejak 07:00."
+              error={formShift.formState.errors.max_early_clock_in_minutes?.message}
+              {...formShift.register('max_early_clock_in_minutes', { valueAsNumber: true })}
+            />
+            <Input
+              label="Batas Tutup Absen Telat (menit)"
+              type="number"
+              min={0}
+              max={720}
+              required
+              hint="0 = tanpa batas. Contoh: 240 berarti masih bisa absen sampai 4 jam setelah jam masuk."
+              error={formShift.formState.errors.max_late_clock_in_minutes?.message}
+              {...formShift.register('max_late_clock_in_minutes', { valueAsNumber: true })}
+            />
           </div>
           <Controller
             control={formShift.control}
@@ -1274,6 +1377,7 @@ export default function MasterPresensiPage() {
         <div className="space-y-4">
           <p className="text-xs text-slate-500">
             Atur jam masuk, jam pulang, dan status hari kerja/libur untuk masing-masing hari dari Senin sampai Minggu.
+            Untuk shift malam lintas hari, isi jam pulang lebih kecil dari jam masuk (contoh 22:00-06:00, otomatis dianggap pulang keesokan harinya).
           </p>
 
           <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
@@ -1319,6 +1423,11 @@ export default function MasterPresensiPage() {
                         }}
                         className="w-28 font-mono"
                       />
+                      {!day.is_day_off && day.start_time && day.end_time && String(day.end_time).substring(0, 5) <= String(day.start_time).substring(0, 5) && (
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded" title="Shift lintas hari: pulang keesokan harinya, clock-out pagi menutup record tanggal dinas ini">
+                          +1 hari
+                        </span>
+                      )}
                     </div>
 
                     <ToggleSwitch
@@ -1412,6 +1521,113 @@ export default function MasterPresensiPage() {
               />
             )}
           />
+        </form>
+      </Modal>
+
+      {/* ── MODAL: AKSES LOKASI MASSAL (MULTI-LOKASI) ── */}
+      <Modal
+        open={showBulkOfficeModal}
+        onClose={() => setShowBulkOfficeModal(false)}
+        title="Penugasan Akses Lokasi Absen Massal"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowBulkOfficeModal(false)}>
+              Batal
+            </Button>
+            <Button type="submit" loading={formBulkOffice.formState.isSubmitting} disabled={formBulkOffice.formState.isSubmitting} form="bulk-office-form">
+              Tugaskan Sekarang
+            </Button>
+          </>
+        }
+      >
+        <form id="bulk-office-form" onSubmit={formBulkOffice.handleSubmit(onSubmitBulkOffices)} noValidate className="space-y-4">
+          <div className="p-3 bg-[var(--module-primary-subtle)] border border-[var(--module-primary)]/20 rounded-xl text-xs text-slate-800 flex items-start gap-2">
+            <Users className="text-[var(--module-primary)] mt-0.5 shrink-0" size={16} />
+            <p className="text-xs">
+              Beri akses absen di beberapa titik sekaligus ke sekelompok pegawai (misal seluruh dosen dapat absen di gedung tempat mengajar).
+            </p>
+          </div>
+
+          <Controller
+            control={formBulkOffice.control}
+            name="office_location_ids"
+            render={({ field }) => (
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-slate-700">Titik Lokasi Absen *</span>
+                {offices.length === 0 && (
+                  <p className="text-xs text-slate-400">Belum ada lokasi kantor. Tambahkan dulu lewat tombol Tambah Lokasi Kantor.</p>
+                )}
+                <div className="space-y-2 max-h-52 overflow-y-auto border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+                  {offices.map((o: any) => (
+                    <ToggleSwitch
+                      key={o.id}
+                      checked={(field.value || []).includes(o.id)}
+                      onChange={(checked) => {
+                        const current: number[] = field.value || [];
+                        field.onChange(checked ? [...current, o.id] : current.filter((id) => id !== o.id));
+                      }}
+                      label={o.name}
+                      description={`${o.radius_meters ?? 0} m • ${o.address || 'tanpa alamat'}`}
+                    />
+                  ))}
+                </div>
+                {formBulkOffice.formState.errors.office_location_ids?.message && (
+                  <p className="text-xs text-rose-600">{formBulkOffice.formState.errors.office_location_ids.message}</p>
+                )}
+              </div>
+            )}
+          />
+
+          <Controller
+            control={formBulkOffice.control}
+            name="unit_kerja_id"
+            render={({ field }) => (
+              <Select
+                label="Filter Unit Kerja (Opsional)"
+                value={field.value ? String(field.value) : ''}
+                onChange={(val) => field.onChange(val ? Number(val) : 0)}
+                options={[
+                  { value: '', label: '-- Seluruh Unit Kerja Kampus --' },
+                  ...unitKerjaOptions.map((u) => ({ value: String(u.value), label: u.label })),
+                ]}
+              />
+            )}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Controller
+              control={formBulkOffice.control}
+              name="jenis_pegawai"
+              render={({ field }) => (
+                <Select
+                  label="Filter Kategori (Opsional)"
+                  value={field.value || ''}
+                  onChange={(val) => field.onChange(val)}
+                  options={[
+                    { value: '', label: '-- Semua Pegawai --' },
+                    { value: 'dosen', label: 'Khusus Dosen' },
+                    { value: 'tendik', label: 'Khusus Tendik' },
+                  ]}
+                />
+              )}
+            />
+            <Controller
+              control={formBulkOffice.control}
+              name="mode"
+              render={({ field }) => (
+                <Select
+                  label="Mode Penugasan"
+                  value={field.value || 'attach'}
+                  onChange={(val) => field.onChange(val)}
+                  options={[
+                    { value: 'attach', label: 'Tambah (pertahankan akses lama)' },
+                    { value: 'sync', label: 'Ganti (timpa akses lama)' },
+                  ]}
+                />
+              )}
+            />
+          </div>
         </form>
       </Modal>
 
