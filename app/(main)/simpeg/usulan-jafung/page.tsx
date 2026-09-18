@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
-import { Card, CardBody } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { simpegService } from '@/services/simpeg.service';
 import type { UsulanJafung, JabatanFungsionalAkademik } from '@/types/simpeg.types';
+import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -25,6 +27,9 @@ export default function UsulanJafungPage() {
   const [loading, setLoading] = useState(true);
   const [usulanList, setUsulanList] = useState<UsulanJafung[]>([]);
   const [jafungList, setJafungList] = useState<JabatanFungsionalAkademik[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>();
 
   // Modal Request State
   const [showModal, setShowModal] = useState(false);
@@ -46,18 +51,20 @@ export default function UsulanJafungPage() {
           const pegId = resMe.data.id;
           setFormData(prev => ({ ...prev, pegawai_id: pegId }));
           const [resUsulan, resJaf] = await Promise.all([
-            simpegService.getUsulanJafungList(pegId),
+            simpegService.getUsulanJafungList({ pegawai_id: pegId, page, limit }),
             simpegService.getJabatanFungsionalList(),
           ]);
           setUsulanList(resUsulan.data || []);
+          if ((resUsulan as any).meta) setMeta((resUsulan as any).meta);
           setJafungList(resJaf.data || []);
         }
       } else {
         const [resUsulan, resJaf] = await Promise.all([
-          simpegService.getUsulanJafungList(),
+          simpegService.getUsulanJafungList({ page, limit }),
           simpegService.getJabatanFungsionalList(),
         ]);
         setUsulanList(resUsulan.data || []);
+        if ((resUsulan as any).meta) setMeta((resUsulan as any).meta);
         setJafungList(resJaf.data || []);
       }
     } catch (err: any) {
@@ -69,7 +76,7 @@ export default function UsulanJafungPage() {
 
   useEffect(() => {
     loadData();
-  }, [canRead]);
+  }, [canRead, page, limit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +100,42 @@ export default function UsulanJafungPage() {
       toast.error(err?.response?.data?.message || 'Gagal mengajukan usulan Jafung');
     }
   };
+
+  const columns: ColumnDef<UsulanJafung>[] = [
+    {
+      key: 'nama_dosen',
+      label: 'Nama Dosen',
+      render: (u) => (
+        <span className="font-bold">
+          {u.pegawai?.nama_lengkap || `Dosen ID ${u.pegawai_id}`}
+        </span>
+      ),
+    },
+    {
+      key: 'jafung_asal',
+      label: 'Jafung Asal',
+      render: (u) => u.jafung_asal?.nama || 'Tenaga Pengajar',
+    },
+    {
+      key: 'jafung_tujuan',
+      label: 'Jafung Tujuan',
+      render: (u) => (
+        <Badge variant="purple" className="font-bold">
+          {u.jafung_tujuan?.nama || `Jafung ID ${u.jafung_tujuan_id}`}
+        </Badge>
+      ),
+    },
+    {
+      key: 'angka_kredit',
+      label: 'Angka Kredit (KUM)',
+      render: (u) => <span className="font-bold text-[var(--success)]">{u.angka_kredit_usulan} KUM</span>,
+    },
+    {
+      key: 'catatan_reviewer',
+      label: 'Catatan Reviewer Tim Senat',
+      render: (u) => <span className="text-sm text-[var(--text-secondary)]">{u.catatan_reviewer || '-'}</span>,
+    },
+  ];
 
   if (!canRead) {
     return (
@@ -133,49 +176,18 @@ export default function UsulanJafungPage() {
         </div>
       </div>
 
-      {loading ? (
-        <Card>
-          <CardBody className="text-center text-[var(--text-muted)] py-8">Memuat usulan jafung...</CardBody>
-        </Card>
-      ) : usulanList.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<Award size={48} className="opacity-40" />}
-            title="Belum ada usulan kenaikan Jafung Dosen."
-          />
-        </Card>
-      ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Nama Dosen</th>
-                <th>Jafung Asal</th>
-                <th>Jafung Tujuan</th>
-                <th>Angka Kredit (KUM)</th>
-                <th>Catatan Reviewer Tim Senat</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usulanList.map((u) => (
-                <tr key={u.id}>
-                  <td className="font-bold">
-                    {u.pegawai?.nama_lengkap || `Dosen ID ${u.pegawai_id}`}
-                  </td>
-                  <td>{u.jafung_asal?.nama || 'Tenaga Pengajar'}</td>
-                  <td>
-                    <Badge variant="purple" className="font-bold">
-                      {u.jafung_tujuan?.nama || `Jafung ID ${u.jafung_tujuan_id}`}
-                    </Badge>
-                  </td>
-                  <td className="font-bold text-[var(--success)]">{u.angka_kredit_usulan} KUM</td>
-                  <td className="text-sm text-[var(--text-secondary)]">{u.catatan_reviewer || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={usulanList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+        emptyMessage="Belum ada usulan kenaikan Jafung Dosen."
+      />
 
       {/* Modal Ajukan Jafung */}
       {canCreate && (

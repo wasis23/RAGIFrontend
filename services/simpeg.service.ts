@@ -552,9 +552,9 @@ export const simpegService = {
   },
 
   // Usulan Jafung
-  getUsulanJafungList: async (pegawaiId?: number): Promise<ApiResponse<UsulanJafung[]>> => {
+  getUsulanJafungList: async (params?: number | Record<string, any>): Promise<ApiResponse<UsulanJafung[]>> => {
     const { data } = await apiClient.get<ApiResponse<UsulanJafung[]>>('/simpeg/usulan-jafung', {
-      params: pegawaiId ? { pegawai_id: pegawaiId } : undefined,
+      params: typeof params === 'number' ? { pegawai_id: params } : params,
     });
     return data;
   },
