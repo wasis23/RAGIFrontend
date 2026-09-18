@@ -244,17 +244,17 @@ export default function AdminRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Manajemen Role Akses (Roles Table)"
         description="Definisikan struktur peran pengguna dalam ekosistem kampus (Tabel: roles)"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-              Tambah Role Baru
-            </Button>
             <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
+              Tambah Role Baru
             </Button>
           </div>
         }
@@ -313,7 +313,7 @@ export default function AdminRolesPage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input
             label="Nama / Slug Role"
             placeholder="Ketik kata kunci..."

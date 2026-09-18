@@ -250,11 +250,6 @@ export default function ProposalListPage() {
         }
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<FilePlus size={16} />} onClick={() => router.push('/sippm/proposal/create')}>
-                Buat Proposal Baru
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -262,6 +257,11 @@ export default function ProposalListPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<FilePlus size={16} />} onClick={() => router.push('/sippm/proposal/create')}>
+                Buat Proposal Baru
+              </Button>
+            )}
           </div>
         }
       />

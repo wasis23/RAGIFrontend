@@ -1,5 +1,5 @@
 import apiClient from '@/lib/axios';
-import { ApiResponse } from '@/types/api.types';
+import { ApiResponse, PaginationMeta } from '@/types/api.types';
 
 export interface MasterTipeReferensi {
   id: number;
@@ -32,6 +32,38 @@ export interface UpdateTipeReferensiPayload {
   is_active?: boolean;
 }
 
+export interface PaginatedReferensiResult<T> {
+  data: T[];
+  meta?: PaginationMeta;
+}
+
+function extractPaginated<T>(payload: any): PaginatedReferensiResult<T> {
+  if (Array.isArray(payload)) return { data: payload };
+  if (payload && Array.isArray(payload.data)) {
+    const { data: rows, ...rest } = payload;
+    const meta: PaginationMeta = {
+      current_page: rest.current_page ?? 1,
+      last_page: rest.last_page ?? 1,
+      per_page: rest.per_page ?? rows.length,
+      total: rest.total ?? rows.length,
+      from: rest.from,
+      to: rest.to,
+    };
+    return { data: rows, meta };
+  }
+  return { data: [] };
+}
+
+export interface ReferensiQueryParams {
+  modul?: string;
+  tipe?: string;
+  search?: string;
+  is_active?: string;
+  sort_by?: string;
+  sort_order?: string;
+  page?: number;
+  per_page?: number;
+}
 export interface MasterReferensiItem {
   id: number;
   tipe: string;
@@ -71,6 +103,17 @@ export const tipeReferensiService = {
       { params }
     );
     return response.data.data || [];
+  },
+
+  /**
+   * Mengambil daftar master tipe referensi dengan pagination server-side + sorting
+   */
+  getPaginated: async (params?: ReferensiQueryParams): Promise<PaginatedReferensiResult<MasterTipeReferensi>> => {
+    const response = await apiClient.get<ApiResponse<any>>(
+      '/admin/master-tipe-referensi',
+      { params }
+    );
+    return extractPaginated<MasterTipeReferensi>(response.data.data);
   },
 
   /**
@@ -143,6 +186,14 @@ export const referensiService = {
     if (Array.isArray(data)) return data;
     if (data && Array.isArray(data.data)) return data.data;
     return [];
+  },
+
+  /**
+   * Mengambil daftar master referensi dengan pagination server-side + sorting
+   */
+  getPaginated: async (params?: ReferensiQueryParams): Promise<PaginatedReferensiResult<MasterReferensiItem>> => {
+    const response = await apiClient.get<ApiResponse<any>>('/admin/master-referensi', { params });
+    return extractPaginated<MasterReferensiItem>(response.data.data);
   },
 
   /**

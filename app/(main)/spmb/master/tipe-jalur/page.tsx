@@ -203,15 +203,15 @@ export default function MasterTipeJalurPage() {
         description="Kelola kategori master tipe jalur penerimaan mahasiswa"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-              Tambah Tipe Jalur
-            </Button>
             <Button 
               variant="outline"
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
+              Tambah Tipe Jalur
             </Button>
           </div>
         }

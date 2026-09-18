@@ -86,7 +86,7 @@ export default function SessionsPage() {
   };
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Kelola Sesi Perangkat (Active Sessions)"
         description="Daftar perangkat yang saat ini memiliki akses aktif ke akun SSO Anda (Tabel: user_sessions)"

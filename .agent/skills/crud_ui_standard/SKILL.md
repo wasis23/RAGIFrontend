@@ -98,8 +98,9 @@ export default function CreateDataPage() {
 
 Semua halaman yang menampilkan daftar data (tabel) WAJIB mengikuti standar ini untuk konsistensi, efisiensi, dan kemudahan pemeliharaan:
 
-### A. Komponen DataTable
+### A. Komponen DataTable & Standar Warna Background Tabel (Wajib Putih Solid)
 - **WAJIB** menggunakan komponen `<DataTable />` (`@/components/ui/DataTable`) untuk semua daftar data.
+- **WAJIB WARNA PUTIH SOLID (DILARANG ABU-ABU):** Background tabel, container pembungkus tabel, dan seluruh baris data WAJIB berlatar belakang putih bersih (`bg-white` / `#ffffff`). DILARANG membuat background tabel berwarna abu-abu (seperti `bg-slate-50`, `bg-slate-100`, `bg-gray-100`, dsb.) atau membiarkan tabel transparan memperlihatkan latar abu-abu body. Efek abu-abu hanya diizinkan untuk hover baris data (`hover:bg-slate-50`).
 - **DILARANG KERAS** menggunakan tag HTML manual seperti `<table>`, `<thead>`, `<tbody>`, `<tr>`, atau `<td>` di dalam *page* utama.
 - Komponen harus menerapkan *Server-Side Pagination* penuh dengan meneruskan parameter dari API (`limit`, `page`, dll) dan meneruskan objek `meta` (dari *PaginatedResponse* API) ke `<DataTable meta={meta} />`.
 - Jangan menggunakan array `.filter()` atau `.map()` untuk *client-side pagination*. Tabel harus selalu bergantung pada respon pagination API.
@@ -140,6 +141,6 @@ const fetchUsers = async () => {
 
 ### B. Standar Fitur Filter (Drawer)
 - Apabila terdapat kebutuhan pencarian/filter lebih dari 1 kolom (misalnya selain "Search/Pencarian Global" biasa), Anda **WAJIB** membuat panel filter *Sidebar* dengan menggunakan komponen `<Drawer />` (`@/components/ui/Drawer`).
-- Tombol akses filter (ikon *Filter* Lucide) diletakkan sejajar dengan tombol "Tambah Data" (di area `action` pada `<PageHeader />`).
+- Tombol akses filter (ikon *Filter* Lucide) diletakkan sejajar dengan tombol "Tambah Data" (di area `action` pada `<PageHeader />`), **dengan posisi tombol Filter WAJIB di sebelah KIRI tombol Tambah Data (`[Filter] [Tambah Data]`)**.
 - Opsi limitasi jumlah data (Limit) **diletakkan dan dikelola di bagian bawah `<DataTable />`**, BUKAN di dalam komponen *Drawer*. 
 - Opsi untuk pengurutan data (*Order By*, *Direction*) jika ada, diletakkan di dalam *Drawer*.

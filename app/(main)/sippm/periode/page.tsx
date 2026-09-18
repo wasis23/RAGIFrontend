@@ -267,11 +267,6 @@ export default function MasterPeriodePage() {
         description="Pengaturan jadwal pendaftaran hibah riset & alokasi pagu anggaran tahunan"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
-                Buat Periode Baru
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -279,6 +274,11 @@ export default function MasterPeriodePage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+                Buat Periode Baru
+              </Button>
+            )}
           </div>
         }
       />

@@ -254,18 +254,18 @@ export default function MataKuliahPage() {
         action={
           <div className="flex items-center gap-2">
             <Button
-              variant="primary"
-              icon={<Plus size={16} />}
-              onClick={() => handleOpenModal()}
-            >
-              Tambah Mata Kuliah
-            </Button>
-            <Button
               variant="outline"
               icon={<Filter size={16} />}
               onClick={() => setShowFilter(true)}
             >
               Filter
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => handleOpenModal()}
+            >
+              Tambah Mata Kuliah
             </Button>
           </div>
         }

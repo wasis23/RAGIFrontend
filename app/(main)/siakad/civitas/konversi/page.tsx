@@ -245,6 +245,13 @@ export default function KonversiTransferPage() {
         action={
           <div className="flex items-center gap-2">
             <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+            <Button
               variant="primary"
               icon={<Plus size={16} />}
               onClick={() => {
@@ -253,13 +260,6 @@ export default function KonversiTransferPage() {
               }}
             >
               Input Konversi Transfer
-            </Button>
-            <Button
-              variant="outline"
-              icon={<Filter size={16} />}
-              onClick={() => setShowFilter(true)}
-            >
-              Filter
             </Button>
           </div>
         }

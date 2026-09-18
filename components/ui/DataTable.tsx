@@ -43,26 +43,26 @@ export function DataTable<T extends object>({
   const total = meta?.total ?? 0;
 
   return (
-    <div className="table-container">
-      <div className="table-wrapper">
-        <table className="table">
-          <thead>
-            <tr>
+    <div className="table-container bg-white shadow-xs">
+      <div className="table-wrapper bg-white">
+        <table className="table bg-white">
+          <thead className="bg-white">
+            <tr className="bg-white">
               {columns.map((col, index) => (
-                <th key={col.key || index} style={{ textAlign: col.align || 'left' }}>
+                <th key={col.key || index} style={{ textAlign: col.align || 'left' }} className="bg-white">
                   {col.headerRender ? col.headerRender() : col.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="bg-white">
             {isLoading ? (
               Array.from({ length: meta?.per_page || 5 }).map((_, i) => (
                 <TableRowSkeleton key={i} cols={columns.length} />
               ))
             ) : data.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <tr className="bg-white">
+                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '3rem 1rem' }} className="bg-white">
                   <div style={{ color: 'var(--text-muted)' }}>{emptyMessage}</div>
                 </td>
               </tr>
@@ -70,10 +70,10 @@ export function DataTable<T extends object>({
               data.map((row, rowIndex) => (
                 <tr
                   key={(row as { id?: number | string }).id || rowIndex}
-                  className={rowClassName ? rowClassName(row, rowIndex) : undefined}
+                  className={`bg-white hover:bg-slate-50 transition-colors ${rowClassName ? rowClassName(row, rowIndex) : ''}`}
                 >
                   {columns.map((col, colIndex) => (
-                    <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }}>
+                    <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }} className="bg-white">
                       {col.render ? col.render(row, rowIndex) : (row as any)[col.key]}
                     </td>
                   ))}
@@ -94,7 +94,7 @@ export function DataTable<T extends object>({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1rem',
-          backgroundColor: 'var(--bg-card)'
+          backgroundColor: '#ffffff'
         }}>
           {/* Limit / Info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>

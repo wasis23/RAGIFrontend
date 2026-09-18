@@ -3,7 +3,7 @@
 # AUDIT 01: Zero Hardcode & RBAC Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 1/8: Zero Hardcode & RBAC] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
+echo "🤖 [Audit 1/9: Zero Hardcode & RBAC] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -30,9 +30,10 @@ Kamu adalah Code Auditor khusus Zero Hardcode & RBAC Policy (Strict Frontend Rev
 Periksa Git Diff berikut secara SANGAT KETAT terhadap 5 aturan di bawah. Penilaian MURNI oleh AI dari full diff ini, tanpa regex/pre-check.
 
 Aturan Baku (STRICT):
-1. DILARANG array literal statis untuk options dropdown; WAJIB fetch master via API.
-   - Konteks: props options pada <Select>/<Dropdown>/AsyncSelect dan sejenisnya.
-   - SALAH: options={[{ value: 'REGULER', label: 'Reguler' }]} atau const options = [{ value: 'spmb', label: 'SPMB' }].
+1. DILARANG array literal statis untuk options dropdown data master / referensi domain; WAJIB fetch master via API.
+   - Konteks: props options pada <Select>/<Dropdown>/AsyncSelect untuk data domain / master / referensi kampus (tipe jalur, jalur masuk, prodi, fakultas, jenis biaya, dll).
+   - Pengecualian Sah: Opsi kontrol UI teknis murni seperti arah urutan ('asc'/'desc'), kolom sortir tabel ('nama'/'created_at'), filter boolean status umum ('semua'/'aktif'/'nonaktif'), serta meta-scope sistem ('global') DIPERBOLEHKAN karena merupakan parameter teknis UI/HTTP query, bukan entitas master domain.
+   - SALAH: options={[{ value: 'REGULER', label: 'Reguler' }]} atau hardcode opsi data master kampus.
    - BENAR: fetch dari API master referensi, mis. const { data } = useMasterTipeJalur(); lalu options={data.map(d => ({ value: d.id, label: d.label }))} (master_tipe_jalur, master_jalur_kelas, dsb.).
 2. DILARANG user_type di MANA PUN dalam kode baru.
    - Mencakup: perbandingan ==/===/!=/!==, switch/case, ternary, destructure (const { user_type } = user / user.user_type / sso_user_type), definisi interface User di types/auth.types.ts, komponen UserTypeBadge statis, penyimpanan/pembacaan sso_user_type di cookie/middleware.
@@ -69,14 +70,15 @@ Format Respon:
   * Solusi / Rekomendasi Perbaikan: (solusi konkrit atau contoh kode perbaikan)
 EOF
 
-if [ -x "$OPENCODE_BIN" ]; then
-    RESULT=$(timeout 45s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
+AI_EXIT_CODE=1
+if [ "$AI_ENGINE" != "agy" ] && [ -x "$OPENCODE_BIN" ]; then
+    RESULT=$(timeout 120s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 120s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+fi
+
+if [ $AI_EXIT_CODE -ne 0 ] && command -v agy &> /dev/null; then
+    RESULT=$(timeout 120s agy --model gemini-3.8-flash-low --print "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-else
-    AI_EXIT_CODE=127
 fi
 
 rm -f "$PROMPT_FILE"

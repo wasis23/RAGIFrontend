@@ -291,6 +291,16 @@ export default function FakultasPage() {
         ]}
         action={
           <div className="flex items-center gap-2">
+            {activeTab === 'prodi' && (
+              <Button
+                variant="outline"
+                icon={<Filter size={16} />}
+                onClick={() => setShowFilter(true)}
+              >
+                Filter
+              </Button>
+            )}
+
             {activeTab === 'fakultas' ? (
               <Button
                 variant="primary"
@@ -306,16 +316,6 @@ export default function FakultasPage() {
                 onClick={() => handleOpenProdiModal()}
               >
                 Tambah Program Studi
-              </Button>
-            )}
-
-            {activeTab === 'prodi' && (
-              <Button
-                variant="outline"
-                icon={<Filter size={16} />}
-                onClick={() => setShowFilter(true)}
-              >
-                Filter
               </Button>
             )}
           </div>

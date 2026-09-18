@@ -290,11 +290,6 @@ export default function CutiPage() {
         description="Permohonan Cuti Tahunan, Sakit, Alasan Penting, Melahirkan, dan Approval SDM"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenRequest}>
-                Ajukan Cuti Baru
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -302,6 +297,11 @@ export default function CutiPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={handleOpenRequest}>
+                Ajukan Cuti Baru
+              </Button>
+            )}
           </div>
         }
       />

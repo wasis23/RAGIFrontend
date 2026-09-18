@@ -75,6 +75,44 @@ Untuk memastikan konsistensi desain (UI/UX) di seluruh panel Admin, semua implem
    </div>
    ```
 
+4. **Posisi Tombol Filter Selalu di Sebelah Kiri Tombol Tambah Data**
+   - Pada header halaman (`PageHeader` prop `action`), tombol **Filter** WAJIB diletakkan di sebelah kiri tombol **Tambah Data** (`[Filter] [Tambah Data]`).
+   - Dilarang menempatkan tombol Tambah sebelum tombol Filter.
+   
+   ✅ **Benar:**
+   ```tsx
+   <PageHeader
+     title="Kelola Data"
+     action={
+       <div className="flex gap-2">
+         <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
+           Filter
+         </Button>
+         <Button icon={<Plus size={16} />} onClick={handleCreate}>
+           Tambah Data
+         </Button>
+       </div>
+     }
+   />
+   ```
+
+   ❌ **Salah:**
+   ```tsx
+   <PageHeader
+     title="Kelola Data"
+     action={
+       <div className="flex gap-2">
+         <Button icon={<Plus size={16} />} onClick={handleCreate}>
+           Tambah Data
+         </Button>
+         <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
+           Filter
+         </Button>
+       </div>
+     }
+   />
+   ```
+
 ## Workflow Implementasi
 1. Siapkan *state* filter individual (contoh: `filterName`, `filterRole`).
 2. Siapkan *state* terapan (`appliedFilters` / `appliedFilterName`) yang di-trigger via tombol "Terapkan".

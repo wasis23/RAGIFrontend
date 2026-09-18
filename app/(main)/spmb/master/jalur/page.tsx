@@ -145,15 +145,15 @@ export default function MasterJalurPage() {
         description="Kelola jalur masuk pendaftaran mahasiswa baru"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/jalur/create')}>
-              Tambah Jalur
-            </Button>
             <Button 
               variant="outline"
               icon={<Filter size={16} />} 
               onClick={() => setShowFilter(true)}
             >
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={() => router.push('/spmb/master/jalur/create')}>
+              Tambah Jalur
             </Button>
           </div>
         }

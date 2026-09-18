@@ -3,7 +3,7 @@
 # AUDIT 02: Admin CRUD Standard Reviewer (FE) — AI Muse Spark Strict (Full Diff, tanpa regex)
 # ==============================================================================
 
-echo "🤖 [Audit 2/8: Admin CRUD Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
+echo "🤖 [Audit 2/9: Admin CRUD Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
@@ -42,14 +42,14 @@ Aturan Baku Admin CRUD (10 ATURAN KETAT):
 4. WAJIB Atomic Design: Button/Input/Select/AsyncSelect/Modal/Drawer/DataTable/Badge/StatusBadge/ConfirmDialog/DropdownMenu dari @/components/ui + PageHeader/Sidebar dari layout; DILARANG HTML mentah; Pages hanya merangkai.
    - SALAH: <button className="btn">Simpan</button>, <input type="text" />, <select>...</select> di halaman.
    - BENAR: import { Button, Input, Select } from '@/components/ui'; import { PageHeader } from '@/components/layout'; halaman hanya merangkai komponen atomik.
-5. WAJIB list pakai DataTable + server-side pagination page/limit + meta={meta} + onPageChange; DILARANG <table>/<thead>/<tbody>/<tr>/<td> mentah; DILARANG paginasi client-side .filter/.map; WAJIB reset page=1 saat limit berubah.
-   - SALAH: <table><thead>...</thead></table>; const shown = allData.filter(f).map(...); onLimitChange hanya setLimit(limit).
-   - BENAR: <DataTable columns={columns} data={data} meta={meta} onPageChange={(p) => setPage(p)} />; fetch(`/api/x?page=${page}&limit=${limit}`); onLimitChange={(l) => { setLimit(l); setPage(1); }}.
+5. WAJIB list pakai DataTable + server-side pagination page/limit + meta={meta} + onPageChange + WAJIB background tabel/container berwarna putih (bg-white / #ffffff), DILARANG background abu-abu (bg-slate-50, bg-gray-100, dsb); DILARANG <table>/<thead>/<tbody>/<tr>/<td> mentah; DILARANG paginasi client-side .filter/.map; WAJIB reset page=1 saat limit berubah.
+   - SALAH: <table><thead>...</thead></table>; const shown = allData.filter(f).map(...); table wrapper diberi bg-slate-50/bg-gray-100 abu-abu; onLimitChange hanya setLimit(limit).
+   - BENAR: <DataTable columns={columns} data={data} meta={meta} onPageChange={(p) => setPage(p)} /> (background tabel putih bersih bg-white); fetch(`/api/x?page=${page}&limit=${limit}`); onLimitChange={(l) => { setLimit(l); setPage(1); }}.
 6. WAJIB sort sort_by/orderBy (default name/label) + sort_dir/orderDir asc/desc di Drawer grid 2 kolom dengan separator hr.
    - SALAH: tidak ada kontrol sort; sort hanya satu arah tanpa sort_dir.
    - BENAR: <div className="grid grid-cols-2 gap-4"><Select label="Sort By" options={[{value:'name',label:'Nama'}]} /><Select label="Direction" options={[{value:'asc',label:'Asc'},{value:'desc',label:'Desc'}]} /></div><hr />.
-7. WAJIB tombol Filter variant outline dinamis primary modul + ikon Filter size 16 di PageHeader action (bersama Tambah Data Plus size 16) → Drawer kanan-ke-kiri.
-   - SALAH: <Button variant="solid">Filter</Button> tanpa ikon; Drawer dari kiri/atas.
+7. WAJIB tombol Filter variant outline dinamis primary modul + ikon Filter size 16 di PageHeader action dan WAJIB di sebelah KIRI tombol Tambah Data ([Filter] [Tambah Data]); DILARANG tombol Tambah Data diletakkan sebelum Filter → Drawer kanan-ke-kiri.
+   - SALAH: <Button variant="solid">Filter</Button> tanpa ikon; Drawer dari kiri/atas; tombol Tambah mendahului Filter.
    - BENAR: <PageHeader action={<><Button variant="outline" style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}><Filter size={16} /> Filter</Button><Button><Plus size={16} /> Tambah Data</Button></>} />; <Drawer position="right">.
 8. WAJIB konsistensi form: ≤5 input = Modal grid maks 2 kolom; >5 input = halaman /create /[id]/edit + Tombol Kembali dinamis + Batal sekunder.
    - SALAH: form 8 input dipadatkan ke <Modal className="grid-cols-4">; form 3 input dibuatkan halaman /create penuh.
@@ -82,14 +82,15 @@ Format Respon:
   * Solusi / Rekomendasi Perbaikan: (solusi konkrit atau contoh kode perbaikan)
 EOF
 
-if [ -x "$OPENCODE_BIN" ]; then
-    RESULT=$(timeout 45s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
+AI_EXIT_CODE=1
+if [ "$AI_ENGINE" != "agy" ] && [ -x "$OPENCODE_BIN" ]; then
+    RESULT=$(timeout 120s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 120s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+fi
+
+if [ $AI_EXIT_CODE -ne 0 ] && command -v agy &> /dev/null; then
+    RESULT=$(timeout 120s agy --model gemini-3.8-flash-low --print "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-else
-    AI_EXIT_CODE=127
 fi
 
 rm -f "$PROMPT_FILE"

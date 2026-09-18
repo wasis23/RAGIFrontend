@@ -275,15 +275,15 @@ export default function MaintenancePage() {
         description="Pelaporan tiket kerusakan barang/ruangan, penanganan teknisi, & pencatatan biaya perbaikan (Modul SINAPRA)"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
-              Buat Tiket Perawatan
-            </Button>
             <Button
-              style={{ backgroundColor: '#f97316', color: '#fff', border: 'none' }}
+              variant="outline"
               icon={<Filter size={16} />}
               onClick={() => setShowFilterDrawer(true)}
             >
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+              Buat Tiket Perawatan
             </Button>
           </div>
         }

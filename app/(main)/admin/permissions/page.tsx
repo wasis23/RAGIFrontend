@@ -245,17 +245,17 @@ export default function AdminPermissionsPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-7">
+    <div className="animate-fade-in flex flex-col gap-6">
       <PageHeader
         title="Manajemen Hak Akses (Permissions Table)"
         description="Daftar granular permission untuk setiap modul aplikasi (Tabel: permissions)"
         action={
           <div className="flex gap-2">
-            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-              Tambah Permission
-            </Button>
             <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
+            </Button>
+            <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
+              Tambah Permission
             </Button>
           </div>
         }
@@ -310,7 +310,7 @@ export default function AdminPermissionsPage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input
             label="Cari Permission"
             placeholder="Ketik nama atau slug..."
@@ -359,7 +359,7 @@ export default function AdminPermissionsPage() {
         onClose={() => setShowModal(false)}
         title={editingPermission ? 'Edit Permission' : 'Tambah Permission Baru'}
       >
-        <form onSubmit={handleSubmit(onSave)} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit(onSave)} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Nama Permission"

@@ -1,0 +1,23 @@
+#!/bin/bash
+# ==============================================================================
+# POST-COMMIT: bersihkan file laporan chromium audit dari working tree.
+# File laporan sudah masuk ke dalam commit sebagai bukti uji (jangan khawatir,
+# riwayat git tetap menyimpannya). Hook ini hanya merapikan folder lokal.
+# Selalu exit 0 agar tidak pernah mengganggu hasil commit.
+# ==============================================================================
+
+REPORTS=$(git diff-tree --no-commit-id --name-only -r HEAD -- '.agents/laporan' 2>/dev/null | grep -v '.gitkeep' || true)
+
+if [ -z "$REPORTS" ]; then
+    exit 0
+fi
+
+echo "🧹 [Post-commit] Membersihkan file laporan chromium audit dari working tree..."
+echo "$REPORTS" | while IFS= read -r f; do
+    if [ -f "$f" ]; then
+        rm -f "$f"
+        echo "   dihapus lokal (tetap tersimpan di commit $(git rev-parse --short HEAD)): $f"
+    fi
+done
+
+exit 0

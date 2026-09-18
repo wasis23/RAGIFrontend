@@ -55,6 +55,7 @@ Semua komponen antarmuka wajib dibangun mengikuti prinsip **Atomic Design**:
 ## 5. Aturan Wajib DataTable & Server-Side Pagination
 Setiap halaman list/tabel data **WAJIB**:
 - Menggunakan komponen **`<DataTable />`** (`@/components/ui/DataTable`).
+- **WAJIB WARNA LATAR BELAKANG PUTIH SOLID:** Background tabel, container tabel, dan baris tabel WAJIB berwarna putih bersih (`bg-white` / `#ffffff`). DILARANG membuat tabel atau baris tabel berwarna abu-abu (seperti `bg-slate-50`, `bg-gray-100`, dsb.) atau membiarkan tabel transparan.
 - **DILARANG KERAS** menggunakan tag HTML mentah seperti `<table>`, `<thead>`, `<tbody>`, `<tr>`, atau `<td>` langsung di file halaman.
 - Data **WAJIB** diambil dari API backend dengan mendukung **Limit** dan **Server-Side Pagination** (`page`, `limit`).
 - Meneruskan metadata pagination API ke prop `meta` DataTable:
@@ -108,21 +109,22 @@ Setiap halaman list/tabel **WAJIB** memiliki opsi pengurutan data (*Sorting*):
 Semua halaman admin yang membutuhkan filter **WAJIB**:
 - Menyediakan tombol **Filter** di header halaman (pada prop `action` komponen `<PageHeader />`).
 - Style tombol filter wajib menggunakan **Outline Dynamic** (warna outline menyesuaikan primary_color modul, bukan hardcode warna biru) dengan ikon `<Filter size={16} />`.
+- **Posisi tombol Filter WAJIB selalu di sebelah KIRI tombol Tambah Data (`[Filter] [Tambah Data]`). DILARANG menaruh tombol Tambah Data sebelum tombol Filter.**
 - Ketika tombol diklik, panel filter **WAJIB** memunculkan komponen **`<Drawer />`** yang meluncur dari kanan ke kiri (*right-to-left*), merujuk pada standar modul **SSO / IAM**.
   ```tsx
   <PageHeader
     title="Manajemen Master Data"
     action={
       <div className="flex gap-2">
-        <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-          Tambah Data
-        </Button>
         <Button 
           variant="outline" 
           icon={<Filter size={16} />} 
           onClick={() => setShowFilter(true)}
         >
           Filter
+        </Button>
+        <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
+          Tambah Data
         </Button>
       </div>
     }
