@@ -68,7 +68,7 @@ if [ -x "$OPENCODE_BIN" ]; then
     RESULT=$(timeout 45s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
 elif command -v agy &> /dev/null; then
-    RESULT=$(timeout 60s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+    RESULT=$(timeout 120s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
 else
     AI_EXIT_CODE=127
