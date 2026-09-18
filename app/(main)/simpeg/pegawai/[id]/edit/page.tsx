@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, RefreshCw, ScanFace, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, RefreshCw, ScanFace, RotateCcw, CheckCircle2, MapPin } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -42,7 +42,6 @@ const pegawaiSchema = z.object({
   bank_nama: z.string().optional().nullable(),
   nomor_rekening: z.string().optional().nullable(),
   shift_template_id: z.string().optional().nullable(),
-  office_location_id: z.string().optional().nullable(),
 });
 
 type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
@@ -59,7 +58,6 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const [isResetting, setIsResetting] = useState(false);
   const [selectedUnitOption, setSelectedUnitOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedShiftOption, setSelectedShiftOption] = useState<{ value: string; label: string } | null>(null);
-  const [selectedOfficeOption, setSelectedOfficeOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedRoleOptions, setSelectedRoleOptions] = useState<{ value: string; label: string }[]>([]);
 
   const handleResetBiometric = async () => {
@@ -101,7 +99,6 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       bank_nama: '',
       nomor_rekening: '',
       shift_template_id: '',
-      office_location_id: '',
     },
   });
 
@@ -159,22 +156,6 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
     }
   }, []);
 
-  const loadOfficeOptions = useCallback(async (inputValue: string) => {
-    try {
-      const res = await simpegService.getOfficeLocations();
-      const offices = (res.data || []) as Array<{ id: number; name: string; is_active?: boolean }>;
-      return offices
-        .filter((o) => o.name.toLowerCase().includes(inputValue.toLowerCase()))
-        .map((o) => ({
-          value: o.id.toString(),
-          label: o.is_active ? o.name : `${o.name} (Non-Aktif)`,
-        }));
-    } catch (err) {
-      console.error('Gagal memuat opsi lokasi kantor', err);
-      return [];
-    }
-  }, []);
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -211,7 +192,6 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             bank_nama: peg.bank_nama || '',
             nomor_rekening: peg.nomor_rekening || '',
             shift_template_id: peg.shift_template_id ? String(peg.shift_template_id) : '',
-            office_location_id: peg.office_location_id ? String(peg.office_location_id) : '',
           };
           reset(formVals);
 
@@ -225,12 +205,6 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             setSelectedShiftOption({
               value: String(peg.shift_template.id),
               label: peg.shift_template.name,
-            });
-          }
-          if (peg.office_location) {
-            setSelectedOfficeOption({
-              value: String(peg.office_location.id),
-              label: peg.office_location.name,
             });
           }
         }
@@ -265,7 +239,6 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         bank_nama: values.bank_nama || null,
         nomor_rekening: values.nomor_rekening || null,
         shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
-        office_location_id: values.office_location_id ? Number(values.office_location_id) : null,
       };
 
       await simpegService.updatePegawai(pegawaiId, payload);
@@ -465,25 +438,17 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                     />
                   )}
                 />
-                <Controller
-                  name="office_location_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Lokasi Kantor (Geofence Presensi)"
-                      placeholder="Cari lokasi kantor..."
-                      hint="Titik GPS tempat pegawai wajib melakukan presensi."
-                      loadOptions={loadOfficeOptions}
-                      value={selectedOfficeOption || (field.value ? { value: field.value, label: field.value } : null)}
-                      onChange={(opt) => {
-                        setSelectedOfficeOption(opt);
-                        field.onChange(opt ? opt.value : '');
-                      }}
-                      isClearable
-                      error={errors.office_location_id?.message}
-                    />
-                  )}
-                />
+                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-3 self-center">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+                    <MapPin size={16} />
+                  </div>
+                  <div>
+                    <h5 className="font-semibold text-xs text-slate-800">Multi-Lokasi Presensi Otomatis</h5>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      Pegawai otomatis dapat melakukan presensi di semua lokasi kampus/kantor terdaftar yang aktif saat berada dalam radius GPS terdekat.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* SECTION: DATA BIOMETRIK WAJAH */}

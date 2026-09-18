@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Info } from 'lucide-react';
+import { ArrowLeft, Save, Info, MapPin } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -39,7 +39,6 @@ const pegawaiSchema = z.object({
   telepon: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
   shift_template_id: z.string().optional().nullable(),
-  office_location_id: z.string().optional().nullable(),
 });
 
 type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
@@ -72,7 +71,6 @@ export default function CreatePegawaiPage() {
       telepon: '',
       alamat: '',
       shift_template_id: '',
-      office_location_id: '',
     },
   });
 
@@ -133,23 +131,6 @@ export default function CreatePegawaiPage() {
     }
   }, []);
 
-  // Server-side async loader for Office Location AsyncSelect
-  const loadOfficeOptions = useCallback(async (inputValue: string) => {
-    try {
-      const res = await simpegService.getOfficeLocations();
-      const offices = res.data || [];
-      return offices
-        .filter((o: any) => o.name.toLowerCase().includes(inputValue.toLowerCase()))
-        .map((o: any) => ({
-          value: o.id.toString(),
-          label: o.is_active ? o.name : `${o.name} (Non-Aktif)`,
-        }));
-    } catch (err) {
-      console.error('Gagal memuat opsi lokasi kantor', err);
-      return [];
-    }
-  }, []);
-
   const onSubmit = async (values: PegawaiFormValues) => {
     setIsSubmitting(true);
     try {
@@ -169,7 +150,6 @@ export default function CreatePegawaiPage() {
         telepon: values.telepon || null,
         alamat: values.alamat || null,
         shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
-        office_location_id: values.office_location_id ? Number(values.office_location_id) : null,
       };
 
       if (values.email) {
@@ -369,22 +349,17 @@ export default function CreatePegawaiPage() {
                     />
                   )}
                 />
-                <Controller
-                  name="office_location_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Lokasi Kantor (Geofence Presensi)"
-                      placeholder="Cari lokasi kantor..."
-                      hint="Titik GPS tempat pegawai wajib melakukan presensi."
-                      loadOptions={loadOfficeOptions}
-                      value={field.value ? { value: field.value, label: field.value } : null}
-                      onChange={(opt) => field.onChange(opt ? opt.value : '')}
-                      isClearable
-                      error={errors.office_location_id?.message}
-                    />
-                  )}
-                />
+                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-3 self-center">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
+                    <MapPin size={16} />
+                  </div>
+                  <div>
+                    <h5 className="font-semibold text-xs text-slate-800">Multi-Lokasi Presensi Otomatis</h5>
+                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      Pegawai otomatis dapat melakukan presensi di semua lokasi kampus/kantor terdaftar yang aktif saat berada dalam radius GPS terdekat.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <Input

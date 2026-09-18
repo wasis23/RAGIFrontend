@@ -73,8 +73,8 @@ const KETERANGAN_OPTIONS = [
 
 export default function PresensiPage() {
   const router = useRouter();
-  const { hasPermission, isAdmin } = useAuth();
   const canManage = isAdmin || hasPermission('simpeg.presensi.manage');
+  const canDelete = isAdmin || hasPermission('simpeg.presensi.delete') || hasPermission('simpeg.presensi.manage');
 
   // Active View Tab: 'realtime' | 'bundle'
   const [activeTab, setActiveTab] = useState<'realtime' | 'bundle'>('realtime');
@@ -336,6 +336,38 @@ export default function PresensiPage() {
     });
   };
 
+  const handleDeleteLog = (log: any) => {
+    const namaPegawai = log.employee?.nama_lengkap || `Pegawai #${log.pegawai_id}`;
+    const tanggalFormatted = log.tanggal
+      ? new Date(log.tanggal).toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : '-';
+
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Log Presensi',
+      message: `Apakah Anda yakin ingin menghapus catatan presensi untuk ${namaPegawai} pada tanggal ${tanggalFormatted}? Tindakan ini tidak dapat dibatalkan.`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deletePresensiLog(log.id);
+          toast.success('Log presensi berhasil dihapus.');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setShowDetailModal(false);
+          fetchPresensiLogs();
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal menghapus log presensi.');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
+  };
+
   const handleProcessBundlePayroll = async (bundleId: number) => {
     try {
       const res = await simpegService.processBundlePayroll(bundleId);
@@ -524,6 +556,14 @@ export default function PresensiPage() {
             icon: <Check size={14} />,
             disabled: approvingId === row.id,
             onClick: () => handleApprovePresensi(row.id),
+          });
+        }
+        if (canDelete) {
+          items.push({
+            label: 'Hapus Log Presensi',
+            icon: <Trash2 size={14} />,
+            variant: 'danger',
+            onClick: () => handleDeleteLog(row),
           });
         }
         return <DropdownMenu items={items} />;
@@ -899,6 +939,14 @@ export default function PresensiPage() {
                 onClick={() => handleApprovePresensi(selectedLog.id)}
               >
                 Setujui Manual
+              </Button>
+            )}
+            {canDelete && selectedLog && (
+              <Button
+                variant="danger"
+                onClick={() => handleDeleteLog(selectedLog)}
+              >
+                Hapus Log
               </Button>
             )}
           </>

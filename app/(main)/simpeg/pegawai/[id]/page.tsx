@@ -718,19 +718,19 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                 <div>
                   <div className="flex items-center gap-1.5 text-xs text-slate-400 uppercase font-semibold mb-1">
                     <MapPin size={14} className="text-slate-500" />
-                    Lokasi Kantor Geofence
+                    Lokasi Presensi Geofence
                   </div>
                   <div className="font-bold text-slate-800 mt-1">
-                    {pegawai.office_location?.name || 'Kantor Utama / Kampus Pusat'}
+                    Multi-Lokasi Kampus (Otomatis)
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
-                    {pegawai.office_location?.radius_meters
-                      ? `Radius presensi: ${pegawai.office_location.radius_meters} meter`
-                      : 'Radius standar kantor utama'}
+                    {pegawai.office_location?.name
+                      ? `Basis: ${pegawai.office_location.name} (dapat absen di seluruh lokasi kampus terdaftar)`
+                      : 'Pegawai dapat presensi di seluruh lokasi kantor/kampus aktif terdekat'}
                   </div>
                 </div>
                 <div className="text-2xs text-slate-400 pt-3 mt-3 border-t border-slate-200/80">
-                  Titik GPS validasi radius absen mobile
+                  Validasi radius GPS otomatis ke titik kampus/kantor terdekat
                 </div>
               </div>
             </div>

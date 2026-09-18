@@ -305,6 +305,11 @@ export const simpegService = {
     return data;
   },
 
+  deletePresensiLog: async (id: number | string): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/simpeg/presensi/log/${id}`);
+    return data;
+  },
+
   processBundlePayroll: async (id: number | string): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/presensi/${id}/payroll`);
     return data;
