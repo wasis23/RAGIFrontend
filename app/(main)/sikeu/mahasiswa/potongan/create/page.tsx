@@ -1,11 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Loader2, Search, User, Sparkles, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  Search,
+  User,
+  Sparkles,
+  AlertCircle,
+  Receipt,
+  CheckCircle2,
+  Coins,
+  Clock,
+  Check,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService, MasterBiaya } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -33,16 +46,44 @@ const potonganSchema = z.object({
 
 type PotonganFormData = z.infer<typeof potonganSchema>;
 
+interface UnpaidBill {
+  id: number;
+  nomor_tagihan: string;
+  jenis: string;
+  periode_label: string;
+  total_tagihan: number;
+  total_potongan: number;
+  total_denda: number;
+  total_bayar: number;
+  sisa: number;
+  status: string;
+  jatuh_tempo?: string;
+  details?: Array<{
+    id: number;
+    master_biaya: string;
+    nominal: number;
+    potongan: number;
+    nominal_bersih: number;
+    keterangan: string;
+  }>;
+}
+
 export default function CreatePotonganPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [masterBiayaList, setMasterBiayaList] = useState<MasterBiaya[]>([]);
-  const [loadingBiaya, setLoadingBiaya] = useState(true);
+  const [, setLoadingBiaya] = useState(true);
 
   // Student search
   const [studentSearch, setStudentSearch] = useState('');
   const [studentResults, setStudentResults] = useState<any[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+
+  // Unpaid bills auto-sync state
+  const [unpaidBills, setUnpaidBills] = useState<UnpaidBill[]>([]);
+  const [loadingBills, setLoadingBills] = useState(false);
+  const [syncUnpaidBills, setSyncUnpaidBills] = useState(true);
+  const [selectedTagihanId, setSelectedTagihanId] = useState<number | null>(null);
 
   const getTodayDate = () => new Date().toISOString().split('T')[0];
   const getDefaultEndDate = () => {
@@ -114,17 +155,74 @@ export default function CreatePotonganPage() {
     return () => clearTimeout(timer);
   }, [studentSearch]);
 
-  const handleSelectStudent = (stu: any) => {
+  const handleSelectStudent = async (stu: any) => {
     setSelectedStudent(stu);
     setValue('mahasiswa_id', stu.id, { shouldValidate: true });
     setStudentResults([]);
     setStudentSearch('');
+
+    // Fetch tagihan belum dibayar mahasiswa secara otomatis
+    setLoadingBills(true);
+    try {
+      const res = await sikeuService.getStudentUnpaidBills(stu.id, stu.is_calon_mahasiswa);
+      const bills: UnpaidBill[] = Array.isArray(res.data) ? res.data : [];
+      setUnpaidBills(bills);
+      if (bills.length > 0) {
+        // Auto-select tagihan pertama
+        setSelectedTagihanId(bills[0].id);
+      } else {
+        setSelectedTagihanId(null);
+      }
+    } catch (err) {
+      console.error('Error fetching unpaid bills:', err);
+      setUnpaidBills([]);
+      setSelectedTagihanId(null);
+    } finally {
+      setLoadingBills(false);
+    }
   };
+
+  const handleClearStudent = () => {
+    setSelectedStudent(null);
+    setValue('mahasiswa_id', 0, { shouldValidate: true });
+    setUnpaidBills([]);
+    setSelectedTagihanId(null);
+  };
+
+  // Simulasi kalkulasi potongan terhadap tagihan
+  const calculateBillSimulation = useMemo(() => {
+    return (bill: UnpaidBill) => {
+      let baseNominal = bill.sisa;
+      if (watchMasterBiayaId && bill.details && bill.details.length > 0) {
+        const found = bill.details.find((d) => String(d.id) === String(watchMasterBiayaId));
+        if (found) {
+          baseNominal = Math.max(0, found.nominal - found.potongan);
+        }
+      }
+
+      let pot = 0;
+      const val = Number(watchNilaiPotongan) || 0;
+      if (watchTipePotongan === 'persen') {
+        pot = Math.round((baseNominal * val) / 100);
+      } else {
+        pot = val;
+      }
+      pot = Math.min(pot, bill.sisa);
+      const sisaBaru = Math.max(0, bill.sisa - pot);
+      const isLunas = sisaBaru === 0;
+
+      return {
+        potonganNominal: pot,
+        sisaBaru,
+        isLunas,
+      };
+    };
+  }, [watchTipePotongan, watchNilaiPotongan, watchMasterBiayaId]);
 
   const onSubmit = async (data: PotonganFormData) => {
     setSubmitting(true);
     try {
-      await sikeuService.createPotonganMahasiswa({
+      const res = await sikeuService.createPotonganMahasiswa({
         mahasiswa_id: data.mahasiswa_id,
         nim: selectedStudent?.nim,
         nama_mahasiswa: selectedStudent?.nama_mahasiswa || selectedStudent?.nama,
@@ -139,9 +237,12 @@ export default function CreatePotonganPage() {
         nomor_sk: data.nomor_sk || null,
         keterangan: data.keterangan || null,
         status: data.status,
+        tagihan_id: selectedTagihanId ? Number(selectedTagihanId) : null,
+        sync_unpaid_bills: syncUnpaidBills,
       });
 
-      toast.success(`Berhasil menetapkan potongan khusus untuk ${selectedStudent?.nama_mahasiswa || 'mahasiswa'}`);
+      const message = (res as any)?.message || `Berhasil menetapkan potongan khusus untuk ${selectedStudent?.nama_mahasiswa || 'mahasiswa'}`;
+      toast.success(message);
       router.push('/sikeu/mahasiswa/potongan');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Gagal menyimpan potongan mahasiswa');
@@ -154,7 +255,7 @@ export default function CreatePotonganPage() {
     <div className="space-y-6 max-w-4xl pb-12">
       <PageHeader
         title="Tambah Potongan Khusus Mahasiswa"
-        description="Tetapkan potongan biaya pendidikan per individu mahasiswa di luar skema beasiswa umum."
+        description="Tetapkan potongan biaya pendidikan per individu mahasiswa dengan auto-sync tagihan belum dibayar."
         action={
           <Button
             variant="outline"
@@ -232,10 +333,7 @@ export default function CreatePotonganPage() {
                   size="sm"
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    setSelectedStudent(null);
-                    setValue('mahasiswa_id', 0, { shouldValidate: true });
-                  }}
+                  onClick={handleClearStudent}
                   className="text-xs text-slate-500 hover:text-rose-600 font-bold"
                 >
                   Ganti
@@ -252,7 +350,149 @@ export default function CreatePotonganPage() {
           </div>
         </div>
 
-        {/* Section 2: Nilai & Parameter Potongan */}
+        {/* Section 2: Auto-Sync Tagihan Belum Dibayar */}
+        {selectedStudent && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Receipt size={18} className="text-emerald-600" />
+                  Tagihan Belum Dibayar Mahasiswa (Sinkronisasi Otomatis)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Potongan dapat langsung diterapkan ke tagihan yang belum lunas serta memotong saldo Virtual Account.
+                </p>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100/80 px-3 py-1.5 rounded-xl border border-slate-200 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={syncUnpaidBills}
+                  onChange={(e) => setSyncUnpaidBills(e.target.checked)}
+                  className="w-4 h-4 rounded text-primary-600 focus:ring-primary-500 border-slate-300"
+                />
+                <span className="text-xs font-bold text-slate-700 select-none">
+                  Sync Otomatis Tagihan
+                </span>
+              </label>
+            </div>
+
+            {loadingBills ? (
+              <div className="flex items-center justify-center py-6 text-slate-400 gap-2">
+                <Loader2 size={18} className="animate-spin text-primary-600" />
+                <span className="text-xs font-medium">Memeriksa tagihan aktif mahasiswa...</span>
+              </div>
+            ) : unpaidBills.length === 0 ? (
+              <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-start gap-3">
+                <CheckCircle2 size={18} className="text-emerald-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-emerald-900">Mahasiswa Tidak Memiliki Tagihan Tertunggak</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">
+                    Saat ini seluruh tagihan mahasiswa sudah lunas atau belum diterbitkan. Master potongan ini akan tetap tersimpan dan otomatis memotong saat tagihan semester mendatang digenerate.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>Ditemukan <strong className="text-slate-800">{unpaidBills.length}</strong> tagihan yang belum lunas:</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTagihanId(null)}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                      selectedTagihanId === null
+                        ? 'bg-primary-50 border-primary-300 text-primary-700 font-bold'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Terapkan ke Semua Tagihan Belum Lunas
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5">
+                  {unpaidBills.map((bill) => {
+                    const isSelected = selectedTagihanId === bill.id;
+                    const sim = calculateBillSimulation(bill);
+
+                    return (
+                      <div
+                        key={bill.id}
+                        onClick={() => setSelectedTagihanId(bill.id)}
+                        className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-primary-50/50 border-primary-300 ring-1 ring-primary-500/30'
+                            : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`w-5 h-5 rounded-full border flex items-center justify-center mt-0.5 shrink-0 transition-colors ${
+                                isSelected
+                                  ? 'border-primary-600 bg-primary-600 text-white'
+                                  : 'border-slate-300 bg-white'
+                              }`}
+                            >
+                              {isSelected && <Check size={12} strokeWidth={3} />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-xs text-slate-900">
+                                  {bill.nomor_tagihan}
+                                </span>
+                                <Badge
+                                  variant={bill.status === 'belum_bayar' ? 'red' : 'amber'}
+                                  className="text-[10px] capitalize"
+                                >
+                                  {bill.status.replace('_', ' ')}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">
+                                {bill.jenis} • {bill.periode_label}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="sm:text-right text-xs">
+                            <p className="text-slate-500 text-[11px]">Sisa Tagihan Saat Ini:</p>
+                            <p className="font-bold text-slate-900 font-mono text-sm">
+                              {formatRupiah(bill.sisa)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Simulasi Preview Pengurangan */}
+                        {syncUnpaidBills && (isSelected || selectedTagihanId === null) && (
+                          <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2 text-emerald-700">
+                              <Coins size={14} />
+                              <span>
+                                Estimasi Potongan: <strong>-{formatRupiah(sim.potonganNominal)}</strong>
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 font-mono">
+                              <span className="text-slate-500">Sisa Baru:</span>
+                              <strong className={sim.isLunas ? 'text-emerald-600 font-bold' : 'text-slate-800'}>
+                                {formatRupiah(sim.sisaBaru)}
+                              </strong>
+                              {sim.isLunas && (
+                                <Badge variant="green" className="text-[10px] ml-1">
+                                  Akan Lunas
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Section 3: Nilai & Parameter Potongan */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 space-y-5">
           <div className="border-b border-slate-100 pb-3">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -385,7 +625,7 @@ export default function CreatePotonganPage() {
             icon={submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
             className="font-bold shadow-md min-h-[42px] px-6"
           >
-            {submitting ? 'Menyimpan...' : 'Simpan Potongan Mahasiswa'}
+            {submitting ? 'Menyimpan...' : 'Simpan & Terapkan Potongan'}
           </Button>
         </div>
       </form>

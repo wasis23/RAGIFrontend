@@ -450,6 +450,8 @@ export const sikeuService = {
     nomor_sk?: string | null;
     keterangan?: string | null;
     status?: string;
+    tagihan_id?: number | null;
+    sync_unpaid_bills?: boolean;
   }) => {
     return fetchWithAuth<ApiResponse<PotonganMahasiswa>>('/v1/sikeu/master/potongan-mahasiswa', {
       method: 'POST',
