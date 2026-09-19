@@ -126,8 +126,13 @@ export default function CreatePengadaanPage() {
         title="Form Pengajuan Usulan Pengadaan Barang"
         description="Pengajuan multi-item pengadaan barang sarana & prasarana baru per unit kerja (Modul SINAPRA)"
         action={
-          <Button variant="secondary" icon={<ArrowLeft size={16} />} onClick={() => router.push('/sinapra/pengadaan')}>
-            Kembali ke Daftar
+          <Button
+            variant="outline"
+            style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            icon={<ArrowLeft size={16} />}
+            onClick={() => router.push('/sinapra/pengadaan')}
+          >
+            Kembali
           </Button>
         }
       />
@@ -138,7 +143,7 @@ export default function CreatePengadaanPage() {
           <div className="card-body p-6 space-y-4">
             <div className="border-b pb-3">
               <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-                <ShoppingBag className="text-rose-600" size={20} /> Informasi Utama Pengadaan
+                <ShoppingBag className="text-[var(--module-primary)]" size={20} /> Informasi Utama Pengadaan
               </h3>
             </div>
 
@@ -171,7 +176,7 @@ export default function CreatePengadaanPage() {
                 <h3 className="font-bold text-slate-800 text-base">Rincian Barang yang Diajukan</h3>
                 <p className="text-xs text-slate-500">Tambahkan daftar barang, spesifikasi, serta estimasi harga satuan.</p>
               </div>
-              <Button type="button" variant="secondary" size="sm" icon={<Plus size={14} />} onClick={handleAddItemRow}>
+              <Button type="button" variant="secondary" size="sm" icon={<Plus size={16} />} onClick={handleAddItemRow}>
                 Tambah Baris Barang
               </Button>
             </div>
@@ -182,12 +187,12 @@ export default function CreatePengadaanPage() {
                 return (
                   <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 relative">
                     <div className="flex justify-between items-center border-b pb-2">
-                      <span className="font-bold text-rose-600 text-xs">Item Barang #{idx + 1}</span>
+                      <span className="font-bold text-[var(--module-primary)] text-xs">Item Barang #{idx + 1}</span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        icon={<Trash2 size={14} color="var(--danger)" />}
+                        icon={<Trash2 size={16} className="text-[var(--danger)]" />}
                         onClick={() => handleRemoveItemRow(idx)}
                       >
                         Hapus Baris
@@ -257,11 +262,20 @@ export default function CreatePengadaanPage() {
             </div>
 
             {/* TOTAL ANGGARAN SUMMARY */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-rose-50 border border-rose-200 p-4 rounded-xl">
-              <div className="text-sm font-bold text-rose-900">
+            <div
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--module-primary) 8%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+              }}
+              className="flex flex-col md:flex-row justify-between items-center p-4 rounded-xl border"
+            >
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
                 TOTAL ESTIMASI KESELURUHAN ANGGARAN
               </div>
-              <div className="text-2xl font-extrabold text-rose-700">
+              <div
+                style={{ color: 'var(--module-primary)' }}
+                className="text-2xl font-extrabold"
+              >
                 {formatCurrency(totalEstimasiAnggaran)}
               </div>
             </div>

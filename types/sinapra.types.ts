@@ -316,6 +316,7 @@ export interface UpdateStatusPengadaanPayload {
 // ------------------------------------------------------------
 export interface SinapraFilterParams extends PaginationParams {
   status?: string;
+  tipe?: string;
   gedung_id?: number;
   kategori_id?: number;
   kondisi?: string;

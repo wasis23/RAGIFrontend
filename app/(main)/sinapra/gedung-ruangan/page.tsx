@@ -2,30 +2,31 @@
 
 import { useState, useEffect } from 'react';
 import {
+  Plus,
+  Filter,
   Building2,
   Home,
-  Plus,
   Edit2,
   Trash2,
-  Filter,
   CheckCircle,
   XCircle,
   Clock,
-  Search,
-  Check,
   Tv,
   Wifi,
-  Wind
+  Wind,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { StatusBadge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { sinapraService } from '@/services/sinapra.service';
 import type {
@@ -39,6 +40,7 @@ import type { PaginationMeta } from '@/types/api.types';
 
 export default function GedungRuanganPage() {
   const [activeTab, setActiveTab] = useState<'gedung' | 'ruangan'>('gedung');
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // ------------------------------------------------------------
   // TAB 1: GEDUNG STATES
@@ -49,11 +51,14 @@ export default function GedungRuanganPage() {
   const [gedungMeta, setGedungMeta] = useState<PaginationMeta | undefined>(undefined);
   const [gedungSearch, setGedungSearch] = useState('');
   const [gedungStatusFilter, setGedungStatusFilter] = useState('');
+  const [gedungSortBy, setGedungSortBy] = useState('nama');
+  const [gedungSortDir, setGedungSortDir] = useState<'asc' | 'desc'>('asc');
 
   // Modal Gedung State
   const [showGedungModal, setShowGedungModal] = useState(false);
   const [editingGedung, setEditingGedung] = useState<Gedung | null>(null);
   const [deletingGedung, setDeletingGedung] = useState<Gedung | null>(null);
+  const [isDeletingGedung, setIsDeletingGedung] = useState(false);
 
   const [gedungForm, setGedungForm] = useState<GedungFormPayload>({
     kode: '',
@@ -76,11 +81,14 @@ export default function GedungRuanganPage() {
   const [ruanganTipeFilter, setRuanganTipeFilter] = useState('');
   const [ruanganStatusFilter, setRuanganStatusFilter] = useState('');
   const [ruanganGedungFilterObj, setRuanganGedungFilterObj] = useState<{ value: string; label: string } | null>(null);
+  const [ruanganSortBy, setRuanganSortBy] = useState('nama');
+  const [ruanganSortDir, setRuanganSortDir] = useState<'asc' | 'desc'>('asc');
 
   // Modal Ruangan State
   const [showRuanganModal, setShowRuanganModal] = useState(false);
   const [editingRuangan, setEditingRuangan] = useState<Ruangan | null>(null);
   const [deletingRuangan, setDeletingRuangan] = useState<Ruangan | null>(null);
+  const [isDeletingRuangan, setIsDeletingRuangan] = useState(false);
   const [selectedGedungObj, setSelectedGedungObj] = useState<{ value: string; label: string } | null>(null);
 
   const [ruanganForm, setRuanganForm] = useState<RuanganFormPayload>({
@@ -120,6 +128,8 @@ export default function GedungRuanganPage() {
         page: gedungPage,
         search: gedungSearch,
         status: gedungStatusFilter || undefined,
+        sort_by: gedungSortBy || undefined,
+        sort_dir: gedungSortDir || undefined,
       });
 
       let items = [];
@@ -157,8 +167,11 @@ export default function GedungRuanganPage() {
       const res: any = await sinapraService.getRuanganList({
         page: ruanganPage,
         search: ruanganSearch,
+        tipe: ruanganTipeFilter || undefined,
         status: ruanganStatusFilter || undefined,
         gedung_id: ruanganGedungFilterObj ? parseInt(ruanganGedungFilterObj.value) : undefined,
+        sort_by: ruanganSortBy || undefined,
+        sort_dir: ruanganSortDir || undefined,
       });
 
       let items = [];
@@ -192,11 +205,11 @@ export default function GedungRuanganPage() {
 
   useEffect(() => {
     if (activeTab === 'gedung') fetchGedung();
-  }, [activeTab, gedungPage, gedungSearch, gedungStatusFilter]);
+  }, [activeTab, gedungPage, gedungSearch, gedungStatusFilter, gedungSortBy, gedungSortDir]);
 
   useEffect(() => {
     if (activeTab === 'ruangan') fetchRuangan();
-  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganGedungFilterObj]);
+  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganTipeFilter, ruanganGedungFilterObj, ruanganSortBy, ruanganSortDir]);
 
   const loadGedungOptions = async (inputValue: string) => {
     try {
@@ -266,14 +279,16 @@ export default function GedungRuanganPage() {
 
   const handleDeleteGedung = async () => {
     if (!deletingGedung) return;
+    setIsDeletingGedung(true);
     try {
       await sinapraService.deleteGedung(deletingGedung.id);
       toast.success(`Gedung ${deletingGedung.nama} berhasil dihapus.`);
       fetchGedung();
+      setDeletingGedung(null);
     } catch {
       toast.error('Gagal menghapus gedung.');
     } finally {
-      setDeletingGedung(null);
+      setIsDeletingGedung(false);
     }
   };
 
@@ -346,14 +361,16 @@ export default function GedungRuanganPage() {
 
   const handleDeleteRuangan = async () => {
     if (!deletingRuangan) return;
+    setIsDeletingRuangan(true);
     try {
       await sinapraService.deleteRuangan(deletingRuangan.id);
       toast.success(`Ruangan ${deletingRuangan.nama} berhasil dihapus.`);
       fetchRuangan();
+      setDeletingRuangan(null);
     } catch {
       toast.error('Gagal menghapus ruangan.');
     } finally {
-      setDeletingRuangan(null);
+      setIsDeletingRuangan(false);
     }
   };
 
@@ -386,62 +403,244 @@ export default function GedungRuanganPage() {
   };
 
   // ------------------------------------------------------------
-  // COLUMNS DEFINITIONS
+  // COLUMNS DEFINITIONS (SIMPEG Standard: Max 12px, 2-Row Format)
   // ------------------------------------------------------------
   const gedungColumns: ColumnDef<Gedung>[] = [
-    { key: 'id', label: 'No', render: (_, idx) => <span className="font-bold text-slate-400">{gedungMeta?.from ? gedungMeta.from + idx : idx + 1}</span> },
-    { key: 'kode', label: 'Kode', render: (row) => <span className="badge badge-blue font-mono">{row.kode}</span> },
-    { key: 'nama', label: 'Nama Gedung', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-900">{row.nama}</div>
-        <div className="text-xs text-slate-500">{row.alamat || 'Alamat belum diisi'}</div>
-      </div>
-    )},
-    { key: 'lantai', label: 'Jml Lantai', render: (row) => <span>{row.jumlah_lantai} Lantai</span> },
-    { key: 'ruangan_count', label: 'Total Ruangan', render: (row) => <span className="font-semibold text-slate-700">{row.ruangan_count ?? row.ruangan?.length ?? 0} Ruangan</span> },
-    { key: 'status', label: 'Status', render: (row) => {
-      const color = row.status === 'aktif' ? 'badge-green' : row.status === 'renovasi' ? 'badge-yellow' : 'badge-red';
-      return <span className={`badge ${color} badge-dot capitalize`}>{row.status}</span>;
-    }},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" icon={<Edit2 size={14} />} onClick={() => handleOpenEditGedung(row)} />
-        <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => setDeletingGedung(row)} />
-      </div>
-    )},
+    {
+      key: 'kode',
+      label: 'KODE & IDENTITAS',
+      render: (row) => (
+        <div>
+          <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
+            {row.kode}
+          </span>
+          <span className="text-2xs text-slate-400 font-mono block">
+            ID #{row.id}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'nama',
+      label: 'NAMA GEDUNG & ALAMAT',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+            {row.nama}
+          </div>
+          <div className="text-2xs text-slate-400 line-clamp-1">
+            {row.alamat || 'Alamat belum diisi'} {row.tahun_bangun ? `• Thn ${row.tahun_bangun}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'lantai',
+      label: 'SPESIFIKASI',
+      render: (row) => (
+        <div>
+          <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs block">
+            {row.jumlah_lantai} Lantai
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {row.luas_m2 ? `${row.luas_m2} m²` : 'Luas -'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'ruangan_count',
+      label: 'TOTAL RUANGAN',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+          }}
+          className="text-2xs font-semibold"
+        >
+          {row.ruangan_count ?? row.ruangan?.length ?? 0} Ruangan
+        </Badge>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.status?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Ubah Data Gedung',
+                icon: <Edit2 size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => handleOpenEditGedung(row),
+              },
+              {
+                label: 'Hapus Gedung',
+                icon: <Trash2 size={16} className="text-[var(--danger)]" />,
+                variant: 'danger',
+                onClick: () => setDeletingGedung(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   const ruanganColumns: ColumnDef<Ruangan>[] = [
-    { key: 'id', label: 'No', render: (_, idx) => <span className="font-bold text-slate-400">{ruanganMeta?.from ? ruanganMeta.from + idx : idx + 1}</span> },
-    { key: 'kode', label: 'Kode', render: (row) => <span className="badge badge-blue font-mono">{row.kode}</span> },
-    { key: 'nama', label: 'Nama Ruangan', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-900">{row.nama}</div>
-        <div className="text-xs text-slate-500">{row.gedung?.nama || 'Gedung ID: ' + row.gedung_id} (Lantai {row.lantai})</div>
-      </div>
-    )},
-    { key: 'tipe', label: 'Tipe', render: (row) => <span className="capitalize text-xs font-semibold text-slate-700">{row.tipe}</span> },
-    { key: 'kapasitas', label: 'Kapasitas', render: (row) => <span>{row.kapasitas} Orang</span> },
-    { key: 'fasilitas', label: 'Fasilitas', render: (row) => (
-      <div className="flex gap-1.5">
-        {row.ada_ac && <span className="badge badge-gray text-xs" title="AC"><Wind size={12} className="mr-1 text-blue-500" /> AC</span>}
-        {row.ada_proyektor && <span className="badge badge-gray text-xs" title="Proyektor"><Tv size={12} className="mr-1 text-purple-500" /> Proyektor</span>}
-        {row.ada_wifi && <span className="badge badge-gray text-xs" title="WiFi"><Wifi size={12} className="mr-1 text-emerald-500" /> WiFi</span>}
-      </div>
-    )},
-    { key: 'status', label: 'Status', render: (row) => {
-      const color = row.status === 'aktif' ? 'badge-green' : row.status === 'maintenance' ? 'badge-yellow' : 'badge-red';
-      return <span className={`badge ${color} badge-dot capitalize`}>{row.status}</span>;
-    }},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        <Button variant="secondary" size="sm" icon={<Clock size={14} />} onClick={() => handleOpenCheckModal(row)}>
-          Cek Jam
-        </Button>
-        <Button variant="ghost" size="sm" icon={<Edit2 size={14} />} onClick={() => handleOpenEditRuangan(row)} />
-        <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => setDeletingRuangan(row)} />
-      </div>
-    )},
+    {
+      key: 'kode',
+      label: 'KODE & IDENTITAS',
+      render: (row) => (
+        <div>
+          <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
+            {row.kode}
+          </span>
+          <span className="text-2xs text-slate-400 font-mono block">
+            ID #{row.id}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'nama',
+      label: 'NAMA RUANGAN & GEDUNG',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+            {row.nama}
+          </div>
+          <div className="text-2xs text-slate-400 line-clamp-1">
+            {row.gedung?.nama || `Gedung #${row.gedung_id}`} • Lantai {row.lantai}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'tipe',
+      label: 'TIPE & KAPASITAS',
+      render: (row) => (
+        <div>
+          <span className="capitalize text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+            {row.tipe}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            Kapasitas {row.kapasitas} Orang
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'fasilitas',
+      label: 'FASILITAS',
+      render: (row) => (
+        <div className="flex gap-2">
+          {row.ada_ac && (
+            <Badge
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+                color: 'var(--module-primary)',
+                borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+              }}
+              className="text-2xs"
+              title="AC"
+            >
+              AC
+            </Badge>
+          )}
+          {row.ada_proyektor && (
+            <Badge
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+                color: 'var(--module-primary)',
+                borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+              }}
+              className="text-2xs"
+              title="Proyektor"
+            >
+              LCD
+            </Badge>
+          )}
+          {row.ada_wifi && (
+            <Badge
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+                color: 'var(--module-primary)',
+                borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+              }}
+              className="text-2xs"
+              title="WiFi"
+            >
+              WiFi
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.status?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Cek Ketersediaan Jam',
+                icon: <Clock size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => handleOpenCheckModal(row),
+              },
+              {
+                label: 'Ubah Data Ruangan',
+                icon: <Edit2 size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => handleOpenEditRuangan(row),
+              },
+              {
+                label: 'Hapus Ruangan',
+                icon: <Trash2 size={16} className="text-[var(--danger)]" />,
+                variant: 'danger',
+                onClick: () => setDeletingRuangan(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -450,59 +649,68 @@ export default function GedungRuanganPage() {
         title="Gedung & Ruangan Kampus"
         description="Kelola sarana infrastruktur gedung, denah ruangan, ketersediaan jadwal, & fasilitas fisik (Modul SINAPRA)"
         action={
-          activeTab === 'gedung' ? (
-            <Button icon={<Plus size={16} />} onClick={handleOpenCreateGedung}>
-              Tambah Gedung
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilterDrawer(true)}
+            >
+              Filter
             </Button>
-          ) : (
-            <Button icon={<Plus size={16} />} onClick={handleOpenCreateRuangan}>
-              Tambah Ruangan
-            </Button>
-          )
+            {activeTab === 'gedung' ? (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateGedung}>
+                Tambah Gedung
+              </Button>
+            ) : (
+              <Button icon={<Plus size={16} />} onClick={handleOpenCreateRuangan}>
+                Tambah Ruangan
+              </Button>
+            )}
+          </div>
         }
       />
 
-      {/* TAB SWITCHER & FILTER HEADER */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          {/* TAB BUTTONS */}
-          <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto">
-            <button
-              onClick={() => setActiveTab('gedung')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'gedung' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Building2 size={18} /> Gedung Kampus
-            </button>
-            <button
-              onClick={() => setActiveTab('ruangan')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'ruangan' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Home size={18} /> Ruangan Kampus
-            </button>
-          </div>
-
-          {/* SEARCH BAR */}
-          <div className="w-full md:w-72">
-            <Input
-              placeholder={activeTab === 'gedung' ? 'Cari gedung...' : 'Cari ruangan...'}
-              prefixIcon={<Search size={16} />}
-              value={activeTab === 'gedung' ? gedungSearch : ruanganSearch}
-              onChange={(e) => {
-                if (activeTab === 'gedung') {
-                  setGedungSearch(e.target.value);
-                  setGedungPage(1);
-                } else {
-                  setRuanganSearch(e.target.value);
-                  setRuanganPage(1);
+      {/* TAB NAVIGATION (Rounded-top underline standard) */}
+      <div className="border-b border-slate-200 dark:border-slate-800 flex gap-2">
+        <button
+          onClick={() => setActiveTab('gedung')}
+          style={
+            activeTab === 'gedung'
+              ? {
+                  borderColor: 'var(--module-primary)',
+                  color: 'var(--module-primary)',
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 10%, transparent)',
                 }
-              }}
-            />
-          </div>
-        </div>
+              : undefined
+          }
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all border-b-2 rounded-t-lg ${
+            activeTab === 'gedung'
+              ? ''
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <Building2 size={18} /> Gedung Kampus
+        </button>
+        <button
+          onClick={() => setActiveTab('ruangan')}
+          style={
+            activeTab === 'ruangan'
+              ? {
+                  borderColor: 'var(--module-primary)',
+                  color: 'var(--module-primary)',
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 10%, transparent)',
+                }
+              : undefined
+          }
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all border-b-2 rounded-t-lg ${
+            activeTab === 'ruangan'
+              ? ''
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <Home size={18} /> Ruangan Kampus
+        </button>
       </div>
 
       {/* TAB CONTENTS */}
@@ -588,23 +796,17 @@ export default function GedungRuanganPage() {
         </form>
       </Modal>
 
-      {/* DELETE GEDUNG MODAL */}
-      <Modal
-        open={!!deletingGedung}
+      {/* DELETE GEDUNG CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={!!deletingGedung}
         onClose={() => setDeletingGedung(null)}
-        title="Hapus Gedung?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingGedung(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDeleteGedung}>Hapus</Button>
-          </>
-        }
-      >
-        <p className="text-slate-600">
-          Apakah Anda yakin ingin menghapus gedung <strong>{deletingGedung?.nama}</strong>? Seluruh ruangan di dalam gedung ini juga akan terhapus.
-        </p>
-      </Modal>
+        onConfirm={handleDeleteGedung}
+        title="Hapus Gedung Kampus?"
+        message={`Apakah Anda yakin ingin menghapus gedung ${deletingGedung?.nama}? Seluruh ruangan di dalamnya juga akan terhapus.`}
+        confirmText="Hapus"
+        variant="danger"
+        isLoading={isDeletingGedung}
+      />
 
       {/* ------------------------------------------------------------ */}
       {/* MODAL FORM RUANGAN (GRID 2 KOLOM MODAL) */}
@@ -699,54 +901,36 @@ export default function GedungRuanganPage() {
           {/* FASILITAS CHECKBOXES */}
           <div className="col-span-full bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-wrap gap-6 items-center">
             <span className="text-sm font-bold text-slate-700">Fasilitas Tersedia:</span>
-            <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700">
-              <input
-                type="checkbox"
-                checked={ruanganForm.ada_ac}
-                onChange={(e) => setRuanganForm({ ...ruanganForm, ada_ac: e.target.checked })}
-                className="w-4 h-4 text-rose-600 rounded"
-              />
-              Air Conditioner (AC)
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700">
-              <input
-                type="checkbox"
-                checked={ruanganForm.ada_proyektor}
-                onChange={(e) => setRuanganForm({ ...ruanganForm, ada_proyektor: e.target.checked })}
-                className="w-4 h-4 text-rose-600 rounded"
-              />
-              Proyektor LCD
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-slate-700">
-              <input
-                type="checkbox"
-                checked={ruanganForm.ada_wifi}
-                onChange={(e) => setRuanganForm({ ...ruanganForm, ada_wifi: e.target.checked })}
-                className="w-4 h-4 text-rose-600 rounded"
-              />
-              Koneksi WiFi High-Speed
-            </label>
+            <Checkbox
+              label="Air Conditioner (AC)"
+              checked={ruanganForm.ada_ac}
+              onChange={(e) => setRuanganForm({ ...ruanganForm, ada_ac: e.target.checked })}
+            />
+            <Checkbox
+              label="Proyektor LCD"
+              checked={ruanganForm.ada_proyektor}
+              onChange={(e) => setRuanganForm({ ...ruanganForm, ada_proyektor: e.target.checked })}
+            />
+            <Checkbox
+              label="Koneksi WiFi High-Speed"
+              checked={ruanganForm.ada_wifi}
+              onChange={(e) => setRuanganForm({ ...ruanganForm, ada_wifi: e.target.checked })}
+            />
           </div>
         </form>
       </Modal>
 
-      {/* DELETE RUANGAN MODAL */}
-      <Modal
-        open={!!deletingRuangan}
+      {/* DELETE RUANGAN CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={!!deletingRuangan}
         onClose={() => setDeletingRuangan(null)}
-        title="Hapus Ruangan?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingRuangan(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDeleteRuangan}>Hapus</Button>
-          </>
-        }
-      >
-        <p className="text-slate-600">
-          Apakah Anda yakin ingin menghapus ruangan <strong>{deletingRuangan?.nama}</strong>?
-        </p>
-      </Modal>
+        onConfirm={handleDeleteRuangan}
+        title="Hapus Ruangan Kampus?"
+        message={`Apakah Anda yakin ingin menghapus ruangan ${deletingRuangan?.nama}?`}
+        confirmText="Hapus"
+        variant="danger"
+        isLoading={isDeletingRuangan}
+      />
 
       {/* ------------------------------------------------------------ */}
       {/* MODAL CEK KETERSEDIAAN JAM RUANGAN */}
@@ -819,6 +1003,151 @@ export default function GedungRuanganPage() {
           )}
         </form>
       </Modal>
+
+      {/* FILTER DRAWER */}
+      <Drawer
+        open={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        title={activeTab === 'gedung' ? 'Filter Gedung Kampus' : 'Filter Ruangan Kampus'}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (activeTab === 'gedung') {
+                  setGedungSearch('');
+                  setGedungStatusFilter('');
+                  setGedungSortBy('nama');
+                  setGedungSortDir('asc');
+                  setGedungPage(1);
+                } else {
+                  setRuanganSearch('');
+                  setRuanganTipeFilter('');
+                  setRuanganStatusFilter('');
+                  setRuanganGedungFilterObj(null);
+                  setRuanganSortBy('nama');
+                  setRuanganSortDir('asc');
+                  setRuanganPage(1);
+                }
+                setShowFilterDrawer(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button variant="primary" onClick={() => setShowFilterDrawer(false)}>
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        {activeTab === 'gedung' ? (
+          <div className="space-y-4">
+            <Input
+              label="Pencarian Gedung"
+              placeholder="Cari kode atau nama gedung..."
+              value={gedungSearch}
+              onChange={(e) => setGedungSearch(e.target.value)}
+            />
+
+            <Select
+              label="Status Gedung"
+              value={gedungStatusFilter}
+              onChange={(val) => setGedungStatusFilter(val)}
+              options={[
+                { value: '', label: 'Semua Status' },
+                { value: 'aktif', label: 'Aktif' },
+                { value: 'renovasi', label: 'Renovasi' },
+                { value: 'nonaktif', label: 'Non-aktif' },
+              ]}
+            />
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={gedungSortBy}
+                onChange={(val) => setGedungSortBy(val)}
+                options={[
+                  { value: 'nama', label: 'Nama Gedung' },
+                  { value: 'kode', label: 'Kode Gedung' },
+                  { value: 'jumlah_lantai', label: 'Jumlah Lantai' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={gedungSortDir}
+                onChange={(val: any) => setGedungSortDir(val)}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z)' },
+                  { value: 'desc', label: 'Menurun (Z-A)' },
+                ]}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Input
+              label="Pencarian Ruangan"
+              placeholder="Cari kode atau nama ruangan..."
+              value={ruanganSearch}
+              onChange={(e) => setRuanganSearch(e.target.value)}
+            />
+
+            <AsyncSelect
+              label="Gedung Kampus"
+              placeholder="Pilih gedung..."
+              value={ruanganGedungFilterObj}
+              onChange={(sel: any) => setRuanganGedungFilterObj(sel)}
+              loadOptions={loadGedungOptions}
+            />
+
+            <Input
+              label="Tipe Ruangan"
+              placeholder="Cth: kelas, laboratorium, kantor..."
+              value={ruanganTipeFilter}
+              onChange={(e) => setRuanganTipeFilter(e.target.value)}
+            />
+
+            <Select
+              label="Status Ruangan"
+              value={ruanganStatusFilter}
+              onChange={(val) => setRuanganStatusFilter(val)}
+              options={[
+                { value: '', label: 'Semua Status' },
+                { value: 'aktif', label: 'Aktif & Siap Pakai' },
+                { value: 'maintenance', label: 'Maintenance' },
+                { value: 'nonaktif', label: 'Non-aktif' },
+              ]}
+            />
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={ruanganSortBy}
+                onChange={(val) => setRuanganSortBy(val)}
+                options={[
+                  { value: 'nama', label: 'Nama Ruangan' },
+                  { value: 'kode', label: 'Kode Ruangan' },
+                  { value: 'kapasitas', label: 'Kapasitas' },
+                  { value: 'lantai', label: 'Lantai' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={ruanganSortDir}
+                onChange={(val: any) => setRuanganSortDir(val)}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z)' },
+                  { value: 'desc', label: 'Menurun (Z-A)' },
+                ]}
+              />
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

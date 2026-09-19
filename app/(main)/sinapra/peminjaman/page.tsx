@@ -6,13 +6,14 @@ import {
   Home,
   Boxes,
   Plus,
+  Filter,
   CheckCircle,
   XCircle,
   Clock,
   RotateCcw,
-  Search,
   UserCheck,
-  FileText
+  FileText,
+  Info,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -20,8 +21,11 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
@@ -40,6 +44,7 @@ import type { PaginationMeta } from '@/types/api.types';
 
 export default function PeminjamanPage() {
   const [activeTab, setActiveTab] = useState<'ruangan' | 'aset'>('ruangan');
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // ------------------------------------------------------------
   // TAB 1: PEMINJAMAN RUANGAN STATES
@@ -50,6 +55,8 @@ export default function PeminjamanPage() {
   const [ruanganMeta, setRuanganMeta] = useState<PaginationMeta | undefined>(undefined);
   const [ruanganSearch, setRuanganSearch] = useState('');
   const [ruanganStatusFilter, setRuanganStatusFilter] = useState('');
+  const [ruanganSortBy, setRuanganSortBy] = useState('tanggal');
+  const [ruanganSortDir, setRuanganSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Modal Pinjam Ruangan Form
   const [showPinjamRuanganModal, setShowPinjamRuanganModal] = useState(false);
@@ -79,6 +86,8 @@ export default function PeminjamanPage() {
   const [asetMeta, setAsetMeta] = useState<PaginationMeta | undefined>(undefined);
   const [asetSearch, setAsetSearch] = useState('');
   const [asetStatusFilter, setAsetStatusFilter] = useState('');
+  const [asetSortBy, setAsetSortBy] = useState('tanggal_pinjam');
+  const [asetSortDir, setAsetSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Modal Pinjam Aset Form
   const [showPinjamAsetModal, setShowPinjamAsetModal] = useState(false);
@@ -115,6 +124,8 @@ export default function PeminjamanPage() {
         page: ruanganPage,
         search: ruanganSearch,
         status: ruanganStatusFilter || undefined,
+        sort_by: ruanganSortBy || undefined,
+        sort_dir: ruanganSortDir || undefined,
       });
 
       let items = [];
@@ -153,6 +164,8 @@ export default function PeminjamanPage() {
         page: asetPage,
         search: asetSearch,
         status: asetStatusFilter || undefined,
+        sort_by: asetSortBy || undefined,
+        sort_dir: asetSortDir || undefined,
       });
 
       let items = [];
@@ -186,11 +199,11 @@ export default function PeminjamanPage() {
 
   useEffect(() => {
     if (activeTab === 'ruangan') fetchRuanganList();
-  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter]);
+  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganSortBy, ruanganSortDir]);
 
   useEffect(() => {
     if (activeTab === 'aset') fetchAsetList();
-  }, [activeTab, asetPage, asetSearch, asetStatusFilter]);
+  }, [activeTab, asetPage, asetSearch, asetStatusFilter, asetSortBy, asetSortDir]);
 
   const loadRuanganOptions = async (inputValue: string) => {
     try {
@@ -301,96 +314,229 @@ export default function PeminjamanPage() {
   };
 
   // ------------------------------------------------------------
-  // COLUMNS DEFINITIONS
+  // COLUMNS DEFINITIONS (SIMPEG Standard: Max 12px, 2-Row Format)
   // ------------------------------------------------------------
   const ruanganColumns: ColumnDef<PeminjamanRuangan>[] = [
-    { key: 'id', label: 'No', render: (_, idx) => <span className="font-bold text-slate-400">{ruanganMeta?.from ? ruanganMeta.from + idx : idx + 1}</span> },
-    { key: 'id_pinjam', label: 'ID Pinjam', render: (row) => <span className="badge badge-blue font-mono">PR-{row.id}</span> },
-    { key: 'ruangan', label: 'Ruangan Kampus', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-900">{row.ruangan?.nama || 'Ruangan ID: ' + row.ruangan_id}</div>
-        <div className="text-xs text-slate-500">{row.ruangan?.gedung?.nama || 'Gedung Kampus'}</div>
-      </div>
-    )},
-    { key: 'pemohon', label: 'Pemohon', render: (row) => (
-      <div>
-        <div className="font-semibold text-slate-800">{row.user?.name || 'User ID: ' + row.user_id}</div>
-        <div className="text-xs text-slate-500">{row.user?.email || ''}</div>
-      </div>
-    )},
-    { key: 'jadwal', label: 'Jadwal Pinjam', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-800">{formatDate(row.tanggal)}</div>
-        <div className="text-xs text-slate-500">{row.jam_mulai} - {row.jam_selesai} WIB</div>
-      </div>
-    )},
-    { key: 'keperluan', label: 'Keperluan', render: (row) => <span className="text-xs text-slate-700">{row.keperluan}</span> },
-    { key: 'status', label: 'Status', render: (row) => {
-      const color = row.status === 'disetujui' ? 'badge-green' : row.status === 'pending' ? 'badge-yellow' : row.status === 'ditolak' ? 'badge-red' : 'badge-blue';
-      return <span className={`badge ${color} badge-dot capitalize`}>{row.status}</span>;
-    }},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        {row.status === 'pending' && (
-          <Button variant="primary" size="sm" icon={<UserCheck size={14} />} onClick={() => {
-            setApprovingRuangan(row);
-            setApprovalRuanganForm({ is_approved: true, catatan_approver: '' });
-          }}>
-            Approval
-          </Button>
-        )}
-      </div>
-    )},
+    {
+      key: 'id_pinjam',
+      label: 'ID PINJAM & TANGGAL',
+      render: (row) => (
+        <div>
+          <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
+            PR-{row.id}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {formatDate(row.tanggal)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'ruangan',
+      label: 'RUANGAN & GEDUNG',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+            {row.ruangan?.nama || `Ruangan #${row.ruangan_id}`}
+          </div>
+          <div className="text-2xs text-slate-400 line-clamp-1">
+            {row.ruangan?.gedung?.nama || 'Gedung Kampus'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'pemohon',
+      label: 'PEMOHON & KEPERLUAN',
+      render: (row) => (
+        <div>
+          <div className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+            {row.user?.name || `User #${row.user_id}`}
+          </div>
+          <div className="text-2xs text-slate-500 line-clamp-1">
+            {row.keperluan}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'jadwal',
+      label: 'JAM PEMAKAIAN',
+      render: (row) => (
+        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+          {row.jam_mulai} - {row.jam_selesai} WIB
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.status?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              ...(row.status === 'pending'
+                ? [
+                    {
+                      label: 'Proses Approval',
+                      icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
+                      onClick: () => {
+                        setApprovingRuangan(row);
+                        setApprovalRuanganForm({ is_approved: true, catatan_approver: '' });
+                      },
+                    },
+                  ]
+                : []),
+              {
+                label: 'Detail Jadwal',
+                icon: <Clock size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => {
+                  toast(`Jadwal: ${formatDate(row.tanggal)} (${row.jam_mulai} - ${row.jam_selesai} WIB)`, {
+                    icon: <Info size={16} className="text-[var(--module-primary)]" />,
+                  });
+                },
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   const asetColumns: ColumnDef<PeminjamanAset>[] = [
-    { key: 'id', label: 'No', render: (_, idx) => <span className="font-bold text-slate-400">{asetMeta?.from ? asetMeta.from + idx : idx + 1}</span> },
-    { key: 'id_pinjam', label: 'ID Pinjam', render: (row) => <span className="badge badge-blue font-mono">PA-{row.id}</span> },
-    { key: 'aset', label: 'Barang Aset', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-900">{row.aset?.nama || 'Aset ID: ' + row.aset_id}</div>
-        <div className="text-xs text-slate-500 font-mono">[{row.aset?.kode_aset || '-'}]</div>
-      </div>
-    )},
-    { key: 'pemohon', label: 'Pemohon', render: (row) => (
-      <div>
-        <div className="font-semibold text-slate-800">{row.user?.name || 'User ID: ' + row.user_id}</div>
-        <div className="text-xs text-slate-500">{row.user?.email || ''}</div>
-      </div>
-    )},
-    { key: 'tgl_pinjam', label: 'Pinjam - Kembali', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-800">{formatDate(row.tanggal_pinjam)}</div>
-        <div className="text-xs text-slate-500">Rencana: {formatDate(row.tanggal_kembali_rencana)}</div>
-      </div>
-    )},
-    { key: 'status', label: 'Status', render: (row) => {
-      const color = row.status === 'dipinjam' || row.status === 'kembali' ? 'badge-green' : row.status === 'pending' ? 'badge-yellow' : row.status === 'ditolak' ? 'badge-red' : 'badge-blue';
-      return <span className={`badge ${color} badge-dot capitalize`}>{row.status}</span>;
-    }},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-2">
-        {row.status === 'pending' && (
-          <Button variant="primary" size="sm" icon={<UserCheck size={14} />} onClick={() => {
-            setApprovingAset(row);
-            setApprovalAsetForm({ is_approved: true, catatan_approver: '' });
-          }}>
-            Approval
-          </Button>
-        )}
-        {row.status === 'dipinjam' && (
-          <Button variant="secondary" size="sm" icon={<RotateCcw size={14} />} onClick={() => {
-            setReturningAset(row);
-            setReturnAsetForm({
-              kondisi_kembali: 'baik',
-              catatan: '',
-            });
-          }}>
-            Kembalikan
-          </Button>
-        )}
-      </div>
-    )},
+    {
+      key: 'id_pinjam',
+      label: 'ID PINJAM & TANGGAL',
+      render: (row) => (
+        <div>
+          <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
+            PA-{row.id}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {formatDate(row.tanggal_pinjam)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'aset',
+      label: 'BARANG ASET & KODE',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+            {row.aset?.nama || `Aset #${row.aset_id}`}
+          </div>
+          <div className="text-2xs font-mono text-slate-400 line-clamp-1">
+            [{row.aset?.kode_aset || '-'}]
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'pemohon',
+      label: 'PEMOHON & KEPERLUAN',
+      render: (row) => (
+        <div>
+          <div className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+            {row.user?.name || `User #${row.user_id}`}
+          </div>
+          <div className="text-2xs text-slate-500 line-clamp-1">
+            {row.keperluan}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'tgl_pinjam',
+      label: 'RENCANA KEMBALI',
+      render: (row) => (
+        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+          {formatDate(row.tanggal_kembali_rencana)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.status?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              ...(row.status === 'pending'
+                ? [
+                    {
+                      label: 'Proses Approval',
+                      icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
+                      onClick: () => {
+                        setApprovingAset(row);
+                        setApprovalAsetForm({ is_approved: true, catatan_approver: '' });
+                      },
+                    },
+                  ]
+                : []),
+              ...(row.status === 'dipinjam'
+                ? [
+                    {
+                      label: 'Kembalikan Aset',
+                      icon: <RotateCcw size={16} className="text-[var(--module-primary)]" />,
+                      onClick: () => {
+                        setReturningAset(row);
+                        setReturnAsetForm({
+                          kondisi_kembali: 'baik',
+                          catatan: '',
+                        });
+                      },
+                    },
+                  ]
+                : []),
+              {
+                label: 'Detail Peminjaman',
+                icon: <FileText size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => {
+                  toast(`Keperluan: ${row.keperluan || '-'}`, {
+                    icon: <Info size={16} className="text-[var(--module-primary)]" />,
+                  });
+                },
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -399,57 +545,68 @@ export default function PeminjamanPage() {
         title="Peminjaman Sarana & Prasarana Kampus"
         description="Kelola permohonan pinjam ruangan kelas/aula & barang inventaris aset untuk kegiatan kampus (Modul SINAPRA)"
         action={
-          activeTab === 'ruangan' ? (
-            <Button icon={<Plus size={16} />} onClick={() => { setSelectedRuanganObj(null); setShowPinjamRuanganModal(true); }}>
-              Permohonan Pinjam Ruangan
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilterDrawer(true)}
+            >
+              Filter
             </Button>
-          ) : (
-            <Button icon={<Plus size={16} />} onClick={() => { setSelectedAsetObj(null); setShowPinjamAsetModal(true); }}>
-              Permohonan Pinjam Aset
-            </Button>
-          )
+            {activeTab === 'ruangan' ? (
+              <Button icon={<Plus size={16} />} onClick={() => { setSelectedRuanganObj(null); setShowPinjamRuanganModal(true); }}>
+                Permohonan Pinjam Ruangan
+              </Button>
+            ) : (
+              <Button icon={<Plus size={16} />} onClick={() => { setSelectedAsetObj(null); setShowPinjamAsetModal(true); }}>
+                Permohonan Pinjam Aset
+              </Button>
+            )}
+          </div>
         }
       />
 
-      {/* TAB SWITCHER & SEARCH HEADER */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto">
-            <button
-              onClick={() => setActiveTab('ruangan')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'ruangan' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Home size={18} /> Peminjaman Ruangan
-            </button>
-            <button
-              onClick={() => setActiveTab('aset')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === 'aset' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Boxes size={18} /> Peminjaman Barang / Aset
-            </button>
-          </div>
-
-          <div className="w-full md:w-72">
-            <Input
-              placeholder={activeTab === 'ruangan' ? 'Cari peminjaman ruangan...' : 'Cari peminjaman aset...'}
-              prefixIcon={<Search size={16} />}
-              value={activeTab === 'ruangan' ? ruanganSearch : asetSearch}
-              onChange={(e) => {
-                if (activeTab === 'ruangan') {
-                  setRuanganSearch(e.target.value);
-                  setRuanganPage(1);
-                } else {
-                  setAsetSearch(e.target.value);
-                  setAsetPage(1);
+      {/* TAB NAVIGATION (Rounded-top underline standard) */}
+      <div className="border-b border-slate-200 dark:border-slate-800 flex gap-2">
+        <button
+          onClick={() => setActiveTab('ruangan')}
+          style={
+            activeTab === 'ruangan'
+              ? {
+                  borderColor: 'var(--module-primary)',
+                  color: 'var(--module-primary)',
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 10%, transparent)',
                 }
-              }}
-            />
-          </div>
-        </div>
+              : undefined
+          }
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all border-b-2 rounded-t-lg ${
+            activeTab === 'ruangan'
+              ? ''
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <Home size={18} /> Peminjaman Ruangan
+        </button>
+        <button
+          onClick={() => setActiveTab('aset')}
+          style={
+            activeTab === 'aset'
+              ? {
+                  borderColor: 'var(--module-primary)',
+                  color: 'var(--module-primary)',
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 10%, transparent)',
+                }
+              : undefined
+          }
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold transition-all border-b-2 rounded-t-lg ${
+            activeTab === 'aset'
+              ? ''
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <Boxes size={18} /> Peminjaman Barang / Aset
+        </button>
       </div>
 
       {/* DATA TABLE */}
@@ -711,6 +868,136 @@ export default function PeminjamanPage() {
           />
         </form>
       </Modal>
+
+      {/* FILTER DRAWER */}
+      <Drawer
+        open={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        title={activeTab === 'ruangan' ? 'Filter Peminjaman Ruangan' : 'Filter Peminjaman Aset'}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (activeTab === 'ruangan') {
+                  setRuanganSearch('');
+                  setRuanganStatusFilter('');
+                  setRuanganSortBy('tanggal');
+                  setRuanganSortDir('desc');
+                  setRuanganPage(1);
+                } else {
+                  setAsetSearch('');
+                  setAsetStatusFilter('');
+                  setAsetSortBy('tanggal_pinjam');
+                  setAsetSortDir('desc');
+                  setAsetPage(1);
+                }
+                setShowFilterDrawer(false);
+              }}
+            >
+              Reset
+            </Button>
+            <Button variant="primary" onClick={() => setShowFilterDrawer(false)}>
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        {activeTab === 'ruangan' ? (
+          <div className="space-y-4">
+            <Input
+              label="Pencarian"
+              placeholder="Cari ruangan, pemohon, atau keperluan..."
+              value={ruanganSearch}
+              onChange={(e) => setRuanganSearch(e.target.value)}
+            />
+
+            <Select
+              label="Status Permohonan"
+              value={ruanganStatusFilter}
+              onChange={(val) => setRuanganStatusFilter(val)}
+              options={[
+                { value: '', label: 'Semua Status' },
+                { value: 'pending', label: 'Menunggu Approval (Pending)' },
+                { value: 'disetujui', label: 'Disetujui' },
+                { value: 'ditolak', label: 'Ditolak' },
+                { value: 'selesai', label: 'Selesai' },
+              ]}
+            />
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={ruanganSortBy}
+                onChange={(val) => setRuanganSortBy(val)}
+                options={[
+                  { value: 'tanggal', label: 'Tanggal Pemakaian' },
+                  { value: 'created_at', label: 'Waktu Pengajuan' },
+                  { value: 'status', label: 'Status' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={ruanganSortDir}
+                onChange={(val: any) => setRuanganSortDir(val)}
+                options={[
+                  { value: 'desc', label: 'Menurun (Baru)' },
+                  { value: 'asc', label: 'Menaik (Lama)' },
+                ]}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Input
+              label="Pencarian"
+              placeholder="Cari aset, pemohon, atau keperluan..."
+              value={asetSearch}
+              onChange={(e) => setAsetSearch(e.target.value)}
+            />
+
+            <Select
+              label="Status Peminjaman"
+              value={asetStatusFilter}
+              onChange={(val) => setAsetStatusFilter(val)}
+              options={[
+                { value: '', label: 'Semua Status' },
+                { value: 'pending', label: 'Menunggu Approval (Pending)' },
+                { value: 'dipinjam', label: 'Sedang Dipinjam' },
+                { value: 'kembali', label: 'Sudah Kembali' },
+                { value: 'ditolak', label: 'Ditolak' },
+              ]}
+            />
+
+            <hr className="border-slate-200 dark:border-slate-800" />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={asetSortBy}
+                onChange={(val) => setAsetSortBy(val)}
+                options={[
+                  { value: 'tanggal_pinjam', label: 'Tanggal Pinjam' },
+                  { value: 'tanggal_kembali_rencana', label: 'Rencana Kembali' },
+                  { value: 'created_at', label: 'Waktu Pengajuan' },
+                  { value: 'status', label: 'Status' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={asetSortDir}
+                onChange={(val: any) => setAsetSortDir(val)}
+                options={[
+                  { value: 'desc', label: 'Menurun (Baru)' },
+                  { value: 'asc', label: 'Menaik (Lama)' },
+                ]}
+              />
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }
