@@ -150,9 +150,17 @@ const fetchUsers = async () => {
 - **DILARANG KERAS** menggunakan gaya tab oval/pills yang dibungkus dalam wadah abu-abu cembung/terisolasi (`bg-slate-50 border rounded-2xl`).
 - Indikator aktif ditandai dengan `border-b-2 border-primary-600 text-primary-700 bg-primary-50/60 font-bold rounded-t-xl`.
 
-### D. Posisi Tombol Pengaturan / Toggle Status Global (Wajib di PageHeader Action, Sebelah Kiri Filter)
+### D. Tema & Posisi Tombol Pengaturan / Toggle Status Global (Wajib Selaras Tema Filter & di Sebelah Kiri Filter)
 - Apabila terdapat tombol switcher skema, toggle status modul, atau konfigurasi global (contoh: `Skema UKT: ON/OFF`), tombol tersebut **WAJIB** dinaikkan ke level halaman utama pada prop `action` komponen `<PageHeader />`.
+- **Wajib Tema Outline Serasi**: Tombol pengaturan/toggle global WAJIB menggunakan style outline yang selaras dan serasi dengan tombol Filter (`<Button variant="outline">` ukuran compact `min-h-[38px] text-xs font-bold`). DILARANG menggunakan tombol solid blok warna mencolok yang bertabrakan dengan tombol outline filter.
 - Posisi tombol pengaturan/toggle global ini **WAJIB** berada di sebelah **KIRI** tombol Filter:
   `[Tombol Toggle / Pengaturan Global] -> [Tombol Filter] -> [Tombol Tambah Data]`
 - DILARANG meletakkan tombol toggle konfigurasi global di dalam card tabel atau di Table Action Bar bawah.
+
+### E. Dilarang Card Judul/Counter Mengambang di Atas Tabel (No Floating Title/Counter Card)
+- **DILARANG KERAS** membuat card kontainer mengambang di atas tabel (`DataTable`) yang hanya berisi judul tabel dan badge counter jumlah data (seperti `Daftar Nominal Tarif Angkatan [5 Data]`).
+- Seluruh tombol aksi utama (Filter & Tambah Data) **WAJIB** berada di `PageHeader action`.
+- Total data sudah otomatis dihitung dan ditampilkan secara terintegrasi pada footer pagination `<DataTable />`.
+- Menaruh card pembungkus judul/counter di atas tabel hanya membuang ruang layar vertikal (*wastes vertical space*) dan merusak kerapian antarmuka.
+
 

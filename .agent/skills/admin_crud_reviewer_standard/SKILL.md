@@ -271,9 +271,10 @@ Semua halaman admin yang membutuhkan filter **WAJIB**:
 
 ---
 
-## 12. Aturan Posisi Tombol Pengaturan Global / Toggle Status (Wajib di Sebelah KIRI Filter)
-- Tombol toggle status modul atau konfigurasi global (seperti `Skema UKT: ON/OFF`, switcher mode aplikasi, toggle fitur) **WAJIB** ditempatkan di bagian atas pada prop `action` komponen `<PageHeader />`.
-- **DILARANG KERAS** menyisipkan tombol konfigurasi/toggle global ke dalam *Table Action Bar* atau berserakan di bawah tabel.
+## 12. Aturan Tema & Posisi Tombol Pengaturan Global / Toggle Status (Wajib Selaras Tema Filter & di Sebelah KIRI Filter)
+- Tombol toggle status modul atau konfigurasi global (seperti `Skema UKT: ON/OFF`, switcher mode aplikasi, toggle fitur) **WAJIB menggunakan styling outline yang selaras dan serasi dengan tombol Filter** (`<Button variant="outline">` dengan border clean, ukuran compact `min-h-[38px] text-xs font-bold`, dan status indicator halus).
+- **DILARANG KERAS** mendesain tombol pengaturan global dengan style solid block warna-warni kontras (seperti `bg-emerald-600` solid) yang bertabrakan dengan tombol outline filter.
+- Tombol ini **WAJIB** ditempatkan di bagian atas pada prop `action` komponen `<PageHeader />`, berdampingan di sebelah **KIRI** tombol Filter.
 - **Urutan Standar Elemen di PageHeader Action**:
   `[Tombol Toggle / Pengaturan Global] -> [Tombol Filter] -> [Tombol Tambah Data]`
   ```tsx
@@ -282,30 +283,47 @@ Semua halaman admin yang membutuhkan filter **WAJIB**:
     breadcrumbs={[...]}
     action={
       <div className="flex items-center gap-2 flex-wrap">
-        {/* 1. Tombol Toggle / Setting Global */}
-        <button
+        {/* 1. Tombol Toggle / Setting Global (Outline Theme) */}
+        <Button
           type="button"
+          variant="outline"
           onClick={handleToggleUkt}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs border ${
-            isUktEnabled
-              ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
-              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-          }`}
+          disabled={togglingUkt || loadingSetting}
+          icon={
+            togglingUkt ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <SlidersHorizontal size={15} className={isUktEnabled ? 'text-primary-600' : 'text-slate-400'} />
+            )
+          }
+          className="font-bold min-h-[38px] text-xs"
         >
-          <CheckCircle2 size={14} />
-          <span>Skema UKT: {isUktEnabled ? 'ON' : 'OFF'}</span>
-        </button>
+          <span>Skema UKT:</span>
+          <span className={isUktEnabled ? 'text-primary-700 font-extrabold' : 'text-slate-500 font-semibold'}>
+            {isUktEnabled ? 'ON' : 'OFF'}
+          </span>
+          <span className={`w-1.5 h-1.5 rounded-full ${isUktEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+        </Button>
 
         {/* 2. Tombol Filter Outline */}
-        <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />}>
+        <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
           Filter
         </Button>
 
         {/* 3. Tombol Tambah Data Primary */}
-        <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />}>
+        <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
           Tambah Data
         </Button>
       </div>
     }
   />
   ```
+
+---
+
+## 13. Aturan Dilarang Card Judul/Counter Mengambang di Atas Tabel (No Floating Title/Counter Card)
+- **DILARANG KERAS** membuat card kontainer mengambang di atas tabel (`DataTable`) yang hanya berisi judul tabel dan badge counter jumlah data (seperti `Daftar Nominal Tarif Angkatan [5 Data]`).
+- Seluruh tombol aksi utama (Filter & Tambah Data) **WAJIB** berada di `PageHeader action`.
+- Total data sudah otomatis dihitung dan ditampilkan secara terintegrasi pada footer pagination `<DataTable />` (*"Menampilkan 1-10 dari 50 data"*).
+- Menaruh card pembungkus judul/counter di atas tabel hanya membuang ruang layar vertikal (*wastes vertical space*) dan merusak kerapian antarmuka.
+

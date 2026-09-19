@@ -208,23 +208,16 @@ export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
 
   return (
     <>
-      {/* Table Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-sm font-bold text-slate-900">Daftar Jalur & Kelas</h2>
-          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
+      {!setHeaderAction && (
+        <div className="flex items-center justify-end gap-2 flex-wrap mb-4">
+          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+            Filter
+          </Button>
+          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+            Tambah Jalur Kelas
+          </Button>
         </div>
-        {!setHeaderAction && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
-              Filter
-            </Button>
-            <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
-              Tambah Jalur Kelas
-            </Button>
-          </div>
-        )}
-      </div>
+      )}
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data jalur kelas." />
 

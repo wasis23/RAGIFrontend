@@ -486,38 +486,31 @@ export function PotonganKhususTab({ setHeaderAction }: PotonganKhususTabProps = 
   return (
     <div className="space-y-4">
 
-      {/* Table Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-sm font-bold text-slate-900">Daftar Potongan Khusus Mahasiswa</h2>
-          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
+      {!setHeaderAction && (
+        <div className="flex items-center justify-end gap-2 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<Filter size={14} />}
+            onClick={() => setShowFilter(true)}
+            className="text-xs font-bold min-h-[38px]"
+          >
+            Filter
+            {(appliedFilters.search || appliedFilters.status) && (
+              <span className="w-2 h-2 rounded-full bg-primary-600 ml-1"></span>
+            )}
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Plus size={15} />}
+            onClick={openAddModal}
+            className="text-xs font-bold min-h-[38px] px-3.5 shadow-sm"
+          >
+            Tambah Potongan Mahasiswa
+          </Button>
         </div>
-        {!setHeaderAction && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<Filter size={14} />}
-              onClick={() => setShowFilter(true)}
-              className="text-xs font-bold min-h-[38px]"
-            >
-              Filter
-              {(appliedFilters.search || appliedFilters.status) && (
-                <span className="w-2 h-2 rounded-full bg-primary-600 ml-1"></span>
-              )}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Plus size={15} />}
-              onClick={openAddModal}
-              className="text-xs font-bold min-h-[38px] px-3.5 shadow-sm"
-            >
-              Tambah Potongan Mahasiswa
-            </Button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Active Filters */}
       {(appliedFilters.search || appliedFilters.status) && (

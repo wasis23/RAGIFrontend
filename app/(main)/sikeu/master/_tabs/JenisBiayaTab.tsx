@@ -375,27 +375,20 @@ export function JenisBiayaTab() {
 
   return (
     <>
-      {/* Table Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-sm font-bold text-slate-900">Daftar Komponen Biaya & Delegasi Modul</h2>
-          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link
-            href="/sikeu/mahasiswa/tarif"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200/80 hover:bg-primary-100 transition-all shadow-2xs"
-          >
-            <Calculator size={14} />
-            Ke Matriks Tarif <ArrowRight size={13} />
-          </Link>
-          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
-            Filter
-          </Button>
-          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
-            Tambah Komponen Biaya
-          </Button>
-        </div>
+      <div className="flex items-center justify-end gap-2 flex-wrap mb-4">
+        <Link
+          href="/sikeu/mahasiswa/tarif"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200/80 hover:bg-primary-100 transition-all shadow-2xs"
+        >
+          <Calculator size={14} />
+          Ke Matriks Tarif <ArrowRight size={13} />
+        </Link>
+        <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+          Filter
+        </Button>
+        <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+          Tambah Komponen Biaya
+        </Button>
       </div>
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data komponen biaya." />

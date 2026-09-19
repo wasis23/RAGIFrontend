@@ -8,13 +8,13 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Info,
-  CheckCircle2,
   Loader2,
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/components/ui/Button';
 import { SettingTarifTab } from '../../master/_tabs/SettingTarifTab';
 import { TarifTab } from '../../master/_tabs/TarifTab';
 import { JalurKelasTab } from '../../master/_tabs/JalurKelasTab';
@@ -151,25 +151,26 @@ export default function PengaturanTarifMahasiswaPage() {
         description="Kelola matriks tarif per angkatan, golongan UKT, jalur kelas, dan subsidi beasiswa yang menjadi acuan penerbitan tagihan mahasiswa."
         action={
           <div className="flex items-center gap-2 flex-wrap">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleToggleUkt}
               disabled={togglingUkt || loadingSetting}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs border ${
-                isUktEnabled
-                  ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
+              icon={
+                togglingUkt ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <SlidersHorizontal size={15} className={isUktEnabled ? 'text-primary-600' : 'text-slate-400'} />
+                )
+              }
+              className="font-bold min-h-[38px] text-xs"
             >
-              {togglingUkt ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : isUktEnabled ? (
-                <CheckCircle2 size={14} />
-              ) : (
-                <SlidersHorizontal size={14} />
-              )}
-              <span>Skema UKT: {isUktEnabled ? 'ON' : 'OFF'}</span>
-            </button>
+              <span>Skema UKT:</span>
+              <span className={isUktEnabled ? 'text-primary-700 font-extrabold' : 'text-slate-500 font-semibold'}>
+                {isUktEnabled ? 'ON' : 'OFF'}
+              </span>
+              <span className={`w-1.5 h-1.5 rounded-full ${isUktEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            </Button>
             {headerAction}
           </div>
         }

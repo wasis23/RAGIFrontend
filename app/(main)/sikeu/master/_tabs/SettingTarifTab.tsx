@@ -430,36 +430,29 @@ export function SettingTarifTab({ setHeaderAction }: SettingTarifTabProps = {}) 
 
   return (
     <>
-      {/* Table Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-sm font-bold text-slate-900">Daftar Matriks Tarif Angkatan & Prodi</h2>
-          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
+      {!setHeaderAction && (
+        <div className="flex items-center justify-end gap-2.5 flex-wrap mb-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilter(true)}
+            icon={<Filter size={15} />}
+            className="font-bold text-xs min-h-[38px]"
+          >
+            Filter
+            {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>
+            )}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleOpenAdd}
+            icon={<Plus size={15} />}
+            className="font-bold text-xs min-h-[38px] px-3.5 shadow-xs"
+          >
+            Tambah Setting Tarif
+          </Button>
         </div>
-        {!setHeaderAction && (
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilter(true)}
-              icon={<Filter size={15} />}
-              className="font-bold text-xs min-h-[38px]"
-            >
-              Filter
-              {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (
-                <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>
-              )}
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleOpenAdd}
-              icon={<Plus size={15} />}
-              className="font-bold text-xs min-h-[38px] px-3.5 shadow-xs"
-            >
-              Tambah Setting Tarif
-            </Button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Active Filters */}
       {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (
