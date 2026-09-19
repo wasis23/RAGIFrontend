@@ -7,19 +7,8 @@ import {
   Users,
   ShieldCheck,
   SlidersHorizontal,
-  GraduationCap,
-  Sparkles,
   Info,
-  ArrowUpRight,
-  Calculator,
-  Layers,
-  ArrowRight,
-  CheckCircle2,
-  ToggleLeft,
-  ToggleRight,
-  Loader2
 } from 'lucide-react';
-import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -43,6 +32,7 @@ export default function PengaturanTarifMahasiswaPage() {
   const searchParams = useSearchParams();
   const tabQuery = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState<string>(tabQuery || 'setting_tarif');
+  const [headerAction, setHeaderAction] = useState<React.ReactNode>(null);
   const [isUktEnabled, setIsUktEnabled] = useState(true);
   const [loadingSetting, setLoadingSetting] = useState(false);
   const [togglingUkt, setTogglingUkt] = useState(false);
@@ -157,43 +147,7 @@ export default function PengaturanTarifMahasiswaPage() {
         ]}
         title="Pengaturan Tarif & Beasiswa Mahasiswa"
         description="Kelola matriks tarif per angkatan, golongan UKT, jalur kelas, dan subsidi beasiswa yang menjadi acuan penerbitan tagihan mahasiswa."
-        action={
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleToggleUkt}
-              disabled={togglingUkt || loadingSetting}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs border ${
-                isUktEnabled
-                  ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              {togglingUkt ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : isUktEnabled ? (
-                <CheckCircle2 size={14} />
-              ) : (
-                <SlidersHorizontal size={14} />
-              )}
-              <span>Skema UKT: {isUktEnabled ? 'ON' : 'OFF'}</span>
-            </button>
-            <Link
-              href="/sikeu/master"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-all shadow-2xs"
-            >
-              <Layers size={14} className="text-slate-500" />
-              Katalog Master Biaya <ArrowRight size={13} />
-            </Link>
-            <Link
-              href="/sikeu/panduan"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200/80 hover:bg-primary-100 transition-all shadow-2xs"
-            >
-              <Sparkles size={14} className="text-primary-600" />
-              Panduan Billing <ArrowUpRight size={13} />
-            </Link>
-          </div>
-        }
+        action={headerAction}
       />
 
       {/* Sub-Tabs Pills Selector */}
@@ -207,7 +161,10 @@ export default function PengaturanTarifMahasiswaPage() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setHeaderAction(null);
+                  setActiveTab(tab.id);
+                }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all duration-150 ${
                   isTabActive
                     ? 'bg-white text-primary-700 shadow-xs border border-slate-200/80 ring-1 ring-primary-200'
@@ -246,11 +203,19 @@ export default function PengaturanTarifMahasiswaPage() {
 
       {/* Tab Content Body Container */}
       <div className="w-full space-y-6">
-        {activeTab === 'setting_tarif' && <SettingTarifTab />}
-        {activeTab === 'tarif_ukt' && <TarifTab />}
-        {activeTab === 'jalur_kelas' && <JalurKelasTab />}
-        {activeTab === 'student_types' && <StudentTypesTab />}
-        {activeTab === 'beasiswa' && <BeasiswaTab />}
+        {activeTab === 'setting_tarif' && <SettingTarifTab setHeaderAction={setHeaderAction} />}
+        {activeTab === 'tarif_ukt' && (
+          <TarifTab
+            isUktEnabled={isUktEnabled}
+            togglingUkt={togglingUkt}
+            loadingSetting={loadingSetting}
+            onToggleUkt={handleToggleUkt}
+            setHeaderAction={setHeaderAction}
+          />
+        )}
+        {activeTab === 'jalur_kelas' && <JalurKelasTab setHeaderAction={setHeaderAction} />}
+        {activeTab === 'student_types' && <StudentTypesTab setHeaderAction={setHeaderAction} />}
+        {activeTab === 'beasiswa' && <BeasiswaTab setHeaderAction={setHeaderAction} />}
       </div>
     </div>
   );

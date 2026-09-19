@@ -62,7 +62,11 @@ const getDefaultEndDate = () => {
   return d.toISOString().split('T')[0];
 };
 
-export function PotonganKhususTab() {
+export interface PotonganKhususTabProps {
+  setHeaderAction?: (action: React.ReactNode) => void;
+}
+
+export function PotonganKhususTab({ setHeaderAction }: PotonganKhususTabProps = {}) {
   const router = useRouter();
   const [data, setData] = useState<PotonganMahasiswa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -191,6 +195,34 @@ export function PotonganKhususTab() {
   const openAddModal = () => {
     router.push('/sikeu/mahasiswa/potongan/create');
   };
+
+  useEffect(() => {
+    if (setHeaderAction) {
+      setHeaderAction(
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilter(true)}
+            icon={<Filter size={16} />}
+            className="font-bold min-h-[38px] text-xs"
+          >
+            Filter
+            {(appliedFilters.search || appliedFilters.status) && (
+              <span className="w-2 h-2 rounded-full bg-primary-600 ml-1"></span>
+            )}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={openAddModal}
+            icon={<Plus size={16} />}
+            className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm"
+          >
+            Tambah Potongan Mahasiswa
+          </Button>
+        </div>
+      );
+    }
+  }, [setHeaderAction, appliedFilters]);
 
   const openEditModal = (item: PotonganMahasiswa) => {
     setEditingItem(item);
@@ -454,34 +486,37 @@ export function PotonganKhususTab() {
   return (
     <div className="space-y-4">
 
-      {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
-        <div>
+      {/* Table Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
+        <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-bold text-slate-900">Daftar Potongan Khusus Mahasiswa</h2>
-          <p className="text-2xs text-slate-500">Kelola daftar mahasiswa penerima keringanan dan diskon khusus non-beasiswa.</p>
+          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            icon={<Filter size={14} />}
-            onClick={() => setShowFilter(true)}
-            className="text-xs"
-          >
-            Filter
-            {(appliedFilters.search || appliedFilters.status) && (
-              <span className="w-2 h-2 rounded-full bg-primary-600 ml-1"></span>
-            )}
-          </Button>
-          <Button
-            size="sm"
-            icon={<Plus size={15} />}
-            onClick={openAddModal}
-            className="text-xs font-bold"
-          >
-            + Tambah Potongan Mahasiswa
-          </Button>
-        </div>
+        {!setHeaderAction && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Filter size={14} />}
+              onClick={() => setShowFilter(true)}
+              className="text-xs font-bold min-h-[38px]"
+            >
+              Filter
+              {(appliedFilters.search || appliedFilters.status) && (
+                <span className="w-2 h-2 rounded-full bg-primary-600 ml-1"></span>
+              )}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Plus size={15} />}
+              onClick={openAddModal}
+              className="text-xs font-bold min-h-[38px] px-3.5 shadow-sm"
+            >
+              Tambah Potongan Mahasiswa
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Active Filters */}

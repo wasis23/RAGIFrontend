@@ -62,7 +62,11 @@ interface FormValues {
 
 
 
-export function SettingTarifTab() {
+export interface SettingTarifTabProps {
+  setHeaderAction?: (action: React.ReactNode) => void;
+}
+
+export function SettingTarifTab({ setHeaderAction }: SettingTarifTabProps = {}) {
   const router = useRouter();
   const [data, setData] = useState<SettingTarifItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,6 +151,34 @@ export function SettingTarifTab() {
   const handleOpenAdd = () => {
     router.push('/sikeu/master/setting-tarif/create');
   };
+
+  useEffect(() => {
+    if (setHeaderAction) {
+      setHeaderAction(
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilter(true)}
+            icon={<Filter size={15} />}
+            className="font-bold text-xs min-h-[38px]"
+          >
+            Filter
+            {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>
+            )}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleOpenAdd}
+            icon={<Plus size={15} />}
+            className="font-bold text-xs min-h-[38px] px-3.5 shadow-xs"
+          >
+            Tambah Setting Tarif
+          </Button>
+        </div>
+      );
+    }
+  }, [setHeaderAction, appliedFilters]);
 
   const handleOpenEdit = (item: SettingTarifItem) => {
     setEditingItem(item);
@@ -404,27 +436,29 @@ export function SettingTarifTab() {
           <h2 className="text-sm font-bold text-slate-900">Daftar Matriks Tarif Angkatan & Prodi</h2>
           <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilter(true)}
-            icon={<Filter size={15} />}
-            className="font-bold text-xs min-h-[38px]"
-          >
-            Filter
-            {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>
-            )}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleOpenAdd}
-            icon={<Plus size={15} />}
-            className="font-bold text-xs min-h-[38px] px-3.5 shadow-xs"
-          >
-            Tambah Setting Tarif
-          </Button>
-        </div>
+        {!setHeaderAction && (
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilter(true)}
+              icon={<Filter size={15} />}
+              className="font-bold text-xs min-h-[38px]"
+            >
+              Filter
+              {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.prodi || appliedFilters.jalur || appliedFilters.semester) && (
+                <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>
+              )}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleOpenAdd}
+              icon={<Plus size={15} />}
+              className="font-bold text-xs min-h-[38px] px-3.5 shadow-xs"
+            >
+              Tambah Setting Tarif
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Active Filters */}

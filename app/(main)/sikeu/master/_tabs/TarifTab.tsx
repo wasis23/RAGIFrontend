@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
@@ -38,7 +38,21 @@ interface FormValues {
   nominal: number;
 }
 
-export function TarifTab() {
+export interface TarifTabProps {
+  isUktEnabled?: boolean;
+  togglingUkt?: boolean;
+  loadingSetting?: boolean;
+  onToggleUkt?: () => void;
+  setHeaderAction?: (action: React.ReactNode) => void;
+}
+
+export function TarifTab({
+  isUktEnabled = true,
+  togglingUkt = false,
+  loadingSetting = false,
+  onToggleUkt,
+  setHeaderAction,
+}: TarifTabProps = {}) {
   const router = useRouter();
   const [data, setData] = useState<Tarif[]>([]);
   const [loading, setLoading] = useState(false);
@@ -133,6 +147,34 @@ export function TarifTab() {
   const handleOpenAdd = () => {
     router.push('/sikeu/master/tarif/create');
   };
+
+  useEffect(() => {
+    if (setHeaderAction) {
+      setHeaderAction(
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilter(true)}
+            icon={<Filter size={16} />}
+            className="font-bold min-h-[38px] text-xs"
+          >
+            Filter
+            {(appliedFilters.search || appliedFilters.angkatan || appliedFilters.jalur) && (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>
+            )}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleOpenAdd}
+            icon={<Plus size={16} />}
+            className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm"
+          >
+            Atur Nominal Tarif
+          </Button>
+        </div>
+      );
+    }
+  }, [setHeaderAction, appliedFilters]);
 
   const handleOpenEdit = (item: Tarif) => {
     setEditingItem(item);
@@ -330,12 +372,37 @@ export function TarifTab() {
           <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
-            Filter
-          </Button>
-          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
-            Atur Nominal Tarif
-          </Button>
+          {onToggleUkt && (
+            <button
+              type="button"
+              onClick={onToggleUkt}
+              disabled={togglingUkt || loadingSetting}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs border ${
+                isUktEnabled
+                  ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {togglingUkt ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : isUktEnabled ? (
+                <CheckCircle2 size={13} />
+              ) : (
+                <SlidersHorizontal size={13} />
+              )}
+              <span>Skema UKT: {isUktEnabled ? 'ON' : 'OFF'}</span>
+            </button>
+          )}
+          {!setHeaderAction && (
+            <>
+              <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+                Filter
+              </Button>
+              <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+                Atur Nominal Tarif
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

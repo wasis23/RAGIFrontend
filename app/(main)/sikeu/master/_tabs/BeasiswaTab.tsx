@@ -43,7 +43,11 @@ interface FormValues {
   deskripsi: string;
 }
 
-export function BeasiswaTab() {
+export interface BeasiswaTabProps {
+  setHeaderAction?: (action: React.ReactNode) => void;
+}
+
+export function BeasiswaTab({ setHeaderAction }: BeasiswaTabProps = {}) {
   const router = useRouter();
   const [data, setData] = useState<Beasiswa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -113,6 +117,34 @@ export function BeasiswaTab() {
   const handleOpenAdd = () => {
     router.push('/sikeu/master/beasiswa/create');
   };
+
+  useEffect(() => {
+    if (setHeaderAction) {
+      setHeaderAction(
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilter(true)}
+            icon={<Filter size={16} />}
+            className="font-bold min-h-[38px] text-xs"
+          >
+            Filter
+            {(appliedFilters.search || appliedFilters.sumber) && (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>
+            )}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleOpenAdd}
+            icon={<Plus size={16} />}
+            className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm"
+          >
+            Tambah Master Beasiswa
+          </Button>
+        </div>
+      );
+    }
+  }, [setHeaderAction, appliedFilters]);
 
   const handleOpenEdit = (item: Beasiswa) => {
     setEditingItem(item);
@@ -322,14 +354,16 @@ export function BeasiswaTab() {
           <h2 className="text-sm font-bold text-slate-900">Daftar Program Beasiswa</h2>
           <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
-            Filter
-          </Button>
-          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
-            Tambah Master Beasiswa
-          </Button>
-        </div>
+        {!setHeaderAction && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+              Filter
+            </Button>
+            <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+              Tambah Master Beasiswa
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Active Filters */}

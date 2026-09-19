@@ -26,7 +26,11 @@ interface FormValues {
   deskripsi: string;
 }
 
-export function JalurKelasTab() {
+export interface JalurKelasTabProps {
+  setHeaderAction?: (action: React.ReactNode) => void;
+}
+
+export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
   const [data, setData] = useState<JalurKelas[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -66,6 +70,22 @@ export function JalurKelasTab() {
     reset({ nama_jalur: '', deskripsi: '' });
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (setHeaderAction) {
+      setHeaderAction(
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+            Filter
+            {appliedSearch && <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>}
+          </Button>
+          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+            Tambah Jalur Kelas
+          </Button>
+        </div>
+      );
+    }
+  }, [setHeaderAction, appliedSearch]);
 
   const handleOpenEdit = (item: JalurKelas) => {
     setEditingItem(item);
@@ -194,14 +214,16 @@ export function JalurKelasTab() {
           <h2 className="text-sm font-bold text-slate-900">Daftar Jalur & Kelas</h2>
           <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
-            Filter
-          </Button>
-          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
-            Tambah Jalur Kelas
-          </Button>
-        </div>
+        {!setHeaderAction && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+              Filter
+            </Button>
+            <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+              Tambah Jalur Kelas
+            </Button>
+          </div>
+        )}
       </div>
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data jalur kelas." />
