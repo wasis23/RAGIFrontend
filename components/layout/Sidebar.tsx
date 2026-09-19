@@ -317,7 +317,13 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
 const SIKEU_FALLBACK_MENUS: Menu[] = [
   { id: 601, parent_id: null, name: 'Dashboard Keuangan', url: '/sikeu', icon: 'FaChartPie', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
   {
-    id: 602, parent_id: null, name: 'KEUANGAN MAHASISWA', url: '#mhs_sikeu', icon: 'FaGraduationCap', module: 'sikeu', permission_id: null, order_index: 2, is_active: true,
+    id: 6015, parent_id: null, name: 'PEMBAYARAN MAHASISWA', url: '#pembayaran_mhs_sikeu', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 2, is_active: true,
+    children: [
+      { id: 60151, parent_id: 6015, name: 'Pengaturan Tarif', url: '/sikeu/pembayaran-mahasiswa/tarif', icon: 'FaDollarSign', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
+    ]
+  },
+  {
+    id: 602, parent_id: null, name: 'KEUANGAN MAHASISWA', url: '#mhs_sikeu', icon: 'FaGraduationCap', module: 'sikeu', permission_id: null, order_index: 3, is_active: true,
     children: [
       { id: 6020, parent_id: 602, name: 'Pengaturan Tarif & Beasiswa', url: '/sikeu/mahasiswa/tarif', icon: 'FaDollarSign', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
       { id: 60210, parent_id: 602, name: 'Potongan Khusus Mahasiswa', url: '/sikeu/mahasiswa/potongan', icon: 'FaSparkles', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },

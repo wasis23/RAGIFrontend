@@ -897,5 +897,93 @@ export const sikeuService = {
       body: JSON.stringify(payload),
     });
   },
+
+  // ========================================================
+  // PEMBAYARAN MAHASISWA - PENGATURAN TARIF KOMPONEN BIAYA
+  // ========================================================
+  getPembayaranMahasiswaTarifList: async (params?: {
+    page?: number;
+    per_page?: number;
+    master_biaya_id?: number | string;
+    tahun_angkatan?: number | string;
+    program_studi_id?: number | string;
+    is_active?: boolean | string;
+    search?: string;
+    sort_by?: string;
+    sort_order?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    if (params?.master_biaya_id) q.append('master_biaya_id', String(params.master_biaya_id));
+    if (params?.tahun_angkatan) q.append('tahun_angkatan', String(params.tahun_angkatan));
+    if (params?.program_studi_id) q.append('program_studi_id', String(params.program_studi_id));
+    if (params?.is_active !== undefined && params?.is_active !== '') q.append('is_active', String(params.is_active));
+    if (params?.search) q.append('search', params.search);
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/pembayaran-mahasiswa/tarif${queryString}`);
+  },
+
+  getPembayaranMahasiswaTarifDetail: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`);
+  },
+
+  createPembayaranMahasiswaTarif: async (payload: {
+    master_biaya_id: number;
+    tahun_angkatan: number;
+    program_studi_id?: number | null;
+    nominal: number;
+    keterangan?: string | null;
+    is_active?: boolean;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tarif', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  updatePembayaranMahasiswaTarif: async (
+    id: number | string,
+    payload: {
+      master_biaya_id?: number;
+      tahun_angkatan?: number;
+      program_studi_id?: number | null;
+      nominal?: number;
+      keterangan?: string | null;
+      is_active?: boolean;
+    }
+  ) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deletePembayaranMahasiswaTarif: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getPembayaranMahasiswaKatalogBiaya: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pembayaran-mahasiswa/katalog-biaya');
+  },
+
+  getPembayaranMahasiswaProdiList: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pembayaran-mahasiswa/prodi-list');
+  },
+
+  getPembayaranMahasiswaSummary: async () => {
+    return fetchWithAuth<ApiResponse<{
+      total_tarif: number;
+      total_aktif: number;
+      total_komponen_dikonfigurasi: number;
+      total_katalog_biaya: number;
+    }>>('/v1/sikeu/pembayaran-mahasiswa/summary');
+  },
 };
+
 
