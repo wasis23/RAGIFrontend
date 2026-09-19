@@ -1,6 +1,6 @@
 'use client';
 
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, angkaTerbilang } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -1001,9 +1001,12 @@ export default function CreateTagihanPage() {
             </div>
           )}
 
-          <div className="p-4 bg-slate-50 rounded-xl inline-block print:bg-white print:border print:border-slate-300">
+          <div className="p-4 bg-slate-50 rounded-xl inline-block print:bg-white print:border print:border-slate-300 w-full max-w-lg">
             <p className="text-xs text-slate-500 font-bold">TOTAL NOMINAL DILUNASI / DITERBITKAN</p>
             <p className="text-2xl font-extrabold text-emerald-700 tabular-nums mt-1">{formatRupiah(result.total)}</p>
+            <p className="text-xs text-slate-600 font-medium italic mt-1.5 border-t border-slate-200/80 pt-1.5">
+              Terbilang: {angkaTerbilang(result.total)}
+            </p>
           </div>
 
           <div className="flex justify-center gap-3 pt-4 border-t border-slate-100 print:hidden">

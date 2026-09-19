@@ -141,8 +141,11 @@ export const sikeuService = {
 
   // Dispensasi Tagihan
   getDispensasiList: async (params?: { status?: string; mahasiswa_id?: number }) => {
-    const query = new URLSearchParams(params as any).toString();
-    return fetchWithAuth<ApiResponse<DispensasiTagihan[]>>(`/v1/sikeu/dispensasi?${query}`);
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'all') query.append('status', params.status);
+    if (params?.mahasiswa_id) query.append('mahasiswa_id', params.mahasiswa_id.toString());
+    const qStr = query.toString();
+    return fetchWithAuth<ApiResponse<DispensasiTagihan[]>>(`/v1/sikeu/dispensasi${qStr ? `?${qStr}` : ''}`);
   },
 
   submitDispensasi: async (payload: {
@@ -830,6 +833,20 @@ export const sikeuService = {
 
   getTahunAkademikList: async () => {
     return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/tahun-akademik');
+  },
+
+  // Preview Target Mahasiswa Tagihan Masal
+  previewMassTarget: async (params: {
+    tahun_angkatan: number;
+    jalur_kelas: string;
+    program_studi_id?: number;
+  }) => {
+    const query = new URLSearchParams({
+      tahun_angkatan: String(params.tahun_angkatan),
+      jalur_kelas: params.jalur_kelas,
+      ...(params.program_studi_id ? { program_studi_id: String(params.program_studi_id) } : {}),
+    }).toString();
+    return fetchWithAuth<ApiResponse<{ total_mahasiswa: number; sample_mahasiswa: any[] }>>(`/v1/sikeu/tagihan/preview-mass-target?${query}`);
   },
 
   // Generate Tagihan Semester Masal

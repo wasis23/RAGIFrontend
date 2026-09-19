@@ -2,6 +2,7 @@
 
 import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -73,6 +74,7 @@ function angkaTerbilang(nilai: number): string {
 }
 
 export default function StudentTagihanPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<'bills' | 'history' | 'guide'>('bills');
@@ -622,6 +624,15 @@ export default function StudentTagihanPage() {
                         >
                           <FileText size={14} /> Cetak Invoice Resmi
                         </button>
+                        {!isLunas && !isDispensasi && (
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/sikeu/dispensasi/create?tagihan_id=${b.id}`)}
+                            className="btn btn-outline btn-sm font-bold text-xs flex items-center gap-1.5 cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
+                          >
+                            <AlertCircle size={14} /> Ajukan Dispensasi
+                          </button>
+                        )}
                         {!isLunas && (
                           <button
                             type="button"
@@ -1035,10 +1046,10 @@ export default function StudentTagihanPage() {
                     </span>
                   </div>
                   <div className="font-mono text-base font-extrabold text-primary-900 tracking-wider">
-                    {selectedInvoice.virtual_account?.va_number || ('88012' + (selectedInvoice.mahasiswa?.nim || studentProfile.nim))}
+                    {selectedInvoice.virtual_account?.va_number || '-'}
                   </div>
                   <div className="text-[10px] font-bold text-slate-600">
-                    {selectedInvoice.virtual_account?.bank || 'Bank BNI (Virtual Account)'}
+                    {selectedInvoice.virtual_account?.bank || (selectedInvoice.virtual_account?.va_number ? 'Bank BNI (Virtual Account)' : 'Belum Diterbitkan')}
                   </div>
                   <div className="text-[10px] text-rose-600 font-semibold">
                     Jatuh Tempo: {selectedInvoice.jatuh_tempo || selectedInvoice.virtual_account?.expired_at || '-'}

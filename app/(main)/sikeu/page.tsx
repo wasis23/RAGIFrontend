@@ -486,7 +486,7 @@ export default function SikeuDashboardPage() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <Link href="/sikeu/master" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
           <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
             <Building2 size={18} />
@@ -501,6 +501,14 @@ export default function SikeuDashboardPage() {
           </div>
           <p className="font-bold text-slate-900 text-xs mt-1">Tagihan & SPP</p>
           <p className="text-2xs text-slate-500">Invoice Semester</p>
+        </Link>
+
+        <Link href="/sikeu/pembayaran" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
+          <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+            <CheckCircle2 size={18} />
+          </div>
+          <p className="font-bold text-slate-900 text-xs mt-1">Histori Bayar</p>
+          <p className="text-2xs text-slate-500">Kasir & Gateway</p>
         </Link>
 
         <Link href="/sikeu/piutang" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">

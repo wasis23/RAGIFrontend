@@ -12,6 +12,7 @@ import {
   Loader2,
   Calendar,
   GraduationCap,
+  Users,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -37,6 +38,10 @@ export default function AktivasiTagihanMasalPage() {
   const [angkatanList, setAngkatanList] = useState<{ value: string; label: string }[]>([]);
   const [activeTaLabel, setActiveTaLabel] = useState<string>('');
   const [loadingOptions, setLoadingOptions] = useState(true);
+
+  // Student Target Preview state
+  const [targetStudentPreview, setTargetStudentPreview] = useState<{ total: number; sample: any[] } | null>(null);
+  const [loadingStudentPreview, setLoadingStudentPreview] = useState(false);
 
   // Fee Component preview state
   const [matchedFeeComponents, setMatchedFeeComponents] = useState<any[]>([]);
@@ -176,6 +181,36 @@ export default function AktivasiTagihanMasalPage() {
     };
   }, [watchAngkatan, watchJalur, watchSemester, watchProdi]);
 
+  // Fetch estimated target students
+  useEffect(() => {
+    if (!watchAngkatan || !watchJalur) return;
+    let isMounted = true;
+    const fetchTargetStudents = async () => {
+      setLoadingStudentPreview(true);
+      try {
+        const res = await sikeuService.previewMassTarget({
+          tahun_angkatan: parseInt(watchAngkatan),
+          jalur_kelas: watchJalur,
+          program_studi_id: watchProdi ? parseInt(watchProdi) : undefined,
+        });
+        if (isMounted && res.data) {
+          setTargetStudentPreview({
+            total: res.data.total_mahasiswa,
+            sample: res.data.sample_mahasiswa || [],
+          });
+        }
+      } catch (err) {
+        if (isMounted) setTargetStudentPreview(null);
+      } finally {
+        if (isMounted) setLoadingStudentPreview(false);
+      }
+    };
+    fetchTargetStudents();
+    return () => {
+      isMounted = false;
+    };
+  }, [watchAngkatan, watchJalur, watchProdi]);
+
   const toggleFeeComponent = (compId: number) => {
     setSelectedFeeIds((prev) =>
       prev.includes(compId) ? prev.filter((id) => id !== compId) : [...prev, compId]
@@ -281,6 +316,30 @@ export default function AktivasiTagihanMasalPage() {
                 onChange={(val) => setValue('target_prodi', val as string)}
                 disabled={loadingOptions}
               />
+            </div>
+
+            {/* Target Student Preview Info */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <Users size={16} className="text-primary-600 shrink-0" />
+                <span className="text-slate-600 font-medium">Estimasi Mahasiswa Terdampak:</span>
+                {loadingStudentPreview ? (
+                  <span className="flex items-center gap-1 text-slate-400 font-mono">
+                    <Loader2 size={12} className="animate-spin" /> Menghitung...
+                  </span>
+                ) : targetStudentPreview ? (
+                  <span className="font-bold text-slate-900 font-mono">
+                    {targetStudentPreview.total} Mahasiswa Aktif
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-mono">-</span>
+                )}
+              </div>
+              {targetStudentPreview && targetStudentPreview.sample.length > 0 && (
+                <span className="text-2xs text-slate-500 italic">
+                  Contoh: {targetStudentPreview.sample.map((s: any) => s.nama_mahasiswa).slice(0, 3).join(', ')}{targetStudentPreview.total > 3 ? '...' : ''}
+                </span>
+              )}
             </div>
           </div>
 

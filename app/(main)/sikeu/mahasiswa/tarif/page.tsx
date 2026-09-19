@@ -102,7 +102,7 @@ export default function PengaturanTarifMahasiswaPage() {
       id: 'setting_tarif',
       label: '1. Matriks Tarif Angkatan & Semester',
       badge: 'Acuan Utama',
-      description: 'Penetapan nominal biaya SPP/UKT riil per Tahun Angkatan (2023, 2024, 2025, 2026), Program Studi, Semester 1-8, & Jalur Kelas.',
+      description: 'Penetapan nominal biaya SPP/UKT riil per Tahun Angkatan, Program Studi, Semester 1-8, & Jalur Kelas.',
       icon: DollarSign,
     },
     {

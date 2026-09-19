@@ -131,3 +131,42 @@ export function buildQueryString(params: Record<string, unknown>): string {
   });
   return query.toString();
 }
+
+// ============================================================
+// angkaTerbilang — Konversi angka ke kata terbilang formal Indonesia
+// ============================================================
+export function angkaTerbilang(angka: number | null | undefined): string {
+  if (angka === null || angka === undefined || isNaN(angka)) return '';
+  const bilangan = Math.abs(Math.floor(angka));
+  if (bilangan === 0) return 'Nol Rupiah';
+
+  const huruf = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+
+  function convert(n: number): string {
+    if (n < 12) {
+      return huruf[n];
+    } else if (n < 20) {
+      return convert(n - 10) + ' Belas';
+    } else if (n < 100) {
+      return convert(Math.floor(n / 10)) + ' Puluh' + (n % 10 !== 0 ? ' ' + convert(n % 10) : '');
+    } else if (n < 200) {
+      return 'Seratus' + (n % 100 !== 0 ? ' ' + convert(n % 100) : '');
+    } else if (n < 1000) {
+      return convert(Math.floor(n / 100)) + ' Ratus' + (n % 100 !== 0 ? ' ' + convert(n % 100) : '');
+    } else if (n < 2000) {
+      return 'Seribu' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+    } else if (n < 1000000) {
+      return convert(Math.floor(n / 1000)) + ' Ribu' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+    } else if (n < 1000000000) {
+      return convert(Math.floor(n / 1000000)) + ' Juta' + (n % 1000000 !== 0 ? ' ' + convert(n % 1000000) : '');
+    } else if (n < 1000000000000) {
+      return convert(Math.floor(n / 1000000000)) + ' Miliar' + (n % 1000000000 !== 0 ? ' ' + convert(n % 1000000000) : '');
+    } else if (n < 1000000000000000) {
+      return convert(Math.floor(n / 1000000000000)) + ' Triliun' + (n % 1000000000000 !== 0 ? ' ' + convert(n % 1000000000000) : '');
+    }
+    return '';
+  }
+
+  const result = convert(bilangan).trim();
+  return `${result} Rupiah`;
+}

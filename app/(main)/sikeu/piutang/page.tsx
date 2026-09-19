@@ -443,6 +443,61 @@ export default function PiutangMahasiswaPage() {
 
 
 
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+            <span>TOTAL PIUTANG AKTIF</span>
+            <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+              <AlertCircle size={15} />
+            </div>
+          </div>
+          <p className="text-xl font-black text-rose-700 tabular-nums">
+            {formatRupiah(summary.total_piutang || 0)}
+          </p>
+          <p className="text-2xs text-slate-400">Total sisa tagihan belum terlunasi</p>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+            <span>TOTAL TAGIHAN TERBIT</span>
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <FileText size={15} />
+            </div>
+          </div>
+          <p className="text-xl font-black text-slate-900 tabular-nums">
+            {formatRupiah(summary.total_tagihan || 0)}
+          </p>
+          <p className="text-2xs text-slate-400">Kotor sebelum potongan & beasiswa</p>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+            <span>TOTAL TERBAYAR</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 size={15} />
+            </div>
+          </div>
+          <p className="text-xl font-black text-emerald-700 tabular-nums">
+            {formatRupiah(summary.total_bayar || 0)}
+          </p>
+          <p className="text-2xs text-slate-400">Kas masuk loket & gateway</p>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+            <span>MAHASISWA TERTUNGGAK</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+              <UserX size={15} />
+            </div>
+          </div>
+          <p className="text-xl font-black text-amber-800 tabular-nums">
+            {summary.total_mahasiswa_tunggakan || 0} Mahasiswa
+          </p>
+          <p className="text-2xs text-slate-400">Memiliki tunggakan aktif</p>
+        </div>
+      </div>
+
       {/* Cutoff Date Active Banner */}
       {appliedFilters.cutoff_date && (
         <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-2xl flex items-center justify-between text-xs text-amber-900 font-medium shadow-2xs">

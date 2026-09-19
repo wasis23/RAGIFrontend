@@ -14,6 +14,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { formatRupiah } from '@/lib/utils';
@@ -65,6 +66,43 @@ export default function DispensasiListPage() {
   // Detail / Print Modal State
   const [detailItem, setDetailItem] = useState<DispensasiItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Inline Approval/Rejection State
+  const [approvalItem, setApprovalItem] = useState<DispensasiItem | null>(null);
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
+  const [approvalCatatan, setApprovalCatatan] = useState('');
+  const [submittingApproval, setSubmittingApproval] = useState(false);
+
+  const handleOpenApproval = (item: DispensasiItem, action: 'approve' | 'reject') => {
+    setApprovalItem(item);
+    setApprovalAction(action);
+    setApprovalCatatan('');
+  };
+
+  const handleProcessApproval = async () => {
+    if (!approvalItem) return;
+    if (approvalAction === 'reject' && !approvalCatatan.trim()) {
+      toast.error('Wajib mengisi alasan penolakan dispensasi!');
+      return;
+    }
+
+    setSubmittingApproval(true);
+    try {
+      if (approvalAction === 'approve') {
+        await sikeuService.approveDispensasi(approvalItem.id, approvalCatatan);
+        toast.success('Permohonan dispensasi berhasil disetujui');
+      } else {
+        await sikeuService.rejectDispensasi(approvalItem.id, approvalCatatan);
+        toast.success('Permohonan dispensasi telah ditolak');
+      }
+      setApprovalItem(null);
+      fetchDispensasi();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err.message || 'Gagal memproses keputusan dispensasi');
+    } finally {
+      setSubmittingApproval(false);
+    }
+  };
 
   const fetchDispensasi = async () => {
     try {
@@ -218,30 +256,50 @@ export default function DispensasiListPage() {
       key: 'actions',
       label: 'AKSI',
       align: 'right',
-      render: (row) => (
-        <div className="flex items-center justify-end">
-          <DropdownMenu
-            items={[
-              {
-                label: 'Lihat & Cetak Surat',
-                icon: <Printer size={14} />,
-                onClick: () => handleOpenDetail(row),
-              },
-              {
-                label: 'Detail Tagihan Terkait',
-                icon: <Eye size={14} />,
-                onClick: () => {
-                  if (row.tagihan?.nomor_tagihan || row.tagihan_id) {
-                    router.push(`/sikeu/tagihan/${row.tagihan_id || row.id}`);
-                  } else {
-                    handleOpenDetail(row);
-                  }
-                },
-              },
-            ]}
-          />
-        </div>
-      ),
+      render: (row) => {
+        const menuItems: any[] = [];
+
+        if (row.status === 'pending') {
+          menuItems.push(
+            {
+              label: 'Setujui Permohonan',
+              icon: <CheckCircle2 size={14} className="text-emerald-600" />,
+              onClick: () => handleOpenApproval(row, 'approve'),
+            },
+            {
+              label: 'Tolak Permohonan',
+              icon: <XCircle size={14} className="text-rose-600" />,
+              onClick: () => handleOpenApproval(row, 'reject'),
+            }
+          );
+        }
+
+        if (row.status === 'approved') {
+          menuItems.push({
+            label: 'Lihat & Cetak Surat',
+            icon: <Printer size={14} />,
+            onClick: () => handleOpenDetail(row),
+          });
+        }
+
+        menuItems.push({
+          label: 'Detail Tagihan Terkait',
+          icon: <Eye size={14} />,
+          onClick: () => {
+            if (row.tagihan?.nomor_tagihan || row.tagihan_id) {
+              router.push(`/sikeu/tagihan/${row.tagihan_id || row.id}`);
+            } else {
+              handleOpenDetail(row);
+            }
+          },
+        });
+
+        return (
+          <div className="flex items-center justify-end">
+            <DropdownMenu items={menuItems} />
+          </div>
+        );
+      },
     },
   ];
 
@@ -287,6 +345,18 @@ export default function DispensasiListPage() {
           title="Surat Bukti Dispensasi Tagihan Resmi"
         >
           <div className="space-y-6">
+            {detailItem.status !== 'approved' && (
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5 text-xs text-amber-900 print:hidden">
+                <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                <div>
+                  <p className="font-bold">Surat Belum Disahkan</p>
+                  <p className="text-2xs text-amber-700 mt-0.5">
+                    Permohonan ini berstatus <strong>{detailItem.status.toUpperCase()}</strong>. Surat bukti resmi hanya sah dan dapat dicetak setelah disetujui pimpinan.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Printable Document Container */}
             <div className="printable-document print-document p-8 border border-slate-300 rounded-2xl bg-white space-y-5 text-slate-900 leading-relaxed shadow-2xs print:border-none print:shadow-none print:p-0">
               {/* Kop Resmi Surat Kampus */}
@@ -405,8 +475,8 @@ export default function DispensasiListPage() {
                       [DIGITALLY SIGNED & VERIFIED]
                     </span>
                   </div>
-                  <p className="font-bold text-slate-800 text-2xs underline">Dr. Hendra Gunawan, S.E., M.Ak.</p>
-                  <p className="text-2xs text-slate-500 font-mono">NIP: 197805122005011002</p>
+                  <p className="font-bold text-slate-800 text-2xs underline">Bagian Keuangan & Administrasi Tagihan</p>
+                  <p className="text-2xs text-slate-500 font-mono">Direktorat Keuangan Kampus</p>
                 </div>
               </div>
             </div>
@@ -417,6 +487,7 @@ export default function DispensasiListPage() {
                 variant="outline"
                 icon={<Printer size={15} />}
                 onClick={() => window.print()}
+                disabled={detailItem.status !== 'approved'}
                 className="font-bold"
               >
                 Cetak Bukti Dispensasi (PDF)
@@ -427,6 +498,55 @@ export default function DispensasiListPage() {
                 className="font-bold text-slate-600"
               >
                 Tutup
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Keputusan Inline Approval / Rejection */}
+      {approvalItem && (
+        <Modal
+          isOpen={!!approvalItem}
+          onClose={() => setApprovalItem(null)}
+          title={approvalAction === 'approve' ? 'Persetujuan Dispensasi Tagihan' : 'Penolakan Dispensasi Tagihan'}
+        >
+          <div className="space-y-4">
+            <div className={`p-4 rounded-xl text-xs space-y-1 ${approvalAction === 'approve' ? 'bg-emerald-50 text-emerald-950 border border-emerald-200' : 'bg-rose-50 text-rose-950 border border-rose-200'}`}>
+              <p className="font-bold">
+                {approvalAction === 'approve'
+                  ? `Setujui dispensasi tagihan untuk ${approvalItem.nama_mahasiswa} (NIM: ${approvalItem.nim || '-'})?`
+                  : `Tolak permohonan dispensasi untuk ${approvalItem.nama_mahasiswa} (NIM: ${approvalItem.nim || '-'})?`}
+              </p>
+              <p className="text-slate-600 text-2xs">
+                Nominal Cicilan: {formatRupiah(approvalItem.nominal_per_cicilan)} • Batas Pelunasan Baru: {approvalItem.jatuh_tempo_baru}
+              </p>
+            </div>
+
+            <Textarea
+              label={approvalAction === 'approve' ? 'Catatan Persetujuan Pimpinan (Opsional)' : 'Alasan Penolakan (Wajib) *'}
+              placeholder={approvalAction === 'approve' ? 'Contoh: Disetujui sesuai arahan pimpinan untuk pembayaran bertahap.' : 'Jelaskan alasan permohonan ditolak...'}
+              value={approvalCatatan}
+              onChange={(e) => setApprovalCatatan(e.target.value)}
+              rows={3}
+            />
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <Button
+                variant="outline"
+                onClick={() => setApprovalItem(null)}
+                disabled={submittingApproval}
+              >
+                Batal
+              </Button>
+              <Button
+                variant={approvalAction === 'approve' ? 'primary' : 'danger'}
+                onClick={handleProcessApproval}
+                disabled={submittingApproval}
+                icon={submittingApproval ? <Loader2 size={15} className="animate-spin" /> : undefined}
+                className="font-bold"
+              >
+                {submittingApproval ? 'Memproses...' : (approvalAction === 'approve' ? 'Ya, Setujui Permohonan' : 'Tolak Permohonan')}
               </Button>
             </div>
           </div>
