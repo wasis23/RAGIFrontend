@@ -71,7 +71,7 @@ if [ "$AI_ENGINE" != "agy" ] && [ -x "$OPENCODE_BIN" ]; then
 fi
 
 if [ $AI_EXIT_CODE -ne 0 ] && command -v agy &> /dev/null; then
-    RESULT=$(timeout 30s agy --print "$(cat "$PROMPT_FILE")" 2>&1)
+    RESULT=$(timeout 120s agy --model gemini-3.8-flash-low --print "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
 fi
 

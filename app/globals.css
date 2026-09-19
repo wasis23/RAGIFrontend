@@ -972,7 +972,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   background: #ffffff;
 }
 
@@ -990,7 +990,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
-  background: #ffffff;
 }
 
 .table th.text-center, .table td.text-center {
@@ -1009,17 +1008,30 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background: #ffffff;
 }
 
+.table tbody tr {
+  background: #ffffff;
+}
+
 .table td {
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--gray-100);
   color: var(--text-primary);
   vertical-align: middle;
+  font-size: 0.75rem;
   background: #ffffff;
+}
+
+/* Batasi font isi tabel agar maksimal tidak lebih besar dari header (0.75rem / 12px) */
+.table td .text-sm,
+.table td .text-base,
+.table td .text-lg,
+.table td .text-xl {
+  font-size: 0.75rem !important;
+  line-height: 1.125rem !important;
 }
 
 .table tbody tr:last-child td { border-bottom: none; }
 .table tbody tr {
-  background: #ffffff;
   transition: background var(--transition-fast);
 }
 .table tbody tr:hover td { 
