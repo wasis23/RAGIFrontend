@@ -117,21 +117,22 @@ export default function PengaturanTarifMahasiswaPage() {
     {
       id: 'jalur_kelas',
       label: '3. Jalur & Kelas Kuliah',
-      description: 'Daftar jalur masuk perkuliahan (Reguler, Karyawan/Eksekutif, Internasional, Online).',
+      badge: 'Dari SPMB',
+      description: 'Daftar jalur masuk perkuliahan terintegrasi terpusat dari modul SPMB (Reguler, Transfer, Beasiswa, Internasional, RPL).',
       icon: Bookmark,
     },
     {
       id: 'student_types',
       label: '4. Penetapan Tipe Tagihan Mahasiswa',
-      badge: 'Mapping Mhs',
-      description: 'Pemetaan mahasiswa aktif ke kelompok UKT dan jalur kelas masing-masing untuk penerbitan tagihan.',
+      badge: 'Auto-Sync',
+      description: 'Pemetaan mahasiswa aktif ke kelompok UKT dan jalur kelas masing-masing. Terintegrasi otomatis real-time dengan SIAKAD dan SPMB.',
       icon: Users,
     },
     {
       id: 'beasiswa',
       label: '5. Program Beasiswa & Potongan',
-      badge: 'Master Skema',
-      description: 'Master program beasiswa (KIP-Kuliah, Yayasan, Prestasi, Tahfidz) beserta konfigurasi pemotongan biaya. Penetapan mahasiswa penerima diatur oleh BAAK di modul SIAKAD.',
+      badge: 'Dari SIAKAD',
+      description: 'Master program beasiswa terintegrasi dari modul SIAKAD. Penetapan mahasiswa penerima diatur terpusat oleh BAAK di SIAKAD.',
       icon: ShieldCheck,
     },
   ];

@@ -296,11 +296,11 @@ export default function CreateTagihanPage() {
           setResult({
             nama: selectedStudent.nama_mahasiswa,
             nim: selectedStudent.nim,
-            va_number: vaData?.va_number || `88012${selectedStudent.nim}${Math.floor(Math.random() * 100)}`,
+            va_number: vaData?.va_number || `88012${selectedStudent.nim.replace(/\D/g, '')}`,
             bank: vaData?.bank_nama || 'Bank BNI',
             total: combinedTotal,
             method: paymentMethod,
-            expired: vaData?.expired_at || '2026-08-31 23:59:59',
+            expired: vaData?.expired_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19),
           });
 
           toast.success('Virtual Account berhasil diterbitkan!');
@@ -331,11 +331,11 @@ export default function CreateTagihanPage() {
           setResult({
             nama: selectedStudent.nama_mahasiswa,
             nim: selectedStudent.nim,
-            va_number: vaData?.va_number || `88012${selectedStudent.nim}${Math.floor(Math.random() * 100)}`,
+            va_number: vaData?.va_number || `88012${selectedStudent.nim.replace(/\D/g, '')}`,
             bank: vaData?.bank_nama || 'Bank BNI',
             total: combinedTotal,
             method: paymentMethod,
-            expired: vaData?.expired_at || '2026-08-31 23:59:59',
+            expired: vaData?.expired_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19),
           });
 
           toast.success('Virtual Account pembayaran langsung berhasil diterbitkan!');

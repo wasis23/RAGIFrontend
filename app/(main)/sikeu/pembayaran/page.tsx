@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { formatRupiah } from '@/lib/utils';
 import {
-  CreditCard, DollarSign, Filter, RefreshCw, CheckCircle2, Clock, XCircle, Building, Search, Plus, Eye
+  CreditCard, DollarSign, Filter, RefreshCw, CheckCircle2, Clock, XCircle, Building, Search, Plus, Eye, AlertTriangle, RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
+import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
@@ -44,6 +45,46 @@ export default function PembayaranPage() {
   const [filterOrderBy, setFilterOrderBy] = useState('waktu_bayar');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
   const [appliedFilters, setAppliedFilters] = useState({ search: '', status: '', channel: '', orderBy: 'waktu_bayar', orderDir: 'desc' as 'asc' | 'desc' });
+
+  // Modals State
+  const [detailModal, setDetailModal] = useState<PaymentItem | null>(null);
+  const [koreksiModal, setKoreksiModal] = useState<{
+    isOpen: boolean;
+    item: PaymentItem | null;
+    alasan: string;
+    loading: boolean;
+  }>({
+    isOpen: false,
+    item: null,
+    alasan: '',
+    loading: false,
+  });
+
+  const handleConfirmKoreksi = async () => {
+    if (!koreksiModal.item) return;
+    if (!koreksiModal.alasan || koreksiModal.alasan.trim().length < 10) {
+      toast.error('Alasan koreksi wajib diisi minimal 10 karakter.');
+      return;
+    }
+
+    try {
+      setKoreksiModal((prev) => ({ ...prev, loading: true }));
+      const res = await sikeuService.koreksiPembayaran(koreksiModal.item.id, {
+        alasan_koreksi: koreksiModal.alasan.trim(),
+      });
+      if (res.status === 'success') {
+        toast.success(res.message || 'Pembayaran berhasil dikoreksi dan dibatalkan.');
+        setKoreksiModal({ isOpen: false, item: null, alasan: '', loading: false });
+        fetchPayments();
+      } else {
+        toast.error(res.message || 'Gagal mengoreksi pembayaran');
+        setKoreksiModal((prev) => ({ ...prev, loading: false }));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Terjadi kesalahan saat memproses koreksi');
+      setKoreksiModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
 
   const fetchPayments = async () => {
     try {
@@ -133,7 +174,7 @@ export default function PembayaranPage() {
           <div className="flex items-center gap-1 text-2xs text-slate-500 font-medium mt-0.5">
             <span className="font-mono text-primary-700 font-bold">{row.nim || '-'}</span>
             <span>•</span>
-            <span className="truncate max-w-[150px]">{row.program_studi || 'Teknik Informatika'}</span>
+            <span className="truncate max-w-[150px]">{row.program_studi || '-'}</span>
           </div>
         </div>
       ),
@@ -180,6 +221,13 @@ export default function PembayaranPage() {
             </span>
           );
         }
+        if (row.status === 'reversed') {
+          return (
+            <span className="badge badge-gray text-xs font-bold inline-flex items-center gap-1">
+              <RefreshCw size={12} /> Dikoreksi (Batal)
+            </span>
+          );
+        }
         if (row.status === 'pending') {
           return (
             <span className="badge badge-blue text-xs font-bold inline-flex items-center gap-1">
@@ -205,10 +253,25 @@ export default function PembayaranPage() {
               {
                 label: 'Rincian Pembayaran',
                 icon: <Eye size={14} />,
-                onClick: () => {
-                  toast.success(`Transaksi ${row.kode_transaksi}: ${formatRupiah(row.jumlah_bayar)} (${row.status.toUpperCase()})`);
-                },
+                onClick: () => setDetailModal(row),
               },
+              ...(row.status !== 'reversed'
+                ? [
+                    {
+                      label: 'Koreksi Pembayaran',
+                      icon: <RotateCcw size={14} />,
+                      variant: 'danger' as const,
+                      onClick: () => {
+                        setKoreksiModal({
+                          isOpen: true,
+                          item: row,
+                          alasan: '',
+                          loading: false,
+                        });
+                      },
+                    },
+                  ]
+                : []),
             ]}
           />
         </div>
@@ -311,6 +374,148 @@ export default function PembayaranPage() {
           </div>
         </div>
       </Drawer>
+
+      {/* Detail Modal */}
+      <Modal
+        isOpen={!!detailModal}
+        onClose={() => setDetailModal(null)}
+        title="Rincian Transaksi Pembayaran"
+        size="lg"
+      >
+        {detailModal && (
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <span className="text-slate-400 block font-medium">Kode Transaksi:</span>
+                <span className="font-mono font-bold text-slate-800">{detailModal.kode_transaksi}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Waktu Transaksi:</span>
+                <span className="font-semibold text-slate-700">{detailModal.waktu_bayar || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Status:</span>
+                <span className="font-bold uppercase text-primary-700">{detailModal.status}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Nama Mahasiswa:</span>
+                <span className="font-bold text-slate-900">{detailModal.nama_mahasiswa || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">NIM:</span>
+                <span className="font-mono font-semibold text-slate-700">{detailModal.nim || '-'}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Program Studi:</span>
+                <span className="font-semibold text-slate-700">{detailModal.program_studi || '-'}</span>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl p-3.5 space-y-2">
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Nomor Tagihan:</span>
+                <span className="font-mono font-semibold">{detailModal.tagihan?.nomor_tagihan || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Rincian Komponen:</span>
+                <span className="font-semibold text-right">{detailModal.rincian_pembayaran || detailModal.tagihan?.rincian || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Metode / Channel:</span>
+                <span className="font-semibold">{detailModal.virtual_account?.bank_nama || detailModal.channel_bayar || 'VA'}</span>
+              </div>
+              {detailModal.virtual_account?.va_number && (
+                <div className="flex justify-between items-center text-slate-600">
+                  <span>Nomor VA:</span>
+                  <span className="font-mono font-bold text-primary-700">{detailModal.virtual_account.va_number}</span>
+                </div>
+              )}
+              <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm font-bold text-slate-900">
+                <span>Total Dibayar:</span>
+                <span className="text-emerald-700 font-extrabold text-base">{formatRupiah(detailModal.jumlah_bayar || 0)}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button type="button" variant="outline" onClick={() => setDetailModal(null)} size="sm">
+                Tutup
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Koreksi Modal */}
+      <Modal
+        isOpen={koreksiModal.isOpen}
+        onClose={() => setKoreksiModal({ isOpen: false, item: null, alasan: '', loading: false })}
+        title="Koreksi / Batalkan Pembayaran"
+        size="md"
+      >
+        <div className="space-y-4 text-xs">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-800">
+            <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+            <div>
+              <p className="font-bold">Perhatian: Tindakan Destruktif</p>
+              <p className="mt-0.5 text-amber-700 leading-relaxed">
+                Koreksi transaksi akan membatalkan status pembayaran, mengurangi total bayar pada tagihan mahasiswa, dan mencatat reversal jurnal kas.
+              </p>
+            </div>
+          </div>
+
+          {koreksiModal.item && (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 font-medium">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Kode Transaksi:</span>
+                <span className="font-mono font-bold text-slate-800">{koreksiModal.item.kode_transaksi}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mahasiswa:</span>
+                <span className="font-bold text-slate-800">{koreksiModal.item.nama_mahasiswa} ({koreksiModal.item.nim})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Nominal:</span>
+                <span className="font-bold text-rose-700">{formatRupiah(koreksiModal.item.jumlah_bayar || 0)}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="block font-bold text-slate-700 text-xs">
+              Alasan Koreksi <span className="text-rose-500">* (minimal 10 karakter)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={koreksiModal.alasan}
+              onChange={(e) => setKoreksiModal(prev => ({ ...prev, alasan: e.target.value }))}
+              placeholder="Contoh: Salah alokasi tagihan kasir loket / transfer duplikat..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setKoreksiModal({ isOpen: false, item: null, alasan: '', loading: false })}
+              disabled={koreksiModal.loading}
+              size="sm"
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleConfirmKoreksi}
+              isLoading={koreksiModal.loading}
+              disabled={koreksiModal.alasan.trim().length < 10}
+              size="sm"
+            >
+              Konfirmasi Koreksi
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

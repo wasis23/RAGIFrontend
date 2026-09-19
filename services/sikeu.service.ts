@@ -468,11 +468,26 @@ export const sikeuService = {
   },
 
   // Penetapan Tipe Tagihan & Jalur Kelas Mahasiswa (SPMB / SIAKAD / Change Status)
-  getStudentBillingTypes: async (params?: { page?: number; per_page?: number; q?: string }) => {
+  getStudentBillingTypes: async (params?: {
+    page?: number;
+    per_page?: number;
+    q?: string;
+    search?: string;
+    angkatan?: number | string;
+    program_studi_id?: number | string;
+    jalur_kelas?: string;
+    kelompok_ukt?: number | string;
+    sort_by?: string;
+    sort_dir?: string;
+  }) => {
     const query = new URLSearchParams();
-    if (params?.page) query.append('page', params.page.toString());
-    if (params?.per_page) query.append('per_page', params.per_page.toString());
-    if (params?.q) query.append('q', params.q);
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          query.append(key, val.toString());
+        }
+      });
+    }
     return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/student-billing-types?${query.toString()}`);
   },
 

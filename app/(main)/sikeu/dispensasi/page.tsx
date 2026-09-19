@@ -23,6 +23,7 @@ interface DispensasiItem {
   mahasiswa_id: number;
   nama_mahasiswa: string;
   nim: string;
+  prodi?: string;
   tipe_dispensasi: string;
   nominal_per_cicilan: number;
   jumlah_cicilan?: number;
@@ -231,7 +232,7 @@ export default function DispensasiListPage() {
                 icon: <Eye size={14} />,
                 onClick: () => {
                   if (row.tagihan?.nomor_tagihan || row.tagihan_id) {
-                    window.location.href = `/sikeu/tagihan/${row.tagihan_id || row.id}`;
+                    router.push(`/sikeu/tagihan/${row.tagihan_id || row.id}`);
                   } else {
                     handleOpenDetail(row);
                   }
@@ -338,7 +339,7 @@ export default function DispensasiListPage() {
                 </div>
                 <div>
                   <span className="text-slate-500 text-2xs block uppercase font-bold">Program Studi:</span>
-                  <span className="font-semibold text-slate-800">Teknik Informatika (S1 Reguler)</span>
+                  <span className="font-semibold text-slate-800">{detailItem.prodi || '-'}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-2xs block uppercase font-bold">Nomor Tagihan Terkait:</span>

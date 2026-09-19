@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, Filter, Loader2, Save, CheckCircle2, XCircle } from 'lucide-react';
+import { Filter, Info, CheckCircle2, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
-import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { useForm } from 'react-hook-form';
+import { Select } from '@/components/ui/Select';
 
 interface JalurKelas {
   id: number;
@@ -19,11 +16,7 @@ interface JalurKelas {
   nama_jalur: string;
   deskripsi?: string;
   is_active?: boolean;
-}
-
-interface FormValues {
-  nama_jalur: string;
-  deskripsi: string;
+  sumber?: string;
 }
 
 export interface JalurKelasTabProps {
@@ -34,18 +27,16 @@ export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
   const [data, setData] = useState<JalurKelas[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Filter Drawer — 2-stage
+  // Filter Drawer
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [filterSortBy, setFilterSortBy] = useState('nama_jalur');
+  const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
 
-  // Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<JalurKelas | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
-    defaultValues: { nama_jalur: '', deskripsi: '' },
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: '',
+    sortBy: 'nama_jalur',
+    sortDir: 'asc' as 'asc' | 'desc',
   });
 
   const fetchData = async () => {
@@ -55,7 +46,7 @@ export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
       setData(Array.isArray(res.data) ? res.data : []);
     } catch {
       setData([]);
-      toast.error('Gagal memuat data jalur kelas');
+      toast.error('Gagal memuat data master jalur kelas dari SPMB');
     } finally {
       setLoading(false);
     }
@@ -65,82 +56,70 @@ export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
     fetchData();
   }, []);
 
-  const handleOpenAdd = () => {
-    setEditingItem(null);
-    reset({ nama_jalur: '', deskripsi: '' });
-    setIsModalOpen(true);
+  const handleApplyFilter = () => {
+    setAppliedFilters({
+      search: filterSearch,
+      sortBy: filterSortBy,
+      sortDir: filterSortDir,
+    });
+    setShowFilter(false);
   };
+
+  const handleResetFilter = () => {
+    setFilterSearch('');
+    setFilterSortBy('nama_jalur');
+    setFilterSortDir('asc');
+    setAppliedFilters({
+      search: '',
+      sortBy: 'nama_jalur',
+      sortDir: 'asc',
+    });
+    setShowFilter(false);
+  };
+
+  const isFiltered = Boolean(appliedFilters.search);
 
   useEffect(() => {
     if (setHeaderAction) {
       setHeaderAction(
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilter(true)}
+            icon={<Filter size={16} />}
+            className="font-bold min-h-[38px] text-xs"
+          >
             Filter
-            {appliedSearch && <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>}
-          </Button>
-          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
-            Tambah Jalur Kelas
+            {isFiltered && <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>}
           </Button>
         </div>
       );
     }
-  }, [setHeaderAction, appliedSearch]);
-
-  const handleOpenEdit = (item: JalurKelas) => {
-    setEditingItem(item);
-    reset({ nama_jalur: item.nama_jalur, deskripsi: item.deskripsi || '' });
-    setIsModalOpen(true);
-  };
-
-  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: number | null; label?: string }>({ isOpen: false, id: null, label: '' });
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const handleOpenDelete = (id: number, nama: string) => {
-    setDeleteModal({ isOpen: true, id, label: nama });
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deleteModal.id) return;
-    try {
-      setDeleteLoading(true);
-      await sikeuService.deleteJalurKelas(deleteModal.id);
-      toast.success('Jalur kelas berhasil dihapus');
-      setDeleteModal({ isOpen: false, id: null, label: '' });
-      fetchData();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Gagal menghapus jalur kelas');
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
-  const onSubmit = async (formData: FormValues) => {
-    setSubmitting(true);
-    try {
-      if (editingItem) {
-        await sikeuService.updateJalurKelas(editingItem.id, formData);
-        toast.success('Jalur kelas berhasil diperbarui');
-      } else {
-        await sikeuService.storeJalurKelas(formData);
-        toast.success('Jalur kelas baru berhasil ditambahkan');
-      }
-      setIsModalOpen(false);
-      fetchData();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Gagal menyimpan jalur kelas');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  }, [setHeaderAction, isFiltered]);
 
   const filteredData = useMemo(() => {
-    if (!appliedSearch) return data;
-    const q = appliedSearch.toLowerCase();
-    return data.filter((item) =>
-      item.nama_jalur?.toLowerCase().includes(q) || item.deskripsi?.toLowerCase().includes(q) || item.kode?.toLowerCase().includes(q)
-    );
-  }, [data, appliedSearch]);
+    const list = data.filter((item) => {
+      if (appliedFilters.search) {
+        const q = appliedFilters.search.toLowerCase();
+        return (
+          item.nama_jalur?.toLowerCase().includes(q) ||
+          item.deskripsi?.toLowerCase().includes(q) ||
+          item.kode?.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let valA: any = a[appliedFilters.sortBy as keyof JalurKelas] ?? '';
+      let valB: any = b[appliedFilters.sortBy as keyof JalurKelas] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return appliedFilters.sortDir === 'asc' ? -1 : 1;
+      if (valA > valB) return appliedFilters.sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [data, appliedFilters]);
 
   const columns: ColumnDef<JalurKelas>[] = [
     {
@@ -166,6 +145,15 @@ export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
       ),
     },
     {
+      key: 'sumber',
+      label: 'SUMBER DATA',
+      render: () => (
+        <span className="badge badge-purple text-xs font-bold inline-flex items-center gap-1">
+          <Layers size={12} /> Modul SPMB
+        </span>
+      ),
+    },
+    {
       key: 'is_active',
       label: 'STATUS',
       render: (row) =>
@@ -175,34 +163,9 @@ export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
           </span>
         ) : (
           <span className="badge badge-red text-xs font-bold inline-flex items-center gap-1">
-            <XCircle size={12} /> Non-Aktif
+            Non-Aktif
           </span>
         ),
-    },
-    {
-      key: 'actions',
-      label: 'AKSI',
-      align: 'right',
-      render: (row) => (
-        <div className="flex items-center justify-end">
-          <DropdownMenu
-            align="right"
-            items={[
-              {
-                label: 'Edit Jalur Kelas',
-                icon: <Edit size={14} />,
-                onClick: () => handleOpenEdit(row),
-              },
-              {
-                label: 'Hapus Jalur Kelas',
-                icon: <Trash2 size={14} />,
-                variant: 'danger',
-                onClick: () => handleOpenDelete(row.id, row.nama_jalur),
-              },
-            ]}
-          />
-        </div>
-      ),
     },
   ];
 
@@ -210,74 +173,98 @@ export function JalurKelasTab({ setHeaderAction }: JalurKelasTabProps = {}) {
     <>
       {!setHeaderAction && (
         <div className="flex items-center justify-end gap-2 flex-wrap mb-4">
-          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilter(true)}
+            icon={<Filter size={16} />}
+            className="font-bold min-h-[38px] text-xs"
+          >
             Filter
-          </Button>
-          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
-            Tambah Jalur Kelas
+            {isFiltered && <span className="w-1.5 h-1.5 rounded-full bg-primary-600 ml-1"></span>}
           </Button>
         </div>
       )}
 
-      <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data jalur kelas." />
+      {/* Info Banner Integrasi SPMB */}
+      <div className="p-4 bg-primary-50/60 border border-primary-200/80 rounded-2xl flex items-start gap-3 text-xs text-primary-950">
+        <Info size={18} className="text-primary-600 shrink-0 mt-0.5" />
+        <div className="space-y-1 leading-relaxed">
+          <span className="font-bold block">Master Jalur Masuk Terpusat dari Modul SPMB</span>
+          <span>
+            Data master tipe jalur pendaftaran dan kelas dikelola secara terpusat oleh panitia di <strong>Modul SPMB</strong>. Modul Keuangan (SIKEU) secara otomatis mengambil dan menyelaraskan data ini sebagai acuan tarif UKT dan penagihan mahasiswa tanpa perlu konfigurasi ganda.
+          </span>
+        </div>
+      </div>
 
-      {/* Modal Create / Edit */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
-        title={editingItem ? 'Edit Jalur Kelas' : 'Tambah Jalur Kelas Baru'}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <Input label="Nama Jalur / Kelas *" placeholder="Contoh: Reguler, Karyawan / Eksekutif"
-            {...register('nama_jalur', { required: 'Nama jalur wajib diisi' })}
-            error={errors.nama_jalur?.message} />
-          <Input label="Deskripsi / Catatan" placeholder="Penjelasan singkat mengenai jalur kelas ini..."
-            {...register('deskripsi')} />
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} disabled={submitting} className="font-bold text-slate-600">
-              Batal
-            </Button>
-            <Button type="submit" variant="primary" disabled={submitting}
-              icon={submitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-              className="font-bold shadow-md">
-              {submitting ? 'Menyimpan...' : editingItem ? 'Perbarui' : 'Simpan'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <DataTable
+        data={filteredData}
+        isLoading={loading}
+        columns={columns}
+        emptyMessage="Belum ada data master jalur kelas dari SPMB."
+      />
 
       {/* Filter Drawer */}
-      <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Jalur Kelas" width="420px"
+      <Drawer
+        isOpen={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Jalur Kelas"
+        width="420px"
         footer={
           <div className="flex items-center justify-between gap-3">
-            <Button type="button" variant="outline" onClick={() => { setFilterSearch(''); setAppliedSearch(''); setShowFilter(false); }}
-              className="font-bold text-slate-600 min-h-[42px] px-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleResetFilter}
+              className="font-bold text-slate-600 min-h-[42px] px-4"
+            >
               Reset
             </Button>
-            <Button type="button" variant="primary" onClick={() => { setAppliedSearch(filterSearch); setShowFilter(false); }}
-              className="font-bold min-h-[42px] px-5 shadow-md">
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleApplyFilter}
+              className="font-bold min-h-[42px] px-5 shadow-md"
+            >
               Terapkan Filter
             </Button>
           </div>
-        }>
+        }
+      >
         <div className="space-y-5">
-          <Input label="Cari Nama atau Kode Jalur" placeholder="Ketik kata kunci..."
-            value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
+          <Input
+            label="Cari Nama atau Kode Jalur"
+            placeholder="Ketik kata kunci..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
+
+          <div className="pt-3 border-t border-slate-100">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Pengurutan Data</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Urutkan Berdasarkan"
+                value={filterSortBy}
+                onChange={(val) => setFilterSortBy(val as string)}
+                options={[
+                  { value: 'nama_jalur', label: 'Nama Jalur' },
+                  { value: 'kode', label: 'Kode Jalur' },
+                  { value: 'id', label: 'ID Jalur' },
+                ]}
+              />
+              <Select
+                label="Arah Urutan"
+                value={filterSortDir}
+                onChange={(val) => setFilterSortDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'Menaik (A-Z)' },
+                  { value: 'desc', label: 'Menurun (Z-A)' },
+                ]}
+              />
+            </div>
+          </div>
         </div>
       </Drawer>
-
-      <ConfirmDialog
-        isOpen={deleteModal.isOpen}
-        onClose={() => !deleteLoading && setDeleteModal({ isOpen: false, id: null, label: '' })}
-        onConfirm={handleConfirmDelete}
-        isLoading={deleteLoading}
-        title="Hapus Jalur Kelas"
-        message={
-          <span>
-            Apakah Anda yakin ingin menghapus jalur kelas <strong>&quot;{deleteModal.label}&quot;</strong>?
-            Tindakan ini tidak dapat dibatalkan.
-          </span>
-        }
-        confirmText="Ya, Hapus"
-        cancelText="Batal"
-      />
     </>
   );
 }
+
