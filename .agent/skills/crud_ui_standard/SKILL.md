@@ -144,3 +144,15 @@ const fetchUsers = async () => {
 - Tombol akses filter (ikon *Filter* Lucide) diletakkan sejajar dengan tombol "Tambah Data" (di area `action` pada `<PageHeader />`), **dengan posisi tombol Filter WAJIB di sebelah KIRI tombol Tambah Data (`[Filter] [Tambah Data]`)**.
 - Opsi limitasi jumlah data (Limit) **diletakkan dan dikelola di bagian bawah `<DataTable />`**, BUKAN di dalam komponen *Drawer*. 
 - Opsi untuk pengurutan data (*Order By*, *Direction*) jika ada, diletakkan di dalam *Drawer*.
+
+### C. Standar Navigasi Tab Halaman (Divided Bottom Border Navigation)
+- Jika halaman memiliki beberapa sub-kategori/sub-tabel yang dipisahkan oleh tab, navigasi tab **WAJIB** menggunakan format bar horizontal dengan pembatas border bawah (`flex border-b border-slate-200 gap-1 sm:gap-2 overflow-x-auto pb-0.5`) seperti standar SIMPEG Presensi (`/simpeg/presensi`).
+- **DILARANG KERAS** menggunakan gaya tab oval/pills yang dibungkus dalam wadah abu-abu cembung/terisolasi (`bg-slate-50 border rounded-2xl`).
+- Indikator aktif ditandai dengan `border-b-2 border-primary-600 text-primary-700 bg-primary-50/60 font-bold rounded-t-xl`.
+
+### D. Posisi Tombol Pengaturan / Toggle Status Global (Wajib di PageHeader Action, Sebelah Kiri Filter)
+- Apabila terdapat tombol switcher skema, toggle status modul, atau konfigurasi global (contoh: `Skema UKT: ON/OFF`), tombol tersebut **WAJIB** dinaikkan ke level halaman utama pada prop `action` komponen `<PageHeader />`.
+- Posisi tombol pengaturan/toggle global ini **WAJIB** berada di sebelah **KIRI** tombol Filter:
+  `[Tombol Toggle / Pengaturan Global] -> [Tombol Filter] -> [Tombol Tambah Data]`
+- DILARANG meletakkan tombol toggle konfigurasi global di dalam card tabel atau di Table Action Bar bawah.
+

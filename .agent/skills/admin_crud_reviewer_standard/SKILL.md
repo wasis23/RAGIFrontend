@@ -233,3 +233,79 @@ Semua halaman admin yang membutuhkan filter **WAJIB**:
   />
   ```
 
+---
+
+## 11. Aturan Standar Navigasi Tab (Divided Bottom Border Navigation)
+- Navigasi antar-tab pada halaman multi-tab **WAJIB** menggunakan format bar horizontal dengan garis border bawah kontinu (`border-b border-slate-200`) seperti pada modul SIMPEG Presensi (`/simpeg/presensi`).
+- **DILARANG KERAS** menggunakan format tab oval/pills yang dibungkus dalam container abu-abu cembung/terisolasi (`bg-slate-50 border rounded-2xl`).
+- Struktur tab item standar:
+  ```tsx
+  <div className="flex border-b border-slate-200 gap-1 sm:gap-2 overflow-x-auto pb-0.5">
+    {tabs.map((tab) => {
+      const isTabActive = activeTab === tab.id;
+      return (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => setActiveTab(tab.id)}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            isTabActive
+              ? 'border-primary-600 text-primary-700 bg-primary-50/60'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+          }`}
+        >
+          <tab.icon size={15} className={isTabActive ? 'text-primary-600' : 'text-slate-400'} />
+          <span>{tab.label}</span>
+          {tab.badge && (
+            <span className={`text-2xs px-1.5 py-0.5 rounded font-semibold ${
+              isTabActive ? 'bg-primary-100 text-primary-700' : 'bg-slate-200/80 text-slate-600'
+            }`}>
+              {tab.badge}
+            </span>
+          )}
+        </button>
+      );
+    })}
+  </div>
+  ```
+
+---
+
+## 12. Aturan Posisi Tombol Pengaturan Global / Toggle Status (Wajib di Sebelah KIRI Filter)
+- Tombol toggle status modul atau konfigurasi global (seperti `Skema UKT: ON/OFF`, switcher mode aplikasi, toggle fitur) **WAJIB** ditempatkan di bagian atas pada prop `action` komponen `<PageHeader />`.
+- **DILARANG KERAS** menyisipkan tombol konfigurasi/toggle global ke dalam *Table Action Bar* atau berserakan di bawah tabel.
+- **Urutan Standar Elemen di PageHeader Action**:
+  `[Tombol Toggle / Pengaturan Global] -> [Tombol Filter] -> [Tombol Tambah Data]`
+  ```tsx
+  <PageHeader
+    title="Pengaturan Tarif Mahasiswa"
+    breadcrumbs={[...]}
+    action={
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* 1. Tombol Toggle / Setting Global */}
+        <button
+          type="button"
+          onClick={handleToggleUkt}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs border ${
+            isUktEnabled
+              ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
+              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          <CheckCircle2 size={14} />
+          <span>Skema UKT: {isUktEnabled ? 'ON' : 'OFF'}</span>
+        </button>
+
+        {/* 2. Tombol Filter Outline */}
+        <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />}>
+          Filter
+        </Button>
+
+        {/* 3. Tombol Tambah Data Primary */}
+        <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />}>
+          Tambah Data
+        </Button>
+      </div>
+    }
+  />
+  ```

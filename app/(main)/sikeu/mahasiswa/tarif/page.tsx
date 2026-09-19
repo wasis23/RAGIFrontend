@@ -8,6 +8,8 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Info,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -147,12 +149,35 @@ export default function PengaturanTarifMahasiswaPage() {
         ]}
         title="Pengaturan Tarif & Beasiswa Mahasiswa"
         description="Kelola matriks tarif per angkatan, golongan UKT, jalur kelas, dan subsidi beasiswa yang menjadi acuan penerbitan tagihan mahasiswa."
-        action={headerAction}
+        action={
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleToggleUkt}
+              disabled={togglingUkt || loadingSetting}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs border ${
+                isUktEnabled
+                  ? 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {togglingUkt ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : isUktEnabled ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <SlidersHorizontal size={14} />
+              )}
+              <span>Skema UKT: {isUktEnabled ? 'ON' : 'OFF'}</span>
+            </button>
+            {headerAction}
+          </div>
+        }
       />
 
-      {/* Sub-Tabs Pills Selector */}
-      <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-2.5 space-y-2">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+      {/* Modern Navigation Tabs (Mengikuti Format Simpeg Presensi) */}
+      <div className="space-y-3">
+        <div className="flex border-b border-slate-200 gap-1 sm:gap-2 overflow-x-auto pb-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isTabActive = activeTab === tab.id;
@@ -165,10 +190,10 @@ export default function PengaturanTarifMahasiswaPage() {
                   setHeaderAction(null);
                   setActiveTab(tab.id);
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all duration-150 ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer whitespace-nowrap ${
                   isTabActive
-                    ? 'bg-white text-primary-700 shadow-xs border border-slate-200/80 ring-1 ring-primary-200'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    ? 'border-primary-600 text-primary-700 bg-primary-50/60'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
                 }`}
               >
                 <Icon
@@ -178,10 +203,10 @@ export default function PengaturanTarifMahasiswaPage() {
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
-                    className={`text-2xs px-1.5 py-0.2 rounded font-semibold ${
+                    className={`text-2xs px-1.5 py-0.5 rounded font-semibold ${
                       isTabActive
                         ? 'bg-primary-100 text-primary-700'
-                        : 'bg-slate-200 text-slate-600'
+                        : 'bg-slate-200/80 text-slate-600'
                     }`}
                   >
                     {tab.badge}
@@ -194,7 +219,7 @@ export default function PengaturanTarifMahasiswaPage() {
 
         {/* Current Active SubTab Description Helper Banner */}
         {currentTabMeta && (
-          <div className="px-3 py-2 bg-white/80 rounded-xl border border-slate-200/60 flex items-center gap-2 text-xs text-slate-600">
+          <div className="px-3.5 py-2 bg-slate-50/90 rounded-xl border border-slate-200/70 flex items-center gap-2 text-xs text-slate-600">
             <Info size={14} className="text-primary-600 shrink-0" />
             <span>{currentTabMeta.description}</span>
           </div>
@@ -204,15 +229,7 @@ export default function PengaturanTarifMahasiswaPage() {
       {/* Tab Content Body Container */}
       <div className="w-full space-y-6">
         {activeTab === 'setting_tarif' && <SettingTarifTab setHeaderAction={setHeaderAction} />}
-        {activeTab === 'tarif_ukt' && (
-          <TarifTab
-            isUktEnabled={isUktEnabled}
-            togglingUkt={togglingUkt}
-            loadingSetting={loadingSetting}
-            onToggleUkt={handleToggleUkt}
-            setHeaderAction={setHeaderAction}
-          />
-        )}
+        {activeTab === 'tarif_ukt' && <TarifTab setHeaderAction={setHeaderAction} />}
         {activeTab === 'jalur_kelas' && <JalurKelasTab setHeaderAction={setHeaderAction} />}
         {activeTab === 'student_types' && <StudentTypesTab setHeaderAction={setHeaderAction} />}
         {activeTab === 'beasiswa' && <BeasiswaTab setHeaderAction={setHeaderAction} />}

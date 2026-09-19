@@ -75,48 +75,46 @@ export default function MasterKeuanganGlobalPage() {
         }
       />
 
-      {/* Sub-Tabs Pills Selector */}
-      <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-2">
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-          <button
-            type="button"
-            onClick={() => setActiveTab('jenis_biaya')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeTab === 'jenis_biaya'
-                ? 'bg-primary-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200/70'
-            }`}
-          >
-            <Layers size={14} />
-            <span>Katalog Komponen Biaya</span>
-          </button>
+      {/* Navigation Tabs (Mengikuti Format Simpeg Presensi) */}
+      <div className="flex border-b border-slate-200 gap-1 sm:gap-2 overflow-x-auto pb-0.5">
+        <button
+          type="button"
+          onClick={() => setActiveTab('jenis_biaya')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'jenis_biaya'
+              ? 'border-primary-600 text-primary-700 bg-primary-50/60'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+          }`}
+        >
+          <Layers size={15} className={activeTab === 'jenis_biaya' ? 'text-primary-600' : 'text-slate-400'} />
+          <span>Katalog Komponen Biaya</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('beasiswa')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeTab === 'beasiswa'
-                ? 'bg-primary-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200/70'
-            }`}
-          >
-            <ShieldCheck size={14} />
-            <span>Skema Program Beasiswa</span>
-          </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('beasiswa')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'beasiswa'
+              ? 'border-primary-600 text-primary-700 bg-primary-50/60'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+          }`}
+        >
+          <ShieldCheck size={15} className={activeTab === 'beasiswa' ? 'text-primary-600' : 'text-slate-400'} />
+          <span>Skema Program Beasiswa</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('unit_kas')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeTab === 'unit_kas'
-                ? 'bg-primary-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-200/70'
-            }`}
-          >
-            <Building2 size={14} />
-            <span>Unit Kas & Rekening</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('unit_kas')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'unit_kas'
+              ? 'border-primary-600 text-primary-700 bg-primary-50/60'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+          }`}
+        >
+          <Building2 size={15} className={activeTab === 'unit_kas' ? 'text-primary-600' : 'text-slate-400'} />
+          <span>Unit Kas & Rekening</span>
+        </button>
       </div>
 
       {/* Helper Banner */}
