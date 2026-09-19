@@ -8,7 +8,6 @@ import { sikeuService } from '@/services/sikeu.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -317,20 +316,21 @@ export function BeasiswaTab() {
 
   return (
     <>
-      <PageHeader
-        title="Master Program Beasiswa"
-        description="Kelola skema beasiswa, sumber dana, besaran potongan, dan cakupan komponen biaya."
-        action={
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[40px]">
-              Filter
-            </Button>
-            <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[40px] px-4 shadow-sm">
-              Tambah Master Beasiswa
-            </Button>
-          </div>
-        }
-      />
+      {/* Table Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-sm font-bold text-slate-900">Daftar Program Beasiswa</h2>
+          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+            Filter
+          </Button>
+          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+            Tambah Master Beasiswa
+          </Button>
+        </div>
+      </div>
 
       {/* Active Filters */}
       {(appliedFilters.search || appliedFilters.sumber) && (

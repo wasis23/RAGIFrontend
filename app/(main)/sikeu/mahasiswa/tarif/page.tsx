@@ -150,6 +150,11 @@ export default function PengaturanTarifMahasiswaPage() {
     <div className="w-full space-y-6 animate-fade-in pb-6">
       {/* Page Header */}
       <PageHeader
+        breadcrumbs={[
+          { label: 'Keuangan', href: '/sikeu' },
+          { label: 'Mahasiswa', href: '/sikeu/mahasiswa/tagihan' },
+          { label: 'Pengaturan Tarif' },
+        ]}
         title="Pengaturan Tarif & Beasiswa Mahasiswa"
         description="Kelola matriks tarif per angkatan, golongan UKT, jalur kelas, dan subsidi beasiswa yang menjadi acuan penerbitan tagihan mahasiswa."
         action={

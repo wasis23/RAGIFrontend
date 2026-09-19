@@ -49,6 +49,10 @@ export default function MasterKeuanganGlobalPage() {
     <div className="w-full space-y-6 animate-fade-in pb-6">
       {/* Page Header */}
       <PageHeader
+        breadcrumbs={[
+          { label: 'Keuangan', href: '/sikeu' },
+          { label: 'Master Keuangan' },
+        ]}
         title="Master & Katalog Keuangan Global"
         description="Kelola kamus komponen biaya institusi, skema beasiswa/diskon, penetapan potongan mahasiswa, dan unit kas kampus."
         action={

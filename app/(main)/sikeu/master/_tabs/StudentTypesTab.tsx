@@ -7,7 +7,6 @@ import { sikeuService } from '@/services/sikeu.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -285,29 +284,30 @@ export function StudentTypesTab() {
 
   return (
     <>
-      <PageHeader
-        title="Penetapan Tipe Tagihan & Golongan Mahasiswa"
-        description="Petakan mahasiswa ke jalur kelas (Reguler/Karyawan/Internasional) dan golongan UKT masing-masing."
-        action={
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              variant="outline"
-              onClick={handleSyncStudents}
-              disabled={syncing}
-              icon={syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-              className="font-bold min-h-[40px]"
-            >
-              {syncing ? 'Menyinkronkan...' : 'Sinkronisasi SIAKAD / SPMB'}
-            </Button>
-            <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[40px]">
-              Filter
-            </Button>
-            <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[40px] px-4 shadow-sm">
-              Penetapan Tipe Mahasiswa
-            </Button>
-          </div>
-        }
-      />
+      {/* Table Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-sm font-bold text-slate-900">Daftar Tipe Tagihan & Golongan Mahasiswa</h2>
+          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={handleSyncStudents}
+            disabled={syncing}
+            icon={syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            className="font-bold min-h-[38px] text-xs"
+          >
+            {syncing ? 'Menyinkronkan...' : 'Sinkronisasi SIAKAD / SPMB'}
+          </Button>
+          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+            Filter
+          </Button>
+          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+            Penetapan Tipe Mahasiswa
+          </Button>
+        </div>
+      </div>
 
       <div className="p-4 bg-primary-50/60 border border-primary-200/80 rounded-2xl flex items-start gap-3 text-xs text-primary-950">
         <Info size={18} className="text-primary-600 shrink-0 mt-0.5" />

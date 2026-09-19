@@ -7,9 +7,9 @@ import { sikeuService } from '@/services/sikeu.service';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useForm } from 'react-hook-form';
 
@@ -164,15 +164,23 @@ export function JalurKelasTab() {
       label: 'AKSI',
       align: 'right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button size="sm" variant="ghost" onClick={() => handleOpenEdit(row)} icon={<Edit size={14} />}
-            className="font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50">
-            Edit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => handleOpenDelete(row.id, row.nama_jalur)} icon={<Trash2 size={14} />}
-            className="font-semibold text-rose-600 hover:bg-rose-50">
-            Hapus
-          </Button>
+        <div className="flex items-center justify-end">
+          <DropdownMenu
+            align="right"
+            items={[
+              {
+                label: 'Edit Jalur Kelas',
+                icon: <Edit size={14} />,
+                onClick: () => handleOpenEdit(row),
+              },
+              {
+                label: 'Hapus Jalur Kelas',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => handleOpenDelete(row.id, row.nama_jalur),
+              },
+            ]}
+          />
         </div>
       ),
     },
@@ -180,20 +188,21 @@ export function JalurKelasTab() {
 
   return (
     <>
-      <PageHeader
-        title="Jalur & Kelas"
-        description="Kelola jalur masuk dan tipe kelas mahasiswa yang tersedia di sistem keuangan."
-        action={
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[40px]">
-              Filter
-            </Button>
-            <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[40px] px-4 shadow-sm">
-              Tambah Jalur Kelas
-            </Button>
-          </div>
-        }
-      />
+      {/* Table Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs mb-4">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-sm font-bold text-slate-900">Daftar Jalur & Kelas</h2>
+          <span className="badge badge-blue text-xs font-semibold">{filteredData.length} Data</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setShowFilter(true)} icon={<Filter size={16} />} className="font-bold min-h-[38px] text-xs">
+            Filter
+          </Button>
+          <Button variant="primary" onClick={handleOpenAdd} icon={<Plus size={16} />} className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm">
+            Tambah Jalur Kelas
+          </Button>
+        </div>
+      </div>
 
       <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data jalur kelas." />
 
