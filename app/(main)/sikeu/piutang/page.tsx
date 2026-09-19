@@ -88,15 +88,38 @@ export default function PiutangMahasiswaPage() {
     sort_order: 'desc',
   });
 
+  const [angkatanList, setAngkatanList] = useState<{ value: string; label: string }[]>([]);
+  const [tahunAkademikList, setTahunAkademikList] = useState<{ value: string; label: string }[]>([]);
+
   useEffect(() => {
-    const loadProdi = async () => {
+    const loadMasters = async () => {
       try {
-        const res = await sikeuService.getProgramStudiList();
-        if (Array.isArray(res.data)) {
+        const [resProdi, resAngkatan, resTa] = await Promise.all([
+          sikeuService.getProgramStudiList(),
+          sikeuService.getAngkatanList().catch(() => ({ data: [] })),
+          sikeuService.getTahunAkademikList().catch(() => ({ data: [] })),
+        ]);
+        if (Array.isArray(resProdi.data)) {
           setProdiList(
-            res.data.map((p: any) => ({
+            resProdi.data.map((p: any) => ({
               value: String(p.id),
               label: p.jenjang ? `${p.jenjang} - ${p.nama || p.nama_prodi}` : (p.nama || p.nama_prodi),
+            }))
+          );
+        }
+        if (Array.isArray(resAngkatan.data)) {
+          setAngkatanList(
+            resAngkatan.data.map((a: number) => ({
+              value: String(a),
+              label: `Angkatan ${a}`,
+            }))
+          );
+        }
+        if (Array.isArray(resTa.data)) {
+          setTahunAkademikList(
+            resTa.data.map((t: any) => ({
+              value: String(t.id),
+              label: t.nama || t.tahun_akademik || `TA ${t.id}`,
             }))
           );
         }
@@ -104,7 +127,7 @@ export default function PiutangMahasiswaPage() {
         // Fallback
       }
     };
-    loadProdi();
+    loadMasters();
   }, []);
 
   const fetchPiutang = useCallback(async (page = 1) => {
@@ -252,8 +275,15 @@ export default function PiutangMahasiswaPage() {
       label: 'MAHASISWA',
       render: (row) => (
         <div>
-          <p className="font-bold text-slate-900 text-sm">{row.nama_mahasiswa}</p>
-          <p className="font-mono text-xs text-slate-500">NIM: {row.nim}</p>
+          <p className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+            <span>{row.nama_mahasiswa}</span>
+            {(row as any).is_calon_mahasiswa && (
+              <span className="badge badge-amber text-[10px] font-bold py-0 px-1">Calon Mhs</span>
+            )}
+          </p>
+          <p className="font-mono text-xs text-slate-500">
+            {row.nim && row.nim !== '-' ? `NIM: ${row.nim}` : ((row as any).no_pendaftaran ? `Reg: ${(row as any).no_pendaftaran}` : '-')}
+          </p>
         </div>
       ),
     },
@@ -534,11 +564,19 @@ export default function PiutangMahasiswaPage() {
               onChange={(val: any) => setFilterAngkatan(typeof val === 'object' && val?.target ? val.target.value : (val || 'all'))}
               options={[
                 { value: 'all', label: 'Semua Angkatan' },
-                { value: '2026', label: 'Angkatan 2026' },
-                { value: '2025', label: 'Angkatan 2025' },
-                { value: '2024', label: 'Angkatan 2024' },
-                { value: '2023', label: 'Angkatan 2023' },
-                { value: '2022', label: 'Angkatan 2022' },
+                ...angkatanList,
+              ]}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">Tahun Akademik</label>
+            <Select
+              value={filterTahunAkademik}
+              onChange={(val: any) => setFilterTahunAkademik(typeof val === 'object' && val?.target ? val.target.value : (val || 'all'))}
+              options={[
+                { value: 'all', label: 'Semua Tahun Akademik' },
+                ...tahunAkademikList,
               ]}
             />
           </div>

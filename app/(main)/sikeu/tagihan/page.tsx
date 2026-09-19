@@ -34,13 +34,18 @@ interface TagihanItem {
   status: 'lunas' | 'belum_bayar' | 'pending_approval' | 'sebagian' | 'dispensasi' | string;
   jatuhTempo: string;
   source: string;
+  is_calon_mahasiswa?: boolean;
+  no_pendaftaran?: string;
 }
 
 export default function TagihanListPage() {
   const router = useRouter();
   const [data, setData] = useState<TagihanItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>(null);
   const [prodiList, setProdiList] = useState<{ value: string; label: string }[]>([]);
+  const [angkatanList, setAngkatanList] = useState<{ value: string; label: string }[]>([]);
 
   // Filter Drawer State — 2-stage
   const [showFilter, setShowFilter] = useState(false);
@@ -53,12 +58,15 @@ export default function TagihanListPage() {
   const [appliedFilters, setAppliedFilters] = useState({ search: '', angkatan: 'all', prodi: 'all', status: 'all', orderBy: 'nomor', orderDir: 'desc' as 'asc' | 'desc' });
 
   useEffect(() => {
-    const loadProdi = async () => {
+    const loadMasters = async () => {
       try {
-        const res = await sikeuService.getProgramStudiList();
-        if (Array.isArray(res.data)) {
+        const [resProdi, resAngkatan] = await Promise.all([
+          sikeuService.getProgramStudiList(),
+          sikeuService.getAngkatanList().catch(() => ({ data: [] })),
+        ]);
+        if (Array.isArray(resProdi.data)) {
           setProdiList(
-            res.data.map((p: any) => {
+            resProdi.data.map((p: any) => {
               const rawName = p.nama || p.nama_prodi || 'Program Studi';
               const jenjang = p.jenjang || '';
               const label = jenjang && !rawName.startsWith(jenjang) ? `${jenjang} - ${rawName}` : rawName;
@@ -69,30 +77,48 @@ export default function TagihanListPage() {
             })
           );
         }
+        if (Array.isArray(resAngkatan.data)) {
+          setAngkatanList(
+            resAngkatan.data.map((a: number) => ({
+              value: String(a),
+              label: `Angkatan ${a}`,
+            }))
+          );
+        }
       } catch {
         // Fallback
       }
     };
-    loadProdi();
+    loadMasters();
   }, []);
 
   const fetchTagihan = async () => {
     setLoading(true);
     try {
       const res = await sikeuService.getTagihanList({
-        page: 1,
-        per_page: 100,
+        page: page,
+        per_page: 15,
         search: appliedFilters.search || undefined,
         status: appliedFilters.status !== 'all' ? appliedFilters.status : undefined,
         tahun_angkatan: appliedFilters.angkatan !== 'all' ? parseInt(appliedFilters.angkatan) : undefined,
         program_studi_id: appliedFilters.prodi !== 'all' ? parseInt(appliedFilters.prodi) : undefined,
+        order_by: appliedFilters.orderBy,
+        order_direction: appliedFilters.orderDir,
       });
 
       const raw = Array.isArray(res.data) ? res.data : [];
-      if (raw.length > 0) {
-        setData(raw);
+      setData(raw);
+      if (res.meta) {
+        setMeta(res.meta);
       } else {
-        setData([]);
+        setMeta({
+          current_page: page,
+          from: (page - 1) * 15 + 1,
+          to: (page - 1) * 15 + raw.length,
+          last_page: 1,
+          per_page: 15,
+          total: raw.length,
+        });
       }
     } catch {
       setData([]);
@@ -104,10 +130,10 @@ export default function TagihanListPage() {
 
   useEffect(() => {
     fetchTagihan();
-  }, [appliedFilters]);
-
+  }, [page, appliedFilters]);
 
   const handleApplyFilter = () => {
+    setPage(1);
     setAppliedFilters({ search: filterSearch, angkatan: filterAngkatan, prodi: filterProdi, status: filterStatus, orderBy: filterOrderBy, orderDir: filterOrderDir });
     setShowFilter(false);
   };
@@ -119,34 +145,10 @@ export default function TagihanListPage() {
     setFilterStatus('all');
     setFilterOrderBy('nomor');
     setFilterOrderDir('desc');
+    setPage(1);
     setAppliedFilters({ search: '', angkatan: 'all', prodi: 'all', status: 'all', orderBy: 'nomor', orderDir: 'desc' });
     setShowFilter(false);
   };
-
-  const filteredData = useMemo(() => {
-    const list = data.filter((item) => {
-      if (appliedFilters.search) {
-        const q = appliedFilters.search.toLowerCase();
-        if (!item.nama?.toLowerCase().includes(q) && !item.nim?.toLowerCase().includes(q) && !item.nomor?.toLowerCase().includes(q)) return false;
-      }
-      if (appliedFilters.angkatan !== 'all' && String(item.angkatan) !== appliedFilters.angkatan) return false;
-      if (appliedFilters.prodi !== 'all') {
-        if (item.program_studi_id && String(item.program_studi_id) !== appliedFilters.prodi) return false;
-      }
-      if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
-      return true;
-    });
-
-    return [...list].sort((a, b) => {
-      let valA: any = a[appliedFilters.orderBy as keyof TagihanItem] ?? '';
-      let valB: any = b[appliedFilters.orderBy as keyof TagihanItem] ?? '';
-      if (typeof valA === 'string') valA = valA.toLowerCase();
-      if (typeof valB === 'string') valB = valB.toLowerCase();
-      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
-      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [data, appliedFilters]);
 
   const columns: ColumnDef<TagihanItem>[] = [
     {
@@ -166,8 +168,15 @@ export default function TagihanListPage() {
       label: 'MAHASISWA',
       render: (row) => (
         <div>
-          <p className="font-bold text-slate-900 text-sm">{row.nama}</p>
-          <p className="font-mono text-xs text-slate-500">NIM: {row.nim}</p>
+          <p className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+            <span>{row.nama}</span>
+            {row.is_calon_mahasiswa && (
+              <span className="badge badge-amber text-[10px] font-bold py-0 px-1">Calon Mhs</span>
+            )}
+          </p>
+          <p className="font-mono text-xs text-slate-500">
+            {row.nim && row.nim !== '-' ? `NIM: ${row.nim}` : (row.no_pendaftaran ? `Reg: ${row.no_pendaftaran}` : '-')}
+          </p>
         </div>
       ),
     },
@@ -177,7 +186,7 @@ export default function TagihanListPage() {
       render: (row) => (
         <div>
           <p className="text-xs font-semibold text-slate-700">{row.prodi}</p>
-          <p className="text-2xs text-slate-500">Angkatan {row.angkatan} • {row.jalur}</p>
+          <p className="text-2xs text-slate-500">Angkatan {row.angkatan || '-'} • {row.jalur || '-'}</p>
         </div>
       ),
     },
@@ -238,7 +247,7 @@ export default function TagihanListPage() {
           <DropdownMenu
             items={[
               {
-                label: 'Detail Tagihan',
+                label: 'Lihat Rincian Tagihan',
                 icon: <Eye size={14} />,
                 onClick: () => router.push(`/sikeu/tagihan/${row.id}`),
               },
@@ -250,10 +259,10 @@ export default function TagihanListPage() {
   ];
 
   return (
-    <div className="w-full space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Set Tagihan & Invoice Semester Aktif"
-        description="Aktivasi tagihan masal per Angkatan/Prodi & Layanan Pembayaran Loket / VA Mahasiswa."
+        title="Daftar Tagihan Mahasiswa"
+        description="Kelola seluruh invoice tagihan semester, UKT, dan status pembayaran mahasiswa."
         action={
           <div className="flex items-center gap-2.5 flex-wrap">
             <Button
@@ -276,7 +285,7 @@ export default function TagihanListPage() {
         }
       />
 
-      <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data tagihan semester aktif." />
+      <DataTable data={data} isLoading={loading} columns={columns} meta={meta} onPageChange={(p) => setPage(p)} emptyMessage="Belum ada data tagihan semester aktif." />
 
       {/* Filter Drawer */}
       <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Tagihan Mahasiswa" width="420px"
@@ -307,10 +316,7 @@ export default function TagihanListPage() {
             onChange={(val) => setFilterAngkatan(val as string)}
             options={[
               { value: 'all', label: 'Semua Angkatan' },
-              { value: '2023', label: '2023' },
-              { value: '2024', label: '2024' },
-              { value: '2025', label: '2025' },
-              { value: '2026', label: '2026' },
+              ...angkatanList,
             ]} />
 
           <Select label="Status Pembayaran"

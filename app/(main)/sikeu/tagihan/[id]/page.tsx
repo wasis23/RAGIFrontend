@@ -255,7 +255,7 @@ export default function TagihanDetailPage() {
               {formatRupiah(tagihan.sisa_tagihan > 0 ? tagihan.sisa_tagihan : tagihan.total_tagihan - tagihan.total_potongan)}
             </span>
             <div className="text-2xs text-slate-300">
-              Jatuh Tempo: <span className="font-semibold text-rose-300">{tagihan.jatuh_tempo || '31 Agustus 2026'}</span>
+              Jatuh Tempo: <span className="font-semibold text-rose-300">{tagihan.jatuh_tempo || '-'}</span>
             </div>
           </div>
         </div>
@@ -264,17 +264,24 @@ export default function TagihanDetailPage() {
           {/* Student Profile Info Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-slate-50/80 rounded-2xl border border-slate-200/80 print:bg-white print:border-slate-300 print:p-3">
             <div className="space-y-3 print:space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <User size={14} className="text-primary-600 print:hidden" />
-                <span>Identitas Mahasiswa</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <User size={14} className="text-primary-600 print:hidden" />
+                  <span>{tagihan.is_calon_mahasiswa || tagihan.tipe_referensi === 'calon_mahasiswa' ? 'Identitas Calon Mahasiswa (SPMB)' : 'Identitas Mahasiswa'}</span>
+                </div>
+                {(tagihan.is_calon_mahasiswa || tagihan.tipe_referensi === 'calon_mahasiswa') && (
+                  <Badge variant="warning" className="text-2xs font-bold">Calon Mahasiswa</Badge>
+                )}
               </div>
               <div>
                 <p className="text-base font-extrabold text-slate-900">{tagihan.nama_mahasiswa}</p>
-                <p className="text-xs font-mono text-slate-600">NIM: {tagihan.nim}</p>
+                <p className="text-xs font-mono text-slate-600">
+                  {tagihan.nim && tagihan.nim !== '-' ? `NIM: ${tagihan.nim}` : (tagihan.no_pendaftaran ? `No. Pendaftaran: ${tagihan.no_pendaftaran}` : '-')}
+                </p>
               </div>
               <div className="text-xs text-slate-600 space-y-1">
-                <p><span className="text-slate-400">Program Studi:</span> <span className="font-semibold text-slate-800">{tagihan.program_studi || 'Teknik Informatika'}</span></p>
-                <p><span className="text-slate-400">Angkatan:</span> {tagihan.tahun_angkatan} • <span className="text-slate-400">Jalur:</span> {tagihan.jalur_kelas}</p>
+                <p><span className="text-slate-400">Program Studi:</span> <span className="font-semibold text-slate-800">{tagihan.program_studi || '-'}</span></p>
+                <p><span className="text-slate-400">Angkatan / Tahun:</span> {tagihan.tahun_angkatan || '-'} {tagihan.jalur_kelas ? `• Jalur: ${tagihan.jalur_kelas}` : ''}</p>
               </div>
             </div>
 

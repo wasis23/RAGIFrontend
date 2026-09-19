@@ -26,11 +26,13 @@ interface PaymentItem {
   program_studi?: string;
   rincian_pembayaran?: string;
   virtual_account?: { va_number?: string; bank_nama?: string };
-  tagihan?: { nomor_tagihan?: string; mahasiswa_id?: number; rincian?: string };
+  tagihan?: { nomor_tagihan?: string; mahasiswa_id?: number; rincian?: string; is_calon_mahasiswa?: boolean; no_pendaftaran?: string };
   jumlah_bayar: number;
   waktu_bayar: string;
   channel_bayar: string;
   status: 'success' | 'pending' | 'failed' | string;
+  is_calon_mahasiswa?: boolean;
+  no_pendaftaran?: string;
 }
 
 export default function PembayaranPage() {
@@ -168,16 +170,26 @@ export default function PembayaranPage() {
     {
       key: 'mahasiswa',
       label: 'MAHASISWA',
-      render: (row) => (
-        <div>
-          <p className="font-bold text-slate-900 text-xs">{row.nama_mahasiswa || '-'}</p>
-          <div className="flex items-center gap-1 text-2xs text-slate-500 font-medium mt-0.5">
-            <span className="font-mono text-primary-700 font-bold">{row.nim || '-'}</span>
-            <span>•</span>
-            <span className="truncate max-w-[150px]">{row.program_studi || '-'}</span>
+      render: (row) => {
+        const isCalon = !!(row.is_calon_mahasiswa || row.tagihan?.is_calon_mahasiswa || (!row.nim || row.nim === '-'));
+        const regNum = row.no_pendaftaran || row.tagihan?.no_pendaftaran;
+        const idLabel = (row.nim && row.nim !== '-') ? row.nim : (regNum ? `Reg: ${regNum}` : '-');
+        return (
+          <div>
+            <p className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+              <span>{row.nama_mahasiswa || '-'}</span>
+              {isCalon && (
+                <span className="badge badge-amber text-[10px] font-bold py-0 px-1">Calon Mhs</span>
+              )}
+            </p>
+            <div className="flex items-center gap-1 text-2xs text-slate-500 font-medium mt-0.5">
+              <span className="font-mono text-primary-700 font-bold">{idLabel}</span>
+              <span>•</span>
+              <span className="truncate max-w-[150px]">{row.program_studi || '-'}</span>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'rincian_pembayaran',
@@ -402,8 +414,10 @@ export default function PembayaranPage() {
                 <span className="font-bold text-slate-900">{detailModal.nama_mahasiswa || '-'}</span>
               </div>
               <div>
-                <span className="text-slate-400 block font-medium">NIM:</span>
-                <span className="font-mono font-semibold text-slate-700">{detailModal.nim || '-'}</span>
+                <span className="text-slate-400 block font-medium">NIM / No. Reg:</span>
+                <span className="font-mono font-semibold text-slate-700">
+                  {detailModal.nim && detailModal.nim !== '-' ? detailModal.nim : (detailModal.no_pendaftaran || detailModal.tagihan?.no_pendaftaran || '-')}
+                </span>
               </div>
               <div>
                 <span className="text-slate-400 block font-medium">Program Studi:</span>

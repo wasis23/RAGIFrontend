@@ -765,7 +765,16 @@ export const sikeuService = {
   },
 
   // Daftar Tagihan Mahasiswa (Real Tagihan Index & Detail)
-  getTagihanList: async (params?: { page?: number; per_page?: number; search?: string; status?: string; tahun_angkatan?: number; program_studi_id?: number }) => {
+  getTagihanList: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    status?: string;
+    tahun_angkatan?: number;
+    program_studi_id?: number;
+    order_by?: string;
+    order_direction?: string;
+  }) => {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
@@ -773,6 +782,8 @@ export const sikeuService = {
     if (params?.status) query.append('status', params.status);
     if (params?.tahun_angkatan) query.append('tahun_angkatan', params.tahun_angkatan.toString());
     if (params?.program_studi_id) query.append('program_studi_id', params.program_studi_id.toString());
+    if (params?.order_by) query.append('order_by', params.order_by);
+    if (params?.order_direction) query.append('order_direction', params.order_direction);
     return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/tagihan?${query.toString()}`);
   },
 
@@ -800,9 +811,25 @@ export const sikeuService = {
     });
   },
 
-  // Tagihan Belum Lunas Mahasiswa untuk Kasir / Loket
-  getStudentUnpaidBills: async (studentId: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/mahasiswa/${studentId}/unpaid-bills`);
+  // Tagihan Belum Lunas Mahasiswa untuk Kasir / Loket (Support Siakad Mahasiswa & SPMB Calon Mahasiswa)
+  getStudentUnpaidBills: async (studentId: number | string, isCalon?: boolean) => {
+    const url = isCalon
+      ? `/v1/sikeu/mahasiswa/${studentId}/unpaid-bills?type=calon`
+      : `/v1/sikeu/mahasiswa/${studentId}/unpaid-bills`;
+    return fetchWithAuth<ApiResponse<any>>(url);
+  },
+
+  // Master Data Helper (Dynamic Entity Reference - Zero Hardcode)
+  getAngkatanList: async () => {
+    return fetchWithAuth<ApiResponse<number[]>>('/v1/sikeu/master/angkatan-list');
+  },
+
+  getActiveTahunAkademik: async () => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/tahun-akademik/aktif');
+  },
+
+  getTahunAkademikList: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/tahun-akademik');
   },
 
   // Generate Tagihan Semester Masal
@@ -835,13 +862,16 @@ export const sikeuService = {
 
   // Pembayaran Langsung di Kasir Loket (Direct Billing & Payment)
   processDirectCashierPayment: async (payload: {
-    mahasiswa_id: number;
+    mahasiswa_id?: number | null;
+    calon_mahasiswa_id?: number | null;
+    tipe_referensi?: string;
     items: { master_biaya_id?: number; master_biaya_kode?: string; nominal: number; keterangan?: string }[];
     jumlah_bayar: number;
     potongan?: number;
     alasan_potongan?: string;
     channel_bayar: 'LOKET_TUNAI' | 'LOKET_TRANSFER';
     catatan?: string;
+    tahun_akademik_id?: number;
   }) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran/direct-cashier', {
       method: 'POST',

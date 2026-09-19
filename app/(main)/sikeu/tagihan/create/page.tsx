@@ -38,6 +38,11 @@ interface Student {
   prodi?: string;
   unpaid_bills_count?: number;
   total_unpaid_amount?: number;
+  is_calon_mahasiswa?: boolean;
+  calon_mahasiswa_id?: number;
+  no_pendaftaran?: string;
+  nik?: string;
+  tipe_referensi?: string;
 }
 
 interface Bill {
@@ -144,7 +149,9 @@ export default function CreateTagihanPage() {
     setPotonganTambahan(0);
 
     try {
-      const res = await sikeuService.getStudentUnpaidBills(mhs.id);
+      const isCalon = !!(mhs.is_calon_mahasiswa || mhs.tipe_referensi === 'calon_mahasiswa' || !mhs.nim || mhs.nim === '-');
+      const lookupId = isCalon ? (mhs.calon_mahasiswa_id || mhs.id) : mhs.id;
+      const res = await sikeuService.getStudentUnpaidBills(lookupId, isCalon);
       if (res.data && Array.isArray(res.data.bills) && res.data.bills.length > 0) {
         const fetchedBills: Bill[] = res.data.bills.map((b: any) => ({
           id: b.id,
@@ -246,6 +253,16 @@ export default function CreateTagihanPage() {
 
     setSubmitting(true);
     try {
+      const isCalon = !!(selectedStudent.is_calon_mahasiswa || selectedStudent.tipe_referensi === 'calon_mahasiswa' || !selectedStudent.nim || selectedStudent.nim === '-');
+      const calonId = selectedStudent.calon_mahasiswa_id || (isCalon ? selectedStudent.id : undefined);
+      const mhsId = isCalon ? undefined : selectedStudent.id;
+      const identifierText = (selectedStudent.nim && selectedStudent.nim !== '-')
+        ? selectedStudent.nim
+        : (selectedStudent.no_pendaftaran ? `No. Reg: ${selectedStudent.no_pendaftaran}` : (selectedStudent.nik ? `NIK: ${selectedStudent.nik}` : '-'));
+      const safeDigits = (selectedStudent.nim && selectedStudent.nim !== '-')
+        ? selectedStudent.nim.replace(/\D/g, '')
+        : (selectedStudent.no_pendaftaran ? selectedStudent.no_pendaftaran.replace(/\D/g, '') : (selectedStudent.nik ? selectedStudent.nik.slice(-8) : String(selectedStudent.id).padStart(6, '0')));
+
       if (hasExistingBills) {
         // Mode A: Pay existing bills
         if (paymentMethod === 'tunai_loket') {
@@ -263,8 +280,10 @@ export default function CreateTagihanPage() {
 
           setResult({
             nama: selectedStudent.nama_mahasiswa,
-            nim: selectedStudent.nim,
-            kode_transaksi: res.data?.kuitansi?.kode_transaksi || 'TRX-LOKET-XXX',
+            nim: identifierText,
+            is_calon: isCalon,
+            prodi: selectedStudent.prodi || '-',
+            kode_transaksi: res.data?.kuitansi?.kode_transaksi || res.data?.kode_transaksi || 'TRX-LOKET-XXX',
             nomor_tagihan: res.data?.kuitansi?.nomor_tagihan || paidBillsList.map(b => b.nomor_tagihan).join(', '),
             paid_bills: paidBillsList,
             total: combinedTotal,
@@ -278,8 +297,10 @@ export default function CreateTagihanPage() {
         } else {
           // Generate VA
           const res = await sikeuService.createExternalBill({
-            mahasiswa_id: selectedStudent.id,
-            source_system: 'SIKEU_LOKET',
+            mahasiswa_id: mhsId,
+            calon_mahasiswa_id: calonId,
+            tipe_referensi: isCalon ? 'calon_mahasiswa' : 'mahasiswa',
+            source_system: isCalon ? 'SPMB' : 'SIKEU_LOKET',
             requires_approval: false,
             jatuh_tempo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             keterangan: catatan,
@@ -295,9 +316,11 @@ export default function CreateTagihanPage() {
           const vaData = res.data?.virtual_account;
           setResult({
             nama: selectedStudent.nama_mahasiswa,
-            nim: selectedStudent.nim,
-            va_number: vaData?.va_number || `88012${selectedStudent.nim.replace(/\D/g, '')}`,
-            bank: vaData?.bank_nama || 'Bank BNI',
+            nim: identifierText,
+            is_calon: isCalon,
+            prodi: selectedStudent.prodi || '-',
+            va_number: vaData?.va_number || (`88012${safeDigits}`),
+            bank: vaData?.bank_nama || 'Bank Kampus',
             total: combinedTotal,
             method: paymentMethod,
             expired: vaData?.expired_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19),
@@ -310,8 +333,10 @@ export default function CreateTagihanPage() {
         if (paymentMethod === 'va_bank') {
           // Mode B-1: Generate VA for Direct Items
           const res = await sikeuService.createExternalBill({
-            mahasiswa_id: selectedStudent.id,
-            source_system: 'SIKEU_LOKET',
+            mahasiswa_id: mhsId,
+            calon_mahasiswa_id: calonId,
+            tipe_referensi: isCalon ? 'calon_mahasiswa' : 'mahasiswa',
+            source_system: isCalon ? 'SPMB' : 'SIKEU_LOKET',
             requires_approval: false,
             jatuh_tempo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             keterangan: catatan,
@@ -330,9 +355,11 @@ export default function CreateTagihanPage() {
           const vaData = res.data?.virtual_account;
           setResult({
             nama: selectedStudent.nama_mahasiswa,
-            nim: selectedStudent.nim,
-            va_number: vaData?.va_number || `88012${selectedStudent.nim.replace(/\D/g, '')}`,
-            bank: vaData?.bank_nama || 'Bank BNI',
+            nim: identifierText,
+            is_calon: isCalon,
+            prodi: selectedStudent.prodi || '-',
+            va_number: vaData?.va_number || (`88012${safeDigits}`),
+            bank: vaData?.bank_nama || 'Bank Kampus',
             total: combinedTotal,
             method: paymentMethod,
             expired: vaData?.expired_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19),
@@ -342,8 +369,11 @@ export default function CreateTagihanPage() {
         } else {
           // Mode B-2: Direct Cash Payment on-the-spot
           const res = await sikeuService.processDirectCashierPayment({
-            mahasiswa_id: selectedStudent.id,
+            mahasiswa_id: mhsId,
+            calon_mahasiswa_id: calonId,
+            tipe_referensi: isCalon ? 'calon_mahasiswa' : 'mahasiswa',
             items: directItems.map((it) => ({
+              master_biaya_id: it.master_biaya_id,
               master_biaya_kode: it.master_biaya_kode || '',
               nominal: Number(it.nominal),
               keterangan: it.keterangan || it.nama_biaya,
@@ -357,9 +387,11 @@ export default function CreateTagihanPage() {
 
           setResult({
             nama: selectedStudent.nama_mahasiswa,
-            nim: selectedStudent.nim,
-            kode_transaksi: res.data?.kuitansi?.kode_transaksi || 'TRX-LOKET-XXX',
-            nomor_tagihan: res.data?.kuitansi?.nomor_tagihan || 'INV-LOKET-DIRECT',
+            nim: identifierText,
+            is_calon: isCalon,
+            prodi: selectedStudent.prodi || '-',
+            kode_transaksi: res.data?.kuitansi?.kode_transaksi || res.data?.kode_transaksi || 'TRX-LOKET-XXX',
+            nomor_tagihan: res.data?.kuitansi?.nomor_tagihan || res.data?.nomor_tagihan || 'INV-LOKET-DIRECT',
             paid_bills: directItems.map((it, idx) => ({
               id: idx + 1,
               nomor_tagihan: 'DIRECT-FEE',
@@ -453,42 +485,53 @@ export default function CreateTagihanPage() {
                         Tutup
                       </button>
                     </div>
-                    {searchResults.map((mhs) => (
-                      <button
-                        key={mhs.id}
-                        type="button"
-                        onClick={() => {
-                          handleSelectStudent(mhs);
-                          setIsSearchFocused(false);
-                        }}
-                        className="w-full p-3 text-left hover:bg-primary-50/80 transition flex items-center justify-between group cursor-pointer"
-                      >
-                        <div className="space-y-0.5">
-                          <p className="font-bold text-slate-900 text-sm group-hover:text-primary-700 transition">
-                            {mhs.nama_mahasiswa}
-                          </p>
-                          <p className="text-xs text-slate-500 flex items-center gap-2">
-                            <span className="font-mono font-semibold text-slate-700">NIM: {mhs.nim}</span>
-                            <span>•</span>
-                            <span>{mhs.prodi || 'Program Studi'}</span>
-                            <span>•</span>
-                            <span>Angkatan {mhs.tahun_angkatan}</span>
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className="badge badge-purple text-2xs font-bold">{mhs.jalur_kelas}</span>
-                          {mhs.unpaid_bills_count && mhs.unpaid_bills_count > 0 ? (
-                            <span className="text-2xs font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                              {mhs.unpaid_bills_count} Tagihan Aktif
-                            </span>
-                          ) : (
-                            <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                              Siap Bayar Langsung
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                    {searchResults.map((mhs) => {
+                      const isCalon = !!(mhs.is_calon_mahasiswa || mhs.tipe_referensi === 'calon_mahasiswa' || !mhs.nim || mhs.nim === '-');
+                      const idLabel = (mhs.nim && mhs.nim !== '-') ? `NIM: ${mhs.nim}` : (mhs.no_pendaftaran ? `No. Pendaftaran: ${mhs.no_pendaftaran}` : (mhs.nik ? `NIK: ${mhs.nik}` : '-'));
+                      return (
+                        <button
+                          key={`${mhs.id}-${mhs.nim || mhs.no_pendaftaran || ''}`}
+                          type="button"
+                          onClick={() => {
+                            handleSelectStudent(mhs);
+                            setIsSearchFocused(false);
+                          }}
+                          className="w-full p-3 text-left hover:bg-primary-50/80 transition flex items-center justify-between group cursor-pointer"
+                        >
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-slate-900 text-sm group-hover:text-primary-700 transition flex items-center gap-2">
+                              <span>{mhs.nama_mahasiswa}</span>
+                              {isCalon && (
+                                <span className="badge badge-amber text-2xs font-bold">Calon Mhs</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-slate-500 flex items-center gap-2">
+                              <span className="font-mono font-semibold text-slate-700">{idLabel}</span>
+                              <span>•</span>
+                              <span>{mhs.prodi || 'Program Studi'}</span>
+                              {mhs.tahun_angkatan ? (
+                                <>
+                                  <span>•</span>
+                                  <span>Angkatan {mhs.tahun_angkatan}</span>
+                                </>
+                              ) : null}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="badge badge-purple text-2xs font-bold">{mhs.jalur_kelas || (isCalon ? 'SPMB' : 'Reguler')}</span>
+                            {mhs.unpaid_bills_count && mhs.unpaid_bills_count > 0 ? (
+                              <span className="text-2xs font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                {mhs.unpaid_bills_count} Tagihan Aktif
+                              </span>
+                            ) : (
+                              <span className="text-2xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                Siap Bayar Langsung
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -499,21 +542,28 @@ export default function CreateTagihanPage() {
                       Daftar Cepat Mahasiswa (Klik untuk Memilih):
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                      {searchResults.slice(0, 6).map((mhs) => (
-                        <div
-                          key={mhs.id}
-                          onClick={() => handleSelectStudent(mhs)}
-                          className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-primary-50 hover:border-primary-300 cursor-pointer transition flex items-center justify-between"
-                        >
-                          <div className="min-w-0 pr-2">
-                            <p className="text-xs font-bold text-slate-900 truncate">{mhs.nama_mahasiswa}</p>
-                            <p className="text-2xs text-slate-500 font-mono">NIM: {mhs.nim} • {mhs.jalur_kelas}</p>
+                      {searchResults.slice(0, 6).map((mhs) => {
+                        const isCalon = !!(mhs.is_calon_mahasiswa || mhs.tipe_referensi === 'calon_mahasiswa' || !mhs.nim || mhs.nim === '-');
+                        const idLabel = (mhs.nim && mhs.nim !== '-') ? `NIM: ${mhs.nim}` : (mhs.no_pendaftaran ? `Reg: ${mhs.no_pendaftaran}` : (mhs.nik ? `NIK: ${mhs.nik}` : '-'));
+                        return (
+                          <div
+                            key={`rec-${mhs.id}-${mhs.nim || mhs.no_pendaftaran || ''}`}
+                            onClick={() => handleSelectStudent(mhs)}
+                            className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-primary-50 hover:border-primary-300 cursor-pointer transition flex items-center justify-between"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <p className="text-xs font-bold text-slate-900 truncate flex items-center gap-1.5">
+                                <span className="truncate">{mhs.nama_mahasiswa}</span>
+                                {isCalon && <span className="badge badge-amber text-[10px] font-bold py-0 px-1">SPMB</span>}
+                              </p>
+                              <p className="text-2xs text-slate-500 font-mono">{idLabel} • {mhs.jalur_kelas || (isCalon ? 'SPMB' : 'Reguler')}</p>
+                            </div>
+                            <span className="text-2xs font-bold px-2 py-1 rounded bg-white text-primary-700 border border-slate-200 shrink-0">
+                              Pilih
+                            </span>
                           </div>
-                          <span className="text-2xs font-bold px-2 py-1 rounded bg-white text-primary-700 border border-slate-200 shrink-0">
-                            Pilih
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -525,9 +575,17 @@ export default function CreateTagihanPage() {
                     <UserCheck size={20} />
                   </div>
                   <div>
-                    <p className="font-extrabold text-slate-900 text-sm">{selectedStudent.nama_mahasiswa}</p>
+                    <p className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                      <span>{selectedStudent.nama_mahasiswa}</span>
+                      {(selectedStudent.is_calon_mahasiswa || selectedStudent.tipe_referensi === 'calon_mahasiswa' || !selectedStudent.nim || selectedStudent.nim === '-') && (
+                        <span className="badge badge-amber text-2xs font-bold">Calon Mahasiswa (SPMB)</span>
+                      )}
+                    </p>
                     <p className="font-mono text-xs text-slate-600">
-                      NIM: {selectedStudent.nim} • Angkatan {selectedStudent.tahun_angkatan} • {selectedStudent.jalur_kelas} • {selectedStudent.prodi || 'Program Studi'}
+                      {(selectedStudent.nim && selectedStudent.nim !== '-') ? `NIM: ${selectedStudent.nim}` : (selectedStudent.no_pendaftaran ? `No. Pendaftaran: ${selectedStudent.no_pendaftaran}` : (selectedStudent.nik ? `NIK: ${selectedStudent.nik}` : '-'))}
+                      {selectedStudent.tahun_angkatan ? ` • Angkatan ${selectedStudent.tahun_angkatan}` : ''}
+                      {selectedStudent.jalur_kelas ? ` • ${selectedStudent.jalur_kelas}` : ''}
+                      {` • ${selectedStudent.prodi || 'Program Studi'}`}
                     </p>
                   </div>
                 </div>
@@ -907,11 +965,11 @@ export default function CreateTagihanPage() {
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Program Studi:</span>
-                <span className="font-semibold text-slate-800">{selectedStudent?.prodi || 'Teknik Informatika'}</span>
+                <span className="font-semibold text-slate-800">{result.prodi || selectedStudent?.prodi || '-'}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Periode / Keterangan:</span>
-                <span className="font-bold text-primary-800">{catatan || 'Semester Ganjil 2026/2027'}</span>
+                <span className="font-bold text-primary-800">{catatan || '-'}</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-slate-500">Metode Bayar:</span>

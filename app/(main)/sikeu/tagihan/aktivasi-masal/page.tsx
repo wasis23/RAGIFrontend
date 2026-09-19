@@ -34,6 +34,8 @@ export default function AktivasiTagihanMasalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [prodiList, setProdiList] = useState<{ value: string; label: string }[]>([]);
   const [jalurList, setJalurList] = useState<{ value: string; label: string }[]>([]);
+  const [angkatanList, setAngkatanList] = useState<{ value: string; label: string }[]>([]);
+  const [activeTaLabel, setActiveTaLabel] = useState<string>('');
   const [loadingOptions, setLoadingOptions] = useState(true);
 
   // Fee Component preview state
@@ -55,11 +57,11 @@ export default function AktivasiTagihanMasalPage() {
     formState: { errors },
   } = useForm<MassFormValues>({
     defaultValues: {
-      target_angkatan: '2023',
+      target_angkatan: '',
       target_jalur: '',
       target_prodi: '',
       target_semester: '1',
-      semester_aktif: 'Semester 1 (Ganjil) 2026/2027',
+      semester_aktif: 'Semester 1 (Ganjil)',
       jatuh_tempo: defaultJatuhTempo,
     },
   });
@@ -69,14 +71,16 @@ export default function AktivasiTagihanMasalPage() {
   const watchProdi = watch('target_prodi');
   const watchSemester = watch('target_semester');
 
-  // Load dynamic Jalur Kelas and Program Studi from Database
+  // Load dynamic Jalur Kelas, Program Studi, Angkatan and Active Academic Year from Database
   useEffect(() => {
     const loadDynamicOptions = async () => {
       setLoadingOptions(true);
       try {
-        const [resJalur, resProdi] = await Promise.all([
+        const [resJalur, resProdi, resAngkatan, resTa] = await Promise.all([
           sikeuService.getJalurKelasList(),
           sikeuService.getProgramStudiList(),
+          sikeuService.getAngkatanList().catch(() => ({ data: [] })),
+          sikeuService.getActiveTahunAkademik().catch(() => ({ data: null })),
         ]);
 
         if (Array.isArray(resJalur?.data)) {
@@ -98,6 +102,28 @@ export default function AktivasiTagihanMasalPage() {
             }))
           );
         }
+
+        if (Array.isArray(resAngkatan?.data) && resAngkatan.data.length > 0) {
+          const angkatans = resAngkatan.data.map((a: number) => ({
+            value: String(a),
+            label: `Angkatan ${a}`,
+          }));
+          setAngkatanList(angkatans);
+          if (!watch('target_angkatan')) {
+            setValue('target_angkatan', angkatans[0].value);
+          }
+        } else {
+          const currYear = String(new Date().getFullYear());
+          setAngkatanList([{ value: currYear, label: `Angkatan ${currYear}` }]);
+          if (!watch('target_angkatan')) {
+            setValue('target_angkatan', currYear);
+          }
+        }
+
+        const taName = resTa?.data?.nama || resTa?.data?.tahun_akademik || '';
+        if (taName) {
+          setActiveTaLabel(taName);
+        }
       } catch (err) {
         console.error('Failed to load master options', err);
         toast.error('Gagal memuat master opsi jalur kelas / prodi');
@@ -113,8 +139,9 @@ export default function AktivasiTagihanMasalPage() {
     const semNum = parseInt(watchSemester) || 1;
     const isGanjil = semNum % 2 !== 0;
     const tipeSem = isGanjil ? 'Ganjil' : 'Genap';
-    setValue('semester_aktif', `Semester ${semNum} (${tipeSem}) 2026/2027`);
-  }, [watchSemester, setValue]);
+    const taStr = activeTaLabel ? ` ${activeTaLabel}` : '';
+    setValue('semester_aktif', `Semester ${semNum} (${tipeSem})${taStr}`);
+  }, [watchSemester, activeTaLabel, setValue]);
 
   // Fetch matched fee components from Setting Tarif
   useEffect(() => {
@@ -216,14 +243,12 @@ export default function AktivasiTagihanMasalPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Select
                 label="Target Angkatan *"
-                options={[
-                  { value: '2023', label: 'Angkatan 2023' },
-                  { value: '2024', label: 'Angkatan 2024' },
-                  { value: '2025', label: 'Angkatan 2025' },
-                  { value: '2026', label: 'Angkatan 2026' },
+                options={angkatanList.length > 0 ? angkatanList : [
+                  { value: String(new Date().getFullYear()), label: `Angkatan ${new Date().getFullYear()}` }
                 ]}
                 value={watch('target_angkatan')}
                 onChange={(val) => setValue('target_angkatan', val as string)}
+                disabled={loadingOptions}
               />
 
               <Select

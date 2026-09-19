@@ -152,10 +152,12 @@ export default function CreateDispensasiPage() {
     setLoadingBills(true);
     try {
       const res = await sikeuService.getStudentUnpaidBills(student.id);
-      const bills = res.data || [];
+      const bills: StudentBill[] = Array.isArray(res.data)
+        ? res.data
+        : (Array.isArray((res.data as any)?.bills) ? (res.data as any).bills : []);
       setUnpaidBills(bills);
       if (bills.length > 0) {
-        setValue('tagihan_id', bills[0].id);
+        setValue('tagihan_id', bills[0].id, { shouldValidate: true });
       } else {
         setValue('tagihan_id', 0);
       }
