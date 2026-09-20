@@ -165,7 +165,9 @@ export default function CreatePotonganPage() {
     setLoadingBills(true);
     try {
       const res = await sikeuService.getStudentUnpaidBills(stu.id, stu.is_calon_mahasiswa);
-      const bills: UnpaidBill[] = Array.isArray(res.data) ? res.data : [];
+      const bills: UnpaidBill[] = Array.isArray(res.data)
+        ? res.data
+        : (Array.isArray((res.data as any)?.bills) ? (res.data as any).bills : []);
       setUnpaidBills(bills);
       if (bills.length > 0) {
         // Auto-select tagihan pertama

@@ -1125,6 +1125,19 @@ export const sikeuService = {
       method: 'DELETE',
     });
   },
+
+  deletePembayaranMahasiswaTagihan: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tagihan/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  batchDeletePembayaranMahasiswaTagihan: async (tagihan_ids: number[]) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tagihan/batch-delete', {
+      method: 'POST',
+      body: JSON.stringify({ tagihan_ids }),
+    });
+  },
 };
 
 

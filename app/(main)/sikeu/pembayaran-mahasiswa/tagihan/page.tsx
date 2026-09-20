@@ -19,7 +19,8 @@ import {
   DollarSign,
   FileText,
   SlidersHorizontal,
-  CreditCard
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -33,6 +34,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 interface TagihanRecord {
   id: number;
@@ -79,6 +81,12 @@ export default function ListTagihanMahasiswaPage() {
   // Detail Modal State
   const [selectedDetail, setSelectedDetail] = useState<TagihanRecord | null>(null);
 
+  // Selection & Delete State
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showBatchDeleteDialog, setShowBatchDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Fetch List Tagihan
   const fetchTagihan = useCallback(async () => {
     setLoadingList(true);
@@ -94,6 +102,7 @@ export default function ListTagihanMahasiswaPage() {
       if (res.meta) {
         setMeta(res.meta);
       }
+      setSelectedIds([]);
     } catch {
       setTagihanList([]);
       toast.error('Gagal memuat daftar tagihan mahasiswa');
@@ -127,6 +136,52 @@ export default function ListTagihanMahasiswaPage() {
     setTimeout(() => setCopiedVaId(null), 2000);
   };
 
+  const handleSelectAll = () => {
+    if (selectedIds.length === tagihanList.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(tagihanList.map((t) => t.id));
+    }
+  };
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleConfirmSingleDelete = async () => {
+    if (!deletingId) return;
+    setIsDeleting(true);
+    try {
+      const res = await sikeuService.deletePembayaranMahasiswaTagihan(deletingId);
+      toast.success(res.message || 'Tagihan berhasil dihapus');
+      setDeletingId(null);
+      setSelectedIds((prev) => prev.filter((id) => id !== deletingId));
+      fetchTagihan();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal menghapus tagihan');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsDeleting(true);
+    try {
+      const res = await sikeuService.batchDeletePembayaranMahasiswaTagihan(selectedIds);
+      toast.success(res.message || `${selectedIds.length} tagihan berhasil dihapus`);
+      setShowBatchDeleteDialog(false);
+      setSelectedIds([]);
+      fetchTagihan();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal menghapus tagihan terpilih');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // KPI Summary
   const summary = useMemo(() => {
     const totalTagihan = tagihanList.reduce((sum, item) => sum + (Number(item.total_tagihan) || 0), 0);
@@ -140,6 +195,33 @@ export default function ListTagihanMahasiswaPage() {
 
   // Columns for DataTable
   const columns: ColumnDef<TagihanRecord>[] = [
+    {
+      key: 'select',
+      label: '',
+      align: 'center',
+      headerRender: () => (
+        <div className="flex items-center justify-center">
+          <input
+            type="checkbox"
+            onChange={handleSelectAll}
+            checked={tagihanList.length > 0 && selectedIds.length === tagihanList.length}
+            className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer h-4 w-4"
+            aria-label="Pilih semua tagihan"
+          />
+        </div>
+      ),
+      render: (row) => (
+        <div className="flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(row.id)}
+            onChange={() => handleToggleSelect(row.id)}
+            className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer h-4 w-4"
+            aria-label={`Pilih tagihan ${row.nomor_tagihan}`}
+          />
+        </div>
+      ),
+    },
     {
       key: 'nomor_tagihan',
       label: 'Invoice / Tanggal',
@@ -281,6 +363,11 @@ export default function ListTagihanMahasiswaPage() {
                     },
                   ]
                 : []),
+              {
+                label: 'Hapus Tagihan',
+                icon: <Trash2 size={14} className="text-rose-600" />,
+                onClick: () => setDeletingId(row.id),
+              },
             ]}
           />
         </div>
@@ -377,6 +464,41 @@ export default function ListTagihanMahasiswaPage() {
           </div>
         </div>
       </div>
+
+      {/* SELECTION ACTIONS BANNER */}
+      {selectedIds.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-rose-50/80 border border-rose-200/80 rounded-2xl animate-fade-in shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-7 h-7 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+              {selectedIds.length}
+            </span>
+            <span className="text-xs font-bold text-rose-900">
+              {selectedIds.length} tagihan dipilih dari daftar
+            </span>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedIds([])}
+              className="text-xs bg-white text-slate-700 hover:bg-slate-50 min-h-[34px]"
+            >
+              Batal Pilih
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              icon={<Trash2 size={14} />}
+              onClick={() => setShowBatchDeleteDialog(true)}
+              className="text-xs font-bold shadow-xs min-h-[34px]"
+            >
+              Hapus {selectedIds.length} Tagihan
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* DATA TABLE */}
       <DataTable
@@ -493,6 +615,32 @@ export default function ListTagihanMahasiswaPage() {
           </div>
         )}
       </Modal>
+
+      {/* KONFIRMASI HAPUS SATUAN */}
+      <ConfirmDialog
+        isOpen={Boolean(deletingId)}
+        onClose={() => setDeletingId(null)}
+        onConfirm={handleConfirmSingleDelete}
+        title="Hapus Tagihan Mahasiswa"
+        message="Apakah Anda yakin ingin menghapus tagihan mahasiswa ini? Tagihan yang belum dibayar beserta rinciannya akan dihapus secara permanen. Tagihan yang sudah lunas atau memiliki riwayat pembayaran tidak dapat dihapus."
+        confirmText="Hapus Tagihan"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+
+      {/* KONFIRMASI BATCH DELETE */}
+      <ConfirmDialog
+        isOpen={showBatchDeleteDialog}
+        onClose={() => setShowBatchDeleteDialog(false)}
+        onConfirm={handleConfirmBatchDelete}
+        title={`Hapus ${selectedIds.length} Tagihan Sekaligus`}
+        message={`Apakah Anda yakin ingin menghapus ${selectedIds.length} tagihan mahasiswa yang dipilih secara permanen? Seluruh tagihan yang belum dibayar beserta nomor Virtual Account terkait akan dihapus. Tagihan yang sudah memiliki riwayat pembayaran tidak dapat dihapus.`}
+        confirmText={`Ya, Hapus ${selectedIds.length} Tagihan`}
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

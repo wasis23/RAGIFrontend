@@ -117,7 +117,11 @@ export default function CreatePembayaranMahasiswaPotonganPage() {
       const studentId = isCalon ? (student.calon_mahasiswa_id || student.id) : (student.mahasiswa_id || student.id);
       
       const res = await sikeuService.getStudentUnpaidBills(studentId, isCalon);
-      const bills: UnpaidBillItem[] = Array.isArray(res.data) ? res.data : [];
+      const bills: UnpaidBillItem[] = Array.isArray(res.data)
+        ? res.data
+        : (Array.isArray(res.data?.bills)
+          ? res.data.bills
+          : (Array.isArray(student.tagihans) ? student.tagihans : []));
       setUnpaidBills(bills);
 
       // Inisialisasi konfigurasi potongan default untuk tiap tagihan
