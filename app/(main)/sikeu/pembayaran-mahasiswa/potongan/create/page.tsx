@@ -234,6 +234,11 @@ export default function CreatePembayaranMahasiswaPotonganPage() {
       return;
     }
 
+    if (!nomorSk.trim()) {
+      toast.error('Nomor SK / Dokumen Persetujuan wajib diisi agar potongan memiliki dasar persetujuan yang sah');
+      return;
+    }
+
     const selectedTargetBills: Array<{
       tagihan_id: number;
       nominal_potongan: number;
@@ -271,7 +276,7 @@ export default function CreatePembayaranMahasiswaPotonganPage() {
       is_calon_mahasiswa: isCalon,
       tipe_referensi: isCalon ? 'calon_mahasiswa' : 'mahasiswa',
       nama_potongan: namaPotongan.trim(),
-      nomor_sk: nomorSk.trim() || null,
+      nomor_sk: nomorSk.trim(),
       keterangan: keterangan.trim() || null,
       status,
       target_bills: selectedTargetBills,
@@ -636,14 +641,18 @@ export default function CreatePembayaranMahasiswaPotonganPage() {
                 />
               </div>
 
-              {/* Field 2: Nomor SK / Referensi Dokumen */}
+              {/* Field 2: Nomor SK / Referensi Dokumen (Wajib) */}
               <div>
                 <Input
-                  label="Nomor SK / Dokumen Pendukung (Opsional)"
+                  label="Nomor SK / Dokumen Persetujuan *"
                   placeholder="Contoh: SK/REK/2026/045"
                   value={nomorSk}
                   onChange={(e) => setNomorSk(e.target.value)}
+                  required
                 />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Wajib sebagai dasar persetujuan pemotongan.
+                </span>
               </div>
 
               {/* Field 3: Status Potongan */}

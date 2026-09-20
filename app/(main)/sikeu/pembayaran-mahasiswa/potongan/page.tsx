@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Plus,
   Filter,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   Receipt,
   Coins,
+  Eye,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -223,13 +225,18 @@ export default function PembayaranMahasiswaPotonganPage() {
       label: 'Nama Potongan & SK',
       render: (row) => (
         <div className="space-y-0.5">
-          <p className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-            <Sparkles size={13} className="text-amber-500 shrink-0" />
-            <span>{row.nama_potongan}</span>
-          </p>
+          <Link
+            href={`/sikeu/pembayaran-mahasiswa/potongan/${row.id}`}
+            className="font-bold text-xs text-slate-900 hover:text-primary-600 flex items-center gap-1.5 transition-colors group"
+          >
+            <Sparkles size={13} className="text-amber-500 shrink-0 group-hover:scale-110 transition-transform" />
+            <span className="underline decoration-slate-300 underline-offset-2 group-hover:decoration-primary-500">
+              {row.nama_potongan}
+            </span>
+          </Link>
           {row.nomor_sk && (
-            <p className="text-[11px] text-slate-500">
-              SK: <span className="font-mono font-medium">{row.nomor_sk}</span>
+            <p className="text-[11px] text-slate-600">
+              SK: <span className="font-mono font-semibold text-slate-800">{row.nomor_sk}</span>
             </p>
           )}
           {row.keterangan && (
@@ -305,6 +312,11 @@ export default function PembayaranMahasiswaPotonganPage() {
       render: (row) => (
         <DropdownMenu
           items={[
+            {
+              label: 'Lihat Detail Potongan',
+              icon: <Eye size={14} className="text-primary-600" />,
+              onClick: () => router.push(`/sikeu/pembayaran-mahasiswa/potongan/${row.id}`),
+            },
             {
               label: 'Hapus / Batalkan Potongan',
               icon: <Trash2 size={14} />,

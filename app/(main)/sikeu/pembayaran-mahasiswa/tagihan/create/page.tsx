@@ -21,7 +21,8 @@ import {
   Send,
   HelpCircle,
   RefreshCw,
-  Info
+  Info,
+  Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -772,8 +773,26 @@ export default function CreateTagihanMahasiswaPage() {
                   <p>Mencocokkan aturan tarif prodi...</p>
                 </div>
               ) : studentDynamicTarifs.length === 0 ? (
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-center text-xs text-amber-800">
-                  Belum ada tarif dinamis yang diatur untuk angkatan {selectedStudent.tahun_angkatan} di menu Pengaturan Tarif.
+                <div className="p-6 rounded-2xl bg-amber-50/80 border border-amber-200 text-center space-y-3">
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-900 text-xs sm:text-sm">
+                      Belum Ada Pengaturan Tarif untuk Angkatan {selectedStudent.tahun_angkatan}
+                    </p>
+                    <p className="text-2xs text-amber-700 max-w-md mx-auto">
+                      Komponen biaya dinamis untuk mahasiswa angkatan {selectedStudent.tahun_angkatan} ({selectedStudent.prodi}) belum dikonfigurasikan di menu Pengaturan Tarif. Silakan atur tarif terlebih dahulu agar komponen dapat ditagihkan.
+                    </p>
+                  </div>
+                  <Link href="/sikeu/pembayaran-mahasiswa/tarif/create">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      icon={<Plus size={14} />}
+                      className="text-xs font-bold shadow-xs"
+                    >
+                      Atur Tarif Angkatan {selectedStudent.tahun_angkatan}
+                    </Button>
+                  </Link>
                 </div>
               ) : (
                 <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden text-xs">
@@ -825,7 +844,7 @@ export default function CreateTagihanMahasiswaPage() {
           )}
 
           {/* PARAMETER & OPSI PEMBAYARAN */}
-          {selectedStudent && (
+          {selectedStudent && studentDynamicTarifs.length > 0 && (
             <div className="p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
