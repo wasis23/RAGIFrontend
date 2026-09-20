@@ -812,22 +812,7 @@ function BayarKasirContent() {
     }, 250);
   };
 
-  // ===================== STATS COMPUTATION FOR RIWAYAT TAB =====================
-  const riwayatStats = useMemo(() => {
-    const totalTrx = paginationMeta?.total || pembayaranList.length;
-    const totalAmount = pembayaranList
-      .filter((p) => p.status === 'success')
-      .reduce((sum, p) => sum + (Number(p.jumlah_bayar) || 0), 0);
-    const countLoket = pembayaranList.filter((p) => p.channel_bayar?.includes('LOKET')).length;
-    const countOnline = pembayaranList.filter((p) => !p.channel_bayar?.includes('LOKET')).length;
 
-    return {
-      totalTrx,
-      totalAmount,
-      countLoket,
-      countOnline,
-    };
-  }, [pembayaranList, paginationMeta]);
 
   // ===================== DATA TABLE COLUMNS (TAB 2) =====================
   const columns: ColumnDef<PembayaranHistoryItem>[] = useMemo(
@@ -1028,17 +1013,7 @@ function BayarKasirContent() {
               </>
             )}
 
-            {/* Jika di Tab Kasir: Opsi Cepat Lihat Riwayat */}
-            {activeTab === 'kasir' && (
-              <Button
-                variant="outline"
-                icon={<Receipt size={16} />}
-                onClick={() => handleTabChange('riwayat')}
-                className="font-bold min-h-[38px] text-xs"
-              >
-                Lihat Riwayat Transaksi
-              </Button>
-            )}
+
           </div>
         }
       />
@@ -1477,106 +1452,16 @@ function BayarKasirContent() {
       {/* KONTEN TAB 2: RIWAYAT TRANSAKSI & AUDIT PEMBAYARAN        */}
       {/* ========================================================= */}
       {activeTab === 'riwayat' && (
-        <div className="space-y-5">
-          {/* KPI STATISTICS CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-              <div>
-                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
-                  Total Transaksi
-                </span>
-                <span className="text-xl font-black font-mono text-slate-900 mt-1 block">
-                  {riwayatStats.totalTrx} Trx
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
-                <Receipt size={20} />
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-              <div>
-                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
-                  Total Diterima (Berhasil)
-                </span>
-                <span className="text-xl font-black font-mono text-emerald-700 mt-1 block">
-                  {formatRupiah(riwayatStats.totalAmount)}
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-                <CheckCircle2 size={20} />
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-              <div>
-                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
-                  Tunai di Kasir Loket
-                </span>
-                <span className="text-xl font-black font-mono text-slate-900 mt-1 block">
-                  {riwayatStats.countLoket} Trx
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
-                <Wallet size={20} />
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-              <div>
-                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
-                  Virtual Account / Online
-                </span>
-                <span className="text-xl font-black font-mono text-slate-900 mt-1 block">
-                  {riwayatStats.countOnline} Trx
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-                <CreditCard size={20} />
-              </div>
-            </div>
-          </div>
-
-          {/* QUICK SEARCH & ACTIVE FILTER BAR */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
-            <div className="flex-1">
-              <Input
-                placeholder="Cari Kode Transaksi, NIM, Nama Mahasiswa, atau No. Tagihan..."
-                value={filterSearch}
-                onChange={(e) => {
-                  setFilterSearch(e.target.value);
-                  setPage(1);
-                }}
-                prefixIcon={<Search size={16} className="text-slate-400" />}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                icon={<Filter size={14} />}
-                onClick={() => setShowFilterDrawer(true)}
-                className="text-xs font-bold min-h-[38px]"
-              >
-                Filter Tambahan
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                icon={<RefreshCw size={14} className={loadingHistory ? 'animate-spin' : ''} />}
-                onClick={() => fetchPaymentHistory()}
-                disabled={loadingHistory}
-                className="text-xs font-bold min-h-[38px]"
-              >
-                Muat Ulang
-              </Button>
-            </div>
-          </div>
-
+        <div className="space-y-4">
           {/* ACTIVE FILTER PILLS */}
-          {(filterStatus || filterChannel || filterTglMulai || filterTglSelesai) && (
+          {(filterSearch || filterStatus || filterChannel || filterTglMulai || filterTglSelesai) && (
             <div className="flex items-center gap-2 flex-wrap text-2xs bg-slate-50 p-2.5 rounded-xl border border-slate-200/60">
               <span className="font-bold text-slate-500">Filter Aktif:</span>
+              {filterSearch && (
+                <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-md font-semibold text-slate-700">
+                  Pencarian: &ldquo;{filterSearch}&rdquo;
+                </span>
+              )}
               {filterStatus && (
                 <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-md font-semibold text-slate-700">
                   Status: {filterStatus}
@@ -1671,10 +1556,11 @@ function BayarKasirContent() {
       >
         <div className="space-y-4 p-1">
           <Input
-            label="Cari Transaksi / Mahasiswa"
-            placeholder="Kode trx, NIM, Nama, No Tagihan..."
+            label="Pencarian Transaksi / Mahasiswa"
+            placeholder="Ketik Kode Trx, NIM, Nama, No. Tagihan, atau VA..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
+            prefixIcon={<Search size={16} className="text-slate-400" />}
           />
 
           <Select
