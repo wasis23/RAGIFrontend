@@ -585,7 +585,7 @@ export default function CreateTagihanMahasiswaPage() {
                       </span>
                     </div>
                     <p className="text-2xs text-emerald-700">
-                      Total akumulasi tagihan dan Virtual Account yang akan diterbitkan
+                      Total akumulasi tagihan mahasiswa yang akan diterbitkan
                     </p>
                   </div>
                 </div>
@@ -890,9 +890,9 @@ export default function CreateTagihanMahasiswaPage() {
                         : 'border-slate-200 bg-white hover:border-slate-300'
                     }`}
                   >
-                    <span className="text-xs font-bold text-slate-900 block">Terbitkan Tagihan & VA</span>
+                    <span className="text-xs font-bold text-slate-900 block">Terbitkan Tagihan Online</span>
                     <span className="text-2xs text-slate-500 block">
-                      Mahasiswa membayar mandiri lewat Virtual Account Bank / ATM / Mobile Banking
+                      Mahasiswa memilih saluran bayar (BCA, Mandiri, BNI, BRI, QRIS, dll) di portal. Nomor VA digenerate otomatis via Xendit
                     </span>
                   </div>
 
@@ -935,7 +935,7 @@ export default function CreateTagihanMahasiswaPage() {
                   icon={submittingIndiv ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                   className="font-bold shadow-md min-w-[180px]"
                 >
-                  {modePembayaran === 'terbitkan_tagihan' ? 'Terbitkan Tagihan & VA' : 'Simpan & Cetak Kuitansi Kasir'}
+                  {modePembayaran === 'terbitkan_tagihan' ? 'Terbitkan Tagihan Online' : 'Simpan & Cetak Kuitansi Kasir'}
                 </Button>
               </div>
             </div>
@@ -962,7 +962,7 @@ export default function CreateTagihanMahasiswaPage() {
               </strong>.
             </p>
             <p className="text-2xs text-slate-500">
-              Setiap mahasiswa akan otomatis menerima nomor tagihan resmi dan Virtual Account Bank yang aktif hingga{' '}
+              Setiap mahasiswa akan menerima tagihan resmi di portal mahasiswa dan dapat memilih metode bayar via Xendit dengan batas jatuh tempo{' '}
               {massJatuhTempo}. Lanjutkan?
             </p>
           </div>
@@ -1067,6 +1067,34 @@ export default function CreateTagihanMahasiswaPage() {
                     >
                       {copiedVa ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {indivSuccessData.status === 'lunas' && (
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 space-y-1">
+                    <span className="font-bold text-xs flex items-center gap-1.5 text-emerald-800">
+                      <CheckCircle2 size={14} className="text-emerald-600" />
+                      Lunas di Meja Kasir
+                    </span>
+                    <p className="text-2xs text-emerald-700 leading-relaxed">
+                      Pembayaran telah berhasil diverifikasi dan tercatat lunas di kasir kampus.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!indivSuccessData.va_number && indivSuccessData.status !== 'lunas' && (
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-lg text-blue-900 space-y-1">
+                    <span className="font-bold text-xs flex items-center gap-1.5 text-blue-800">
+                      <CreditCard size={14} className="text-blue-600" />
+                      Pembayaran Digital Xendit
+                    </span>
+                    <p className="text-2xs text-blue-700 leading-relaxed">
+                      Tagihan berhasil diterbitkan dengan status belum bayar. Nomor VA atau kode QRIS akan digenerate secara otomatis oleh sistem Xendit sesuai bank / saluran bayar yang dipilih mahasiswa di portal saat checkout.
+                    </p>
                   </div>
                 </div>
               )}

@@ -308,29 +308,38 @@ export default function ListTagihanMahasiswaPage() {
     },
     {
       key: 'va_number',
-      label: 'Virtual Account',
-      render: (row) =>
-        row.va_number ? (
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded border border-primary-200">
-              {row.va_number}
-            </span>
-            <button
-              type="button"
-              onClick={() => handleCopyVa(row.va_number!, row.id)}
-              className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
-              title="Salin No VA"
-            >
-              {copiedVaId === row.id ? (
-                <Check size={13} className="text-emerald-600" />
-              ) : (
-                <Copy size={13} />
-              )}
-            </button>
-          </div>
-        ) : (
-          <span className="text-2xs text-slate-400 italic">Loket Kasir</span>
-        ),
+      label: 'Metode / VA',
+      render: (row) => {
+        if (row.va_number) {
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded border border-primary-200">
+                {row.va_number}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopyVa(row.va_number!, row.id)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
+                title="Salin No VA"
+              >
+                {copiedVaId === row.id ? (
+                  <Check size={13} className="text-emerald-600" />
+                ) : (
+                  <Copy size={13} />
+                )}
+              </button>
+            </div>
+          );
+        }
+        if (row.status === 'lunas') {
+          return <span className="text-2xs text-slate-500 font-medium">Loket Kasir</span>;
+        }
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 font-medium">
+            Xendit (Portal Mhs)
+          </span>
+        );
+      },
     },
     {
       key: 'jatuh_tempo',
