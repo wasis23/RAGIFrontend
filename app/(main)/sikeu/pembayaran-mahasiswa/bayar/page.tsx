@@ -71,6 +71,33 @@ interface BillItem {
   }>;
 }
 
+// Helper angka ke terbilang bahasa Indonesia
+function angkaTerbilang(nilai: number): string {
+  const angka = Math.floor(Math.abs(nilai));
+  const huruf = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
+  let hasil = '';
+  if (angka < 12) {
+    hasil = huruf[angka];
+  } else if (angka < 20) {
+    hasil = angkaTerbilang(angka - 10) + ' Belas';
+  } else if (angka < 100) {
+    hasil = angkaTerbilang(Math.floor(angka / 10)) + ' Puluh ' + huruf[angka % 10];
+  } else if (angka < 200) {
+    hasil = 'Seratus ' + angkaTerbilang(angka - 100);
+  } else if (angka < 1000) {
+    hasil = angkaTerbilang(Math.floor(angka / 100)) + ' Ratus ' + angkaTerbilang(angka % 100);
+  } else if (angka < 2000) {
+    hasil = 'Seribu ' + angkaTerbilang(angka - 1000);
+  } else if (angka < 1000000) {
+    hasil = angkaTerbilang(Math.floor(angka / 1000)) + ' Ribu ' + angkaTerbilang(angka % 1000);
+  } else if (angka < 1000000000) {
+    hasil = angkaTerbilang(Math.floor(angka / 1000000)) + ' Juta ' + angkaTerbilang(angka % 1000000);
+  } else if (angka < 1000000000000) {
+    hasil = angkaTerbilang(Math.floor(angka / 1000000000)) + ' Milyar ' + angkaTerbilang(angka % 1000000000);
+  }
+  return (hasil.replace(/\s+/g, ' ').trim() || 'Nol') + ' Rupiah';
+}
+
 function BayarKasirContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -298,6 +325,356 @@ function BayarKasirContent() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Handle Print Kuitansi via Hidden Iframe (100% Reliable & Isolates Print Styles)
+  const handlePrintReceipt = () => {
+    if (!receiptData) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    const terbilangStr = angkaTerbilang(receiptData.jumlah_bayar);
+    const channelName =
+      receiptData.channel === 'LOKET_TUNAI'
+        ? 'Tunai di Loket Kasir Kampus'
+        : 'Transfer Rekening Resmi Kampus';
+    const statusText = (receiptData.status_tagihan || 'LUNAS').toUpperCase();
+    const nimOrReg =
+      receiptData.student?.nim && receiptData.student?.nim !== '-'
+        ? `NIM: ${receiptData.student?.nim}`
+        : `No. Registrasi: ${receiptData.student?.no_pendaftaran || '-'}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Kuitansi Pembayaran - ${receiptData.kode_transaksi}</title>
+          <meta charset="utf-8" />
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 12mm 15mm;
+            }
+            * { box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              color: #0f172a;
+              font-size: 10pt;
+              line-height: 1.4;
+              background: #fff;
+            }
+            .kuitansi-card {
+              border: 2px solid #0f172a;
+              border-radius: 8px;
+              padding: 24px;
+              position: relative;
+              background: #fff;
+            }
+            .watermark {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-25deg);
+              font-size: 52pt;
+              font-weight: 900;
+              color: rgba(16, 185, 129, 0.12);
+              text-transform: uppercase;
+              border: 6px solid rgba(16, 185, 129, 0.16);
+              padding: 8px 36px;
+              border-radius: 20px;
+              pointer-events: none;
+              letter-spacing: 8px;
+            }
+            .header-kop {
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 12px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+            }
+            .kampus-title {
+              font-size: 13pt;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              color: #0f172a;
+              margin: 0;
+            }
+            .doc-title {
+              font-size: 11pt;
+              font-weight: 700;
+              text-transform: uppercase;
+              color: #334155;
+              margin: 3px 0 0 0;
+            }
+            .kampus-sub {
+              font-size: 8.5pt;
+              color: #64748b;
+              margin: 2px 0 0 0;
+            }
+            .ref-box {
+              text-align: right;
+            }
+            .ref-no {
+              font-family: monospace;
+              font-size: 10pt;
+              font-weight: 700;
+              color: #0f172a;
+            }
+            .ref-date {
+              font-size: 8.5pt;
+              color: #64748b;
+              margin-top: 2px;
+            }
+            .status-badge {
+              display: inline-block;
+              font-size: 8pt;
+              font-weight: 800;
+              padding: 2px 8px;
+              border-radius: 4px;
+              background: #ecfdf5;
+              color: #065f46;
+              border: 1px solid #a7f3d0;
+              margin-top: 4px;
+              text-transform: uppercase;
+            }
+            .meta-table {
+              width: 100%;
+              margin-top: 14px;
+              border-collapse: collapse;
+            }
+            .meta-table td {
+              padding: 5px 0;
+              vertical-align: top;
+              font-size: 9.5pt;
+            }
+            .meta-table .label {
+              width: 170px;
+              color: #475569;
+              font-weight: 600;
+            }
+            .meta-table .colon {
+              width: 15px;
+              color: #64748b;
+            }
+            .meta-table .value {
+              font-weight: 700;
+              color: #0f172a;
+            }
+            .terbilang-box {
+              margin-top: 12px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              padding: 10px 14px;
+              font-size: 9.5pt;
+            }
+            .terbilang-title {
+              font-weight: 600;
+              color: #64748b;
+              font-size: 8pt;
+              text-transform: uppercase;
+            }
+            .terbilang-text {
+              font-style: italic;
+              font-weight: 700;
+              color: #0f172a;
+              margin-top: 2px;
+            }
+            .item-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 14px;
+            }
+            .item-table th, .item-table td {
+              border: 1px solid #cbd5e1;
+              padding: 8px 12px;
+              font-size: 9pt;
+            }
+            .item-table th {
+              background: #f1f5f9;
+              font-weight: 700;
+              text-align: left;
+            }
+            .item-table .text-right {
+              text-align: right;
+            }
+            .total-banner {
+              margin-top: 14px;
+              background: #0f172a;
+              color: #ffffff;
+              border-radius: 6px;
+              padding: 12px 16px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .total-label {
+              font-size: 9pt;
+              font-weight: 700;
+              color: #cbd5e1;
+              text-transform: uppercase;
+            }
+            .total-amount {
+              font-family: monospace;
+              font-size: 14pt;
+              font-weight: 900;
+              color: #fcd34d;
+            }
+            .footer-sig {
+              margin-top: 28px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              page-break-inside: avoid;
+            }
+            .sig-box {
+              text-align: center;
+              font-size: 8.5pt;
+              width: 190px;
+            }
+            .sig-line {
+              margin-top: 50px;
+              border-top: 1px solid #0f172a;
+              font-weight: 700;
+              padding-top: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="kuitansi-card">
+            <div class="watermark">${statusText}</div>
+            
+            <div class="header-kop">
+              <div>
+                <h1 class="kampus-title">UNIVERSITAS SSO CAMPUS</h1>
+                <h2 class="doc-title">Tanda Bukti Pembayaran Kasir Loket</h2>
+                <p class="kampus-sub">Bagian Administrasi Keuangan • Sistem Terpadu Pembayaran Kuliah</p>
+              </div>
+              <div class="ref-box">
+                <div class="ref-no">${receiptData.kode_transaksi}</div>
+                <div class="ref-date">Tanggal: ${receiptData.tanggal}</div>
+                <span class="status-badge">${statusText}</span>
+              </div>
+            </div>
+
+            <table class="meta-table">
+              <tr>
+                <td class="label">Telah Terima Dari</td>
+                <td class="colon">:</td>
+                <td class="value">${receiptData.student?.nama_mahasiswa || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Identitas Mahasiswa</td>
+                <td class="colon">:</td>
+                <td class="value">${nimOrReg}</td>
+              </tr>
+              <tr>
+                <td class="label">Program Studi</td>
+                <td class="colon">:</td>
+                <td class="value">${receiptData.student?.prodi || '-'} ${receiptData.student?.tahun_angkatan ? `(Angkatan ${receiptData.student?.tahun_angkatan})` : ''}</td>
+              </tr>
+              <tr>
+                <td class="label">Metode Pembayaran</td>
+                <td class="colon">:</td>
+                <td class="value">${channelName}</td>
+              </tr>
+            </table>
+
+            <div class="terbilang-box">
+              <div class="terbilang-title">Uang Sejumlah:</div>
+              <div class="terbilang-text">"${terbilangStr}"</div>
+            </div>
+
+            <table class="item-table">
+              <thead>
+                <tr>
+                  <th>No. Tagihan / Invoice</th>
+                  <th>Komponen Biaya</th>
+                  <th class="text-right">Nominal Tagihan</th>
+                  <th class="text-right">Dibayarkan</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(receiptData.bills_detail && receiptData.bills_detail.length > 0
+                  ? receiptData.bills_detail.map((b: any) => `
+                    <tr>
+                      <td style="font-family: monospace; font-weight: bold;">${b.nomor_tagihan}</td>
+                      <td>${b.jenis || b.periode_label || 'Biaya Kuliah'}</td>
+                      <td class="text-right" style="font-family: monospace;">${formatRupiah(b.total_tagihan)}</td>
+                      <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatRupiah(receiptData.jumlah_bayar)}</td>
+                    </tr>
+                  `).join('')
+                  : `
+                    <tr>
+                      <td style="font-family: monospace; font-weight: bold;">${receiptData.nomor_tagihan}</td>
+                      <td>Biaya Pendidikan Mahasiswa</td>
+                      <td class="text-right" style="font-family: monospace;">${formatRupiah(receiptData.jumlah_bayar)}</td>
+                      <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatRupiah(receiptData.jumlah_bayar)}</td>
+                    </tr>
+                  `
+                )}
+              </tbody>
+            </table>
+
+            <div class="total-banner">
+              <span class="total-label">Total Pembayaran Diterima</span>
+              <span class="total-amount">${formatRupiah(receiptData.jumlah_bayar)}</span>
+            </div>
+
+            <table class="meta-table" style="margin-top: 10px;">
+              <tr>
+                <td class="label">Sisa Tagihan Setelah Bayar</td>
+                <td class="colon">:</td>
+                <td class="value" style="color: ${receiptData.sisa_setelah_bayar > 0 ? '#b91c1c' : '#047857'}; font-family: monospace;">
+                  ${formatRupiah(receiptData.sisa_setelah_bayar || 0)} ${receiptData.sisa_setelah_bayar <= 0 ? '(LUNAS PENUH)' : ''}
+                </td>
+              </tr>
+            </table>
+
+            <div class="footer-sig">
+              <div class="sig-box">
+                <div>Mahasiswa / Penyetor,</div>
+                <div class="sig-line">${receiptData.student?.nama_mahasiswa || 'Mahasiswa'}</div>
+              </div>
+              <div class="sig-box">
+                <div>Petugas Kasir Keuangan,</div>
+                <div class="sig-line">${receiptData.kasir || 'Admin Keuangan'}</div>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(iframe);
+        } catch {}
+      }, 2000);
+    }, 250);
   };
 
   return (
@@ -708,81 +1085,127 @@ function BayarKasirContent() {
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
         title="Kuitansi Bukti Pembayaran Loket"
-        size="md"
+        size="lg"
       >
         {receiptData && (
           <div className="space-y-4">
-            {/* Header Kuitansi Resmi */}
-            <div className="text-center pb-3 border-b border-slate-200">
-              <h3 className="text-sm font-extrabold text-slate-900 tracking-wide uppercase">
-                Tanda Bukti Pembayaran Kasir Loket
-              </h3>
-              <p className="text-2xs text-slate-500 font-mono mt-0.5">
-                Nomor Bukti: <span className="font-bold text-slate-800">{receiptData.kode_transaksi}</span>
-              </p>
-            </div>
-
-            {/* Informasi Pembayar */}
-            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Nama Mahasiswa:</span>
-                <span className="font-bold text-slate-900">{receiptData.student?.nama_mahasiswa}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">NIM / No. Pendaftaran:</span>
-                <span className="font-mono font-bold text-slate-800">
-                  {receiptData.student?.nim !== '-' ? receiptData.student?.nim : receiptData.student?.no_pendaftaran}
+            {/* AREA DOKUMEN CETAK KUITANSI */}
+            <div className="printable-document print-document p-6 border-2 border-slate-900 rounded-2xl bg-white space-y-4 text-slate-900 relative overflow-hidden shadow-xs print:p-0 print:border-none print:shadow-none">
+              {/* Watermark Status */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-10 rotate-[-25deg] select-none">
+                <span className="text-6xl font-black text-emerald-800 uppercase tracking-widest border-8 border-emerald-800 px-8 py-4 rounded-3xl">
+                  {receiptData.status_tagihan || 'LUNAS'}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Program Studi:</span>
-                <span className="text-slate-800 font-medium">{receiptData.student?.prodi || '-'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Waktu Pembayaran:</span>
-                <span className="font-mono text-slate-800">{receiptData.tanggal}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Metode:</span>
-                <span className="font-bold text-slate-800">{receiptData.channel}</span>
-              </div>
-            </div>
 
-            {/* Tagihan yang Dibayarkan */}
-            <div>
-              <p className="text-2xs uppercase tracking-wider font-bold text-slate-600 mb-1.5">
-                Rincian Tagihan yang Dibayar:
-              </p>
-              <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 text-xs">
-                <div className="p-2.5 flex justify-between bg-white font-mono">
-                  <span className="text-slate-700">{receiptData.nomor_tagihan}</span>
-                  <span className="font-bold text-slate-900">{formatRupiah(receiptData.jumlah_bayar)}</span>
+              {/* Kop Kuitansi Resmi */}
+              <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start">
+                <div>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900 tracking-wide">
+                    UNIVERSITAS SSO CAMPUS
+                  </h3>
+                  <h4 className="font-bold text-xs text-slate-700 uppercase">
+                    Kuitansi Bukti Pembayaran Kasir Loket
+                  </h4>
+                  <p className="text-2xs text-slate-500">
+                    Bagian Administrasi Keuangan • Sistem Terpadu Pembayaran Kuliah
+                  </p>
                 </div>
-                <div className="p-2.5 flex justify-between bg-slate-50 font-bold">
-                  <span>Jumlah Dibayar:</span>
-                  <span className="font-mono text-emerald-700">{formatRupiah(receiptData.jumlah_bayar)}</span>
-                </div>
-                <div className="p-2.5 flex justify-between bg-white text-2xs">
-                  <span className="text-slate-500">Sisa Tagihan Setelah Bayar:</span>
-                  <span className="font-mono font-bold text-slate-800">{formatRupiah(receiptData.sisa_setelah_bayar || 0)}</span>
-                </div>
-                <div className="p-2.5 flex justify-between bg-white text-2xs items-center">
-                  <span className="text-slate-500">Status Pembayaran:</span>
-                  <span className="font-bold uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    {receiptData.status_tagihan || 'LUNAS'}
+                <div className="text-right">
+                  <div className="text-xs font-mono font-bold text-slate-900">
+                    {receiptData.kode_transaksi}
+                  </div>
+                  <div className="text-2xs text-slate-500">Tgl: {receiptData.tanggal}</div>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded uppercase mt-1 inline-block bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    STATUS: {receiptData.status_tagihan || 'LUNAS'}
                   </span>
+                </div>
+              </div>
+
+              {/* Informasi Pembayar */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Telah Terima Dari:</span>
+                  <span className="font-bold text-slate-900">{receiptData.student?.nama_mahasiswa}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">NIM / No. Pendaftaran:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {receiptData.student?.nim !== '-' ? receiptData.student?.nim : receiptData.student?.no_pendaftaran}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Program Studi:</span>
+                  <span className="text-slate-800 font-medium">
+                    {receiptData.student?.prodi || '-'} {receiptData.student?.tahun_angkatan ? `(Angkatan ${receiptData.student?.tahun_angkatan})` : ''}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Kanal Pembayaran:</span>
+                  <span className="font-bold text-slate-800">
+                    {receiptData.channel === 'LOKET_TUNAI' ? 'Tunai di Loket Kasir Kampus' : 'Transfer Rekening Resmi Kampus'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Uang Sejumlah Terbilang */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <span className="text-[10px] text-slate-500 font-semibold block uppercase tracking-wider">
+                  Uang Sejumlah:
+                </span>
+                <p className="font-serif italic font-bold text-slate-800 text-xs mt-0.5">
+                  &quot;{angkaTerbilang(receiptData.jumlah_bayar)}&quot;
+                </p>
+              </div>
+
+              {/* Tagihan yang Dibayarkan */}
+              <div>
+                <p className="text-2xs uppercase tracking-wider font-bold text-slate-600 mb-1.5">
+                  Rincian Tagihan yang Dibayar:
+                </p>
+                <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 text-xs overflow-hidden">
+                  <div className="p-2.5 flex justify-between bg-white font-mono">
+                    <span className="text-slate-700">{receiptData.nomor_tagihan}</span>
+                    <span className="font-bold text-slate-900">{formatRupiah(receiptData.jumlah_bayar)}</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between bg-slate-900 text-white font-bold">
+                    <span>Jumlah Diterima:</span>
+                    <span className="font-mono text-amber-300 text-sm">{formatRupiah(receiptData.jumlah_bayar)}</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between bg-white text-2xs">
+                    <span className="text-slate-500">Sisa Tagihan Setelah Bayar:</span>
+                    <span className="font-mono font-bold text-slate-800">
+                      {formatRupiah(receiptData.sisa_setelah_bayar || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tanda Tangan */}
+              <div className="flex justify-between items-end pt-6 text-xs text-center">
+                <div className="w-44">
+                  <p className="text-2xs text-slate-500">Mahasiswa / Penyetor,</p>
+                  <div className="mt-12 border-t border-slate-800 font-bold text-slate-900 pt-1">
+                    {receiptData.student?.nama_mahasiswa || 'Mahasiswa'}
+                  </div>
+                </div>
+                <div className="w-44">
+                  <p className="text-2xs text-slate-500">Petugas Kasir Keuangan,</p>
+                  <div className="mt-12 border-t border-slate-800 font-bold text-slate-900 pt-1">
+                    {receiptData.kasir || 'Admin Keuangan'}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Tombol Aksi Kuitansi */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2 print:hidden">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 icon={<Printer size={14} />}
-                onClick={() => window.print()}
+                onClick={handlePrintReceipt}
                 className="text-xs font-bold"
               >
                 Cetak Kuitansi

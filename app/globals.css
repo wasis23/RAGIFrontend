@@ -3741,6 +3741,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     visibility: hidden !important;
   }
 
+  /* 5. Reset kontainer modal jika terdapat dokumen cetak di dalamnya */
+  .modal-overlay,
+  .modal-backdrop,
+  .modal {
+    position: static !important;
+    display: block !important;
+    overflow: visible !important;
+    max-height: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .modal-header,
+  .modal-footer {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
   table {
     width: 100% !important;
     border-collapse: collapse !important;
