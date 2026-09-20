@@ -1,28 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   Filter,
-  DollarSign,
-  Layers,
-  Sparkles,
   Edit2,
   Trash2,
   CheckCircle2,
   XCircle,
   Building2,
-  Calendar,
-  Search,
-  BookOpen,
-  Loader2,
-  SlidersHorizontal,
-  AlertCircle,
-  Info,
 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { formatRupiah } from '@/lib/utils';
@@ -30,24 +18,11 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
-import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
-
-const tarifSchema = z.object({
-  master_biaya_id: z.number().min(1, 'Komponen biaya wajib dipilih dari katalog'),
-  tahun_angkatan: z.number().min(2000, 'Tahun angkatan wajib diisi (minimal tahun 2000)'),
-  program_studi_id: z.string().optional(),
-  nominal: z.number().min(0, 'Nominal tarif tidak boleh bernilai negatif'),
-  keterangan: z.string().optional(),
-  is_active: z.boolean().default(true),
-});
-
-type TarifFormData = z.infer<typeof tarifSchema>;
 
 interface TarifItem {
   id: number;
@@ -76,6 +51,7 @@ interface TarifItem {
 }
 
 export default function PengaturanTarifBiayaPage() {
+  const router = useRouter();
   const [data, setData] = useState<TarifItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState<any>({ current_page: 1, last_page: 1, total: 0, per_page: 15 });
@@ -107,11 +83,6 @@ export default function PengaturanTarifBiayaPage() {
     page: 1,
   });
 
-  // Modal Add / Edit State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<TarifItem | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
   // Confirm Delete Dialog
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -131,54 +102,6 @@ export default function PengaturanTarifBiayaPage() {
     total_komponen_dikonfigurasi: 0,
     total_katalog_biaya: 0,
   });
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<TarifFormData>({
-    resolver: zodResolver(tarifSchema) as any,
-    defaultValues: {
-      master_biaya_id: 0,
-      tahun_angkatan: new Date().getFullYear(),
-      program_studi_id: '',
-      nominal: 0,
-      keterangan: '',
-      is_active: true,
-    },
-  });
-
-  const watchMasterBiayaId = watch('master_biaya_id');
-  const watchAngkatan = watch('tahun_angkatan');
-  const watchProdiId = watch('program_studi_id');
-  const watchIsActive = watch('is_active');
-
-  // Deteksi real-time apakah komponen biaya pada angkatan ini sudah aktif untuk Semua Program Studi (Global)
-  const existingGlobalTarif = useMemo(() => {
-    if (!isModalOpen || editingItem || !watchMasterBiayaId || !watchAngkatan) return null;
-    return data.find(
-      (t) =>
-        t.master_biaya_id === Number(watchMasterBiayaId) &&
-        t.tahun_angkatan === Number(watchAngkatan) &&
-        (t.program_studi_id === null || t.program_studi_id === undefined) &&
-        t.is_active
-    );
-  }, [isModalOpen, editingItem, watchMasterBiayaId, watchAngkatan, data]);
-
-  // Deteksi real-time apakah sudah ada tarif spesifik per prodi yang aktif untuk komponen & angkatan ini
-  const existingProdiTarifs = useMemo(() => {
-    if (!isModalOpen || editingItem || !watchMasterBiayaId || !watchAngkatan) return [];
-    return data.filter(
-      (t) =>
-        t.master_biaya_id === Number(watchMasterBiayaId) &&
-        t.tahun_angkatan === Number(watchAngkatan) &&
-        t.program_studi_id &&
-        t.is_active
-    );
-  }, [isModalOpen, editingItem, watchMasterBiayaId, watchAngkatan, data]);
 
   // Fetch Master Data Referensi
   useEffect(() => {
@@ -292,77 +215,6 @@ export default function PengaturanTarifBiayaPage() {
     );
   }, [appliedFilters]);
 
-  // Open Modal Tambah Tarif
-  const handleOpenAdd = () => {
-    setEditingItem(null);
-    const currentYear = new Date().getFullYear();
-    reset({
-      master_biaya_id: katalogBiaya[0]?.id || 0,
-      tahun_angkatan: currentYear,
-      program_studi_id: '',
-      nominal: katalogBiaya[0]?.nominal_standar ? Number(katalogBiaya[0].nominal_standar) : 0,
-      keterangan: '',
-      is_active: true,
-    });
-    setIsModalOpen(true);
-  };
-
-  // Open Modal Edit Tarif
-  const handleOpenEdit = (item: TarifItem) => {
-    setEditingItem(item);
-    reset({
-      master_biaya_id: item.master_biaya_id,
-      tahun_angkatan: item.tahun_angkatan,
-      program_studi_id: item.program_studi_id ? String(item.program_studi_id) : '',
-      nominal: Number(item.nominal),
-      keterangan: item.keterangan || '',
-      is_active: Boolean(item.is_active),
-    });
-    setIsModalOpen(true);
-  };
-
-  // Auto-fill nominal standar saat komponen biaya katalog dipilih (jika mode tambah baru)
-  const handleBiayaChange = (val: string) => {
-    const bId = Number(val);
-    setValue('master_biaya_id', bId, { shouldValidate: true });
-    if (!editingItem) {
-      const selectedBiaya = katalogBiaya.find((b) => b.id === bId);
-      if (selectedBiaya && selectedBiaya.nominal_standar) {
-        setValue('nominal', Number(selectedBiaya.nominal_standar));
-      }
-    }
-  };
-
-  // Submit Tambah / Edit Tarif
-  const onSubmitForm = async (formData: TarifFormData) => {
-    setSubmitting(true);
-    try {
-      const payload = {
-        master_biaya_id: formData.master_biaya_id,
-        tahun_angkatan: formData.tahun_angkatan,
-        program_studi_id: formData.program_studi_id ? Number(formData.program_studi_id) : null,
-        nominal: formData.nominal,
-        keterangan: formData.keterangan || null,
-        is_active: formData.is_active,
-      };
-
-      if (editingItem) {
-        await sikeuService.updatePembayaranMahasiswaTarif(editingItem.id, payload);
-        toast.success('Pengaturan tarif komponen biaya berhasil diperbarui');
-      } else {
-        await sikeuService.createPembayaranMahasiswaTarif(payload);
-        toast.success('Tarif komponen biaya berhasil ditambahkan');
-      }
-
-      setIsModalOpen(false);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || err?.message || 'Gagal menyimpan tarif');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   // Hapus Tarif
   const handleConfirmDelete = async () => {
     if (!deleteConfirm.id) return;
@@ -473,7 +325,7 @@ export default function PengaturanTarifBiayaPage() {
             {
               label: 'Edit Tarif',
               icon: <Edit2 size={14} />,
-              onClick: () => handleOpenEdit(row),
+              onClick: () => router.push(`/sikeu/pembayaran-mahasiswa/tarif/${row.id}/edit`),
             },
             {
               label: 'Hapus Tarif',
@@ -518,7 +370,7 @@ export default function PengaturanTarifBiayaPage() {
             </Button>
             <Button
               variant="primary"
-              onClick={handleOpenAdd}
+              onClick={() => router.push('/sikeu/pembayaran-mahasiswa/tarif/create')}
               icon={<Plus size={16} />}
               className="font-bold min-h-[38px] text-xs shadow-sm"
             >
@@ -673,135 +525,15 @@ export default function PengaturanTarifBiayaPage() {
         </div>
       </Drawer>
 
-      {/* Modal Tambah / Edit Tarif (Compact Sesuai Aturan Form <= 5 Inputs) */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingItem ? 'Edit Tarif Komponen Biaya' : 'Tambah Tarif Komponen Biaya'}
-        size="md"
-      >
-        <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
-          {/* Peringatan Real-Time jika sudah ada tarif Semua Program Studi */}
-          {existingGlobalTarif && (
-            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
-              <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-amber-900">
-                  Tarif Global Sudah Aktif (Semua Program Studi)
-                </p>
-                <p className="text-2xs text-amber-700 mt-0.5">
-                  Komponen biaya ini sudah disetting aktif berlaku untuk <strong>Semua Program Studi</strong> pada Angkatan {watchAngkatan} sebesar <strong>{formatRupiah(existingGlobalTarif.nominal)}</strong>. Anda tidak perlu menginputkan tarif lagi untuk angkatan ini.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Peringatan jika memilih Semua Prodi namun sudah ada tarif spesifik prodi */}
-          {!existingGlobalTarif && !watchProdiId && existingProdiTarifs.length > 0 && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2">
-              <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
-              <p className="text-2xs text-blue-800">
-                Perhatian: Sudah terdapat <strong>{existingProdiTarifs.length} program studi</strong> yang memiliki tarif spesifik aktif untuk komponen & angkatan ini. Harap nonaktifkan tarif prodi terlebih dahulu jika ingin menetapkan satu tarif untuk Semua Program Studi.
-              </p>
-            </div>
-          )}
-
-          <Select
-            label="Pilih Komponen Biaya dari Katalog *"
-            options={[
-              { value: '', label: '-- Pilih Komponen Biaya --' },
-              ...katalogBiaya.map((b) => ({
-                value: String(b.id),
-                label: `${b.kode} - ${b.nama} (${formatRupiah(b.nominal_standar)})`,
-              })),
-            ]}
-            value={watchMasterBiayaId ? String(watchMasterBiayaId) : ''}
-            onChange={handleBiayaChange}
-            error={errors.master_biaya_id?.message}
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Select
-              label="Tahun Angkatan *"
-              options={angkatanOptions.map((ang) => ({
-                value: String(ang),
-                label: `Angkatan ${ang}`,
-              }))}
-              value={String(watch('tahun_angkatan'))}
-              onChange={(val) => setValue('tahun_angkatan', Number(val), { shouldValidate: true })}
-              error={errors.tahun_angkatan?.message}
-            />
-
-            <Select
-              label="Program Studi Target"
-              options={[
-                { value: '', label: 'Semua Program Studi (Global)' },
-                ...prodiList.map((p) => ({
-                  value: String(p.id),
-                  label: `${p.nama} (${p.jenjang || 'S1'})`,
-                })),
-              ]}
-              value={watchProdiId || ''}
-              onChange={(val) => setValue('program_studi_id', val as string)}
-            />
-          </div>
-
-          <Input
-            type="number"
-            label="Nominal Tarif (Rp) *"
-            placeholder="Contoh: 5000000"
-            {...register('nominal', { valueAsNumber: true })}
-            error={errors.nominal?.message}
-          />
-
-          <Textarea
-            label="Keterangan (Opsional)"
-            placeholder="Catatan tambahan terkait ketentuan atau dasar tarif..."
-            rows={2}
-            {...register('keterangan')}
-          />
-
-          <Select
-            label="Status Tarif *"
-            options={[
-              { value: 'true', label: 'Aktif' },
-              { value: 'false', label: 'Non-Aktif' },
-            ]}
-            value={watchIsActive ? 'true' : 'false'}
-            onChange={(val) => setValue('is_active', val === 'true')}
-          />
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsModalOpen(false)}
-              disabled={submitting}
-              className="text-xs font-bold"
-            >
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={submitting || Boolean(existingGlobalTarif) || (!watchProdiId && existingProdiTarifs.length > 0 && !editingItem)}
-              icon={submitting ? <Loader2 size={16} className="animate-spin" /> : undefined}
-              className="text-xs font-bold shadow-sm px-5"
-            >
-              {submitting ? 'Menyimpan...' : editingItem ? 'Simpan Perubahan' : 'Tambah Tarif'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
       {/* Modal Konfirmasi Hapus UI Sesuai Aturan */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm({ isOpen: false, id: null, title: '' })}
         onConfirm={handleConfirmDelete}
+        isLoading={deleting}
         title="Hapus Tarif Komponen Biaya"
         message={`Apakah Anda yakin ingin menghapus pengaturan tarif "${deleteConfirm.title}"? Tindakan ini tidak dapat dibatalkan.`}
-        confirmText={deleting ? 'Menghapus...' : 'Ya, Hapus Tarif'}
+        confirmText="Ya, Hapus Tarif"
         cancelText="Batal"
         variant="danger"
       />
