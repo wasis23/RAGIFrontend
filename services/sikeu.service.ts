@@ -984,6 +984,61 @@ export const sikeuService = {
       total_katalog_biaya: number;
     }>>('/v1/sikeu/pembayaran-mahasiswa/summary');
   },
+
+  getPembayaranMahasiswaTarifMahasiswa: async (params?: {
+    mahasiswa_id?: number | string;
+    calon_mahasiswa_id?: number | string;
+    tipe_referensi?: string;
+    tahun_angkatan?: number;
+    program_studi_id?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.mahasiswa_id) q.append('mahasiswa_id', String(params.mahasiswa_id));
+    if (params?.calon_mahasiswa_id) q.append('calon_mahasiswa_id', String(params.calon_mahasiswa_id));
+    if (params?.tipe_referensi) q.append('tipe_referensi', params.tipe_referensi);
+    if (params?.tahun_angkatan) q.append('tahun_angkatan', String(params.tahun_angkatan));
+    if (params?.program_studi_id) q.append('program_studi_id', String(params.program_studi_id));
+
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif-mahasiswa${queryString}`);
+  },
+
+  getPembayaranMahasiswaTagihanList: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    status?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    if (params?.search) q.append('search', params.search);
+    if (params?.status) q.append('status', params.status);
+
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/pembayaran-mahasiswa/tagihan${queryString}`);
+  },
+
+  createPembayaranMahasiswaTagihan: async (payload: {
+    mahasiswa_id?: number | null;
+    calon_mahasiswa_id?: number | null;
+    tipe_referensi?: string;
+    semester?: number;
+    jatuh_tempo: string;
+    catatan?: string;
+    items: Array<{
+      master_biaya_id: number;
+      nominal: number;
+      keterangan?: string;
+    }>;
+    mode_pembayaran: 'terbitkan_tagihan' | 'bayar_loket_tunai' | 'bayar_loket_transfer';
+    jumlah_bayar?: number;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tagihan', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };
 
 

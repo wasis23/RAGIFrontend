@@ -320,6 +320,7 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
     id: 6015, parent_id: null, name: 'PEMBAYARAN MAHASISWA', url: '#pembayaran_mhs_sikeu', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 2, is_active: true,
     children: [
       { id: 60151, parent_id: 6015, name: 'Pengaturan Tarif', url: '/sikeu/pembayaran-mahasiswa/tarif', icon: 'FaDollarSign', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
+      { id: 60152, parent_id: 6015, name: 'Input Tagihan', url: '/sikeu/pembayaran-mahasiswa/tagihan', icon: 'FaFileInvoiceDollar', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
     ]
   },
   {

@@ -17,6 +17,8 @@ import {
   BookOpen,
   Loader2,
   SlidersHorizontal,
+  AlertCircle,
+  Info,
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -150,8 +152,33 @@ export default function PengaturanTarifBiayaPage() {
   });
 
   const watchMasterBiayaId = watch('master_biaya_id');
+  const watchAngkatan = watch('tahun_angkatan');
   const watchProdiId = watch('program_studi_id');
   const watchIsActive = watch('is_active');
+
+  // Deteksi real-time apakah komponen biaya pada angkatan ini sudah aktif untuk Semua Program Studi (Global)
+  const existingGlobalTarif = useMemo(() => {
+    if (!isModalOpen || editingItem || !watchMasterBiayaId || !watchAngkatan) return null;
+    return data.find(
+      (t) =>
+        t.master_biaya_id === Number(watchMasterBiayaId) &&
+        t.tahun_angkatan === Number(watchAngkatan) &&
+        (t.program_studi_id === null || t.program_studi_id === undefined) &&
+        t.is_active
+    );
+  }, [isModalOpen, editingItem, watchMasterBiayaId, watchAngkatan, data]);
+
+  // Deteksi real-time apakah sudah ada tarif spesifik per prodi yang aktif untuk komponen & angkatan ini
+  const existingProdiTarifs = useMemo(() => {
+    if (!isModalOpen || editingItem || !watchMasterBiayaId || !watchAngkatan) return [];
+    return data.filter(
+      (t) =>
+        t.master_biaya_id === Number(watchMasterBiayaId) &&
+        t.tahun_angkatan === Number(watchAngkatan) &&
+        t.program_studi_id &&
+        t.is_active
+    );
+  }, [isModalOpen, editingItem, watchMasterBiayaId, watchAngkatan, data]);
 
   // Fetch Master Data Referensi
   useEffect(() => {
@@ -654,6 +681,31 @@ export default function PengaturanTarifBiayaPage() {
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
+          {/* Peringatan Real-Time jika sudah ada tarif Semua Program Studi */}
+          {existingGlobalTarif && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5">
+              <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-amber-900">
+                  Tarif Global Sudah Aktif (Semua Program Studi)
+                </p>
+                <p className="text-2xs text-amber-700 mt-0.5">
+                  Komponen biaya ini sudah disetting aktif berlaku untuk <strong>Semua Program Studi</strong> pada Angkatan {watchAngkatan} sebesar <strong>{formatRupiah(existingGlobalTarif.nominal)}</strong>. Anda tidak perlu menginputkan tarif lagi untuk angkatan ini.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Peringatan jika memilih Semua Prodi namun sudah ada tarif spesifik prodi */}
+          {!existingGlobalTarif && !watchProdiId && existingProdiTarifs.length > 0 && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2">
+              <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
+              <p className="text-2xs text-blue-800">
+                Perhatian: Sudah terdapat <strong>{existingProdiTarifs.length} program studi</strong> yang memiliki tarif spesifik aktif untuk komponen & angkatan ini. Harap nonaktifkan tarif prodi terlebih dahulu jika ingin menetapkan satu tarif untuk Semua Program Studi.
+              </p>
+            </div>
+          )}
+
           <Select
             label="Pilih Komponen Biaya dari Katalog *"
             options={[
@@ -732,7 +784,7 @@ export default function PengaturanTarifBiayaPage() {
             <Button
               type="submit"
               variant="primary"
-              disabled={submitting}
+              disabled={submitting || Boolean(existingGlobalTarif) || (!watchProdiId && existingProdiTarifs.length > 0 && !editingItem)}
               icon={submitting ? <Loader2 size={16} className="animate-spin" /> : undefined}
               className="text-xs font-bold shadow-sm px-5"
             >

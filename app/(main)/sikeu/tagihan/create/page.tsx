@@ -170,16 +170,47 @@ export default function CreateTagihanPage() {
       } else {
         setBills([]);
         setSelectedBillIds([]);
-        // Default direct billing items from master biaya (katalog dari database)
-        const firstBiaya = masterBiayaList[0];
-        setDirectItems(firstBiaya
-          ? [{
-              master_biaya_kode: firstBiaya.kode || firstBiaya.kode_biaya || '',
-              nama_biaya: firstBiaya.nama || firstBiaya.nama_biaya || 'Komponen Biaya',
-              nominal: Number(firstBiaya.nominal_standar) || 0,
-              keterangan: '',
-            }]
-          : []);
+        // Muat tarif dinamis mahasiswa berdasarkan prodi dan angkatan
+        try {
+          const tarifRes = await sikeuService.getPembayaranMahasiswaTarifMahasiswa(
+            isCalon ? { calon_mahasiswa_id: lookupId, tipe_referensi: 'calon_mahasiswa' } : { mahasiswa_id: lookupId }
+          );
+          if (tarifRes.data && Array.isArray(tarifRes.data.komponen_tarif) && tarifRes.data.komponen_tarif.length > 0) {
+            setMasterBiayaList(tarifRes.data.komponen_tarif);
+            const firstTarif = tarifRes.data.komponen_tarif[0];
+            setDirectItems([
+              {
+                master_biaya_id: firstTarif.master_biaya_id,
+                master_biaya_kode: firstTarif.kode,
+                nama_biaya: firstTarif.nama,
+                nominal: Number(firstTarif.nominal) || 0,
+                keterangan: '',
+              }
+            ]);
+          } else {
+            const firstBiaya = masterBiayaList[0];
+            setDirectItems(firstBiaya
+              ? [{
+                  master_biaya_id: firstBiaya.id,
+                  master_biaya_kode: firstBiaya.kode || firstBiaya.kode_biaya || '',
+                  nama_biaya: firstBiaya.nama || firstBiaya.nama_biaya || 'Komponen Biaya',
+                  nominal: Number(firstBiaya.nominal_standar) || 0,
+                  keterangan: '',
+                }]
+              : []);
+          }
+        } catch {
+          const firstBiaya = masterBiayaList[0];
+          setDirectItems(firstBiaya
+            ? [{
+                master_biaya_id: firstBiaya.id,
+                master_biaya_kode: firstBiaya.kode || firstBiaya.kode_biaya || '',
+                nama_biaya: firstBiaya.nama || firstBiaya.nama_biaya || 'Komponen Biaya',
+                nominal: Number(firstBiaya.nominal_standar) || 0,
+                keterangan: '',
+              }]
+            : []);
+        }
       }
     } catch {
       toast.error('Gagal mengambil daftar tagihan mahasiswa dari database');
@@ -216,8 +247,10 @@ export default function CreateTagihanPage() {
           const matched = masterBiayaList.find((mb) => (mb.kode || mb.kode_biaya) === value);
           if (matched) {
             updated.nama_biaya = matched.nama || matched.nama_biaya;
-            if (matched.nominal_standar && (!updated.nominal || updated.nominal === 0)) {
-              updated.nominal = Number(matched.nominal_standar);
+            updated.master_biaya_id = matched.master_biaya_id || matched.id;
+            const applicableNominal = matched.nominal !== undefined ? matched.nominal : matched.nominal_standar;
+            if (applicableNominal !== undefined && (!updated.nominal || updated.nominal === 0)) {
+              updated.nominal = Number(applicableNominal);
             }
           }
         }
