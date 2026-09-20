@@ -588,6 +588,11 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran${query ? `?${query}` : ''}`);
   },
 
+  // Validasi Pembayaran Publik Real-Time via QR Code
+  validatePembayaranPublic: async (kodeTransaksi: string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/validasi/${encodeURIComponent(kodeTransaksi)}`);
+  },
+
   // Payment Gateway Config
   getPaymentGateways: async () => {
     return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/payment-gateway');

@@ -15,6 +15,8 @@ const PUBLIC_PATHS = new Set([
   '/not-found',
   '/unauthorized',
   '/error',
+  '/validasi-pembayaran',
+  '/sikeu/validasi-pembayaran',
 ]);
 
 function isPublicRoute(pathname: string): boolean {

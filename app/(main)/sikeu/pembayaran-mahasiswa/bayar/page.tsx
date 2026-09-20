@@ -28,7 +28,8 @@ import {
   SlidersHorizontal,
   Wallet,
   ArrowUpDown,
-  Tag
+  Tag,
+  ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -43,6 +44,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import type { PaginationMeta } from '@/types/api.types';
+import QRCode from 'qrcode';
 
 interface StudentInfo {
   id: number;
@@ -170,6 +172,19 @@ function BayarKasirContent() {
   // Receipt Modal State
   const [receiptData, setReceiptData] = useState<any | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [modalQrUrl, setModalQrUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (receiptData?.kode_transaksi) {
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const verifyUrl = `${origin}/validasi-pembayaran/${encodeURIComponent(receiptData.kode_transaksi)}`;
+      QRCode.toDataURL(verifyUrl, { margin: 1, width: 90 })
+        .then(setModalQrUrl)
+        .catch(() => setModalQrUrl(''));
+    } else {
+      setModalQrUrl('');
+    }
+  }, [receiptData]);
 
   // ===================== TAB 2: RIWAYAT TRANSAKSI STATES =====================
   const [pembayaranList, setPembayaranList] = useState<PembayaranHistoryItem[]>([]);
@@ -438,7 +453,7 @@ function BayarKasirContent() {
   };
 
   // ===================== UNIVERSAL ISOLATED IFRAME PRINTER =====================
-  const handlePrintReceipt = (dataToPrint?: any) => {
+  const handlePrintReceipt = async (dataToPrint?: any) => {
     const raw = dataToPrint || receiptData;
     if (!raw) {
       toast.error('Data kuitansi tidak tersedia untuk dicetak');
@@ -451,6 +466,16 @@ function BayarKasirContent() {
     const nominalBayar = Number(raw.jumlah_bayar) || 0;
     const channel = raw.channel || raw.channel_bayar || 'LOKET_TUNAI';
     const statusText = (raw.status_tagihan || raw.status || 'BERHASIL').toUpperCase();
+
+    // Generate QR Code data URL for public digital verification
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const verifyUrl = `${origin}/validasi-pembayaran/${encodeURIComponent(kodeTrx)}`;
+    let qrCodeDataUrl = '';
+    try {
+      qrCodeDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 85 });
+    } catch (e) {
+      console.error('Failed to generate QR code', e);
+    }
 
     const studentNama = raw.student?.nama_mahasiswa || raw.nama_mahasiswa || 'Mahasiswa';
     const nimOrReg = raw.student?.nim && raw.student?.nim !== '-'
@@ -785,11 +810,25 @@ function BayarKasirContent() {
             <div class="footer-sig">
               <div class="sig-box">
                 <div>Mahasiswa / Penyetor,</div>
-                <div class="sig-line">${studentNama}</div>
+                <div class="sig-line" style="margin-top: 55px;">${studentNama}</div>
               </div>
               <div class="sig-box">
-                <div>Petugas Administrasi Keuangan,</div>
-                <div class="sig-line">${kasirNama}</div>
+                <div style="font-size: 8pt; font-weight: 700; color: #334155; margin-bottom: 4px;">
+                  Tanda Tangan Digital & Verifikasi:
+                </div>
+                ${qrCodeDataUrl ? `
+                  <img src="${qrCodeDataUrl}" width="78" height="78" style="margin: 0 auto; display: block; border-radius: 4px;" alt="QR Code Verifikasi" />
+                  <div style="font-size: 7pt; font-family: monospace; color: #64748b; margin-top: 2px;">
+                    Scan QR verifikasi keaslian
+                  </div>
+                  <div class="sig-line" style="margin-top: 4px; padding-top: 2px;">
+                    ${kasirNama}
+                  </div>
+                ` : `
+                  <div class="sig-line" style="margin-top: 55px;">
+                    ${kasirNama}
+                  </div>
+                `}
               </div>
             </div>
           </div>
@@ -1729,17 +1768,31 @@ function BayarKasirContent() {
               )}
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                icon={<Printer size={14} />}
-                onClick={() => handlePrintReceipt(detailItem)}
-                className="text-xs font-bold"
-              >
-                Cetak Kuitansi
-              </Button>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  icon={<Printer size={14} />}
+                  onClick={() => handlePrintReceipt(detailItem)}
+                  className="text-xs font-bold"
+                >
+                  Cetak Kuitansi
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  icon={<ShieldCheck size={14} className="text-emerald-600" />}
+                  onClick={() => {
+                    window.open(`/validasi-pembayaran/${encodeURIComponent(detailItem.kode_transaksi)}`, '_blank');
+                  }}
+                  className="text-xs font-bold text-emerald-800 bg-emerald-50/50 border-emerald-200"
+                >
+                  Verifikasi Publik
+                </Button>
+              </div>
               <Button
                 type="button"
                 variant="outline"
@@ -1857,13 +1910,21 @@ function BayarKasirContent() {
               <div className="flex justify-between items-end pt-6 text-xs text-center">
                 <div className="w-44">
                   <p className="text-2xs text-slate-500">Mahasiswa / Penyetor,</p>
-                  <div className="mt-12 border-t border-slate-800 font-bold text-slate-900 pt-1">
+                  <div className="mt-14 border-t border-slate-800 font-bold text-slate-900 pt-1">
                     {receiptData.student?.nama_mahasiswa || 'Mahasiswa'}
                   </div>
                 </div>
-                <div className="w-44">
-                  <p className="text-2xs text-slate-500">Petugas Kasir Keuangan,</p>
-                  <div className="mt-12 border-t border-slate-800 font-bold text-slate-900 pt-1">
+                <div className="w-48">
+                  <p className="text-2xs font-bold text-slate-600 mb-1.5">Tanda Tangan Digital & Verifikasi:</p>
+                  {modalQrUrl ? (
+                    <div className="flex flex-col items-center">
+                      <img src={modalQrUrl} alt="QR Code Verifikasi" className="w-20 h-20 rounded shadow-2xs border border-slate-200" />
+                      <span className="text-[9px] font-mono text-slate-400 mt-1">Scan QR verifikasi keaslian</span>
+                    </div>
+                  ) : (
+                    <div className="mt-12" />
+                  )}
+                  <div className="mt-2 border-t border-slate-800 font-bold text-slate-900 pt-1">
                     {receiptData.kasir || 'Admin Keuangan'}
                   </div>
                 </div>
