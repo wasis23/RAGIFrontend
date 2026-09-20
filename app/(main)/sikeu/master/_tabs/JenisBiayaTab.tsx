@@ -25,6 +25,7 @@ interface JenisBiaya {
   kode: string;
   nama: string;
   tipe: string;
+  skema_tarif?: 'dinamis' | 'flat';
   nominal_standar: number;
   deskripsi?: string;
   is_active?: boolean;

@@ -3,6 +3,8 @@ export interface JenisBiaya {
   kode: string;
   nama: string;
   tipe: 'ukt' | 'spp' | 'sks' | 'praktikum' | 'wisuda' | 'spmb_adm' | 'lainnya';
+  skema_tarif?: 'dinamis' | 'flat';
+  nominal_standar?: number;
   deskripsi?: string;
   is_recurring: boolean;
   is_active: boolean;
