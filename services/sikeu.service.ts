@@ -1040,6 +1040,38 @@ export const sikeuService = {
     });
   },
 
+  previewPembayaranMahasiswaMassTagihan: async (params: {
+    tahun_angkatan: number;
+    program_studi_id?: number | null;
+    master_biaya_ids?: number[];
+  }) => {
+    const q = new URLSearchParams();
+    q.append('tahun_angkatan', String(params.tahun_angkatan));
+    if (params.program_studi_id) q.append('program_studi_id', String(params.program_studi_id));
+    if (params.master_biaya_ids && params.master_biaya_ids.length > 0) {
+      params.master_biaya_ids.forEach((id) => q.append('master_biaya_ids[]', String(id)));
+    }
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/mass-tagihan/preview?${q.toString()}`);
+  },
+
+  createPembayaranMahasiswaMassTagihan: async (payload: {
+    tahun_angkatan: number;
+    program_studi_id?: number | null;
+    semester: number;
+    jatuh_tempo: string;
+    catatan?: string;
+    items: Array<{
+      master_biaya_id: number;
+      nominal?: number;
+      keterangan?: string;
+    }>;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/mass-tagihan', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   // Potongan Mahasiswa (SIAKAD & SPMB)
   getPembayaranMahasiswaPotonganList: async (params?: {
     page?: number;

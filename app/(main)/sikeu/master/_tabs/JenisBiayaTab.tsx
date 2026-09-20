@@ -142,12 +142,12 @@ export function JenisBiayaTab() {
   const handleOpenEdit = (item: JenisBiaya) => {
     setEditingItem(item);
     setSelectedModuleCodes(item.module_codes && item.module_codes.length > 0 ? item.module_codes : ['sikeu']);
-    const isDynamic = DYNAMIC_FEE_TYPES.includes(item.tipe) || !item.nominal_standar || item.nominal_standar === 0;
+    const isDynamic = item.skema_tarif ? item.skema_tarif === 'dinamis' : (DYNAMIC_FEE_TYPES.includes(item.tipe) || !item.nominal_standar || item.nominal_standar === 0);
     reset({
       kode: item.kode,
       nama: item.nama,
       tipe: item.tipe,
-      skema_tarif: isDynamic ? 'dinamis' : 'flat',
+      skema_tarif: item.skema_tarif || (isDynamic ? 'dinamis' : 'flat'),
       nominal_standar: item.nominal_standar || 0,
       deskripsi: item.deskripsi || '',
       is_active: item.is_active !== false,
@@ -196,6 +196,7 @@ export function JenisBiayaTab() {
         kode: formData.kode,
         nama: formData.nama,
         tipe: formData.tipe,
+        skema_tarif: formData.skema_tarif,
         nominal_standar: formData.skema_tarif === 'dinamis' ? 0 : Number(formData.nominal_standar || 0),
         deskripsi: formData.deskripsi,
         is_active: Boolean(formData.is_active),
@@ -307,13 +308,13 @@ export function JenisBiayaTab() {
       key: 'nominal_standar',
       label: 'SKEMA & NOMINAL TARIF',
       render: (row) => {
-        const isDynamic = DYNAMIC_FEE_TYPES.includes(row.tipe) || !row.nominal_standar || row.nominal_standar === 0;
+        const isDynamic = row.skema_tarif === 'dinamis' || (row.skema_tarif !== 'flat' && (DYNAMIC_FEE_TYPES.includes(row.tipe) || !row.nominal_standar || row.nominal_standar === 0));
 
         if (isDynamic) {
           return (
             <div className="space-y-1">
               <Link
-                href="/sikeu/mahasiswa/tarif"
+                href="/sikeu/pembayaran-mahasiswa/tarif"
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-800 border border-primary-200/80 text-xs font-bold transition-colors group"
               >
                 <Calculator size={13} className="text-primary-600" />
@@ -460,7 +461,7 @@ export function JenisBiayaTab() {
                 <span>Skema Tarif Dinamis Aktif</span>
               </div>
               <p className="text-2xs text-primary-800 leading-relaxed">
-                Nominal tagihan riil komponen ini akan diatur secara fleksibel per kombinasi <strong>Tahun Angkatan</strong>, <strong>Program Studi</strong>, <strong>Semester</strong>, dan <strong>Jalur Kelas</strong> di menu <Link href="/sikeu/mahasiswa/tarif" className="underline font-bold">Pengaturan Tarif Mahasiswa</Link>. Field nominal di bawah diset 0.
+                Nominal tagihan riil komponen ini akan diatur secara fleksibel per kombinasi <strong>Tahun Angkatan</strong> dan <strong>Program Studi</strong> di menu <Link href="/sikeu/pembayaran-mahasiswa/tarif" className="underline font-bold">Pengaturan Tarif Mahasiswa</Link>. Field nominal di bawah diset 0.
               </p>
             </div>
           ) : (
