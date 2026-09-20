@@ -1039,6 +1039,60 @@ export const sikeuService = {
       body: JSON.stringify(payload),
     });
   },
+
+  // Potongan Mahasiswa (SIAKAD & SPMB)
+  getPembayaranMahasiswaPotonganList: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    status?: string;
+    tipe_referensi?: string;
+    sort_by?: string;
+    sort_order?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    if (params?.search) q.append('search', params.search);
+    if (params?.status) q.append('status', params.status);
+    if (params?.tipe_referensi) q.append('tipe_referensi', params.tipe_referensi);
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+
+    const queryString = q.toString() ? `?${q.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any[]> & { summary?: any }>(`/v1/sikeu/pembayaran-mahasiswa/potongan${queryString}`);
+  },
+
+  getPembayaranMahasiswaPotonganDetail: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/potongan/${id}`);
+  },
+
+  createPembayaranMahasiswaPotongan: async (payload: {
+    mahasiswa_id?: number | null;
+    calon_mahasiswa_id?: number | null;
+    is_calon_mahasiswa?: boolean;
+    tipe_referensi?: string;
+    nama_potongan: string;
+    nomor_sk?: string | null;
+    keterangan?: string | null;
+    status?: string;
+    target_bills: Array<{
+      tagihan_id: number;
+      nominal_potongan: number;
+      mode_potongan?: 'seluruhnya' | 'nominal';
+    }>;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/potongan', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deletePembayaranMahasiswaPotongan: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/potongan/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 
