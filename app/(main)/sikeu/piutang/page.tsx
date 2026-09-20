@@ -420,15 +420,6 @@ export default function PiutangMahasiswaPage() {
               )}
             </Button>
             <Button
-              variant="outline"
-              icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
-              onClick={() => fetchPiutang(pagination.current_page)}
-              disabled={loading}
-              className="font-bold min-h-[40px]"
-            >
-              Refresh
-            </Button>
-            <Button
               variant="primary"
               icon={<FileSpreadsheet size={16} />}
               onClick={handleDownloadExcel}

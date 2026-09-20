@@ -817,10 +817,12 @@ export const sikeuService = {
   },
 
   // Tagihan Belum Lunas Mahasiswa untuk Kasir / Loket (Support Siakad Mahasiswa & SPMB Calon Mahasiswa)
-  getStudentUnpaidBills: async (studentId: number | string, isCalon?: boolean) => {
-    const url = isCalon
-      ? `/v1/sikeu/mahasiswa/${studentId}/unpaid-bills?type=calon`
-      : `/v1/sikeu/mahasiswa/${studentId}/unpaid-bills`;
+  getStudentUnpaidBills: async (studentId: number | string, isCalon?: boolean, includeLunas?: boolean) => {
+    const params = new URLSearchParams();
+    if (isCalon) params.append('type', 'calon');
+    if (includeLunas) params.append('include_lunas', 'true');
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const url = `/v1/sikeu/mahasiswa/${studentId}/unpaid-bills${queryString}`;
     return fetchWithAuth<ApiResponse<any>>(url);
   },
 
@@ -1008,12 +1010,16 @@ export const sikeuService = {
     per_page?: number;
     search?: string;
     status?: string;
+    jatuh_tempo_dari?: string;
+    jatuh_tempo_sampai?: string;
   }) => {
     const q = new URLSearchParams();
     if (params?.page) q.append('page', String(params.page));
     if (params?.per_page) q.append('per_page', String(params.per_page));
     if (params?.search) q.append('search', params.search);
     if (params?.status) q.append('status', params.status);
+    if (params?.jatuh_tempo_dari) q.append('jatuh_tempo_dari', params.jatuh_tempo_dari);
+    if (params?.jatuh_tempo_sampai) q.append('jatuh_tempo_sampai', params.jatuh_tempo_sampai);
 
     const queryString = q.toString() ? `?${q.toString()}` : '';
     return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/pembayaran-mahasiswa/tagihan${queryString}`);
@@ -1136,6 +1142,18 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tagihan/batch-delete', {
       method: 'POST',
       body: JSON.stringify({ tagihan_ids }),
+    });
+  },
+
+  alihkanPembayaranMahasiswa: async (payload: {
+    source_tagihan_id: number;
+    target_tagihan_id: number;
+    nominal: number;
+    alasan: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/alihkan-pembayaran', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 };

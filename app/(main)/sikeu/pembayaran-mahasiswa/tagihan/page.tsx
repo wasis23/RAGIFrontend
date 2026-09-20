@@ -20,7 +20,8 @@ import {
   FileText,
   SlidersHorizontal,
   CreditCard,
-  Trash2
+  Trash2,
+  ArrowRightLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -49,6 +50,7 @@ interface TagihanRecord {
   total_potongan: number;
   total_bayar: number;
   sisa: number;
+  kelebihan_bayar?: number;
   status: string;
   jatuh_tempo?: string;
   va_number?: string;
@@ -73,13 +75,41 @@ export default function ListTagihanMahasiswaPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'all' });
+  const [filterJatuhTempoDari, setFilterJatuhTempoDari] = useState('');
+  const [filterJatuhTempoSampai, setFilterJatuhTempoSampai] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: '',
+    status: 'all',
+    jatuh_tempo_dari: '',
+    jatuh_tempo_sampai: ''
+  });
 
   // Copy VA State
   const [copiedVaId, setCopiedVaId] = useState<number | null>(null);
 
   // Detail Modal State
   const [selectedDetail, setSelectedDetail] = useState<TagihanRecord | null>(null);
+
+  // Alihkan Pembayaran / Koreksi Lebih Bayar Modal State
+  const [alihkanModal, setAlihkanModal] = useState<{
+    isOpen: boolean;
+    sourceBill: TagihanRecord | null;
+    targetBills: any[];
+    loadingTargets: boolean;
+    selectedTargetId: string;
+    nominal: string;
+    alasan: string;
+    submitting: boolean;
+  }>({
+    isOpen: false,
+    sourceBill: null,
+    targetBills: [],
+    loadingTargets: false,
+    selectedTargetId: '',
+    nominal: '',
+    alasan: '',
+    submitting: false,
+  });
 
   // Selection & Delete State
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -96,6 +126,8 @@ export default function ListTagihanMahasiswaPage() {
         per_page: 15,
         search: appliedFilters.search || undefined,
         status: appliedFilters.status !== 'all' ? appliedFilters.status : undefined,
+        jatuh_tempo_dari: appliedFilters.jatuh_tempo_dari || undefined,
+        jatuh_tempo_sampai: appliedFilters.jatuh_tempo_sampai || undefined,
       });
 
       setTagihanList(Array.isArray(res.data) ? res.data : []);
@@ -116,7 +148,12 @@ export default function ListTagihanMahasiswaPage() {
   }, [fetchTagihan]);
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, status: filterStatus });
+    setAppliedFilters({
+      search: filterSearch,
+      status: filterStatus,
+      jatuh_tempo_dari: filterJatuhTempoDari,
+      jatuh_tempo_sampai: filterJatuhTempoSampai,
+    });
     setPage(1);
     setShowFilter(false);
   };
@@ -124,7 +161,14 @@ export default function ListTagihanMahasiswaPage() {
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterStatus('all');
-    setAppliedFilters({ search: '', status: 'all' });
+    setFilterJatuhTempoDari('');
+    setFilterJatuhTempoSampai('');
+    setAppliedFilters({
+      search: '',
+      status: 'all',
+      jatuh_tempo_dari: '',
+      jatuh_tempo_sampai: '',
+    });
     setPage(1);
     setShowFilter(false);
   };
@@ -179,6 +223,87 @@ export default function ListTagihanMahasiswaPage() {
       toast.error(err?.response?.data?.message || err?.message || 'Gagal menghapus tagihan terpilih');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleOpenAlihkan = async (row: TagihanRecord) => {
+    const studentId = row.mahasiswa_id || row.calon_mahasiswa_id;
+    if (!studentId) {
+      toast.error('Data identitas mahasiswa tidak valid.');
+      return;
+    }
+
+    setAlihkanModal({
+      isOpen: true,
+      sourceBill: row,
+      targetBills: [],
+      loadingTargets: true,
+      selectedTargetId: '',
+      nominal: row.kelebihan_bayar && row.kelebihan_bayar > 0 ? String(row.kelebihan_bayar) : '',
+      alasan: row.kelebihan_bayar && row.kelebihan_bayar > 0 ? 'Pengalihan kelebihan bayar' : '',
+      submitting: false,
+    });
+
+    try {
+      const res = await sikeuService.getStudentUnpaidBills(studentId, row.is_calon_mahasiswa);
+      const data = res?.data?.bills || (Array.isArray(res?.data) ? res.data : []);
+      // Filter out current source bill and only keep bills with remaining balance
+      const targets = data.filter((b: any) => b.id !== row.id && Number(b.sisa) > 0);
+      setAlihkanModal((prev) => ({
+        ...prev,
+        targetBills: targets,
+        loadingTargets: false,
+      }));
+    } catch {
+      toast.error('Gagal mengambil daftar tagihan lain milik mahasiswa');
+      setAlihkanModal((prev) => ({ ...prev, loadingTargets: false }));
+    }
+  };
+
+  const handleSubmitAlihkan = async () => {
+    if (!alihkanModal.sourceBill) return;
+    if (!alihkanModal.selectedTargetId) {
+      toast.error('Pilih tagihan tujuan yang ingin dialokasikan.');
+      return;
+    }
+    const nominalNum = Number(alihkanModal.nominal);
+    if (isNaN(nominalNum) || nominalNum <= 0) {
+      toast.error('Nominal pengalihan harus lebih besar dari 0.');
+      return;
+    }
+    if (nominalNum > alihkanModal.sourceBill.total_bayar) {
+      toast.error(`Nominal melebihi total bayar sumber (${formatRupiah(alihkanModal.sourceBill.total_bayar)}).`);
+      return;
+    }
+    if (!alihkanModal.alasan || alihkanModal.alasan.trim().length < 5) {
+      toast.error('Alasan pengalihan wajib diisi minimal 5 karakter.');
+      return;
+    }
+
+    try {
+      setAlihkanModal((prev) => ({ ...prev, submitting: true }));
+      const res = await sikeuService.alihkanPembayaranMahasiswa({
+        source_tagihan_id: alihkanModal.sourceBill.id,
+        target_tagihan_id: Number(alihkanModal.selectedTargetId),
+        nominal: nominalNum,
+        alasan: alihkanModal.alasan.trim(),
+      });
+
+      toast.success(res.message || 'Pembayaran berhasil dialihkan ke tagihan lain');
+      setAlihkanModal({
+        isOpen: false,
+        sourceBill: null,
+        targetBills: [],
+        loadingTargets: false,
+        selectedTargetId: '',
+        nominal: '',
+        alasan: '',
+        submitting: false,
+      });
+      fetchTagihan();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal mengalihkan pembayaran');
+      setAlihkanModal((prev) => ({ ...prev, submitting: false }));
     }
   };
 
@@ -278,6 +403,11 @@ export default function ListTagihanMahasiswaPage() {
               Lunas Penuh
             </span>
           )}
+          {row.kelebihan_bayar && row.kelebihan_bayar > 0 ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded mt-0.5 w-fit">
+              Lebih Bayar: {formatRupiah(row.kelebihan_bayar)}
+            </span>
+          ) : null}
         </div>
       ),
     },
@@ -363,6 +493,27 @@ export default function ListTagihanMahasiswaPage() {
                 icon: <FileText size={14} />,
                 onClick: () => setSelectedDetail(row),
               },
+              ...(row.status !== 'lunas' && Number(row.sisa) > 0
+                ? [
+                    {
+                      label: 'Bayar di Loket Kasir',
+                      icon: <CreditCard size={14} className="text-emerald-600" />,
+                      onClick: () =>
+                        router.push(
+                          `/sikeu/pembayaran-mahasiswa/bayar?student_id=${row.mahasiswa_id || row.calon_mahasiswa_id}&is_calon=${row.is_calon_mahasiswa ? 1 : 0}&tagihan_id=${row.id}`
+                        ),
+                    },
+                  ]
+                : []),
+              ...(Number(row.total_bayar) > 0 || (row.kelebihan_bayar && row.kelebihan_bayar > 0)
+                ? [
+                    {
+                      label: 'Alihkan Pembayaran / Lebih Bayar',
+                      icon: <ArrowRightLeft size={14} className="text-indigo-600" />,
+                      onClick: () => handleOpenAlihkan(row),
+                    },
+                  ]
+                : []),
               ...(row.va_number
                 ? [
                     {
@@ -391,6 +542,14 @@ export default function ListTagihanMahasiswaPage() {
         description="Daftar seluruh invoice dan tagihan kuliah mahasiswa aktif serta calon mahasiswa (SPMB)."
         action={
           <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              icon={<CreditCard size={16} />}
+              onClick={() => router.push('/sikeu/pembayaran-mahasiswa/bayar')}
+              className="font-bold min-h-[38px] text-xs"
+            >
+              Bayar di Loket Kasir
+            </Button>
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -565,8 +724,175 @@ export default function ListTagihanMahasiswaPage() {
             value={filterStatus}
             onChange={(val) => setFilterStatus(val as string)}
           />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Jatuh Tempo Dari"
+              type="date"
+              value={filterJatuhTempoDari}
+              onChange={(e) => setFilterJatuhTempoDari(e.target.value)}
+            />
+            <Input
+              label="Jatuh Tempo Sampai"
+              type="date"
+              value={filterJatuhTempoSampai}
+              onChange={(e) => setFilterJatuhTempoSampai(e.target.value)}
+            />
+          </div>
         </div>
       </Drawer>
+
+      {/* MODAL ALIKAN PEMBAYARAN / KOREKSI LEBIH BAYAR */}
+      <Modal
+        isOpen={alihkanModal.isOpen}
+        onClose={() =>
+          !alihkanModal.submitting &&
+          setAlihkanModal((prev) => ({ ...prev, isOpen: false }))
+        }
+        title="Alihkan Pembayaran / Kelebihan Bayar"
+        size="md"
+      >
+        {alihkanModal.sourceBill && (
+          <div className="space-y-4">
+            {/* Info Sumber Tagihan */}
+            <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/80 rounded-xl space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-indigo-900">Tagihan Sumber</span>
+                <span className="font-mono font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                  {alihkanModal.sourceBill.nomor_tagihan}
+                </span>
+              </div>
+              <p className="text-slate-700 font-medium">
+                Mahasiswa:{' '}
+                <span className="font-bold text-slate-900">
+                  {alihkanModal.sourceBill.nama_mahasiswa}
+                </span>{' '}
+                ({alihkanModal.sourceBill.nim})
+              </p>
+              <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-indigo-200/60 font-mono">
+                <div>
+                  <span className="text-slate-500 block text-2xs">Total Bayar Saat Ini</span>
+                  <span className="font-bold text-slate-800">
+                    {formatRupiah(alihkanModal.sourceBill.total_bayar)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-2xs">Kelebihan Bayar</span>
+                  <span
+                    className={`font-bold ${
+                      (alihkanModal.sourceBill.kelebihan_bayar || 0) > 0
+                        ? 'text-purple-700'
+                        : 'text-slate-700'
+                    }`}
+                  >
+                    {formatRupiah(alihkanModal.sourceBill.kelebihan_bayar || 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Target Tagihan */}
+            {alihkanModal.loadingTargets ? (
+              <div className="p-6 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin text-primary-600" /> Memuat tagihan lain mahasiswa...
+              </div>
+            ) : alihkanModal.targetBills.length === 0 ? (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+                <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-600" />
+                <p>
+                  Mahasiswa ini tidak memiliki tagihan aktif lain yang masih memiliki sisa pembayaran untuk menerima pengalihan dana.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Select
+                  label="Pilih Tagihan Tujuan"
+                  placeholder="-- Pilih Tagihan Tujuan --"
+                  options={alihkanModal.targetBills.map((b) => ({
+                    value: String(b.id),
+                    label: `${b.nomor_tagihan} - ${b.jenis || b.periode_label || 'Tagihan'} (Sisa: ${formatRupiah(b.sisa)})`,
+                  }))}
+                  value={alihkanModal.selectedTargetId}
+                  onChange={(val) => {
+                    const targetId = val as string;
+                    const target = alihkanModal.targetBills.find(
+                      (b) => String(b.id) === targetId
+                    );
+                    let recNominal = alihkanModal.nominal;
+                    if (!recNominal && target) {
+                      recNominal = String(
+                        Math.min(
+                          target.sisa,
+                          alihkanModal.sourceBill?.kelebihan_bayar &&
+                            alihkanModal.sourceBill.kelebihan_bayar > 0
+                            ? alihkanModal.sourceBill.kelebihan_bayar
+                            : alihkanModal.sourceBill?.total_bayar || 0
+                        )
+                      );
+                    }
+                    setAlihkanModal((prev) => ({
+                      ...prev,
+                      selectedTargetId: targetId,
+                      nominal: recNominal,
+                    }));
+                  }}
+                />
+
+                <Input
+                  label="Nominal yang Dialihkan (Rp)"
+                  type="number"
+                  placeholder="Contoh: 500000"
+                  value={alihkanModal.nominal}
+                  onChange={(e) =>
+                    setAlihkanModal((prev) => ({ ...prev, nominal: e.target.value }))
+                  }
+                />
+
+                <Input
+                  label="Alasan / Catatan Pengalihan"
+                  placeholder="Contoh: Koreksi beasiswa baru / pengalihan lebih bayar"
+                  value={alihkanModal.alasan}
+                  onChange={(e) =>
+                    setAlihkanModal((prev) => ({ ...prev, alasan: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setAlihkanModal((prev) => ({ ...prev, isOpen: false }))
+                }
+                disabled={alihkanModal.submitting}
+                className="text-xs font-bold"
+              >
+                Batal
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSubmitAlihkan}
+                disabled={
+                  alihkanModal.submitting ||
+                  alihkanModal.loadingTargets ||
+                  alihkanModal.targetBills.length === 0 ||
+                  !alihkanModal.selectedTargetId
+                }
+                className="text-xs font-bold shadow-sm"
+              >
+                {alihkanModal.submitting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin mr-1.5" /> Memproses...
+                  </>
+                ) : (
+                  'Proses Pengalihan'
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* MODAL RINCIAN DETAIL BIAYA */}
       <Modal
