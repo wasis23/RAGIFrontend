@@ -563,9 +563,29 @@ export const sikeuService = {
   },
 
   // Riwayat Pembayaran Mahasiswa (with filters)
-  getPembayaranList: async (params?: { search?: string; status?: string; channel?: string; tgl_mulai?: string; tgl_selesai?: string }) => {
-    const query = new URLSearchParams(params as any).toString();
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran?${query}`);
+  getPembayaranList: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    status?: string;
+    channel?: string;
+    tgl_mulai?: string;
+    tgl_selesai?: string;
+    sort_by?: string;
+    sort_order?: string;
+    sort_dir?: string;
+  }) => {
+    // Filter out empty / undefined params
+    const cleanParams: Record<string, string> = {};
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') {
+          cleanParams[k] = String(v);
+        }
+      });
+    }
+    const query = new URLSearchParams(cleanParams).toString();
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran${query ? `?${query}` : ''}`);
   },
 
   // Payment Gateway Config

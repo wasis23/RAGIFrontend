@@ -21,7 +21,14 @@ import {
   FileText,
   BadgePercent,
   Receipt,
-  GraduationCap
+  GraduationCap,
+  Filter,
+  Eye,
+  RefreshCw,
+  SlidersHorizontal,
+  Wallet,
+  ArrowUpDown,
+  Tag
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -32,6 +39,10 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import type { PaginationMeta } from '@/types/api.types';
 
 interface StudentInfo {
   id: number;
@@ -71,6 +82,37 @@ interface BillItem {
   }>;
 }
 
+interface PembayaranHistoryItem {
+  id: number;
+  kode_transaksi: string;
+  nim: string;
+  no_pendaftaran?: string;
+  is_calon_mahasiswa?: boolean;
+  nama_mahasiswa: string;
+  program_studi?: string;
+  rincian_pembayaran?: string;
+  tagihan_id?: number;
+  tagihan?: {
+    id?: number;
+    nomor_tagihan?: string;
+    mahasiswa_id?: number;
+    calon_mahasiswa_id?: number;
+    total_tagihan?: number;
+    total_bayar?: number;
+    status?: string;
+    rincian?: string;
+  };
+  virtual_account?: {
+    va_number: string;
+    bank_nama: string;
+  } | null;
+  jumlah_bayar: number;
+  waktu_bayar?: string;
+  channel_bayar: string;
+  status: string;
+  catatan?: string;
+}
+
 // Helper angka ke terbilang bahasa Indonesia
 function angkaTerbilang(nilai: number): string {
   const angka = Math.floor(Math.abs(nilai));
@@ -102,22 +144,24 @@ function BayarKasirContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Active Tab State (synchronized with URL query parameter ?tab=kasir | riwayat)
+  const initialTab = searchParams.get('tab') === 'riwayat' ? 'riwayat' : 'kasir';
+  const [activeTab, setActiveTab] = useState<'kasir' | 'riwayat'>(initialTab);
+
   const initialStudentId = searchParams.get('student_id');
   const initialIsCalon = searchParams.get('is_calon') === '1' || searchParams.get('is_calon') === 'true';
   const initialTagihanId = searchParams.get('tagihan_id');
 
-  // Student Search State
+  // ===================== TAB 1: KASIR LOKET STATES =====================
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<StudentInfo[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<StudentInfo | null>(null);
 
-  // Student Bills State
   const [bills, setBills] = useState<BillItem[]>([]);
   const [loadingBills, setLoadingBills] = useState(false);
   const [selectedBillIds, setSelectedBillIds] = useState<number[]>([]);
 
-  // Payment Form State
   const [channelBayar, setChannelBayar] = useState<'LOKET_TUNAI' | 'LOKET_TRANSFER'>('LOKET_TUNAI');
   const [jumlahBayar, setJumlahBayar] = useState('');
   const [catatan, setCatatan] = useState('');
@@ -127,7 +171,41 @@ function BayarKasirContent() {
   const [receiptData, setReceiptData] = useState<any | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
-  // Fetch Bills for Student
+  // ===================== TAB 2: RIWAYAT TRANSAKSI STATES =====================
+  const [pembayaranList, setPembayaranList] = useState<PembayaranHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [paginationMeta, setPaginationMeta] = useState<PaginationMeta | undefined>(undefined);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(15);
+
+  // Filters for History Tab
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterChannel, setFilterChannel] = useState('');
+  const [filterTglMulai, setFilterTglMulai] = useState('');
+  const [filterTglSelesai, setFilterTglSelesai] = useState('');
+  const [filterSortBy, setFilterSortBy] = useState('waktu_bayar');
+  const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('desc');
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+
+  // Detail Modal for Single Transaction from History
+  const [detailItem, setDetailItem] = useState<PembayaranHistoryItem | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Sync tab change to URL without full refresh
+  const handleTabChange = (tabId: 'kasir' | 'riwayat') => {
+    setActiveTab(tabId);
+    const params = new URLSearchParams(window.location.search);
+    if (tabId === 'riwayat') {
+      params.set('tab', 'riwayat');
+    } else {
+      params.delete('tab');
+    }
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    window.history.replaceState(null, '', newUrl);
+  };
+
+  // ===================== FETCH BILLS FOR KASIR =====================
   const fetchStudentBills = useCallback(async (studentId: number | string, isCalon: boolean) => {
     setLoadingBills(true);
     try {
@@ -150,7 +228,6 @@ function BayarKasirContent() {
         });
       }
 
-      // Preselect tagihan if param matches
       if (initialTagihanId) {
         const found = fetchedBills.find((b) => String(b.id) === initialTagihanId);
         if (found) {
@@ -166,14 +243,53 @@ function BayarKasirContent() {
     }
   }, [initialTagihanId, selectedStudent]);
 
-  // Initial URL Parameter Loader
   useEffect(() => {
     if (initialStudentId) {
       fetchStudentBills(initialStudentId, initialIsCalon);
     }
   }, [initialStudentId, initialIsCalon, fetchStudentBills]);
 
-  // Handle Search Mahasiswa
+  // ===================== FETCH RIWAYAT TRANSAKSI =====================
+  const fetchPaymentHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await sikeuService.getPembayaranList({
+        page,
+        per_page: perPage,
+        search: filterSearch.trim() || undefined,
+        status: filterStatus || undefined,
+        channel: filterChannel || undefined,
+        tgl_mulai: filterTglMulai || undefined,
+        tgl_selesai: filterTglSelesai || undefined,
+        sort_by: filterSortBy || 'waktu_bayar',
+        sort_dir: filterSortDir || 'desc',
+      });
+
+      if (res?.data) {
+        setPembayaranList(Array.isArray(res.data) ? res.data : []);
+      } else {
+        setPembayaranList([]);
+      }
+
+      if (res?.meta) {
+        setPaginationMeta(res.meta);
+      }
+    } catch {
+      setPembayaranList([]);
+      toast.error('Gagal memuat riwayat transaksi pembayaran');
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [page, perPage, filterSearch, filterStatus, filterChannel, filterTglMulai, filterTglSelesai, filterSortBy, filterSortDir]);
+
+  // Load history when riwayat tab is active or pagination/filters change
+  useEffect(() => {
+    if (activeTab === 'riwayat') {
+      fetchPaymentHistory();
+    }
+  }, [activeTab, fetchPaymentHistory]);
+
+  // ===================== KASIR WORKFLOW HANDLERS =====================
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!searchQuery.trim()) {
@@ -197,7 +313,6 @@ function BayarKasirContent() {
     }
   };
 
-  // Handle Student Selected
   const handleSelectStudent = (student: StudentInfo) => {
     setSelectedStudent(student);
     setSearchResults([]);
@@ -207,7 +322,6 @@ function BayarKasirContent() {
     fetchStudentBills(student.id || student.mahasiswa_id || student.calon_mahasiswa_id!, !!student.is_calon_mahasiswa);
   };
 
-  // Reset Student
   const handleResetStudent = () => {
     setSelectedStudent(null);
     setBills([]);
@@ -216,14 +330,12 @@ function BayarKasirContent() {
     setCatatan('');
   };
 
-  // Toggle Bill Selection
   const handleToggleBill = (billId: number) => {
     setSelectedBillIds((prev) => {
       const updated = prev.includes(billId)
         ? prev.filter((id) => id !== billId)
         : [...prev, billId];
 
-      // Auto calculate sum of sisa for selected bills
       const sumSisa = bills
         .filter((b) => updated.includes(b.id))
         .reduce((sum, b) => sum + (Number(b.sisa) || 0), 0);
@@ -233,7 +345,6 @@ function BayarKasirContent() {
     });
   };
 
-  // Select All Bills
   const handleSelectAllBills = () => {
     if (selectedBillIds.length === bills.length) {
       setSelectedBillIds([]);
@@ -246,21 +357,18 @@ function BayarKasirContent() {
     }
   };
 
-  // Computed total sisa of selected bills
   const totalSisaSelected = useMemo(() => {
     return bills
       .filter((b) => selectedBillIds.includes(b.id))
       .reduce((sum, b) => sum + (Number(b.sisa) || 0), 0);
   }, [bills, selectedBillIds]);
 
-  // Set Full Payment
   const handleSetFullPayment = () => {
     if (totalSisaSelected > 0) {
       setJumlahBayar(String(totalSisaSelected));
     }
   };
 
-  // Submit Payment
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -295,14 +403,14 @@ function BayarKasirContent() {
         toast.success(res.message || 'Pembayaran kasir loket berhasil diproses!');
         const kuitansi = res.data?.kuitansi || {
           kode_transaksi: 'TRX-' + Date.now(),
-          tanggal: new Date().toISOString(),
+          tanggal: new Date().toISOString().replace('T', ' ').substring(0, 19),
           mahasiswa_id: selectedStudent.id,
           nomor_tagihan: bills.filter((b) => selectedBillIds.includes(b.id)).map((b) => b.nomor_tagihan).join(', '),
           jumlah_bayar: nominal,
           channel: channelBayar,
           sisa_setelah_bayar: Math.max(0, totalSisaSelected - nominal),
           status_tagihan: nominal >= totalSisaSelected ? 'lunas' : 'sebagian',
-          kasir: 'Admin Keuangan',
+          kasir: 'Petugas Kasir Keuangan',
         };
 
         setReceiptData({
@@ -312,11 +420,13 @@ function BayarKasirContent() {
         });
         setShowReceiptModal(true);
 
-        // Refresh bills for current student
         fetchStudentBills(selectedStudent.id, !!selectedStudent.is_calon_mahasiswa);
         setSelectedBillIds([]);
         setJumlahBayar('');
         setCatatan('');
+
+        // Also invalidate history so tab 2 reflects new payment
+        fetchPaymentHistory();
       } else {
         toast.error(res.message || 'Gagal memproses pembayaran');
       }
@@ -327,9 +437,45 @@ function BayarKasirContent() {
     }
   };
 
-  // Handle Print Kuitansi via Hidden Iframe (100% Reliable & Isolates Print Styles)
-  const handlePrintReceipt = () => {
-    if (!receiptData) return;
+  // ===================== UNIVERSAL ISOLATED IFRAME PRINTER =====================
+  const handlePrintReceipt = (dataToPrint?: any) => {
+    const raw = dataToPrint || receiptData;
+    if (!raw) {
+      toast.error('Data kuitansi tidak tersedia untuk dicetak');
+      return;
+    }
+
+    // Normalizing item structure whether from direct kasir or riwayat row
+    const kodeTrx = raw.kode_transaksi || `TRX-${raw.id || Date.now()}`;
+    const tanggalBayar = raw.tanggal || raw.waktu_bayar || new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const nominalBayar = Number(raw.jumlah_bayar) || 0;
+    const channel = raw.channel || raw.channel_bayar || 'LOKET_TUNAI';
+    const statusText = (raw.status_tagihan || raw.status || 'BERHASIL').toUpperCase();
+
+    const studentNama = raw.student?.nama_mahasiswa || raw.nama_mahasiswa || 'Mahasiswa';
+    const nimOrReg = raw.student?.nim && raw.student?.nim !== '-'
+      ? `NIM: ${raw.student?.nim}`
+      : raw.nim && raw.nim !== '-'
+        ? `NIM: ${raw.nim}`
+        : `No. Reg: ${raw.student?.no_pendaftaran || raw.no_pendaftaran || '-'}`;
+    const prodiName = raw.student?.prodi || raw.program_studi || '-';
+    const angkatanText = raw.student?.tahun_angkatan ? ` (Angkatan ${raw.student.tahun_angkatan})` : '';
+
+    const channelLabel = channel === 'LOKET_TUNAI'
+      ? 'Tunai di Loket Kasir Kampus'
+      : channel === 'LOKET_TRANSFER'
+        ? 'Transfer Rekening Resmi Kampus'
+        : 'Virtual Account Online (Xendit)';
+
+    const tagihanNomor = raw.nomor_tagihan || raw.tagihan?.nomor_tagihan || (raw.tagihan_id ? `TAG-#${raw.tagihan_id}` : '-');
+    const tagihanUraian = raw.rincian_pembayaran || raw.bills_detail?.[0]?.jenis || 'Biaya Pendidikan Mahasiswa';
+    const totalTagihanNominal = raw.tagihan?.total_tagihan || raw.bills_detail?.[0]?.total_tagihan || nominalBayar;
+    const sisaTagihan = raw.sisa_setelah_bayar !== undefined
+      ? raw.sisa_setelah_bayar
+      : Math.max(0, (raw.tagihan?.total_tagihan || 0) - (raw.tagihan?.total_bayar || 0));
+
+    const kasirNama = raw.kasir || (channel.includes('LOKET') ? 'Petugas Kasir Keuangan' : 'Sistem Payment Gateway (Xendit)');
+    const terbilangStr = angkaTerbilang(nominalBayar);
 
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -346,22 +492,11 @@ function BayarKasirContent() {
       return;
     }
 
-    const terbilangStr = angkaTerbilang(receiptData.jumlah_bayar);
-    const channelName =
-      receiptData.channel === 'LOKET_TUNAI'
-        ? 'Tunai di Loket Kasir Kampus'
-        : 'Transfer Rekening Resmi Kampus';
-    const statusText = (receiptData.status_tagihan || 'LUNAS').toUpperCase();
-    const nimOrReg =
-      receiptData.student?.nim && receiptData.student?.nim !== '-'
-        ? `NIM: ${receiptData.student?.nim}`
-        : `No. Registrasi: ${receiptData.student?.no_pendaftaran || '-'}`;
-
     const html = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Kuitansi Pembayaran - ${receiptData.kode_transaksi}</title>
+          <title>Kuitansi Pembayaran - ${kodeTrx}</title>
           <meta charset="utf-8" />
           <style>
             @page {
@@ -563,12 +698,12 @@ function BayarKasirContent() {
             <div class="header-kop">
               <div>
                 <h1 class="kampus-title">UNIVERSITAS SSO CAMPUS</h1>
-                <h2 class="doc-title">Tanda Bukti Pembayaran Kasir Loket</h2>
+                <h2 class="doc-title">Tanda Bukti Pembayaran Resmi</h2>
                 <p class="kampus-sub">Bagian Administrasi Keuangan • Sistem Terpadu Pembayaran Kuliah</p>
               </div>
               <div class="ref-box">
-                <div class="ref-no">${receiptData.kode_transaksi}</div>
-                <div class="ref-date">Tanggal: ${receiptData.tanggal}</div>
+                <div class="ref-no">${kodeTrx}</div>
+                <div class="ref-date">Waktu: ${tanggalBayar}</div>
                 <span class="status-badge">${statusText}</span>
               </div>
             </div>
@@ -577,7 +712,7 @@ function BayarKasirContent() {
               <tr>
                 <td class="label">Telah Terima Dari</td>
                 <td class="colon">:</td>
-                <td class="value">${receiptData.student?.nama_mahasiswa || '-'}</td>
+                <td class="value">${studentNama}</td>
               </tr>
               <tr>
                 <td class="label">Identitas Mahasiswa</td>
@@ -587,12 +722,12 @@ function BayarKasirContent() {
               <tr>
                 <td class="label">Program Studi</td>
                 <td class="colon">:</td>
-                <td class="value">${receiptData.student?.prodi || '-'} ${receiptData.student?.tahun_angkatan ? `(Angkatan ${receiptData.student?.tahun_angkatan})` : ''}</td>
+                <td class="value">${prodiName}${angkatanText}</td>
               </tr>
               <tr>
-                <td class="label">Metode Pembayaran</td>
+                <td class="label">Kanal Pembayaran</td>
                 <td class="colon">:</td>
-                <td class="value">${channelName}</td>
+                <td class="value">${channelLabel}</td>
               </tr>
             </table>
 
@@ -605,27 +740,27 @@ function BayarKasirContent() {
               <thead>
                 <tr>
                   <th>No. Tagihan / Invoice</th>
-                  <th>Komponen Biaya</th>
-                  <th class="text-right">Nominal Tagihan</th>
-                  <th class="text-right">Dibayarkan</th>
+                  <th>Uraian / Komponen Biaya</th>
+                  <th class="text-right">Total Tagihan</th>
+                  <th class="text-right">Nominal Dibayarkan</th>
                 </tr>
               </thead>
               <tbody>
-                ${(receiptData.bills_detail && receiptData.bills_detail.length > 0
-                  ? receiptData.bills_detail.map((b: any) => `
+                ${(raw.bills_detail && raw.bills_detail.length > 0
+                  ? raw.bills_detail.map((b: any) => `
                     <tr>
                       <td style="font-family: monospace; font-weight: bold;">${b.nomor_tagihan}</td>
-                      <td>${b.jenis || b.periode_label || 'Biaya Kuliah'}</td>
+                      <td>${b.jenis || b.periode_label || 'Biaya Pendidikan Mahasiswa'}</td>
                       <td class="text-right" style="font-family: monospace;">${formatRupiah(b.total_tagihan)}</td>
-                      <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatRupiah(receiptData.jumlah_bayar)}</td>
+                      <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatRupiah(nominalBayar)}</td>
                     </tr>
                   `).join('')
                   : `
                     <tr>
-                      <td style="font-family: monospace; font-weight: bold;">${receiptData.nomor_tagihan}</td>
-                      <td>Biaya Pendidikan Mahasiswa</td>
-                      <td class="text-right" style="font-family: monospace;">${formatRupiah(receiptData.jumlah_bayar)}</td>
-                      <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatRupiah(receiptData.jumlah_bayar)}</td>
+                      <td style="font-family: monospace; font-weight: bold;">${tagihanNomor}</td>
+                      <td>${tagihanUraian}</td>
+                      <td class="text-right" style="font-family: monospace;">${formatRupiah(totalTagihanNominal)}</td>
+                      <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatRupiah(nominalBayar)}</td>
                     </tr>
                   `
                 )}
@@ -634,15 +769,15 @@ function BayarKasirContent() {
 
             <div class="total-banner">
               <span class="total-label">Total Pembayaran Diterima</span>
-              <span class="total-amount">${formatRupiah(receiptData.jumlah_bayar)}</span>
+              <span class="total-amount">${formatRupiah(nominalBayar)}</span>
             </div>
 
             <table class="meta-table" style="margin-top: 10px;">
               <tr>
                 <td class="label">Sisa Tagihan Setelah Bayar</td>
                 <td class="colon">:</td>
-                <td class="value" style="color: ${receiptData.sisa_setelah_bayar > 0 ? '#b91c1c' : '#047857'}; font-family: monospace;">
-                  ${formatRupiah(receiptData.sisa_setelah_bayar || 0)} ${receiptData.sisa_setelah_bayar <= 0 ? '(LUNAS PENUH)' : ''}
+                <td class="value" style="color: ${sisaTagihan > 0 ? '#b91c1c' : '#047857'}; font-family: monospace;">
+                  ${formatRupiah(sisaTagihan)} ${sisaTagihan <= 0 ? '(LUNAS PENUH)' : ''}
                 </td>
               </tr>
             </table>
@@ -650,11 +785,11 @@ function BayarKasirContent() {
             <div class="footer-sig">
               <div class="sig-box">
                 <div>Mahasiswa / Penyetor,</div>
-                <div class="sig-line">${receiptData.student?.nama_mahasiswa || 'Mahasiswa'}</div>
+                <div class="sig-line">${studentNama}</div>
               </div>
               <div class="sig-box">
-                <div>Petugas Kasir Keuangan,</div>
-                <div class="sig-line">${receiptData.kasir || 'Admin Keuangan'}</div>
+                <div>Petugas Administrasi Keuangan,</div>
+                <div class="sig-line">${kasirNama}</div>
               </div>
             </div>
           </div>
@@ -677,13 +812,191 @@ function BayarKasirContent() {
     }, 250);
   };
 
+  // ===================== STATS COMPUTATION FOR RIWAYAT TAB =====================
+  const riwayatStats = useMemo(() => {
+    const totalTrx = paginationMeta?.total || pembayaranList.length;
+    const totalAmount = pembayaranList
+      .filter((p) => p.status === 'success')
+      .reduce((sum, p) => sum + (Number(p.jumlah_bayar) || 0), 0);
+    const countLoket = pembayaranList.filter((p) => p.channel_bayar?.includes('LOKET')).length;
+    const countOnline = pembayaranList.filter((p) => !p.channel_bayar?.includes('LOKET')).length;
+
+    return {
+      totalTrx,
+      totalAmount,
+      countLoket,
+      countOnline,
+    };
+  }, [pembayaranList, paginationMeta]);
+
+  // ===================== DATA TABLE COLUMNS (TAB 2) =====================
+  const columns: ColumnDef<PembayaranHistoryItem>[] = useMemo(
+    () => [
+      {
+        key: 'kode_transaksi',
+        label: 'Kode Trx & Waktu',
+        render: (row) => (
+          <div className="space-y-0.5">
+            <span className="font-mono font-extrabold text-xs text-slate-900 block">
+              {row.kode_transaksi}
+            </span>
+            <div className="flex items-center gap-1 text-2xs text-slate-500">
+              <Clock size={11} className="text-slate-400" />
+              <span>{row.waktu_bayar || '-'}</span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'mahasiswa',
+        label: 'Identitas Mahasiswa',
+        render: (row) => (
+          <div className="space-y-0.5 max-w-[220px]">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-xs text-slate-900 truncate">{row.nama_mahasiswa}</span>
+              {row.is_calon_mahasiswa ? (
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                  SPMB
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+                  SIAKAD
+                </span>
+              )}
+            </div>
+            <div className="text-2xs text-slate-500 font-mono">
+              {row.nim && row.nim !== '-' ? `NIM: ${row.nim}` : `No Reg: ${row.no_pendaftaran || '-'}`}
+              {row.program_studi && row.program_studi !== '-' ? ` • ${row.program_studi}` : ''}
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'tagihan',
+        label: 'Tagihan & Uraian',
+        render: (row) => (
+          <div className="space-y-0.5 max-w-[200px]">
+            <span className="font-mono text-xs font-semibold text-slate-800 block">
+              {row.tagihan?.nomor_tagihan || (row.tagihan_id ? `TAG-#${row.tagihan_id}` : '-')}
+            </span>
+            <span className="text-2xs text-slate-500 line-clamp-1">
+              {row.rincian_pembayaran || 'Biaya Pendidikan Mahasiswa'}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: 'channel_bayar',
+        label: 'Kanal Pembayaran',
+        render: (row) => {
+          if (row.channel_bayar === 'LOKET_TUNAI') {
+            return (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <Wallet size={11} />
+                Tunai Kasir
+              </span>
+            );
+          }
+          if (row.channel_bayar === 'LOKET_TRANSFER') {
+            return (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                <Building2 size={11} />
+                Transfer Loket
+              </span>
+            );
+          }
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
+              <CreditCard size={11} />
+              Virtual Account
+            </span>
+          );
+        },
+      },
+      {
+        key: 'jumlah_bayar',
+        label: 'Nominal Bayar',
+        align: 'right',
+        render: (row) => (
+          <div className="text-right">
+            <span className="font-mono font-extrabold text-xs text-emerald-700 block">
+              {formatRupiah(row.jumlah_bayar)}
+            </span>
+            {row.virtual_account?.va_number && (
+              <span className="text-2xs font-mono text-slate-400 block">
+                VA: {row.virtual_account.va_number}
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        render: (row) => {
+          if (row.status === 'success') {
+            return (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <CheckCircle2 size={11} />
+                Berhasil
+              </span>
+            );
+          }
+          if (row.status === 'pending') {
+            return (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                <Clock size={11} />
+                Menunggu
+              </span>
+            );
+          }
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
+              <XCircle size={11} />
+              {row.status || 'Dibatalkan'}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'aksi',
+        label: 'Aksi',
+        align: 'right',
+        render: (row) => (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                {
+                  label: 'Cetak Kuitansi',
+                  icon: <Printer size={14} />,
+                  onClick: () => handlePrintReceipt(row),
+                },
+                {
+                  label: 'Lihat Rincian',
+                  icon: <Eye size={14} />,
+                  onClick: () => {
+                    setDetailItem(row);
+                    setShowDetailModal(true);
+                  },
+                },
+              ]}
+            />
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
+      {/* PAGE HEADER */}
       <PageHeader
-        title="Pembayaran Kasir / Loket Keuangan"
-        description="Penerimaan transaksi pembayaran biaya kuliah mahasiswa secara tunai atau transfer di loket keuangan kampus."
+        title="Pembayaran & Riwayat Transaksi Mahasiswa"
+        description="Layanan kasir penerimaan pembayaran kuliah di loket kampus dan audit riwayat transaksi pembayaran mahasiswa terintegrasi."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Tombol Navigasi Kembali ke Tagihan */}
             <Button
               variant="outline"
               icon={<ArrowLeft size={16} />}
@@ -692,395 +1005,875 @@ function BayarKasirContent() {
             >
               Kembali ke Tagihan
             </Button>
+
+            {/* Jika di Tab Riwayat: Tampilkan Tombol Filter di KIRI Tombol Kasir */}
+            {activeTab === 'riwayat' && (
+              <>
+                <Button
+                  variant="outline"
+                  icon={<Filter size={16} />}
+                  onClick={() => setShowFilterDrawer(true)}
+                  className="font-bold min-h-[38px] text-xs"
+                >
+                  Filter
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={<CreditCard size={16} />}
+                  onClick={() => handleTabChange('kasir')}
+                  className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm"
+                >
+                  Bayar Kasir Baru
+                </Button>
+              </>
+            )}
+
+            {/* Jika di Tab Kasir: Opsi Cepat Lihat Riwayat */}
+            {activeTab === 'kasir' && (
+              <Button
+                variant="outline"
+                icon={<Receipt size={16} />}
+                onClick={() => handleTabChange('riwayat')}
+                className="font-bold min-h-[38px] text-xs"
+              >
+                Lihat Riwayat Transaksi
+              </Button>
+            )}
           </div>
         }
       />
 
-      {/* LANGKAH 1: PENCARIAN & IDENTITAS MAHASISWA */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs">
-              1
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Identitas Mahasiswa / Pembayar</h3>
-              <p className="text-2xs text-slate-500">Cari mahasiswa berdasarkan Nama, NIM, atau No. Pendaftaran SPMB.</p>
-            </div>
-          </div>
-          {selectedStudent && (
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<RotateCcw size={13} />}
-              onClick={handleResetStudent}
-              className="text-xs font-bold text-slate-600 hover:text-slate-800"
+      {/* STANDAR TAB NAVIGATION: DIVIDED BOTTOM BORDER (Rule 11) */}
+      <div className="flex border-b border-slate-200 gap-1 sm:gap-2 overflow-x-auto pb-0.5">
+        <button
+          type="button"
+          onClick={() => handleTabChange('kasir')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'kasir'
+              ? 'border-primary-600 text-primary-700 bg-primary-50/60'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+          }`}
+        >
+          <CreditCard size={15} className={activeTab === 'kasir' ? 'text-primary-600' : 'text-slate-400'} />
+          <span>Bayar Kasir Loket</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('riwayat')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'riwayat'
+              ? 'border-primary-600 text-primary-700 bg-primary-50/60'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+          }`}
+        >
+          <Receipt size={15} className={activeTab === 'riwayat' ? 'text-primary-600' : 'text-slate-400'} />
+          <span>Riwayat Transaksi & Cetak Kuitansi</span>
+          {paginationMeta?.total !== undefined && (
+            <span
+              className={`text-2xs px-1.5 py-0.5 rounded font-semibold ${
+                activeTab === 'riwayat'
+                  ? 'bg-primary-100 text-primary-700'
+                  : 'bg-slate-200/80 text-slate-600'
+              }`}
             >
-              Ganti Mahasiswa
-            </Button>
+              {paginationMeta.total} Data
+            </span>
           )}
-        </div>
+        </button>
+      </div>
 
-        {!selectedStudent ? (
-          <div className="space-y-4">
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <div className="flex-1">
-                <Input
-                  placeholder="Ketik Nama Mahasiswa, NIM, No Pendaftaran SPMB, atau NIK..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  disabled={searching}
-                  prefixIcon={<Search size={16} className="text-slate-400" />}
-                />
+      {/* ========================================================= */}
+      {/* KONTEN TAB 1: FORM TRANSAKSI KASIR LOKET                  */}
+      {/* ========================================================= */}
+      {activeTab === 'kasir' && (
+        <div className="space-y-6">
+          {/* LANGKAH 1: PENCARIAN & IDENTITAS MAHASISWA */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs">
+                  1
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Identitas Mahasiswa / Pembayar</h3>
+                  <p className="text-2xs text-slate-500">Cari mahasiswa berdasarkan Nama, NIM, atau No. Pendaftaran SPMB.</p>
+                </div>
               </div>
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={searching || !searchQuery.trim()}
-                className="font-bold text-xs px-5 shadow-xs"
-              >
-                {searching ? <Loader2 size={15} className="animate-spin mr-1.5" /> : null}
-                Cari Mahasiswa
-              </Button>
-            </form>
+              {selectedStudent && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<RotateCcw size={13} />}
+                  onClick={handleResetStudent}
+                  className="text-xs font-bold text-slate-600 hover:text-slate-800"
+                >
+                  Ganti Mahasiswa
+                </Button>
+              )}
+            </div>
 
-            {/* Hasil Pencarian */}
-            {searchResults.length > 0 && (
-              <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden max-h-72 overflow-y-auto">
-                {searchResults.map((m) => {
-                  const studentId = m.id || m.mahasiswa_id || m.calon_mahasiswa_id;
-                  return (
-                    <div
-                      key={studentId}
-                      className="p-3.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs">
-                          {m.nama_mahasiswa?.charAt(0) || 'M'}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-slate-900">{m.nama_mahasiswa}</span>
-                            {m.is_calon_mahasiswa ? (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
-                                SPMB
-                              </span>
-                            ) : (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
-                                SIAKAD
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-2xs text-slate-500 font-mono block">
-                            {m.nim && m.nim !== '-' ? `NIM: ${m.nim}` : `No. Reg: ${m.no_pendaftaran || '-'}`} • {m.prodi || 'Program Studi'}
-                            {m.tahun_angkatan ? ` • Angkatan ${m.tahun_angkatan}` : ''}
-                          </span>
-                        </div>
-                      </div>
+            {!selectedStudent ? (
+              <div className="space-y-4">
+                <form onSubmit={handleSearch} className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Ketik Nama Mahasiswa, NIM, No Pendaftaran SPMB, atau NIK..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      disabled={searching}
+                      prefixIcon={<Search size={16} className="text-slate-400" />}
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={searching || !searchQuery.trim()}
+                    className="font-bold text-xs px-5 shadow-xs"
+                  >
+                    {searching ? <Loader2 size={15} className="animate-spin mr-1.5" /> : null}
+                    Cari Mahasiswa
+                  </Button>
+                </form>
 
-                      <div className="flex items-center gap-3">
-                        {m.total_unpaid_amount !== undefined && (
-                          <div className="text-right">
-                            <span className="text-2xs text-slate-500 block">Sisa Tagihan</span>
-                            <span className="text-xs font-mono font-bold text-rose-700">
-                              {formatRupiah(m.total_unpaid_amount)}
-                            </span>
-                          </div>
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSelectStudent(m)}
-                          className="font-bold text-xs"
+                {/* Hasil Pencarian Mahasiswa */}
+                {searchResults.length > 0 && (
+                  <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden max-h-72 overflow-y-auto">
+                    {searchResults.map((m) => {
+                      const studentId = m.id || m.mahasiswa_id || m.calon_mahasiswa_id;
+                      return (
+                        <div
+                          key={studentId}
+                          className="p-3.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors"
                         >
-                          Pilih
-                        </Button>
-                      </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs">
+                              {m.nama_mahasiswa?.charAt(0) || 'M'}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-slate-900">{m.nama_mahasiswa}</span>
+                                {m.is_calon_mahasiswa ? (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                                    SPMB
+                                  </span>
+                                ) : (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+                                    SIAKAD
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-2xs text-slate-500 font-mono block">
+                                {m.nim && m.nim !== '-' ? `NIM: ${m.nim}` : `No. Reg: ${m.no_pendaftaran || '-'}`} • {m.prodi || 'Program Studi'}
+                                {m.tahun_angkatan ? ` • Angkatan ${m.tahun_angkatan}` : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {m.total_unpaid_amount !== undefined && (
+                              <div className="text-right">
+                                <span className="text-2xs text-slate-500 block">Sisa Tagihan</span>
+                                <span className="text-xs font-mono font-bold text-rose-700">
+                                  {formatRupiah(m.total_unpaid_amount)}
+                                </span>
+                              </div>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSelectStudent(m)}
+                              className="font-bold text-xs"
+                            >
+                              Pilih
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Mahasiswa Terpilih Info Card */
+              <div className="p-4 bg-slate-50/90 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-primary-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+                    {selectedStudent.nama_mahasiswa?.charAt(0) || 'M'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-extrabold text-sm text-slate-900">{selectedStudent.nama_mahasiswa}</h4>
+                      {selectedStudent.is_calon_mahasiswa ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                          SPMB CALON MAHASISWA
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+                          MAHASISWA AKTIF SIAKAD
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
+                    <div className="text-xs text-slate-600 flex items-center gap-2 flex-wrap mt-0.5">
+                      <span className="font-mono font-semibold">
+                        {selectedStudent.nim && selectedStudent.nim !== '-'
+                          ? `NIM: ${selectedStudent.nim}`
+                          : `No Reg: ${selectedStudent.no_pendaftaran || '-'}`}
+                      </span>
+                      <span>•</span>
+                      <span>{selectedStudent.prodi || '-'}</span>
+                      {selectedStudent.tahun_angkatan && (
+                        <>
+                          <span>•</span>
+                          <span>Angkatan {selectedStudent.tahun_angkatan}</span>
+                        </>
+                      )}
+                      {selectedStudent.jalur_kelas && (
+                        <>
+                          <span>•</span>
+                          <span>Kelas {selectedStudent.jalur_kelas}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white px-3.5 py-2 rounded-xl border border-slate-200 text-right w-full sm:w-auto">
+                  <span className="text-2xs text-slate-500 uppercase tracking-wider font-bold block">
+                    Total Tagihan Aktif
+                  </span>
+                  <span className="text-sm font-extrabold font-mono text-primary-700">
+                    {bills.length} Invoice Tagihan
+                  </span>
+                </div>
               </div>
             )}
           </div>
-        ) : (
-          /* Mahasiswa Terpilih Info Card */
-          <div className="p-4 bg-slate-50/90 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-primary-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
-                {selectedStudent.nama_mahasiswa?.charAt(0) || 'M'}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="font-extrabold text-sm text-slate-900">{selectedStudent.nama_mahasiswa}</h4>
-                  {selectedStudent.is_calon_mahasiswa ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
-                      SPMB CALON MAHASISWA
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
-                      MAHASISWA AKTIF SIAKAD
-                    </span>
-                  )}
+
+          {/* INFORMASI DISPENSASI (KETIKA MAHASISWA MEMINTA CICILAN) */}
+          {selectedStudent && (
+            <div className="p-4 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertTriangle size={18} />
                 </div>
-                <div className="text-xs text-slate-600 flex items-center gap-2 flex-wrap mt-0.5">
-                  <span className="font-mono font-semibold">
-                    {selectedStudent.nim && selectedStudent.nim !== '-'
-                      ? `NIM: ${selectedStudent.nim}`
-                      : `No Reg: ${selectedStudent.no_pendaftaran || '-'}`}
-                  </span>
-                  <span>•</span>
-                  <span>{selectedStudent.prodi || '-'}</span>
-                  {selectedStudent.tahun_angkatan && (
-                    <>
-                      <span>•</span>
-                      <span>Angkatan {selectedStudent.tahun_angkatan}</span>
-                    </>
-                  )}
-                  {selectedStudent.jalur_kelas && (
-                    <>
-                      <span>•</span>
-                      <span>Kelas {selectedStudent.jalur_kelas}</span>
-                    </>
-                  )}
+                <div>
+                  <h4 className="text-xs font-bold text-amber-950">
+                    Mahasiswa Meminta Skema Cicilan atau Penundaan Pembayaran?
+                  </h4>
+                  <p className="text-2xs text-amber-900 mt-0.5 leading-relaxed">
+                    Jika mahasiswa belum dapat melunasi tagihan secara penuh dan memerlukan skema cicilan bertahap atau perpanjangan jatuh tempo, silakan ajukan <strong>Dispensasi Pembayaran</strong> terlebih dahulu agar disetujui pimpinan keuangan.
+                  </p>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-white px-3.5 py-2 rounded-xl border border-slate-200 text-right w-full sm:w-auto">
-              <span className="text-2xs text-slate-500 uppercase tracking-wider font-bold block">
-                Total Tagihan Aktif
-              </span>
-              <span className="text-sm font-extrabold font-mono text-primary-700">
-                {bills.length} Invoice Tagihan
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* INFORMASI & PENGALIHAN DISPENSASI (KETIKA MAHASISWA MEMINTA DICICIL) */}
-      {selectedStudent && (
-        <div className="p-4 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-              <AlertTriangle size={18} />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-amber-950">
-                Mahasiswa Meminta Skema Cicilan atau Penundaan Pembayaran?
-              </h4>
-              <p className="text-2xs text-amber-900 mt-0.5 leading-relaxed">
-                Jika mahasiswa belum dapat melunasi tagihan secara penuh dan memerlukan skema cicilan bertahap atau perpanjangan jatuh tempo, silakan ajukan <strong>Dispensasi Pembayaran</strong> terlebih dahulu agar disetujui pimpinan keuangan.
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              router.push(
-                `/sikeu/dispensasi/create?mahasiswa_id=${selectedStudent.id || selectedStudent.mahasiswa_id}`
-              )
-            }
-            className="text-xs font-bold border-amber-300 text-amber-900 bg-white hover:bg-amber-100 shrink-0 w-full sm:w-auto shadow-2xs"
-          >
-            Ajukan Dispensasi Cicilan
-          </Button>
-        </div>
-      )}
-
-      {/* LANGKAH 2: PILIH TAGIHAN YANG DIBAYAR */}
-      {selectedStudent && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs">
-                2
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Daftar Tagihan Belum Lunas</h3>
-                <p className="text-2xs text-slate-500">Pilih satu atau beberapa tagihan yang akan dibayarkan oleh mahasiswa.</p>
-              </div>
-            </div>
-
-            {bills.length > 0 && (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleSelectAllBills}
-                className="text-xs font-bold"
+                onClick={() =>
+                  router.push(
+                    `/sikeu/dispensasi/create?mahasiswa_id=${selectedStudent.id || selectedStudent.mahasiswa_id}`
+                  )
+                }
+                className="text-xs font-bold border-amber-300 text-amber-900 bg-white hover:bg-amber-100 shrink-0 w-full sm:w-auto shadow-2xs"
               >
-                {selectedBillIds.length === bills.length ? 'Batalkan Semua' : 'Pilih Semua Tagihan'}
+                Ajukan Dispensasi Cicilan
               </Button>
-            )}
-          </div>
-
-          {loadingBills ? (
-            <div className="p-8 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
-              <Loader2 size={16} className="animate-spin text-primary-600" /> Memuat daftar tagihan...
-            </div>
-          ) : bills.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
-              <CheckCircle2 size={24} className="mx-auto text-emerald-600 mb-2" />
-              <p className="font-bold text-slate-800">Tidak ada tagihan yang belum lunas</p>
-              <p className="mt-0.5 text-slate-500">Seluruh tagihan mahasiswa ini sudah terbayar lunas atau belum ada tagihan diterbitkan.</p>
-            </div>
-          ) : (
-            <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
-              {bills.map((bill) => {
-                const isChecked = selectedBillIds.includes(bill.id);
-                return (
-                  <div
-                    key={bill.id}
-                    onClick={() => handleToggleBill(bill.id)}
-                    className={`p-3.5 flex items-center justify-between cursor-pointer transition-colors ${
-                      isChecked ? 'bg-primary-50/50' : 'hover:bg-slate-50/70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}} // handled by parent onClick
-                        className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4 cursor-pointer"
-                      />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-slate-900">
-                            {bill.nomor_tagihan}
-                          </span>
-                          <span className="text-2xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                            {bill.jenis || bill.periode_label || 'Tagihan Kuliah'}
-                          </span>
-                          {bill.status === 'sebagian' && (
-                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
-                              Dibayar Sebagian
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-2xs text-slate-500 font-mono block mt-0.5">
-                          Jatuh Tempo: {bill.jatuh_tempo || '-'} • Total Tagihan: {formatRupiah(bill.total_tagihan)}
-                          {Number(bill.total_bayar) > 0 ? ` • Sudah Bayar: ${formatRupiah(bill.total_bayar)}` : ''}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-2xs text-slate-500 block">Sisa Harus Dibayar</span>
-                      <span className="text-sm font-mono font-extrabold text-rose-600">
-                        {formatRupiah(bill.sisa)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
             </div>
           )}
 
-          {/* Ringkasan Seleksi */}
-          {selectedBillIds.length > 0 && (
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-mono">
-              <span className="font-semibold text-slate-700">
-                {selectedBillIds.length} tagihan dipilih
-              </span>
-              <div className="text-right">
-                <span className="text-slate-500 text-2xs block">Total Sisa Tagihan Terpilih:</span>
-                <span className="font-extrabold text-primary-700 text-sm">
-                  {formatRupiah(totalSisaSelected)}
-                </span>
+          {/* LANGKAH 2: PILIH TAGIHAN YANG DIBAYAR */}
+          {selectedStudent && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs">
+                    2
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Daftar Tagihan Belum Lunas</h3>
+                    <p className="text-2xs text-slate-500">Pilih satu atau beberapa tagihan yang akan dibayarkan oleh mahasiswa.</p>
+                  </div>
+                </div>
+
+                {bills.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAllBills}
+                    className="text-xs font-bold"
+                  >
+                    {selectedBillIds.length === bills.length ? 'Batalkan Semua' : 'Pilih Semua Tagihan'}
+                  </Button>
+                )}
               </div>
+
+              {loadingBills ? (
+                <div className="p-8 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+                  <Loader2 size={16} className="animate-spin text-primary-600" /> Memuat daftar tagihan...
+                </div>
+              ) : bills.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
+                  <CheckCircle2 size={24} className="mx-auto text-emerald-600 mb-2" />
+                  <p className="font-bold text-slate-800">Tidak ada tagihan yang belum lunas</p>
+                  <p className="mt-0.5 text-slate-500">Seluruh tagihan mahasiswa ini sudah terbayar lunas atau belum ada tagihan diterbitkan.</p>
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+                  {bills.map((bill) => {
+                    const isChecked = selectedBillIds.includes(bill.id);
+                    return (
+                      <div
+                        key={bill.id}
+                        onClick={() => handleToggleBill(bill.id)}
+                        className={`p-3.5 flex items-center justify-between cursor-pointer transition-colors ${
+                          isChecked ? 'bg-primary-50/50' : 'hover:bg-slate-50/70'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4 cursor-pointer"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-slate-900">
+                                {bill.nomor_tagihan}
+                              </span>
+                              <span className="text-2xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                                {bill.jenis || bill.periode_label || 'Tagihan Kuliah'}
+                              </span>
+                              {bill.status === 'sebagian' && (
+                                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                                  Dibayar Sebagian
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-2xs text-slate-500 font-mono block mt-0.5">
+                              Jatuh Tempo: {bill.jatuh_tempo || '-'} • Total Tagihan: {formatRupiah(bill.total_tagihan)}
+                              {Number(bill.total_bayar) > 0 ? ` • Sudah Bayar: ${formatRupiah(bill.total_bayar)}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-2xs text-slate-500 block">Sisa Harus Dibayar</span>
+                          <span className="text-sm font-mono font-extrabold text-rose-600">
+                            {formatRupiah(bill.sisa)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedBillIds.length > 0 && (
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-mono">
+                  <span className="font-semibold text-slate-700">
+                    {selectedBillIds.length} tagihan dipilih
+                  </span>
+                  <div className="text-right">
+                    <span className="text-slate-500 text-2xs block">Total Sisa Tagihan Terpilih:</span>
+                    <span className="font-extrabold text-primary-700 text-sm">
+                      {formatRupiah(totalSisaSelected)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* LANGKAH 3: FORM PROSES PEMBAYARAN KASIR */}
+          {selectedStudent && selectedBillIds.length > 0 && (
+            <form onSubmit={handleSubmitPayment} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                <div className="w-8 h-8 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs">
+                  3
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Proses Transaksi Pembayaran</h3>
+                  <p className="text-2xs text-slate-500">Pilih metode pembayaran loket dan tentukan nominal yang diterima kasir.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Metode / Channel Pembayaran"
+                  options={[
+                    { value: 'LOKET_TUNAI', label: 'Tunai di Loket Kasir Kampus' },
+                    { value: 'LOKET_TRANSFER', label: 'Transfer Manual Rekening Resmi Kampus' },
+                  ]}
+                  value={channelBayar}
+                  onChange={(val) => setChannelBayar(val as any)}
+                />
+
+                <div>
+                  <Input
+                    label="Nominal Pembayaran Diterima (Rp)"
+                    type="number"
+                    placeholder="Contoh: 2500000"
+                    value={jumlahBayar}
+                    onChange={(e) => setJumlahBayar(e.target.value)}
+                    required
+                  />
+                  <div className="flex items-center justify-between mt-1 text-2xs">
+                    <span className="text-slate-500">Maksimal sisa: {formatRupiah(totalSisaSelected)}</span>
+                    <button
+                      type="button"
+                      onClick={handleSetFullPayment}
+                      className="text-primary-700 font-bold hover:underline"
+                    >
+                      Bayar Penuh Sisa
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <Input
+                label="Catatan / Nomor Referensi Bukti (Opsional)"
+                placeholder="Contoh: Tunai via Ibu Siti / Bukti transfer BCA 12345"
+                value={catatan}
+                onChange={(e) => setCatatan(e.target.value)}
+              />
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <div className="text-xs">
+                  <span className="text-slate-500">Total Dibayarkan: </span>
+                  <span className="font-mono font-extrabold text-emerald-700 text-sm">
+                    {formatRupiah(Number(jumlahBayar) || 0)}
+                  </span>
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={submitting || Number(jumlahBayar) <= 0}
+                  className="font-bold text-xs px-6 py-2.5 shadow-sm min-h-[40px]"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin mr-1.5" />
+                      Memproses Transaksi...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard size={15} className="mr-1.5" />
+                      Proses Pembayaran Kasir
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
           )}
         </div>
       )}
 
-      {/* LANGKAH 3: FORM PROSES PEMBAYARAN KASIR */}
-      {selectedStudent && selectedBillIds.length > 0 && (
-        <form onSubmit={handleSubmitPayment} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
-          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
-            <div className="w-8 h-8 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center font-bold text-xs">
-              3
+      {/* ========================================================= */}
+      {/* KONTEN TAB 2: RIWAYAT TRANSAKSI & AUDIT PEMBAYARAN        */}
+      {/* ========================================================= */}
+      {activeTab === 'riwayat' && (
+        <div className="space-y-5">
+          {/* KPI STATISTICS CARDS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div>
+                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Total Transaksi
+                </span>
+                <span className="text-xl font-black font-mono text-slate-900 mt-1 block">
+                  {riwayatStats.totalTrx} Trx
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+                <Receipt size={20} />
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Proses Transaksi Pembayaran</h3>
-              <p className="text-2xs text-slate-500">Pilih metode pembayaran loket dan tentukan nominal yang diterima kasir.</p>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div>
+                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Total Diterima (Berhasil)
+                </span>
+                <span className="text-xl font-black font-mono text-emerald-700 mt-1 block">
+                  {formatRupiah(riwayatStats.totalAmount)}
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                <CheckCircle2 size={20} />
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Metode / Channel Pembayaran"
-              options={[
-                { value: 'LOKET_TUNAI', label: 'Tunai di Loket Kasir Kampus' },
-                { value: 'LOKET_TRANSFER', label: 'Transfer Manual Rekening Resmi Kampus' },
-              ]}
-              value={channelBayar}
-              onChange={(val) => setChannelBayar(val as any)}
-            />
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div>
+                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Tunai di Kasir Loket
+                </span>
+                <span className="text-xl font-black font-mono text-slate-900 mt-1 block">
+                  {riwayatStats.countLoket} Trx
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                <Wallet size={20} />
+              </div>
+            </div>
 
-            <div>
-              <Input
-                label="Nominal Pembayaran Diterima (Rp)"
-                type="number"
-                placeholder="Contoh: 2500000"
-                value={jumlahBayar}
-                onChange={(e) => setJumlahBayar(e.target.value)}
-                required
-              />
-              <div className="flex items-center justify-between mt-1 text-2xs">
-                <span className="text-slate-500">Maksimal sisa: {formatRupiah(totalSisaSelected)}</span>
-                <button
-                  type="button"
-                  onClick={handleSetFullPayment}
-                  className="text-primary-700 font-bold hover:underline"
-                >
-                  Bayar Penuh Sisa
-                </button>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+              <div>
+                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">
+                  Virtual Account / Online
+                </span>
+                <span className="text-xl font-black font-mono text-slate-900 mt-1 block">
+                  {riwayatStats.countOnline} Trx
+                </span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                <CreditCard size={20} />
               </div>
             </div>
           </div>
 
-          <Input
-            label="Catatan / Nomor Referensi Bukti (Opsional)"
-            placeholder="Contoh: Tunai via Ibu Siti / Bukti transfer BCA 12345"
-            value={catatan}
-            onChange={(e) => setCatatan(e.target.value)}
-          />
-
-          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-            <div className="text-xs">
-              <span className="text-slate-500">Total Dibayarkan: </span>
-              <span className="font-mono font-extrabold text-emerald-700 text-sm">
-                {formatRupiah(Number(jumlahBayar) || 0)}
-              </span>
+          {/* QUICK SEARCH & ACTIVE FILTER BAR */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs">
+            <div className="flex-1">
+              <Input
+                placeholder="Cari Kode Transaksi, NIM, Nama Mahasiswa, atau No. Tagihan..."
+                value={filterSearch}
+                onChange={(e) => {
+                  setFilterSearch(e.target.value);
+                  setPage(1);
+                }}
+                prefixIcon={<Search size={16} className="text-slate-400" />}
+              />
             </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={submitting || Number(jumlahBayar) <= 0}
-              className="font-bold text-xs px-6 py-2.5 shadow-sm min-h-[40px]"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={15} className="animate-spin mr-1.5" />
-                  Memproses Transaksi...
-                </>
-              ) : (
-                <>
-                  <CreditCard size={15} className="mr-1.5" />
-                  Proses Pembayaran Kasir
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<Filter size={14} />}
+                onClick={() => setShowFilterDrawer(true)}
+                className="text-xs font-bold min-h-[38px]"
+              >
+                Filter Tambahan
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<RefreshCw size={14} className={loadingHistory ? 'animate-spin' : ''} />}
+                onClick={() => fetchPaymentHistory()}
+                disabled={loadingHistory}
+                className="text-xs font-bold min-h-[38px]"
+              >
+                Muat Ulang
+              </Button>
+            </div>
           </div>
-        </form>
+
+          {/* ACTIVE FILTER PILLS */}
+          {(filterStatus || filterChannel || filterTglMulai || filterTglSelesai) && (
+            <div className="flex items-center gap-2 flex-wrap text-2xs bg-slate-50 p-2.5 rounded-xl border border-slate-200/60">
+              <span className="font-bold text-slate-500">Filter Aktif:</span>
+              {filterStatus && (
+                <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-md font-semibold text-slate-700">
+                  Status: {filterStatus}
+                </span>
+              )}
+              {filterChannel && (
+                <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-md font-semibold text-slate-700">
+                  Kanal: {filterChannel}
+                </span>
+              )}
+              {(filterTglMulai || filterTglSelesai) && (
+                <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-md font-semibold text-slate-700">
+                  Periode: {filterTglMulai || '...'} s/d {filterTglSelesai || '...'}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterStatus('');
+                  setFilterChannel('');
+                  setFilterTglMulai('');
+                  setFilterTglSelesai('');
+                  setFilterSearch('');
+                  setPage(1);
+                }}
+                className="text-rose-600 font-bold hover:underline ml-1"
+              >
+                Reset Semua
+              </button>
+            </div>
+          )}
+
+          {/* MANDATORY DATA TABLE (Rule 5) */}
+          <DataTable
+            columns={columns}
+            data={pembayaranList}
+            isLoading={loadingHistory}
+            meta={paginationMeta}
+            onPageChange={(newPage) => setPage(newPage)}
+            emptyMessage={
+              <div className="p-8 text-center text-slate-500 text-xs">
+                <Receipt size={32} className="mx-auto text-slate-300 mb-2" />
+                <p className="font-bold text-slate-700">Belum ada riwayat transaksi pembayaran</p>
+                <p className="mt-0.5 text-slate-400">Transaksi pembayaran yang diproses di kasir atau secara online akan tercatat di sini.</p>
+              </div>
+            }
+          />
+        </div>
       )}
 
-      {/* MODAL KUITANSI PEMBAYARAN */}
+      {/* ========================================================= */}
+      {/* FILTER DRAWER SLIDE KANAN-KE-KIRI (Rule 6 & Rule 7)       */}
+      {/* ========================================================= */}
+      <Drawer
+        open={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        title="Filter Riwayat Pembayaran"
+        footer={
+          <div className="flex items-center justify-between w-full gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFilterSearch('');
+                setFilterStatus('');
+                setFilterChannel('');
+                setFilterTglMulai('');
+                setFilterTglSelesai('');
+                setFilterSortBy('waktu_bayar');
+                setFilterSortDir('desc');
+                setPage(1);
+                setShowFilterDrawer(false);
+              }}
+              className="text-xs font-bold"
+            >
+              Reset Filter
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setPage(1);
+                setShowFilterDrawer(false);
+                fetchPaymentHistory();
+              }}
+              className="text-xs font-bold px-4"
+            >
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4 p-1">
+          <Input
+            label="Cari Transaksi / Mahasiswa"
+            placeholder="Kode trx, NIM, Nama, No Tagihan..."
+            value={filterSearch}
+            onChange={(e) => setFilterSearch(e.target.value)}
+          />
+
+          <Select
+            label="Status Transaksi"
+            value={filterStatus}
+            onChange={(val) => setFilterStatus(val)}
+            options={[
+              { value: '', label: 'Semua Status Transaksi' },
+              { value: 'success', label: 'Berhasil (Success)' },
+              { value: 'pending', label: 'Menunggu (Pending)' },
+              { value: 'reversed', label: 'Dibatalkan (Reversed)' },
+            ]}
+          />
+
+          <Select
+            label="Kanal Pembayaran"
+            value={filterChannel}
+            onChange={(val) => setFilterChannel(val)}
+            options={[
+              { value: '', label: 'Semua Kanal Pembayaran' },
+              { value: 'LOKET_TUNAI', label: 'Tunai di Kasir Loket' },
+              { value: 'LOKET_TRANSFER', label: 'Transfer Manual Rekening Loket' },
+              { value: 'VIRTUAL_ACCOUNT', label: 'Virtual Account Online (Xendit)' },
+            ]}
+          />
+
+          <div className="space-y-1.5">
+            <span className="text-2xs font-bold text-slate-600 block uppercase tracking-wider">
+              Rentang Waktu Transaksi
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="Dari Tanggal"
+                type="date"
+                value={filterTglMulai}
+                onChange={(e) => setFilterTglMulai(e.target.value)}
+              />
+              <Input
+                label="Sampai Tanggal"
+                type="date"
+                value={filterTglSelesai}
+                onChange={(e) => setFilterTglSelesai(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          {/* Opsi Pengurutan 2 Kolom (Rule 6) */}
+          <div className="space-y-1.5">
+            <span className="text-2xs font-bold text-slate-600 block uppercase tracking-wider">
+              Pengurutan Data
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <Select
+                label="Urut Berdasarkan"
+                value={filterSortBy}
+                onChange={(val) => setFilterSortBy(val)}
+                options={[
+                  { value: 'waktu_bayar', label: 'Waktu Bayar' },
+                  { value: 'jumlah_bayar', label: 'Nominal Bayar' },
+                  { value: 'kode_transaksi', label: 'Kode Transaksi' },
+                  { value: 'id', label: 'ID Transaksi' },
+                ]}
+              />
+              <Select
+                label="Arah"
+                value={filterSortDir}
+                onChange={(val) => setFilterSortDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'desc', label: 'Terbaru / Z-A' },
+                  { value: 'asc', label: 'Terlama / A-Z' },
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* ========================================================= */}
+      {/* MODAL LIHAT RINCIAN TRANSAKSI                             */}
+      {/* ========================================================= */}
+      <Modal
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setDetailItem(null);
+        }}
+        title="Rincian Transaksi Pembayaran"
+        size="md"
+      >
+        {detailItem && (
+          <div className="space-y-4">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5 text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500">Kode Transaksi:</span>
+                <span className="font-mono font-extrabold text-slate-900 text-sm">
+                  {detailItem.kode_transaksi}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Waktu Bayar:</span>
+                <span className="font-medium text-slate-900">{detailItem.waktu_bayar || '-'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mahasiswa:</span>
+                <span className="font-bold text-slate-900">{detailItem.nama_mahasiswa}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">NIM / No. Reg:</span>
+                <span className="font-mono text-slate-800">
+                  {detailItem.nim !== '-' ? detailItem.nim : detailItem.no_pendaftaran}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Program Studi:</span>
+                <span className="text-slate-800">{detailItem.program_studi || '-'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Nomor Tagihan:</span>
+                <span className="font-mono font-bold text-slate-800">
+                  {detailItem.tagihan?.nomor_tagihan || (detailItem.tagihan_id ? `TAG-#${detailItem.tagihan_id}` : '-')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Uraian Tagihan:</span>
+                <span className="text-slate-800 font-medium">
+                  {detailItem.rincian_pembayaran || 'Biaya Pendidikan Mahasiswa'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Kanal Pembayaran:</span>
+                <span className="font-bold text-slate-900">
+                  {detailItem.channel_bayar === 'LOKET_TUNAI'
+                    ? 'Tunai di Loket Kasir Kampus'
+                    : detailItem.channel_bayar === 'LOKET_TRANSFER'
+                      ? 'Transfer Manual Rekening Loket'
+                      : 'Virtual Account Online (Xendit)'}
+                </span>
+              </div>
+              {detailItem.virtual_account?.va_number && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Nomor VA:</span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {detailItem.virtual_account.va_number} ({detailItem.virtual_account.bank_nama})
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                <span className="text-slate-700 font-bold">Jumlah Dibayar:</span>
+                <span className="font-mono font-black text-emerald-700 text-base">
+                  {formatRupiah(detailItem.jumlah_bayar)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Status Pembayaran:</span>
+                <span className="font-extrabold uppercase text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  {detailItem.status}
+                </span>
+              </div>
+              {detailItem.catatan && (
+                <div className="pt-2 border-t border-slate-200">
+                  <span className="text-slate-500 block text-2xs mb-0.5">Catatan Kasir / Sistem:</span>
+                  <p className="text-slate-700 italic">{detailItem.catatan}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                icon={<Printer size={14} />}
+                onClick={() => handlePrintReceipt(detailItem)}
+                className="text-xs font-bold"
+              >
+                Cetak Kuitansi
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setDetailItem(null);
+                }}
+                className="text-xs font-bold"
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ========================================================= */}
+      {/* MODAL KUITANSI PEMBAYARAN KASIR LOKET BARU                */}
+      {/* ========================================================= */}
       <Modal
         isOpen={showReceiptModal}
         onClose={() => setShowReceiptModal(false)}
@@ -1089,16 +1882,13 @@ function BayarKasirContent() {
       >
         {receiptData && (
           <div className="space-y-4">
-            {/* AREA DOKUMEN CETAK KUITANSI */}
             <div className="printable-document print-document p-6 border-2 border-slate-900 rounded-2xl bg-white space-y-4 text-slate-900 relative overflow-hidden shadow-xs print:p-0 print:border-none print:shadow-none">
-              {/* Watermark Status */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-10 rotate-[-25deg] select-none">
                 <span className="text-6xl font-black text-emerald-800 uppercase tracking-widest border-8 border-emerald-800 px-8 py-4 rounded-3xl">
                   {receiptData.status_tagihan || 'LUNAS'}
                 </span>
               </div>
 
-              {/* Kop Kuitansi Resmi */}
               <div className="border-b-2 border-slate-900 pb-3 flex justify-between items-start">
                 <div>
                   <h3 className="font-extrabold text-sm uppercase text-slate-900 tracking-wide">
@@ -1122,7 +1912,6 @@ function BayarKasirContent() {
                 </div>
               </div>
 
-              {/* Informasi Pembayar */}
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5 text-xs">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Telah Terima Dari:</span>
@@ -1148,7 +1937,6 @@ function BayarKasirContent() {
                 </div>
               </div>
 
-              {/* Uang Sejumlah Terbilang */}
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                 <span className="text-[10px] text-slate-500 font-semibold block uppercase tracking-wider">
                   Uang Sejumlah:
@@ -1158,7 +1946,6 @@ function BayarKasirContent() {
                 </p>
               </div>
 
-              {/* Tagihan yang Dibayarkan */}
               <div>
                 <p className="text-2xs uppercase tracking-wider font-bold text-slate-600 mb-1.5">
                   Rincian Tagihan yang Dibayar:
@@ -1181,7 +1968,6 @@ function BayarKasirContent() {
                 </div>
               </div>
 
-              {/* Tanda Tangan */}
               <div className="flex justify-between items-end pt-6 text-xs text-center">
                 <div className="w-44">
                   <p className="text-2xs text-slate-500">Mahasiswa / Penyetor,</p>
@@ -1198,14 +1984,13 @@ function BayarKasirContent() {
               </div>
             </div>
 
-            {/* Tombol Aksi Kuitansi */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2 print:hidden">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 icon={<Printer size={14} />}
-                onClick={handlePrintReceipt}
+                onClick={() => handlePrintReceipt(receiptData)}
                 className="text-xs font-bold"
               >
                 Cetak Kuitansi
@@ -1226,11 +2011,11 @@ function BayarKasirContent() {
                   size="sm"
                   onClick={() => {
                     setShowReceiptModal(false);
-                    router.push('/sikeu/pembayaran-mahasiswa/tagihan');
+                    handleTabChange('riwayat');
                   }}
                   className="text-xs font-bold"
                 >
-                  Selesai
+                  Lihat di Riwayat Transaksi
                 </Button>
               </div>
             </div>
