@@ -38,6 +38,8 @@ export default function AdminUserRolesPage() {
   const [userRoles, setUserRoles] = useState<UserRoleMapping[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserRoleMapping | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [roleOptionsMap, setRoleOptionsMap] = useState<Record<string, { value: string; label: string }>>({});
 
   // Server-side Pagination & Meta State
   const [page, setPage] = useState<number>(1);
@@ -117,14 +119,29 @@ export default function AdminUserRolesPage() {
 
   const loadRoleOptions = async (query: string) => {
     try {
-      const rolesRes = await adminService.getRoles();
-      const roleList = Array.isArray(rolesRes?.data)
-        ? rolesRes.data
-        : (rolesRes?.data as { items?: { id: number; name: string; slug: string }[] })?.items ?? [];
+      const rolesRes = await adminService.getRoles({ per_page: 100, search: query || undefined });
+      const rawData = rolesRes?.data;
+      const roleList: any[] = Array.isArray(rawData)
+        ? rawData
+        : (rawData as any)?.items || (rawData as any)?.data || [];
       const filtered = roleList.filter(
-        (r) => r.name.toLowerCase().includes(query.toLowerCase()) || r.slug.toLowerCase().includes(query.toLowerCase())
+        (r) =>
+          !query ||
+          r.name?.toLowerCase().includes(query.toLowerCase()) ||
+          r.slug?.toLowerCase().includes(query.toLowerCase())
       );
-      return filtered.map((r) => ({ value: r.id.toString(), label: `${r.name} (${r.slug})` }));
+      const options = filtered.map((r: any) => ({
+        value: r.id.toString(),
+        label: `${r.name} (${r.slug})`,
+      }));
+      setRoleOptionsMap((prev) => {
+        const next = { ...prev };
+        options.forEach((opt: any) => {
+          next[opt.value] = opt;
+        });
+        return next;
+      });
+      return options;
     } catch {
       return [];
     }
@@ -132,23 +149,42 @@ export default function AdminUserRolesPage() {
 
   const handleOpenAssign = (ur: UserRoleMapping) => {
     setEditingUser(ur);
+    const initialOptions: Record<string, { value: string; label: string }> = {};
+    ur.roles.forEach((r) => {
+      initialOptions[r.id.toString()] = {
+        value: r.id.toString(),
+        label: `${r.name} (${r.slug})`,
+      };
+    });
+    setRoleOptionsMap((prev) => ({ ...prev, ...initialOptions }));
     resetAssignForm({
       roles: ur.roles.map((r) => r.id.toString()),
     });
   };
 
+  const getRoleOption = (idStr: string) => {
+    if (roleOptionsMap[idStr]) return roleOptionsMap[idStr];
+    const found = editingUser?.roles?.find((r) => r.id.toString() === idStr);
+    if (found) {
+      return { value: idStr, label: `${found.name} (${found.slug})` };
+    }
+    return { value: idStr, label: `Role #${idStr}` };
+  };
+
   const onSaveAssignment = async (values: AssignRoleValues) => {
     if (!editingUser) return;
 
+    setIsSubmitting(true);
     try {
       const selectedIds = values.roles.map((v) => parseInt(v, 10));
       await adminService.assignRolesToUser(editingUser.user_id, selectedIds);
       toast.success(`Role untuk ${editingUser.username} berhasil diperbarui!`);
+      setEditingUser(null);
       fetchUserRoles();
     } catch {
       toast.error(`Gagal menyimpan role untuk ${editingUser.username}. Periksa koneksi ke server.`);
     } finally {
-      setEditingUser(null);
+      setIsSubmitting(false);
     }
   };
 
@@ -215,28 +251,35 @@ export default function AdminUserRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
+    <div className="animate-fade-in flex w-full flex-col gap-6">
       <PageHeader
         title="Penugasan Role Pengguna (User-Roles Table)"
         description="Hubungkan pengguna dengan satu atau lebih role sesuai wewenang (Tabel: user_roles)"
         action={
-          <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
+          <Button
+            variant="outline"
+            icon={<Filter size={16} />}
+            onClick={() => setShowFilter(true)}
+            style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+          >
             Filter
           </Button>
         }
       />
 
-      <DataTable
-        columns={columns}
-        data={userRoles}
-        isLoading={isLoading}
-        meta={meta}
-        onPageChange={(p) => setPage(p)}
-        onLimitChange={(l) => {
-          setFilterLimit(l.toString());
-          setPage(1);
-        }}
-      />
+      <div className="w-full bg-white rounded-xl shadow-2xs border border-slate-200">
+        <DataTable
+          columns={columns}
+          data={userRoles}
+          isLoading={isLoading}
+          meta={meta}
+          onPageChange={(p) => setPage(p)}
+          onLimitChange={(l) => {
+            setFilterLimit(l.toString());
+            setPage(1);
+          }}
+        />
+      </div>
 
       {/* Filter Drawer */}
       <Drawer
@@ -296,6 +339,7 @@ export default function AdminUserRolesPage() {
               setFilterRole(selected ? selected.value : 'all');
             }}
             loadOptions={loadRoleOptions}
+            defaultOptions
             isClearable
           />
 
@@ -328,41 +372,65 @@ export default function AdminUserRolesPage() {
       {/* Modal Assign Roles */}
       <Modal
         open={!!editingUser}
-        onClose={() => setEditingUser(null)}
+        onClose={() => !isSubmitting && setEditingUser(null)}
         title={`Kelola Role untuk ${editingUser?.username}`}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setEditingUser(null)}
+              disabled={isSubmitting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleAssignSubmit(onSaveAssignment)}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            >
+              Simpan Role
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleAssignSubmit(onSaveAssignment)} className="flex flex-col gap-4">
+        <form onSubmit={handleAssignSubmit(onSaveAssignment)} className="space-y-4">
           <p className="text-sm text-slate-500">
             Pilih role yang ingin dipasangkan ke akun <strong>{editingUser?.email}</strong>:
           </p>
 
-          <div className="min-h-48">
-            <Controller
-              name="roles"
-              control={assignControl}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Pilih Role Wajib"
-                  required
-                  placeholder="Cari dan pilih role..."
-                  value={field.value.map((v) => ({ value: v, label: `Role ID: ${v}` }))}
-                  onChange={(vals: any) => field.onChange((vals || []).map((item: any) => item.value))}
-                  loadOptions={loadRoleOptions}
-                  isMulti
-                  error={assignErrors.roles?.message}
-                />
-              )}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 border-t border-slate-200 pt-4">
-            <Button variant="secondary" onClick={() => setEditingUser(null)}>
-              Batal
-            </Button>
-            <Button variant="primary" type="submit">
-              Simpan Role
-            </Button>
-          </div>
+          <Controller
+            name="roles"
+            control={assignControl}
+            render={({ field }) => (
+              <AsyncSelect
+                label="Pilih Role Wajib"
+                required
+                placeholder="Cari dan pilih role..."
+                value={field.value.map(getRoleOption)}
+                onChange={(vals: any) => {
+                  if (Array.isArray(vals)) {
+                    setRoleOptionsMap((prev) => {
+                      const next = { ...prev };
+                      vals.forEach((item: any) => {
+                        if (item && item.value) {
+                          next[item.value.toString()] = item;
+                        }
+                      });
+                      return next;
+                    });
+                    field.onChange(vals.map((item: any) => item.value.toString()));
+                  } else {
+                    field.onChange([]);
+                  }
+                }}
+                loadOptions={loadRoleOptions}
+                defaultOptions
+                isMulti
+                error={assignErrors.roles?.message}
+              />
+            )}
+          />
         </form>
       </Modal>
     </div>
