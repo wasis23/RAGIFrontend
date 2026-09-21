@@ -26,13 +26,27 @@ import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/lib/constants';
 import type { User } from '@/types/auth.types';
 import type { PaginationMeta } from '@/types/api.types';
 
-const userSchema = z.object({
-  name: z.string().min(1, 'Nama lengkap wajib diisi').max(150, 'Nama maksimal 150 karakter'),
-  username: z.string().min(1, 'Username wajib diisi').max(100, 'Username maksimal 100 karakter'),
-  email: z.string().min(1, 'Email kampus wajib diisi').email('Format email tidak valid (contoh: user@kampus.ac.id)'),
-  phone: z.string().optional(),
-  password: z.string().min(6, 'Password minimal 6 karakter').optional().or(z.literal('')),
-});
+const userSchema = z
+  .object({
+    name: z.string().min(1, 'Nama lengkap wajib diisi').max(150, 'Nama maksimal 150 karakter'),
+    username: z.string().min(1, 'Username wajib diisi').max(100, 'Username maksimal 100 karakter'),
+    email: z.string().min(1, 'Email kampus wajib diisi').email('Format email tidak valid (contoh: user@kampus.ac.id)'),
+    phone: z.string().optional(),
+    password: z.string().min(8, 'Password minimal 8 karakter').optional().or(z.literal('')),
+    password_confirmation: z.string().optional().or(z.literal('')),
+  })
+  .refine(
+    (data) => {
+      if (data.password && data.password.length > 0) {
+        return data.password === data.password_confirmation;
+      }
+      return true;
+    },
+    {
+      message: 'Konfirmasi password tidak cocok.',
+      path: ['password_confirmation'],
+    }
+  );
 
 type UserFormValues = z.infer<typeof userSchema>;
 
@@ -98,6 +112,7 @@ export default function AdminUsersPage() {
       email: '',
       phone: '',
       password: '',
+      password_confirmation: '',
     },
   });
 
@@ -195,7 +210,7 @@ export default function AdminUsersPage() {
 
   const handleOpenCreate = () => {
     setEditingUser(null);
-    reset({ name: '', username: '', email: '', phone: '', password: '' });
+    reset({ name: '', username: '', email: '', phone: '', password: '', password_confirmation: '' });
     setShowModal(true);
   };
 
@@ -207,6 +222,7 @@ export default function AdminUsersPage() {
       email: user.email,
       phone: user.phone || '',
       password: '',
+      password_confirmation: '',
     });
     setShowModal(true);
   };
@@ -218,18 +234,27 @@ export default function AdminUsersPage() {
         await adminService.updateUser(editingUser.id, values);
         toast.success('Pengguna berhasil diperbarui!');
       } else {
-        if (!values.password || values.password.length < 6) {
-          toast.error('Password minimal 6 karakter.');
+        if (!values.password || values.password.length < 8) {
+          toast.error('Password minimal 8 karakter.');
           setIsSubmitting(false);
           return;
         }
-        await adminService.createUser(values);
+        const payload = {
+          ...values,
+          password_confirmation: values.password_confirmation || values.password,
+        };
+        await adminService.createUser(payload);
         toast.success('Pengguna baru berhasil ditambahkan!');
       }
       fetchUsers();
       setShowModal(false);
-    } catch {
-      toast.error('Gagal menyimpan data. Periksa koneksi ke server.');
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.errors?.password?.[0] ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Gagal menyimpan data.';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -504,7 +529,13 @@ export default function AdminUsersPage() {
             <Button variant="secondary" onClick={() => setShowModal(false)}>
               Batal
             </Button>
-            <Button variant="primary" onClick={handleSubmit(onSaveUser)} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleSubmit(onSaveUser)}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            >
               {editingUser ? 'Simpan Perubahan' : 'Tambah Pengguna'}
             </Button>
           </>
@@ -545,14 +576,25 @@ export default function AdminUsersPage() {
           />
 
           {!editingUser && (
-            <Input
-              label="Password Default"
-              type="password"
-              required
-              {...register('password')}
-              error={errors.password?.message}
-              placeholder="Minimal 6 karakter"
-            />
+            <>
+              <Input
+                label="Password Default"
+                type="password"
+                required
+                {...register('password')}
+                error={errors.password?.message}
+                placeholder="Minimal 8 karakter"
+              />
+
+              <Input
+                label="Konfirmasi Password"
+                type="password"
+                required
+                {...register('password_confirmation')}
+                error={errors.password_confirmation?.message}
+                placeholder="Ketik ulang password"
+              />
+            </>
           )}
         </form>
       </Modal>
