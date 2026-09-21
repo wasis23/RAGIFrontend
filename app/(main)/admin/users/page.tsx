@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit2, Trash2, Mail, CheckCircle, XCircle, Filter, Key } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, CheckCircle, XCircle, Filter, Key, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -18,10 +18,16 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
+import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
+import { useImpersonateStore } from '@/store/impersonateStore';
+import { getCookieDomain, getAuthTokenKey } from '@/lib/domain';
+import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/lib/constants';
 import type { User } from '@/types/auth.types';
 import type { PaginationMeta } from '@/types/api.types';
 
 const userSchema = z.object({
+  name: z.string().min(1, 'Nama lengkap wajib diisi').max(150, 'Nama maksimal 150 karakter'),
   username: z.string().min(1, 'Username wajib diisi').max(100, 'Username maksimal 100 karakter'),
   email: z.string().min(1, 'Email kampus wajib diisi').email('Format email tidak valid (contoh: user@kampus.ac.id)'),
   phone: z.string().optional(),
@@ -69,6 +75,15 @@ export default function AdminUsersPage() {
   const [passwordValues, setPasswordValues] = useState({ password: '', password_confirmation: '' });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  // Impersonate States & Auth Store
+  const { user: currentUser } = useAuth();
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const adminAccessToken = useAuthStore((s) => s.access_token);
+  const adminRefreshToken = useAuthStore((s) => s.refresh_token);
+  const startImpersonating = useImpersonateStore((s) => s.startImpersonating);
+  const [impersonatingUser, setImpersonatingUser] = useState<User | null>(null);
+  const [isImpersonatingSubmitting, setIsImpersonatingSubmitting] = useState(false);
+
   // React Hook Form + Zod Setup
   const {
     register,
@@ -78,6 +93,7 @@ export default function AdminUsersPage() {
   } = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
     defaultValues: {
+      name: '',
       username: '',
       email: '',
       phone: '',
@@ -165,13 +181,14 @@ export default function AdminUsersPage() {
 
   const handleOpenCreate = () => {
     setEditingUser(null);
-    reset({ username: '', email: '', phone: '', password: '' });
+    reset({ name: '', username: '', email: '', phone: '', password: '' });
     setShowModal(true);
   };
 
   const handleOpenEdit = (user: User) => {
     setEditingUser(user);
     reset({
+      name: user.name || user.nama_lengkap || user.username,
       username: user.username,
       email: user.email,
       phone: user.phone || '',
@@ -259,6 +276,62 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleOpenImpersonate = (user: User) => {
+    if (currentUser && currentUser.id === user.id) {
+      toast.error('Anda tidak dapat merasuki akun sendiri.');
+      return;
+    }
+    if (!user.is_active) {
+      toast.error('Pengguna ini sedang non-aktif dan tidak dapat dirasuki.');
+      return;
+    }
+    setImpersonatingUser(user);
+  };
+
+  const handleConfirmImpersonate = async () => {
+    if (!impersonatingUser) return;
+    setIsImpersonatingSubmitting(true);
+    try {
+      const res = await adminService.impersonateUser(impersonatingUser.id);
+      const resData = res?.data;
+      const targetToken = resData?.token || resData?.access_token;
+      const targetUser = resData?.user || impersonatingUser;
+
+      if (!targetToken) {
+        throw new Error('Gagal mendapatkan token autentikasi dari server.');
+      }
+
+      // 1. Simpan sesi admin aktif ke Zustand Impersonate Store
+      const tokenKey = getAuthTokenKey();
+      const currentAdminToken = adminAccessToken || '';
+      const currentAdminRefreshToken = adminRefreshToken || currentAdminToken;
+
+      if (currentUser) {
+        startImpersonating(currentAdminToken, currentAdminRefreshToken, currentUser);
+      }
+
+      // 2. Terapkan token dan cookie pengguna yang dirasuki
+      const domainAttr = getCookieDomain();
+      const roleKey = tokenKey === 'demo_sso_access_token' ? 'demo_sso_user_role' : 'sso_user_role';
+      const targetRole = targetUser.roles?.[0]?.role?.slug || targetUser.roles?.[0]?.slug || 'user';
+
+      document.cookie = `${tokenKey}=${targetToken}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `${roleKey}=${targetRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+
+      setAuth(targetUser, targetToken, targetToken);
+
+      const targetName = targetUser.name || targetUser.nama_lengkap || targetUser.username;
+      toast.success(`Berhasil merasuki pengguna ${targetName}!`);
+
+      // 3. Alihkan ke dashboard
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal merasuki pengguna.');
+      setIsImpersonatingSubmitting(false);
+      setImpersonatingUser(null);
+    }
+  };
+
   const columns: ColumnDef<User>[] = [
     {
       key: 'id',
@@ -270,15 +343,18 @@ export default function AdminUsersPage() {
     {
       key: 'pengguna',
       label: 'Pengguna',
-      render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="avatar avatar-sm">{row.username.slice(0, 2).toUpperCase()}</div>
-          <div>
-            <div className="font-bold text-slate-900">{row.username}</div>
-            <div className="text-xs text-slate-400">{row.email}</div>
+      render: (row) => {
+        const displayName = row.name || row.nama_lengkap || row.username;
+        return (
+          <div className="flex items-center gap-3">
+            <div className="avatar avatar-sm">{displayName.slice(0, 2).toUpperCase()}</div>
+            <div>
+              <div className="font-bold text-slate-900">{displayName}</div>
+              <div className="text-xs text-slate-400">{row.username} • {row.email}</div>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'roles',
@@ -335,6 +411,11 @@ export default function AdminUsersPage() {
         <div className="flex justify-end">
           <DropdownMenu
             items={[
+              {
+                label: 'Rasuki Pengguna',
+                icon: <Sparkles size={14} className="text-amber-500" />,
+                onClick: () => handleOpenImpersonate(row),
+              },
               {
                 label: 'Edit Pengguna',
                 icon: <Edit2 size={14} />,
@@ -405,6 +486,14 @@ export default function AdminUsersPage() {
         }
       >
         <form onSubmit={handleSubmit(onSaveUser)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nama Lengkap"
+            required
+            {...register('name')}
+            error={errors.name?.message}
+            placeholder="contoh: Dr. Ahmad Fauzi, M.Kom"
+          />
+
           <Input
             label="Username"
             required
@@ -513,6 +602,61 @@ export default function AdminUsersPage() {
               />
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* Modal Rasuki Pengguna */}
+      <Modal
+        open={!!impersonatingUser}
+        onClose={() => setImpersonatingUser(null)}
+        title="Rasuki Pengguna (Impersonate)"
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setImpersonatingUser(null)}
+              disabled={isImpersonatingSubmitting}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              icon={<Sparkles size={16} />}
+              onClick={handleConfirmImpersonate}
+              loading={isImpersonatingSubmitting}
+              disabled={isImpersonatingSubmitting}
+            >
+              {isImpersonatingSubmitting ? 'Memproses Sesi...' : 'Ya, Rasuki Sekarang'}
+            </Button>
+          </>
+        }
+      >
+        {impersonatingUser && (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+              <div className="avatar avatar-sm bg-amber-200 text-amber-900 font-bold">
+                {(impersonatingUser.name || impersonatingUser.username).slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <div className="font-bold text-slate-900 text-sm">
+                  {impersonatingUser.name || impersonatingUser.username}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {impersonatingUser.username} • {impersonatingUser.email}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Anda akan beralih dan otomatis login sebagai <strong>{impersonatingUser.name || impersonatingUser.username}</strong> dengan seluruh wewenang peran yang dimilikinya. Seluruh aksi Anda selama sesi ini akan tercatat dalam sistem.
+            </p>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-500 shrink-0" />
+              <span>Anda dapat kembali ke akun Administrator kapan saja melalui tombol bilah atas.</span>
+            </div>
+          </div>
         )}
       </Modal>
 

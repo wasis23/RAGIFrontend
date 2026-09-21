@@ -9,7 +9,7 @@
 
 echo "🤖 [Audit 10: Filter & Table Standard] Memeriksa posisi tombol Filter dan warna background tabel (Wajib Putih)..."
 
-export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
@@ -33,6 +33,10 @@ fi
 if [ -z "$TARGET_FILES" ] && [ -z "$STAGED_DIFF" ]; then
     echo "ℹ️ [Audit Filter & Table Standard] Tidak ada file Page/Komponen/CSS yang diuji. Skip."
     exit 0
+fi
+
+if [ ${#STAGED_DIFF} -gt 80000 ]; then
+    STAGED_DIFF="${STAGED_DIFF:0:80000}"
 fi
 
 # ------------------------------------------------------------------------------

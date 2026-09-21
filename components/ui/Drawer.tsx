@@ -13,6 +13,7 @@ interface DrawerProps {
   footer?: React.ReactNode;
   closeOnOverlay?: boolean;
   width?: string;
+  position?: 'right' | 'left';
 }
 
 export function Drawer({

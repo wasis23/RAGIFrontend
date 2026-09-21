@@ -42,6 +42,22 @@ export const adminService = {
     return data;
   },
 
+  impersonateUser: async (id: number): Promise<ApiResponse<{
+    token: string;
+    access_token: string;
+    token_type: string;
+    user: User;
+    impersonated_by: { id: number; username: string; name: string };
+  }>> => {
+    const { data } = await apiClient.post(`/admin/users/${id}/impersonate`);
+    return data;
+  },
+
+  leaveImpersonate: async (): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.post('/admin/users/leave-impersonate');
+    return data;
+  },
+
   // ── ROLES ──────────────────────────────────────────────────
   getRoles: async (params?: PaginationParams): Promise<PaginatedResponse<Role>> => {
     const { data } = await apiClient.get<PaginatedResponse<Role>>('/admin/roles', { params });
@@ -118,8 +134,8 @@ export const adminService = {
   },
 
   // ── SESSIONS ──────────────────────────────────────────────
-  getAllSessions: async (): Promise<ApiResponse<UserSession[]>> => {
-    const { data } = await apiClient.get<ApiResponse<UserSession[]>>('/admin/sessions');
+  getAllSessions: async (params?: Record<string, any>): Promise<ApiResponse<UserSession[]>> => {
+    const { data } = await apiClient.get<ApiResponse<UserSession[]>>('/admin/sessions', { params });
     return data;
   },
 
@@ -131,6 +147,11 @@ export const adminService = {
   // ── AUDIT LOGS ────────────────────────────────────────────
   getAuditLogs: async (params?: PaginationParams): Promise<PaginatedResponse<AuditLog>> => {
     const { data } = await apiClient.get<PaginatedResponse<AuditLog>>('/admin/audit-logs', { params });
+    return data;
+  },
+
+  getAuditLogById: async (id: number | string): Promise<ApiResponse<AuditLog>> => {
+    const { data } = await apiClient.get<ApiResponse<AuditLog>>(`/admin/audit-logs/${id}`);
     return data;
   },
 };

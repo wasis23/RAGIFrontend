@@ -9,9 +9,13 @@ export type UserType = string;
  */
 export interface User {
   id: number;
+  name?: string;
+  nama_lengkap?: string;
   username: string;
   email: string;
   phone?: string;
+  referral_code?: string;
+  referal_code?: string;
   user_type?: string;
   is_active: boolean;
   is_verified: boolean;

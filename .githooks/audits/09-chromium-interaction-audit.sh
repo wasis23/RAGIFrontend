@@ -10,7 +10,7 @@
 
 echo "🤖 [Audit 9/9: Chromium Interaction] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
-export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 BASE_URL="${LAPORAN_BASE_URL:-http://localhost:3000}"
@@ -29,6 +29,10 @@ fi
 if [ -z "$STAGED_DIFF" ]; then
     echo "ℹ️ [Audit Chromium Interaction] Tidak ada perubahan UI yang diuji. Skip."
     exit 0
+fi
+
+if [ ${#STAGED_DIFF} -gt 80000 ]; then
+    STAGED_DIFF="${STAGED_DIFF:0:80000}"
 fi
 
 mkdir -p "$SHOT_DIR" "$LAPORAN_DIR"

@@ -704,10 +704,12 @@ export function Sidebar() {
         <div className="sidebar-footer">
           <div className="sidebar-user-card">
             <div className="avatar avatar-sm">
-              {user.username ? user.username.slice(0, 2).toUpperCase() : 'US'}
+              {(user.name || user.nama_lengkap || user.username)
+                ? (user.name || user.nama_lengkap || user.username).slice(0, 2).toUpperCase()
+                : 'US'}
             </div>
             <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{user.username}</div>
+              <div className="sidebar-user-name">{user.name || user.nama_lengkap || user.username}</div>
               <div className="sidebar-user-role">{user.roles?.[0]?.name || user.roles?.[0]?.role?.name || 'User'}</div>
             </div>
           </div>

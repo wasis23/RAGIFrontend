@@ -157,8 +157,20 @@ export const spmbService = {
     return response.data;
   },
   
-  getGelombang: async () => {
-    const response = await api.get('/spmb/gelombang');
+  getGelombang: async (params?: {
+    page?: number;
+    per_page?: number;
+    nama?: string;
+    jalur_masuk_id?: string;
+    tanggal_buka?: string;
+    tanggal_tutup?: string;
+    kuota?: string;
+    biaya?: string;
+    status?: string;
+    sort_by?: string;
+    sort_dir?: string;
+  }) => {
+    const response = await api.get('/spmb/gelombang', { params });
     return response.data;
   },
 
@@ -224,6 +236,32 @@ export const spmbService = {
   },
   deleteTarifUktSpmb: async (id: number) => {
     const response = await api.delete(`/spmb/master/tarif-ukt/${id}`);
+    return response.data;
+  },
+  // Kuota Prodi
+  getKuotaProdi: async (params?: {
+    page?: number;
+    per_page?: number;
+    tahun_akademik_id?: string | number;
+    program_studi_id?: string | number;
+    status_kuota?: string;
+    min_kuota?: number;
+    sort_by?: string;
+    sort_dir?: string;
+  }) => {
+    const response = await api.get('/spmb/kuota-prodi', { params });
+    return response.data;
+  },
+  storeKuotaProdi: async (data: { tahun_akademik_id: number; program_studi_id: number; kuota_total: number }) => {
+    const response = await api.post('/spmb/kuota-prodi', data);
+    return response.data;
+  },
+  updateKuotaProdi: async (id: number, data: { kuota_total: number }) => {
+    const response = await api.put(`/spmb/kuota-prodi/${id}`, data);
+    return response.data;
+  },
+  deleteKuotaProdi: async (id: number) => {
+    const response = await api.delete(`/spmb/kuota-prodi/${id}`);
     return response.data;
   },
 
