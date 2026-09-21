@@ -27,9 +27,9 @@ PROMPT_FILE=$(mktemp)
 
 cat << 'EOF' > "$PROMPT_FILE"
 Kamu adalah Code Auditor khusus Admin CRUD Standard (Strict Frontend Reviewer).
-Periksa Git Diff berikut HANYA terhadap 10 Aturan Admin CRUD & Table Standard di bawah. Penilaian MURNI oleh AI dari full diff ini, tanpa regex/pre-check.
+Periksa Git Diff berikut HANYA terhadap 11 Aturan Admin CRUD & Table Standard di bawah. Penilaian MURNI oleh AI dari full diff ini, tanpa regex/pre-check.
 
-Aturan Baku Admin CRUD (10 ATURAN KETAT):
+Aturan Baku Admin CRUD (11 ATURAN KETAT):
 1. WAJIB Mobile-first responsive styling dengan w-full flex-col grid-cols-1 gap-4 + breakpoint sm:/md:/lg:.
    - SALAH: <div className="flex flex-row w-[1200px]"> tanpa breakpoint; grid statis grid-cols-3 tanpa grid-cols-1 mobile.
    - BENAR: <div className="flex w-full flex-col gap-4 md:flex-row">; <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">.
@@ -45,9 +45,10 @@ Aturan Baku Admin CRUD (10 ATURAN KETAT):
 5. WAJIB list pakai DataTable + server-side pagination page/limit + meta={meta} + onPageChange + WAJIB background tabel/container berwarna putih (bg-white / #ffffff), DILARANG background abu-abu (bg-slate-50, bg-gray-100, dsb); DILARANG <table>/<thead>/<tbody>/<tr>/<td> mentah; DILARANG paginasi client-side .filter/.map; WAJIB reset page=1 saat limit berubah.
    - SALAH: <table><thead>...</thead></table>; const shown = allData.filter(f).map(...); table wrapper diberi bg-slate-50/bg-gray-100 abu-abu; onLimitChange hanya setLimit(limit).
    - BENAR: <DataTable columns={columns} data={data} meta={meta} onPageChange={(p) => setPage(p)} /> (background tabel putih bersih bg-white); fetch(`/api/x?page=${page}&limit=${limit}`); onLimitChange={(l) => { setLimit(l); setPage(1); }}.
-6. WAJIB sort sort_by/orderBy (default name/label) + sort_dir/orderDir asc/desc di Drawer grid 2 kolom dengan separator hr.
-   - SALAH: tidak ada kontrol sort; sort hanya satu arah tanpa sort_dir.
-   - BENAR: <div className="grid grid-cols-2 gap-4"><Select label="Sort By" options={[{value:'name',label:'Nama'}]} /><Select label="Direction" options={[{value:'asc',label:'Asc'},{value:'desc',label:'Desc'}]} /></div><hr />.
+6. WAJIB sorting komprehensif mencakup SELURUH kolom informasi tabel + sort_dir/orderDir asc/desc di Drawer grid 2 kolom dengan separator hr.
+   - Dropdown 'Sort By' / 'Urut Berdasarkan' WAJIB menyediakan opsi pengurutan untuk SELURUH kolom informasi yang tampil pada tabel (contoh: jika tabel menampilkan 5 kolom informasi, maka opsi sort wajib memuat kelima kolom tersebut, bukan hanya 1 atau 2 kolom saja).
+   - SALAH: tidak ada kontrol sort; sort hanya satu arah tanpa sort_dir; opsi sort hanya menyediakan 'nama' saja padahal tabel menampilkan banyak kolom informasi.
+   - BENAR: <div className="grid grid-cols-2 gap-4"><Select label="Urut Berdasarkan" options={[{value:'code',label:'Kode'},{value:'name',label:'Nama'},{value:'jalur',label:'Jalur'},...]} /><Select label="Direction" options={[{value:'asc',label:'Asc'},{value:'desc',label:'Desc'}]} /></div><hr />.
 7. WAJIB tombol Filter variant outline dinamis primary modul + ikon Filter size 16 di PageHeader action dan WAJIB di sebelah KIRI tombol Tambah Data ([Filter] [Tambah Data]); DILARANG tombol Tambah Data diletakkan sebelum Filter → Drawer kanan-ke-kiri.
    - SALAH: <Button variant="solid">Filter</Button> tanpa ikon; Drawer dari kiri/atas; tombol Tambah mendahului Filter.
    - BENAR: <PageHeader action={<><Button variant="outline" style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}><Filter size={16} /> Filter</Button><Button><Plus size={16} /> Tambah Data</Button></>} />; <Drawer position="right">.
@@ -60,6 +61,11 @@ Aturan Baku Admin CRUD (10 ATURAN KETAT):
 10. DILARANG confirm/alert/prompt; WAJIB ConfirmDialog/Modal dengan Batal+Hapus+isLoading.
    - SALAH: if (confirm('Hapus?')) doDelete(); alert('Berhasil'); const x = prompt('Nama?').
    - BENAR: <ConfirmDialog open={open} onCancel={close} onConfirm={doDelete} cancelText="Batal" confirmText="Hapus" isLoading={isDeleting} />.
+11. WAJIB Paritas 100% Field Filter Sidebar (Drawer) terhadap Kolom Informasi Tabel (1:1 Column-to-Filter Parity).
+   - Seluruh kolom informasi data yang ditampilkan pada tabel (di luar kolom non-informasi teknis seperti nomor urut/No, checkbox multi-select, dan tombol dropdown aksi 3-dots) WAJIB memiliki inputan filter yang bersesuaian di dalam Sidebar Filter (Drawer). Jika tabel menampilkan 5 kolom informasi, maka Sidebar Filter WAJIB menyediakan 5 kontrol filter untuk ke-5 kolom tersebut.
+   - Kontrol filter disesuaikan: Input untuk teks/angka/pencarian spesifik, Select/AsyncSelect untuk data referensi/dropdown status, DatePicker/Input date untuk kolom tanggal.
+   - SALAH: tabel menampilkan kolom Kode, Nama, Jalur Masuk, Gelombang, dan Status (5 kolom informasi), tetapi di Filter Drawer hanya ada filter Nama dan Status (3 kolom informasi lainnya tidak bisa difilter).
+   - BENAR: setiap kolom informasi pada tabel memiliki input filter yang padan di dalam Sidebar Filter (Drawer).
 
 Catatan:
 - HANYA periksa baris baru (+) yaitu baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah (tanpa `+`).
@@ -74,7 +80,7 @@ echo '```' >> "$PROMPT_FILE"
 cat << 'EOF' >> "$PROMPT_FILE"
 PENTING: Jawab HANYA secara langsung tanpa memanggil tool atau membaca file.
 Format Respon:
-- Jika kode bersih dan memenuhi 10 Aturan Admin CRUD Standard, jawab TEPAT: PASSED
+- Jika kode bersih dan memenuhi 11 Aturan Admin CRUD Standard, jawab TEPAT: PASSED
 - Jika ditemukan pelanggaran pada baris baru (+), awali respon dengan REJECTED dan berikan rincian lengkap:
   * File & Potongan Baris Melanggar: (nama file dan baris/kode yang melanggar)
   * Aturan yang Dilanggar: (sebutkan nomor dan nama aturan Admin CRUD yang dilanggar)

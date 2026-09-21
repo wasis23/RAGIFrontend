@@ -31,7 +31,7 @@ Agar halaman form yang panjang tidak terlihat berantakan atau memakan terlalu ba
 Halaman form terpisah wajib memiliki tombol "Kembali" yang diletakkan secara sangat jelas.
 - Tombol ini **WAJIB** diletakkan di sebelah kanan Header halaman.
 - Untuk penempatan di sisi kanan Header, Anda **WAJIB** menggunakan komponen `<PageHeader />` dan menyisipkan tombol tersebut ke dalam prop `action`.
-- Tombol "Kembali" di Header **WAJIB** berwarna oren, contohnya menggunakan class Tailwind `bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm`.
+- Tombol "Kembali" di Header **WAJIB** menggunakan warna dinamis modul (`var(--module-primary)`) atau komponen baku `<Button variant="outline">` dengan ikon `ArrowLeft` size 16. **DILARANG KERAS** menggunakan warna statis atau hardcode (seperti `bg-orange-500` atau `bg-blue-600`).
 - Selain di Header, Anda juga tetap dapat menyediakan tombol "Batal" sekunder di deretan tombol form (berdampingan dengan tombol "Simpan").
 
 ## Contoh Struktur Halaman Terpisah:
@@ -39,6 +39,7 @@ Halaman form terpisah wajib memiliki tombol "Kembali" yang diletakkan secara san
 import { ArrowLeft, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { Button, Input } from '@/components/ui';
 
 export default function CreateDataPage() {
   const router = useRouter();
@@ -48,12 +49,13 @@ export default function CreateDataPage() {
       <PageHeader 
         title="Tambah Data Lengkap" 
         action={
-          <button 
+          <Button 
+            variant="outline"
             onClick={() => router.back()} 
-            className="btn bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm"
+            style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
           >
             <ArrowLeft size={16} className="mr-2" /> Kembali
-          </button>
+          </Button>
         }
       />
 
@@ -61,28 +63,19 @@ export default function CreateDataPage() {
         <div className="card-body">
           <form>
             {/* GRID LAYOUT MAKS 3 KOLOM */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Field 1 */}
-              <div className="form-group">
-                <label className="label">Field 1</label>
-                <input type="text" className="input" />
-              </div>
+              <Input label="Field 1" name="field_1" />
               {/* Field 2 */}
-              <div className="form-group">
-                <label className="label">Field 2</label>
-                <input type="text" className="input" />
-              </div>
+              <Input label="Field 2" name="field_2" />
               {/* Field 3 */}
-              <div className="form-group">
-                <label className="label">Field 3</label>
-                <input type="text" className="input" />
-              </div>
+              <Input label="Field 3" name="field_3" />
             </div>
 
             {/* ACTION BUTTONS */}
-            <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
-               <button type="button" onClick={() => router.back()} className="btn btn-ghost text-slate-600">Batal</button>
-               <button type="submit" className="btn btn-primary"><Save size={18} className="mr-2" /> Simpan</button>
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+               <Button type="button" variant="secondary" onClick={() => router.back()}>Batal</Button>
+               <Button type="submit"><Save size={16} className="mr-2" /> Simpan</Button>
             </div>
           </form>
         </div>

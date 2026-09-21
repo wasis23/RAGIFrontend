@@ -75,12 +75,13 @@ Setiap halaman list/tabel data **WAJIB**:
 
 ---
 
-## 6. Aturan Filter Sort By & Sort Direction (Default Name/Label)
-Setiap halaman list/tabel **WAJIB** memiliki opsi pengurutan data (*Sorting*):
-- Pilihan **Urut Berdasarkan** (`sort_by` / `orderBy`) mencakup kolom-kolom penting pada tabel (contoh: `name`, `label`, `id`, `created_at`).
+## 6. Aturan Filter Sort By & Sort Direction (Default Name/Label) & Paritas Filter 1:1
+Setiap halaman list/tabel **WAJIB** memiliki opsi pengurutan data (*Sorting*) dan panel filter:
+- Pilihan **Urut Berdasarkan** (`sort_by` / `orderBy`) **WAJIB MENCAKUP SELURUH KOLOM INFORMASI** yang ditampilkan pada tabel (contoh: jika tabel menampilkan 5 kolom informasi, kelima kolom tersebut wajib memiliki opsi sortir).
 - Nilai **Default Sort** adalah berbasis `name` atau `label` (atau `id` / `created_at` yang relevan).
 - Pilihan **Arah** (`sort_dir` / `orderDir`) mendukung `asc` (A - Z / Naik) dan `desc` (Z - A / Turun).
-- Layout pilihan sorting di dalam Drawer menggunakan **Grid 2 Kolom**:
+- **Paritas Filter 1:1 terhadap Kolom Informasi Tabel:** Seluruh kolom informasi data yang ditampilkan pada tabel (di luar kolom teknis seperti No urut, checkbox select, dan tombol aksi) WAJIB memiliki inputan filter yang bersesuaian di dalam Filter Drawer.
+- Layout pilihan sorting di dalam Drawer menggunakan **Grid 2 Kolom** di bawah garis pembatas `<hr />`:
   ```tsx
   <hr className="border-t border-slate-200 my-2" />
 
