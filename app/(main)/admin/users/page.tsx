@@ -13,7 +13,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { StatusBadge } from '@/components/ui/Badge';
+import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { formatDate } from '@/lib/utils';
@@ -133,8 +133,22 @@ export default function AdminUsersPage() {
         metaData = res.data.meta;
       } else if (res && Array.isArray(res.data)) {
         userList = res.data;
+        if (res.meta) {
+          metaData = res.meta;
+        }
       } else if (Array.isArray(res)) {
         userList = res;
+      }
+
+      if (!metaData && Array.isArray(userList)) {
+        metaData = {
+          current_page: page,
+          last_page: 1,
+          per_page: Number(filterLimit) || 15,
+          total: userList.length,
+          from: userList.length > 0 ? 1 : 0,
+          to: userList.length,
+        };
       }
 
       setUsers(userList);
@@ -360,13 +374,17 @@ export default function AdminUsersPage() {
       key: 'roles',
       label: 'Role(s)',
       render: (row) => (
-        <>
-          {row.roles?.map((r) => (
-            <span key={r.id} className="dropdown-role-tag">
-              {r.name || r.role?.name}
-            </span>
-          ))}
-        </>
+        <div className="flex flex-wrap gap-2">
+          {row.roles && row.roles.length > 0 ? (
+            row.roles.map((r: any) => (
+              <Badge key={r.id || r.name} variant="blue">
+                {r.name || r.role?.name}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400">-</span>
+          )}
+        </div>
       ),
     },
     {
@@ -387,13 +405,13 @@ export default function AdminUsersPage() {
       label: 'Terverifikasi',
       render: (row) =>
         row.is_verified ? (
-          <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-emerald-600">
+          <Badge variant="success" className="inline-flex items-center gap-2">
             <CheckCircle size={14} /> Ya
-          </span>
+          </Badge>
         ) : (
-          <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-red-500">
+          <Badge variant="gray" className="inline-flex items-center gap-2">
             <XCircle size={14} /> Belum
-          </span>
+          </Badge>
         ),
     },
     {
@@ -440,13 +458,18 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
+    <div className="animate-fade-in flex w-full flex-col gap-6">
       <PageHeader
         title="Manajemen Pengguna (Users Table)"
         description="Kelola akun, role, dan hak akses pengguna ekosistem kampus (Tabel: users)"
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            >
               Filter
             </Button>
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
@@ -457,17 +480,19 @@ export default function AdminUsersPage() {
       />
 
       {/* Table Card */}
-      <DataTable
-        columns={columns}
-        data={users}
-        isLoading={isLoading}
-        meta={meta}
-        onPageChange={(p) => setPage(p)}
-        onLimitChange={(l) => {
-          setFilterLimit(l.toString());
-          setPage(1);
-        }}
-      />
+      <div className="w-full bg-white rounded-xl shadow-2xs border border-slate-200">
+        <DataTable
+          columns={columns}
+          data={users}
+          isLoading={isLoading}
+          meta={meta}
+          onPageChange={(p) => setPage(p)}
+          onLimitChange={(l) => {
+            setFilterLimit(l.toString());
+            setPage(1);
+          }}
+        />
+      </div>
 
       {/* Modal Form Create/Edit */}
       <Modal
@@ -770,10 +795,12 @@ export default function AdminUsersPage() {
               onChange={(val) => setFilterOrderBy(val)}
               options={[
                 { value: 'id', label: 'ID' },
+                { value: 'name', label: 'Nama Lengkap' },
                 { value: 'username', label: 'Nama Pengguna' },
                 { value: 'email', label: 'Email' },
-                { value: 'created_at', label: 'Tanggal Dibuat' },
                 { value: 'is_active', label: 'Status Akun' },
+                { value: 'is_verified', label: 'Status Verifikasi' },
+                { value: 'created_at', label: 'Tanggal Dibuat' },
               ]}
             />
 
