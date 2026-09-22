@@ -134,10 +134,26 @@ export function Navbar() {
                 <button
                   onClick={async () => {
                     setShowDropdown(false);
+                    let leaveData = null;
                     try {
-                      await adminService.leaveImpersonate();
+                      const res = await adminService.leaveImpersonate();
+                      leaveData = res?.data ?? null;
                     } catch {}
-                    if (adminToken && adminUser) {
+                    // Prioritas: token admin baru dari backend (berfungsi di
+                    // tab baru tanpa simpanan adminToken lokal).
+                    if (leaveData && leaveData.access_token && leaveData.admin) {
+                      const nextAdmin = leaveData.admin;
+                      stopImpersonating();
+                      const domainAttr = getCookieDomain();
+                      const tokenKey = getAuthTokenKey();
+                      const roleKey = tokenKey === 'demo_sso_access_token' ? 'demo_sso_user_role' : 'sso_user_role';
+                      const adminRole = nextAdmin.roles?.[0]?.role?.slug || nextAdmin.roles?.[0]?.slug || 'super_admin';
+                      document.cookie = `${tokenKey}=${leaveData.access_token}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+                      document.cookie = `${roleKey}=${adminRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+                      setAuth(nextAdmin, leaveData.access_token, leaveData.access_token);
+                      toast.success(`Kembali ke akun administrator (${nextAdmin.name || nextAdmin.username})`);
+                      window.location.href = '/admin/users';
+                    } else if (adminToken && adminUser) {
                       stopImpersonating();
                       const domainAttr = getCookieDomain();
                       const tokenKey = getAuthTokenKey();

@@ -8,6 +8,7 @@ import type {
   AuditLog,
   UserSession,
 } from '@/types/auth.types';
+import type { ImpersonateStatusData, LeaveImpersonateData } from '@/types/impersonate.types';
 import type { ApiResponse, PaginatedResponse, PaginationParams } from '@/types/api.types';
 
 export const adminService = {
@@ -53,8 +54,13 @@ export const adminService = {
     return data;
   },
 
-  leaveImpersonate: async (): Promise<ApiResponse<null>> => {
+  leaveImpersonate: async (): Promise<ApiResponse<LeaveImpersonateData | null>> => {
     const { data } = await apiClient.post('/admin/users/leave-impersonate');
+    return data;
+  },
+
+  getImpersonateStatus: async (): Promise<ApiResponse<ImpersonateStatusData>> => {
+    const { data } = await apiClient.get('/admin/impersonate-status');
     return data;
   },
 

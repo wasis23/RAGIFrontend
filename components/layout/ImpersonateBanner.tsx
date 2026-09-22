@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
 import { useImpersonateStore } from '@/store/impersonateStore';
 import { adminService } from '@/services/admin.service';
 import { getCookieDomain, getAuthTokenKey } from '@/lib/domain';
+import type { User } from '@/types/auth.types';
 import { Sparkles, ArrowLeftCircle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,37 +18,96 @@ export function ImpersonateBanner() {
   const adminToken = useImpersonateStore((s) => s.adminToken);
   const adminRefreshToken = useImpersonateStore((s) => s.adminRefreshToken);
   const stopImpersonating = useImpersonateStore((s) => s.stopImpersonating);
+  const syncFromBackend = useImpersonateStore((s) => s.syncFromBackend);
   const [isLeaving, setIsLeaving] = useState(false);
 
+  // Verifikasi sesi ke backend agar banner tetap muncul di tab/subdomain
+  // baru (sessionStorage bersifat per-tab sehingga flag lokal kosong di
+  // tab baru). Status dihitung per-token sehingga 2 device milik admin
+  // yang sama mendapat hasil masing-masing.
+  const verifySession = useCallback(async () => {
+    try {
+      const res = await adminService.getImpersonateStatus();
+      const status = res?.data;
+      if (status?.is_impersonating) {
+        if (status.impersonated_by) {
+          syncFromBackend(status.impersonated_by as unknown as User);
+        } else {
+          // Token lawas tanpa info admin: pertahankan flag lokal bila ada.
+          if (!useImpersonateStore.getState().isImpersonating) return;
+        }
+      } else if (useImpersonateStore.getState().isImpersonating) {
+        // Sesi berakhir dari tempat lain (tab/device lain leave).
+        stopImpersonating();
+      }
+    } catch {
+      // Jaringan/401: pertahankan state lokal, jangan sembunyikan banner.
+    }
+  }, [stopImpersonating, syncFromBackend]);
+
+  useEffect(() => {
+    verifySession();
+  }, [verifySession]);
+
+  useEffect(() => {
+    window.addEventListener('focus', verifySession);
+    return () => window.removeEventListener('focus', verifySession);
+  }, [verifySession]);
+
   if (!isImpersonating) return null;
+
+  const applyAdminSession = (
+    nextAdminUser: typeof adminUser,
+    nextToken: string,
+    nextRefreshToken: string
+  ) => {
+    if (!nextAdminUser) return false;
+    stopImpersonating();
+
+    const domainAttr = getCookieDomain();
+    const tokenKey = getAuthTokenKey();
+    const roleKey = tokenKey === 'demo_sso_access_token' ? 'demo_sso_user_role' : 'sso_user_role';
+    const adminRole = nextAdminUser.roles?.[0]?.role?.slug || nextAdminUser.roles?.[0]?.slug || 'super_admin';
+
+    document.cookie = `${tokenKey}=${nextToken}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `${roleKey}=${adminRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+
+    setAuth(nextAdminUser, nextToken, nextRefreshToken);
+    toast.success(`Kembali ke akun administrator (${nextAdminUser.name || nextAdminUser.username})`);
+    window.location.href = '/admin/users';
+    return true;
+  };
 
   const handleLeave = async () => {
     setIsLeaving(true);
     try {
+      let leaveData = null;
       try {
-        await adminService.leaveImpersonate();
+        const res = await adminService.leaveImpersonate();
+        leaveData = res?.data ?? null;
       } catch {
         // best effort jika token sudah kadaluarsa
       }
 
-      if (adminToken && adminUser) {
-        stopImpersonating();
-
-        const domainAttr = getCookieDomain();
-        const tokenKey = getAuthTokenKey();
-        const roleKey = tokenKey === 'demo_sso_access_token' ? 'demo_sso_user_role' : 'sso_user_role';
-        const adminRole = adminUser.roles?.[0]?.role?.slug || adminUser.roles?.[0]?.slug || 'super_admin';
-
-        document.cookie = `${tokenKey}=${adminToken}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
-        document.cookie = `${roleKey}=${adminRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
-
-        setAuth(adminUser, adminToken, adminRefreshToken || adminToken);
-        toast.success(`Kembali ke akun administrator (${adminUser.name || adminUser.username})`);
-        window.location.href = '/admin/users';
-      } else {
-        stopImpersonating();
-        window.location.href = '/login';
+      // 1. Prioritas: token admin baru dari backend (berfungsi di tab baru
+      // tanpa simpanan adminToken lokal).
+      if (leaveData && leaveData.access_token && leaveData.admin) {
+        applyAdminSession(
+          leaveData.admin,
+          leaveData.access_token,
+          leaveData.access_token
+        );
+        return;
       }
+
+      // 2. Fallback: simpanan adminToken tab asal.
+      if (adminToken && adminUser) {
+        applyAdminSession(adminUser, adminToken, adminRefreshToken || adminToken);
+        return;
+      }
+
+      stopImpersonating();
+      window.location.href = '/login';
     } catch {
       toast.error('Gagal keluar dari mode rasuki.');
     } finally {

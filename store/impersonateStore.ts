@@ -31,6 +31,14 @@ export const useImpersonateStore = create<ImpersonateStore>()(
           adminRefreshToken: null,
           adminUser: null,
         }),
+
+      syncFromBackend: (adminUser) =>
+        set((state) => ({
+          isImpersonating: true,
+          adminToken: state.adminToken,
+          adminRefreshToken: state.adminRefreshToken,
+          adminUser,
+        })),
     }),
     {
       name: 'impersonate-session',
