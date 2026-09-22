@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Save } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -85,59 +85,92 @@ export default function EditJalurPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Edit Jalur Masuk"
         description="Perbarui informasi data jalur pendaftaran"
-        backUrl="/spmb/master/jalur"
+        action={
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            icon={<ArrowLeft size={16} />}
+          >
+            Kembali
+          </Button>
+        }
       />
 
-      <div className="card bg-base-100 shadow-sm border border-base-200">
-        <div className="card-body p-6 md:p-8">
+      <div className="card">
+        <div className="card-body">
           <form onSubmit={handleSubmit(onSubmit)}>
-            <h3 className="text-lg font-semibold mb-4 text-base-content border-b pb-2">Informasi Umum</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* GRID LAYOUT MAKS 3 KOLOM */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Input 
-                label="Kode Jalur *"
+                label="Kode Jalur"
                 placeholder="Misal: REG"
+                required
+                hint="Kode singkat unik untuk jalur ini."
                 error={errors.kode?.message}
                 {...register('kode')} 
               />
               
-              <Input 
-                label="Nama Jalur *"
-                placeholder="Misal: Reguler"
-                error={errors.nama?.message}
-                {...register('nama')} 
-              />
+              <div className="md:col-span-1 lg:col-span-2">
+                <Input 
+                  label="Nama Jalur"
+                  placeholder="Misal: Reguler"
+                  required
+                  hint="Nama lengkap jalur pendaftaran."
+                  error={errors.nama?.message}
+                  {...register('nama')} 
+                />
+              </div>
               
-              <div className="md:col-span-2">
+              <div className="col-span-full">
                 <Textarea 
                   label="Deskripsi Keterangan"
-                  placeholder="Penjelasan singkat mengenai jalur ini"
+                  placeholder="Penjelasan singkat mengenai jalur ini (opsional)"
+                  hint="Opsional, ditampilkan sebagai informasi jalur."
                   error={errors.deskripsi?.message}
                   {...register('deskripsi')} 
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              <div className="flex items-center">
-                <Checkbox label="Membutuhkan Wawancara" {...register('ada_wawancara')} />
+              <div>
+                <Checkbox 
+                  label="Membutuhkan Wawancara" 
+                  hint="Aktifkan jika pendaftar jalur ini wajib mengikuti wawancara."
+                  {...register('ada_wawancara')} 
+                />
               </div>
-              <div className="flex items-center">
+
+              <div>
                 <Checkbox 
                   label="Status Aktif (Jalur ini digunakan)"
+                  hint="Jalur aktif dapat dipilih saat pendaftaran."
                   {...register('is_active')} 
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-base-200">
-               <Button type="button" variant="secondary" onClick={() => router.back()} disabled={loading}>Batal</Button>
-               <Button type="submit" variant="primary" loading={loading} icon={<Save size={18} />}>
-                 Simpan Perubahan
-               </Button>
+            {/* ACTION AREA */}
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => router.back()}
+                disabled={loading}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                loading={loading}
+                icon={<Save size={16} />}
+              >
+                Simpan Perubahan
+              </Button>
             </div>
           </form>
         </div>
