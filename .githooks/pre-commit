@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 [AGY Agent Audit Runner] Menjalankan modul-modul pengujian terpisah..."
+echo "🚀 [AGY Agent Audit Runner] Menjalankan modul-modul pengujian..."
 
 STAGED_DIFF=$(git diff --cached)
 
@@ -11,24 +11,93 @@ fi
 
 HOOKS_DIR="$(dirname "$0")/audits"
 
-if [ -d "$HOOKS_DIR" ]; then
-    for script in "$HOOKS_DIR"/*.sh; do
-        if [ -x "$script" ]; then
-            "$script"
-            EXIT_CODE=$?
-            if [ $EXIT_CODE -ne 0 ]; then
-                echo ""
-                echo "❌ ====================================================="
-                echo "❌ COMMIT DITOLAK: Audit $(basename "$script") gagal!"
-                echo "❌ ====================================================="
-                echo "💡 Harap perbaiki masalah pada audit di atas sebelum commit."
-                echo ""
-                exit $EXIT_CODE
-            fi
-        fi
-    done
+if [ ! -d "$HOOKS_DIR" ]; then
+    exit 0
 fi
 
+# ------------------------------------------------------------------------------
+# TAHAP 1: Fast Deterministic Pre-checks (Fail-Fast: TypeScript & Menu Seeder)
+# ------------------------------------------------------------------------------
+if [ -x "$HOOKS_DIR/08-fast-build-typecheck-reviewer.sh" ]; then
+    "$HOOKS_DIR/08-fast-build-typecheck-reviewer.sh"
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "❌ [Fast Check] 08-fast-build-typecheck-reviewer.sh gagal! Menghentikan proses audit."
+        exit $EXIT_CODE
+    fi
+fi
+
+if [ -x "$HOOKS_DIR/11-menu-seeder-reviewer.sh" ]; then
+    "$HOOKS_DIR/11-menu-seeder-reviewer.sh"
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "❌ [Fast Check] 11-menu-seeder-reviewer.sh gagal! Menghentikan proses audit."
+        exit $EXIT_CODE
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# TAHAP 2: Parallel Deep AI Audits
+# Menjalankan seluruh modul audit AI secara paralel untuk memangkas waktu ~75%
+# ------------------------------------------------------------------------------
+echo "⚡ [AGY Agent Audit Runner] Menjalankan modul audit AI secara paralel..."
+
+PIDS=()
+SCRIPTS=()
+LOG_FILES=()
+
+for script in "$HOOKS_DIR"/*.sh; do
+    NAME=$(basename "$script")
+    # Lewati script yang sudah dijalankan di Tahap 1
+    if [ "$NAME" = "08-fast-build-typecheck-reviewer.sh" ] || [ "$NAME" = "11-menu-seeder-reviewer.sh" ]; then
+        continue
+    fi
+
+    if [ -x "$script" ]; then
+        LOG_FILE=$(mktemp)
+        "$script" > "$LOG_FILE" 2>&1 &
+        PIDS+=($!)
+        SCRIPTS+=("$NAME")
+        LOG_FILES+=("$LOG_FILE")
+    fi
+done
+
+FAILED_AUDITS=()
+TOTAL_FAILED=0
+
+# Tunggu seluruh proses selesai dan cetak output secara berurutan dan rapi
+for i in "${!PIDS[@]}"; do
+    PID="${PIDS[$i]}"
+    SCRIPT_NAME="${SCRIPTS[$i]}"
+    LOG_FILE="${LOG_FILES[$i]}"
+
+    wait "$PID"
+    EXIT_CODE=$?
+
+    if [ -f "$LOG_FILE" ]; then
+        cat "$LOG_FILE"
+        rm -f "$LOG_FILE"
+    fi
+
+    if [ $EXIT_CODE -ne 0 ]; then
+        TOTAL_FAILED=$((TOTAL_FAILED + 1))
+        FAILED_AUDITS+=("$SCRIPT_NAME")
+    fi
+done
+
+if [ $TOTAL_FAILED -ne 0 ]; then
+    echo ""
+    echo "❌ ====================================================="
+    echo "❌ COMMIT DITOLAK: Terdapat $TOTAL_FAILED modul audit yang gagal:"
+    for failed in "${FAILED_AUDITS[@]}"; do
+        echo "   - $failed"
+    done
+    echo "❌ ====================================================="
+    echo "💡 Harap perbaiki masalah pada audit di atas sebelum commit."
+    echo ""
+    exit 1
+fi
+
+echo ""
 echo "🎉 [AGY Agent Audit Runner] Seluruh modul pengujian independen PASSED! Commit dilanjutkan."
 exit 0
-

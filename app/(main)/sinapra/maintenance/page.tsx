@@ -7,7 +7,6 @@ import {
   Edit2,
   Trash2,
   Filter,
-  Search,
   CheckCircle,
   Clock,
   AlertTriangle,
@@ -24,6 +23,9 @@ import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
@@ -48,12 +50,15 @@ export default function MaintenancePage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [prioritasFilter, setPrioritasFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // Modal Create / Edit Maintenance Form
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingLog, setEditingLog] = useState<MaintenanceLog | null>(null);
   const [deletingLog, setDeletingLog] = useState<MaintenanceLog | null>(null);
+  const [isDeletingLog, setIsDeletingLog] = useState(false);
 
   const [targetType, setTargetType] = useState<'aset' | 'ruangan'>('aset');
   const [selectedAsetObj, setSelectedAsetObj] = useState<{ value: string; label: string } | null>(null);
@@ -81,6 +86,8 @@ export default function MaintenancePage() {
         search,
         status: statusFilter || undefined,
         prioritas: prioritasFilter || undefined,
+        sort_by: sortBy || undefined,
+        sort_dir: sortDir || undefined,
       });
 
       let items = [];
@@ -114,7 +121,7 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     fetchMaintenanceLogs();
-  }, [page, search, statusFilter, prioritasFilter]);
+  }, [page, search, statusFilter, prioritasFilter, sortBy, sortDir]);
 
   const loadAsetOptions = async (inputValue: string) => {
     try {
@@ -212,60 +219,132 @@ export default function MaintenancePage() {
 
   const handleDeleteMaintenance = async () => {
     if (!deletingLog) return;
+    setIsDeletingLog(true);
     try {
       await sinapraService.deleteMaintenance(deletingLog.id);
       toast.success(`Tiket maintenance '${deletingLog.judul}' berhasil dihapus.`);
       fetchMaintenanceLogs();
+      setDeletingLog(null);
     } catch {
       toast.error('Gagal menghapus tiket maintenance.');
     } finally {
-      setDeletingLog(null);
+      setIsDeletingLog(false);
     }
   };
 
   // ------------------------------------------------------------
-  // COLUMNS DEFINITIONS
+  // COLUMNS DEFINITIONS (SIMPEG Standard: Max 12px, 2-Row Format)
   // ------------------------------------------------------------
   const columns: ColumnDef<MaintenanceLog>[] = [
-    { key: 'id', label: 'No', render: (_, idx) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + idx : idx + 1}</span> },
-    { key: 'tiket', label: 'No Tiket', render: (row) => <span className="badge badge-blue font-mono">MNT-{row.id}</span> },
-    { key: 'objek', label: 'Objek / Sarpras', render: (row) => (
-      <div>
-        {row.aset ? (
-          <div className="flex items-center gap-1 font-bold text-slate-900">
-            <Boxes size={14} className="text-rose-500" /> {row.aset.nama}
-            <span className="text-xs font-mono text-slate-400">({row.aset.kode_aset})</span>
+    {
+      key: 'tiket',
+      label: 'NO TIKET & TANGGAL',
+      render: (row) => (
+        <div>
+          <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
+            MNT-{row.id}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {formatDate(row.created_at)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'objek',
+      label: 'OBJEK & JUDUL KERUSAKAN',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+            {row.aset ? (
+              <span>
+                {row.aset.nama}{' '}
+                <span className="text-2xs font-mono text-slate-400 font-normal">
+                  ({row.aset.kode_aset})
+                </span>
+              </span>
+            ) : row.ruangan ? (
+              <span>{row.ruangan.nama}</span>
+            ) : (
+              <span className="text-slate-400 italic font-normal">Umum</span>
+            )}
           </div>
-        ) : row.ruangan ? (
-          <div className="flex items-center gap-1 font-bold text-slate-900">
-            <MapPin size={14} className="text-indigo-500" /> {row.ruangan.nama}
+          <div className="text-2xs text-slate-500 line-clamp-1 font-medium">
+            {row.judul}
           </div>
-        ) : (
-          <span className="text-slate-400 italic">Umum</span>
-        )}
-        <div className="text-xs text-slate-500 font-semibold">{row.judul}</div>
-      </div>
-    )},
-    { key: 'prioritas', label: 'Prioritas', render: (row) => {
-      const color = row.prioritas === 'darurat' || row.prioritas === 'tinggi' ? 'badge-red' : row.prioritas === 'sedang' ? 'badge-yellow' : 'badge-green';
-      return <span className={`badge ${color} uppercase text-[10px]`}>{row.prioritas}</span>;
-    }},
-    { key: 'biaya', label: 'Biaya Perbaikan', render: (row) => (
-      <span className="font-semibold text-slate-800">{formatCurrency(row.biaya || 0)}</span>
-    )},
-    { key: 'status', label: 'Status', render: (row) => {
-      const color = row.status === 'selesai' ? 'badge-green' : row.status === 'proses' ? 'badge-blue' : row.status === 'batal' ? 'badge-red' : 'badge-yellow';
-      return <span className={`badge ${color} badge-dot capitalize`}>{row.status}</span>;
-    }},
-    { key: 'tgl', label: 'Tgl Lapor', render: (row) => (
-      <span className="text-xs text-slate-500">{formatDate(row.created_at)}</span>
-    )},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-1.5">
-        <Button variant="ghost" size="sm" icon={<Edit2 size={14} />} onClick={() => handleOpenEditModal(row)} title="Edit & Update Status" />
-        <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => setDeletingLog(row)} title="Hapus" />
-      </div>
-    )},
+        </div>
+      ),
+    },
+    {
+      key: 'prioritas',
+      label: 'PRIORITAS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs uppercase"
+        >
+          {row.prioritas}
+        </Badge>
+      ),
+    },
+    {
+      key: 'biaya',
+      label: 'BIAYA PERBAIKAN',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-800 dark:text-slate-100 text-xs block">
+            {formatCurrency(row.biaya || 0)}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {row.hasil_perbaikan ? 'Ada catatan' : 'Belum selesai'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.status?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Ubah & Update Status',
+                icon: <Edit2 size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => handleOpenEditModal(row),
+              },
+              {
+                label: 'Hapus Tiket',
+                icon: <Trash2 size={16} className="text-[var(--danger)]" />,
+                variant: 'danger',
+                onClick: () => setDeletingLog(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -277,6 +356,7 @@ export default function MaintenancePage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setShowFilterDrawer(true)}
             >
@@ -289,23 +369,6 @@ export default function MaintenancePage() {
         }
       />
 
-      {/* SEARCH BAR */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="w-full md:w-96">
-            <Input
-              placeholder="Cari nomor tiket, judul kerusakan, atau objek sarpras..."
-              prefixIcon={<Search size={16} />}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* DATA TABLE */}
       <DataTable
         columns={columns}
@@ -315,23 +378,17 @@ export default function MaintenancePage() {
         onPageChange={(p) => setPage(p)}
       />
 
-      {/* DELETE MAINTENANCE MODAL */}
-      <Modal
-        open={!!deletingLog}
+      {/* DELETE MAINTENANCE CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={!!deletingLog}
         onClose={() => setDeletingLog(null)}
+        onConfirm={handleDeleteMaintenance}
         title="Hapus Tiket Maintenance?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingLog(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDeleteMaintenance}>Hapus</Button>
-          </>
-        }
-      >
-        <p className="text-slate-600">
-          Apakah Anda yakin ingin menghapus tiket perawatan <strong>{deletingLog?.judul}</strong> (MNT-{deletingLog?.id})?
-        </p>
-      </Modal>
+        message={`Apakah Anda yakin ingin menghapus tiket perawatan ${deletingLog?.judul} (MNT-${deletingLog?.id})?`}
+        confirmText="Hapus"
+        variant="danger"
+        isLoading={isDeletingLog}
+      />
 
       {/* FILTER DRAWER */}
       <Drawer
@@ -343,8 +400,11 @@ export default function MaintenancePage() {
             <Button
               variant="secondary"
               onClick={() => {
+                setSearch('');
                 setStatusFilter('');
                 setPrioritasFilter('');
+                setSortBy('created_at');
+                setSortDir('desc');
                 setPage(1);
                 setShowFilterDrawer(false);
               }}
@@ -358,6 +418,13 @@ export default function MaintenancePage() {
         }
       >
         <div className="space-y-4">
+          <Input
+            label="Pencarian"
+            placeholder="Cari nomor tiket, judul kerusakan, atau objek..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
           <Select
             label="Status Perawatan"
             value={statusFilter}
@@ -383,6 +450,31 @@ export default function MaintenancePage() {
               { value: 'darurat', label: 'Darurat' },
             ]}
           />
+
+          <hr className="border-slate-200 dark:border-slate-800" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={sortBy}
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'created_at', label: 'Tanggal Lapor' },
+                { value: 'judul', label: 'Judul Kerusakan' },
+                { value: 'biaya', label: 'Biaya Perbaikan' },
+                { value: 'prioritas', label: 'Prioritas' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={sortDir}
+              onChange={(val: any) => setSortDir(val)}
+              options={[
+                { value: 'desc', label: 'Menurun (Z-A / Baru)' },
+                { value: 'asc', label: 'Menaik (A-Z / Lama)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 

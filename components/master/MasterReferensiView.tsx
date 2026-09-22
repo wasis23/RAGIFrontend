@@ -627,7 +627,7 @@ export function MasterReferensiView({
       align: 'left',
       render: (row) => (
         <div>
-          <span className="font-bold text-slate-900 text-sm">{row.nama}</span>
+          <span className="font-bold text-slate-900 text-xs">{row.nama}</span>
         </div>
       ),
     },
@@ -708,7 +708,7 @@ export function MasterReferensiView({
       align: 'left',
       render: (row) => (
         <div>
-          <span className="font-bold text-slate-900 text-sm">{row.nama}</span>
+          <span className="font-bold text-slate-900 text-xs">{row.nama}</span>
           {row.deskripsi && (
             <p className="text-2xs text-slate-500 line-clamp-1 mt-0.5">{row.deskripsi}</p>
           )}
@@ -791,7 +791,7 @@ export function MasterReferensiView({
             : 'Pengelolaan kelompok kategori referensi sistem kampus lintas modul.'
         }
         action={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
             </Button>

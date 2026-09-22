@@ -5,7 +5,7 @@
 
 echo "🤖 [Audit 1/9: Zero Hardcode & RBAC] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
-export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
@@ -18,6 +18,10 @@ fi
 if [ -z "$STAGED_DIFF" ]; then
     echo "ℹ️ [Audit Zero Hardcode & RBAC] Tidak ada perubahan kode yang diuji. Skip."
     exit 0
+fi
+
+if [ ${#STAGED_DIFF} -gt 80000 ]; then
+    STAGED_DIFF="${STAGED_DIFF:0:80000}"
 fi
 
 # ------------------------------------------------------------------------------

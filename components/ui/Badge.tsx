@@ -8,11 +8,12 @@ interface BadgeProps {
   children: React.ReactNode;
   className?: string;
   title?: string;
+  style?: React.CSSProperties;
 }
 
-export function Badge({ variant = 'gray', dot = false, children, className, title }: BadgeProps) {
+export function Badge({ variant = 'gray', dot = false, children, className, title, style }: BadgeProps) {
   return (
-    <span title={title} className={cn('badge', `badge-${variant}`, dot && 'badge-dot', className)}>
+    <span style={style} title={title} className={cn('badge', `badge-${variant}`, dot && 'badge-dot', className)}>
       {children}
     </span>
   );

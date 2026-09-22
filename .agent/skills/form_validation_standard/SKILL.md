@@ -31,10 +31,11 @@ Proyek ini menggunakan **React Hook Form (RHF)** dikombinasikan dengan **Zod** u
 ```tsx
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/components/ui/Button';
+import { Button, Input } from '@/components/ui';
 
 // 1. Definisikan Skema Zod
 const mySchema = z.object({
@@ -60,28 +61,22 @@ export default function MyForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="form-group gap-4">
-      <div className="form-group">
-        <label className="form-label">Email</label>
-        <input 
-          type="email" 
-          className={`input ${errors.email ? 'error' : ''}`} 
-          {...register('email')} 
-        />
-        {errors.email && <span className="form-error">{errors.email.message}</span>}
-      </div>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+      <Input 
+        label="Email" 
+        type="email" 
+        error={errors.email?.message} 
+        {...register('email')} 
+      />
 
-      <div className="form-group">
-        <label className="form-label">Password</label>
-        <input 
-          type="password" 
-          className={`input ${errors.password ? 'error' : ''}`} 
-          {...register('password')} 
-        />
-        {errors.password && <span className="form-error">{errors.password.message}</span>}
-      </div>
+      <Input 
+        label="Password" 
+        type="password" 
+        error={errors.password?.message} 
+        {...register('password')} 
+      />
 
-      <Button type="submit" variant="primary" loading={isLoading}>
+      <Button type="submit" loading={isLoading}>
         Kirim Data
       </Button>
     </form>

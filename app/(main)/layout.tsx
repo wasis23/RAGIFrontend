@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
 import { DemoBanner } from '@/components/layout/DemoBanner';
+import { ImpersonateBanner } from '@/components/layout/ImpersonateBanner';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
@@ -17,8 +18,11 @@ import NotFoundPage from '@/app/not-found';
 import { generateModuleThemeStyles } from '@/lib/theme';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { sidebar_open, toggleSidebar, module_colors, fetchAllModuleColors } = useUiStore();
-  const { setUser } = useAuthStore();
+  const sidebar_open = useUiStore((s) => s.sidebar_open);
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const module_colors = useUiStore((s) => s.module_colors);
+  const fetchAllModuleColors = useUiStore((s) => s.fetchAllModuleColors);
+  const setUser = useAuthStore((s) => s.setUser);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -184,8 +188,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       )}
       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
         <DemoBanner />
+        <ImpersonateBanner />
         <Navbar />
-        <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-8">
+        <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-6">
           {children}
         </main>
       </div>

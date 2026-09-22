@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit2, Trash2, ShieldAlert, Filter } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShieldAlert, Filter, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { formatDate } from '@/lib/utils';
@@ -42,11 +43,17 @@ export default function AdminRolesPage() {
 
   const [showFilter, setShowFilter] = useState(false);
   const [filterName, setFilterName] = useState<string>('');
+  const [filterSlug, setFilterSlug] = useState<string>('');
+  const [filterDescription, setFilterDescription] = useState<string>('');
+  const [filterDate, setFilterDate] = useState<string>('');
   const [filterOrderBy, setFilterOrderBy] = useState<string>('id');
   const [filterOrderDir, setFilterOrderDir] = useState<string>('desc');
 
   const [appliedFilters, setAppliedFilters] = useState({
     name: '',
+    slug: '',
+    description: '',
+    date: '',
     orderBy: 'id',
     orderDir: 'desc',
   });
@@ -56,6 +63,7 @@ export default function AdminRolesPage() {
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deletingRole, setDeletingRole] = useState<Role | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // React Hook Form + Zod Setup
   const {
@@ -77,7 +85,10 @@ export default function AdminRolesPage() {
     setIsLoading(true);
     try {
       const params: any = { page };
-      if (appliedFilters.name !== '') params.search = appliedFilters.name;
+      if (appliedFilters.name !== '') params.name = appliedFilters.name;
+      if (appliedFilters.slug !== '') params.slug = appliedFilters.slug;
+      if (appliedFilters.description !== '') params.description = appliedFilters.description;
+      if (appliedFilters.date !== '') params.created_at = appliedFilters.date;
       if (appliedFilters.orderBy !== '') params.order_by = appliedFilters.orderBy;
       if (appliedFilters.orderDir !== '') params.order_dir = appliedFilters.orderDir;
       if (filterLimit !== '') params.limit = filterLimit;
@@ -101,6 +112,9 @@ export default function AdminRolesPage() {
         metaData = res.data.meta;
       } else if (res && Array.isArray(res.data)) {
         roleList = res.data;
+        if (res.meta) {
+          metaData = res.meta;
+        }
       } else if (Array.isArray(res)) {
         roleList = res;
       }
@@ -116,7 +130,16 @@ export default function AdminRolesPage() {
 
   useEffect(() => {
     fetchRoles();
-  }, [page, filterLimit, appliedFilters.name, appliedFilters.orderBy, appliedFilters.orderDir]);
+  }, [
+    page,
+    filterLimit,
+    appliedFilters.name,
+    appliedFilters.slug,
+    appliedFilters.description,
+    appliedFilters.date,
+    appliedFilters.orderBy,
+    appliedFilters.orderDir,
+  ]);
 
   const handleOpenCreate = () => {
     setEditingRole(null);
@@ -163,6 +186,7 @@ export default function AdminRolesPage() {
 
   const handleDelete = async () => {
     if (!deletingRole) return;
+    setIsDeleting(true);
     try {
       await adminService.deleteRole(deletingRole.id);
       toast.success(`Role ${deletingRole.name} berhasil dihapus.`);
@@ -176,6 +200,7 @@ export default function AdminRolesPage() {
         toast.error(errorMsg);
       }
     } finally {
+      setIsDeleting(false);
       setDeletingRole(null);
     }
   };
@@ -192,9 +217,9 @@ export default function AdminRolesPage() {
       key: 'name',
       label: 'Nama Role',
       render: (row) => (
-        <div className="flex items-center gap-2 font-bold">
-          <ShieldAlert size={16} color="var(--primary-600)" />
-          {row.name}
+        <div className="flex items-center gap-2 font-bold text-slate-900">
+          <ShieldAlert size={16} className="text-primary-600 shrink-0" />
+          <span>{row.name}</span>
         </div>
       ),
     },
@@ -202,19 +227,21 @@ export default function AdminRolesPage() {
       key: 'slug',
       label: 'Slug Identifier',
       render: (row) => (
-        <code className="bg-slate-100 px-2 py-0.5 rounded text-[0.8125rem] font-bold">{row.slug}</code>
+        <code className="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono font-bold text-slate-800">
+          {row.slug}
+        </code>
       ),
     },
     {
       key: 'description',
       label: 'Deskripsi Akses',
-      render: (row) => <span className="text-sm text-slate-500">{row.description || '-'}</span>,
+      render: (row) => <span className="text-xs text-slate-600">{row.description || '-'}</span>,
     },
     {
       key: 'created_at',
       label: 'Tanggal Dibuat',
       render: (row) => (
-        <span className="text-[0.8125rem] text-slate-400">{formatDate(row.created_at)}</span>
+        <span className="text-xs text-slate-500">{formatDate(row.created_at)}</span>
       ),
     },
     {
@@ -244,13 +271,18 @@ export default function AdminRolesPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
+    <div className="animate-fade-in flex w-full flex-col gap-6">
       <PageHeader
         title="Manajemen Role Akses (Roles Table)"
         description="Definisikan struktur peran pengguna dalam ekosistem kampus (Tabel: roles)"
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            >
               Filter
             </Button>
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
@@ -260,33 +292,41 @@ export default function AdminRolesPage() {
         }
       />
 
-      <DataTable
-        columns={columns}
-        data={roles}
-        isLoading={isLoading}
-        meta={meta}
-        onPageChange={(p) => setPage(p)}
-        onLimitChange={(l) => {
-          setFilterLimit(l.toString());
-          setPage(1);
-        }}
-      />
+      <div className="w-full bg-white rounded-xl shadow-2xs border border-slate-200">
+        <DataTable
+          columns={columns}
+          data={roles}
+          isLoading={isLoading}
+          meta={meta}
+          onPageChange={(p) => setPage(p)}
+          onLimitChange={(l) => {
+            setFilterLimit(l.toString());
+            setPage(1);
+          }}
+        />
+      </div>
 
       {/* Filter Drawer */}
       <Drawer
         open={showFilter}
         onClose={() => setShowFilter(false)}
-        title="Filter Role"
+        title="Filter Role Akses"
         footer={
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-2">
             <Button
               variant="secondary"
               onClick={() => {
                 setFilterName('');
+                setFilterSlug('');
+                setFilterDescription('');
+                setFilterDate('');
                 setFilterOrderBy('id');
                 setFilterOrderDir('desc');
                 setAppliedFilters({
                   name: '',
+                  slug: '',
+                  description: '',
+                  date: '',
                   orderBy: 'id',
                   orderDir: 'desc',
                 });
@@ -301,6 +341,9 @@ export default function AdminRolesPage() {
               onClick={() => {
                 setAppliedFilters({
                   name: filterName,
+                  slug: filterSlug,
+                  description: filterDescription,
+                  date: filterDate,
                   orderBy: filterOrderBy,
                   orderDir: filterOrderDir,
                 });
@@ -315,11 +358,34 @@ export default function AdminRolesPage() {
       >
         <div className="flex flex-col gap-4">
           <Input
-            label="Nama / Slug Role"
-            placeholder="Ketik kata kunci..."
+            label="Nama Role"
+            placeholder="Cari berdasarkan nama role..."
             value={filterName}
             onChange={(e) => setFilterName(e.target.value)}
           />
+
+          <Input
+            label="Slug Identifier"
+            placeholder="Cari berdasarkan slug..."
+            value={filterSlug}
+            onChange={(e) => setFilterSlug(e.target.value)}
+          />
+
+          <Input
+            label="Deskripsi Akses"
+            placeholder="Cari dalam deskripsi role..."
+            value={filterDescription}
+            onChange={(e) => setFilterDescription(e.target.value)}
+          />
+
+          <Input
+            label="Tanggal Dibuat"
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+          />
+
+          <hr className="border-slate-200" />
 
           <div className="grid grid-cols-2 gap-4">
             <Select
@@ -329,12 +395,13 @@ export default function AdminRolesPage() {
               options={[
                 { value: 'id', label: 'ID' },
                 { value: 'name', label: 'Nama Role' },
-                { value: 'slug', label: 'Slug' },
+                { value: 'slug', label: 'Slug Identifier' },
+                { value: 'description', label: 'Deskripsi Akses' },
                 { value: 'created_at', label: 'Tanggal Dibuat' },
               ]}
             />
             <Select
-              label="Arah"
+              label="Arah Urutan"
               value={filterOrderDir}
               onChange={(val) => setFilterOrderDir(val)}
               options={[
@@ -357,7 +424,7 @@ export default function AdminRolesPage() {
               Batal
             </Button>
             <Button variant="primary" onClick={handleSubmit(onSaveRole)} disabled={isSubmitting}>
-              {editingRole ? 'Simpan' : 'Tambah'}
+              {editingRole ? 'Simpan Perubahan' : 'Tambah Role'}
             </Button>
           </>
         }
@@ -390,7 +457,7 @@ export default function AdminRolesPage() {
 
           <div className="col-span-1 md:col-span-2">
             <Textarea
-              label="Deskripsi"
+              label="Deskripsi Akses"
               rows={3}
               placeholder="Deskripsi wewenang role..."
               {...register('description')}
@@ -400,28 +467,22 @@ export default function AdminRolesPage() {
         </form>
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal
-        open={!!deletingRole}
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!deletingRole}
         onClose={() => setDeletingRole(null)}
-        title="Hapus Role?"
-        size="sm"
-        footer={
+        onConfirm={handleDelete}
+        title="Hapus Role Akses?"
+        message={
           <>
-            <Button variant="secondary" onClick={() => setDeletingRole(null)}>
-              Batal
-            </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Hapus
-            </Button>
+            Apakah Anda yakin ingin menghapus role <strong>{deletingRole?.name}</strong>? Pengguna dengan role ini akan kehilangan seluruh wewenang terkait. Tindakan ini tidak dapat dibatalkan.
           </>
         }
-      >
-        <p className="text-slate-500">
-          Hapus role <strong>{deletingRole?.name}</strong>? Pengguna dengan role ini akan kehilangan
-          wewenang terkait.
-        </p>
-      </Modal>
+        confirmText="Hapus Role"
+        cancelText="Batal"
+        isLoading={isDeleting}
+        variant="danger"
+      />
     </div>
   );
 }

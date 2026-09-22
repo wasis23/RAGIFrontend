@@ -8,6 +8,7 @@ import type {
   AuditLog,
   UserSession,
 } from '@/types/auth.types';
+import type { ImpersonateStatusData, LeaveImpersonateData } from '@/types/impersonate.types';
 import type { ApiResponse, PaginatedResponse, PaginationParams } from '@/types/api.types';
 
 export const adminService = {
@@ -39,6 +40,27 @@ export const adminService = {
 
   changeUserPassword: async (id: number, payload: { password: string; password_confirmation: string }): Promise<ApiResponse<User>> => {
     const { data } = await apiClient.put<ApiResponse<User>>(`/admin/users/${id}/password`, payload);
+    return data;
+  },
+
+  impersonateUser: async (id: number): Promise<ApiResponse<{
+    token: string;
+    access_token: string;
+    token_type: string;
+    user: User;
+    impersonated_by: { id: number; username: string; name: string };
+  }>> => {
+    const { data } = await apiClient.post(`/admin/users/${id}/impersonate`);
+    return data;
+  },
+
+  leaveImpersonate: async (): Promise<ApiResponse<LeaveImpersonateData | null>> => {
+    const { data } = await apiClient.post('/admin/users/leave-impersonate');
+    return data;
+  },
+
+  getImpersonateStatus: async (): Promise<ApiResponse<ImpersonateStatusData>> => {
+    const { data } = await apiClient.get('/admin/impersonate-status');
     return data;
   },
 
@@ -118,8 +140,8 @@ export const adminService = {
   },
 
   // ── SESSIONS ──────────────────────────────────────────────
-  getAllSessions: async (): Promise<ApiResponse<UserSession[]>> => {
-    const { data } = await apiClient.get<ApiResponse<UserSession[]>>('/admin/sessions');
+  getAllSessions: async (params?: Record<string, any>): Promise<ApiResponse<UserSession[]>> => {
+    const { data } = await apiClient.get<ApiResponse<UserSession[]>>('/admin/sessions', { params });
     return data;
   },
 
@@ -131,6 +153,11 @@ export const adminService = {
   // ── AUDIT LOGS ────────────────────────────────────────────
   getAuditLogs: async (params?: PaginationParams): Promise<PaginatedResponse<AuditLog>> => {
     const { data } = await apiClient.get<PaginatedResponse<AuditLog>>('/admin/audit-logs', { params });
+    return data;
+  },
+
+  getAuditLogById: async (id: number | string): Promise<ApiResponse<AuditLog>> => {
+    const { data } = await apiClient.get<ApiResponse<AuditLog>>(`/admin/audit-logs/${id}`);
     return data;
   },
 };

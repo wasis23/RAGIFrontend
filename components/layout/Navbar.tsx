@@ -2,16 +2,27 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, LogOut, User, Shield, Bell } from 'lucide-react';
+import { Menu, LogOut, User, Shield, Bell, ArrowLeftCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUiStore } from '@/store/uiStore';
+import { useAuthStore } from '@/store/authStore';
+import { useImpersonateStore } from '@/store/impersonateStore';
 import { useDomain } from '@/hooks/useDomain';
+import { adminService } from '@/services/admin.service';
+import { getCookieDomain, getAuthTokenKey } from '@/lib/domain';
+import toast from 'react-hot-toast';
 
 import { AppLauncher } from '@/components/layout/AppLauncher';
 
 export function Navbar() {
   const { user, logout } = useAuth();
-  const { toggleSidebar } = useUiStore();
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const isImpersonating = useImpersonateStore((s) => s.isImpersonating);
+  const adminToken = useImpersonateStore((s) => s.adminToken);
+  const adminRefreshToken = useImpersonateStore((s) => s.adminRefreshToken);
+  const adminUser = useImpersonateStore((s) => s.adminUser);
+  const stopImpersonating = useImpersonateStore((s) => s.stopImpersonating);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const { moduleLabel, isDemo } = useDomain();
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -63,10 +74,12 @@ export function Navbar() {
             aria-expanded={showDropdown}
           >
             <div className="avatar avatar-md">
-              {user?.username ? user.username.slice(0, 2).toUpperCase() : 'US'}
+              {(user?.name || user?.nama_lengkap || user?.username)
+                ? (user.name || user.nama_lengkap || user.username).slice(0, 2).toUpperCase()
+                : 'US'}
             </div>
             <div className="hide-mobile topbar-user-text">
-              <div className="topbar-user-name">{user?.username || 'User Kampus'}</div>
+              <div className="topbar-user-name">{user?.name || user?.nama_lengkap || user?.username || 'User Kampus'}</div>
               <div className="topbar-user-email">{user?.email || 'user@kampus.ac.id'}</div>
             </div>
           </button>
@@ -116,6 +129,53 @@ export function Navbar() {
               </Link>
 
               <div className="dropdown-divider" />
+
+              {isImpersonating && (
+                <button
+                  onClick={async () => {
+                    setShowDropdown(false);
+                    let leaveData = null;
+                    try {
+                      const res = await adminService.leaveImpersonate();
+                      leaveData = res?.data ?? null;
+                    } catch {}
+                    // Prioritas: token admin baru dari backend (berfungsi di
+                    // tab baru tanpa simpanan adminToken lokal).
+                    if (leaveData && leaveData.access_token && leaveData.admin) {
+                      const nextAdmin = leaveData.admin;
+                      stopImpersonating();
+                      const domainAttr = getCookieDomain();
+                      const tokenKey = getAuthTokenKey();
+                      const roleKey = tokenKey === 'demo_sso_access_token' ? 'demo_sso_user_role' : 'sso_user_role';
+                      const adminRole = nextAdmin.roles?.[0]?.role?.slug || nextAdmin.roles?.[0]?.slug || 'super_admin';
+                      document.cookie = `${tokenKey}=${leaveData.access_token}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+                      document.cookie = `${roleKey}=${adminRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+                      setAuth(nextAdmin, leaveData.access_token, leaveData.access_token);
+                      toast.success(`Kembali ke akun administrator (${nextAdmin.name || nextAdmin.username})`);
+                      window.location.href = '/admin/users';
+                    } else if (adminToken && adminUser) {
+                      stopImpersonating();
+                      const domainAttr = getCookieDomain();
+                      const tokenKey = getAuthTokenKey();
+                      const roleKey = tokenKey === 'demo_sso_access_token' ? 'demo_sso_user_role' : 'sso_user_role';
+                      const adminRole = adminUser.roles?.[0]?.role?.slug || adminUser.roles?.[0]?.slug || 'super_admin';
+                      document.cookie = `${tokenKey}=${adminToken}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+                      document.cookie = `${roleKey}=${adminRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+                      setAuth(adminUser, adminToken, adminRefreshToken || adminToken);
+                      toast.success(`Kembali ke akun administrator (${adminUser.name || adminUser.username})`);
+                      window.location.href = '/admin/users';
+                    } else {
+                      stopImpersonating();
+                      window.location.href = '/login';
+                    }
+                  }}
+                  className="dropdown-item text-amber-700 bg-amber-50 hover:bg-amber-100 font-bold"
+                  role="menuitem"
+                >
+                  <ArrowLeftCircle size={16} className="text-amber-600" />
+                  <span>Kembali ke Akun Admin</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {

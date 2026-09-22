@@ -73,7 +73,7 @@ export function DataTable<T extends object>({
     <div className="table-container bg-white shadow-xs">
       <div className="table-wrapper bg-white">
         <table className="table bg-white">
-          <thead className="bg-white">
+          <thead className="bg-white border-b border-slate-200">
             <tr className="bg-white">
               {expandable && (
                 <th className="bg-white" style={{ width: '36px', padding: '0.5rem' }}>
@@ -100,7 +100,7 @@ export function DataTable<T extends object>({
                 </th>
               )}
               {columns.map((col, index) => (
-                <th key={col.key || index} style={{ textAlign: col.align || 'left' }} className="bg-white">
+                <th key={col.key || index} style={{ textAlign: col.align || 'left' }}>
                   {col.headerRender ? col.headerRender() : col.label}
                 </th>
               ))}
@@ -113,7 +113,7 @@ export function DataTable<T extends object>({
               ))
             ) : data.length === 0 ? (
               <tr className="bg-white">
-                <td colSpan={colCount} style={{ textAlign: 'center', padding: '3rem 1rem' }} className="bg-white">
+                <td colSpan={colCount} className="bg-white" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
                   <div style={{ color: 'var(--text-muted)' }}>{emptyMessage}</div>
                 </td>
               </tr>

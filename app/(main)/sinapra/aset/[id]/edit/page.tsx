@@ -134,8 +134,13 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
         title={`Edit Inventaris Aset — ${formData.nama}`}
         description="Perbarui informasi spesifikasi, kondisi fisik, dan lokasi penempatan aset (Modul SINAPRA)"
         action={
-          <Button variant="secondary" icon={<ArrowLeft size={16} />} onClick={() => router.push('/sinapra/aset')}>
-            Kembali ke Daftar
+          <Button
+            variant="outline"
+            style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            icon={<ArrowLeft size={16} />}
+            onClick={() => router.push('/sinapra/aset')}
+          >
+            Kembali
           </Button>
         }
       />
@@ -144,7 +149,7 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
         <div className="card-body p-6 space-y-6">
           <div className="border-b pb-4">
             <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-              <Boxes className="text-rose-600" size={20} /> Informasi Detail Aset
+              <Boxes className="text-[var(--module-primary)]" size={20} /> Informasi Detail Aset
             </h3>
             <p className="text-xs text-slate-500">Lengkapi data fisik, perolehan, dan lokasi penempatan aset.</p>
           </div>

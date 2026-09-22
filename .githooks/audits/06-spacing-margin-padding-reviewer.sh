@@ -5,7 +5,7 @@
 
 echo "🤖 [Audit 6/9: Spacing, Margin & Padding Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
-export PATH="$HOME/.opencode/bin:/usr/local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
@@ -18,6 +18,10 @@ fi
 if [ -z "$STAGED_DIFF" ]; then
     echo "ℹ️ [Audit Spacing Standard] Tidak ada perubahan komponen/halaman yang diuji. Skip."
     exit 0
+fi
+
+if [ ${#STAGED_DIFF} -gt 80000 ]; then
+    STAGED_DIFF="${STAGED_DIFF:0:80000}"
 fi
 
 # ------------------------------------------------------------------------------

@@ -7,7 +7,6 @@ import {
   Plus,
   Trash2,
   Filter,
-  Search,
   Eye,
   UserCheck,
   Building2,
@@ -23,6 +22,9 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
@@ -47,6 +49,8 @@ export default function PengadaanPage() {
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // Modal Detail Pengadaan
@@ -61,6 +65,7 @@ export default function PengadaanPage() {
 
   // Modal Delete
   const [deletingPengadaan, setDeletingPengadaan] = useState<PengajuanPengadaan | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ------------------------------------------------------------
   // FETCH DATA FUNCTIONS
@@ -72,6 +77,8 @@ export default function PengadaanPage() {
         page,
         search,
         status: statusFilter || undefined,
+        sort_by: sortBy || undefined,
+        sort_dir: sortDir || undefined,
       });
 
       let items = [];
@@ -105,7 +112,7 @@ export default function PengadaanPage() {
 
   useEffect(() => {
     fetchPengadaan();
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, sortBy, sortDir]);
 
   // ------------------------------------------------------------
   // HANDLERS
@@ -126,54 +133,127 @@ export default function PengadaanPage() {
 
   const handleDelete = async () => {
     if (!deletingPengadaan) return;
+    setIsDeleting(true);
     try {
       await sinapraService.deletePengadaan(deletingPengadaan.id);
       toast.success(`Usulan pengadaan '${deletingPengadaan.judul}' dihapus.`);
       fetchPengadaan();
+      setDeletingPengadaan(null);
     } catch {
       toast.error('Gagal menghapus usulan pengadaan.');
     } finally {
-      setDeletingPengadaan(null);
+      setIsDeleting(false);
     }
   };
 
   // ------------------------------------------------------------
-  // COLUMNS DEFINITIONS
+  // COLUMNS DEFINITIONS (SIMPEG Standard: Max 12px, 2-Row Format)
   // ------------------------------------------------------------
   const columns: ColumnDef<PengajuanPengadaan>[] = [
-    { key: 'id', label: 'No', render: (_, idx) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + idx : idx + 1}</span> },
-    { key: 'kode', label: 'Kode Usulan', render: (row) => <span className="badge badge-blue font-mono">PGD-{row.id}</span> },
-    { key: 'judul', label: 'Judul Pengadaan / Unit Kerja', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-900">{row.judul}</div>
-        <div className="text-xs text-slate-500 flex items-center gap-1">
-          <Building2 size={12} className="text-slate-400" /> {row.unit_kerja?.nama || 'Unit kerja kampus'}
+    {
+      key: 'kode',
+      label: 'KODE & TANGGAL',
+      render: (row) => (
+        <div>
+          <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
+            PGD-{row.id}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {formatDate(row.tanggal_pengajuan)}
+          </span>
         </div>
-      </div>
-    )},
-    { key: 'pengaju', label: 'Pengaju', render: (row) => (
-      <div>
-        <div className="font-semibold text-slate-800">{row.pengaju?.name || 'User ID: ' + row.diajukan_oleh}</div>
-        <div className="text-xs text-slate-500">{formatDate(row.tanggal_pengajuan)}</div>
-      </div>
-    )},
-    { key: 'estimasi_anggaran', label: 'Estimasi Anggaran', render: (row) => (
-      <span className="font-extrabold text-slate-900">{formatCurrency(row.estimasi_anggaran)}</span>
-    )},
-    { key: 'status', label: 'Status', render: (row) => {
-      const color = row.status === 'disetujui' || row.status === 'selesai' ? 'badge-green' : row.status === 'diajukan' || row.status === 'proses_beli' ? 'badge-yellow' : row.status === 'ditolak' ? 'badge-red' : 'badge-blue';
-      return <span className={`badge ${color} badge-dot capitalize`}>{row.status.replace('_', ' ')}</span>;
-    }},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-1.5">
-        <Button variant="ghost" size="sm" icon={<Eye size={14} />} onClick={() => setViewingPengadaan(row)} title="Detail Barang" />
-        <Button variant="primary" size="sm" icon={<UserCheck size={14} />} onClick={() => {
-          setUpdatingStatusPengadaan(row);
-          setStatusForm({ status: 'disetujui', catatan: '' });
-        }} title="Approval Status" />
-        <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => setDeletingPengadaan(row)} title="Hapus" />
-      </div>
-    )},
+      ),
+    },
+    {
+      key: 'judul',
+      label: 'JUDUL PENGADAAN & UNIT KERJA',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+            {row.judul}
+          </div>
+          <div className="text-2xs text-slate-400 line-clamp-1">
+            {row.unit_kerja?.nama || 'Unit kerja kampus'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'pengaju',
+      label: 'PENGAJU',
+      render: (row) => (
+        <div>
+          <div className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+            {row.pengaju?.name || `User #${row.diajukan_oleh}`}
+          </div>
+          <div className="text-2xs text-slate-400">
+            {row.details?.length || 0} item barang
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'estimasi_anggaran',
+      label: 'ESTIMASI ANGGARAN',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">
+            {formatCurrency(row.estimasi_anggaran)}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            Total Estimasi
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.status?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Detail Rincian Barang',
+                icon: <Eye size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => setViewingPengadaan(row),
+              },
+              {
+                label: 'Verifikasi & Approval',
+                icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => {
+                  setUpdatingStatusPengadaan(row);
+                  setStatusForm({ status: 'disetujui', catatan: '' });
+                },
+              },
+              {
+                label: 'Hapus Usulan',
+                icon: <Trash2 size={16} className="text-[var(--danger)]" />,
+                variant: 'danger',
+                onClick: () => setDeletingPengadaan(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -185,6 +265,7 @@ export default function PengadaanPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setShowFilterDrawer(true)}
             >
@@ -197,23 +278,6 @@ export default function PengadaanPage() {
         }
       />
 
-      {/* SEARCH BAR */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="w-full md:w-96">
-            <Input
-              placeholder="Cari judul pengadaan, unit kerja, atau pengaju..."
-              prefixIcon={<Search size={16} />}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* DATA TABLE */}
       <DataTable
         columns={columns}
@@ -223,23 +287,17 @@ export default function PengadaanPage() {
         onPageChange={(p) => setPage(p)}
       />
 
-      {/* DELETE MODAL */}
-      <Modal
-        open={!!deletingPengadaan}
+      {/* DELETE CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={!!deletingPengadaan}
         onClose={() => setDeletingPengadaan(null)}
+        onConfirm={handleDelete}
         title="Hapus Usulan Pengadaan?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingPengadaan(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDelete}>Hapus</Button>
-          </>
-        }
-      >
-        <p className="text-slate-600">
-          Apakah Anda yakin ingin menghapus pengusulan pengadaan <strong>{deletingPengadaan?.judul}</strong> (PGD-{deletingPengadaan?.id})?
-        </p>
-      </Modal>
+        message={`Apakah Anda yakin ingin menghapus pengusulan pengadaan ${deletingPengadaan?.judul} (PGD-${deletingPengadaan?.id})?`}
+        confirmText="Hapus"
+        variant="danger"
+        isLoading={isDeleting}
+      />
 
       {/* FILTER DRAWER */}
       <Drawer
@@ -251,7 +309,10 @@ export default function PengadaanPage() {
             <Button
               variant="secondary"
               onClick={() => {
+                setSearch('');
                 setStatusFilter('');
+                setSortBy('created_at');
+                setSortDir('desc');
                 setPage(1);
                 setShowFilterDrawer(false);
               }}
@@ -265,8 +326,15 @@ export default function PengadaanPage() {
         }
       >
         <div className="space-y-4">
+          <Input
+            label="Pencarian"
+            placeholder="Cari judul pengadaan, unit kerja, atau pengaju..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
           <Select
-            label="Status Status Approval"
+            label="Status Approval"
             value={statusFilter}
             onChange={(val) => setStatusFilter(val)}
             options={[
@@ -279,6 +347,31 @@ export default function PengadaanPage() {
               { value: 'selesai', label: 'Selesai' },
             ]}
           />
+
+          <hr className="border-slate-200 dark:border-slate-800" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={sortBy}
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'created_at', label: 'Tanggal Pengajuan' },
+                { value: 'judul', label: 'Judul Pengadaan' },
+                { value: 'estimasi_anggaran', label: 'Estimasi Anggaran' },
+                { value: 'status', label: 'Status' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={sortDir}
+              onChange={(val: any) => setSortDir(val)}
+              options={[
+                { value: 'desc', label: 'Menurun (Z-A / Baru)' },
+                { value: 'asc', label: 'Menaik (A-Z / Lama)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 
@@ -338,9 +431,20 @@ export default function PengadaanPage() {
               </div>
             </div>
 
-            <div className="flex justify-between items-center bg-rose-50 p-4 rounded-xl border border-rose-200">
-              <span className="font-bold text-rose-900 text-sm">TOTAL ESTIMASI ANGGARAN</span>
-              <span className="font-extrabold text-rose-700 text-lg">{formatCurrency(viewingPengadaan.estimasi_anggaran)}</span>
+            <div
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--module-primary) 8%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+              }}
+              className="flex justify-between items-center p-4 rounded-xl border"
+            >
+              <span className="font-bold text-sm text-slate-800 dark:text-slate-200">TOTAL ESTIMASI ANGGARAN</span>
+              <span
+                style={{ color: 'var(--module-primary)' }}
+                className="font-extrabold text-lg"
+              >
+                {formatCurrency(viewingPengadaan.estimasi_anggaran)}
+              </span>
             </div>
           </div>
         )}

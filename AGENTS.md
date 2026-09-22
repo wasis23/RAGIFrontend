@@ -28,7 +28,6 @@ Sebelum mengeksekusi tugas apapun, Anda WAJIB memeriksa daftar skill di bawah in
 | `rbac-refactoring-standard` | `.agent/skills/rbac_refactoring_standard/SKILL.md` | Melakukan refaktor komponen, perbaikan UI, atau mendesain pengecekan akses (RBAC) tanpa mengandalkan tipe user statis. |
 | `module-management-standard`| `../RAGIBackend/.agent/skills/module_management_standard/SKILL.md` | Merancang, menambah, atau memodifikasi modul aplikasi (Master Modul) di ekosistem kampus terintegrasi. |
 | `audit-fungsional-crud` | `.agent/skills/audit_fungsional_crud/SKILL.md` | Diminta menguji, mengaudit, atau memverifikasi fungsi operasional halaman/form CRUD, dropdown data, integrasi API, dan alur bisnis modul. |
-| `unfinishedtodo` | `.agent/skills/unfinishedtodo/SKILL.md` | Memulai, melanjutkan, atau menutup pekerjaan multi-langkah via `.agent/unfinished_todo/TODO.md` agar tahan terhadap sesi terputus. |
 
 ## Aturan Wajib
 1. **BACA** SKILL.md yang relevan sebelum mulai coding. Jangan asumsikan — baca dulu.
@@ -62,18 +61,30 @@ Termasuk juga membuat **array literal statis** untuk `options` pada komponen UI 
 2. **Halaman Detail Terpisah (Separate Detail Page)**: Tampilan Detail data/rincian entitas WAJIB dibuat di **Halaman Terpisah** (route `/[id]` atau `/detail/[id]`) dengan Tombol Kembali yang warnanya menyesuaikan primary modul (bukan hardcode warna) di `PageHeader`. Dilarang menjejalkan detail rumit ke dalam modal kecil.
 3. **Desain Form Compact & Elegan**: Form harus dirancang sangat compact, rapi, dan proporsional (grid 1 kolom di mobile, max 2-3 kolom di desktop: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`). Dilarang ada whitespace/margin yang berlebihan.
 4. **Atomic Design Architecture**: Wajib memisahkan elemen UI ke `@/components/ui/` (`Button`, `Input`, `Select`, `Modal`, `Drawer`, `DataTable`, `Badge`) dan layout ke `@/components/layout/` (`PageHeader`). Dilarang memakai elemen HTML mentah tanpa style standar.
-5. **Mandatory DataTable & Server-Side Pagination**: Halaman list/tabel data WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`. Dilarang memakai tag HTML manual `<table>`. Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`.
+5. **Mandatory DataTable, Standar Kontras Warna (Model SIMPEG) & Server-Side Pagination**:
+   - Halaman list/tabel data WAJIB menggunakan `<DataTable />` dari `@/components/ui/DataTable`. Dilarang memakai tag HTML manual `<table>`. Data WAJIB diambil dari API dengan server-side pagination (`page`, `limit`) dan prop `meta={meta}`.
+   - **Warna & Kontras Tabel**: Container dan baris data tabel (`<tbody>`, `<tr>`, `<td>`) WAJIB berwarna putih solid bersih (`bg-white` / `#ffffff`) dengan efek hover lembut (`hover:bg-slate-50 transition-colors`).
+   - **Header Kolom Wajib Kontras Pembeda**: Baris header tabel (`<thead>`, `<th>`) WAJIB memiliki kontras visual abu-abu lembut (`bg-slate-50/90 border-b border-slate-200` atau `var(--gray-50)`). DILARANG membuat header putih polos tanpa pembeda (`bg-white` polos) yang membuat tabel tampak datar ("putih semua").
 6. **Sort By & Sort Direction (Default Name/Label)**: WAJIB menyediakan filter pengurutan `sort_by` / `orderBy` (default berbasis `name` / `label` / `id`) dan `sort_dir` / `orderDir` (`asc` / `desc`) dalam layout grid 2 kolom di Drawer filter.
-7. **Tombol Filter Outline Dynamic & Drawer Slide Kanan-ke-Kiri**: Tombol Filter di `PageHeader` WAJIB bertipe outline dengan warna yang menyesuaikan primary modul (bukan hardcode warna biru) dengan ikon `<Filter size={16} />`. Diklik memunculkan `<Drawer />` dari kanan ke kiri (standard SSO/IAM).
+7. **Posisi Tombol Header & Strictly Text 'Filter'**:
+   - Tombol **paling kanan** di `PageHeader` (jika ada) WAJIB berupa tombol bersifat **Tambah/Buat data baru** (`[Tambah Data]`).
+   - Tombol **Filter** WAJIB berada tepat di sebelah **KIRI** tombol Tambah Data (`[Filter] [Tambah Data]`).
+   - Teks tombol filter WAJIB strictly bertuliskan kata **`Filter`** (tanpa kata tambahan dan tanpa badge counter).
+   - Tombol Filter WAJIB bertipe outline dinamis (mengikuti `primary_color` modul) dengan ikon `<Filter size={16} />`, memunculkan `<Drawer />` dari kanan ke kiri (standard SSO/IAM).
 8. **UI & Form Consistency**:
    - Form <= 5 inputs: Gunakan `<Modal />` dengan grid maksimal 2 kolom (`grid grid-cols-1 md:grid-cols-2 gap-4`).
    - Form > 5 inputs: Gunakan Halaman Terpisah dengan Tombol Kembali yang menyesuaikan warna primary modul di `PageHeader`.
    - Gunakan prop `label` pada `<Input>` / `<Select>` langsung di Drawer.
 9. **Wajib 3-Dots Action Dropdown Menu (<DropdownMenu />)**: Seluruh aksi tabel (Edit, Hapus, Detail, dll.) WAJIB menggunakan menu titik 3 (`<DropdownMenu />` dari `@/components/ui/DropdownMenu`). Dilarang keras menyejajarkan tombol aksi secara horizontal di sel tabel (*inefficient space*).
 10. **Dilarang Dialog Native Browser & Wajib Modal Konfirmasi UI (<ConfirmDialog />)**: DILARANG KERAS menggunakan dialog bawaan browser (`confirm()`, `window.confirm()`, `alert()`, `prompt()`). Seluruh konfirmasi aksi hapus atau aksi destruktif WAJIB menggunakan modal konfirmasi bertema UI (`<ConfirmDialog />` dari `@/components/ui/ConfirmDialog` atau `<Modal />`) dengan tombol Batal dan Hapus serta indikator loading.
-11. **Standar Navigasi Tab (Divided Bottom Border Navigation)**: Navigasi multi-tab pada halaman WAJIB menggunakan format bar horizontal dengan garis border bawah pembatas (`flex border-b border-slate-200 gap-1 sm:gap-2 overflow-x-auto pb-0.5`) dan tab aktif bertransisi dengan border bawah tebal (`border-b-2 border-primary-600 bg-primary-50/60 font-bold`) seperti pada `/simpeg/presensi`. DILARANG KERAS menggunakan format tab oval/pills yang dibungkus dalam container abu-abu cembung/terisolasi.
-12. **Tema & Posisi Tombol Pengaturan Global / Toggle Status**: Tombol toggle pengaturan global, mode switcher, atau pengubah status modul (seperti `Skema UKT: ON/OFF`, dsb.) WAJIB menggunakan styling outline yang selaras dan serasi dengan tombol Filter (`<Button variant="outline">` dengan border clean, ukuran compact `min-h-[38px] text-xs font-bold`, dan status indicator halus). DILARANG mendesain tombol pengaturan global dengan style solid block warna-warni kontras yang bertabrakan dengan tombol outline filter. Tombol ini WAJIB ditempatkan di `PageHeader action` paling atas di sebelah KIRI tombol Filter dengan urutan: `[Tombol Toggle / Setting Global] -> [Filter] -> [Tambah Data]`. DILARANG menaruh tombol toggle konfigurasi global di dalam tabel atau table action bar.
-13. **Dilarang Card Judul/Counter Mengambang di Atas Tabel**: DILARANG KERAS membuat card kontainer mengambang di atas tabel (`DataTable`) yang hanya berisi judul tabel dan badge counter jumlah data (seperti `Daftar Nominal ... [5 Data]`). Seluruh tombol aksi utama (Filter & Tambah Data) WAJIB berada di `PageHeader action`, sedangkan total data sudah otomatis ditampilkan secara terintegrasi pada footer pagination `<DataTable />`. Menaruh card pembungkus judul/counter di atas tabel membuang ruang layar vertikal (*wastes vertical space*) dan merusak kerapian antarmuka.
+11. **Larangan Tombol Refresh & Search Bar Inline di Atas Tabel**: DILARANG KERAS menyediakan tombol *Refresh* (`RefreshCw`/`RefreshCcw`) dan DILARANG menaruh search bar inline di atas tabel. Seluruh input pencarian wajib dipusatkan ke dalam Filter Drawer.
+12. **Standar Hirarki Font Tabel (Max 12px Rule)**:
+    - Header tabel: Baku `12px` (`0.75rem` / `text-xs`) bold uppercase.
+    - Isi sel tabel (data primer): Maksimal `12px` (`0.75rem` / `text-xs`). DILARANG `text-sm` (14px) atau `text-base` (16px).
+    - Teks sekunder/subteks/meta/badge: Wajib `10px` (`0.625rem` / `text-2xs`).
+13. **Standar Format Sel 2-Baris & Styling Menu Tab**:
+    - Format sel identitas/nama disarankan 2-baris (Baris atas: kode/nama tebal `text-xs`, Baris bawah: subteks `text-2xs`).
+    - Menu tab navigasi (jika ada) WAJIB menggunakan format rounded-top underline (aktif: `border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg border-b-2`).
 </RULE[admin_crud_reviewer]>
 
 <RULE[form_validation_reviewer]>

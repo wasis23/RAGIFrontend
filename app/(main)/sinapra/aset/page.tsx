@@ -24,6 +24,9 @@ import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
@@ -51,10 +54,13 @@ export default function AsetPage() {
   const [kondisiFilter, setKondisiFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [kategoriFilterObj, setKategoriFilterObj] = useState<{ value: string; label: string } | null>(null);
+  const [sortBy, setSortBy] = useState('nama');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // Modal Deleting Aset
   const [deletingAset, setDeletingAset] = useState<Aset | null>(null);
+  const [isDeletingAset, setIsDeletingAset] = useState(false);
 
   // Modal Kalkulator Penyusutan
   const [showPenyusutanModal, setShowPenyusutanModal] = useState(false);
@@ -69,6 +75,7 @@ export default function AsetPage() {
   const [isKategoriLoading, setIsKategoriLoading] = useState(false);
   const [editingKategori, setEditingKategori] = useState<KategoriAset | null>(null);
   const [deletingKategori, setDeletingKategori] = useState<KategoriAset | null>(null);
+  const [isDeletingKategori, setIsDeletingKategori] = useState(false);
   const [selectedParentKategoriObj, setSelectedParentKategoriObj] = useState<{ value: string; label: string } | null>(null);
 
   const [kategoriForm, setKategoriForm] = useState<KategoriAsetFormPayload>({
@@ -92,6 +99,8 @@ export default function AsetPage() {
         kondisi: kondisiFilter || undefined,
         status: statusFilter || undefined,
         kategori_id: kategoriFilterObj ? parseInt(kategoriFilterObj.value) : undefined,
+        sort_by: sortBy || undefined,
+        sort_dir: sortDir || undefined,
       });
 
       let items = [];
@@ -138,7 +147,7 @@ export default function AsetPage() {
 
   useEffect(() => {
     fetchAset();
-  }, [page, search, kondisiFilter, statusFilter, kategoriFilterObj]);
+  }, [page, search, kondisiFilter, statusFilter, kategoriFilterObj, sortBy, sortDir]);
 
   const loadKategoriOptions = async (inputValue: string) => {
     try {
@@ -158,14 +167,16 @@ export default function AsetPage() {
   // ------------------------------------------------------------
   const handleDeleteAset = async () => {
     if (!deletingAset) return;
+    setIsDeletingAset(true);
     try {
       await sinapraService.deleteAset(deletingAset.id);
       toast.success(`Aset ${deletingAset.nama} berhasil dihapus.`);
       fetchAset();
+      setDeletingAset(null);
     } catch {
       toast.error('Gagal menghapus aset.');
     } finally {
-      setDeletingAset(null);
+      setIsDeletingAset(false);
     }
   };
 
@@ -245,58 +256,156 @@ export default function AsetPage() {
 
   const handleDeleteKategori = async () => {
     if (!deletingKategori) return;
+    setIsDeletingKategori(true);
     try {
       await sinapraService.deleteKategori(deletingKategori.id);
       toast.success(`Kategori ${deletingKategori.nama} dihapus.`);
       fetchKategori();
+      setDeletingKategori(null);
     } catch {
       toast.error('Gagal menghapus kategori aset.');
     } finally {
-      setDeletingKategori(null);
+      setIsDeletingKategori(false);
     }
   };
 
   // ------------------------------------------------------------
-  // COLUMNS DEFINITIONS
+  // COLUMNS DEFINITIONS (SIMPEG Standard: Max 12px, 2-Row Format)
   // ------------------------------------------------------------
   const columns: ColumnDef<Aset>[] = [
-    { key: 'id', label: 'No', render: (_, idx) => <span className="font-bold text-slate-400">{meta?.from ? meta.from + idx : idx + 1}</span> },
-    { key: 'kode_aset', label: 'Kode Aset', render: (row) => <span className="badge badge-blue font-mono">{row.kode_aset}</span> },
-    { key: 'nama', label: 'Nama Barang / Spesi', render: (row) => (
-      <div>
-        <div className="font-bold text-slate-900">{row.nama}</div>
-        <div className="text-xs text-slate-500">{row.merk ? `Merk: ${row.merk}` : 'Spesifikasi standar'} {row.nomor_seri ? `(SN: ${row.nomor_seri})` : ''}</div>
-      </div>
-    )},
-    { key: 'kategori', label: 'Kategori', render: (row) => (
-      <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">
-        {row.kategori?.nama || 'Kategori ID: ' + row.kategori_id}
-      </span>
-    )},
-    { key: 'lokasi', label: 'Lokasi Ruangan', render: (row) => (
-      <span className="text-xs text-slate-600 flex items-center gap-1">
-        <MapPin size={12} className="text-rose-500" /> {row.ruangan?.nama || 'Gudang Utama'}
-      </span>
-    )},
-    { key: 'harga_perolehan', label: 'Harga Perolehan', render: (row) => (
-      <span className="font-semibold text-slate-900">{formatCurrency(row.harga_perolehan)}</span>
-    )},
-    { key: 'kondisi', label: 'Kondisi', render: (row) => {
-      const color = row.kondisi === 'baik' ? 'badge-green' : row.kondisi === 'rusak_ringan' ? 'badge-yellow' : 'badge-red';
-      const label = row.kondisi === 'baik' ? 'Baik' : row.kondisi === 'rusak_ringan' ? 'Rusak Ringan' : 'Rusak Berat';
-      return <span className={`badge ${color} badge-dot`}>{label}</span>;
-    }},
-    { key: 'status', label: 'Status', render: (row) => {
-      const color = row.status === 'tersedia' ? 'badge-green' : row.status === 'dipinjam' ? 'badge-yellow' : row.status === 'maintenance' ? 'badge-blue' : 'badge-red';
-      return <span className={`badge ${color} capitalize`}>{row.status}</span>;
-    }},
-    { key: 'aksi', label: 'Aksi', align: 'right', render: (row) => (
-      <div className="flex justify-end gap-1.5">
-        <Button variant="ghost" size="sm" icon={<Calculator size={14} className="text-indigo-600" />} onClick={() => handleHitungPenyusutan(row)} title="Penyusutan" />
-        <Button variant="ghost" size="sm" icon={<Edit2 size={14} />} onClick={() => router.push(`/sinapra/aset/${row.id}/edit`)} title="Edit" />
-        <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => setDeletingAset(row)} title="Hapus" />
-      </div>
-    )},
+    {
+      key: 'kode_aset',
+      label: 'KODE & IDENTITAS',
+      render: (row) => (
+        <div>
+          <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
+            {row.kode_aset}
+          </span>
+          <span className="text-2xs text-slate-400 font-mono block">
+            ID #{row.id}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'nama',
+      label: 'NAMA BARANG & SPESIFIKASI',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+            {row.nama}
+          </div>
+          <div className="text-2xs text-slate-400 line-clamp-1">
+            {row.merk ? `Merk: ${row.merk}` : 'Spesifikasi standar'} {row.nomor_seri ? `• SN: ${row.nomor_seri}` : ''}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'kategori',
+      label: 'KATEGORI ASET',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+          }}
+          className="text-2xs font-semibold"
+        >
+          {row.kategori?.nama || `Kategori #${row.kategori_id}`}
+        </Badge>
+      ),
+    },
+    {
+      key: 'lokasi',
+      label: 'LOKASI RUANGAN',
+      render: (row) => (
+        <div>
+          <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs block">
+            {row.ruangan?.nama || 'Gudang Utama'}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {row.ruangan?.gedung?.nama || 'Sentral Kampus'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'harga_perolehan',
+      label: 'HARGA PEROLEHAN',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs block">
+            {formatCurrency(row.harga_perolehan)}
+          </span>
+          <span className="text-2xs text-slate-400 block">
+            {row.tanggal_perolehan ? formatDate(row.tanggal_perolehan) : '-'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'kondisi',
+      label: 'KONDISI',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.kondisi?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+            color: 'var(--module-primary)',
+            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+          }}
+          className="text-2xs capitalize"
+        >
+          {row.status?.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <div className="flex justify-end">
+          <DropdownMenu
+            items={[
+              {
+                label: 'Hitung Penyusutan',
+                icon: <Calculator size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => handleHitungPenyusutan(row),
+              },
+              {
+                label: 'Ubah Data Aset',
+                icon: <Edit2 size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => router.push(`/sinapra/aset/${row.id}/edit`),
+              },
+              {
+                label: 'Hapus Aset',
+                icon: <Trash2 size={16} className="text-[var(--danger)]" />,
+                variant: 'danger',
+                onClick: () => setDeletingAset(row),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -308,6 +417,7 @@ export default function AsetPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setShowFilterDrawer(true)}
             >
@@ -323,23 +433,6 @@ export default function AsetPage() {
         }
       />
 
-      {/* SEARCH BAR */}
-      <div className="card">
-        <div className="card-body p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="w-full md:w-96">
-            <Input
-              placeholder="Cari kode aset, nama barang, merk, atau nomor seri..."
-              prefixIcon={<Search size={16} />}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* DATA TABLE */}
       <DataTable
         columns={columns}
@@ -349,23 +442,17 @@ export default function AsetPage() {
         onPageChange={(p) => setPage(p)}
       />
 
-      {/* DELETE ASET MODAL */}
-      <Modal
-        open={!!deletingAset}
+      {/* DELETE ASET CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={!!deletingAset}
         onClose={() => setDeletingAset(null)}
+        onConfirm={handleDeleteAset}
         title="Hapus Barang Aset?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingAset(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDeleteAset}>Hapus</Button>
-          </>
-        }
-      >
-        <p className="text-slate-600">
-          Apakah Anda yakin ingin menghapus aset <strong>{deletingAset?.nama}</strong> ({deletingAset?.kode_aset})?
-        </p>
-      </Modal>
+        message={`Apakah Anda yakin ingin menghapus aset ${deletingAset?.nama} (${deletingAset?.kode_aset})?`}
+        confirmText="Hapus"
+        variant="danger"
+        isLoading={isDeletingAset}
+      />
 
       {/* KALKULATOR PENYUSUTAN MODAL */}
       <Modal
@@ -390,13 +477,25 @@ export default function AsetPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-center">
-                <div className="text-xs text-blue-600 font-bold uppercase mb-1">Harga Perolehan Awal</div>
-                <div className="text-lg font-extrabold text-blue-900">{formatCurrency(penyusutanData.harga_perolehan)}</div>
+              <div
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 8%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+                }}
+                className="border p-4 rounded-xl text-center"
+              >
+                <div style={{ color: 'var(--module-primary)' }} className="text-xs font-bold uppercase mb-1">Harga Perolehan Awal</div>
+                <div className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{formatCurrency(penyusutanData.harga_perolehan)}</div>
               </div>
-              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
-                <div className="text-xs text-emerald-600 font-bold uppercase mb-1">Nilai Buku Saat Ini</div>
-                <div className="text-lg font-extrabold text-emerald-900">{formatCurrency(penyusutanData.nilai_buku_saat_ini)}</div>
+              <div
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+                }}
+                className="border p-4 rounded-xl text-center"
+              >
+                <div style={{ color: 'var(--module-primary)' }} className="text-xs font-bold uppercase mb-1">Nilai Buku Saat Ini</div>
+                <div style={{ color: 'var(--module-primary)' }} className="text-lg font-extrabold">{formatCurrency(penyusutanData.nilai_buku_saat_ini)}</div>
               </div>
             </div>
           </div>
@@ -415,9 +514,12 @@ export default function AsetPage() {
             <Button
               variant="secondary"
               onClick={() => {
+                setSearch('');
                 setKondisiFilter('');
                 setStatusFilter('');
                 setKategoriFilterObj(null);
+                setSortBy('nama');
+                setSortDir('asc');
                 setPage(1);
                 setShowFilterDrawer(false);
               }}
@@ -431,6 +533,13 @@ export default function AsetPage() {
         }
       >
         <div className="space-y-4">
+          <Input
+            label="Pencarian"
+            placeholder="Cari kode aset, nama, merk..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
           <AsyncSelect
             label="Kategori Aset"
             placeholder="Pilih kategori..."
@@ -463,6 +572,31 @@ export default function AsetPage() {
               { value: 'disetujui_diapkir', label: 'Diapkir' },
             ]}
           />
+
+          <hr className="border-slate-200 dark:border-slate-800" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={sortBy}
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'nama', label: 'Nama Aset' },
+                { value: 'kode_aset', label: 'Kode Aset' },
+                { value: 'harga_perolehan', label: 'Harga Perolehan' },
+                { value: 'created_at', label: 'Tanggal Input' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={sortDir}
+              onChange={(val: any) => setSortDir(val)}
+              options={[
+                { value: 'asc', label: 'Menaik (A-Z)' },
+                { value: 'desc', label: 'Menurun (Z-A)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 
@@ -533,13 +667,13 @@ export default function AsetPage() {
               {kategoriList.map((kat) => (
                 <div key={kat.id} className="p-3 bg-white border border-slate-200 rounded-lg flex justify-between items-center text-sm">
                   <div>
-                    <span className="font-mono font-bold text-rose-600 mr-2">[{kat.kode}]</span>
+                    <span className="font-mono font-bold text-[var(--module-primary)] mr-2">[{kat.kode}]</span>
                     <span className="font-bold text-slate-800">{kat.nama}</span>
                     <span className="text-xs text-slate-500 ml-2">({kat.masa_manfaat_tahun} Thn, {kat.tarif_penyusutan_persen}%)</span>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" icon={<Edit2 size={14} />} onClick={() => handleOpenEditKategori(kat)} />
-                    <Button variant="ghost" size="sm" icon={<Trash2 size={14} color="var(--danger)" />} onClick={() => setDeletingKategori(kat)} />
+                    <Button variant="ghost" size="sm" icon={<Edit2 size={16} />} onClick={() => handleOpenEditKategori(kat)} />
+                    <Button variant="ghost" size="sm" icon={<Trash2 size={16} className="text-[var(--danger)]" />} onClick={() => setDeletingKategori(kat)} />
                   </div>
                 </div>
               ))}
@@ -548,23 +682,17 @@ export default function AsetPage() {
         </div>
       </Modal>
 
-      {/* DELETE KATEGORI MODAL */}
-      <Modal
-        open={!!deletingKategori}
+      {/* DELETE KATEGORI CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={!!deletingKategori}
         onClose={() => setDeletingKategori(null)}
+        onConfirm={handleDeleteKategori}
         title="Hapus Kategori Aset?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingKategori(null)}>Batal</Button>
-            <Button variant="danger" onClick={handleDeleteKategori}>Hapus</Button>
-          </>
-        }
-      >
-        <p className="text-slate-600">
-          Apakah Anda yakin ingin menghapus kategori <strong>{deletingKategori?.nama}</strong>?
-        </p>
-      </Modal>
+        message={`Apakah Anda yakin ingin menghapus kategori ${deletingKategori?.nama}?`}
+        confirmText="Hapus"
+        variant="danger"
+        isLoading={isDeletingKategori}
+      />
     </div>
   );
 }

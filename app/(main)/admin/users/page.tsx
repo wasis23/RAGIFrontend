@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit2, Trash2, Mail, CheckCircle, XCircle, Filter, Key } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, CheckCircle, XCircle, Filter, Key, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -13,20 +13,40 @@ import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { StatusBadge } from '@/components/ui/Badge';
+import { StatusBadge, Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { formatDate } from '@/lib/utils';
 import { adminService } from '@/services/admin.service';
+import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
+import { useImpersonateStore } from '@/store/impersonateStore';
+import { getCookieDomain, getAuthTokenKey } from '@/lib/domain';
+import { TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/lib/constants';
 import type { User } from '@/types/auth.types';
 import type { PaginationMeta } from '@/types/api.types';
 
-const userSchema = z.object({
-  username: z.string().min(1, 'Username wajib diisi').max(100, 'Username maksimal 100 karakter'),
-  email: z.string().min(1, 'Email kampus wajib diisi').email('Format email tidak valid (contoh: user@kampus.ac.id)'),
-  phone: z.string().optional(),
-  password: z.string().min(6, 'Password minimal 6 karakter').optional().or(z.literal('')),
-});
+const userSchema = z
+  .object({
+    name: z.string().min(1, 'Nama lengkap wajib diisi').max(150, 'Nama maksimal 150 karakter'),
+    username: z.string().min(1, 'Username wajib diisi').max(100, 'Username maksimal 100 karakter'),
+    email: z.string().min(1, 'Email kampus wajib diisi').email('Format email tidak valid (contoh: user@kampus.ac.id)'),
+    phone: z.string().optional(),
+    password: z.string().min(8, 'Password minimal 8 karakter').optional().or(z.literal('')),
+    password_confirmation: z.string().optional().or(z.literal('')),
+  })
+  .refine(
+    (data) => {
+      if (data.password && data.password.length > 0) {
+        return data.password === data.password_confirmation;
+      }
+      return true;
+    },
+    {
+      message: 'Konfirmasi password tidak cocok.',
+      path: ['password_confirmation'],
+    }
+  );
 
 type UserFormValues = z.infer<typeof userSchema>;
 
@@ -69,6 +89,15 @@ export default function AdminUsersPage() {
   const [passwordValues, setPasswordValues] = useState({ password: '', password_confirmation: '' });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  // Impersonate States & Auth Store
+  const { user: currentUser } = useAuth();
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const adminAccessToken = useAuthStore((s) => s.access_token);
+  const adminRefreshToken = useAuthStore((s) => s.refresh_token);
+  const startImpersonating = useImpersonateStore((s) => s.startImpersonating);
+  const [impersonatingUser, setImpersonatingUser] = useState<User | null>(null);
+  const [isImpersonatingSubmitting, setIsImpersonatingSubmitting] = useState(false);
+
   // React Hook Form + Zod Setup
   const {
     register,
@@ -78,10 +107,12 @@ export default function AdminUsersPage() {
   } = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
     defaultValues: {
+      name: '',
       username: '',
       email: '',
       phone: '',
       password: '',
+      password_confirmation: '',
     },
   });
 
@@ -117,8 +148,22 @@ export default function AdminUsersPage() {
         metaData = res.data.meta;
       } else if (res && Array.isArray(res.data)) {
         userList = res.data;
+        if (res.meta) {
+          metaData = res.meta;
+        }
       } else if (Array.isArray(res)) {
         userList = res;
+      }
+
+      if (!metaData && Array.isArray(userList)) {
+        metaData = {
+          current_page: page,
+          last_page: 1,
+          per_page: Number(filterLimit) || 15,
+          total: userList.length,
+          from: userList.length > 0 ? 1 : 0,
+          to: userList.length,
+        };
       }
 
       setUsers(userList);
@@ -165,17 +210,19 @@ export default function AdminUsersPage() {
 
   const handleOpenCreate = () => {
     setEditingUser(null);
-    reset({ username: '', email: '', phone: '', password: '' });
+    reset({ name: '', username: '', email: '', phone: '', password: '', password_confirmation: '' });
     setShowModal(true);
   };
 
   const handleOpenEdit = (user: User) => {
     setEditingUser(user);
     reset({
+      name: user.name || user.nama_lengkap || user.username,
       username: user.username,
       email: user.email,
       phone: user.phone || '',
       password: '',
+      password_confirmation: '',
     });
     setShowModal(true);
   };
@@ -187,18 +234,27 @@ export default function AdminUsersPage() {
         await adminService.updateUser(editingUser.id, values);
         toast.success('Pengguna berhasil diperbarui!');
       } else {
-        if (!values.password || values.password.length < 6) {
-          toast.error('Password minimal 6 karakter.');
+        if (!values.password || values.password.length < 8) {
+          toast.error('Password minimal 8 karakter.');
           setIsSubmitting(false);
           return;
         }
-        await adminService.createUser(values);
+        const payload = {
+          ...values,
+          password_confirmation: values.password_confirmation || values.password,
+        };
+        await adminService.createUser(payload);
         toast.success('Pengguna baru berhasil ditambahkan!');
       }
       fetchUsers();
       setShowModal(false);
-    } catch {
-      toast.error('Gagal menyimpan data. Periksa koneksi ke server.');
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.data?.errors?.password?.[0] ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Gagal menyimpan data.';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -259,6 +315,62 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleOpenImpersonate = (user: User) => {
+    if (currentUser && currentUser.id === user.id) {
+      toast.error('Anda tidak dapat merasuki akun sendiri.');
+      return;
+    }
+    if (!user.is_active) {
+      toast.error('Pengguna ini sedang non-aktif dan tidak dapat dirasuki.');
+      return;
+    }
+    setImpersonatingUser(user);
+  };
+
+  const handleConfirmImpersonate = async () => {
+    if (!impersonatingUser) return;
+    setIsImpersonatingSubmitting(true);
+    try {
+      const res = await adminService.impersonateUser(impersonatingUser.id);
+      const resData = res?.data;
+      const targetToken = resData?.token || resData?.access_token;
+      const targetUser = resData?.user || impersonatingUser;
+
+      if (!targetToken) {
+        throw new Error('Gagal mendapatkan token autentikasi dari server.');
+      }
+
+      // 1. Simpan sesi admin aktif ke Zustand Impersonate Store
+      const tokenKey = getAuthTokenKey();
+      const currentAdminToken = adminAccessToken || '';
+      const currentAdminRefreshToken = adminRefreshToken || currentAdminToken;
+
+      if (currentUser) {
+        startImpersonating(currentAdminToken, currentAdminRefreshToken, currentUser);
+      }
+
+      // 2. Terapkan token dan cookie pengguna yang dirasuki
+      const domainAttr = getCookieDomain();
+      const roleKey = tokenKey === 'demo_sso_access_token' ? 'demo_sso_user_role' : 'sso_user_role';
+      const targetRole = targetUser.roles?.[0]?.role?.slug || targetUser.roles?.[0]?.slug || 'user';
+
+      document.cookie = `${tokenKey}=${targetToken}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `${roleKey}=${targetRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+
+      setAuth(targetUser, targetToken, targetToken);
+
+      const targetName = targetUser.name || targetUser.nama_lengkap || targetUser.username;
+      toast.success(`Berhasil merasuki pengguna ${targetName}!`);
+
+      // 3. Alihkan ke dashboard
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal merasuki pengguna.');
+      setIsImpersonatingSubmitting(false);
+      setImpersonatingUser(null);
+    }
+  };
+
   const columns: ColumnDef<User>[] = [
     {
       key: 'id',
@@ -270,27 +382,34 @@ export default function AdminUsersPage() {
     {
       key: 'pengguna',
       label: 'Pengguna',
-      render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="avatar avatar-sm">{row.username.slice(0, 2).toUpperCase()}</div>
-          <div>
-            <div className="font-bold text-slate-900">{row.username}</div>
-            <div className="text-xs text-slate-400">{row.email}</div>
+      render: (row) => {
+        const displayName = row.name || row.nama_lengkap || row.username;
+        return (
+          <div className="flex items-center gap-3">
+            <div className="avatar avatar-sm">{displayName.slice(0, 2).toUpperCase()}</div>
+            <div>
+              <div className="font-bold text-slate-900">{displayName}</div>
+              <div className="text-xs text-slate-400">{row.username} • {row.email}</div>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'roles',
       label: 'Role(s)',
       render: (row) => (
-        <>
-          {row.roles?.map((r) => (
-            <span key={r.id} className="dropdown-role-tag">
-              {r.name || r.role?.name}
-            </span>
-          ))}
-        </>
+        <div className="flex flex-wrap gap-2">
+          {row.roles && row.roles.length > 0 ? (
+            row.roles.map((r: any) => (
+              <Badge key={r.id || r.name} variant="blue">
+                {r.name || r.role?.name}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400">-</span>
+          )}
+        </div>
       ),
     },
     {
@@ -311,13 +430,13 @@ export default function AdminUsersPage() {
       label: 'Terverifikasi',
       render: (row) =>
         row.is_verified ? (
-          <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-emerald-600">
+          <Badge variant="success" className="inline-flex items-center gap-2">
             <CheckCircle size={14} /> Ya
-          </span>
+          </Badge>
         ) : (
-          <span className="flex items-center gap-1 text-[0.8125rem] font-semibold text-red-500">
+          <Badge variant="gray" className="inline-flex items-center gap-2">
             <XCircle size={14} /> Belum
-          </span>
+          </Badge>
         ),
     },
     {
@@ -335,6 +454,11 @@ export default function AdminUsersPage() {
         <div className="flex justify-end">
           <DropdownMenu
             items={[
+              {
+                label: 'Rasuki Pengguna',
+                icon: <Sparkles size={14} className="text-amber-500" />,
+                onClick: () => handleOpenImpersonate(row),
+              },
               {
                 label: 'Edit Pengguna',
                 icon: <Edit2 size={14} />,
@@ -359,13 +483,18 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
+    <div className="animate-fade-in flex w-full flex-col gap-6">
       <PageHeader
         title="Manajemen Pengguna (Users Table)"
         description="Kelola akun, role, dan hak akses pengguna ekosistem kampus (Tabel: users)"
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            >
               Filter
             </Button>
             <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
@@ -376,17 +505,19 @@ export default function AdminUsersPage() {
       />
 
       {/* Table Card */}
-      <DataTable
-        columns={columns}
-        data={users}
-        isLoading={isLoading}
-        meta={meta}
-        onPageChange={(p) => setPage(p)}
-        onLimitChange={(l) => {
-          setFilterLimit(l.toString());
-          setPage(1);
-        }}
-      />
+      <div className="w-full bg-white rounded-xl shadow-2xs border border-slate-200">
+        <DataTable
+          columns={columns}
+          data={users}
+          isLoading={isLoading}
+          meta={meta}
+          onPageChange={(p) => setPage(p)}
+          onLimitChange={(l) => {
+            setFilterLimit(l.toString());
+            setPage(1);
+          }}
+        />
+      </div>
 
       {/* Modal Form Create/Edit */}
       <Modal
@@ -398,13 +529,27 @@ export default function AdminUsersPage() {
             <Button variant="secondary" onClick={() => setShowModal(false)}>
               Batal
             </Button>
-            <Button variant="primary" onClick={handleSubmit(onSaveUser)} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleSubmit(onSaveUser)}
+              loading={isSubmitting}
+              disabled={isSubmitting}
+            >
               {editingUser ? 'Simpan Perubahan' : 'Tambah Pengguna'}
             </Button>
           </>
         }
       >
         <form onSubmit={handleSubmit(onSaveUser)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nama Lengkap"
+            required
+            {...register('name')}
+            error={errors.name?.message}
+            placeholder="contoh: Dr. Ahmad Fauzi, M.Kom"
+          />
+
           <Input
             label="Username"
             required
@@ -431,14 +576,25 @@ export default function AdminUsersPage() {
           />
 
           {!editingUser && (
-            <Input
-              label="Password Default"
-              type="password"
-              required
-              {...register('password')}
-              error={errors.password?.message}
-              placeholder="Minimal 6 karakter"
-            />
+            <>
+              <Input
+                label="Password Default"
+                type="password"
+                required
+                {...register('password')}
+                error={errors.password?.message}
+                placeholder="Minimal 8 karakter"
+              />
+
+              <Input
+                label="Konfirmasi Password"
+                type="password"
+                required
+                {...register('password_confirmation')}
+                error={errors.password_confirmation?.message}
+                placeholder="Ketik ulang password"
+              />
+            </>
           )}
         </form>
       </Modal>
@@ -513,6 +669,61 @@ export default function AdminUsersPage() {
               />
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* Modal Rasuki Pengguna */}
+      <Modal
+        open={!!impersonatingUser}
+        onClose={() => setImpersonatingUser(null)}
+        title="Rasuki Pengguna (Impersonate)"
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setImpersonatingUser(null)}
+              disabled={isImpersonatingSubmitting}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              icon={<Sparkles size={16} />}
+              onClick={handleConfirmImpersonate}
+              loading={isImpersonatingSubmitting}
+              disabled={isImpersonatingSubmitting}
+            >
+              {isImpersonatingSubmitting ? 'Memproses Sesi...' : 'Ya, Rasuki Sekarang'}
+            </Button>
+          </>
+        }
+      >
+        {impersonatingUser && (
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+              <div className="avatar avatar-sm bg-amber-200 text-amber-900 font-bold">
+                {(impersonatingUser.name || impersonatingUser.username).slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <div className="font-bold text-slate-900 text-sm">
+                  {impersonatingUser.name || impersonatingUser.username}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {impersonatingUser.username} • {impersonatingUser.email}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Anda akan beralih dan otomatis login sebagai <strong>{impersonatingUser.name || impersonatingUser.username}</strong> dengan seluruh wewenang peran yang dimilikinya. Seluruh aksi Anda selama sesi ini akan tercatat dalam sistem.
+            </p>
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-500 shrink-0" />
+              <span>Anda dapat kembali ke akun Administrator kapan saja melalui tombol bilah atas.</span>
+            </div>
+          </div>
         )}
       </Modal>
 
@@ -626,10 +837,12 @@ export default function AdminUsersPage() {
               onChange={(val) => setFilterOrderBy(val)}
               options={[
                 { value: 'id', label: 'ID' },
+                { value: 'name', label: 'Nama Lengkap' },
                 { value: 'username', label: 'Nama Pengguna' },
                 { value: 'email', label: 'Email' },
-                { value: 'created_at', label: 'Tanggal Dibuat' },
                 { value: 'is_active', label: 'Status Akun' },
+                { value: 'is_verified', label: 'Status Verifikasi' },
+                { value: 'created_at', label: 'Tanggal Dibuat' },
               ]}
             />
 

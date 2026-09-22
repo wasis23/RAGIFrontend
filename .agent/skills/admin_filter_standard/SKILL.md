@@ -113,7 +113,16 @@ Untuk memastikan konsistensi desain (UI/UX) di seluruh panel Admin, semua implem
    />
    ```
 
+5. **Paritas 100% Field Filter terhadap Kolom Informasi Tabel (1:1 Column-to-Filter Parity)**
+   - Setiap kolom informasi data yang ditampilkan pada tabel (di luar kolom non-informasi teknis seperti nomor urut `No`, checkbox seleksi baris, dan dropdown aksi 3-titik) **WAJIB** memiliki inputan filter yang bersesuaian di dalam Filter Drawer.
+   - Jika tabel menampilkan 5 kolom data (misal: *Kode*, *Nama*, *Jalur Masuk*, *Gelombang*, *Status*), maka di dalam Filter Drawer **WAJIB ada 5 kontrol filter** untuk ke-5 kolom tersebut.
+   - Jenis kontrol disesuaikan: `<Input>` untuk teks/angka/pencarian spesifik, `<Select>` / `<AsyncSelect>` untuk referensi/status, dan input date untuk tanggal.
+
+6. **Sorting Komprehensif Seluruh Kolom Informasi Tabel**
+   - Dropdown **"Urut Berdasarkan" (Order By)** di bawah garis pembatas `<hr />` **WAJIB** menyediakan opsi pengurutan untuk **SELURUH kolom informasi** yang tampil pada tabel tersebut, bukan hanya 1 atau 2 kolom saja.
+   - Tetap dipadukan dengan kontrol **Arah (Direction: Asc / Desc)** dalam layout grid 2 kolom.
+
 ## Workflow Implementasi
 1. Siapkan *state* filter individual (contoh: `filterName`, `filterRole`).
 2. Siapkan *state* terapan (`appliedFilters` / `appliedFilterName`) yang di-trigger via tombol "Terapkan".
-3. Terapkan logika penyaringan (*filtering* & *sorting*) baik di sisi *client* (manipulasi array `.filter().sort()`) maupun *server* (penerusan *params* ke API).
+3. Terapkan logika penyaringan (*filtering* & *sorting*) dengan meneruskan *query params* ke API (`apiClient`). Server-side pagination dan filtering wajib digunakan.
