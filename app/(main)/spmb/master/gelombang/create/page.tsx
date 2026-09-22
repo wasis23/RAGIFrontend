@@ -14,7 +14,6 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/layout/PageHeader';
-import api from '@/lib/axios';
 
 // ============================================================
 // VALIDATION SCHEMA (MANDATORY ZOD STANDARD)
@@ -22,8 +21,6 @@ import api from '@/lib/axios';
 const gelombangFormSchema = z.object({
   nama: z.string().min(1, 'Nama gelombang wajib diisi').max(255, 'Nama gelombang maksimal 255 karakter'),
   jalur_masuk_id: z.number().min(1, 'Jalur masuk wajib dipilih'),
-  tahun_akademik_id: z.number().min(1, 'Tahun akademik wajib dipilih'),
-  master_biaya_id: z.number().min(1, 'Tarif biaya pendaftaran SIKEU wajib dipilih'),
   biaya_pendaftaran: z.number().min(0, 'Biaya pendaftaran minimal 0').optional(),
   kuota_total: z.number().min(1, 'Kuota pendaftar minimal 1'),
   tanggal_buka: z.string().min(1, 'Tanggal buka pendaftaran wajib diisi'),
@@ -46,7 +43,7 @@ export default function CreateGelombangPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<GelombangFormValues>({
+  const { register, handleSubmit, control, watch, formState: { errors } } = useForm<GelombangFormValues>({
     resolver: zodResolver(gelombangFormSchema) as any,
     defaultValues: {
       nama: '',
@@ -59,25 +56,8 @@ export default function CreateGelombangPage() {
     }
   });
 
-  const selectedBiaya = watch('biaya_pendaftaran');
   const tglBuka = watch('tanggal_buka');
   const tglTutup = watch('tanggal_tutup');
-
-  const loadTahunAkademik = useCallback(async (input: string) => {
-    try {
-      const res = await spmbService.getTahunAkademikList();
-      const list = res?.data || [];
-      return list
-        .filter((t: any) => (t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`).toLowerCase().includes(input.toLowerCase()))
-        .map((t: any) => ({
-          value: t.id,
-          label: t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`,
-          ...t
-        }));
-    } catch {
-      return [];
-    }
-  }, []);
 
   const loadJalurMasuk = useCallback(async (input: string) => {
     try {
@@ -95,25 +75,6 @@ export default function CreateGelombangPage() {
     }
   }, []);
 
-  const loadMasterBiaya = useCallback(async (input: string) => {
-    try {
-      const response = await api.get('/v1/sikeu/master/master-biaya?module_code=spmb');
-      const list = response.data?.data || [];
-      return list
-        .filter((item: any) => 
-          (item.nama || '').toLowerCase().includes(input.toLowerCase()) || 
-          (item.kode || '').toLowerCase().includes(input.toLowerCase())
-        )
-        .map((item: any) => ({
-          value: item.id,
-          label: `[${item.kode}] ${item.nama} (Rp ${Number(item.nominal_standar || 0).toLocaleString('id-ID')})`,
-          ...item
-        }));
-    } catch {
-      return [];
-    }
-  }, []);
-
   const onSubmit = async (data: Partial<GelombangPenerimaan>) => {
     if (data.tanggal_buka && data.tanggal_tutup && new Date(data.tanggal_tutup) < new Date(data.tanggal_buka)) {
       toast.error('Tanggal tutup pendaftaran harus setelah tanggal buka');
@@ -125,8 +86,6 @@ export default function CreateGelombangPage() {
       const payload = {
         ...data,
         jalur_masuk_id: Number(data.jalur_masuk_id),
-        tahun_akademik_id: Number(data.tahun_akademik_id),
-        master_biaya_id: data.master_biaya_id ? Number(data.master_biaya_id) : undefined,
         biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
       };
       await spmbService.createGelombang(payload as any);
@@ -163,26 +122,6 @@ export default function CreateGelombangPage() {
           <form onSubmit={handleSubmit(onSubmit)}>
             {/* GRID LAYOUT MAKS 3 KOLOM */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <Controller
-                  name="tahun_akademik_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Tahun Akademik"
-                      required
-                      placeholder="Pilih Tahun Akademik..."
-                      loadOptions={loadTahunAkademik}
-                      defaultOptions
-                      value={field.value}
-                      onChange={(opt: any) => field.onChange(opt ? Number(opt.value) : undefined)}
-                      error={errors.tahun_akademik_id?.message}
-                      hint="Tahun akademik penerimaan."
-                    />
-                  )}
-                />
-              </div>
-
               <div>
                 <Controller
                   name="jalur_masuk_id"
@@ -226,29 +165,13 @@ export default function CreateGelombangPage() {
               </div>
 
               <div>
-                <Controller
-                  name="master_biaya_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Tarif Biaya (Mapping SIKEU)"
-                      required
-                      placeholder="Pilih Tarif Keuangan SIKEU..."
-                      loadOptions={loadMasterBiaya}
-                      defaultOptions
-                      value={field.value}
-                      onChange={(opt: any) => {
-                        const id = opt ? Number(opt.value) : undefined;
-                        field.onChange(id);
-                        if (opt) {
-                          const nominal = Number(opt.nominal_standar ?? opt.nominal ?? 0);
-                          setValue('biaya_pendaftaran', nominal);
-                        }
-                      }}
-                      error={errors.master_biaya_id?.message}
-                      hint={selectedBiaya ? `Nominal: Rp ${Number(selectedBiaya).toLocaleString('id-ID')}` : 'Pilih tarif master modul SIKEU.'}
-                    />
-                  )}
+                <Input 
+                  type="number"
+                  label="Biaya Pendaftaran (Rp)"
+                  placeholder="0"
+                  hint="Nominal biaya pendaftaran gelombang ini."
+                  error={errors.biaya_pendaftaran?.message}
+                  {...register('biaya_pendaftaran', { valueAsNumber: true })} 
                 />
               </div>
 

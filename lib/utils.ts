@@ -70,6 +70,22 @@ export function formatCurrency(amount: number | null | undefined): string {
 export const formatRupiah = formatCurrency;
 
 // ============================================================
+// formatGelombangLabel — Label dropdown gelombang SPMB
+// (nama + jalur + tahun akademik + status)
+// ============================================================
+export function formatGelombangLabel(g: {
+  nama: string;
+  status?: string;
+  jalur_masuk?: { nama?: string } | null;
+  tahun_akademik?: { nama?: string } | null;
+}): string {
+  const jalur = g.jalur_masuk?.nama ? ` — ${g.jalur_masuk.nama}` : '';
+  const ta = g.tahun_akademik?.nama ? ` / ${g.tahun_akademik.nama}` : '';
+  const status = g.status ? ` (${g.status})` : '';
+  return `${g.nama}${jalur}${ta}${status}`;
+}
+
+// ============================================================
 // truncate — Potong teks dengan ellipsis
 // ============================================================
 export function truncate(text: string, maxLength: number = 50): string {

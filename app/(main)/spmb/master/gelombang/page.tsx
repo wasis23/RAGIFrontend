@@ -253,11 +253,6 @@ export default function MasterGelombangPage() {
           <span className="font-bold text-slate-900 text-xs">
             Rp {(Number(row.biaya_pendaftaran) || 0).toLocaleString('id-ID')}
           </span>
-          {row.master_biaya && (
-            <Badge variant="spmb" className="text-2xs font-medium w-fit">
-              [{row.master_biaya.kode}] {row.master_biaya.nama}
-            </Badge>
-          )}
         </div>
       ),
     },

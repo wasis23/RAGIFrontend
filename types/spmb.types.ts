@@ -27,8 +27,6 @@ export interface JalurMasuk {
 export interface GelombangPenerimaan {
   id: number;
   jalur_masuk_id: number;
-  tahun_akademik_id: number;
-  master_biaya_id?: number | null;
   nama: string;
   tanggal_buka: string;
   tanggal_tutup: string;
@@ -40,19 +38,6 @@ export interface GelombangPenerimaan {
   created_at: string;
   updated_at: string;
   jalur_masuk?: JalurMasuk;
-  tahun_akademik?: {
-    id: number;
-    nama?: string;
-    kode?: string;
-    tahun_mulai?: number;
-    tahun_selesai?: number;
-  };
-  master_biaya?: {
-    id: number;
-    kode: string;
-    nama: string;
-    nominal_standar: number;
-  };
 }
 
 export interface ProgramStudi {
@@ -106,44 +91,6 @@ export interface BerkasRequirementPayload {
   nama_dokumen?: string;
   deskripsi?: string;
   is_wajib?: boolean;
-}
-
-export interface TarifUktSpmb {
-  id: number;
-  nama: string;
-  deskripsi: string | null;
-  master_sikeu_biaya_id: number;
-  master_program_studi_id: number;
-  program_studi?: ProgramStudi;
-  master_sikeu_biaya?: {
-    id: number;
-    kode: string;
-    nama: string;
-    nominal_standar?: string | number;
-  };
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface TarifUkt {
-  id: number;
-  program_studi_id: number;
-  tahun_akademik_id?: number | null;
-  kelompok: string;
-  nominal: number;
-  keterangan?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  program_studi?: ProgramStudi;
-  tahun_akademik?: TahunAkademik;
-}
-
-export interface TarifUktPayload {
-  program_studi_id: number;
-  tahun_akademik_id?: number;
-  kelompok: string;
-  nominal: number;
-  keterangan?: string;
 }
 
 export type PendaftaranStatus =
@@ -305,4 +252,86 @@ export interface Pengumuman {
   is_published?: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface MasterKomponenBiaya {
+  id: number;
+  kode: string;
+  nama: string;
+  kategori: string;
+  tipe_potongan: boolean;
+  urutan: number;
+  is_active: boolean;
+  keterangan?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterBiayaItem {
+  id?: number;
+  master_biaya_id?: number;
+  komponen_biaya_id: number;
+  nominal: number;
+  dibebankan_saat_pendaftaran?: boolean;
+  keterangan?: string | null;
+  komponen_biaya?: MasterKomponenBiaya;
+}
+
+export interface BiayaBebanItem {
+  komponen_biaya_id: number;
+  kode: string;
+  nama: string;
+  kategori?: string | null;
+  nominal: number;
+}
+
+export interface BiayaPendaftaranInfo {
+  beban_pendaftaran: BiayaBebanItem[];
+  total_pendaftaran: number;
+  beban_daftar_ulang: BiayaBebanItem[];
+  total_daftar_ulang: number;
+}
+
+export interface MasterBiayaSpmb {
+  id: number;
+  gelombang_id: number;
+  program_studi_id: number;
+  total_biaya: number;
+  is_active: boolean;
+  keterangan?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  items?: MasterBiayaItem[];
+  program_studi?: {
+    id: number;
+    kode_prodi?: string;
+    nama: string;
+    jenjang?: string;
+  };
+  gelombang?: {
+    id: number;
+    nama: string;
+    status?: string;
+    jalur_masuk?: {
+      id: number;
+      kode: string;
+      nama: string;
+    };
+  };
+}
+
+export interface MasterBiayaMatrixRow {
+  master_biaya_id: number | null;
+  program_studi_id: number;
+  program_studi: {
+    id: number;
+    kode_prodi?: string;
+    nama: string;
+    jenjang?: string;
+  };
+  gelombang_id: number | null;
+  components: Record<string, number>;
+  total_biaya: number;
+  is_active: boolean;
+  keterangan?: string | null;
 }

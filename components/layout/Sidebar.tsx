@@ -48,6 +48,7 @@ import {
   Settings,
   AlertTriangle,
   Coins,
+  Tag
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -116,6 +117,7 @@ const getIcon = (iconName: string) => {
     'FaDollarSign': DollarSign,
     'FaCoins': Coins,
     'FaExclamationTriangle': AlertTriangle,
+    'FaTag': Tag,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -266,9 +268,10 @@ const SPMB_FALLBACK_MENUS: Menu[] = [
       { id: 8033, parent_id: 803, name: 'Gelombang Penerimaan', url: '/spmb/master/gelombang', icon: 'FaCalendar', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
       { id: 8034, parent_id: 803, name: 'Kuota Program Studi', url: '/spmb/master/kuota', icon: 'FaChartPie', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
       { id: 8035, parent_id: 803, name: 'Persyaratan Berkas', url: '/spmb/master/berkas-requirement', icon: 'FaFileAlt', module: 'spmb', permission_id: null, order_index: 5, is_active: true },
-      { id: 8036, parent_id: 803, name: 'Tarif Masuk & UKT', url: '/spmb/master/tarif-ukt', icon: 'FaMoneyBillWave', module: 'spmb', permission_id: null, order_index: 6, is_active: true },
-      { id: 8037, parent_id: 803, name: 'Master Data Referensi', url: '/spmb/master/referensi', icon: 'FaDatabase', module: 'spmb', permission_id: null, order_index: 7, is_active: true },
-      { id: 8038, parent_id: 803, name: 'Master Tipe Referensi', url: '/spmb/master/tipe-referensi', icon: 'FaLayers', module: 'spmb', permission_id: null, order_index: 8, is_active: true },
+      { id: 8036, parent_id: 803, name: 'Master Biaya SPMB', url: '/spmb/master/biaya', icon: 'FaCoins', module: 'spmb', permission_id: null, order_index: 6, is_active: true },
+      { id: 8037, parent_id: 803, name: 'Komponen Biaya', url: '/spmb/master/komponen-biaya', icon: 'FaTag', module: 'spmb', permission_id: null, order_index: 7, is_active: true },
+      { id: 8038, parent_id: 803, name: 'Master Data Referensi', url: '/spmb/master/referensi', icon: 'FaDatabase', module: 'spmb', permission_id: null, order_index: 8, is_active: true },
+      { id: 8039, parent_id: 803, name: 'Master Tipe Referensi', url: '/spmb/master/tipe-referensi', icon: 'FaLayers', module: 'spmb', permission_id: null, order_index: 9, is_active: true },
     ]
   },
   {
@@ -506,21 +509,19 @@ export function Sidebar() {
           const mod = getModule();
           let menus = await menuService.getMyMenus(mod);
           // Pastikan menu tagihan portal mahasiswa (/sikeu/mahasiswa/tagihan) disembunyikan untuk non-mahasiswa
-          if (menus && menus.length > 0) {
-            if (isMahasiswaRole && mod === 'sikeu') {
-              menus = SIKEU_MAHASISWA_MENUS;
-            } else if (!isMahasiswaRole) {
-              menus = menus
-                .filter((m) => m.url !== '/sikeu/mahasiswa/tagihan')
-                .map((m) => ({
-                  ...m,
-                  children: m.children?.filter((c) => c.url !== '/sikeu/mahasiswa/tagihan'),
-                }));
-            }
-            setDynamicMenus(menus);
-          } else {
-            setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
+          if (isMahasiswaRole && mod === 'sikeu') {
+            menus = SIKEU_MAHASISWA_MENUS;
+          } else if (!isMahasiswaRole) {
+            menus = menus
+              .filter((m) => m.url !== '/sikeu/mahasiswa/tagihan')
+              .map((m) => ({
+                ...m,
+                children: m.children?.filter((c) => c.url !== '/sikeu/mahasiswa/tagihan'),
+              }));
           }
+          // Hormati hasil plotting role-menu: array kosong berarti tidak ada menu
+          // yang di-plot untuk user, sehingga tidak boleh jatuh ke fallback hardcoded.
+          setDynamicMenus(menus);
         } catch (error) {
           console.error("Failed to load menus", error);
           const mod = getModule();
