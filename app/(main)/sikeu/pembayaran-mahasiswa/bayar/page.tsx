@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDateTime } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -81,6 +81,8 @@ interface BillItem {
     nominal: number;
     potongan: number;
     nominal_bersih: number;
+    terbayar?: number;
+    sisa?: number;
   }>;
 }
 
@@ -772,14 +774,19 @@ function BayarKasirContent() {
               </thead>
               <tbody>
                 ${(raw.bills_detail && raw.bills_detail.length > 0
-                  ? raw.bills_detail.map((b: any) => `
+                  ? raw.bills_detail.map((b: any) => {
+                    const alokasi = raw.rincian_komponen?.[b.nomor_tagihan];
+                    const subRows = Array.isArray(alokasi) && alokasi.length > 0
+                      ? `<tr><td></td><td colspan="3" style="padding: 4px 12px 6px 12px; font-size: 8pt; color: #475569;">${alokasi.map((k: any) => `&bull; ${k.komponen}: terbayar ${formatRupiah(k.terbayar)} &mdash; sisa ${formatRupiah(k.sisa)}`).join('<br/>')}</td></tr>`
+                      : '';
+                    return `
                     <tr>
                       <td style="font-family: monospace; font-weight: bold;">${b.nomor_tagihan}</td>
                       <td>${b.jenis || b.periode_label || 'Biaya Pendidikan Mahasiswa'}</td>
                       <td class="text-right" style="font-family: monospace;">${formatRupiah(b.total_tagihan)}</td>
                       <td class="text-right" style="font-family: monospace; font-weight: bold;">${formatRupiah(nominalBayar)}</td>
-                    </tr>
-                  `).join('')
+                    </tr>${subRows}`;
+                  }).join('')
                   : `
                     <tr>
                       <td style="font-family: monospace; font-weight: bold;">${tagihanNomor}</td>
@@ -866,7 +873,7 @@ function BayarKasirContent() {
             </span>
             <div className="flex items-center gap-1 text-2xs text-slate-500">
               <Clock size={11} className="text-slate-400" />
-              <span>{row.waktu_bayar || '-'}</span>
+              <span>{formatDateTime(row.waktu_bayar)}</span>
             </div>
           </div>
         ),
@@ -1371,6 +1378,26 @@ function BayarKasirContent() {
                               Jatuh Tempo: {bill.jatuh_tempo || '-'} • Total Tagihan: {formatRupiah(bill.total_tagihan)}
                               {Number(bill.total_bayar) > 0 ? ` • Sudah Bayar: ${formatRupiah(bill.total_bayar)}` : ''}
                             </span>
+                            {bill.details && bill.details.length > 1 && (
+                              <div className="mt-1.5 space-y-0.5">
+                                {bill.details.map((d) => {
+                                  const terbayar = Number(d.terbayar || 0);
+                                  const sisaD = d.sisa !== undefined ? Number(d.sisa) : Number(d.nominal_bersih) - terbayar;
+                                  return (
+                                    <div key={d.id} className="flex items-center justify-between gap-3 text-[11px] font-mono">
+                                      <span className="text-slate-500 truncate">{d.master_biaya}</span>
+                                      <span className="shrink-0">
+                                        <span className="text-emerald-700 font-semibold">{formatRupiah(terbayar)}</span>
+                                        <span className="text-slate-300"> / </span>
+                                        <span className={sisaD > 0 ? 'text-rose-700 font-bold' : 'text-emerald-700 font-bold'}>
+                                          sisa {formatRupiah(sisaD)}
+                                        </span>
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -1702,7 +1729,7 @@ function BayarKasirContent() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Waktu Bayar:</span>
-                <span className="font-medium text-slate-900">{detailItem.waktu_bayar || '-'}</span>
+                <span className="font-medium text-slate-900">{formatDateTime(detailItem.waktu_bayar)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Mahasiswa:</span>

@@ -241,3 +241,105 @@ export interface LaporanBuktiPelaksanaan {
   status_verifikasi: 'pending' | 'disetujui' | 'ditolak';
   catatan_verifikasi?: string;
 }
+
+// ============================================================
+// KAS KECIL (Petty Cash) — SIKEU
+// Petugas Kas Kecil per fakultas: transaksi keluar, saldo,
+// pengajuan kas langsung (top-up) yang disetujui Admin Keuangan.
+// ============================================================
+
+export interface FakultasRingkas {
+  id: number;
+  kode?: string;
+  nama: string;
+}
+
+export interface PetugasRingkas {
+  id: number;
+  username?: string;
+  email?: string;
+  pegawai?: { nama_lengkap?: string };
+}
+
+export interface KasKecilAkun {
+  id: number;
+  kode_akun: string;
+  nama_akun: string;
+  kelompok?: string;
+}
+
+export interface KasKecilUnit {
+  id: number;
+  fakultas_id?: number;
+  akun_keuangan_id?: number;
+  nama_kas: string;
+  tipe_kas?: string;
+  kanal?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_account_name?: string;
+  penanggung_jawab?: string | PetugasRingkas | null;
+  penanggung_jawab_id?: number;
+  saldo_awal: number | string;
+  saldo_saat_ini: number | string;
+  deskripsi?: string;
+  status: boolean | number;
+  is_kabag_kas?: boolean;
+  created_at?: string;
+  fakultas?: FakultasRingkas;
+  akunKeuangan?: KasKecilAkun;
+  akun_keuangan?: KasKecilAkun;
+  kasKecilTransaksis?: KasKecilTransaksi[];
+  kasKecilPengajuans?: KasKecilPengajuan[];
+}
+
+export interface ReferensiKasKecil {
+  id: number;
+  tipe: string;
+  kode: string;
+  nama: string;
+  urutan: number;
+  is_active?: boolean;
+}
+
+export interface KasKecilTransaksi {
+  id: number;
+  unit_kas_id: number;
+  transaksi_kas_unit_id?: number;
+  nomor_transaksi: string;
+  referensi_kategori_id?: number | null;
+  uraian: string;
+  penerima?: string | null;
+  nominal: number | string;
+  tanggal_transaksi: string;
+  file_bukti_path?: string | null;
+  keterangan?: string | null;
+  created_by?: number;
+  created_at?: string;
+  kategori?: ReferensiKasKecil;
+  dibuatOleh?: PetugasRingkas;
+  unitKas?: KasKecilUnit;
+}
+
+export type KasKecilPengajuanStatus = 'pending_keuangan' | 'disetujui' | 'ditolak';
+
+export interface KasKecilPengajuan {
+  id: number;
+  unit_kas_id: number;
+  transaksi_kas_unit_id?: number;
+  nomor_pengajuan: string;
+  judul_pengajuan: string;
+  keperluan?: string | null;
+  nominal_diajukan: number | string;
+  nominal_disetujui: number | string;
+  status: KasKecilPengajuanStatus;
+  catatan_penolakan?: string | null;
+  pemohon_id?: number;
+  approved_by?: number | null;
+  approved_at?: string | null;
+  created_by?: number;
+  created_at?: string;
+  pemohon?: PetugasRingkas;
+  approver?: PetugasRingkas;
+  unitKas?: KasKecilUnit;
+}

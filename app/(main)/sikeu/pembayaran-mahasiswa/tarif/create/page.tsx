@@ -31,6 +31,7 @@ const tarifSchema = z.object({
   master_biaya_id: z.number().min(1, 'Komponen biaya wajib dipilih dari katalog'),
   tahun_angkatan: z.number().min(2000, 'Tahun angkatan wajib diisi (minimal tahun 2000)'),
   program_studi_id: z.string().optional(),
+  semester: z.string().optional(),
   nominal: z.number().min(0, 'Nominal tarif tidak boleh bernilai negatif'),
   keterangan: z.string().optional(),
   is_active: z.boolean().default(true),
@@ -61,6 +62,7 @@ export default function CreateTarifBiayaPage() {
       master_biaya_id: 0,
       tahun_angkatan: new Date().getFullYear(),
       program_studi_id: '',
+      semester: '',
       nominal: 0,
       keterangan: '',
       is_active: true,
@@ -70,6 +72,7 @@ export default function CreateTarifBiayaPage() {
   const watchMasterBiayaId = watch('master_biaya_id');
   const watchAngkatan = watch('tahun_angkatan');
   const watchProdiId = watch('program_studi_id');
+  const watchSemester = watch('semester');
   const watchIsActive = watch('is_active');
 
   // Load master data on mount
@@ -113,7 +116,12 @@ export default function CreateTarifBiayaPage() {
     fetchReferences();
   }, [setValue]);
 
-  // Deteksi real-time apakah komponen biaya pada angkatan ini sudah aktif untuk Semua Program Studi (Global)
+  // Deteksi real-time apakah komponen biaya pada angkatan & semester ini sudah aktif untuk Semua Program Studi (Global)
+  const semesterOverlap = (tSemester: any, formSemester: string) => {
+    if (!formSemester) return true; // tarif baru semua semester: tabrakan dengan apa pun
+    return tSemester === null || tSemester === undefined || Number(tSemester) === Number(formSemester);
+  };
+
   const existingGlobalTarif = useMemo(() => {
     if (!watchMasterBiayaId || !watchAngkatan) return null;
     return existingTarifs.find(
@@ -121,11 +129,12 @@ export default function CreateTarifBiayaPage() {
         t.master_biaya_id === Number(watchMasterBiayaId) &&
         t.tahun_angkatan === Number(watchAngkatan) &&
         (t.program_studi_id === null || t.program_studi_id === undefined) &&
+        semesterOverlap(t.semester, watchSemester || '') &&
         t.is_active
     );
-  }, [watchMasterBiayaId, watchAngkatan, existingTarifs]);
+  }, [watchMasterBiayaId, watchAngkatan, watchSemester, existingTarifs]);
 
-  // Deteksi real-time apakah sudah ada tarif spesifik per prodi yang aktif untuk komponen & angkatan ini
+  // Deteksi real-time apakah sudah ada tarif spesifik per prodi yang aktif untuk komponen, angkatan & semester ini
   const existingProdiTarifs = useMemo(() => {
     if (!watchMasterBiayaId || !watchAngkatan) return [];
     return existingTarifs.filter(
@@ -133,9 +142,10 @@ export default function CreateTarifBiayaPage() {
         t.master_biaya_id === Number(watchMasterBiayaId) &&
         t.tahun_angkatan === Number(watchAngkatan) &&
         t.program_studi_id &&
+        semesterOverlap(t.semester, watchSemester || '') &&
         t.is_active
     );
-  }, [watchMasterBiayaId, watchAngkatan, existingTarifs]);
+  }, [watchMasterBiayaId, watchAngkatan, watchSemester, existingTarifs]);
 
   // Auto-fill nominal standar saat komponen biaya katalog dipilih
   const handleBiayaChange = (val: string) => {
@@ -154,6 +164,7 @@ export default function CreateTarifBiayaPage() {
         master_biaya_id: formData.master_biaya_id,
         tahun_angkatan: formData.tahun_angkatan,
         program_studi_id: formData.program_studi_id ? Number(formData.program_studi_id) : null,
+        semester: formData.semester ? Number(formData.semester) : null,
         nominal: formData.nominal,
         keterangan: formData.keterangan || null,
         is_active: formData.is_active,
@@ -279,7 +290,26 @@ export default function CreateTarifBiayaPage() {
                 />
               </div>
 
-              {/* Field 4: Nominal Tarif */}
+              {/* Field 4: Semester Berlaku */}
+              <div>
+                <Select
+                  label="Semester Berlaku *"
+                  options={[
+                    { value: '', label: 'Semua Semester (Berlaku Umum)' },
+                    ...[1, 2, 3, 4, 5, 6, 7, 8].map((s) => ({
+                      value: String(s),
+                      label: `Semester ${s} Saja`,
+                    })),
+                  ]}
+                  value={watchSemester || ''}
+                  onChange={(val) => setValue('semester', val as string)}
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Biaya khusus misal lab/magang cukup pilih semesternya (contoh: Semester 3 dan 5 diinput sebagai dua baris tarif).
+                </p>
+              </div>
+
+              {/* Field 5: Nominal Tarif */}
               <div>
                 <Input
                   type="number"
@@ -290,7 +320,7 @@ export default function CreateTarifBiayaPage() {
                 />
               </div>
 
-              {/* Field 5: Status Tarif */}
+              {/* Field 6: Status Tarif */}
               <div>
                 <Select
                   label="Status Tarif *"
@@ -303,7 +333,7 @@ export default function CreateTarifBiayaPage() {
                 />
               </div>
 
-              {/* Field 6: Keterangan / Dasar Kebijakan (Rentang Penuh) */}
+              {/* Field 7: Keterangan / Dasar Kebijakan (Rentang Penuh) */}
               <div className="col-span-full">
                 <Textarea
                   label="Keterangan / Catatan Tambahan (Opsional)"

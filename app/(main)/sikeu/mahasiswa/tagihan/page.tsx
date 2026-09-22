@@ -1,8 +1,7 @@
 'use client';
 
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate, formatDateTime } from '@/lib/utils';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -11,7 +10,6 @@ import {
   Printer,
   ShieldCheck,
   CheckCircle2,
-  AlertCircle,
   Download,
   QrCode,
   Copy,
@@ -24,7 +22,6 @@ import {
   RefreshCw,
   Sparkles,
   Receipt,
-  Building2,
   HelpCircle,
   Search,
   Filter,
@@ -35,7 +32,8 @@ import {
   Layers,
   ArrowRight,
   X,
-  RotateCcw
+  RotateCcw,
+  Landmark
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { sikeuService } from '@/services/sikeu.service';
@@ -45,6 +43,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/layout/PageHeader';
 import toast from 'react-hot-toast';
+import QRCode from 'qrcode';
 
 // Helper angka ke terbilang bahasa Indonesia
 function angkaTerbilang(nilai: number): string {
@@ -74,10 +73,9 @@ function angkaTerbilang(nilai: number): string {
 }
 
 export default function StudentTagihanPage() {
-  const router = useRouter();
   const { user } = useAuthStore();
 
-  const [activeTab, setActiveTab] = useState<'bills' | 'history' | 'guide'>('bills');
+  const [activeTab, setActiveTab] = useState<'bills' | 'history'>('bills');
   const [bills, setBills] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [paymentChannels, setPaymentChannels] = useState<PaymentChannel[]>([]);
@@ -101,8 +99,40 @@ export default function StudentTagihanPage() {
   // Modals & UI States
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+  const [receiptQrUrl, setReceiptQrUrl] = useState<string>('');
   const [showPayModal, setShowPayModal] = useState(false);
   const [copiedVa, setCopiedVa] = useState<string | null>(null);
+
+  // QR verifikasi publik untuk kuitansi (/validasi-pembayaran/{kode_transaksi})
+  useEffect(() => {
+    const kode = selectedReceipt?.kode_transaksi;
+    if (!kode) return;
+    let cancelled = false;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const verifyUrl = `${origin}/validasi-pembayaran/${encodeURIComponent(kode)}`;
+    QRCode.toDataURL(verifyUrl, { margin: 1, width: 120 })
+      .then((url) => {
+        if (!cancelled) setReceiptQrUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setReceiptQrUrl('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedReceipt]);
+
+  // Rekening BNI/BSN tujuan transfer manual (dipakai di modal Bayar Sekarang)
+  const [manualAccounts, setManualAccounts] = useState<any[]>([]);
+
+  const fetchManualAccounts = async () => {
+    try {
+      const res = await sikeuService.getRekeningTujuan();
+      setManualAccounts(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setManualAccounts([]);
+    }
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -150,6 +180,7 @@ export default function StudentTagihanPage() {
 
   useEffect(() => {
     fetchStudentData();
+    fetchManualAccounts();
   }, []);
 
   const studentProfile = bills[0]?.mahasiswa || payments[0]?.mahasiswa || {
@@ -255,7 +286,7 @@ export default function StudentTagihanPage() {
   const totalOutstandingAll = bills.filter((b) => b.status !== 'lunas').reduce((acc, b) => acc + (b.sisa_bayar || 0), 0);
 
   // Open Single or Consolidated Invoice Modal
-  const handleOpenInvoice = async (tagihanId?: number, bankCode: string = 'BNI') => {
+  const handleOpenInvoice = async (tagihanId?: number, bankCode: string = 'BSN') => {
     try {
       const idsToFetch = tagihanId ? [tagihanId] : selectedBillIds;
       if (idsToFetch.length === 0) {
@@ -368,7 +399,7 @@ export default function StudentTagihanPage() {
               Tagihan Kuliah & Pembayaran Mandiri
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Kelola pembayaran biaya pendidikan per semester. Pilih untuk melunasi seluruh semester sekaligus atau bayar sebagian tagihan dengan Virtual Account Bank BNI, unduh Surat Tagihan Resmi (Invoice), dan cetak Kuitansi Lunas.
+              Kelola pembayaran biaya pendidikan per semester. Pilih untuk melunasi seluruh semester sekaligus atau bayar sebagian tagihan dengan Virtual Account BSN (H2H) / Xendit, transfer manual BNI/BSN, unduh Surat Tagihan Resmi (Invoice), dan cetak Kuitansi Lunas.
             </p>
           </div>
 
@@ -424,21 +455,42 @@ export default function StudentTagihanPage() {
           </span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('guide')}
-          className={`px-5 py-3 text-xs font-extrabold rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
-            activeTab === 'guide'
-              ? 'bg-primary-900 text-white shadow-sm'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
+        <Link
+          href="/sikeu/panduan"
+          className="px-5 py-3 text-xs font-extrabold rounded-xl transition flex items-center gap-2 whitespace-nowrap cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100 ml-auto"
         >
-          <HelpCircle size={16} /> 3. Tata Cara Pembayaran (VA BNI / ATM)
-        </button>
+          <HelpCircle size={16} /> Panduan Pembayaran
+        </Link>
       </div>
 
       {/* ── TAB 1: TAGIHAN BERJALAN & PEMBAYARAN ─────────────────────────────────── */}
       {activeTab === 'bills' && (
         <div className="space-y-6">
+          {/* Filter Row (top, standar: tombol Filter + Drawer) */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-slate-500 font-medium">
+              {unpaidFilteredBills.length} tagihan belum lunas
+              {hasActiveFilters ? ' (terfilter)' : ''}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Filter size={16} className={hasActiveFilters ? 'text-primary-600' : ''} />}
+              onClick={() => {
+                setFilterSearch(appliedFilters.search);
+                setSelectedSemester(appliedFilters.semester);
+                setSelectedStatus(appliedFilters.status);
+                setShowFilterDrawer(true);
+              }}
+              className={`text-xs font-bold relative ${hasActiveFilters ? 'border-primary-500 text-primary-700 bg-primary-50/50' : ''}`}
+            >
+              Filter Tagihan
+              {hasActiveFilters && (
+                <span className="w-2 h-2 rounded-full bg-primary-600 absolute -top-1 -right-1 ring-2 ring-white"></span>
+              )}
+            </Button>
+          </div>
+
           {/* Batch Action & Selection Control Bar */}
           <div className="card p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -462,41 +514,9 @@ export default function StudentTagihanPage() {
                     {selectedBillIds.length} tagihan dipilih
                   </span>
                 )}
-                {hasActiveFilters && (
-                  <div className="flex items-center gap-1.5 ml-2">
-                    <span className="text-2xs bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
-                      <Filter size={11} />
-                      Filter Aktif: {appliedFilters.semester !== 'ALL' ? `Semester ${appliedFilters.semester}` : ''} {appliedFilters.status !== 'ALL' ? `• ${appliedFilters.status}` : ''} {appliedFilters.search ? `• "${appliedFilters.search}"` : ''}
-                    </span>
-                    <button
-                      onClick={handleResetFilter}
-                      className="text-2xs text-slate-400 hover:text-rose-600 font-bold underline cursor-pointer ml-1"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                )}
               </div>
 
               <div className="flex items-center gap-2 ml-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<Filter size={15} className={hasActiveFilters ? 'text-primary-600' : 'text-slate-600'} />}
-                  onClick={() => {
-                    setFilterSearch(appliedFilters.search);
-                    setSelectedSemester(appliedFilters.semester);
-                    setSelectedStatus(appliedFilters.status);
-                    setShowFilterDrawer(true);
-                  }}
-                  className={`text-xs font-bold relative ${hasActiveFilters ? 'border-primary-500 text-primary-700 bg-primary-50/50' : ''}`}
-                >
-                  Filter Tagihan
-                  {hasActiveFilters && (
-                    <span className="w-2 h-2 rounded-full bg-primary-600 absolute -top-1 -right-1 ring-2 ring-white"></span>
-                  )}
-                </Button>
-
                 {selectedBillIds.length > 0 && (
                   <>
                     <Button
@@ -506,7 +526,7 @@ export default function StudentTagihanPage() {
                       onClick={() => handleOpenInvoice()}
                       className="text-xs font-bold"
                     >
-                      Cetak Invoice ({selectedBillIds.length})
+                      Invoice Gabungan ({selectedBillIds.length})
                     </Button>
                     <Button
                       variant="primary"
@@ -515,7 +535,7 @@ export default function StudentTagihanPage() {
                       onClick={() => setShowPayModal(true)}
                       className="text-xs font-bold shadow-xs bg-emerald-600 hover:bg-emerald-500 border-none text-white"
                     >
-                      Bayar ({formatRupiah(selectedTotalSisa)})
+                      Bayar Sekarang ({formatRupiah(selectedTotalSisa)})
                     </Button>
                   </>
                 )}
@@ -617,38 +637,85 @@ export default function StudentTagihanPage() {
 
                       {/* Action Buttons */}
                       <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenInvoice(b.id)}
-                          className="btn btn-secondary btn-sm font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <FileText size={14} /> Cetak Invoice Resmi
-                        </button>
-                        {!isLunas && !isDispensasi && (
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/sikeu/dispensasi/create?tagihan_id=${b.id}`)}
-                            className="btn btn-outline btn-sm font-bold text-xs flex items-center gap-1.5 cursor-pointer text-amber-700 border-amber-300 hover:bg-amber-50"
-                          >
-                            <AlertCircle size={14} /> Ajukan Dispensasi
-                          </button>
+                        {!isLunas && b.dispensasi_aktif && (
+                          <span className="text-2xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                            Dispensasi disetujui
+                          </span>
                         )}
-                        {!isLunas && (
+                        {!isLunas && !b.pending_verification && (
                           <button
                             type="button"
                             onClick={() => {
-                              if (!selectedBillIds.includes(b.id)) {
-                                setSelectedBillIds((prev) => [...prev, b.id]);
-                              }
+                              setSelectedBillIds([b.id]);
                               setShowPayModal(true);
                             }}
                             className="btn btn-primary btn-sm font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer bg-emerald-600 hover:bg-emerald-500 border-none text-white"
                           >
-                            <CreditCard size={14} /> Checkout Xendit ({formatRupiah(b.sisa_bayar)})
+                            <CreditCard size={14} /> Bayar Sekarang ({formatRupiah(b.sisa_bayar)})
                           </button>
                         )}
                       </div>
                     </div>
+
+                    {b.pending_verification && !isLunas && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 text-xs space-y-1">
+                        <p className="font-extrabold text-blue-900 flex items-center gap-1.5">
+                          <Clock size={14} /> Menunggu Validasi Keuangan
+                        </p>
+                        <p className="text-blue-800">
+                          Bukti transfer {formatRupiah(b.pending_verification.jumlah_bayar)} sudah diterima
+                          {b.pending_verification.waktu_bayar ? ` (${b.pending_verification.waktu_bayar})` : ''}.
+                          Pembayaran lain dikunci sementara sampai ada keputusan.
+                        </p>
+                      </div>
+                    )}
+
+                    {b.last_rejection && !b.pending_verification && !isLunas && (
+                      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs space-y-1">
+                        <p className="font-extrabold text-rose-900 flex items-center gap-1.5">
+                          <X size={14} /> Pembayaran Ditolak Keuangan
+                        </p>
+                        <p className="text-rose-800">
+                          Alasan: <strong>{b.last_rejection.catatan || 'Bukti tidak valid.'}</strong> Silakan bayar ulang dengan metode lain.
+                        </p>
+                      </div>
+                    )}
+
+                    {b.h2h_billing_id && !isLunas && (
+                      <div className="bg-teal-50 border border-teal-200 rounded-xl p-3.5 text-xs space-y-1">
+                        <p className="font-extrabold text-teal-900 flex items-center gap-1.5">
+                          <Landmark size={14} /> Bayar via BTN Syariah (H2H)
+                        </p>
+                        <p className="text-teal-800">
+                          Masukkan <strong>CUSTID</strong> <span className="font-mono font-bold text-teal-950 bg-white px-1.5 py-0.5 rounded border border-teal-200">{b.h2h_custid || String(b.h2h_billing_id).slice(0, -10) || b.h2h_billing_id}</span> di
+                          ATM / m-banking BTN Syariah, lalu pilih tagihan <strong className="font-mono">{b.h2h_id_tagihan}</strong>. Tambah <strong>Rp1.500</strong> biaya layanan VA. Lunas otomatis setelah bank memproses.
+                        </p>
+                      </div>
+                    )}
+
+                    {b.dispensasi_aktif && !isLunas && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs space-y-1.5">
+                        <p className="font-extrabold text-amber-900 flex items-center gap-1.5">
+                          <ShieldCheck size={14} /> Dispensasi Disetujui
+                        </p>
+                        <p className="text-amber-800">
+                          {b.dispensasi_aktif.tipe_dispensasi === 'cicilan' && b.dispensasi_aktif.jumlah_cicilan > 1 ? (
+                            <>Skema cicilan <strong>{b.dispensasi_aktif.jumlah_cicilan}x @ {formatRupiah(b.dispensasi_aktif.nominal_per_cicilan)}</strong></>
+                          ) : (
+                            <>Keringanan / penundaan disetujui</>
+                          )}
+                          {b.dispensasi_aktif.jatuh_tempo_baru && (
+                            <> — batas baru <strong>{String(b.dispensasi_aktif.jatuh_tempo_baru).split('T')[0]}</strong></>
+                          )}. Silakan bayar sesuai persetujuan memakai tombol di atas.
+                        </p>
+                      </div>
+                    )}
+
+                    {isDispensasi && !b.dispensasi_aktif && !isLunas && (
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-600">
+                        Pengajuan dispensasi Anda sedang menunggu persetujuan pimpinan.
+                      </div>
+                    )}
 
                     {/* Rincian Komponen Biaya Table */}
                     <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 space-y-2.5">
@@ -727,7 +794,10 @@ export default function StudentTagihanPage() {
                           </div>
 
                           <div className="flex flex-wrap gap-1 pt-1">
-                            {['BNI', 'Mandiri', 'BRI', 'BCA', 'Permata', 'QRIS'].map((ch) => (
+                            {(paymentChannels.length > 0
+                              ? paymentChannels.filter((c) => c.category === 'va' || c.category === 'instant').map((c) => c.code)
+                              : ['BSN', 'Mandiri', 'BRI', 'BCA', 'Permata', 'QRIS']
+                            ).map((ch) => (
                               <span
                                 key={ch}
                                 className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-slate-200 border border-white/10"
@@ -858,20 +928,50 @@ export default function StudentTagihanPage() {
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono font-extrabold text-emerald-700 text-sm">
                         {formatRupiah(p.jumlah_bayar)}
+                        {p.channel_bayar === 'MANUAL_TRANSFER' && p.kode_unik != null && (
+                          <span className="block text-2xs font-bold text-indigo-700">
+                            +{String(p.kode_unik).padStart(3, '0')} → {formatRupiah(Number(p.nominal_transfer ?? p.jumlah_bayar) || 0)}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <span className="px-2.5 py-0.5 rounded-full text-2xs font-extrabold uppercase bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
-                          <CheckCircle2 size={12} /> {p.status || 'SUCCESS'}
-                        </span>
+                        {p.status === 'pending' ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-2xs font-extrabold uppercase bg-amber-100 text-amber-800 inline-flex items-center gap-1">
+                            <Clock size={12} /> Menunggu Verifikasi
+                          </span>
+                        ) : p.status === 'rejected' ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-2xs font-extrabold uppercase bg-rose-100 text-rose-800 inline-flex items-center gap-1" title={p.catatan || 'Ditolak keuangan'}>
+                            <X size={12} /> Ditolak
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-2xs font-extrabold uppercase bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                            <CheckCircle2 size={12} /> {p.status || 'SUCCESS'}
+                          </span>
+                        )}
+                        {p.unit_kas_nama && (
+                          <span className="block text-2xs text-slate-400 mt-1">via {p.unit_kas_nama}</span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenReceipt(p)}
-                          className="btn btn-secondary btn-sm font-bold text-xs flex items-center gap-1.5 ml-auto cursor-pointer"
-                        >
-                          <Printer size={14} /> Cetak Kuitansi
-                        </button>
+                        {p.status === 'success' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReceipt(p)}
+                            className="btn btn-secondary btn-sm font-bold text-xs flex items-center gap-1.5 ml-auto cursor-pointer"
+                          >
+                            <Printer size={14} /> Cetak Kuitansi
+                          </button>
+                        ) : p.bukti_bayar_url ? (
+                          <button
+                            type="button"
+                            onClick={() => window.open(p.bukti_bayar_url, '_blank')}
+                            className="btn btn-outline btn-sm font-bold text-xs flex items-center gap-1.5 ml-auto cursor-pointer"
+                          >
+                            <FileText size={14} /> Lihat Bukti
+                          </button>
+                        ) : (
+                          <span className="text-2xs text-slate-400">-</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -879,85 +979,6 @@ export default function StudentTagihanPage() {
               </table>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── TAB 3: TATA CARA PEMBAYARAN ────────────────────────────────────────── */}
-      {activeTab === 'guide' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Guide: BNI & Mandiri VA */}
-            <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
-              <div className="flex items-center gap-3 border-b pb-3">
-                <div className="p-3 bg-indigo-50 text-indigo-700 rounded-xl">
-                  <Building2 size={24} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">Virtual Account BNI & Mandiri</h3>
-                  <p className="text-2xs text-slate-500">Xendit VA Instant Confirmation</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-xs text-slate-700">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                  <span className="font-bold text-slate-900 block text-xs">1. BNI Mobile / Wondr by BNI:</span>
-                  <p className="text-slate-600 text-2xs">Pilih <strong>Bayar & Beli</strong> → <strong>Virtual Account Billing</strong> → Input VA (prefix <code>88012</code> + NIM) → Bayar.</p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                  <span className="font-bold text-slate-900 block text-xs">2. Livin&apos; by Mandiri:</span>
-                  <p className="text-slate-600 text-2xs">Pilih <strong>Bayar</strong> → Masukkan kode institusi / VA (prefix <code>88800</code> + NIM) → Verifikasi nominal → Masukkan PIN.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Guide: BRI & BCA VA */}
-            <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
-              <div className="flex items-center gap-3 border-b pb-3">
-                <div className="p-3 bg-blue-50 text-blue-700 rounded-xl">
-                  <CreditCard size={24} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">Virtual Account BRI & BCA</h3>
-                  <p className="text-2xs text-slate-500">BRImo & myBCA / BCA Mobile</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-xs text-slate-700">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                  <span className="font-bold text-slate-900 block text-xs">1. BRImo (BRI VA):</span>
-                  <p className="text-slate-600 text-2xs">Pilih <strong>Tagihan</strong> → <strong>BRIVA</strong> → Masukkan nomor VA (prefix <code>70012</code> + NIM) → Konfirmasi pembayaran.</p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                  <span className="font-bold text-slate-900 block text-xs">2. BCA Mobile / myBCA:</span>
-                  <p className="text-slate-600 text-2xs">Pilih <strong>m-Transfer</strong> → <strong>BCA Virtual Account</strong> → Masukkan nomor VA (prefix <code>10204</code> + NIM) → Konfirmasi.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Guide: QRIS & Loket Kasir */}
-            <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-xs">
-              <div className="flex items-center gap-3 border-b pb-3">
-                <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl">
-                  <QrCode size={24} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">QRIS & Kasir Kampus</h3>
-                  <p className="text-2xs text-slate-500">Scan Instan atau Datang ke Kampus</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-xs text-slate-700">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                  <span className="font-bold text-slate-900 block text-xs">1. QRIS (Gopay / OVO / Dana / Bank):</span>
-                  <p className="text-slate-600 text-2xs">Pilih metode <strong>QRIS</strong> pada modal pembayaran, scan barcode dengan kamera m-banking / e-wallet apapun, verifikasi nominal & bayar.</p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                  <span className="font-bold text-slate-900 block text-xs">2. Loket Kasir Kampus:</span>
-                  <p className="text-slate-600 text-2xs">Tunjukkan NIM atau cetak Invoice ke Bagian Keuangan Kampus. Petugas akan memproses pelunasan tunai/EDC dan mencetak kuitansi.</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -979,12 +1000,17 @@ export default function StudentTagihanPage() {
           }
         }}
         isProcessing={processingPay}
+        manualAccounts={manualAccounts}
+        onManualComplete={async () => {
+          setShowPayModal(false);
+          await fetchStudentData();
+        }}
       />
 
       {/* ── MODAL INVOICE RESMI (SINGLE / GABUNGAN) ─────────────────────────────── */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:static print:bg-transparent print:p-0 print:overflow-visible print:block">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 print:max-w-none print:max-h-none print:overflow-visible print:rounded-none print:shadow-none print:p-0">
             <div className="flex items-center justify-between border-b pb-4 print:hidden">
               <div className="flex items-center gap-2">
                 <span className="badge badge-purple font-bold">Surat Tagihan Resmi (Invoice)</span>
@@ -1042,7 +1068,7 @@ export default function StudentTagihanPage() {
                       <QrCode size={13} className="text-primary-600" /> Nomor Virtual Account:
                     </span>
                     <span className="text-2xs bg-primary-50 text-primary-700 font-bold px-1.5 py-0.5 rounded">
-                      {selectedInvoice.virtual_account?.bank_kode || 'BNI'}
+                      {selectedInvoice.virtual_account?.bank_kode || 'BSN'}
                     </span>
                   </div>
                   <div className="font-mono text-base font-extrabold text-primary-900 tracking-wider">
@@ -1060,7 +1086,8 @@ export default function StudentTagihanPage() {
               {/* Rincian Items */}
               <div className="space-y-2">
                 <div className="text-xs font-extrabold text-slate-900 uppercase">Rincian Komponen Biaya Pendidikan:</div>
-                <table className="w-full text-left text-xs border-collapse">
+                <div className="overflow-x-auto -mx-1 px-1 print:overflow-visible">
+                <table className="w-full min-w-[540px] text-left text-xs border-collapse">
                   <thead className="bg-slate-100 text-slate-700 font-bold uppercase border-y border-slate-300">
                     <tr>
                       <th className="py-2.5 px-3">Komponen Biaya</th>
@@ -1085,26 +1112,27 @@ export default function StudentTagihanPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {/* Total Summary */}
-              <div className="flex justify-end pt-2">
-                <div className="w-72 space-y-1.5 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  <div className="flex justify-between text-slate-600">
+              <div className="flex sm:justify-end pt-2">
+                <div className="w-full sm:w-80 space-y-1.5 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div className="flex justify-between gap-3 text-slate-600">
                     <span>Total Tagihan:</span>
-                    <span className="font-mono font-bold">{formatRupiah(selectedInvoice.ringkasan?.subtotal || 0)}</span>
+                    <span className="font-mono font-bold whitespace-nowrap">{formatRupiah(selectedInvoice.ringkasan?.subtotal || 0)}</span>
                   </div>
-                  <div className="flex justify-between text-emerald-700">
+                  <div className="flex justify-between gap-3 text-emerald-700">
                     <span>Total Beasiswa/Potongan:</span>
-                    <span className="font-mono font-bold">-{formatRupiah(selectedInvoice.ringkasan?.potongan || 0)}</span>
+                    <span className="font-mono font-bold whitespace-nowrap">-{formatRupiah(selectedInvoice.ringkasan?.potongan || 0)}</span>
                   </div>
-                  <div className="flex justify-between text-indigo-700">
+                  <div className="flex justify-between gap-3 text-indigo-700">
                     <span>Telah Dibayar:</span>
-                    <span className="font-mono font-bold">{formatRupiah(selectedInvoice.ringkasan?.total_dibayar || 0)}</span>
+                    <span className="font-mono font-bold whitespace-nowrap">{formatRupiah(selectedInvoice.ringkasan?.total_dibayar || 0)}</span>
                   </div>
-                  <div className="flex justify-between text-base font-extrabold border-t border-slate-300 pt-2 text-rose-700">
+                  <div className="flex justify-between gap-3 text-sm sm:text-base font-extrabold border-t border-slate-300 pt-2 text-rose-700">
                     <span>Sisa Harus Dibayar:</span>
-                    <span className="font-mono">{formatRupiah(selectedInvoice.ringkasan?.sisa_tagihan || 0)}</span>
+                    <span className="font-mono whitespace-nowrap">{formatRupiah(selectedInvoice.ringkasan?.sisa_tagihan || 0)}</span>
                   </div>
                 </div>
               </div>
@@ -1132,8 +1160,8 @@ export default function StudentTagihanPage() {
 
       {/* ── MODAL KUITANSI PEMBAYARAN RESMI ─────────────────────────────────────── */}
       {selectedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:static print:bg-transparent print:p-0 print:overflow-visible print:block">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 print:max-w-none print:max-h-none print:overflow-visible print:rounded-none print:shadow-none print:p-0">
             <div className="flex items-center justify-between border-b pb-4 print:hidden">
               <div className="flex items-center gap-2">
                 <span className="badge badge-green font-bold">Kuitansi Pembayaran Lunas</span>
@@ -1218,7 +1246,7 @@ export default function StudentTagihanPage() {
                 </div>
               </div>
 
-              {/* Total Box & Signature */}
+              {/* Total Box & Signature + QR Verifikasi */}
               <div className="grid grid-cols-2 items-end pt-4 gap-4">
                 <div className="bg-slate-900 text-white p-3.5 rounded-xl inline-block">
                   <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Jumlah Terbayar (IDR):</div>
@@ -1227,9 +1255,18 @@ export default function StudentTagihanPage() {
                   </div>
                 </div>
 
-                <div className="text-right space-y-10">
-                  <div className="text-[10px] text-slate-600">Kasir / Bagian Keuangan Kampus,</div>
-                  <div className="font-bold text-xs underline text-slate-900">Petugas Keuangan SIKEU</div>
+                <div className="text-right">
+                  <p className="text-2xs font-bold text-slate-600 mb-1.5">Tanda Tangan Digital & Verifikasi:</p>
+                  {receiptQrUrl ? (
+                    <div className="flex flex-col items-end">
+                      <img src={receiptQrUrl} alt="QR Code Verifikasi" className="w-20 h-20 rounded shadow-2xs border border-slate-200" />
+                      <span className="text-[9px] font-mono text-slate-400 mt-1">Scan QR verifikasi keaslian</span>
+                    </div>
+                  ) : null}
+                  <div className="mt-2 border-t border-slate-800 font-bold text-slate-900 pt-1 text-xs">
+                    Petugas Keuangan SIKEU
+                  </div>
+                  <div className="text-[10px] text-slate-600">Kasir / Bagian Keuangan Kampus</div>
                 </div>
               </div>
 

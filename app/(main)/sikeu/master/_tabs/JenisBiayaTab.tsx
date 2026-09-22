@@ -379,7 +379,7 @@ export function JenisBiayaTab() {
     <>
       <div className="flex items-center justify-end gap-2 flex-wrap mb-4">
         <Link
-          href="/sikeu/mahasiswa/tarif"
+          href="/sikeu/pembayaran-mahasiswa/tarif"
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200/80 hover:bg-primary-100 transition-all shadow-2xs"
         >
           <Calculator size={14} />

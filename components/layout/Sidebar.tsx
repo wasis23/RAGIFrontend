@@ -46,7 +46,8 @@ import {
   Sliders,
   Monitor,
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  Coins,
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -113,6 +114,7 @@ const getIcon = (iconName: string) => {
     'FaFileSignature': FileText,
     'FaCheckSquare': CheckSquare,
     'FaDollarSign': DollarSign,
+    'FaCoins': Coins,
     'FaExclamationTriangle': AlertTriangle,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
@@ -330,6 +332,8 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
   {
     id: 605, parent_id: null, name: 'OPERASIONAL PENGELUARAN', url: '#pengeluaran_sikeu', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 3, is_active: true,
     children: [
+      { id: 60299, parent_id: 605, name: 'Kas Kecil', url: '/sikeu/kas-kecil', icon: 'FaCoins', module: 'sikeu', permission_id: null, order_index: 0, is_active: true },
+      { id: 6029, parent_id: 605, name: 'Pengajuan Operasional', url: '/sikeu/pengajuan', icon: 'FaFileAlt', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
       { id: 6024, parent_id: 605, name: 'Pengeluaran Kas', url: '/sikeu/pengeluaran', icon: 'FaList', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
       { id: 6023, parent_id: 605, name: 'Pemasukan Kas Non-Akademik', url: '/sikeu/pemasukan', icon: 'FaList', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
       { id: 6026, parent_id: 605, name: 'Approval Pimpinan', url: '/sikeu/approval', icon: 'FaShieldCheck', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
@@ -343,6 +347,7 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
       { id: 6032, parent_id: 603, name: 'Buku Besar', url: '/sikeu/akuntansi/buku-besar', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
       { id: 6033, parent_id: 603, name: 'Chart of Accounts (COA)', url: '/sikeu/akuntansi/coa', icon: 'FaList', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
       { id: 6034, parent_id: 603, name: 'Laporan Keuangan', url: '/sikeu/akuntansi/laporan', icon: 'FaChartPie', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
+      { id: 6035, parent_id: 603, name: 'Pengaturan Akuntansi', url: '/sikeu/akuntansi/pengaturan', icon: 'FaCog', module: 'sikeu', permission_id: null, order_index: 5, is_active: true },
     ]
   },
   { 
@@ -359,10 +364,19 @@ const SIKEU_FALLBACK_MENUS: Menu[] = [
   { id: 606, parent_id: null, name: 'Panduan & Alur SIKEU', url: '/sikeu/panduan', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 6, is_active: true },
 ];
 
+const SIKEU_PETUGAS_KAS_KECIL_MENUS: Menu[] = [
+  { id: 6801, parent_id: null, name: 'Dashboard Keuangan', url: '/sikeu', icon: 'FaChartPie', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
+  {
+    id: 6802, parent_id: null, name: 'OPERASIONAL PENGELUARAN', url: '#pengeluaran_sikeu', icon: 'FaMoneyBillWave', module: 'sikeu', permission_id: null, order_index: 2, is_active: true,
+    children: [
+      { id: 68021, parent_id: 6802, name: 'Kas Kecil', url: '/sikeu/kas-kecil', icon: 'FaCoins', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
+    ]
+  },
+];
+
 const SIKEU_MAHASISWA_MENUS: Menu[] = [
   { id: 691, parent_id: null, name: 'Dashboard Keuangan', url: '/sikeu', icon: 'FaChartPie', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
   { id: 692, parent_id: null, name: 'Tagihan & Pembayaran SPP', url: '/sikeu/mahasiswa/tagihan', icon: 'FaCreditCard', module: 'sikeu', permission_id: null, order_index: 2, is_active: true },
-  { id: 693, parent_id: null, name: 'Pengajuan Dispensasi', url: '/sikeu/dispensasi', icon: 'FaClipboardCheck', module: 'sikeu', permission_id: null, order_index: 3, is_active: true },
   { id: 694, parent_id: null, name: 'Panduan Pembayaran', url: '/sikeu/panduan', icon: 'FaBookOpen', module: 'sikeu', permission_id: null, order_index: 4, is_active: true },
 ];
 
@@ -402,12 +416,12 @@ const SIPPM_FALLBACK_MENUS: Menu[] = [
   },
 ];
 
-const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean }) => Menu[]> = {
+const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean; isPetugas: boolean }) => Menu[]> = {
   sso: () => IAM_FALLBACK_MENUS,
   iam: () => IAM_FALLBACK_MENUS,
   simpeg: () => SIMPEG_FALLBACK_MENUS,
   sippm: () => SIPPM_FALLBACK_MENUS,
-  sikeu: ({ isMahasiswa }) => (isMahasiswa ? SIKEU_MAHASISWA_MENUS : SIKEU_FALLBACK_MENUS),
+  sikeu: ({ isMahasiswa, isPetugas }) => (isPetugas ? SIKEU_PETUGAS_KAS_KECIL_MENUS : isMahasiswa ? SIKEU_MAHASISWA_MENUS : SIKEU_FALLBACK_MENUS),
   sinapra: () => SINAPRA_FALLBACK_MENUS,
   spmb: ({ isPanitia }) => (!isPanitia ? SPMB_STUDENT_FALLBACK_MENUS : SPMB_FALLBACK_MENUS),
   siakad: ({ isMahasiswa, isDosen }) => {
@@ -419,7 +433,7 @@ const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isD
 
 const getFallbackMenusForModule = (
   mod: string,
-  opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean }
+  opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean; isPetugas: boolean }
 ): Menu[] => {
   const handler = FALLBACK_MENUS_REGISTRY[mod];
   return handler ? handler(opts) : [];
@@ -439,6 +453,13 @@ export function Sidebar() {
 
   const isMahasiswaRole = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
   const isDosenRole = (userRoleSlugs.includes('dosen') || userRoleSlugs.includes('kaprodi') || userRoleSlugs.includes('wakil_prodi')) && !isSuperAdmin && !isAdmin;
+
+  const isPetugasKasKecilRole =
+    (userRoleSlugs.includes('petugas_kas_kecil') ||
+      userRoleSlugs.includes('petugas_kaskecil') ||
+      userRoleSlugs.includes('petugas kas kecil')) &&
+    !isSuperAdmin &&
+    !isAdmin;
 
   const isPanitiaAdmin =
     isSuperAdmin ||
@@ -498,12 +519,12 @@ export function Sidebar() {
             }
             setDynamicMenus(menus);
           } else {
-            setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin }));
+            setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
           }
         } catch (error) {
           console.error("Failed to load menus", error);
           const mod = getModule();
-          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin }));
+          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
         } finally {
           setLoading(false);
         }
@@ -511,7 +532,7 @@ export function Sidebar() {
       fetchMenus();
     } else {
       const mod = getModule();
-      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin }));
+      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
       setLoading(false);
     }
   }, [user, pathname]);

@@ -1,20 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Plus, Trash2, BookOpen } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 import { AkunKeuangan } from '@/types/sikeu.types';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function CreateJurnalPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-sm text-slate-400">Memuat form jurnal...</div>}>
+      <CreateJurnalContent />
+    </Suspense>
+  );
+}
+
+function CreateJurnalContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEditMode = Boolean(editId);
 
   const [coaList, setCoaList] = useState<AkunKeuangan[]>([]);
   const [tanggalJurnal, setTanggalJurnal] = useState(new Date().toISOString().split('T')[0]);
   const [jenisSumber, setJenisSumber] = useState('penyesuaian');
   const [keterangan, setKeterangan] = useState('');
+  const [nomorJurnal, setNomorJurnal] = useState('');
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Dynamic Debet & Kredit Lines
   const [lines, setLines] = useState([
@@ -36,6 +49,45 @@ export default function CreateJurnalPage() {
     };
     loadCoa();
   }, []);
+
+  // Mode edit: muat jurnal manual yang boleh diubah
+  useEffect(() => {
+    if (!editId) return;
+    const loadDetail = async () => {
+      setLoadingDetail(true);
+      try {
+        const res: any = await sikeuService.getJurnalDetail(editId);
+        const j = res?.data;
+        if (!j) {
+          setError('Jurnal tidak ditemukan.');
+          return;
+        }
+        if (j.referensi_id !== null && j.referensi_id !== undefined) {
+          setError('Jurnal otomatis sistem tidak dapat diedit. Gunakan fitur koreksi/pembatalan transaksi terkait.');
+          return;
+        }
+        setNomorJurnal(j.nomor_jurnal || '');
+        setTanggalJurnal(String(j.tanggal_jurnal || '').slice(0, 10));
+        setJenisSumber(j.jenis_sumber || 'penyesuaian');
+        setKeterangan(j.keterangan || '');
+        if (Array.isArray(j.details) && j.details.length >= 2) {
+          setLines(
+            j.details.map((d: any) => ({
+              akun_id: d.akun_id,
+              debet: Number(d.debet || 0),
+              kredit: Number(d.kredit || 0),
+              keterangan: d.keterangan || '',
+            }))
+          );
+        }
+      } catch (err: any) {
+        setError(err?.response?.data?.message || 'Gagal memuat detail jurnal.');
+      } finally {
+        setLoadingDetail(false);
+      }
+    };
+    loadDetail();
+  }, [editId]);
 
   const addLine = () => {
     setLines([...lines, { akun_id: 0, debet: 0, kredit: 0, keterangan: '' }]);
@@ -67,7 +119,7 @@ export default function CreateJurnalPage() {
     setError('');
 
     try {
-      await sikeuService.storeJurnal({
+      const payload = {
         tanggal_jurnal: tanggalJurnal,
         jenis_sumber: jenisSumber,
         keterangan,
@@ -77,11 +129,17 @@ export default function CreateJurnalPage() {
           kredit: Number(l.kredit),
           keterangan: l.keterangan || keterangan,
         })),
-      });
+      };
+
+      if (isEditMode && editId) {
+        await sikeuService.updateJurnal(editId, payload);
+      } else {
+        await sikeuService.storeJurnal(payload);
+      }
 
       router.push('/sikeu/akuntansi/jurnal');
     } catch (err: any) {
-      setError(err.message || 'Gagal menyimpan jurnal akuntansi');
+      setError(err?.response?.data?.message || err.message || 'Gagal menyimpan jurnal akuntansi');
     } finally {
       setSubmitting(false);
     }
@@ -90,8 +148,12 @@ export default function CreateJurnalPage() {
   return (
     <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
-        title="Entry Jurnal Umum & Penyesuaian Manual"
-        description="Pencatatan entri jurnal ganda (Double-entry debet/kredit seimbang)"
+        title={isEditMode ? `Edit Jurnal Manual${nomorJurnal ? ` (${nomorJurnal})` : ''}` : 'Entry Jurnal Umum & Penyesuaian Manual'}
+        description={
+          isEditMode
+            ? 'Perubahan hanya untuk jurnal manual selagi periodenya belum ditutup. Jurnal otomatis & penutup terkunci.'
+            : 'Pencatatan entri jurnal ganda (Double-entry debet/kredit seimbang)'
+        }
         action={
           <Link href="/sikeu/akuntansi/jurnal" className="btn btn-warning btn-icon" title="Kembali ke Daftar Jurnal">
             <ArrowLeft size={18} />
@@ -105,6 +167,11 @@ export default function CreateJurnalPage() {
         </div>
       )}
 
+      {loadingDetail ? (
+        <div className="p-12 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 gap-3">
+          <span className="text-xs font-semibold">Memuat detail jurnal...</span>
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Header Metadata Form (Grid 3-Column per crud-ui-standard) */}
         <div className="card p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -273,11 +340,12 @@ export default function CreateJurnalPage() {
               disabled={submitting || !isBalanced}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
             >
-              <Save size={16} /> {submitting ? 'Simpan...' : 'Simpan Entry Jurnal'}
+              <Save size={16} /> {submitting ? 'Simpan...' : isEditMode ? 'Simpan Perubahan' : 'Simpan Entry Jurnal'}
             </button>
           </div>
         </div>
       </form>
+      )}
     </div>
   );
 }

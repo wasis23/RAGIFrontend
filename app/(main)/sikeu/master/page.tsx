@@ -37,7 +37,7 @@ export default function MasterKeuanganGlobalPage() {
       return;
     }
     if (tabQuery === 'potongan_khusus') {
-      router.replace('/sikeu/mahasiswa/potongan');
+      router.replace('/sikeu/pembayaran-mahasiswa/potongan');
       return;
     }
     if (tabQuery && ['jenis_biaya', 'beasiswa', 'unit_kas'].includes(tabQuery)) {
@@ -58,7 +58,7 @@ export default function MasterKeuanganGlobalPage() {
         action={
           <div className="flex items-center gap-2">
             <Link
-              href="/sikeu/mahasiswa/tarif"
+              href="/sikeu/pembayaran-mahasiswa/tarif"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 transition-all shadow-xs"
             >
               <DollarSign size={14} />

@@ -96,7 +96,7 @@ export default function CreateBeasiswaPage() {
       });
 
       toast.success('Master program beasiswa baru berhasil dibuat!');
-      router.push('/sikeu/mahasiswa/tarif?tab=beasiswa');
+      router.push('/sikeu/master?tab=beasiswa');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Gagal menyimpan program beasiswa');
     } finally {
@@ -113,7 +113,7 @@ export default function CreateBeasiswaPage() {
           <Button
             variant="outline"
             icon={<ArrowLeft size={16} />}
-            onClick={() => router.push('/sikeu/mahasiswa/tarif?tab=beasiswa')}
+            onClick={() => router.push('/sikeu/master?tab=beasiswa')}
             className="font-bold min-h-[40px]"
           >
             Kembali
@@ -260,7 +260,7 @@ export default function CreateBeasiswaPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push('/sikeu/mahasiswa/tarif?tab=beasiswa')}
+            onClick={() => router.push('/sikeu/master?tab=beasiswa')}
             disabled={submitting}
             className="font-bold min-h-[42px] px-5"
           >

@@ -24,6 +24,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { useAuthStore } from '@/store/authStore';
 
 interface GuideSection {
   id: string;
@@ -48,13 +49,13 @@ const GUIDES: GuideSection[] = [
     categoryLabel: 'Tagihan & Invoice',
     summary:
       'Panduan menerbitkan invoice tagihan semester secara otomatis dan sekaligus untuk seluruh mahasiswa aktif berdasarkan Tahun Angkatan dan Jalur Kelas.',
-    targetUrl: '/sikeu/tagihan',
+    targetUrl: '/sikeu/pembayaran-mahasiswa/tagihan',
     targetLabel: 'Buka Halaman Tagihan SPP',
-    rolesAllowed: ['operator_sikeu', 'kabag_keuangan'],
+    rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_pembayaran'],
     steps: [
       'Pastikan Anda sudah mengonfigurasi Setting Tarif untuk Tahun Angkatan dan Jalur Kelas target di menu Master Keuangan.',
       'Pastikan data Tipe Tagihan Mahasiswa (UKT / Jalur) sudah ditetapkan pada tab "Tipe Tagihan Mhs".',
-      'Buka menu "OPERASIONAL PENERIMAAN" → "Tagihan SPP & UKT" (/sikeu/tagihan).',
+      'Buka menu "PEMBAYARAN MAHASISWA" → "Input Tagihan" (/sikeu/pembayaran-mahasiswa/tagihan).',
       'Klik tombol "Aktifkan Tagihan Masal" (ikon Sparkles ✨) di pojok kanan atas.',
       'Pilih Tahun Angkatan (misal: 2025), Jalur Kelas (Reguler/Karyawan), Semester Aktif (contoh: Semester Ganjil 2026/2027), dan Batas Tanggal Jatuh Tempo.',
       'Klik "Terbitkan Tagihan Masal". Sistem akan otomatis mengalkulasi komponen biaya dan menerbitkan tagihan mahasiswa tanpa duplikasi.',
@@ -86,7 +87,7 @@ const GUIDES: GuideSection[] = [
       'Panduan mengatur nominal standar biaya kuliah berdasarkan kombinasi Tahun Angkatan, Program Studi, Semester (1-8), dan Jalur Kelas.',
     targetUrl: '/sikeu/master',
     targetLabel: 'Buka Master Biaya & Tarif',
-    rolesAllowed: ['operator_sikeu', 'kabag_keuangan'],
+    rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_pembayaran'],
     steps: [
       'Buka menu "MASTER KEUANGAN" → "Master Biaya & Tarif" (/sikeu/master).',
       'Pilih tab navigasi "Setting Tarif (Semester/Angkatan)".',
@@ -114,11 +115,11 @@ const GUIDES: GuideSection[] = [
     categoryLabel: 'Pembayaran & Kasir',
     summary:
       'Prosedur penerimaan pembayaran mahasiswa langsung di loket (tunai) atau penerbitan Virtual Account (transfer bank) beserta cetak bukti transaksi.',
-    targetUrl: '/sikeu/tagihan/create',
+    targetUrl: '/sikeu/pembayaran-mahasiswa/bayar',
     targetLabel: 'Buka Form Loket Kasir',
-    rolesAllowed: ['operator_sikeu', 'kabag_keuangan'],
+    rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_pembayaran'],
     steps: [
-      'Buka menu "Tagihan SPP & UKT" lalu klik tombol "Bayar Loket / Terbitkan VA" atau akses langsung ke /sikeu/tagihan/create.',
+      'Buka menu "PEMBAYARAN MAHASISWA" → "Bayar Kasir Loket" lalu pilih tagihan, atau akses langsung ke /sikeu/pembayaran-mahasiswa/bayar.',
       'Langkah 1: Cari mahasiswa dengan mengetikkan NIM atau Nama pada kolom pencarian autocomplete.',
       'Langkah 2: Pilih komponen tagihan yang akan dilunasi dengan mencentang kotak ceklis di daftar tagihan aktif.',
       'Langkah 3: Pilih Metode Pembayaran: "Bayar Tunai Loket Kasir" untuk pembayaran tunai di kasir, atau "Virtual Account BNI" untuk pembayaran via transfer.',
@@ -135,7 +136,7 @@ const GUIDES: GuideSection[] = [
     faqs: [
       {
         q: 'Bagaimana jika kasir salah menginputkan nominal uang?',
-        a: 'Gunakan fitur Koreksi Transaksi di halaman Riwayat Pembayaran (/sikeu/pembayaran). Sistem akan membuat jurnal pembalik (reversal) dan mengembalikan saldo tagihan.',
+        a: 'Gunakan fitur Koreksi Transaksi di halaman Riwayat Pembayaran (/sikeu/pembayaran-mahasiswa/bayar?tab=riwayat). Sistem akan membuat jurnal pembalik (reversal) dan mengembalikan saldo tagihan.',
       },
     ],
   },
@@ -146,11 +147,11 @@ const GUIDES: GuideSection[] = [
     categoryLabel: 'Pembayaran & Kasir',
     summary:
       'Mekanisme pembatalan pembayaran yang salah menggunakan jurnal pembalik (reversal entry) sesuai standar akuntansi perbankan kampus.',
-    targetUrl: '/sikeu/pembayaran',
+    targetUrl: '/sikeu/pembayaran-mahasiswa/bayar?tab=riwayat',
     targetLabel: 'Buka Riwayat Pembayaran',
     rolesAllowed: ['kabag_keuangan'],
     steps: [
-      'Buka menu "OPERASIONAL PENERIMAAN" → "Pembayaran SPP" (/sikeu/pembayaran).',
+      'Buka menu "PEMBAYARAN MAHASISWA" → "Bayar Kasir Loket" tab Riwayat (/sikeu/pembayaran-mahasiswa/bayar?tab=riwayat).',
       'Cari kode transaksi atau NIM mahasiswa yang pembayarannya ingin dikoreksi.',
       'Klik tombol "Koreksi" pada baris transaksi tersebut.',
       'Ketikkan alasan koreksi pembatalan secara jelas (minimal 10 karakter).',
@@ -170,7 +171,7 @@ const GUIDES: GuideSection[] = [
       'Prosedur pemberian penundaan jatuh tempo atau cicilan bagi mahasiswa yang terkendala biaya agar tetap dapat mengikuti perkuliahan / KRS.',
     targetUrl: '/sikeu/dispensasi',
     targetLabel: 'Buka Menu Dispensasi',
-    rolesAllowed: ['operator_sikeu', 'kabag_keuangan'],
+    rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_pembayaran'],
     steps: [
       'Buka menu "OPERASIONAL PENGELUARAN" → "Dispensasi Pembayaran" (/sikeu/dispensasi).',
       'Klik tombol "Ajukan Dispensasi Baru".',
@@ -192,7 +193,7 @@ const GUIDES: GuideSection[] = [
       'Langkah mengunci periode transaksi keuangan agar tidak dapat diubah, ditambah, atau dikoreksi kembali demi validitas laporan.',
     targetUrl: '/sikeu/akuntansi/jurnal',
     targetLabel: 'Buka Menu Akuntansi',
-    rolesAllowed: ['kabag_keuangan'],
+    rolesAllowed: ['kabag_keuangan', 'admin_keuangan_akuntansi'],
     steps: [
       'Pastikan seluruh kas masuk, pengeluaran kas unit, dan penerimaan SPP bulan berjalan telah direkonsiliasi seimbang (Balanced Journal).',
       'Buka menu "AKUNTANSI & LAPORAN" → "Chart of Accounts (COA)" atau Periode Akuntansi.',
@@ -202,13 +203,54 @@ const GUIDES: GuideSection[] = [
     ],
   },
   {
+    id: 'operasional-akuntansi-harian',
+    title: 'Operasional Akuntansi Harian (Jurnal, COA, Laporan)',
+    category: 'akuntansi',
+    categoryLabel: 'Akuntansi & Pembukuan',
+    summary:
+      'Alur kerja harian staf akuntansi: memantau Jurnal Umum, menelusur Buku Besar per akun, mengelola COA, dan menarik Laporan Keuangan.',
+    targetUrl: '/sikeu/akuntansi/jurnal',
+    targetLabel: 'Buka Jurnal Umum',
+    rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_akuntansi'],
+    steps: [
+      'Buka menu "AKUNTANSI & LAPORAN" → "Jurnal Umum"; filter periode dan pastikan status jurnal Balanced/Posted sebelum tutup hari.',
+      'Telusur mutasi per akun lewat "Buku Besar" (mis. kas 101/102, piutang, pendapatan) untuk rekonsiliasi dengan mutasi bank.',
+      'Kelola daftar akun di "Chart of Accounts (COA)"; pemetaan kas unit (101/102) menentukan jurnal otomatis pembayaran.',
+      'Tarik "Laporan Keuangan" per periode untuk bahan evaluasi; periode yang sudah ditutup tidak dapat dikoreksi.',
+      'Pantau saldo per kanal (Xendit, H2H BSN, multi bank) di Dashboard sebagai pembanding kas.',
+    ],
+    tips: [
+      'Jurnal dari pembayaran mahasiswa, pencairan operasional, dan penggajian terbit otomatis — tugas utama adalah verifikasi, bukan input manual.',
+    ],
+  },
+  {
+    id: 'pantauan-eksekutif-pimpinan',
+    title: 'Pantauan Eksekutif untuk Pimpinan (Approval & Laporan)',
+    category: 'akuntansi',
+    categoryLabel: 'Akuntansi & Pembukuan',
+    summary:
+      'Yang perlu dipantau pimpinan: saldo kas per kanal di Dashboard, antrean approval 3 tahap, laporan keuangan, piutang, dan dispensasi.',
+    targetUrl: '/sikeu',
+    targetLabel: 'Buka Dashboard',
+    rolesAllowed: ['pimpinan'],
+    steps: [
+      'Buka Dashboard Keuangan: pantau Total Saldo per Kanal (Xendit, H2H BSN, multi bank) serta piutang mahasiswa.',
+      'Selesaikan antrean approval bertahap di menu Approval (sarpras → keuangan → direktur) agar pencairan tidak tertahan.',
+      'Periksa Laporan Keuangan per periode sebelum menandatangani keputusan anggaran.',
+      'Pantau tunggakan di Piutang Mahasiswa dan pengajuan Dispensasi yang membutuhkan persetujuan.',
+    ],
+    tips: [
+      'Akses pimpinan bersifat pantau + setujui; operasional harian (input, koreksi, tutup buku) tetap di staf keuangan.',
+    ],
+  },
+  {
     id: 'daftar-akun-testing',
     title: 'Daftar Akun Pengujian & Uji Coba Role SIKEU',
     category: 'akun',
     categoryLabel: 'Akun & Hak Akses',
     summary:
       'Kredensial akun tidak disimpan di aplikasi (hardcode). Akun penguji disediakan oleh seeder database sesuai role, kelola dan ganti passwordnya lewat modul IAM.',
-    rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'pimpinan', 'mahasiswa'],
+    rolesAllowed: ['operator_sikeu', 'kabag_keuangan', 'pimpinan'],
     steps: [
       'Kasir Operasional: akun dengan role operator_sikeu (buat via seeder IAM/PermissionSeeder).',
       'Kabag Keuangan: akun dengan role kabag_keuangan (buat via seeder IAM/PermissionSeeder).',
@@ -217,6 +259,39 @@ const GUIDES: GuideSection[] = [
     ],
     tips: [
       'Gunakan mode Penyamaran (Incognito) atau browser berbeda saat menguji perpindahan peran antara Operator dan Pimpinan.',
+    ],
+  },
+  {
+    id: 'tata-cara-pembayaran-mahasiswa',
+    title: 'Tata Cara Pembayaran Tagihan Kuliah (Mahasiswa)',
+    category: 'pembayaran',
+    categoryLabel: 'Pembayaran & Kasir',
+    summary:
+      'Cara membayar tagihan semester: VA BSN Host-to-Host (CUSTID), VA bank via checkout, QRIS, loket kasir kampus, dan transfer manual dengan upload bukti.',
+    targetUrl: '/sikeu/mahasiswa/tagihan',
+    targetLabel: 'Buka Tagihan Saya',
+    rolesAllowed: ['mahasiswa', 'admin_keuangan_pembayaran'],
+    steps: [
+      'Buka menu "Tagihan & Pembayaran SPP", centang tagihan semester yang akan dibayar (bisa sekaligus beberapa tagihan).',
+      'VA BSN Host-to-Host: bila tagihan sudah diterbitkan ke BTN Syariah, masukkan CUSTID (NIM / No. Pendaftaran yang tertera) di ATM / m-banking BTN Syariah, pilih tagihan, bayar ditambah Rp1.500 biaya layanan VA. Status lunas otomatis setelah bank memproses (sinkron berkala).',
+      'VA bank lain (Mandiri / BRI / BCA / Permata): klik "Bayar Sekarang" pada tagihan, pilih channel bank, bayar ke nomor VA yang muncul sebelum masa kedaluwarsa.',
+      'QRIS: pilih metode QRIS pada modal pembayaran, pindai kode dengan e-wallet / m-banking apa pun, verifikasi nominal lalu bayar.',
+      'Loket kasir kampus: tunjukkan NIM atau cetak Invoice ke Bagian Keuangan; petugas memproses pelunasan tunai/EDC dan mencetak kuitansi.',
+      'Transfer manual (BNI / BSN): klik "Bayar Sekarang", pilih rekening BNI/BSN kampus, tekan "Minta Kode Unik" — transfer TEPAT sebesar nominal yang tertera (tagihan + kode unik 3 digit, mis. ...123), lalu unggah foto struk (JPG/PNG, maks 5MB) pada halaman yang sama dan pantau status di tab Riwayat Pembayaran.',
+    ],
+    tips: [
+      'Unduh / cetak Kuitansi Lunas dari tab Riwayat Pembayaran. Pindai QR pada kuitansi untuk verifikasi keaslian dokumen.',
+      'Status kuning berarti menunggu verifikasi keuangan, hijau berarti terbayar, merah berarti ditolak (silakan unggah ulang bukti yang lebih jelas).',
+    ],
+    faqs: [
+      {
+        q: 'Saya sudah bayar via BTN, kenapa status belum lunas?',
+        a: 'Pembayaran bank ditarik ke sistem secara berkala (setiap beberapa menit). Tunggu sebentar lalu muat ulang halaman. Bila lebih dari 1x24 jam belum berubah, hubungi Bagian Keuangan dengan membawa bukti transfer.',
+      },
+      {
+        q: 'Apakah bisa mencicil bila belum mampu bayar penuh?',
+        a: 'Bisa, bila pengajuan dispensasi/cicilan Anda disetujui pimpinan. Rincian skema cicilan akan tampil langsung pada kartu tagihan semester tersebut; bayar sesuai nominal per cicilan memakai tombol pembayaran yang sama.',
+      },
     ],
   },
 ];
@@ -235,9 +310,39 @@ export default function PanduanSikeuPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>('generate-tagihan-masal');
+  const { user } = useAuthStore();
+
+  // Mahasiswa murni hanya melihat panduan untuk mahasiswa;
+  // staf/admin tetap melihat seluruh panduan operasional.
+  const roleSlugs = useMemo(
+    () =>
+      (user?.roles || []).map((r: any) =>
+        String(typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
+      ),
+    [user]
+  );
+  // Akses penuh (staf keuangan inti & admin): seluruh panduan.
+  // Role terbatas (mahasiswa, pimpinan, admin keuangan): hanya panduan bertanda role-nya.
+  const FULL_ACCESS_ROLES = ['superadmin', 'admin', 'super-admin', 'operator_sikeu', 'kabag_keuangan'];
+  const hasFullAccess = roleSlugs.some((s) => FULL_ACCESS_ROLES.includes(s));
+
+  const visibleGuides = useMemo(
+    () =>
+      hasFullAccess
+        ? GUIDES
+        : GUIDES.filter((g) =>
+            g.rolesAllowed.map((r) => r.toLowerCase()).some((r) => roleSlugs.includes(r))
+          ),
+    [hasFullAccess, roleSlugs]
+  );
+
+  const visibleCategories = useMemo(
+    () => CATEGORIES.filter((c) => c.id === 'all' || visibleGuides.some((g) => g.category === c.id)),
+    [visibleGuides]
+  );
 
   const filteredGuides = useMemo(() => {
-    return GUIDES.filter((guide) => {
+    return visibleGuides.filter((guide) => {
       // Filter kategori
       if (selectedCategory !== 'all' && guide.category !== selectedCategory) {
         return false;
@@ -255,7 +360,12 @@ export default function PanduanSikeuPage() {
       }
       return true;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, visibleGuides]);
+
+  // Buka otomatis panduan pertama yang terlihat bila bawaan tidak tampil untuk role ini
+  const effectiveExpandedId = filteredGuides.some((g) => g.id === expandedId)
+    ? expandedId
+    : filteredGuides[0]?.id ?? null;
 
   return (
     <div className="w-full space-y-6 animate-fade-in pb-6">
@@ -300,7 +410,7 @@ export default function PanduanSikeuPage() {
 
       {/* Category Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {CATEGORIES.map((cat) => {
+        {visibleCategories.map((cat) => {
           const Icon = cat.icon;
           const isActive = selectedCategory === cat.id;
           return (
@@ -358,7 +468,7 @@ export default function PanduanSikeuPage() {
       ) : (
         <div className="space-y-4">
           {filteredGuides.map((guide) => {
-            const isExpanded = expandedId === guide.id;
+            const isExpanded = effectiveExpandedId === guide.id;
 
             return (
               <div
@@ -380,14 +490,15 @@ export default function PanduanSikeuPage() {
                         {guide.categoryLabel}
                       </span>
                       <div className="flex items-center gap-1">
-                        {guide.rolesAllowed.map((r) => (
-                          <span
-                            key={r}
-                            className="font-mono text-2xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold"
-                          >
-                            @{r}
-                          </span>
-                        ))}
+                        {hasFullAccess &&
+                          guide.rolesAllowed.map((r) => (
+                            <span
+                              key={r}
+                              className="font-mono text-2xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold"
+                            >
+                              @{r}
+                            </span>
+                          ))}
                       </div>
                     </div>
                     <h3 className="text-base font-bold text-slate-900 group-hover:text-primary-600">

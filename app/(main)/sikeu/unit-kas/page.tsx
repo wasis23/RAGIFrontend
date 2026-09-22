@@ -19,10 +19,18 @@ import { Textarea } from '@/components/ui/Textarea';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { useForm } from 'react-hook-form';
 
+const KANAL_LABEL: Record<string, string> = {
+  tunai: 'Tunai',
+  bank_manual: 'Bank Manual',
+  bank_h2h: 'Bank H2H',
+  xendit: 'Xendit',
+};
+
 interface UnitKas {
   id: number;
   nama_kas: string;
   tipe_kas: string;
+  kanal?: string;
   bank_name?: string;
   bank_account_number?: string;
   bank_account_name?: string;
@@ -30,6 +38,7 @@ interface UnitKas {
   saldo_saat_ini?: number;
   status: boolean;
   deskripsi?: string;
+  akun_keuangan?: { kode_akun?: string; nama_akun?: string };
 }
 
 interface PengajuanFormValues {
@@ -157,6 +166,9 @@ export default function UnitKasPage() {
       render: (row) => (
         <div>
           <span className="badge badge-purple text-xs font-bold uppercase">{row.tipe_kas || 'Operasional'}</span>
+          {row.kanal && (
+            <span className="badge badge-cyan text-xs font-bold uppercase ml-1">{KANAL_LABEL[row.kanal] || row.kanal}</span>
+          )}
           <p className="text-2xs text-slate-500 font-semibold mt-1">PJ: {row.penanggung_jawab || '-'}</p>
         </div>
       ),
@@ -168,6 +180,9 @@ export default function UnitKasPage() {
         <div>
           <p className="font-bold text-slate-800 text-xs">{row.bank_name || 'Bank'} - {row.bank_account_number || '-'}</p>
           <p className="text-2xs text-slate-500">{row.bank_account_name || '-'}</p>
+          <p className="font-mono text-2xs text-indigo-600 font-semibold mt-0.5">
+            {row.akun_keuangan?.kode_akun ? `[${row.akun_keuangan.kode_akun}] ${row.akun_keuangan.nama_akun}` : 'COA: default kanal'}
+          </p>
         </div>
       ),
     },

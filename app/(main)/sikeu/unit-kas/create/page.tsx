@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,15 +14,36 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 
+const KANAL_OPTIONS = [
+  { value: 'tunai', label: 'Tunai (brankas / serah terima fisik)' },
+  { value: 'bank_manual', label: 'Bank Manual (m-banking BSN / BNI)' },
+  { value: 'bank_h2h', label: 'Bank Host-to-Host (batch disbursement)' },
+  { value: 'xendit', label: 'Xendit (disbursement API)' },
+];
+
 const unitKasSchema = z.object({
   nama_kas: z.string().min(3, 'Nama kas unit minimal 3 karakter'),
   tipe_kas: z.enum(['utama', 'operasional', 'prodi', 'unit_bisnis']),
+  kanal: z.enum(['tunai', 'bank_manual', 'bank_h2h', 'xendit']),
+  akun_keuangan_id: z.number().optional(),
   bank_name: z.string().min(2, 'Nama bank atau kas wajib diisi'),
   bank_account_number: z.string().optional(),
   bank_account_name: z.string().optional(),
   penanggung_jawab: z.string().min(3, 'Nama penanggung jawab wajib diisi'),
   status: z.boolean().default(true),
   deskripsi: z.string().optional(),
+}).superRefine((val, ctx) => {
+  if (val.kanal === 'bank_manual') {
+    if (!['BNI', 'BSN'].includes(val.bank_name)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['bank_name'], message: 'Rekening manual hanya BNI atau BSN' });
+    }
+    if (!val.bank_account_number?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['bank_account_number'], message: 'Nomor rekening wajib diisi untuk bank manual' });
+    }
+    if (!val.bank_account_name?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['bank_account_name'], message: 'Atas nama rekening wajib diisi untuk bank manual' });
+    }
+  }
 });
 
 type UnitKasFormData = z.infer<typeof unitKasSchema>;
@@ -30,6 +51,7 @@ type UnitKasFormData = z.infer<typeof unitKasSchema>;
 export default function CreateUnitKasPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [akunKasList, setAkunKasList] = useState<{ id: number; kode_akun: string; nama_akun: string }[]>([]);
 
   const {
     register,
@@ -42,6 +64,8 @@ export default function CreateUnitKasPage() {
     defaultValues: {
       nama_kas: '',
       tipe_kas: 'operasional',
+      kanal: 'bank_manual',
+      akun_keuangan_id: undefined,
       bank_name: 'BNI',
       bank_account_number: '',
       bank_account_name: '',
@@ -53,6 +77,22 @@ export default function CreateUnitKasPage() {
 
   const watchTipeKas = watch('tipe_kas');
   const watchBankName = watch('bank_name');
+  const watchKanal = watch('kanal');
+
+  useEffect(() => {
+    const fetchAkun = async () => {
+      try {
+        const res = await sikeuService.getCoaList('aset');
+        const list = Array.isArray(res.data) ? res.data : [];
+        setAkunKasList(
+          list.filter((a: any) => String(a.kode_akun || '').startsWith('101') || String(a.kode_akun || '').startsWith('102'))
+        );
+      } catch {
+        setAkunKasList([]);
+      }
+    };
+    fetchAkun();
+  }, []);
 
   const onSubmit = async (data: UnitKasFormData) => {
     setSubmitting(true);
@@ -114,6 +154,23 @@ export default function CreateUnitKasPage() {
               ]}
               value={watchTipeKas}
               onChange={(val) => setValue('tipe_kas', val as any, { shouldValidate: true })}
+            />
+
+            <Select
+              label="Kanal Sumber Dana *"
+              options={KANAL_OPTIONS}
+              value={watchKanal}
+              onChange={(val) => setValue('kanal', val as any, { shouldValidate: true })}
+            />
+
+            <Select
+              label="Pemetaan Akun COA Kas-Bank"
+              options={[
+                { value: '', label: '-- Tanpa pemetaan (pakai default kanal) --' },
+                ...akunKasList.map((a) => ({ value: String(a.id), label: `[${a.kode_akun}] ${a.nama_akun}` })),
+              ]}
+              value={watch('akun_keuangan_id')?.toString() || ''}
+              onChange={(val) => setValue('akun_keuangan_id', val ? Number(val) : undefined as any)}
             />
 
             <Input

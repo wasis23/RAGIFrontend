@@ -16,6 +16,7 @@ const PUBLIC_PATHS = new Set([
   '/unauthorized',
   '/error',
   '/validasi-pembayaran',
+  '/validasi-dispensasi',
   '/sikeu/validasi-pembayaran',
 ]);
 

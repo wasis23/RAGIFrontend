@@ -193,7 +193,7 @@ export function PotonganKhususTab({ setHeaderAction }: PotonganKhususTabProps = 
   }, [studentSearch, isModalOpen, editingItem]);
 
   const openAddModal = () => {
-    router.push('/sikeu/mahasiswa/potongan/create');
+    router.push('/sikeu/pembayaran-mahasiswa/potongan/create');
   };
 
   useEffect(() => {

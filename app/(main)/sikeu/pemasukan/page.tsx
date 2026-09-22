@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { formatRupiah } from '@/lib/utils';
 import { sikeuService } from '@/services/sikeu.service';
 import { PemasukanKampus } from '@/types/sikeu.types';
+import { PaginationMeta } from '@/types/api.types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -23,6 +24,9 @@ import { DateText } from '@/components/sikeu/akuntansi/atoms/DateText';
 export default function PemasukanListPage() {
   const [data, setData] = useState<PemasukanKampus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(15);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
 
   // Filter Drawer State — 2-stage
   const [showFilter, setShowFilter] = useState(false);
@@ -35,11 +39,31 @@ export default function PemasukanListPage() {
   const fetchPemasukan = async () => {
     try {
       setLoading(true);
-      const res = await sikeuService.getPemasukanList();
-      const list = Array.isArray(res.data) ? res.data : [];
+      const res: any = await sikeuService.getPemasukanList({
+        sumber: appliedFilters.sumber !== 'all' ? appliedFilters.sumber : undefined,
+        page,
+        per_page: perPage,
+      });
+      const raw = res?.data;
+      // Backend mengembalikan items + meta; toleransi bentuk lama (array / paginator).
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
       setData(list);
+      const metaRaw = res?.meta ?? (raw && !Array.isArray(raw) ? raw : undefined);
+      setMeta(
+        metaRaw && typeof metaRaw.total === 'number'
+          ? {
+              current_page: metaRaw.current_page ?? page,
+              last_page: metaRaw.last_page ?? 1,
+              per_page: metaRaw.per_page ?? perPage,
+              total: metaRaw.total ?? 0,
+              from: metaRaw.from ?? 0,
+              to: metaRaw.to ?? 0,
+            }
+          : undefined
+      );
     } catch {
       setData([]);
+      setMeta(undefined);
       toast.error('Gagal memuat data pemasukan kampu non-akademik');
     } finally {
       setLoading(false);
@@ -48,10 +72,12 @@ export default function PemasukanListPage() {
 
   useEffect(() => {
     fetchPemasukan();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, perPage, appliedFilters]);
 
   const handleApplyFilter = () => {
     setAppliedFilters({ search: filterSearch, sumber: filterSumber, orderBy: filterOrderBy, orderDir: filterOrderDir });
+    setPage(1);
     setShowFilter(false);
   };
 
@@ -61,6 +87,7 @@ export default function PemasukanListPage() {
     setFilterOrderBy('tanggal_terima');
     setFilterOrderDir('desc');
     setAppliedFilters({ search: '', sumber: 'all', orderBy: 'tanggal_terima', orderDir: 'desc' });
+    setPage(1);
     setShowFilter(false);
   };
 
@@ -214,8 +241,53 @@ export default function PemasukanListPage() {
         data={filteredData}
         isLoading={loading}
         columns={columns}
+        meta={meta}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(limit) => {
+          setPerPage(limit);
+          setPage(1);
+        }}
+        renderExpandedRow={(row) => {
+          const akun = (row as PemasukanKampus & { akun_pendapatan?: { kode_akun?: string; nama_akun?: string } }).akun_pendapatan;
+          return (
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                  <p className="text-2xs font-bold text-slate-500 uppercase">Akun Pendapatan (Dikredit)</p>
+                  <p className="font-bold text-slate-900 mt-0.5">
+                    [{akun?.kode_akun || '-'}] {akun?.nama_akun || 'Akun Pendapatan'}
+                  </p>
+                </div>
+                <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                  <p className="text-2xs font-bold text-slate-500 uppercase">Kas/Bank Tujuan (Didebet)</p>
+                  <p className="font-bold text-slate-900 mt-0.5">{row.unit_kas?.nama_kas || 'Kas Utama'}</p>
+                </div>
+              </div>
+              <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
+                <p className="font-semibold text-slate-900">{row.nama_donor_instansi}</p>
+                {row.nomor_kontrak_ref && (
+                  <p className="font-mono text-2xs text-slate-500">Ref kontrak: {row.nomor_kontrak_ref}</p>
+                )}
+                {row.keterangan && <p className="text-slate-600">{row.keterangan}</p>}
+                {row.file_bukti_transfer && (
+                  <button
+                    type="button"
+                    onClick={() => window.open(row.file_bukti_transfer, '_blank')}
+                    className="text-xs font-bold text-primary-700 hover:underline cursor-pointer"
+                  >
+                    Lihat Bukti Transfer
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        }}
         emptyMessage="Belum ada data pencatatan pemasukan non-akademik."
       />
+
+      <p className="text-2xs text-slate-500 text-center">
+        Klik ikon panah di tiap baris untuk melihat rincian akun pendapatan, kas tujuan & bukti transfer.
+      </p>
 
       {/* Filter Drawer */}
       <Drawer

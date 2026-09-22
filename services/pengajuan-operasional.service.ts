@@ -1,0 +1,98 @@
+import apiClient from '@/lib/axios';
+import type { ApiResponse } from '@/types/api.types';
+
+export interface PengajuanItemPayload {
+  nama_barang: string;
+  qty: number;
+  satuan?: string;
+  harga_satuan: number;
+  keterangan?: string;
+}
+
+export interface PengajuanOperasional {
+  id: number;
+  nomor_pengajuan: string;
+  judul_pengajuan: string;
+  deskripsi: string;
+  kategori_pengajuan: 'pengadaan_barang' | 'non_barang';
+  fakultas_id: number;
+  ruangan_id?: number | null;
+  unit_kas_id: number;
+  nominal_diajukan: number;
+  nominal_disetujui: number;
+  total_realisasi: number;
+  sisa_nominal: number;
+  status: string;
+  fakultas?: { id: number; nama: string; kode: string };
+  ruangan?: { id: number; nama: string; kode: string };
+  unit_kas?: { id: number; nama_kas: string };
+  items?: PengajuanItemPayload[] & { subtotal?: number }[];
+  lpj?: any[];
+  history_approval?: any[];
+  created_at?: string;
+}
+
+export const pengajuanOperasionalService = {
+  list: async (params?: { search?: string; status?: string; status_in?: string; kategori?: string; dari?: string; sampai?: string; page?: number; per_page?: number }) => {
+    const { data } = await apiClient.get<ApiResponse<PengajuanOperasional[]>>('/v1/sikeu/pengajuan-operasional', { params });
+    return data;
+  },
+
+  detail: async (id: number | string) => {
+    const { data } = await apiClient.get<ApiResponse<PengajuanOperasional>>(`/v1/sikeu/pengajuan-operasional/${id}`);
+    return data;
+  },
+
+  create: async (form: FormData) => {
+    const { data } = await apiClient.post<ApiResponse<PengajuanOperasional>>('/v1/sikeu/pengajuan-operasional', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  approve: async (id: number | string, aksi: 'approve' | 'reject', catatan?: string) => {
+    const { data } = await apiClient.post<ApiResponse<PengajuanOperasional>>(
+      `/v1/sikeu/pengajuan-operasional/${id}/approve`,
+      { aksi, catatan }
+    );
+    return data;
+  },
+
+  pencairan: async (id: number | string, form: FormData) => {
+    const { data } = await apiClient.post<ApiResponse<PengajuanOperasional>>(
+      `/v1/sikeu/pengajuan-operasional/${id}/pencairan`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return data;
+  },
+
+  simpanLpj: async (id: number | string, form: FormData) => {
+    const { data } = await apiClient.post<ApiResponse<any>>(
+      `/v1/sikeu/pengajuan-operasional/${id}/lpj`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return data;
+  },
+
+  verifikasiLpj: async (lpjId: number | string, aksi: 'approve' | 'reject', catatan?: string) => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/lpj/${lpjId}/verifikasi`, { aksi, catatan });
+    return data;
+  },
+
+  listFakultas: async () => {
+    const { data } = await apiClient.get<ApiResponse<{ id: number; kode: string; nama: string }[]>>('/v1/sikeu/referensi/fakultas');
+    return data;
+  },
+
+  listRuangan: async () => {
+    const { data } = await apiClient.get<ApiResponse<{ id: number; kode: string; nama: string }[]>>('/v1/sikeu/referensi/ruangan');
+    return data;
+  },
+
+  listUnitKas: async () => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/unit-kas');
+    return data;
+  },
+};

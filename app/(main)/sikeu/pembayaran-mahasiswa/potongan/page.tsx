@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -301,7 +301,7 @@ export default function PembayaranMahasiswaPotonganPage() {
       label: 'Tanggal Dibuat',
       render: (row) => (
         <span className="text-xs text-slate-500">
-          {row.created_at || '-'}
+          {formatDate(row.created_at)}
         </span>
       ),
     },

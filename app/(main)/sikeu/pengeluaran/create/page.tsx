@@ -1,7 +1,7 @@
 'use client';
 
 import { formatRupiah } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, Loader2, Calculator } from 'lucide-react';
@@ -17,10 +17,46 @@ import { useForm } from 'react-hook-form';
 interface UnitKas {
   id: number;
   nama_kas: string;
+  kanal?: string;
 }
+
+const KANAL_LABEL: Record<string, string> = {
+  tunai: 'Tunai',
+  bank_manual: 'Bank Manual',
+  bank_h2h: 'Bank H2H',
+  xendit: 'Xendit',
+};
+
+const kanalLabel = (kanal?: string) => (kanal ? ` [${KANAL_LABEL[kanal] || kanal}]` : '');
+
+interface AkunBebanOption {
+  id: number;
+  kode_akun: string;
+  nama_akun: string;
+}
+
+const KATEGORI_OPTIONS = [
+  { value: 'operasional', label: 'Operasional Kantor' },
+  { value: 'pemeliharaan', label: 'Pemeliharaan Sarana & Prasarana' },
+  { value: 'laboratorium', label: 'Laboratorium & Praktikum' },
+  { value: 'kegiatan', label: 'Kegiatan & Acara' },
+  { value: 'honorarium', label: 'Honorarium / Gaji' },
+  { value: 'lainnya', label: 'Lainnya' },
+];
+
+// Pemetaan otomatis kategori -> kode akun beban (sama dengan backend).
+const KATEGORI_DEFAULT_COA: Record<string, string> = {
+  honorarium: '501.01',
+  pemeliharaan: '502.02',
+  laboratorium: '502.03',
+};
+
+const defaultCoaForKategori = (kategori: string) =>
+  KATEGORI_DEFAULT_COA[kategori] ?? '502.01';
 
 interface FormValues {
   kategori: string;
+  akun_beban_id: number;
   nominal: number;
   tanggal_transaksi: string;
   nama_vendor: string;
@@ -36,11 +72,13 @@ interface FormValues {
 export default function CreatePengeluaranPage() {
   const router = useRouter();
   const [unitKasList, setUnitKasList] = useState<UnitKas[]>([]);
+  const [akunBebanList, setAkunBebanList] = useState<AkunBebanOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       kategori: 'operasional',
+      akun_beban_id: 0,
       nominal: 0,
       tanggal_transaksi: new Date().toISOString().split('T')[0],
       nama_vendor: '',
@@ -55,6 +93,8 @@ export default function CreatePengeluaranPage() {
   const nominalVal = watch('nominal') || 0;
   const jenisPajakVal = watch('jenis_pajak');
   const tarifPajakVal = watch('tarif_pajak_persen') || 0;
+  const kategoriVal = watch('kategori');
+  const akunBebanIdVal = watch('akun_beban_id') || 0;
 
   const nominalPajak = (nominalVal * tarifPajakVal) / 100;
   const netDibayarkan = (jenisPajakVal === 'pph_21' || jenisPajakVal === 'pph_23')
@@ -74,14 +114,34 @@ export default function CreatePengeluaranPage() {
         setUnitKasList([]);
       }
     };
+    const fetchAkunBeban = async () => {
+      try {
+        const res = await sikeuService.getCoaList('beban');
+        const list = Array.isArray(res.data) ? res.data : [];
+        setAkunBebanList(list);
+      } catch {
+        setAkunBebanList([]);
+      }
+    };
     fetchUnitKas();
+    fetchAkunBeban();
   }, [setValue]);
+
+  const akunBebanTerpilih = useMemo(
+    () => akunBebanList.find((a) => a.id === akunBebanIdVal),
+    [akunBebanList, akunBebanIdVal]
+  );
+  const akunBebanOtomatis = useMemo(
+    () => akunBebanList.find((a) => a.kode_akun === defaultCoaForKategori(kategoriVal)),
+    [akunBebanList, kategoriVal]
+  );
 
   const onSubmitForm = async (formData: FormValues) => {
     setSubmitting(true);
     try {
       await sikeuService.storePengeluaran({
         kategori: formData.kategori,
+        akun_beban_id: formData.akun_beban_id || undefined,
         nominal: formData.nominal,
         tanggal_transaksi: formData.tanggal_transaksi,
         nama_vendor: formData.nama_vendor,
@@ -116,22 +176,42 @@ export default function CreatePengeluaranPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               label="Kategori Pengeluaran *"
-              options={[
-                { value: 'operasional', label: 'Operasional Kantor / Fakultas' },
-                { value: 'gaji', label: 'Payroll Gaji / Honorarium' },
-                { value: 'pembelian', label: 'Pembelian Aset & Alat Kampus' },
-                { value: 'praktikum', label: 'Bahan Laboratorium / Praktikum' },
-              ]}
+              options={KATEGORI_OPTIONS}
               value={watch('kategori')}
               onChange={(val) => setValue('kategori', val as string)}
             />
 
             <Select
               label="Sumber Kas / Rekening Pembayar *"
-              options={unitKasList.map(u => ({ value: u.id.toString(), label: u.nama_kas }))}
+              options={unitKasList.map(u => ({ value: u.id.toString(), label: `${u.nama_kas}${kanalLabel(u.kanal)}` }))}
               value={watch('unit_kas_id')?.toString() || '1'}
               onChange={(val) => setValue('unit_kas_id', Number(val))}
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Akun Beban (COA)"
+              options={[
+                { value: '0', label: `Otomatis mengikuti kategori${akunBebanOtomatis ? ` ([${akunBebanOtomatis.kode_akun}] ${akunBebanOtomatis.nama_akun})` : ''}` },
+                ...akunBebanList.map((a) => ({
+                  value: a.id.toString(),
+                  label: `[${a.kode_akun}] ${a.nama_akun}`,
+                })),
+              ]}
+              value={akunBebanIdVal?.toString() || '0'}
+              onChange={(val) => setValue('akun_beban_id', Number(val))}
+            />
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs self-end">
+              <p className="text-2xs font-bold text-slate-500 uppercase">Jurnal akan mendebet</p>
+              <p className="font-bold text-slate-900">
+                {akunBebanTerpilih
+                  ? `[${akunBebanTerpilih.kode_akun}] ${akunBebanTerpilih.nama_akun}`
+                  : akunBebanOtomatis
+                    ? `[${akunBebanOtomatis.kode_akun}] ${akunBebanOtomatis.nama_akun} (otomatis)`
+                    : 'Mengikuti pemetaan kategori'}
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

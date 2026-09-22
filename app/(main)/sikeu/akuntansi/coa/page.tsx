@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus, ArrowLeft, BookOpen, CheckCircle, XCircle, Filter, Search, Eye } from 'lucide-react';
 import { sikeuService } from '@/services/sikeu.service';
 import { AkunKeuangan } from '@/types/sikeu.types';
@@ -16,6 +16,7 @@ import { Select } from '@/components/ui/Select';
 import toast from 'react-hot-toast';
 
 export default function CoaPage() {
+  const router = useRouter();
   const [coaList, setCoaList] = useState<AkunKeuangan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -176,15 +177,19 @@ export default function CoaPage() {
         ]}
         action={
           <div className="flex items-center gap-2">
-            <Link href="/sikeu/akuntansi">
-              <Button variant="outline" icon={<ArrowLeft size={16} />}>
-                Kembali
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              icon={<ArrowLeft size={16} />}
+              onClick={() => router.push('/sikeu/akuntansi')}
+              className="font-bold min-h-[38px] text-xs"
+            >
+              Kembali
+            </Button>
             <Button
               variant="outline"
               icon={<Filter size={16} />}
               onClick={() => setShowFilter(true)}
+              className="font-bold min-h-[38px] text-xs"
             >
               Filter
             </Button>
@@ -192,6 +197,7 @@ export default function CoaPage() {
               variant="primary"
               icon={<Plus size={16} />}
               onClick={() => setShowModal(true)}
+              className="font-bold min-h-[38px] text-xs px-3.5 shadow-sm"
             >
               Tambah Akun COA
             </Button>

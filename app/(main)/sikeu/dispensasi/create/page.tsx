@@ -15,7 +15,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 
 const dispensasiSchema = z.object({
   mahasiswa_id: z.number().min(1, 'Mahasiswa wajib dipilih'),
@@ -347,7 +347,7 @@ export default function CreateDispensasiPage() {
                       </div>
                       <div className="mt-1 flex items-center justify-between text-2xs text-slate-400">
                         <span>Jatuh Tempo:</span>
-                        <span>{b.jatuh_tempo || '-'}</span>
+                        <span>{formatDate(b.jatuh_tempo)}</span>
                       </div>
                     </div>
                   );

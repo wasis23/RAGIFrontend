@@ -48,8 +48,8 @@ export const ROUTES = {
 
   // SIKEU Modul
   SIKEU_DASHBOARD: '/sikeu',
-  SIKEU_TAGIHAN: '/sikeu/tagihan',
-  SIKEU_PEMBAYARAN: '/sikeu/pembayaran',
+  SIKEU_TAGIHAN: '/sikeu/pembayaran-mahasiswa/tagihan',
+  SIKEU_PEMBAYARAN: '/sikeu/pembayaran-mahasiswa/bayar',
   SIKEU_DISPENSASI: '/sikeu/dispensasi',
   SIKEU_APPROVAL: '/sikeu/approval',
   SIKEU_PEMASUKAN: '/sikeu/pemasukan',

@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { TableRowSkeleton } from './Skeleton';
 import { Select } from './Select';
 import type { PaginationMeta } from '@/types/api.types';
@@ -24,6 +24,8 @@ interface DataTableProps<T> {
   onLimitChange?: (limit: number) => void;
   emptyMessage?: React.ReactNode;
   rowClassName?: (row: T, index: number) => string;
+  renderExpandedRow?: (row: T, index: number) => React.ReactNode;
+  defaultExpandedAll?: boolean;
 }
 
 export function DataTable<T extends object>({
@@ -35,12 +37,37 @@ export function DataTable<T extends object>({
   onLimitChange,
   emptyMessage = 'Data tidak ditemukan.',
   rowClassName,
+  renderExpandedRow,
+  defaultExpandedAll = false,
 }: DataTableProps<T>) {
-  
+  const [expandedAll, setExpandedAll] = useState(defaultExpandedAll);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+
+  const rowKey = (row: T, index: number) =>
+    String((row as { id?: number | string }).id ?? index);
+
+  const isExpanded = (row: T, index: number) =>
+    expandedAll || expandedKeys.has(rowKey(row, index));
+
+  const toggleRow = (row: T, index: number) => {
+    const key = rowKey(row, index);
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   // Calculate which items are shown
   const from = meta?.from ?? 0;
   const to = meta?.to ?? 0;
   const total = meta?.total ?? 0;
+  const expandable = typeof renderExpandedRow === 'function';
+  const colCount = columns.length + (expandable ? 1 : 0);
 
   return (
     <div className="table-container bg-white shadow-xs">
@@ -48,6 +75,30 @@ export function DataTable<T extends object>({
         <table className="table bg-white">
           <thead className="bg-white">
             <tr className="bg-white">
+              {expandable && (
+                <th className="bg-white" style={{ width: '36px', padding: '0.5rem' }}>
+                  {data.length > 0 && !isLoading && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm btn-icon"
+                      style={{ padding: '2px' }}
+                      title={expandedAll ? 'Tutup semua rincian' : 'Buka semua rincian'}
+                      onClick={() => {
+                        setExpandedAll((v) => !v);
+                        setExpandedKeys(new Set());
+                      }}
+                    >
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          transform: expandedAll ? 'rotate(0deg)' : 'rotate(-90deg)',
+                          transition: 'transform 0.15s ease-in-out',
+                        }}
+                      />
+                    </button>
+                  )}
+                </th>
+              )}
               {columns.map((col, index) => (
                 <th key={col.key || index} style={{ textAlign: col.align || 'left' }} className="bg-white">
                   {col.headerRender ? col.headerRender() : col.label}
@@ -58,26 +109,53 @@ export function DataTable<T extends object>({
           <tbody className="bg-white">
             {isLoading ? (
               Array.from({ length: meta?.per_page || 5 }).map((_, i) => (
-                <TableRowSkeleton key={i} cols={columns.length} />
+                <TableRowSkeleton key={i} cols={colCount} />
               ))
             ) : data.length === 0 ? (
               <tr className="bg-white">
-                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '3rem 1rem' }} className="bg-white">
+                <td colSpan={colCount} style={{ textAlign: 'center', padding: '3rem 1rem' }} className="bg-white">
                   <div style={{ color: 'var(--text-muted)' }}>{emptyMessage}</div>
                 </td>
               </tr>
             ) : (
               data.map((row, rowIndex) => (
-                <tr
-                  key={(row as { id?: number | string }).id || rowIndex}
-                  className={`bg-white hover:bg-slate-50 transition-colors ${rowClassName ? rowClassName(row, rowIndex) : ''}`}
-                >
-                  {columns.map((col, colIndex) => (
-                    <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }} className="bg-white">
-                      {col.render ? col.render(row, rowIndex) : (row as any)[col.key]}
-                    </td>
-                  ))}
-                </tr>
+                <React.Fragment key={(row as { id?: number | string }).id || rowIndex}>
+                  <tr
+                    className={`bg-white hover:bg-slate-50 transition-colors ${rowClassName ? rowClassName(row, rowIndex) : ''}`}
+                  >
+                    {expandable && (
+                      <td className="bg-white" style={{ width: '36px', padding: '0.5rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-icon"
+                          style={{ padding: '2px' }}
+                          title={isExpanded(row, rowIndex) ? 'Sembunyikan rincian' : 'Tampilkan rincian debet/kredit'}
+                          onClick={() => toggleRow(row, rowIndex)}
+                        >
+                          <ChevronDown
+                            size={16}
+                            style={{
+                              transform: isExpanded(row, rowIndex) ? 'rotate(0deg)' : 'rotate(-90deg)',
+                              transition: 'transform 0.15s ease-in-out',
+                            }}
+                          />
+                        </button>
+                      </td>
+                    )}
+                    {columns.map((col, colIndex) => (
+                      <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }} className="bg-white">
+                        {col.render ? col.render(row, rowIndex) : (row as any)[col.key]}
+                      </td>
+                    ))}
+                  </tr>
+                  {expandable && isExpanded(row, rowIndex) && (
+                    <tr className="bg-slate-50/60">
+                      <td colSpan={colCount} style={{ padding: '0.75rem 1rem 1rem 2.75rem' }} className="bg-slate-50/60">
+                        {renderExpandedRow?.(row, rowIndex)}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))
             )}
           </tbody>

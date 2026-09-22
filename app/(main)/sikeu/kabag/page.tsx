@@ -1,6 +1,6 @@
 'use client';
 
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -71,7 +71,7 @@ export default function SikeuKabagPage() {
           prodi: d.prodi || '-',
           tipe: d.tipe_dispensasi?.replace('_', ' ') || 'Dispensasi',
           nominal: Number(d.nominal_per_cicilan) || 0,
-          deadline: d.jatuh_tempo_baru || '-',
+          deadline: formatDate(d.jatuh_tempo_baru) || '-',
           alasan: d.alasan || 'Permohonan dispensasi pembayaran tagihan',
         }));
         setPendingDispensasi(mapped);
@@ -83,7 +83,7 @@ export default function SikeuKabagPage() {
           mhs: t.mahasiswa?.nama_lengkap || `Mahasiswa #${t.mahasiswa_id}`,
           nominal: Number(t.total_tagihan) || 0,
           jenis: (t.source_system || 'SIAKAD').toUpperCase(),
-          jatuh_tempo: t.jatuh_tempo || '-',
+          jatuh_tempo: formatDate(t.jatuh_tempo) || '-',
         }));
         setPendingTagihan(mappedTagihan);
       }
@@ -268,7 +268,7 @@ export default function SikeuKabagPage() {
                     <div>
                       <div className="font-mono font-bold text-primary-900">{k.kode}</div>
                       <div className="text-[11px] text-slate-700 font-bold">{k.jenis} | {k.mhs}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Jatuh tempo: {k.jatuh_tempo}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">Jatuh tempo: {formatDate(k.jatuh_tempo)}</div>
                     </div>
                     <div className="text-right space-y-2 shrink-0">
                       <div className="font-mono text-sm font-extrabold text-emerald-800">{formatRupiah(k.nominal)}</div>

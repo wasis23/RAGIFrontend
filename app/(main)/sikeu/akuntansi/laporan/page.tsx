@@ -2,8 +2,7 @@
 
 import { formatRupiah } from '@/lib/utils';
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Download, PieChart, TrendingUp, DollarSign, Layers, Printer, Loader2 } from 'lucide-react';
+import { ArrowLeft, PieChart, TrendingUp, DollarSign, Layers, Printer, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -16,11 +15,16 @@ export default function LaporanKeuanganPage() {
   const [activeTab, setActiveTab] = useState<'laba_rugi' | 'neraca' | 'arus_kas' | 'ekuitas'>('laba_rugi');
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState<any>(null);
+  const [filterDari, setFilterDari] = useState('');
+  const [filterSampai, setFilterSampai] = useState('');
 
-  const fetchLaporan = async () => {
+  const fetchLaporan = async (dari?: string, sampai?: string) => {
     try {
       setLoading(true);
-      const res = await sikeuService.getLaporanKeuangan();
+      const res = await sikeuService.getLaporanKeuangan({
+        dari: dari || undefined,
+        sampai: sampai || undefined,
+      });
       if (res.data) {
         setReportData(res.data);
       }
@@ -44,24 +48,81 @@ export default function LaporanKeuanganPage() {
   return (
     <div className="w-full space-y-6 animate-fade-in pb-6">
       <PageHeader
-        title="Portal 4 Laporan Keuangan Utama"
+        title="Laporan Keuangan Utama"
         description="Laporan Laba Rugi, Neraca Posisi Keuangan, Arus Kas, & Laporan Perubahan Ekuitas Kampus"
+        breadcrumbs={[
+          { label: 'Keuangan', href: '/sikeu' },
+          { label: 'Akuntansi', href: '/sikeu/akuntansi' },
+          { label: 'Laporan Keuangan' },
+        ]}
         action={
           <div className="flex items-center gap-2">
-            <Link href="/sikeu/akuntansi" className="btn btn-warning btn-icon" title="Kembali">
-              <ArrowLeft size={18} />
-            </Link>
+            <Button
+              variant="outline"
+              icon={<ArrowLeft size={16} />}
+              onClick={() => window.history.back()}
+              className="font-bold min-h-[38px] text-xs"
+            >
+              Kembali
+            </Button>
             <Button
               variant="outline"
               icon={<Printer size={16} />}
               onClick={() => window.print()}
-              className="font-bold print:hidden"
+              className="font-bold min-h-[38px] text-xs print:hidden"
             >
               Cetak Laporan
             </Button>
           </div>
         }
       />
+
+      {/* Filter Periode Laporan */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row sm:items-end gap-3 print:hidden">
+        <div className="grid grid-cols-2 gap-3 flex-1">
+          <div>
+            <label className="text-2xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Dari Tanggal</label>
+            <input
+              type="date"
+              value={filterDari}
+              onChange={(e) => setFilterDari(e.target.value)}
+              className="input w-full"
+            />
+          </div>
+          <div>
+            <label className="text-2xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Sampai Tanggal</label>
+            <input
+              type="date"
+              value={filterSampai}
+              onChange={(e) => setFilterSampai(e.target.value)}
+              className="input w-full"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => fetchLaporan(filterDari, filterSampai)}
+            disabled={loading}
+            className="font-bold min-h-[38px]"
+          >
+            Terapkan
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setFilterDari(''); setFilterSampai(''); fetchLaporan(); }}
+            disabled={loading}
+            className="font-bold min-h-[38px]"
+          >
+            Reset
+          </Button>
+        </div>
+      </div>
+      <p className="text-2xs text-slate-500 -mt-3 print:hidden">
+        Arus (pendapatan/beban/kas) mengikuti rentang tanggal • Posisi (kas, piutang, aset) kumulatif s.d. tanggal akhir.
+      </p>
 
       {/* Financial Statement Tabs */}
       <div className="flex border-b border-slate-200 bg-white px-6 pt-3 rounded-t-xl overflow-x-auto print:hidden shadow-2xs">

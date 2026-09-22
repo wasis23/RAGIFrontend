@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -59,6 +59,8 @@ interface DynamicTarifItem {
   nominal: number;
   is_recurring: boolean;
   cakupan: 'spesifik_prodi' | 'global_kampus';
+  semester?: number | null;
+  cakupan_semester?: string;
   keterangan?: string;
   selected?: boolean;
   customNominal?: number;
@@ -93,9 +95,13 @@ export default function CreateTagihanMahasiswaPage() {
   const [loadingMassPreview, setLoadingMassPreview] = useState(false);
   const [massPreviewData, setMassPreviewData] = useState<{
     total_mahasiswa: number;
+    sudah_ditagih_count?: number;
+    akan_diterbitkan_count?: number;
     total_estimasi_nominal: number;
     sample_mahasiswa: any[];
+    mahasiswa?: any[];
     komponen_biaya: any[];
+    komponen_terpakai?: any[];
   } | null>(null);
 
   // Mass Confirm & Submit
@@ -158,7 +164,9 @@ export default function CreateTagihanMahasiswaPage() {
     loadReferences();
   }, [currentYear]);
 
-  // Fetch Mass Preview Debounced
+  // Fetch Mass Preview Debounced (tanpa filter komponen: tampilkan seluruh
+  // komponen yang cocok tarif angkatan/prodi/semester, pilihan dicentang otomatis)
+  const massBiayaDirtyRef = useRef(false);
   const fetchMassPreview = useCallback(async () => {
     if (!massAngkatan) return;
     setLoadingMassPreview(true);
@@ -166,18 +174,22 @@ export default function CreateTagihanMahasiswaPage() {
       const res = await sikeuService.previewPembayaranMahasiswaMassTagihan({
         tahun_angkatan: massAngkatan,
         program_studi_id: massProdiId ? Number(massProdiId) : undefined,
-        master_biaya_ids: selectedMassBiayaIds.length > 0 ? selectedMassBiayaIds : undefined,
+        semester: massSemester ? Number(massSemester) : undefined,
       });
 
       if (res.data) {
         setMassPreviewData(res.data);
+        // Auto-cocokkan komponen selama user belum mengubah manual
+        if (!massBiayaDirtyRef.current && Array.isArray((res.data as any).komponen_terpakai)) {
+          setSelectedMassBiayaIds((res.data as any).komponen_terpakai.map((k: any) => k.master_biaya_id));
+        }
       }
     } catch {
       setMassPreviewData(null);
     } finally {
       setLoadingMassPreview(false);
     }
-  }, [massAngkatan, massProdiId, selectedMassBiayaIds]);
+  }, [massAngkatan, massProdiId, massSemester]);
 
   useEffect(() => {
     if (activeTab === 'massal' && !loadingRefs) {
@@ -188,8 +200,33 @@ export default function CreateTagihanMahasiswaPage() {
     }
   }, [activeTab, loadingRefs, fetchMassPreview]);
 
-  // Toggle Fee for Mass Generation
+  // Komponen yang cocok tarif untuk parameter di atas (otomatis, bukan seluruh katalog)
+  const matchedKomponen = useMemo(() => {
+    const list = massPreviewData?.komponen_terpakai;
+    if (Array.isArray(list) && list.length > 0) return list;
+    return [];
+  }, [massPreviewData]);
+
+  // Total & daftar efektif sesuai komponen yang dicentang (di luar yang sudah ditagih)
+  const effectivePreview = useMemo(() => {
+    const rows = massPreviewData?.mahasiswa || massPreviewData?.sample_mahasiswa || [];
+    let estimasi = 0;
+    let akanTerbit = 0;
+    const filtered = rows.map((m: any) => {
+      const rincian = (m.rincian || []).filter((r: any) => selectedMassBiayaIds.includes(r.master_biaya_id));
+      const total = rincian.reduce((s: number, r: any) => s + Number(r.nominal || 0), 0);
+      if (!m.sudah_ditagih && total > 0) {
+        akanTerbit += 1;
+        estimasi += total;
+      }
+      return { ...m, rincian, total_nominal: total };
+    });
+    return { rows: filtered, estimasi, akanTerbit };
+  }, [massPreviewData, selectedMassBiayaIds]);
+
+  // Toggle Fee for Mass Generation (manual user = kunci pilihan otomatis)
   const toggleMassBiaya = (id: number) => {
+    massBiayaDirtyRef.current = true;
     setSelectedMassBiayaIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
@@ -269,6 +306,8 @@ export default function CreateTagihanMahasiswaPage() {
       } else {
         params.mahasiswa_id = mhs.id;
       }
+      // Kirim semester penagihan agar komponen khusus semester (lab/magang) ikut tersaring
+      if (indivSemester) params.semester = Number(indivSemester);
 
       const res = await sikeuService.getPembayaranMahasiswaTarifMahasiswa(params);
       const items = Array.isArray(res.data?.komponen_tarif) ? res.data.komponen_tarif : [];
@@ -428,7 +467,7 @@ export default function CreateTagihanMahasiswaPage() {
               <Select
                 label="Tahun Angkatan *"
                 value={String(massAngkatan)}
-                onChange={(v) => setMassAngkatan(Number(v))}
+                onChange={(v) => { massBiayaDirtyRef.current = false; setMassAngkatan(Number(v)); }}
                 options={angkatanOptions.map((th) => ({
                   value: String(th),
                   label: `Angkatan ${th}`,
@@ -438,7 +477,7 @@ export default function CreateTagihanMahasiswaPage() {
               <Select
                 label="Program Studi"
                 value={massProdiId}
-                onChange={(v) => setMassProdiId(v as string)}
+                onChange={(v) => { massBiayaDirtyRef.current = false; setMassProdiId(v as string); }}
                 options={[
                   { value: '', label: 'Semua Program Studi (Seluruh Kampus)' },
                   ...prodiList.map((p) => ({
@@ -451,7 +490,7 @@ export default function CreateTagihanMahasiswaPage() {
               <Select
                 label="Semester Tagihan *"
                 value={massSemester}
-                onChange={(v) => setMassSemester(v as string)}
+                onChange={(v) => { massBiayaDirtyRef.current = false; setMassSemester(v as string); }}
                 options={Array.from({ length: 14 }, (_, i) => ({
                   value: String(i + 1),
                   label: `Semester ${i + 1}`,
@@ -474,30 +513,39 @@ export default function CreateTagihanMahasiswaPage() {
             />
           </div>
 
-          {/* KOMPONEN BIAYA DINAMIS SELECTION */}
+          {/* KOMPONEN BIAYA OTOMATIS SESUAI TARIF */}
           <div className="p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
                 <Sparkles size={16} className="text-primary-600" />
-                <span>2. Komponen Biaya Dinamis yang Ditagihkan</span>
+                <span>2. Komponen Biaya yang Ditagihkan (Otomatis Cocok Tarif)</span>
               </h2>
               <span className="text-2xs text-slate-500 font-medium">
-                Komponen berskema dinamis dari Master Biaya SIKEU
+                Angkatan {massAngkatan} • {massProdiId ? 'Prodi terpilih' : 'Semua prodi'} • Semester {massSemester}
               </span>
             </div>
 
-            {dynamicKatalog.length === 0 ? (
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                Belum ada komponen biaya dengan skema tarif dinamis di Master Biaya.
+            {loadingMassPreview && matchedKomponen.length === 0 ? (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                <Loader2 size={14} className="animate-spin text-primary-600" />
+                Mencocokkan komponen dengan pengaturan tarif...
+              </div>
+            ) : matchedKomponen.length === 0 ? (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-center text-xs text-amber-800 space-y-1">
+                <p className="font-bold">Tidak ada komponen yang cocok untuk parameter ini.</p>
+                <p className="text-2xs">Belum ada tarif aktif Angkatan {massAngkatan} Semester {massSemester}. Atur dulu di menu Pengaturan Tarif.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {dynamicKatalog.map((k) => {
-                  const isChecked = selectedMassBiayaIds.includes(k.id);
+                {matchedKomponen.map((k: any) => {
+                  const isChecked = selectedMassBiayaIds.includes(k.master_biaya_id);
+                  const nominalLabel = k.nominal_min === k.nominal_max
+                    ? formatRupiah(k.nominal_min)
+                    : `${formatRupiah(k.nominal_min)} – ${formatRupiah(k.nominal_max)}`;
                   return (
                     <div
-                      key={k.id}
-                      onClick={() => toggleMassBiaya(k.id)}
+                      key={k.master_biaya_id}
+                      onClick={() => toggleMassBiaya(k.master_biaya_id)}
                       className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
                         isChecked
                           ? 'border-primary-400 bg-primary-50/50 shadow-2xs'
@@ -518,8 +566,8 @@ export default function CreateTagihanMahasiswaPage() {
                           <span className="font-mono text-2xs px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">
                             {k.kode}
                           </span>
-                          <span className="text-[10px] text-primary-700 font-medium bg-primary-100/70 px-1.5 py-0.2 rounded">
-                            Skema Dinamis
+                          <span className="font-mono text-2xs px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 font-bold">
+                            {nominalLabel}
                           </span>
                         </div>
                       </div>
@@ -559,7 +607,7 @@ export default function CreateTagihanMahasiswaPage() {
               </div>
             ) : massPreviewData ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-1">
                     <span className="text-2xs font-bold text-blue-700 uppercase tracking-wider">
                       Mahasiswa Sasaran
@@ -571,41 +619,70 @@ export default function CreateTagihanMahasiswaPage() {
                       <span className="text-xs text-blue-800 font-medium">Mahasiswa Aktif</span>
                     </div>
                     <p className="text-2xs text-blue-700">
-                      Angkatan {massAngkatan} {massProdiId ? `• Prodi Terpilih` : `• Seluruh Prodi`}
+                      Angkatan {massAngkatan} {massProdiId ? `• Prodi Terpilih` : `• Seluruh Prodi`} • Semester {massSemester}
                     </p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200/80 space-y-1">
                     <span className="text-2xs font-bold text-emerald-700 uppercase tracking-wider">
-                      Estimasi Total Nilai Tagihan
+                      Akan Diterbitkan
                     </span>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-xl sm:text-2xl font-extrabold text-emerald-950 font-mono">
-                        {formatRupiah(massPreviewData.total_estimasi_nominal)}
+                      <span className="text-2xl font-extrabold text-emerald-950 font-mono">
+                        {effectivePreview.akanTerbit}
                       </span>
+                      <span className="text-xs text-emerald-800 font-medium">Invoice Baru</span>
                     </div>
                     <p className="text-2xs text-emerald-700">
-                      Total akumulasi tagihan mahasiswa yang akan diterbitkan
+                      Estimasi {formatRupiah(effectivePreview.estimasi)} • {massPreviewData.sudah_ditagih_count || 0} sudah ditagih (dilewati)
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-1">
+                    <span className="text-2xs font-bold text-amber-700 uppercase tracking-wider">
+                      Sudah Ditagih
+                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-extrabold text-amber-950 font-mono">
+                        {massPreviewData.sudah_ditagih_count || 0}
+                      </span>
+                      <span className="text-xs text-amber-800 font-medium">Dilewati Otomatis</span>
+                    </div>
+                    <p className="text-2xs text-amber-700">
+                      Memiliki tagihan Semester {massSemester} & tidak ditagih ulang
                     </p>
                   </div>
                 </div>
 
-                {/* Sample Mahasiswa List */}
-                {massPreviewData.sample_mahasiswa && massPreviewData.sample_mahasiswa.length > 0 ? (
+                {/* Daftar Mahasiswa Cocok */}
+                {effectivePreview.rows.length > 0 ? (
                   <div>
                     <span className="text-xs font-bold text-slate-700 block mb-2">
-                      Sampel Mahasiswa yang Akan Diterbitkan Invoice:
+                      Mahasiswa Cocok Parameter ({effectivePreview.rows.length}):
                     </span>
-                    <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
-                      {massPreviewData.sample_mahasiswa.map((m, idx) => (
-                        <div key={idx} className="p-3 flex items-center justify-between bg-white hover:bg-slate-50">
+                    <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 text-xs max-h-80 overflow-y-auto">
+                      {effectivePreview.rows.map((m: any, idx: number) => (
+                        <div key={m.id ?? idx} className="p-3 flex items-center justify-between bg-white hover:bg-slate-50">
                           <div className="space-y-0.5">
-                            <span className="font-bold text-slate-900 block">{m.nama_lengkap}</span>
+                            <span className="font-bold text-slate-900 block">
+                              {m.nama_lengkap}{' '}
+                              {m.sudah_ditagih && (
+                                <span className="ml-1 text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
+                                  Sudah ditagih
+                                </span>
+                              )}
+                            </span>
                             <span className="text-2xs text-slate-500 font-mono">
                               NIM: {m.nim} • {m.prodi}
+                              {m.sudah_ditagih && m.nomor_tagihan ? ` • ${m.nomor_tagihan}` : ''}
                             </span>
+                            {m.rincian?.length > 0 && (
+                              <span className="text-[10px] text-slate-400 block">
+                                {m.rincian.map((r: any) => r.nama).join(', ')}
+                              </span>
+                            )}
                           </div>
-                          <div className="text-right">
+                          <div className="text-right shrink-0">
                             <span className="font-mono font-bold text-slate-900 text-xs block">
                               {formatRupiah(m.total_nominal)}
                             </span>
@@ -615,11 +692,6 @@ export default function CreateTagihanMahasiswaPage() {
                           </div>
                         </div>
                       ))}
-                      {massPreviewData.total_mahasiswa > massPreviewData.sample_mahasiswa.length && (
-                        <div className="p-2.5 text-center text-2xs text-slate-500 bg-slate-50 font-medium">
-                          Dan {massPreviewData.total_mahasiswa - massPreviewData.sample_mahasiswa.length} mahasiswa lainnya dalam angkatan ini...
-                        </div>
-                      )}
                     </div>
                   </div>
                 ) : (
@@ -638,14 +710,14 @@ export default function CreateTagihanMahasiswaPage() {
                     disabled={
                       submittingMass ||
                       !massPreviewData ||
-                      massPreviewData.total_mahasiswa === 0 ||
+                      effectivePreview.akanTerbit === 0 ||
                       selectedMassBiayaIds.length === 0
                     }
                     onClick={() => setShowMassConfirm(true)}
                     icon={submittingMass ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                     className="font-bold shadow-md min-w-[200px]"
                   >
-                    Terbitkan Tagihan Massal ({massPreviewData.total_mahasiswa} Mhs)
+                    Terbitkan Tagihan Massal ({effectivePreview.akanTerbit} Mhs)
                   </Button>
                 </div>
               </div>
@@ -815,6 +887,7 @@ export default function CreateTagihanMahasiswaPage() {
                           <span className="font-mono text-2xs text-slate-500">
                             {item.kode} • Cakupan:{' '}
                             {item.cakupan === 'spesifik_prodi' ? 'Khusus Prodi' : 'Semua Prodi (Global)'}
+                            {item.semester !== null && item.semester !== undefined ? ` • Smt ${item.semester}` : ''}
                           </span>
                         </div>
                       </div>
@@ -857,7 +930,11 @@ export default function CreateTagihanMahasiswaPage() {
                 <Select
                   label="Semester *"
                   value={indivSemester}
-                  onChange={(v) => setIndivSemester(v as string)}
+                  onChange={(v) => {
+                    setIndivSemester(v as string);
+                    // Muat ulang komponen sesuai semester (lab/magang hanya muncul di semester tertentu)
+                    if (selectedStudent) handleSelectStudent(selectedStudent);
+                  }}
                   options={Array.from({ length: 14 }, (_, i) => ({
                     value: String(i + 1),
                     label: `Semester ${i + 1}`,
@@ -954,11 +1031,11 @@ export default function CreateTagihanMahasiswaPage() {
         message={
           <div className="space-y-2 text-left text-xs text-slate-600">
             <p>
-              Anda akan menerbitkan tagihan untuk <strong>{massPreviewData?.total_mahasiswa || 0} mahasiswa</strong>{' '}
-              pada <strong>Angkatan {massAngkatan}</strong>{' '}
+              Anda akan menerbitkan tagihan untuk <strong>{effectivePreview.akanTerbit} mahasiswa</strong>{' '}
+              pada <strong>Angkatan {massAngkatan} Semester {massSemester}</strong>{' '}
               {massProdiId ? `(Prodi terpilih)` : `(Semua Program Studi)`} dengan estimasi akumulasi nominal{' '}
               <strong className="text-primary-700 font-mono">
-                {formatRupiah(massPreviewData?.total_estimasi_nominal || 0)}
+                {formatRupiah(effectivePreview.estimasi)}
               </strong>.
             </p>
             <p className="text-2xs text-slate-500">
@@ -1005,6 +1082,12 @@ export default function CreateTagihanMahasiswaPage() {
               <span>Sasaran Angkatan:</span>
               <span className="font-medium text-slate-800">{massSuccessData?.tahun_angkatan}</span>
             </div>
+            {(massSuccessData?.skipped_count || 0) > 0 && (
+              <div className="flex justify-between">
+                <span>Dilewati (sudah ditagih):</span>
+                <strong className="font-mono text-amber-700">{massSuccessData?.skipped_count} Mahasiswa</strong>
+              </div>
+            )}
           </div>
           <div className="flex justify-end pt-3 border-t border-slate-100">
             <Button

@@ -17,6 +17,14 @@ export interface GatewayConfigData {
   account_validation_enabled: boolean;
   max_disbursement_limit: number;
   is_active: boolean;
+  // Koneksi bridge H2H BTN Syariah (hanya dipakai tab bsn_h2h)
+  base_url?: string;
+  server_location?: string;
+  db_host?: string;
+  db_port?: number | string;
+  db_name?: string;
+  db_username?: string;
+  db_password?: string;
 }
 
 interface GatewayConfigFormPanelProps {

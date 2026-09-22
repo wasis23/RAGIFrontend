@@ -21,7 +21,8 @@ import {
   SlidersHorizontal,
   CreditCard,
   Trash2,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Landmark,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -54,11 +55,16 @@ interface TagihanRecord {
   status: string;
   jatuh_tempo?: string;
   va_number?: string;
+  h2h_billing_id?: string;
+  h2h_id_tagihan?: string;
+  h2h_custid?: string;
   created_at?: string;
   rincian_komponen?: Array<{
     master_biaya_id: number;
     nama_biaya: string;
     nominal: number;
+    terbayar?: number;
+    sisa?: number;
   }>;
 }
 
@@ -178,6 +184,16 @@ export default function ListTagihanMahasiswaPage() {
     setCopiedVaId(id);
     toast.success('Nomor Virtual Account berhasil disalin');
     setTimeout(() => setCopiedVaId(null), 2000);
+  };
+
+  const handleTerbitkanH2h = async (row: any, force?: boolean) => {
+    try {
+      const res = await sikeuService.terbitkanH2h(row.id, force);
+      toast.success(res?.message || `Billing H2H terbit (CUSTID ${res?.data?.custid}).`);
+      fetchTagihan();
+    } catch (err: any) {
+      toast.error(err?.message || 'Gagal menerbitkan billing H2H.');
+    }
   };
 
   const handleSelectAll = () => {
@@ -440,6 +456,21 @@ export default function ListTagihanMahasiswaPage() {
       key: 'va_number',
       label: 'Metode / VA',
       render: (row) => {
+        if (row.h2h_billing_id) {
+          return (
+            <div>
+              <span className="inline-flex items-center gap-1 text-[11px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200/60 font-bold">
+                <Landmark size={12} /> BSN H2H
+              </span>
+              <span className="font-mono text-2xs text-slate-500 block mt-0.5">Billing: {row.h2h_billing_id}</span>
+              {(row.h2h_custid || row.h2h_id_tagihan) && (
+                <span className="font-mono text-2xs text-slate-500 block">
+                  CUSTID: {row.h2h_custid || row.h2h_billing_id} • Tagihan: {row.h2h_id_tagihan || '-'}
+                </span>
+              )}
+            </div>
+          );
+        }
         if (row.va_number) {
           return (
             <div className="flex items-center gap-1.5">
@@ -503,6 +534,21 @@ export default function ListTagihanMahasiswaPage() {
                           `/sikeu/pembayaran-mahasiswa/bayar?student_id=${row.mahasiswa_id || row.calon_mahasiswa_id}&is_calon=${row.is_calon_mahasiswa ? 1 : 0}&tagihan_id=${row.id}`
                         ),
                     },
+                    ...(row.h2h_billing_id
+                      ? [
+                          {
+                            label: 'Terbitkan Ulang VA BSN (H2H)',
+                            icon: <Landmark size={14} className="text-teal-700" />,
+                            onClick: () => handleTerbitkanH2h(row, true),
+                          },
+                        ]
+                      : [
+                          {
+                            label: 'Terbitkan VA BSN (H2H)',
+                            icon: <Landmark size={14} className="text-teal-700" />,
+                            onClick: () => handleTerbitkanH2h(row),
+                          },
+                        ]),
                   ]
                 : []),
               ...(Number(row.total_bayar) > 0 || (row.kelebihan_bayar && row.kelebihan_bayar > 0)
@@ -920,12 +966,26 @@ export default function ListTagihanMahasiswaPage() {
               <p className="text-xs font-bold text-slate-700 mb-2">Daftar Komponen Biaya:</p>
               <div className="border border-slate-200 rounded-xl divide-y divide-slate-100 overflow-hidden text-xs">
                 {selectedDetail.rincian_komponen && selectedDetail.rincian_komponen.length > 0 ? (
-                  selectedDetail.rincian_komponen.map((r, i) => (
-                    <div key={i} className="p-3 flex justify-between items-center bg-white">
-                      <span className="font-medium text-slate-800">{r.nama_biaya}</span>
-                      <span className="font-mono font-bold text-slate-900">{formatRupiah(r.nominal)}</span>
-                    </div>
-                  ))
+                  selectedDetail.rincian_komponen.map((r, i) => {
+                    const terbayar = Number(r.terbayar || 0);
+                    const sisaKomponen = r.sisa !== undefined ? Number(r.sisa) : Number(r.nominal) - terbayar;
+                    return (
+                      <div key={i} className="p-3 bg-white">
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-slate-800">{r.nama_biaya}</span>
+                          <span className="font-mono font-bold text-slate-900">{formatRupiah(r.nominal)}</span>
+                        </div>
+                        <div className="flex justify-between items-center mt-1 text-[11px]">
+                          <span className="text-slate-500">
+                            Terbayar: <span className="font-mono font-semibold text-emerald-700">{formatRupiah(terbayar)}</span>
+                          </span>
+                          <span className={sisaKomponen > 0 ? 'font-mono font-bold text-rose-700' : 'font-mono font-bold text-emerald-700'}>
+                            Sisa: {formatRupiah(sisaKomponen)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="p-3 text-slate-400 italic text-center">
                     Rincian komponen biaya tidak tersedia

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form';
 
 interface FormValues {
   sumber_pemasukan: string;
+  unit_kas_id: number;
   nominal: number;
   tanggal_terima: string;
   nama_donor_instansi: string;
@@ -22,13 +23,22 @@ interface FormValues {
   keterangan: string;
 }
 
+const KANAL_LABEL: Record<string, string> = {
+  tunai: 'Tunai',
+  bank_manual: 'Bank Manual',
+  bank_h2h: 'Bank H2H',
+  xendit: 'Xendit',
+};
+
 export default function CreatePemasukanPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [unitKasList, setUnitKasList] = useState<{ id: number; nama_kas: string; kanal?: string }[]>([]);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       sumber_pemasukan: 'hibah_sippm',
+      unit_kas_id: 0,
       nominal: 0,
       tanggal_terima: new Date().toISOString().split('T')[0],
       nama_donor_instansi: '',
@@ -37,11 +47,28 @@ export default function CreatePemasukanPage() {
     },
   });
 
+  useEffect(() => {
+    const fetchUnitKas = async () => {
+      try {
+        const res = await sikeuService.getUnitKasList();
+        const list = Array.isArray(res.data) ? res.data : [];
+        setUnitKasList(list);
+        if (list.length > 0) {
+          setValue('unit_kas_id', list[0].id);
+        }
+      } catch {
+        setUnitKasList([]);
+      }
+    };
+    fetchUnitKas();
+  }, [setValue]);
+
   const onSubmitForm = async (formData: FormValues) => {
     setSubmitting(true);
     try {
       await sikeuService.storeExternalIncome({
         sumber_pemasukan: formData.sumber_pemasukan,
+        unit_kas_id: formData.unit_kas_id || undefined,
         nominal: Number(formData.nominal),
         tanggal_terima: formData.tanggal_terima,
         nama_donor_instansi: formData.nama_donor_instansi,
@@ -83,6 +110,16 @@ export default function CreatePemasukanPage() {
               ]}
               value={watch('sumber_pemasukan')}
               onChange={(val) => setValue('sumber_pemasukan', val as string)}
+            />
+
+            <Select
+              label="Kas / Rekening Tujuan *"
+              options={unitKasList.map((u) => ({
+                value: String(u.id),
+                label: `${u.nama_kas}${u.kanal ? ` [${KANAL_LABEL[u.kanal] || u.kanal}]` : ''}`,
+              }))}
+              value={watch('unit_kas_id')?.toString() || ''}
+              onChange={(val) => setValue('unit_kas_id', Number(val))}
             />
 
             <Input

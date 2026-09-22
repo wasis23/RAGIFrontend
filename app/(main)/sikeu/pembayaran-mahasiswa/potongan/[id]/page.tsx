@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -249,7 +249,7 @@ export default function DetailPotonganMahasiswaPage() {
           </div>
           <div className="mt-2">
             <span className="text-xs sm:text-sm font-bold text-slate-800 font-mono block truncate">
-              {potongan.created_at || '-'}
+              {formatDate(potongan.created_at)}
             </span>
             <span className="text-2xs text-slate-500 block mt-0.5 font-medium">Oleh: {potongan.diinput_oleh_nama}</span>
           </div>
@@ -402,7 +402,7 @@ export default function DetailPotonganMahasiswaPage() {
                           {t.nomor_tagihan}
                         </span>
                         <span className="text-[10px] text-slate-500 block">
-                          Terdampak: {t.created_at || '-'}
+                          Terdampak: {formatDate(t.created_at)}
                         </span>
                       </div>
                     </td>
@@ -431,7 +431,7 @@ export default function DetailPotonganMahasiswaPage() {
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-center font-mono text-slate-600 text-[11px]">
-                      {t.jatuh_tempo || '-'}
+                      {formatDate(t.jatuh_tempo)}
                     </td>
                   </tr>
                 ))

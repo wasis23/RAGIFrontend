@@ -1,12 +1,13 @@
 'use client';
 
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck, CheckCircle2, XCircle, Clock, Filter, Loader2, Save, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
+import { pengajuanOperasionalService } from '@/services/pengajuan-operasional.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -69,7 +70,7 @@ export default function SikeuApprovalPage() {
         title: `Penerbitan Invoice Tagihan #${t.id}`,
         pemohon: t.nim ? `Mahasiswa NIM ${t.nim}` : 'SIAKAD',
         nominal: t.total_tagihan || 3500000,
-        tanggal: t.created_at || '2026-08-01',
+        tanggal: formatDate(t.created_at) || '-',
         keterangan: t.alasan || 'Tagihan khusus semester aktif',
       }));
 
@@ -79,11 +80,30 @@ export default function SikeuApprovalPage() {
         title: `Permohonan Dispensasi #${d.id} ${d.allow_krs ? '• [Bypass KRS Aktif]' : '• [KRS Terkunci]'}`,
         pemohon: d.nama_mahasiswa || `Mahasiswa #${d.mahasiswa_id}`,
         nominal: d.nominal_per_cicilan || 1500000,
-        tanggal: d.created_at || '2026-08-01',
+        tanggal: formatDate(d.created_at) || '-',
         keterangan: d.alasan || 'Permohonan penundaan / cicilan tagihan',
       }));
 
-      setData([...mappedTagihan, ...mappedDispensasi]);
+      let mappedKas: ApprovalItem[] = [];
+      try {
+        const kasRes = await pengajuanOperasionalService.list({ per_page: 50 });
+        const kasItems: any[] = Array.isArray(kasRes.data) ? kasRes.data : [];
+        mappedKas = kasItems
+          .filter((k: any) => ['pending_sarpras', 'pending_keuangan', 'pending_direktur', 'diajukan'].includes(k.status))
+          .map((k: any) => ({
+            id: k.id,
+            type: 'kas' as const,
+            title: `${k.nomor_pengajuan} — ${k.judul_pengajuan} [${k.status}]`,
+            pemohon: k.fakultas?.nama || `Pengajuan #${k.id}`,
+            nominal: Number(k.nominal_diajukan) || 0,
+            tanggal: formatDate(k.created_at) || '-',
+            keterangan: k.deskripsi || '',
+          }));
+      } catch {
+        mappedKas = [];
+      }
+
+      setData([...mappedTagihan, ...mappedDispensasi, ...mappedKas]);
     } catch {
       setData([]);
       toast.error('Gagal memuat daftar pengajuan approval');
@@ -112,6 +132,8 @@ export default function SikeuApprovalPage() {
         } else {
           await sikeuService.rejectDispensasi(activeItem.id, formData.catatan);
         }
+      } else if (activeItem.type === 'kas') {
+        await pengajuanOperasionalService.approve(activeItem.id, actionType, formData.catatan);
       } else {
         if (actionType === 'approve') {
           await sikeuService.approveTagihan(activeItem.id, formData.catatan);

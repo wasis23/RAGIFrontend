@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -515,7 +515,7 @@ export default function CreatePembayaranMahasiswaPotonganPage() {
                             <p className="text-[11px] text-slate-500">
                               Periode: <span className="font-medium text-slate-700">{bill.periode_label}</span>
                               {bill.jatuh_tempo && (
-                                <> • Jatuh Tempo: <span className="font-mono">{bill.jatuh_tempo}</span></>
+                                <> • Jatuh Tempo: <span className="font-mono">{formatDate(bill.jatuh_tempo)}</span></>
                               )}
                             </p>
                           </label>

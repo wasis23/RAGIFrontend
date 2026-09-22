@@ -1,13 +1,14 @@
 'use client';
 
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import MahasiswaDashboard from '@/components/sikeu/mahasiswa/MahasiswaDashboard';
+import PetugasKasKecilDashboard from '@/components/sikeu/petugas/PetugasKasKecilDashboard';
 import Link from 'next/link';
 import {
-  TrendingUp, TrendingDown, Wallet, ShieldCheck, CreditCard, Building2,
-  RefreshCw, FileText, CheckCircle2, Calendar, Filter, RotateCcw
+  TrendingUp, TrendingDown, Wallet, CreditCard, Building2,
+  RefreshCw, CheckCircle2, Calendar, Filter, RotateCcw, Landmark
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -30,18 +31,20 @@ interface RecentJurnal {
 type DatePreset = 'all' | 'today' | 'last_7_days' | 'this_month' | 'this_year' | 'custom';
 
 export default function SikeuDashboardPage() {
-  const router = useRouter();
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const userRoleSlugs = (user?.roles || []).map((r: any) =>
     (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
   );
   const isMahasiswa = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
+  const isPetugasKasKecil =
+    (userRoleSlugs.includes('petugas_kas_kecil') ||
+      userRoleSlugs.includes('petugas_kaskecil') ||
+      userRoleSlugs.includes('petugas kas kecil')) &&
+    !isSuperAdmin &&
+    !isAdmin &&
+    !userRoleSlugs.some((s) => ['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_akuntansi'].includes(s));
 
-  useEffect(() => {
-    if (isMahasiswa) {
-      router.replace('/sikeu/mahasiswa/tagihan');
-    }
-  }, [isMahasiswa, router]);
+  // Mahasiswa mendapat dashboard khusus (tanpa redirect + tanpa memuat ringkasan admin).
 
   const [loading, setLoading] = useState(true);
   const [selectedPreset, setSelectedPreset] = useState<DatePreset>('this_month');
@@ -63,6 +66,7 @@ export default function SikeuDashboardPage() {
     totalTransaksiJurnal: 0,
   });
   const [recentJurnal, setRecentJurnal] = useState<RecentJurnal[]>([]);
+  const [unitKasList, setUnitKasList] = useState<any[]>([]);
 
   // Format Helper: YYYY-MM-DD
   const formatYmd = (d: Date) => {
@@ -125,6 +129,9 @@ export default function SikeuDashboardPage() {
         if (Array.isArray(res.data.recent_jurnals)) {
           setRecentJurnal(res.data.recent_jurnals);
         }
+        if (Array.isArray(res.data.unit_kas)) {
+          setUnitKasList(res.data.unit_kas);
+        }
       }
     } catch {
       toast.error('Gagal memuat ringkasan dashboard keuangan');
@@ -133,14 +140,15 @@ export default function SikeuDashboardPage() {
     }
   };
 
-  // Initial load: Default to 'this_month'
+  // Initial load: Default to 'this_month' (admin/keuangan saja)
   useEffect(() => {
+    if (isMahasiswa || isPetugasKasKecil) return;
     const { start, end, label } = calculatePresetDates('this_month');
     setStartDate(start);
     setEndDate(end);
     setActiveRangeLabel(label);
     loadDashboardData(start, end);
-  }, []);
+  }, [isMahasiswa, isPetugasKasKecil]);
 
   // Handle Preset Selection
   const handleSelectPreset = (preset: DatePreset) => {
@@ -215,7 +223,7 @@ export default function SikeuDashboardPage() {
           <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
             {row.nomor_jurnal || `JRN-${row.id}`}
           </span>
-          <span className="text-2xs block text-slate-400 font-semibold mt-1">{row.tanggal_jurnal || '-'}</span>
+          <span className="text-2xs block text-slate-400 font-semibold mt-1">{formatDate(row.tanggal_jurnal)}</span>
         </div>
       ),
     },
@@ -256,6 +264,24 @@ export default function SikeuDashboardPage() {
     },
   ];
 
+  // Mahasiswa: dashboard khusus, tanpa memuat ringkasan admin.
+  if (isMahasiswa) {
+    return <MahasiswaDashboard />;
+  }
+
+  // Petugas Kas Kecil: dashboard khusus unit, hanya menampilkan saldo petty cash & transaksi unitnya.
+  if (isPetugasKasKecil) {
+    return <PetugasKasKecilDashboard />;
+  }
+
+  // Total saldo per kanal (posisi saat ini, tidak terpengaruh filter periode)
+  const sumKanal = (kanal: string) =>
+    unitKasList.filter((u) => u.kanal === kanal).reduce((acc, u) => acc + (Number(u.saldo_saat_ini) || 0), 0);
+  const countKanal = (kanal: string) => unitKasList.filter((u) => u.kanal === kanal).length;
+  const saldoXendit = sumKanal('xendit');
+  const saldoH2h = sumKanal('bank_h2h');
+  const saldoMultiBank = sumKanal('bank_manual');
+
   return (
     <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
@@ -268,7 +294,7 @@ export default function SikeuDashboardPage() {
                 Master Biaya
               </Button>
             </Link>
-            <Link href="/sikeu/tagihan">
+            <Link href="/sikeu/pembayaran-mahasiswa/tagihan">
               <Button variant="primary" icon={<CreditCard size={16} />} className="font-bold min-h-[40px] px-4 shadow-sm">
                 Tagihan Mahasiswa
               </Button>
@@ -276,6 +302,54 @@ export default function SikeuDashboardPage() {
           </div>
         }
       />
+
+      {/* Total Saldo per Kanal (posisi terkini) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Saldo Xendit</p>
+            <p className="text-lg font-extrabold text-indigo-700 mt-1 tabular-nums">
+              {formatRupiah(saldoXendit)}
+            </p>
+            <p className="text-2xs text-slate-400 mt-1 font-medium">
+              {countKanal('xendit')} rekening gateway
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <CreditCard size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Saldo H2H (BSN)</p>
+            <p className="text-lg font-extrabold text-teal-700 mt-1 tabular-nums">
+              {formatRupiah(saldoH2h)}
+            </p>
+            <p className="text-2xs text-slate-400 mt-1 font-medium">
+              {countKanal('bank_h2h')} rekening host-to-host
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+            <Landmark size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-2xs flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Saldo Multi Bank</p>
+            <p className="text-lg font-extrabold text-blue-700 mt-1 tabular-nums">
+              {formatRupiah(saldoMultiBank)}
+            </p>
+            <p className="text-2xs text-slate-400 mt-1 font-medium">
+              {countKanal('bank_manual')} rekening manual (BNI/BSN)
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <Building2 size={20} />
+          </div>
+        </div>
+      </div>
 
       {/* Date Range Filter Section */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-3.5">
@@ -483,59 +557,6 @@ export default function SikeuDashboardPage() {
             <TrendingDown size={20} />
           </div>
         </div>
-      </div>
-
-      {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Link href="/sikeu/master" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Building2 size={18} />
-          </div>
-          <p className="font-bold text-slate-900 text-xs mt-1">Master Biaya</p>
-          <p className="text-2xs text-slate-500">Tarif & Biaya</p>
-        </Link>
-
-        <Link href="/sikeu/tagihan" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <FileText size={18} />
-          </div>
-          <p className="font-bold text-slate-900 text-xs mt-1">Tagihan & SPP</p>
-          <p className="text-2xs text-slate-500">Invoice Semester</p>
-        </Link>
-
-        <Link href="/sikeu/pembayaran" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
-          <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
-            <CheckCircle2 size={18} />
-          </div>
-          <p className="font-bold text-slate-900 text-xs mt-1">Histori Bayar</p>
-          <p className="text-2xs text-slate-500">Kasir & Gateway</p>
-        </Link>
-
-        <Link href="/sikeu/piutang" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-            <CreditCard size={18} />
-          </div>
-          <p className="font-bold text-slate-900 text-xs mt-1">Piutang Mahasiswa</p>
-          <p className="text-2xs text-slate-500">Tunggakan & Excel</p>
-        </Link>
-
-        <Link href="/sikeu/pengeluaran" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
-          <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
-            <TrendingDown size={18} />
-          </div>
-          <p className="font-bold text-slate-900 text-xs mt-1">Pengeluaran</p>
-          <p className="text-2xs text-slate-500">Beban Operasional</p>
-        </Link>
-
-        <Link href="/sikeu/approval" className="p-3.5 bg-white border border-slate-200/80 hover:border-primary-300 hover:shadow-sm rounded-xl transition flex flex-col gap-1.5">
-          <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-            <ShieldCheck size={18} />
-          </div>
-          <p className="font-bold text-slate-900 text-xs mt-1">Approval</p>
-          <p className="text-2xs text-slate-500">
-            {metrics.totalPendingApproval > 0 ? `${metrics.totalPendingApproval} Menunggu` : 'Persetujuan Pimpinan'}
-          </p>
-        </Link>
       </div>
 
       {/* Recent Jurnals Section */}

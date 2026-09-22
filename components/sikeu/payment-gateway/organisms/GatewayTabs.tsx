@@ -10,6 +10,14 @@ interface GatewayTabsProps {
   configs: Record<string, GatewayConfigData>;
 }
 
+const GATEWAY_LABELS: Record<string, string> = {
+  bsn_h2h: 'H2H BSN',
+  rekening_manual: 'REKENING MANUAL',
+};
+
+// Tab manajemen (bukan gateway on/off) — pill status disembunyikan.
+const HIDE_STATUS: string[] = ['rekening_manual'];
+
 export const GatewayTabs: React.FC<GatewayTabsProps> = ({
   gateways,
   activeTab,
@@ -33,16 +41,17 @@ export const GatewayTabs: React.FC<GatewayTabsProps> = ({
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <span className="uppercase">{g} GATEWAY</span>
-            {isGatewayEnabled ? (
-              <span className="badge badge-green text-2xs font-extrabold uppercase py-0.5 px-1.5">
-                • Active
-              </span>
-            ) : (
-              <span className="badge badge-gray text-2xs font-semibold uppercase py-0.5 px-1.5">
-                Inactive
-              </span>
-            )}
+            <span className="uppercase">{GATEWAY_LABELS[g] || `${g} GATEWAY`}</span>
+            {!HIDE_STATUS.includes(g) &&
+              (isGatewayEnabled ? (
+                <span className="badge badge-green text-2xs font-extrabold uppercase py-0.5 px-1.5">
+                  • Active
+                </span>
+              ) : (
+                <span className="badge badge-gray text-2xs font-semibold uppercase py-0.5 px-1.5">
+                  Inactive
+                </span>
+              ))}
           </button>
         );
       })}

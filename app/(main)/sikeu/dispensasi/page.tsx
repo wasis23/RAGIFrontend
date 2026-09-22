@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, Filter, CheckCircle2, Clock, XCircle, Loader2, Save, Eye, Search, AlertTriangle, Printer, User, ShieldAlert, FileText
+  Plus, Filter, CheckCircle2, Clock, XCircle, Loader2, Save, Eye, Search, AlertTriangle, Printer, User, ShieldAlert, FileText, Trash2
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -13,11 +14,12 @@ import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 
 interface DispensasiItem {
   id: number;
@@ -32,6 +34,8 @@ interface DispensasiItem {
   allow_krs?: boolean;
   status: 'pending' | 'approved' | 'rejected' | string;
   alasan?: string;
+  cicilan_payment_count?: number;
+  cicilan_total_bayar?: number;
   has_unpaid_previous_dispensation?: boolean;
   unpaid_previous_dispensation_count?: number;
   created_at?: string;
@@ -40,6 +44,10 @@ interface DispensasiItem {
     id?: number;
     nomor_tagihan?: string;
     total_tagihan?: number;
+    total_bayar?: number;
+    total_potongan?: number;
+    total_denda?: number;
+    status?: string;
     jatuh_tempo?: string;
   };
 }
@@ -66,6 +74,14 @@ export default function DispensasiListPage() {
   // Detail / Print Modal State
   const [detailItem, setDetailItem] = useState<DispensasiItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [buktiResmi, setBuktiResmi] = useState<any | null>(null);
+  const [loadingBukti, setLoadingBukti] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [printing, setPrinting] = useState(false);
+
+  // Delete State
+  const [deletingItem, setDeletingItem] = useState<DispensasiItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Inline Approval/Rejection State
   const [approvalItem, setApprovalItem] = useState<DispensasiItem | null>(null);
@@ -127,6 +143,197 @@ export default function DispensasiListPage() {
   const handleOpenDetail = (item: DispensasiItem) => {
     setDetailItem(item);
     setIsDetailOpen(true);
+    setBuktiResmi(null);
+    setQrDataUrl('');
+
+    // Ambil bukti resmi (hash tanda tangan) + generate QR verifikasi publik
+    if (item.status === 'approved') {
+      setLoadingBukti(true);
+      sikeuService.getCetakBuktiDispensasi(item.id)
+        .then(async (res: any) => {
+          const bukti = res?.data ?? null;
+          setBuktiResmi(bukti);
+          const hash = bukti?.pejabat_approver?.digital_signature_hash;
+          if (hash && typeof window !== 'undefined') {
+            try {
+              const verifyUrl = `${window.location.origin}/validasi-dispensasi/${encodeURIComponent(hash)}`;
+              const dataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 110 });
+              setQrDataUrl(dataUrl);
+            } catch {
+              setQrDataUrl('');
+            }
+          }
+        })
+        .catch(() => setBuktiResmi(null))
+        .finally(() => setLoadingBukti(false));
+    }
+  };
+
+  const handlePrintBukti = () => {
+    if (!detailItem || detailItem.status !== 'approved') {
+      toast.error('Surat hanya dapat dicetak setelah disetujui pimpinan.');
+      return;
+    }
+    setPrinting(true);
+    try {
+      const bukti = buktiResmi;
+      const hash: string = bukti?.pejabat_approver?.digital_signature_hash || '';
+      const verifyUrl = typeof window !== 'undefined' && hash
+        ? `${window.location.origin}/validasi-dispensasi/${encodeURIComponent(hash)}`
+        : '';
+      const tipeLabel = TIPE_DISPENSASI_OPTIONS.find((t) => t.value === detailItem.tipe_dispensasi)?.label || detailItem.tipe_dispensasi;
+      const nomorSurat = `DISP-${new Date().getFullYear()}-${String(detailItem.id).padStart(5, '0')}`;
+      const tglCetak = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      const totalTagihan = Number(detailItem.tagihan?.total_tagihan || 0);
+      const totalBayar = Number(detailItem.tagihan?.total_bayar || 0);
+      const sisa = Math.max(0, totalTagihan - totalBayar);
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow?.document;
+      if (!doc) {
+        window.print();
+        return;
+      }
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Surat Dispensasi - ${nomorSurat}</title>
+            <meta charset="utf-8" />
+            <style>
+              @page { size: A4 portrait; margin: 14mm 16mm; }
+              * { box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #0f172a; font-size: 10.5pt; line-height: 1.5; background: #fff; }
+              .kop { border-bottom: 3px double #0f172a; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; }
+              .kop h1 { font-size: 14pt; font-weight: 900; margin: 0; letter-spacing: 1px; }
+              .kop h2 { font-size: 9.5pt; margin: 2px 0 0 0; color: #334155; }
+              .kop p { font-size: 8pt; color: #64748b; margin: 2px 0 0 0; }
+              .kop-right { text-align: right; }
+              .kop-badge { font-family: monospace; font-size: 9pt; font-weight: 800; background: #f1f5f9; padding: 3px 10px; border-radius: 4px; }
+              .kop-no { font-family: monospace; font-size: 8.5pt; color: #475569; margin-top: 3px; }
+              .judul { text-align: center; margin: 14px 0 4px 0; }
+              .judul h3 { font-size: 12pt; margin: 0; text-decoration: underline; text-underline-offset: 4px; }
+              .judul p { font-size: 8.5pt; color: #64748b; font-family: monospace; margin: 3px 0 0 0; }
+              .isi { font-size: 10pt; color: #334155; margin: 10px 0; }
+              .grid2 { display: table; width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 8px 0; }
+              .grid2 .row { display: table-row; }
+              .grid2 .cell { display: table-cell; padding: 4px 8px 4px 0; vertical-align: top; width: 50%; }
+              .lbl { font-size: 7.5pt; text-transform: uppercase; color: #64748b; font-weight: 700; display: block; }
+              .val { font-weight: 700; color: #0f172a; }
+              .mono { font-family: monospace; }
+              table.skema { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt; }
+              table.skema td { border: 1px solid #cbd5e1; padding: 7px 12px; }
+              table.skema tr:nth-child(odd) td { background: #f8fafc; }
+              .klausul { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 10px 14px; font-size: 9pt; color: #064e3b; margin: 8px 0; }
+              .alasan { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-style: italic; font-size: 9.5pt; color: #334155; margin: 8px 0; }
+              .ttd { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 22px; page-break-inside: avoid; }
+              .ttd-left { font-size: 8pt; color: #64748b; font-family: monospace; }
+              .ttd-right { text-align: center; font-size: 9pt; }
+              .ttd-name { font-weight: 800; text-decoration: underline; margin-top: 52px; }
+              .qrbox { text-align: center; margin-top: 6px; }
+              .qrbox img { width: 92px; height: 92px; border: 1px solid #e2e8f0; border-radius: 6px; }
+              .qrbox p { font-size: 7.5pt; color: #64748b; margin: 3px 0 0 0; }
+              .hashline { font-family: monospace; font-size: 7.5pt; color: #64748b; margin-top: 2px; }
+            </style>
+          </head>
+          <body>
+            <div class="kop">
+              <div>
+                <h1>UNIVERSITAS SSO CAMPUS</h1>
+                <h2>WAKIL REKTOR II BIDANG KEUANGAN &amp; SUMBER DAYA</h2>
+                <p>Gedung Rektorat Lt. 2 &bull; Jl. Kampus Terpadu No. 1 &bull; Telp: (021) 789-0123 &bull; Email: keu@campus.ac.id</p>
+              </div>
+              <div class="kop-right">
+                <div class="kop-badge">SURAT KETERANGAN RESMI</div>
+                <div class="kop-no">No: ${detailItem.id}/UN-SSO/WR2-KEU/DISP/${new Date().getFullYear()}</div>
+              </div>
+            </div>
+            <div class="judul">
+              <h3>SURAT KETERANGAN DISPENSASI PEMBAYARAN KULIAH</h3>
+              <p>Tentang Penangguhan &amp; Penyesuaian Kewajiban Keuangan Mahasiswa</p>
+            </div>
+            <p class="isi">Yang bertanda tangan di bawah ini, Wakil Rektor II / Bagian Keuangan Universitas SSO Campus, menerangkan bahwa mahasiswa:</p>
+            <div class="grid2">
+              <div class="row">
+                <div class="cell"><span class="lbl">Nama Lengkap Mahasiswa</span><span class="val">${detailItem.nama_mahasiswa || '-'}</span></div>
+                <div class="cell"><span class="lbl">Nomor Induk Mahasiswa (NIM)</span><span class="val mono">${detailItem.nim || '-'}</span></div>
+              </div>
+              <div class="row">
+                <div class="cell"><span class="lbl">Program Studi</span><span class="val">${detailItem.prodi || '-'}</span></div>
+                <div class="cell"><span class="lbl">Nomor Tagihan Terkait</span><span class="val mono">${detailItem.tagihan?.nomor_tagihan || '-'}</span></div>
+              </div>
+              <div class="row">
+                <div class="cell"><span class="lbl">Total Tagihan</span><span class="val mono">${formatRupiah(totalTagihan)}</span></div>
+                <div class="cell"><span class="lbl">Sudah Dibayar / Sisa</span><span class="val mono">${formatRupiah(totalBayar)} / ${formatRupiah(sisa)}</span></div>
+              </div>
+            </div>
+            <table class="skema">
+              <tr><td style="width:45%; color:#475569;">Tipe / Bentuk Keringanan</td><td><strong>${tipeLabel}</strong></td></tr>
+              <tr><td style="color:#475569;">Batas Akhir Pelunasan (Jatuh Tempo Baru)</td><td><strong class="mono">${formatDate(detailItem.jatuh_tempo_baru)}</strong></td></tr>
+              <tr><td style="color:#475569;">Nominal Cicilan / Tangguhan Disetujui</td><td><strong class="mono">${formatRupiah(Number(detailItem.nominal_per_cicilan || 0))}</strong></td></tr>
+              ${detailItem.jumlah_cicilan ? `<tr><td style="color:#475569;">Jumlah Tahapan Cicilan</td><td><strong>${detailItem.jumlah_cicilan} kali</strong></td></tr>` : ''}
+              <tr><td style="color:#475569;">Status Akses KRS SIAKAD</td><td><strong>${detailItem.allow_krs ? 'DIIZINKAN (BYPASS LOCK SIAKAD AKTIF)' : 'TERKUNCI SAMPAI LUNAS'}</strong></td></tr>
+            </table>
+            <div class="klausul"><strong>Klausul Akses Akademik (SIAKAD):</strong> ${detailItem.allow_krs ? 'Berdasarkan surat keputusan ini, sistem SIAKAD secara otomatis membuka kunci pengisian KRS bagi mahasiswa yang bersangkutan hingga batas jatuh tempo yang telah ditetapkan.' : 'Mahasiswa wajib menyelesaikan kewajiban pembayaran cicilan sebelum sistem SIAKAD membuka akses pengisian KRS.'}</div>
+            <div class="alasan">&ldquo;${(detailItem.alasan || 'Permohonan penyesuaian jatuh tempo perkuliahan.').replace(/</g, '&lt;')}&rdquo;</div>
+            <div class="ttd">
+              <div class="ttd-left">
+                <p style="margin:0;">Dokumen ini sah dan diterbitkan secara elektronik oleh SIKEU.</p>
+                <p style="margin:0;">VALIDITY HASH: #${detailItem.id}-VERIFIED-WR2</p>
+                <p style="margin:0;">Dicetak pada: ${tglCetak}</p>
+              </div>
+              <div class="ttd-right">
+                <p style="margin:0;">Jakarta, ${tglCetak}</p>
+                <p style="margin:4px 0 0 0; font-weight:700;">Wakil Rektor II / Bagian Keuangan</p>
+                ${qrDataUrl ? `<div class="qrbox"><img src="${qrDataUrl}" alt="QR Verifikasi" /><p>Scan QR verifikasi keaslian</p><div class="hashline">${hash}</div></div>` : (hash ? `<div class="hashline">${hash}<br/>Verifikasi: ${verifyUrl}</div>` : '')}
+                <p class="ttd-name">${bukti?.pejabat_approver?.nama || 'Bagian Keuangan & Administrasi Tagihan'}</p>
+                <p style="margin:0; font-size:8pt; color:#64748b; font-family:monospace;">Direktorat Keuangan Kampus</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      iframe.contentWindow?.focus();
+      setTimeout(() => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch {}
+        }, 2000);
+      }, 250);
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingItem) return;
+    setIsDeleting(true);
+    try {
+      const res = await sikeuService.deleteDispensasi(deletingItem.id);
+      toast.success(res?.message || 'Dispensasi berhasil dihapus');
+      setDeletingItem(null);
+      fetchDispensasi();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || 'Gagal menghapus dispensasi');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleApplyFilter = () => {
@@ -199,7 +406,7 @@ export default function DispensasiListPage() {
       label: 'JATUH TEMPO BARU',
       render: (row) => (
         <span className="font-mono text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-1 rounded-md">
-          {row.jatuh_tempo_baru || '-'}
+          {formatDate(row.jatuh_tempo_baru)}
         </span>
       ),
     },
@@ -287,11 +494,17 @@ export default function DispensasiListPage() {
           icon: <Eye size={14} />,
           onClick: () => {
             if (row.tagihan?.nomor_tagihan || row.tagihan_id) {
-              router.push(`/sikeu/tagihan/${row.tagihan_id || row.id}`);
+              router.push(`/sikeu/pembayaran-mahasiswa/tagihan`);
             } else {
               handleOpenDetail(row);
             }
           },
+        });
+
+        menuItems.push({
+          label: 'Hapus Dispensasi',
+          icon: <Trash2 size={14} className="text-rose-600" />,
+          onClick: () => setDeletingItem(row),
         });
 
         return (
@@ -427,7 +640,7 @@ export default function DispensasiListPage() {
                   </div>
                   <div className="flex justify-between p-2.5">
                     <span className="text-slate-600">Batas Akhir Pelunasan (Jatuh Tempo Baru):</span>
-                    <strong className="font-mono text-rose-700 font-bold">{detailItem.jatuh_tempo_baru}</strong>
+                    <strong className="font-mono text-rose-700 font-bold">{formatDate(detailItem.jatuh_tempo_baru)}</strong>
                   </div>
                   <div className="flex justify-between p-2.5 bg-slate-50/50">
                     <span className="text-slate-600">Nominal Cicilan / Tangguhan Disetujui:</span>
@@ -470,12 +683,26 @@ export default function DispensasiListPage() {
                 <div className="text-right space-y-1 shrink-0">
                   <p className="text-2xs text-slate-500">Jakarta, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   <p className="font-bold text-slate-900 text-xs">Wakil Rektor II / Bagian Keuangan</p>
-                  <div className="h-12 flex items-center justify-end">
-                    <span className="font-mono text-2xs text-emerald-800 font-bold border border-emerald-300 bg-emerald-50 px-2.5 py-1 rounded shadow-2xs">
-                      [DIGITALLY SIGNED & VERIFIED]
-                    </span>
-                  </div>
-                  <p className="font-bold text-slate-800 text-2xs underline">Bagian Keuangan & Administrasi Tagihan</p>
+                  {loadingBukti ? (
+                    <div className="h-12 flex items-center justify-end text-2xs text-slate-400">
+                      <Loader2 size={14} className="animate-spin mr-1" /> Memuat QR verifikasi...
+                    </div>
+                  ) : qrDataUrl ? (
+                    <div className="flex flex-col items-end gap-1">
+                      <img src={qrDataUrl} alt="QR Code Verifikasi" className="w-20 h-20 rounded shadow-2xs border border-slate-200" />
+                      <span className="text-[9px] font-mono text-slate-400">Scan QR verifikasi keaslian</span>
+                      {buktiResmi?.pejabat_approver?.digital_signature_hash && (
+                        <span className="text-[9px] font-mono text-slate-400">{buktiResmi.pejabat_approver.digital_signature_hash}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-12 flex items-center justify-end">
+                      <span className="font-mono text-2xs text-emerald-800 font-bold border border-emerald-300 bg-emerald-50 px-2.5 py-1 rounded shadow-2xs">
+                        [DIGITALLY SIGNED & VERIFIED]
+                      </span>
+                    </div>
+                  )}
+                  <p className="font-bold text-slate-800 text-2xs underline">{buktiResmi?.pejabat_approver?.nama || 'Bagian Keuangan & Administrasi Tagihan'}</p>
                   <p className="text-2xs text-slate-500 font-mono">Direktorat Keuangan Kampus</p>
                 </div>
               </div>
@@ -485,12 +712,12 @@ export default function DispensasiListPage() {
             <div className="flex items-center justify-end gap-3 pt-2 print:hidden">
               <Button
                 variant="outline"
-                icon={<Printer size={15} />}
-                onClick={() => window.print()}
-                disabled={detailItem.status !== 'approved'}
+                icon={printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
+                onClick={handlePrintBukti}
+                disabled={detailItem.status !== 'approved' || printing}
                 className="font-bold"
               >
-                Cetak Bukti Dispensasi (PDF)
+                {printing ? 'Menyiapkan Cetakan...' : 'Cetak Bukti Dispensasi (PDF)'}
               </Button>
               <Button
                 variant="ghost"
@@ -519,7 +746,7 @@ export default function DispensasiListPage() {
                   : `Tolak permohonan dispensasi untuk ${approvalItem.nama_mahasiswa} (NIM: ${approvalItem.nim || '-'})?`}
               </p>
               <p className="text-slate-600 text-2xs">
-                Nominal Cicilan: {formatRupiah(approvalItem.nominal_per_cicilan)} • Batas Pelunasan Baru: {approvalItem.jatuh_tempo_baru}
+                Nominal Cicilan: {formatRupiah(approvalItem.nominal_per_cicilan)} • Batas Pelunasan Baru: {formatDate(approvalItem.jatuh_tempo_baru)}
               </p>
             </div>
 
@@ -552,6 +779,45 @@ export default function DispensasiListPage() {
           </div>
         </Modal>
       )}
+
+      {/* Konfirmasi Hapus Dispensasi */}
+      <ConfirmDialog
+        isOpen={!!deletingItem}
+        onClose={() => !isDeleting && setDeletingItem(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Dispensasi Tagihan"
+        confirmText="Ya, Hapus Dispensasi"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
+        message={
+          deletingItem ? (
+            (() => {
+              const cicilanCount = deletingItem.cicilan_payment_count ?? (Number(deletingItem.tagihan?.total_bayar || 0) > 0 ? 1 : 0);
+              const cicilanTotal = deletingItem.cicilan_total_bayar ?? Number(deletingItem.tagihan?.total_bayar || 0);
+              return (
+                <span>
+                  Dispensasi untuk <strong>{deletingItem.nama_mahasiswa}</strong> (NIM: {deletingItem.nim || '-'}, tagihan{' '}
+                  <span className="font-mono">{deletingItem.tagihan?.nomor_tagihan || `#${deletingItem.tagihan_id}`}</span>) akan dihapus permanen dan status tagihan dikembalikan normal.
+                  <br />
+                  <br />
+                  {cicilanCount > 0 ? (
+                    <span className="inline-block p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 font-semibold">
+                      Sudah ada {cicilanCount} pembayaran cicilan tercatat sebesar {formatRupiah(cicilanTotal)} setelah skema ini disetujui. Sistem akan menolak penghapusan ini demi menjaga record.
+                    </span>
+                  ) : (
+                    <span className="inline-block p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold">
+                      Belum ada pembayaran cicilan tercatat pada skema ini (pembayaran biasa sebelum dispensasi tidak dihitung), aman untuk dihapus.
+                    </span>
+                  )}
+                </span>
+              );
+            })()
+          ) : (
+            'Apakah Anda yakin ingin menghapus dispensasi ini?'
+          )
+        }
+      />
 
       {/* Filter Drawer */}
       <Drawer

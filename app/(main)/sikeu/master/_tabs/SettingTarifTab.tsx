@@ -149,7 +149,7 @@ export function SettingTarifTab({ setHeaderAction }: SettingTarifTabProps = {}) 
   }, []);
 
   const handleOpenAdd = () => {
-    router.push('/sikeu/master/setting-tarif/create');
+    router.push('/sikeu/pembayaran-mahasiswa/tarif/create');
   };
 
   useEffect(() => {

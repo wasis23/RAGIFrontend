@@ -1,6 +1,6 @@
 'use client';
 
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -332,7 +332,7 @@ export default function PiutangMahasiswaPage() {
           </span>
           {row.jatuh_tempo && (
             <span className="text-2xs text-slate-400 block mt-0.5">
-              Jatuh Tempo: {row.jatuh_tempo}
+              Jatuh Tempo: {formatDate(row.jatuh_tempo)}
             </span>
           )}
         </div>
@@ -381,7 +381,7 @@ export default function PiutangMahasiswaPage() {
               {
                 label: 'Detail Tagihan',
                 icon: <Eye size={14} />,
-                onClick: () => router.push(`/sikeu/tagihan/${row.id}`),
+                onClick: () => router.push(`/sikeu/pembayaran-mahasiswa/tagihan`),
               },
             ]}
           />

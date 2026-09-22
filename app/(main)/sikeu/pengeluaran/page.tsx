@@ -1,6 +1,6 @@
 'use client';
 
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Plus, Filter, TrendingDown, RefreshCw, Eye, FileText, CheckCircle2 } from 'lucide-react';
@@ -24,8 +24,14 @@ interface PengeluaranItem {
   kategori: string;
   keterangan: string;
   nama_vendor?: string;
+  npwp_vendor?: string;
+  jenis_pajak?: string;
+  tarif_pajak_persen?: number;
+  status_pembayaran?: string;
   kas_asal?: string;
   unit_kas?: { nama_kas?: string };
+  akun_beban?: { kode_akun?: string; nama_akun?: string };
+  akun_kas?: { kode_akun?: string; nama_akun?: string };
   nominal?: number;
   nominal_gross?: number;
   nominal_pajak?: number;
@@ -123,7 +129,7 @@ export default function PengeluaranListPage() {
             {row.nomor_transaksi || row.kode || `EXP-${row.id}`}
           </span>
           <span className="text-2xs block text-slate-400 font-semibold mt-1">
-            {row.tanggal_transaksi || row.tanggal || '-'}
+            {formatDate(row.tanggal_transaksi || row.tanggal)}
           </span>
         </div>
       ),
@@ -215,7 +221,60 @@ export default function PengeluaranListPage() {
 
 
 
-      <DataTable data={filteredData} isLoading={loading} columns={columns} emptyMessage="Belum ada data pengeluaran." />
+      <DataTable
+        data={filteredData}
+        isLoading={loading}
+        columns={columns}
+        renderExpandedRow={(row) => (
+          <div className="space-y-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                <p className="text-2xs font-bold text-slate-500 uppercase">Akun Beban (Didebet)</p>
+                <p className="font-bold text-slate-900 mt-0.5">
+                  [{row.akun_beban?.kode_akun || '-'}] {row.akun_beban?.nama_akun || 'Akun Beban'}
+                </p>
+              </div>
+              <div className="p-3 bg-white border border-slate-200 rounded-xl">
+                <p className="text-2xs font-bold text-slate-500 uppercase">Akun Kas (Dikredit)</p>
+                <p className="font-bold text-slate-900 mt-0.5">
+                  [{row.akun_kas?.kode_akun || '-'}] {row.akun_kas?.nama_akun || row.unit_kas?.nama_kas || 'Kas'}
+                </p>
+              </div>
+            </div>
+            <div className="p-3 bg-white border border-slate-200 rounded-xl">
+              <div className="grid grid-cols-3 gap-2 tabular-nums">
+                <div>
+                  <p className="text-2xs text-slate-500">Gross</p>
+                  <p className="font-bold text-slate-900">{formatRupiah(row.nominal ?? row.nominal_gross ?? 0)}</p>
+                </div>
+                <div>
+                  <p className="text-2xs text-slate-500">
+                    Pajak ({row.jenis_pajak?.replace('_', ' ').toUpperCase() || '-'}{row.tarif_pajak_persen ? ` ${row.tarif_pajak_persen}%` : ''})
+                  </p>
+                  <p className="font-bold text-rose-600">{formatRupiah(row.nominal_pajak ?? 0)}</p>
+                </div>
+                <div>
+                  <p className="text-2xs text-slate-500">Net Dibayarkan</p>
+                  <p className="font-bold text-emerald-700">{formatRupiah(row.net_dibayarkan ?? row.nominal_net ?? 0)}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
+              <p className="font-semibold text-slate-900">{row.nama_vendor || '-'}</p>
+              {row.npwp_vendor && <p className="font-mono text-2xs text-slate-500">NPWP: {row.npwp_vendor}</p>}
+              {row.keterangan && <p className="text-slate-600">{row.keterangan}</p>}
+              {row.status_pembayaran && (
+                <span className="badge badge-green text-2xs font-bold uppercase">{row.status_pembayaran}</span>
+              )}
+            </div>
+          </div>
+        )}
+        emptyMessage="Belum ada data pengeluaran."
+      />
+
+      <p className="text-2xs text-slate-500 text-center">
+        Klik ikon panah di tiap baris untuk melihat rincian akun beban, kas, pajak & vendor.
+      </p>
 
       {/* Filter Drawer */}
       <Drawer isOpen={showFilter} onClose={() => setShowFilter(false)} title="Filter Pengeluaran Kampus" width="420px"
@@ -239,9 +298,11 @@ export default function PengeluaranListPage() {
             options={[
               { value: 'all', label: 'Semua Kategori' },
               { value: 'operasional', label: 'Operasional Kantor' },
-              { value: 'gaji', label: 'Payroll / Gaji Staf' },
-              { value: 'pembelian', label: 'Pembelian Aset / Alat' },
-              { value: 'praktikum', label: 'Bahan Praktikum' },
+              { value: 'pemeliharaan', label: 'Pemeliharaan Sarana & Prasarana' },
+              { value: 'laboratorium', label: 'Laboratorium & Praktikum' },
+              { value: 'kegiatan', label: 'Kegiatan & Acara' },
+              { value: 'honorarium', label: 'Honorarium / Gaji' },
+              { value: 'lainnya', label: 'Lainnya' },
             ]} />
 
           <hr className="border-t border-slate-200 my-2" />

@@ -66,6 +66,7 @@ export default function PengaturanTarifBiayaPage() {
   const [filterBiaya, setFilterBiaya] = useState('');
   const [filterAngkatan, setFilterAngkatan] = useState('');
   const [filterProdi, setFilterProdi] = useState('');
+  const [filterSemester, setFilterSemester] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('id');
@@ -76,6 +77,7 @@ export default function PengaturanTarifBiayaPage() {
     master_biaya_id: '',
     tahun_angkatan: '',
     program_studi_id: '',
+    semester: '',
     is_active: '',
     search: '',
     sort_by: 'id',
@@ -140,6 +142,7 @@ export default function PengaturanTarifBiayaPage() {
         master_biaya_id: appliedFilters.master_biaya_id || undefined,
         tahun_angkatan: appliedFilters.tahun_angkatan || undefined,
         program_studi_id: appliedFilters.program_studi_id || undefined,
+        semester: appliedFilters.semester || undefined,
         is_active: appliedFilters.is_active !== '' ? appliedFilters.is_active : undefined,
         search: appliedFilters.search || undefined,
         sort_by: appliedFilters.sort_by,
@@ -175,6 +178,7 @@ export default function PengaturanTarifBiayaPage() {
       master_biaya_id: filterBiaya,
       tahun_angkatan: filterAngkatan,
       program_studi_id: filterProdi,
+      semester: filterSemester,
       is_active: filterStatus,
       search: filterSearch,
       sort_by: filterSortBy,
@@ -188,6 +192,7 @@ export default function PengaturanTarifBiayaPage() {
     setFilterBiaya('');
     setFilterAngkatan('');
     setFilterProdi('');
+    setFilterSemester('');
     setFilterStatus('');
     setFilterSearch('');
     setFilterSortBy('id');
@@ -196,6 +201,7 @@ export default function PengaturanTarifBiayaPage() {
       master_biaya_id: '',
       tahun_angkatan: '',
       program_studi_id: '',
+      semester: '',
       is_active: '',
       search: '',
       sort_by: 'id',
@@ -210,6 +216,7 @@ export default function PengaturanTarifBiayaPage() {
       Boolean(appliedFilters.master_biaya_id) ||
       Boolean(appliedFilters.tahun_angkatan) ||
       Boolean(appliedFilters.program_studi_id) ||
+      Boolean(appliedFilters.semester) ||
       Boolean(appliedFilters.is_active) ||
       Boolean(appliedFilters.search)
     );
@@ -260,6 +267,20 @@ export default function PengaturanTarifBiayaPage() {
           Angkatan {row.tahun_angkatan}
         </Badge>
       ),
+    },
+    {
+      key: 'semester',
+      label: 'Semester Berlaku',
+      render: (row) =>
+        row.semester !== null && row.semester !== undefined ? (
+          <Badge variant="amber" className="font-mono font-bold text-xs">
+            Smt {row.semester}
+          </Badge>
+        ) : (
+          <Badge variant="gray" className="text-[11px] font-semibold">
+            Semua Semester
+          </Badge>
+        ),
     },
     {
       key: 'program_studi',
@@ -335,7 +356,7 @@ export default function PengaturanTarifBiayaPage() {
                 setDeleteConfirm({
                   isOpen: true,
                   id: row.id,
-                  title: `${row.master_biaya?.nama || 'Tarif'} (Angkatan ${row.tahun_angkatan})`,
+                  title: `${row.master_biaya?.nama || 'Tarif'} (Angkatan ${row.tahun_angkatan}${row.semester ? ` • Semester ${row.semester}` : ' • Semua Semester'})`,
                 }),
             },
           ]}
@@ -488,6 +509,20 @@ export default function PengaturanTarifBiayaPage() {
           />
 
           <Select
+            label="Semester Berlaku"
+            options={[
+              { value: '', label: 'Semua Cakupan Semester' },
+              { value: 'global', label: 'Hanya Berlaku Semua Semester' },
+              ...[1, 2, 3, 4, 5, 6, 7, 8].map((s) => ({
+                value: String(s),
+                label: `Semester ${s}`,
+              })),
+            ]}
+            value={filterSemester}
+            onChange={(val) => setFilterSemester(val as string)}
+          />
+
+          <Select
             label="Status Tarif"
             options={[
               { value: '', label: 'Semua Status' },
@@ -506,6 +541,7 @@ export default function PengaturanTarifBiayaPage() {
                 { value: 'id', label: 'ID Terdaftar' },
                 { value: 'komponen', label: 'Komponen Biaya' },
                 { value: 'tahun_angkatan', label: 'Tahun Angkatan' },
+                { value: 'semester', label: 'Semester Berlaku' },
                 { value: 'nominal', label: 'Nominal Tarif' },
               ]}
               value={filterSortBy}

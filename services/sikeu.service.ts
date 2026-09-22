@@ -9,6 +9,7 @@ import {
 } from '@/types/sikeu.types';
 
 import { getCookie } from '@/lib/domain';
+import apiClient from '@/lib/axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
@@ -164,6 +165,16 @@ export const sikeuService = {
     });
   },
 
+  deleteDispensasi: async (id: number) => {
+    return fetchWithAuth<ApiResponse<null>>(`/v1/sikeu/dispensasi/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  validateDispensasiPublic: async (signatureHash: string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/dispensasi/validasi/${encodeURIComponent(signatureHash)}`);
+  },
+
   // Approval Pimpinan
   getPendingApprovals: async () => {
     return fetchWithAuth<ApiResponse<{ tagihan_pending: TagihanMahasiswa[]; dispensasi_pending: DispensasiTagihan[] }>>('/v1/sikeu/approvals');
@@ -198,13 +209,18 @@ export const sikeuService = {
   },
 
   // Pemasukan Kampus
-  getPemasukanList: async (params?: { sumber?: string }) => {
-    const query = new URLSearchParams(params as any).toString();
-    return fetchWithAuth<ApiResponse<PemasukanKampus[]>>(`/v1/sikeu/pemasukan?${query}`);
+  getPemasukanList: async (params?: { sumber?: string; page?: number; per_page?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.sumber) query.append('sumber', params.sumber);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<PemasukanKampus[]>>(`/v1/sikeu/pemasukan${queryString}`);
   },
 
   storeExternalIncome: async (payload: {
     sumber_pemasukan: string;
+    unit_kas_id?: number;
     nominal: number;
     tanggal_terima: string;
     nama_donor_instansi: string;
@@ -235,9 +251,25 @@ export const sikeuService = {
     });
   },
 
-  getJurnalList: async (params?: { jenis_sumber?: string }) => {
-    const query = new URLSearchParams(params as any).toString();
-    return fetchWithAuth<ApiResponse<JurnalUmum[]>>(`/v1/sikeu/akuntansi/jurnal?${query}`);
+  getJurnalList: async (params?: {
+    jenis_sumber?: string;
+    status_posting?: string;
+    search?: string;
+    dari?: string;
+    sampai?: string;
+    page?: number;
+    per_page?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.jenis_sumber) query.append('jenis_sumber', params.jenis_sumber);
+    if (params?.status_posting) query.append('status_posting', params.status_posting);
+    if (params?.search) query.append('search', params.search);
+    if (params?.dari) query.append('dari', params.dari);
+    if (params?.sampai) query.append('sampai', params.sampai);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<JurnalUmum[]>>(`/v1/sikeu/akuntansi/jurnal${queryString}`);
   },
 
   storeJurnal: async (payload: {
@@ -252,6 +284,42 @@ export const sikeuService = {
     });
   },
 
+  getJurnalDetail: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<JurnalUmum>>(`/v1/sikeu/akuntansi/jurnal/${id}`);
+  },
+
+  updateJurnal: async (
+    id: number | string,
+    payload: {
+      tanggal_jurnal?: string;
+      jenis_sumber?: string;
+      keterangan?: string;
+      details?: { akun_id: number; debet: number; kredit: number; keterangan?: string }[];
+    }
+  ) => {
+    return fetchWithAuth<ApiResponse<JurnalUmum>>(`/v1/sikeu/akuntansi/jurnal/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteJurnal: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<null>>(`/v1/sikeu/akuntansi/jurnal/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  getPengaturanJurnal: async () => {
+    return fetchWithAuth<ApiResponse<Record<string, { default: string; nilai: string }>>>('/v1/sikeu/pengaturan-jurnal');
+  },
+
+  updatePengaturanJurnal: async (prefix: Record<string, string>) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pengaturan-jurnal', {
+      method: 'PUT',
+      body: JSON.stringify({ prefix }),
+    });
+  },
+
   getBukuBesar: async (akun_id?: number, page?: number, per_page?: number) => {
     const query = new URLSearchParams();
     if (akun_id) query.append('akun_id', akun_id.toString());
@@ -261,8 +329,30 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/akuntansi/buku-besar${queryString}`);
   },
 
-  getLaporanKeuangan: async () => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/akuntansi/laporan');
+  getLaporanKeuangan: async (params?: { dari?: string; sampai?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.dari) query.append('dari', params.dari);
+    if (params?.sampai) query.append('sampai', params.sampai);
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/akuntansi/laporan${queryString}`);
+  },
+
+  // Periode Akuntansi (Tutup Buku)
+  getPeriodeList: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/periode');
+  },
+
+  createPeriode: async (payload: { nama_periode: string; tanggal_mulai: string; tanggal_selesai: string }) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/periode', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  tutupPeriode: async (id: number | string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/periode/${id}/tutup`, {
+      method: 'POST',
+    });
   },
 
   // Master Tarif Gaji Pegawai
@@ -538,6 +628,11 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/payment-channels');
   },
 
+  // Rekening kampus tujuan transfer manual (aman untuk mahasiswa, tanpa saldo)
+  getRekeningTujuan: async () => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/rekening-tujuan');
+  },
+
   getInvoice: async (id: number, bankKode?: string) => {
     const q = bankKode ? `?bank_kode=${encodeURIComponent(bankKode)}` : '';
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/mahasiswa/invoice/${id}${q}`);
@@ -546,7 +641,7 @@ export const sikeuService = {
   generateBatchInvoice: async (tagihanIds: number[], bankKode?: string) => {
     return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/mahasiswa/invoice-batch', {
       method: 'POST',
-      body: JSON.stringify({ tagihan_ids: tagihanIds, bank_kode: bankKode || 'BNI' }),
+      body: JSON.stringify({ tagihan_ids: tagihanIds, bank_kode: bankKode || 'BSN' }),
     });
   },
 
@@ -588,9 +683,59 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran${query ? `?${query}` : ''}`);
   },
 
+  // H2H BTN Syariah (bridge Go): terbitkan billing VA + sinkron terbayar
+  terbitkanH2h: async (tagihanId: number | string, force?: boolean) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${tagihanId}/terbitkan-h2h`, {
+      method: 'POST',
+      body: JSON.stringify({ force: !!force }),
+    });
+  },
+
+  syncH2h: async (limit?: number) => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/h2h/sync', {
+      method: 'POST',
+      body: JSON.stringify({ limit: limit ?? 100 }),
+    });
+  },
+
+  getH2hStatus: async () => {
+    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/h2h/status');
+  },
+
   // Validasi Pembayaran Publik Real-Time via QR Code
   validatePembayaranPublic: async (kodeTransaksi: string) => {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/validasi/${encodeURIComponent(kodeTransaksi)}`);
+  },
+
+  // Upload bukti transfer manual (mahasiswa) — multipart
+  uploadBuktiManual: async (form: FormData) => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran/manual-upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  // Inisiasi transfer manual: kunci nominal + kode unik per tagihan
+  manualInit: async (payload: { unit_kas_id: number; items: { tagihan_id: number; jumlah_bayar?: number }[] }) => {
+    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pembayaran/manual-init', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Verifikasi bukti transfer manual (keuangan)
+  approveManual: async (id: number | string, catatan?: string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/approve-manual`, {
+      method: 'POST',
+      body: JSON.stringify({ catatan }),
+    });
+  },
+
+  rejectManual: async (id: number | string, catatan: string) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/reject-manual`, {
+      method: 'POST',
+      body: JSON.stringify({ catatan }),
+    });
   },
 
   // Payment Gateway Config
@@ -679,6 +824,7 @@ export const sikeuService = {
 
   storePengeluaran: async (payload: {
     kategori: string;
+    akun_beban_id?: number;
     nominal: number;
     tanggal_transaksi: string;
     nama_vendor: string;
@@ -934,6 +1080,7 @@ export const sikeuService = {
     master_biaya_id?: number | string;
     tahun_angkatan?: number | string;
     program_studi_id?: number | string;
+    semester?: number | string;
     is_active?: boolean | string;
     search?: string;
     sort_by?: string;
@@ -945,6 +1092,7 @@ export const sikeuService = {
     if (params?.master_biaya_id) q.append('master_biaya_id', String(params.master_biaya_id));
     if (params?.tahun_angkatan) q.append('tahun_angkatan', String(params.tahun_angkatan));
     if (params?.program_studi_id) q.append('program_studi_id', String(params.program_studi_id));
+    if (params?.semester !== undefined && params?.semester !== '' && params?.semester !== null) q.append('semester', String(params.semester));
     if (params?.is_active !== undefined && params?.is_active !== '') q.append('is_active', String(params.is_active));
     if (params?.search) q.append('search', params.search);
     if (params?.sort_by) q.append('sort_by', params.sort_by);
@@ -962,6 +1110,7 @@ export const sikeuService = {
     master_biaya_id: number;
     tahun_angkatan: number;
     program_studi_id?: number | null;
+    semester?: number | null;
     nominal: number;
     keterangan?: string | null;
     is_active?: boolean;
@@ -978,6 +1127,7 @@ export const sikeuService = {
       master_biaya_id?: number;
       tahun_angkatan?: number;
       program_studi_id?: number | null;
+      semester?: number | null;
       nominal?: number;
       keterangan?: string | null;
       is_active?: boolean;
@@ -1018,6 +1168,7 @@ export const sikeuService = {
     tipe_referensi?: string;
     tahun_angkatan?: number;
     program_studi_id?: number;
+    semester?: number;
   }) => {
     const q = new URLSearchParams();
     if (params?.mahasiswa_id) q.append('mahasiswa_id', String(params.mahasiswa_id));
@@ -1025,6 +1176,7 @@ export const sikeuService = {
     if (params?.tipe_referensi) q.append('tipe_referensi', params.tipe_referensi);
     if (params?.tahun_angkatan) q.append('tahun_angkatan', String(params.tahun_angkatan));
     if (params?.program_studi_id) q.append('program_studi_id', String(params.program_studi_id));
+    if (params?.semester) q.append('semester', String(params.semester));
 
     const queryString = q.toString() ? `?${q.toString()}` : '';
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif-mahasiswa${queryString}`);
@@ -1074,11 +1226,13 @@ export const sikeuService = {
   previewPembayaranMahasiswaMassTagihan: async (params: {
     tahun_angkatan: number;
     program_studi_id?: number | null;
+    semester?: number | null;
     master_biaya_ids?: number[];
   }) => {
     const q = new URLSearchParams();
     q.append('tahun_angkatan', String(params.tahun_angkatan));
     if (params.program_studi_id) q.append('program_studi_id', String(params.program_studi_id));
+    if (params.semester) q.append('semester', String(params.semester));
     if (params.master_biaya_ids && params.master_biaya_ids.length > 0) {
       params.master_biaya_ids.forEach((id) => q.append('master_biaya_ids[]', String(id)));
     }
