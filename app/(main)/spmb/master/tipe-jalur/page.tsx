@@ -70,7 +70,7 @@ export default function MasterTipeJalurPage() {
   const page = Number(searchParams.get('page')) || 1;
   const limit = Number(searchParams.get('limit')) || 10;
   const searchQ = searchParams.get('search') || '';
-  const orderByQ = searchParams.get('sort_by') || 'id';
+  const orderByQ = searchParams.get('sort_by') || 'nama';
   const orderDirQ = searchParams.get('sort_dir') || 'asc';
 
   const [filterSearch, setFilterSearch] = useState(searchQ);
@@ -134,12 +134,12 @@ export default function MasterTipeJalurPage() {
 
   const handleResetFilter = () => {
     setFilterSearch('');
-    setFilterOrderBy('id');
+    setFilterOrderBy('nama');
     setFilterOrderDir('asc');
     updateURLParams({
       page: 1,
       search: '',
-      sort_by: 'id',
+      sort_by: 'nama',
       sort_dir: 'asc'
     });
     setShowFilter(false);
@@ -221,8 +221,17 @@ export default function MasterTipeJalurPage() {
         data={data}
         meta={meta}
         isLoading={loading}
+        onPageChange={(newPage) => updateURLParams({ page: newPage })}
+        onLimitChange={(newLimit) => updateURLParams({ page: 1, limit: newLimit })}
         columns={[
-          { key: 'kode', label: 'Kode', sortable: true },
+          { 
+            key: 'kode', 
+            label: 'Kode', 
+            sortable: true,
+            render: (row) => (
+              <span className="font-mono font-bold text-primary-600 text-xs">{row.kode}</span>
+            )
+          },
           { key: 'nama', label: 'Nama Tipe Jalur', sortable: true },
           { 
             key: 'alur', 
@@ -236,7 +245,7 @@ export default function MasterTipeJalurPage() {
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-slate-400 text-sm italic">Belum diset</span>
+                  <span className="text-slate-400 text-xs italic">Belum diset</span>
                 )}
               </div>
             )
@@ -276,13 +285,15 @@ export default function MasterTipeJalurPage() {
         <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4 pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input 
-              label="Kode Tipe Jalur *"
+              label="Kode Tipe Jalur"
+              required
               placeholder="Misal: REGULER, PRESTASI"
               error={errors.kode?.message}
               {...register('kode')}
             />
             <Input 
-              label="Nama Tipe Jalur *"
+              label="Nama Tipe Jalur"
+              required
               placeholder="Misal: Jalur Reguler"
               error={errors.nama?.message}
               {...register('nama')}
@@ -329,7 +340,7 @@ export default function MasterTipeJalurPage() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
             <Button type="button" variant="secondary" onClick={() => setShowModal(false)} disabled={submitting}>
               Batal
             </Button>
@@ -364,17 +375,17 @@ export default function MasterTipeJalurPage() {
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
-          <hr className="border-t border-slate-200 my-1" />
+          <hr className="border-t border-slate-200 my-2" />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <Select 
               label="Urut Berdasarkan"
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
               options={[
-                { value: 'id', label: 'ID' },
                 { value: 'nama', label: 'Nama Tipe Jalur' },
-                { value: 'kode', label: 'Kode Tipe Jalur' }
+                { value: 'kode', label: 'Kode Tipe Jalur' },
+                { value: 'id', label: 'ID' }
               ]}
             />
 
