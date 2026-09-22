@@ -33,9 +33,10 @@ export default function SuratTugasDetailPage() {
   const params = useParams();
   const id = Number(params?.id);
 
-  const { user, isAdmin, hasPermission } = useAuth();
+  const { user, isAdmin, hasRole, hasPermission } = useAuth();
   const canApprove = isAdmin || hasPermission('simpeg.surat_tugas.approve');
   const canDelete = isAdmin || hasPermission('simpeg.surat_tugas.delete');
+  const canUploadLpj = canApprove || hasRole('superadmin') || hasPermission('simpeg.surat_tugas.update');
 
   const [item, setItem] = useState<SuratTugas | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -217,14 +218,14 @@ export default function SuratTugasDetailPage() {
                   setApprovalStatus('disetujui');
                   setApprovalModalOpen(true);
                 }}
-                className="flex items-center gap-1.5"
+                className="flex items-center gap-2"
               >
-                <Check size={14} />
+                <Check size={16} />
                 <span>Persetujuan / Approval</span>
               </Button>
             )}
 
-            {['disetujui', 'selesai'].includes(item.status) && (
+            {canUploadLpj && ['disetujui', 'selesai'].includes(item.status) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -233,9 +234,9 @@ export default function SuratTugasDetailPage() {
                   setBiayaRealisasi(item.biaya_realisasi ? item.biaya_realisasi.toString() : '');
                   setLpjModalOpen(true);
                 }}
-                className="flex items-center gap-1.5"
+                className="flex items-center gap-2"
               >
-                <Upload size={14} />
+                <Upload size={16} />
                 <span>{item.file_lpj ? 'Perbarui LPJ' : 'Unggah LPJ'}</span>
               </Button>
             )}
@@ -245,9 +246,9 @@ export default function SuratTugasDetailPage() {
                 variant="danger"
                 size="sm"
                 onClick={() => setDeleteDialogOpen(true)}
-                className="flex items-center gap-1.5"
+                className="flex items-center gap-2"
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} />
                 <span>Hapus</span>
               </Button>
             )}
@@ -524,7 +525,7 @@ export default function SuratTugasDetailPage() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 transition shrink-0"
                 >
-                  <Download size={14} />
+                  <Download size={16} />
                   <span>Unduh PDF</span>
                 </a>
               </div>
@@ -548,7 +549,7 @@ export default function SuratTugasDetailPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition shrink-0"
                   >
-                    <Download size={14} />
+                    <Download size={16} />
                     <span>Unduh LPJ</span>
                   </a>
                 </div>

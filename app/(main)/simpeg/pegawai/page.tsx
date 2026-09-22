@@ -466,15 +466,6 @@ export default function PegawaiPage() {
                 Filter
               </Button>
 
-              <Button
-                variant="outline"
-                icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
-                onClick={loadPegawai}
-                title="Refresh"
-              >
-                Refresh
-              </Button>
-
               {canCreate && (
                 <>
                   <Button
@@ -488,6 +479,7 @@ export default function PegawaiPage() {
                   >
                     Import Pegawai
                   </Button>
+
                   <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
                     Tambah Pegawai
                   </Button>

@@ -269,10 +269,10 @@ export default function IzinKerjaListPage() {
       label: 'Pegawai Pemohon',
       render: (row: IzinJamKerja) => (
         <div>
-          <div className="font-medium text-slate-900 dark:text-white">
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
             {row.pegawai?.nama_lengkap || '-'}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-2xs font-mono text-slate-400">
             {row.pegawai?.nip ? `NIP. ${row.pegawai.nip}` : row.pegawai?.nidn ? `NIDN. ${row.pegawai.nidn}` : ''}
             {row.pegawai?.unit_kerja?.nama ? ` • ${row.pegawai.unit_kerja.nama}` : ''}
           </div>
@@ -283,7 +283,7 @@ export default function IzinKerjaListPage() {
       key: 'jenis_izin',
       label: 'Jenis Izin',
       render: (row: IzinJamKerja) => (
-        <span className="font-medium text-slate-800 dark:text-slate-200">
+        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
           {row.jenis_izin?.nama || '-'}
         </span>
       ),
@@ -293,7 +293,7 @@ export default function IzinKerjaListPage() {
       label: 'Tanggal & Jam',
       render: (row: IzinJamKerja) => (
         <div className="text-xs">
-          <div className="font-semibold text-slate-800 dark:text-slate-200">
+          <div className="font-bold text-slate-800 dark:text-slate-200 text-xs">
             {new Date(row.tanggal).toLocaleDateString('id-ID', {
               weekday: 'short',
               day: 'numeric',
@@ -301,7 +301,7 @@ export default function IzinKerjaListPage() {
               year: 'numeric',
             })}
           </div>
-          <div className="text-slate-500">
+          <div className="text-2xs text-slate-400 font-mono">
             {row.jam_mulai.substring(0, 5)} - {row.jam_selesai.substring(0, 5)} WIB
           </div>
         </div>
@@ -342,20 +342,17 @@ export default function IzinKerjaListPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2"
             >
-              <Filter size={16} />
-              <span>Filter</span>
+              Filter
             </Button>
             {canCreate && (
               <Button
-                variant="primary"
+                icon={<Plus size={16} />}
                 onClick={() => router.push('/simpeg/izin-kerja/create')}
-                className="flex items-center gap-2"
               >
-                <Plus size={16} />
-                <span>Ajukan Izin</span>
+                Ajukan Izin
               </Button>
             )}
           </div>
@@ -405,37 +402,14 @@ export default function IzinKerjaListPage() {
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <Input
-              type="text"
-              placeholder="Cari alasan izin, nama pegawai, NIP..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 w-full"
-            />
-          </div>
-          <div className="text-xs text-slate-500">
-            Menampilkan {items.length} dari {meta?.total ?? items.length} data
-          </div>
-        </div>
-
-        <div className="p-4">
-          <DataTable
-            columns={columns}
-            data={items}
-            meta={meta || undefined}
-            isLoading={isLoading}
-            onPageChange={setPage}
-          />
-        </div>
-      </div>
+      {/* Main Table */}
+      <DataTable
+        columns={columns}
+        data={items}
+        meta={meta || undefined}
+        isLoading={isLoading}
+        onPageChange={setPage}
+      />
 
       {/* Filter Drawer */}
       <Drawer
@@ -444,78 +418,61 @@ export default function IzinKerjaListPage() {
         title="Filter Izin Jam Kerja"
       >
         <div className="space-y-4 p-4">
-          <div>
-            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-              Jenis Izin Jam Kerja
-            </label>
-            <Select
-              options={jenisIzinOptions}
-              value={jenisIzinFilter}
-              onChange={(val: any) => setJenisIzinFilter(val || '')}
-              className="mt-1 w-full"
+          <Input
+            label="Pencarian"
+            type="text"
+            placeholder="Cari alasan izin, nama pegawai, NIP..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <Select
+            label="Jenis Izin Jam Kerja"
+            options={jenisIzinOptions}
+            value={jenisIzinFilter}
+            onChange={(val: any) => setJenisIzinFilter(val || '')}
+          />
+
+          <Select
+            label="Status Approval"
+            options={statusOptions}
+            value={statusFilter}
+            onChange={(val: any) => setStatusFilter(val || '')}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Tanggal Mulai"
+              type="date"
+              value={tanggalMulaiFilter}
+              onChange={(e) => setTanggalMulaiFilter(e.target.value)}
+            />
+            <Input
+              label="Tanggal Selesai"
+              type="date"
+              value={tanggalSelesaiFilter}
+              onChange={(e) => setTanggalSelesaiFilter(e.target.value)}
             />
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-              Status Approval
-            </label>
+          <hr className="my-4 border-slate-200 dark:border-slate-700" />
+
+          <div className="grid grid-cols-2 gap-4">
             <Select
-              options={statusOptions}
-              value={statusFilter}
-              onChange={(val: any) => setStatusFilter(val || '')}
-              className="mt-1 w-full"
+              label="Urut Berdasarkan"
+              options={sortOptions}
+              value={sortBy}
+              onChange={(val: any) => setSortBy(val || 'tanggal')}
             />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Tanggal Mulai
-              </label>
-              <Input
-                type="date"
-                value={tanggalMulaiFilter}
-                onChange={(e) => setTanggalMulaiFilter(e.target.value)}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Tanggal Selesai
-              </label>
-              <Input
-                type="date"
-                value={tanggalSelesaiFilter}
-                onChange={(e) => setTanggalSelesaiFilter(e.target.value)}
-                className="mt-1 w-full"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-slate-700">
-            <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Urut Berdasarkan
-              </label>
-              <Select
-                options={sortOptions}
-                value={sortBy}
-                onChange={(val: any) => setSortBy(val || 'tanggal')}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Arah Urutan
-              </label>
-              <Select
-                options={sortOrderOptions}
-                value={sortOrder}
-                onChange={(val: any) => setSortOrder(val || 'desc')}
-                className="mt-1 w-full"
-              />
-            </div>
+            <Select
+              label="Arah Urutan"
+              options={sortOrderOptions}
+              value={sortOrder}
+              onChange={(val: any) => setSortOrder(val || 'desc')}
+            />
           </div>
 
           <div className="flex items-center gap-3 pt-6">

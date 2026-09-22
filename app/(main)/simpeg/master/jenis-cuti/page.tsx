@@ -443,17 +443,15 @@ export default function MasterJenisCutiPage() {
         </div>
       </Drawer>
 
-      {/* Main DataTable Card */}
-      <div className="card">
-        <DataTable
-          columns={columns}
-          data={dataList}
-          isLoading={loading}
-          meta={meta}
-          onPageChange={(newPage) => setPage(newPage)}
-          emptyMessage="Belum ada data master jenis cuti / izin."
-        />
-      </div>
+      {/* Main DataTable */}
+      <DataTable
+        columns={columns}
+        data={dataList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(newPage) => setPage(newPage)}
+        emptyMessage="Belum ada data master jenis cuti / izin."
+      />
 
       {/* Modal Form Tambah / Ubah */}
       <Modal

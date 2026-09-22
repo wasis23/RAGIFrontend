@@ -511,58 +511,40 @@ export default function JabatanPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-6">      {/* Page Header */}
       <PageHeader
         title="Master Jabatan & Jenjang Fungsional (JAFUNG)"
-        description="Pengelolaan struktur jabatan struktural, fungsional, teknis, serta jenjang jabatan fungsional akademik dosen (KUM)"
+        description="Kelola struktur jabatan struktural, fungsional, teknis, serta jenjang Jabatan Fungsional Akademik (JAFUNG Dosen) terintegrasi SIAKAD"
         action={
-          <div className="flex gap-2">
-            {activeTab === 'jabatan' && (
-              <>
-                <Button
-                  variant="outline"
-                  icon={<Filter size={16} />}
-                  onClick={() => setShowFilter(true)}
-                >
-                  Filter Jabatan
-                </Button>
-                {canCreate && (
-                  <Button
-                    variant="primary"
-                    icon={<Plus size={16} />}
-                    onClick={handleOpenCreateJabatan}
-                  >
-                    Tambah Jabatan
-                  </Button>
-                )}
-              </>
-            )}
-            {activeTab === 'jafung' && (
-              <>
-                {canCreate && (
-                  <Button
-                    variant="primary"
-                    icon={<Plus size={16} />}
-                    onClick={() => setShowModalJafung(true)}
-                  >
-                    Tambah Jenjang Jafung
-                  </Button>
-                )}
-              </>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
+            {canCreate && (
+              <Button
+                icon={<Plus size={16} />}
+                onClick={activeTab === 'jabatan' ? handleOpenCreateJabatan : () => setShowModalJafung(true)}
+              >
+                {activeTab === 'jabatan' ? 'Tambah Jabatan' : 'Tambah Jenjang Jafung'}
+              </Button>
             )}
           </div>
         }
       />
 
       {/* Modern Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('jabatan')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'jabatan'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Briefcase size={16} /> Struktur Jabatan Organisasi ({metaJabatan?.total ?? jabatanList.length})
@@ -570,10 +552,10 @@ export default function JabatanPage() {
         <button
           type="button"
           onClick={() => setActiveTab('jafung')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'jafung'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Award size={16} /> Jabatan Fungsional Akademik (JAFUNG) ({filteredJafung.length})
@@ -583,45 +565,6 @@ export default function JabatanPage() {
       {/* ── TAB 1: JABATAN ORGANISASI ── */}
       {activeTab === 'jabatan' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="w-full sm:max-w-md">
-                <Input
-                  placeholder="Cari nama jabatan..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
-                {filterTipe && (
-                  <Badge variant="purple" className="text-xs uppercase">
-                    Tipe: {filterTipe}
-                  </Badge>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<Filter size={14} />}
-                  onClick={() => setShowFilter(true)}
-                >
-                  Filter Lanjutan
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<RefreshCw size={14} />}
-                  onClick={loadData}
-                  disabled={loading}
-                >
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <DataTable
             columns={columnsJabatan}
             data={jabatanList}
@@ -645,28 +588,6 @@ export default function JabatanPage() {
       {/* ── TAB 2: JAFUNG DOSEN ── */}
       {activeTab === 'jafung' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="w-full sm:max-w-md">
-                <Input
-                  placeholder="Cari nama jabatan fungsional atau jenjang..."
-                  value={searchJafung}
-                  onChange={(e) => setSearchJafung(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<RefreshCw size={14} />}
-                  onClick={loadData}
-                  disabled={loading}
-                >
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
 
           <DataTable
             columns={columnsJafung}

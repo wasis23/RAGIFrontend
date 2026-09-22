@@ -669,24 +669,24 @@ export default function PresensiPage() {
             </Button>
             {activeTab === 'realtime' ? (
               <>
+                {canManage && (
+                  <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
+                    Jalankan Cut-off Harian
+                  </Button>
+                )}
                 <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
-                  Filter Presensi
+                  Filter
                 </Button>
                 {canManage && (
-                  <>
-                    <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
-                      Jalankan Cut-off Harian
-                    </Button>
-                    <Button variant="primary" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
-                      Tandai Tidak Hadir
-                    </Button>
-                  </>
+                  <Button variant="primary" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
+                    Tandai Tidak Hadir
+                  </Button>
                 )}
               </>
             ) : (
               <>
-                <Button variant="outline" icon={<RefreshCw size={16} />} onClick={() => fetchBundleList()} disabled={loadingBundle}>
-                  Muat Ulang
+                <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
+                  Filter
                 </Button>
                 {canManage && (
                   <Button variant="primary" icon={<Upload size={16} />} onClick={handleOpenUploadModal}>
@@ -699,15 +699,15 @@ export default function PresensiPage() {
         }
       />
 
-      {/* Modern Navigation Tabs (Mengikuti Format Master Pengaturan Presensi) */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+      {/* Modern Navigation Tabs (Mengikuti Format Master Jabatan & Jenjang Fungsional) */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('realtime')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'realtime'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Clock size={16} /> Log Realtime Biometrik
@@ -715,10 +715,10 @@ export default function PresensiPage() {
         <button
           type="button"
           onClick={() => setActiveTab('bundle')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'bundle'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Layers size={16} /> Rekap Bundle Periode
@@ -728,50 +728,6 @@ export default function PresensiPage() {
       {/* ── TAB 1: LOG REALTIME BIOMETRIK ── */}
       {activeTab === 'realtime' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="w-full sm:max-w-md">
-                <Input
-                  placeholder="Cari nama atau NIP pegawai..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                {tanggalFilter && (
-                  <Badge variant="blue" className="text-xs">
-                    Tanggal: {tanggalFilter}
-                  </Badge>
-                )}
-                {statusFilter && (
-                  <Badge variant="amber" className="text-xs capitalize">
-                    Status: {statusFilter}
-                  </Badge>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<Filter size={14} />}
-                  onClick={() => setShowFilterDrawer(true)}
-                >
-                  Filter Lanjutan
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  icon={<RefreshCw size={14} />}
-                  onClick={fetchLogPresensi}
-                  disabled={loadingLog}
-                >
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <DataTable
             columns={logColumns}
             data={presensiList}
@@ -791,30 +747,6 @@ export default function PresensiPage() {
       {/* ── TAB 2: REKAP BUNDLE PERIODE ── */}
       {activeTab === 'bundle' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="w-full sm:max-w-md">
-                <Input
-                  placeholder="Cari nama periode rekap presensi..."
-                  value={bundleSearch}
-                  onChange={(e) => {
-                    setBundleSearch(e.target.value);
-                    setBundlePage(1);
-                  }}
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                icon={<RefreshCw size={14} />}
-                onClick={fetchBundleList}
-                disabled={loadingBundle}
-              >
-                Refresh
-              </Button>
-            </div>
-          </div>
-
           <DataTable
             columns={bundleColumns}
             data={bundleList}

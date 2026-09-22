@@ -379,7 +379,7 @@ export default function MasterSuratTugasPage() {
         label: 'No. Urut',
         align: 'center',
         render: (row) => (
-          <span className="font-bold text-slate-700 text-sm">{row.urutan ?? '-'}</span>
+          <span className="font-bold text-slate-700 text-xs">{row.urutan ?? '-'}</span>
         ),
       },
       {
@@ -387,8 +387,8 @@ export default function MasterSuratTugasPage() {
         label: 'Nama Kategori Kegiatan',
         render: (row) => (
           <div>
-            <div className="font-semibold text-slate-900 text-sm">{row.nama}</div>
-            <div className="text-xs font-mono text-slate-500">{row.kode}</div>
+            <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">{row.nama}</div>
+            <div className="text-2xs font-mono text-slate-400">{row.kode}</div>
           </div>
         ),
       },
@@ -396,7 +396,7 @@ export default function MasterSuratTugasPage() {
         key: 'deskripsi',
         label: 'Deskripsi / Catatan',
         render: (row) => (
-          <span className="text-xs text-slate-600 line-clamp-2">
+          <span className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
             {row.deskripsi || '-'}
           </span>
         ),
@@ -450,7 +450,7 @@ export default function MasterSuratTugasPage() {
         label: 'No. Urut',
         align: 'center',
         render: (row) => (
-          <span className="font-bold text-slate-700 text-sm">{row.urutan ?? '-'}</span>
+          <span className="font-bold text-slate-700 text-xs">{row.urutan ?? '-'}</span>
         ),
       },
       {
@@ -458,8 +458,8 @@ export default function MasterSuratTugasPage() {
         label: 'Nama Moda Transportasi',
         render: (row) => (
           <div>
-            <div className="font-semibold text-slate-900 text-sm">{row.nama}</div>
-            <div className="text-xs font-mono text-slate-500">{row.kode}</div>
+            <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">{row.nama}</div>
+            <div className="text-2xs font-mono text-slate-400">{row.kode}</div>
           </div>
         ),
       },
@@ -548,142 +548,81 @@ export default function MasterSuratTugasPage() {
             >
               Kembali ke Surat Tugas
             </Button>
-            {activeTab === 'kategori' && (
-              <>
-                <Button
-                  variant="outline"
-                  icon={<Filter size={16} />}
-                  onClick={() => setShowFilterKategori(true)}
-                >
-                  Filter
-                </Button>
-                {canManage && (
-                  <Button
-                    variant="primary"
-                    icon={<Plus size={16} />}
-                    onClick={handleOpenCreateKategori}
-                  >
-                    Tambah Kategori
-                  </Button>
-                )}
-              </>
-            )}
-            {activeTab === 'transportasi' && (
-              <>
-                <Button
-                  variant="outline"
-                  icon={<Filter size={16} />}
-                  onClick={() => setShowFilterTransportasi(true)}
-                >
-                  Filter
-                </Button>
-                {canManage && (
-                  <Button
-                    variant="primary"
-                    icon={<Plus size={16} />}
-                    onClick={handleOpenCreateTransportasi}
-                  >
-                    Tambah Moda Transportasi
-                  </Button>
-                )}
-              </>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => activeTab === 'kategori' ? setShowFilterKategori(true) : setShowFilterTransportasi(true)}
+            >
+              Filter
+            </Button>
+            {canManage && (
+              <Button
+                icon={<Plus size={16} />}
+                onClick={activeTab === 'kategori' ? handleOpenCreateKategori : handleOpenCreateTransportasi}
+              >
+                {activeTab === 'kategori' ? 'Tambah Kategori' : 'Tambah Moda Transportasi'}
+              </Button>
             )}
           </div>
         }
       />
 
-      {/* Modern Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+      {/* Modern Navigation Tabs (Mengikuti Format Master Jabatan & Jenjang Fungsional) */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('kategori')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'kategori'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <Briefcase size={16} /> Kategori Kegiatan Tugas (
-          {metaKategori?.total ?? kategoriList.length})
+          <Briefcase size={16} /> Kategori Kegiatan Tugas
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('transportasi')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'transportasi'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <Car size={16} /> Moda & Armada Transportasi (
-          {metaTransportasi?.total ?? transportasiList.length})
+          <Car size={16} /> Jenis & Moda Transportasi
         </button>
       </div>
 
       {/* TAB 1: KATEGORI KEGIATAN */}
       {activeTab === 'kategori' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Daftar Kategori Kegiatan Tugas Dinas
-              </h2>
-              <p className="text-xs text-slate-500">
-                Digunakan sebagai opsi pilihan kategori pada form pengajuan surat tugas dinas
-                pegawai & dosen.
-              </p>
-            </div>
-            <div className="text-xs text-slate-500">
-              Total: <strong>{metaKategori?.total ?? kategoriList.length}</strong> Kategori
-            </div>
-          </div>
-
-          <DataTable
-            columns={columnsKategori}
-            data={kategoriList}
-            isLoading={loadingKategori}
-            meta={metaKategori}
-            onPageChange={(p) => setPageKategori(p)}
-            onLimitChange={(l) => {
-              setLimitKategori(l);
-              setPageKategori(1);
-            }}
-            emptyMessage="Belum ada data kategori kegiatan tugas. Klik tombol 'Tambah Kategori' di atas untuk membuat kategori baru."
-          />
-        </div>
+        <DataTable
+          columns={columnsKategori}
+          data={kategoriList}
+          isLoading={loadingKategori}
+          meta={metaKategori}
+          onPageChange={(p) => setPageKategori(p)}
+          onLimitChange={(l) => {
+            setLimitKategori(l);
+            setPageKategori(1);
+          }}
+          emptyMessage="Belum ada data kategori kegiatan tugas. Klik tombol 'Tambah Kategori' di atas untuk membuat kategori baru."
+        />
       )}
 
       {/* TAB 2: MODA TRANSPORTASI */}
       {activeTab === 'transportasi' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Daftar Moda Transportasi & Armada Dinas
-              </h2>
-              <p className="text-xs text-slate-500">
-                Digunakan sebagai opsi moda transportasi perjalanan dinas (kendaraan kampus, umum,
-                atau pribadi).
-              </p>
-            </div>
-            <div className="text-xs text-slate-500">
-              Total: <strong>{metaTransportasi?.total ?? transportasiList.length}</strong> Moda
-            </div>
-          </div>
-
-          <DataTable
-            columns={columnsTransportasi}
-            data={transportasiList}
-            isLoading={loadingTransportasi}
-            meta={metaTransportasi}
-            onPageChange={(p) => setPageTransportasi(p)}
-            onLimitChange={(l) => {
-              setLimitTransportasi(l);
-              setPageTransportasi(1);
-            }}
-            emptyMessage="Belum ada data moda transportasi. Klik tombol 'Tambah Moda Transportasi' di atas untuk membuat data baru."
-          />
-        </div>
+        <DataTable
+          columns={columnsTransportasi}
+          data={transportasiList}
+          isLoading={loadingTransportasi}
+          meta={metaTransportasi}
+          onPageChange={(p) => setPageTransportasi(p)}
+          onLimitChange={(l) => {
+            setLimitTransportasi(l);
+            setPageTransportasi(1);
+          }}
+          emptyMessage="Belum ada data moda transportasi. Klik tombol 'Tambah Moda Transportasi' di atas untuk membuat data baru."
+        />
       )}
 
       {/* DRAWER FILTER: TAB 1 (KATEGORI) */}

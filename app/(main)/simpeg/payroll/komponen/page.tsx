@@ -14,6 +14,7 @@ import {
   Percent,
   DollarSign,
   Calendar,
+  Filter,
   AlertCircle
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -25,6 +26,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
@@ -98,6 +100,10 @@ export default function MasterKomponenGajiPage() {
     isLoading: boolean;
   }>({ isOpen: false, item: null, isLoading: false });
 
+  // Sorting state for Drawer filter
+  const [filterOrderBy, setFilterOrderBy] = useState('nama');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
+
   // ── TAB 2: SKALA GAJI POKOK STATE ──
   const [loadingSkala, setLoadingSkala] = useState(false);
   const [skalaList, setSkalaList] = useState<MasterSkalaGajiPokok[]>([]);
@@ -116,6 +122,11 @@ export default function MasterKomponenGajiPage() {
   const [searchJafung, setSearchJafung] = useState('');
   const [modalJafungOpen, setModalJafungOpen] = useState(false);
   const [editingJafung, setEditingJafung] = useState<JabatanFungsionalAkademik | null>(null);
+  const [deleteModalJafung, setDeleteModalJafung] = useState<{
+    isOpen: boolean;
+    item: JabatanFungsionalAkademik | null;
+    isLoading: boolean;
+  }>({ isOpen: false, item: null, isLoading: false });
 
   // ── TAB 4: BRACKET PPH 21 STATE ──
   const [loadingPph21, setLoadingPph21] = useState(false);
@@ -683,6 +694,8 @@ export default function MasterKomponenGajiPage() {
     },
   ];
 
+  const [showFilter, setShowFilter] = useState(false);
+
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
@@ -697,9 +710,15 @@ export default function MasterKomponenGajiPage() {
             >
               Kembali ke Payroll
             </Button>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
             {canManage && activeTab === 'komponen' && (
               <Button
-                variant="primary"
                 icon={<Plus size={16} />}
                 onClick={handleOpenCreateKomponen}
               >
@@ -708,7 +727,6 @@ export default function MasterKomponenGajiPage() {
             )}
             {canManage && activeTab === 'skala' && (
               <Button
-                variant="primary"
                 icon={<Plus size={16} />}
                 onClick={handleOpenCreateSkala}
               >
@@ -719,44 +737,48 @@ export default function MasterKomponenGajiPage() {
         }
       />
 
-      {/* Modern Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+      {/* Modern Navigation Tabs (Mengikuti Format Master Jabatan & Jenjang Fungsional) */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <button
+          type="button"
           onClick={() => setActiveTab('komponen')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'komponen'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Layers size={16} /> Komponen & Tarif Variabel
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('skala')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'skala'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Calendar size={16} /> Skala Gaji Pokok (Masa Kerja)
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('jafung')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'jafung'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Award size={16} /> Tunjangan Fungsional Dosen
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('pph21')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'pph21'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Percent size={16} /> Bracket Pajak PPh 21 (TER)
@@ -766,14 +788,6 @@ export default function MasterKomponenGajiPage() {
       {/* ── TAB 1: KOMPONEN GAJI ── */}
       {activeTab === 'komponen' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <Input
-              placeholder="Cari nama komponen atau kode (misal: SKS, TRANSPORT, TERLAMBAT, BPJS)..."
-              value={searchKomponen}
-              onChange={(e) => setSearchKomponen(e.target.value)}
-            />
-          </div>
-
           <DataTable
             columns={columnsKomponen}
             data={komponenList}
@@ -791,14 +805,6 @@ export default function MasterKomponenGajiPage() {
       {/* ── TAB 2: SKALA GAJI POKOK (MASA KERJA) ── */}
       {activeTab === 'skala' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <Input
-              placeholder="Cari nama skala jenjang atau golongan..."
-              value={searchSkala}
-              onChange={(e) => setSearchSkala(e.target.value)}
-            />
-          </div>
-
           <DataTable
             columns={columnsSkala}
             data={skalaList}
@@ -816,14 +822,6 @@ export default function MasterKomponenGajiPage() {
       {/* ── TAB 3: TUNJANGAN JAFUNG ── */}
       {activeTab === 'jafung' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <Input
-              placeholder="Cari jabatan fungsional (misal: Guru Besar, Lektor Kepala, Asisten Ahli)..."
-              value={searchJafung}
-              onChange={(e) => setSearchJafung(e.target.value)}
-            />
-          </div>
-
           <DataTable
             columns={columnsJafung}
             data={jafungList}
@@ -837,6 +835,90 @@ export default function MasterKomponenGajiPage() {
           />
         </div>
       )}
+
+      {/* Drawer Filter */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Master Penggajian"
+      >
+        <div className="space-y-4">
+          {activeTab === 'komponen' && (
+            <Input
+              label="Cari Komponen / Kode"
+              placeholder="Cari nama komponen atau kode..."
+              value={searchKomponen}
+              onChange={(e) => setSearchKomponen(e.target.value)}
+            />
+          )}
+          {activeTab === 'skala' && (
+            <Input
+              label="Cari Skala Gaji"
+              placeholder="Cari nama skala jenjang atau golongan..."
+              value={searchSkala}
+              onChange={(e) => setSearchSkala(e.target.value)}
+            />
+          )}
+          {activeTab === 'jafung' && (
+            <Input
+              label="Cari Jafung"
+              placeholder="Cari jabatan fungsional..."
+              value={searchJafung}
+              onChange={(e) => setSearchJafung(e.target.value)}
+            />
+          )}
+
+          <hr className="my-4 border-slate-200 dark:border-slate-700" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'nama', label: 'Nama / Komponen' },
+                { value: 'kode', label: 'Kode' },
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'id', label: 'ID' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Terlama)' },
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+              ]}
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchKomponen('');
+                setSearchSkala('');
+                setSearchJafung('');
+                setFilterOrderBy('nama');
+                setFilterOrderDir('asc');
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                setShowFilter(false);
+                if (activeTab === 'komponen') loadKomponen();
+                else if (activeTab === 'skala') loadSkala();
+                else if (activeTab === 'jafung') loadJafung();
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        </div>
+      </Drawer>
 
       {/* ── TAB 4: BRACKET PPH 21 ── */}
       {activeTab === 'pph21' && (

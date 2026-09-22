@@ -19,10 +19,12 @@ import {
   Copy,
   Users,
   ArrowLeft,
+  Filter,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -151,6 +153,10 @@ export default function MasterPresensiPage() {
   // ── TAB 5: PARAMETER SISTEM STATE ─────────────────────────
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // Sorting state for Drawer filter
+  const [filterOrderBy, setFilterOrderBy] = useState('nama');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
 
   // ── FORMS (ALL ZOD VALIDATED) ─────────────────────────────
   const formShift = useForm<ShiftFormValues>({
@@ -918,6 +924,8 @@ export default function MasterPresensiPage() {
     },
   ];
 
+  const [showFilter, setShowFilter] = useState(false);
+
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
@@ -932,6 +940,13 @@ export default function MasterPresensiPage() {
             >
               Kembali ke Presensi
             </Button>
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
+            </Button>
             {canManage && activeTab === 'shift' && (
               <>
                 <Button
@@ -942,7 +957,6 @@ export default function MasterPresensiPage() {
                   Terapkan Shift Massal
                 </Button>
                 <Button
-                  variant="primary"
                   icon={<Plus size={16} />}
                   onClick={handleOpenCreateShift}
                 >
@@ -960,7 +974,6 @@ export default function MasterPresensiPage() {
                   Akses Lokasi Massal
                 </Button>
                 <Button
-                  variant="primary"
                   icon={<Plus size={16} />}
                   onClick={handleOpenCreateOffice}
                 >
@@ -970,7 +983,6 @@ export default function MasterPresensiPage() {
             )}
             {canManage && activeTab === 'holiday' && (
               <Button
-                variant="primary"
                 icon={<Plus size={16} />}
                 onClick={handleOpenCreateHoliday}
               >
@@ -981,15 +993,15 @@ export default function MasterPresensiPage() {
         }
       />
 
-      {/* Modern Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1">
+      {/* Modern Navigation Tabs (Mengikuti Format Master Jabatan & Jenjang Fungsional) */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('shift')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'shift'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Clock size={16} /> Template Shift & Jadwal Kerja
@@ -997,10 +1009,10 @@ export default function MasterPresensiPage() {
         <button
           type="button"
           onClick={() => setActiveTab('office')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'office'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Building2 size={16} /> Lokasi Kantor (Geofencing)
@@ -1008,10 +1020,10 @@ export default function MasterPresensiPage() {
         <button
           type="button"
           onClick={() => setActiveTab('holiday')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'holiday'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
           <Calendar size={16} /> Kalender Libur & Tanggal Merah
@@ -1019,27 +1031,19 @@ export default function MasterPresensiPage() {
         <button
           type="button"
           onClick={() => setActiveTab('settings')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'settings'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <SlidersHorizontal size={16} /> Parameter Sistem & Toleransi
+          <SlidersHorizontal size={16} /> Parameter Kehadiran Global
         </button>
       </div>
 
       {/* ── TAB 1: TEMPLATE SHIFT & JADWAL KERJA ── */}
       {activeTab === 'shift' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <Input
-              placeholder="Cari nama template shift atau deskripsi..."
-              value={searchShift}
-              onChange={(e) => setSearchShift(e.target.value)}
-            />
-          </div>
-
           <DataTable
             columns={columnsShift}
             data={filteredShifts}
@@ -1066,13 +1070,6 @@ export default function MasterPresensiPage() {
               <span className="font-bold"> Akses Lokasi Massal </span> untuk menugaskan beberapa titik sekaligus (misal ke seluruh dosen).
             </p>
           </div>
-          <div className="card p-4 border border-slate-200">
-            <Input
-              placeholder="Cari nama kantor, gedung, atau alamat..."
-              value={searchOffice}
-              onChange={(e) => setSearchOffice(e.target.value)}
-            />
-          </div>
 
           <DataTable
             columns={columnsOffice}
@@ -1091,36 +1088,6 @@ export default function MasterPresensiPage() {
       {/* ── TAB 4: KALENDER LIBUR & TANGGAL MERAH ── */}
       {activeTab === 'holiday' && (
         <div className="space-y-4">
-          <div className="card p-4 border border-slate-200">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-              <div className="md:col-span-6">
-                <Input
-                  placeholder="Cari nama hari libur atau perayaan..."
-                  value={searchHoliday}
-                  onChange={(e) => setSearchHoliday(e.target.value)}
-                />
-              </div>
-              <div className="md:col-span-3">
-                <Input
-                  type="number"
-                  value={holidayYear}
-                  onChange={(e) => setHolidayYear(parseInt(e.target.value) || new Date().getFullYear())}
-                />
-              </div>
-              <div className="md:col-span-3 flex justify-end">
-                <Button
-                  variant="outline"
-                  icon={<RefreshCw size={14} />}
-                  loading={syncingHolidays}
-                  disabled={syncingHolidays}
-                  onClick={handleSyncHolidays}
-                >
-                  Sync API Nasional
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <DataTable
             columns={columnsHoliday}
             data={filteredHolidays}
@@ -1128,12 +1095,105 @@ export default function MasterPresensiPage() {
             emptyMessage={
               <div className="py-8 text-center text-slate-400">
                 <Calendar size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada tanggal libur untuk tahun {holidayYear}.</p>
+                <p>Belum ada kalender libur yang terdaftar.</p>
               </div>
             }
           />
         </div>
       )}
+
+      {/* Drawer Filter */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Master Presensi"
+      >
+        <div className="space-y-4">
+          {activeTab === 'shift' && (
+            <Input
+              label="Cari Template Shift"
+              placeholder="Cari nama template shift atau deskripsi..."
+              value={searchShift}
+              onChange={(e) => setSearchShift(e.target.value)}
+            />
+          )}
+          {activeTab === 'office' && (
+            <Input
+              label="Cari Lokasi Kantor"
+              placeholder="Cari nama kantor, gedung, atau alamat..."
+              value={searchOffice}
+              onChange={(e) => setSearchOffice(e.target.value)}
+            />
+          )}
+          {activeTab === 'holiday' && (
+            <>
+              <Input
+                label="Cari Hari Libur"
+                placeholder="Cari nama hari libur atau perayaan..."
+                value={searchHoliday}
+                onChange={(e) => setSearchHoliday(e.target.value)}
+              />
+              <Input
+                label="Tahun Libur"
+                type="number"
+                value={holidayYear}
+                onChange={(e) => setHolidayYear(parseInt(e.target.value) || new Date().getFullYear())}
+              />
+              <Button
+                variant="outline"
+                className="w-full"
+                loading={syncingHolidays}
+                disabled={syncingHolidays}
+                onClick={handleSyncHolidays}
+              >
+                Sync API Nasional
+              </Button>
+            </>
+          )}
+
+          <hr className="my-4 border-slate-200 dark:border-slate-700" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'nama', label: 'Nama / Label' },
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'id', label: 'ID' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Terlama)' },
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+              ]}
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchShift('');
+                setSearchOffice('');
+                setSearchHoliday('');
+                setFilterOrderBy('nama');
+                setFilterOrderDir('asc');
+              }}
+            >
+              Reset
+            </Button>
+            <Button onClick={() => setShowFilter(false)}>
+              Terapkan
+            </Button>
+          </div>
+        </div>
+      </Drawer>
 
       {/* ── TAB 5: PARAMETER SISTEM & TOLERANSI ── */}
       {activeTab === 'settings' && (
