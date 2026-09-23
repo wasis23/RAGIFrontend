@@ -111,7 +111,7 @@ export default function StudentTagihanPage() {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const verifyUrl = `${origin}/validasi-pembayaran/${encodeURIComponent(kode)}`;
     QRCode.toDataURL(verifyUrl, { margin: 1, width: 120 })
-      .then((url) => {
+      .then((url: string) => {
         if (!cancelled) setReceiptQrUrl(url);
       })
       .catch(() => {

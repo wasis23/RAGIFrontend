@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Award,
   FileCheck,
@@ -679,15 +680,6 @@ export default function KompetensiPage() {
         description="Rekam jejak keahlian, sertifikasi dosen resmi, skor tes kemampuan bahasa/akademik, serta riwayat pelatihan profesional."
         action={
           <div className="flex items-center gap-2">
-            {isManager && (
-              <Button
-                variant="outline"
-                icon={<Search size={16} />}
-                onClick={() => router.push('/simpeg/kompetensi/pencarian')}
-              >
-                Pencarian & Rekap
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -708,8 +700,9 @@ export default function KompetensiPage() {
 
       {/* Tab Navigation (Mengikuti Format Master Jabatan & Jenjang Fungsional) */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => setActiveTab('sertifikasi')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'sertifikasi'
@@ -718,10 +711,11 @@ export default function KompetensiPage() {
           }`}
         >
           <Award size={16} /> Sertifikasi Dosen
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => setActiveTab('tes')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'tes'
@@ -730,10 +724,11 @@ export default function KompetensiPage() {
           }`}
         >
           <FileCheck size={16} /> Riwayat Tes
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={() => setActiveTab('pelatihan')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'pelatihan'
@@ -742,7 +737,7 @@ export default function KompetensiPage() {
           }`}
         >
           <GraduationCap size={16} /> Pelatihan & Workshop
-        </button>
+        </Button>
       </div>
 
       {/* Main Table */}
@@ -869,16 +864,27 @@ export default function KompetensiPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Jenis Sertifikasi *"
-                options={(masters?.jenis_sertifikasi || []).map((j) => ({
-                  value: j.id.toString(),
-                  label: j.nama,
-                }))}
-                value={formSertifikasi.watch('jenis_sertifikasi_id')}
-                onChange={(e) => formSertifikasi.setValue('jenis_sertifikasi_id', e.target.value)}
-                error={formSertifikasi.formState.errors.jenis_sertifikasi_id?.message}
-              />
+              <div>
+                <Select
+                  label="Jenis Sertifikasi *"
+                  options={(masters?.jenis_sertifikasi || []).map((j) => ({
+                    value: j.id.toString(),
+                    label: j.nama,
+                  }))}
+                  placeholder={(masters?.jenis_sertifikasi || []).length === 0 ? '-- Belum ada data jenis sertifikasi --' : '-- Pilih Jenis Sertifikasi --'}
+                  value={formSertifikasi.watch('jenis_sertifikasi_id')}
+                  onChange={(e) => formSertifikasi.setValue('jenis_sertifikasi_id', e.target.value)}
+                  error={formSertifikasi.formState.errors.jenis_sertifikasi_id?.message}
+                />
+                {(masters?.jenis_sertifikasi || []).length === 0 && (
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <span>Belum ada jenis sertifikasi.</span>
+                    <Link href="/simpeg/master/kompetensi" className="font-semibold underline text-[var(--module-primary)]">
+                      Tambah di Master
+                    </Link>
+                  </p>
+                )}
+              </div>
 
               <Input
                 label="Tahun Sertifikasi *"
@@ -972,16 +978,27 @@ export default function KompetensiPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Jenis Tes Resmi *"
-                options={(masters?.jenis_tes || []).map((t) => ({
-                  value: t.id.toString(),
-                  label: `${t.nama} (${t.kategori === 'bahasa' ? 'Bahasa' : 'Potensi Akademik'})`,
-                }))}
-                value={formTes.watch('jenis_tes_id')}
-                onChange={(e) => formTes.setValue('jenis_tes_id', e.target.value)}
-                error={formTes.formState.errors.jenis_tes_id?.message}
-              />
+              <div>
+                <Select
+                  label="Jenis Tes Resmi *"
+                  options={(masters?.jenis_tes || []).map((t) => ({
+                    value: t.id.toString(),
+                    label: `${t.nama} (${t.kategori === 'bahasa' ? 'Bahasa' : 'Potensi Akademik'})`,
+                  }))}
+                  placeholder={(masters?.jenis_tes || []).length === 0 ? '-- Belum ada data jenis tes --' : '-- Pilih Jenis Tes --'}
+                  value={formTes.watch('jenis_tes_id')}
+                  onChange={(e) => formTes.setValue('jenis_tes_id', e.target.value)}
+                  error={formTes.formState.errors.jenis_tes_id?.message}
+                />
+                {(masters?.jenis_tes || []).length === 0 && (
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <span>Belum ada jenis tes resmi.</span>
+                    <Link href="/simpeg/master/kompetensi" className="font-semibold underline text-[var(--module-primary)]">
+                      Tambah di Master
+                    </Link>
+                  </p>
+                )}
+              </div>
 
               <Input
                 label="Skor / Nilai Hasil Tes *"
@@ -1113,6 +1130,15 @@ export default function KompetensiPage() {
                 onChange={(e) => formPelatihan.setValue('tingkat_id', e.target.value)}
               />
             </div>
+
+            {((masters?.jenis_pelatihan || []).length === 0 || (masters?.peran_pelatihan || []).length === 0) && (
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                <span>Master jenis pelatihan atau peran belum lengkap?</span>
+                <Link href="/simpeg/master/kompetensi" className="font-semibold underline text-[var(--module-primary)]">
+                  Kelola di Master Kompetensi
+                </Link>
+              </p>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Input

@@ -20,10 +20,13 @@ import type { Pegawai, UnitKerja } from '@/types/simpeg.types';
 
 const pegawaiSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
+  gelar_depan: z.string().optional().nullable(),
+  gelar_belakang: z.string().optional().nullable(),
   nidn: z.string().optional().nullable(),
   nuptk: z.string().optional().nullable(),
   nip: z.string().optional().nullable(),
   nik: z.string().optional().nullable(),
+  tanggal_masuk: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
   role_ids: z.array(z.string().or(z.number())).min(1, 'Pilih minimal satu jenis pegawai / peran SSO'),
   status_kepegawaian: z.enum(['pns', 'non_pns', 'kontrak', 'tetap_yayasan'], {
@@ -85,8 +88,13 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
     resolver: zodResolver(pegawaiSchema),
     defaultValues: {
       nama_lengkap: '',
+      gelar_depan: '',
+      gelar_belakang: '',
+      nidn: '',
+      nuptk: '',
       nip: '',
       nik: '',
+      tanggal_masuk: '',
       unit_kerja_id: '',
       role_ids: [],
       status_kepegawaian: 'tetap_yayasan',
@@ -181,6 +189,9 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             nip: peg.nip || '',
             nik: peg.nik || '',
             nama_lengkap: peg.nama_lengkap || '',
+            gelar_depan: peg.gelar_depan || '',
+            gelar_belakang: peg.gelar_belakang || '',
+            tanggal_masuk: peg.tanggal_masuk ? peg.tanggal_masuk.slice(0, 10) : '',
             role_ids: initialRoles.map((r) => r.value),
             tempat_lahir: peg.tempat_lahir || '',
             tanggal_lahir: peg.tanggal_lahir || '',
@@ -228,6 +239,9 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         nip: values.nip || null,
         nik: values.nik || null,
         nama_lengkap: values.nama_lengkap,
+        gelar_depan: values.gelar_depan || null,
+        gelar_belakang: values.gelar_belakang || null,
+        tanggal_masuk: values.tanggal_masuk || null,
         role_ids: values.role_ids.map(Number),
         tempat_lahir: values.tempat_lahir || null,
         tanggal_lahir: values.tanggal_lahir || null,
@@ -298,11 +312,32 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               <Input
-                label="Nama Lengkap & Gelar"
+                label="Gelar Depan (Opsional)"
+                placeholder="Contoh: Dr., Prof."
+                error={errors.gelar_depan?.message}
+                {...register('gelar_depan')}
+              />
+
+              <Input
+                label="Nama Lengkap"
                 required
-                placeholder="Ketik Nama Lengkap & Gelar..."
+                placeholder="Contoh: Wasis Utama"
                 error={errors.nama_lengkap?.message}
                 {...register('nama_lengkap')}
+              />
+
+              <Input
+                label="Gelar Belakang (Opsional)"
+                placeholder="Contoh: M.Kom., Ph.D."
+                error={errors.gelar_belakang?.message}
+                {...register('gelar_belakang')}
+              />
+
+              <Input
+                label="NIP (Nomor Induk Pegawai)"
+                placeholder="Ketik NIP pegawai..."
+                error={errors.nip?.message}
+                {...register('nip')}
               />
 
               <Input
@@ -320,10 +355,10 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               />
 
               <Input
-                label="NIP (Nomor Induk Pegawai)"
-                placeholder="Ketik NIP pegawai..."
-                error={errors.nip?.message}
-                {...register('nip')}
+                type="date"
+                label="Tanggal Masuk"
+                error={errors.tanggal_masuk?.message}
+                {...register('tanggal_masuk')}
               />
 
               <Input

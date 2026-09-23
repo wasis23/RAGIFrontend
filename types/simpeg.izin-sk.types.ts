@@ -29,6 +29,7 @@ export interface IzinJamKerja {
   jam_selesai: string;
   alasan: string;
   file_bukti?: string | null;
+  file_bukti_url?: string | null;
   status: IzinJamKerjaStatus;
   catatan_approval?: string | null;
   approved_by?: number | null;

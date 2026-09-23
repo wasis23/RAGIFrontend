@@ -940,6 +940,24 @@ export default function MasterPresensiPage() {
             >
               Kembali ke Presensi
             </Button>
+            {canManage && activeTab === 'shift' && (
+              <Button
+                variant="outline"
+                icon={<Users size={16} />}
+                onClick={handleOpenBulkModal}
+              >
+                Terapkan Shift Massal
+              </Button>
+            )}
+            {canManage && activeTab === 'office' && (
+              <Button
+                variant="outline"
+                icon={<Users size={16} />}
+                onClick={handleOpenBulkOfficeModal}
+              >
+                Akses Lokasi Massal
+              </Button>
+            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -948,38 +966,20 @@ export default function MasterPresensiPage() {
               Filter
             </Button>
             {canManage && activeTab === 'shift' && (
-              <>
-                <Button
-                  variant="outline"
-                  icon={<Users size={16} />}
-                  onClick={handleOpenBulkModal}
-                >
-                  Terapkan Shift Massal
-                </Button>
-                <Button
-                  icon={<Plus size={16} />}
-                  onClick={handleOpenCreateShift}
-                >
-                  Tambah Tipe Shift
-                </Button>
-              </>
+              <Button
+                icon={<Plus size={16} />}
+                onClick={handleOpenCreateShift}
+              >
+                Tambah Tipe Shift
+              </Button>
             )}
             {canManage && activeTab === 'office' && (
-              <>
-                <Button
-                  variant="outline"
-                  icon={<Users size={16} />}
-                  onClick={handleOpenBulkOfficeModal}
-                >
-                  Akses Lokasi Massal
-                </Button>
-                <Button
-                  icon={<Plus size={16} />}
-                  onClick={handleOpenCreateOffice}
-                >
-                  Tambah Lokasi Kantor
-                </Button>
-              </>
+              <Button
+                icon={<Plus size={16} />}
+                onClick={handleOpenCreateOffice}
+              >
+                Tambah Lokasi Kantor
+              </Button>
             )}
             {canManage && activeTab === 'holiday' && (
               <Button

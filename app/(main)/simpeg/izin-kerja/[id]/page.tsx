@@ -128,12 +128,12 @@ export default function IzinKerjaDetailPage() {
         action={
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              onClick={() => router.push('/simpeg/izin-kerja')}
-              className="flex items-center gap-2"
+              style={{ background: 'var(--module-primary, #3b82f6)' }}
+              className="text-white border-none shadow-sm font-bold flex items-center gap-2"
+              onClick={() => router.push('/simpeg/cuti?tab=izin-kerja')}
             >
               <ArrowLeft size={16} />
-              <span>Kembali</span>
+              <span>Kembali ke Cuti & Izin</span>
             </Button>
             {canApprove && data.status === 'menunggu' && (
               <Button

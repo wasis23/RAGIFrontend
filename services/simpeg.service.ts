@@ -20,6 +20,13 @@ import type {
   FingerprintSyncPayload,
   BulkAssignShiftPayload,
   CutoffReport,
+  MasterJenisSertifikasi,
+  MasterJenisTes,
+  MasterJenisPelatihan,
+  MasterPeranPelatihan,
+  MasterTingkatKegiatan,
+  MasterJenisIzinJamKerja,
+  MasterKategoriSk,
 } from '@/types/simpeg.types';
 
 export const simpegService = {
@@ -677,6 +684,132 @@ export const simpegService = {
 
   triggerPddiktiSync: async (): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/pddikti/sync-all');
+    return data;
+  },
+
+  // ── MASTER KOMPETENSI: JENIS SERTIFIKASI ───────────────────
+  getMasterJenisSertifikasiList: async (params?: any): Promise<ApiResponse<MasterJenisSertifikasi[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterJenisSertifikasi[]>>('/simpeg/master/jenis-sertifikasi', { params });
+    return data;
+  },
+  createMasterJenisSertifikasi: async (payload: Partial<MasterJenisSertifikasi>): Promise<ApiResponse<MasterJenisSertifikasi>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterJenisSertifikasi>>('/simpeg/master/jenis-sertifikasi', payload);
+    return data;
+  },
+  updateMasterJenisSertifikasi: async (id: number, payload: Partial<MasterJenisSertifikasi>): Promise<ApiResponse<MasterJenisSertifikasi>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterJenisSertifikasi>>(`/simpeg/master/jenis-sertifikasi/${id}`, payload);
+    return data;
+  },
+  deleteMasterJenisSertifikasi: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/jenis-sertifikasi/${id}`);
+    return data;
+  },
+
+  // ── MASTER KOMPETENSI: JENIS TES RESMI ─────────────────────
+  getMasterJenisTesList: async (params?: any): Promise<ApiResponse<MasterJenisTes[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterJenisTes[]>>('/simpeg/master/jenis-tes', { params });
+    return data;
+  },
+  createMasterJenisTes: async (payload: Partial<MasterJenisTes>): Promise<ApiResponse<MasterJenisTes>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterJenisTes>>('/simpeg/master/jenis-tes', payload);
+    return data;
+  },
+  updateMasterJenisTes: async (id: number, payload: Partial<MasterJenisTes>): Promise<ApiResponse<MasterJenisTes>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterJenisTes>>(`/simpeg/master/jenis-tes/${id}`, payload);
+    return data;
+  },
+  deleteMasterJenisTes: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/jenis-tes/${id}`);
+    return data;
+  },
+
+  // ── MASTER KOMPETENSI: JENIS PELATIHAN & DIKLAT ────────────
+  getMasterJenisPelatihanList: async (params?: any): Promise<ApiResponse<MasterJenisPelatihan[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterJenisPelatihan[]>>('/simpeg/master/jenis-pelatihan', { params });
+    return data;
+  },
+  createMasterJenisPelatihan: async (payload: Partial<MasterJenisPelatihan>): Promise<ApiResponse<MasterJenisPelatihan>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterJenisPelatihan>>('/simpeg/master/jenis-pelatihan', payload);
+    return data;
+  },
+  updateMasterJenisPelatihan: async (id: number, payload: Partial<MasterJenisPelatihan>): Promise<ApiResponse<MasterJenisPelatihan>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterJenisPelatihan>>(`/simpeg/master/jenis-pelatihan/${id}`, payload);
+    return data;
+  },
+  deleteMasterJenisPelatihan: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/jenis-pelatihan/${id}`);
+    return data;
+  },
+
+  // ── MASTER KOMPETENSI: PERAN PELATIHAN ─────────────────────
+  getMasterPeranPelatihanList: async (params?: any): Promise<ApiResponse<MasterPeranPelatihan[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterPeranPelatihan[]>>('/simpeg/master/peran-pelatihan', { params });
+    return data;
+  },
+  createMasterPeranPelatihan: async (payload: Partial<MasterPeranPelatihan>): Promise<ApiResponse<MasterPeranPelatihan>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterPeranPelatihan>>('/simpeg/master/peran-pelatihan', payload);
+    return data;
+  },
+  updateMasterPeranPelatihan: async (id: number, payload: Partial<MasterPeranPelatihan>): Promise<ApiResponse<MasterPeranPelatihan>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterPeranPelatihan>>(`/simpeg/master/peran-pelatihan/${id}`, payload);
+    return data;
+  },
+  deleteMasterPeranPelatihan: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/peran-pelatihan/${id}`);
+    return data;
+  },
+
+  // ── MASTER KOMPETENSI: TINGKAT KEGIATAN ────────────────────
+  getMasterTingkatKegiatanList: async (params?: any): Promise<ApiResponse<MasterTingkatKegiatan[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterTingkatKegiatan[]>>('/simpeg/master/tingkat-kegiatan', { params });
+    return data;
+  },
+  createMasterTingkatKegiatan: async (payload: Partial<MasterTingkatKegiatan>): Promise<ApiResponse<MasterTingkatKegiatan>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterTingkatKegiatan>>('/simpeg/master/tingkat-kegiatan', payload);
+    return data;
+  },
+  updateMasterTingkatKegiatan: async (id: number, payload: Partial<MasterTingkatKegiatan>): Promise<ApiResponse<MasterTingkatKegiatan>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterTingkatKegiatan>>(`/simpeg/master/tingkat-kegiatan/${id}`, payload);
+    return data;
+  },
+  deleteMasterTingkatKegiatan: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/tingkat-kegiatan/${id}`);
+    return data;
+  },
+
+  // ── MASTER IZIN JAM KERJA ──────────────────────────────────
+  getMasterJenisIzinJamKerjaList: async (params?: any): Promise<ApiResponse<MasterJenisIzinJamKerja[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterJenisIzinJamKerja[]>>('/simpeg/master/jenis-izin-jam-kerja', { params });
+    return data;
+  },
+  createMasterJenisIzinJamKerja: async (payload: Partial<MasterJenisIzinJamKerja>): Promise<ApiResponse<MasterJenisIzinJamKerja>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterJenisIzinJamKerja>>('/simpeg/master/jenis-izin-jam-kerja', payload);
+    return data;
+  },
+  updateMasterJenisIzinJamKerja: async (id: number, payload: Partial<MasterJenisIzinJamKerja>): Promise<ApiResponse<MasterJenisIzinJamKerja>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterJenisIzinJamKerja>>(`/simpeg/master/jenis-izin-jam-kerja/${id}`, payload);
+    return data;
+  },
+  deleteMasterJenisIzinJamKerja: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/jenis-izin-jam-kerja/${id}`);
+    return data;
+  },
+
+  // ── MASTER KATEGORI SK ─────────────────────────────────────
+  getMasterKategoriSkList: async (params?: any): Promise<ApiResponse<MasterKategoriSk[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterKategoriSk[]>>('/simpeg/master/kategori-sk', { params });
+    return data;
+  },
+  createMasterKategoriSk: async (payload: Partial<MasterKategoriSk>): Promise<ApiResponse<MasterKategoriSk>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterKategoriSk>>('/simpeg/master/kategori-sk', payload);
+    return data;
+  },
+  updateMasterKategoriSk: async (id: number, payload: Partial<MasterKategoriSk>): Promise<ApiResponse<MasterKategoriSk>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterKategoriSk>>(`/simpeg/master/kategori-sk/${id}`, payload);
+    return data;
+  },
+  deleteMasterKategoriSk: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/kategori-sk/${id}`);
     return data;
   },
 };

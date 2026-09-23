@@ -10,7 +10,6 @@ import {
   Plus,
   ArrowRight,
   TrendingUp,
-  RefreshCw,
   User,
   FileText,
   Calendar,
@@ -576,23 +575,6 @@ export default function SimpegDashboardPage() {
         badge="PANEL UTAMA ADMIN SIMPEG KAMPUS"
         title="Sistem Informasi Kepegawaian Kampus"
         description="Kelola data seluruh Dosen, Tenaga Kependidikan, Unit Kerja, Jabatan, dan Riwayat SK Kepegawaian terhubung langsung dengan SSO Central Authorization."
-        actions={
-          <div className="flex gap-3">
-            <Link
-              href="/simpeg/pegawai"
-              className="btn hero-btn-white"
-            >
-              <Plus size={18} /> Tambah Pegawai
-            </Link>
-            <button
-              onClick={fetchData}
-              className="btn hero-btn-glass btn-icon"
-              title="Refresh Data"
-            >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-            </button>
-          </div>
-        }
       />
 
       <div className="kpi-grid">

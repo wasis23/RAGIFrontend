@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -145,7 +146,7 @@ export default function CreateIzinKerjaPage() {
 
       await simpegIzinKerjaService.create(formData);
       toast.success('Pengajuan izin jam kerja berhasil dikirim!');
-      router.push('/simpeg/izin-kerja');
+      router.push('/simpeg/cuti?tab=izin-kerja');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal mengirim pengajuan izin.');
     } finally {
@@ -160,12 +161,12 @@ export default function CreateIzinKerjaPage() {
         description="Formulir permohonan izin keluar kampus sementara, datang terlambat, atau pulang lebih awal."
         action={
           <Button
-            variant="outline"
-            onClick={() => router.push('/simpeg/izin-kerja')}
-            className="flex items-center gap-2"
+            style={{ background: 'var(--module-primary, #3b82f6)' }}
+            className="text-white border-none shadow-sm font-bold flex items-center gap-2"
+            onClick={() => router.push('/simpeg/cuti?tab=izin-kerja')}
           >
             <ArrowLeft size={16} />
-            <span>Kembali ke Daftar</span>
+            <span>Kembali ke Cuti & Izin</span>
           </Button>
         }
       />
@@ -219,12 +220,23 @@ export default function CreateIzinKerjaPage() {
                 name="master_jenis_izin_id"
                 control={control}
                 render={({ field }) => (
-                  <Select
-                    options={jenisIzinOptions}
-                    value={field.value}
-                    onChange={(val: any) => field.onChange(val || '')}
-                    className="mt-1 w-full"
-                  />
+                  <div>
+                    <Select
+                      options={jenisIzinOptions}
+                      value={field.value}
+                      onChange={(val: any) => field.onChange(val || '')}
+                      placeholder={jenisIzinOptions.length === 0 ? '-- Belum ada data jenis izin --' : '-- Pilih Jenis Izin --'}
+                      className="w-full"
+                    />
+                    {masters && jenisIzinOptions.length === 0 && (
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                        <span>Belum ada data jenis izin jam kerja.</span>
+                        <Link href="/simpeg/master/jenis-cuti?tab=izin-kerja" className="font-semibold underline text-[var(--module-primary)]">
+                          Tambah di Master Regulasi Cuti & Izin
+                        </Link>
+                      </p>
+                    )}
+                  </div>
                 )}
               />
               {errors.master_jenis_izin_id && (

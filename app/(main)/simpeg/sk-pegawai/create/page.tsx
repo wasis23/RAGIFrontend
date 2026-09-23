@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -229,12 +230,23 @@ export default function CreateSkPegawaiPage() {
                 name="kategori_sk_id"
                 control={control}
                 render={({ field }) => (
-                  <Select
-                    options={kategoriOptions}
-                    value={field.value}
-                    onChange={(val: any) => field.onChange(val || '')}
-                    className="mt-1 w-full"
-                  />
+                  <div>
+                    <Select
+                      options={kategoriOptions}
+                      value={field.value}
+                      onChange={(val: any) => field.onChange(val || '')}
+                      placeholder={kategoriOptions.length === 0 ? '-- Belum ada data kategori SK --' : '-- Pilih Kategori SK --'}
+                      className="w-full"
+                    />
+                    {masters && kategoriOptions.length === 0 && (
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                        <span>Belum ada data kategori SK.</span>
+                        <Link href="/simpeg/master/kategori-sk" className="font-semibold underline text-[var(--module-primary)]">
+                          Tambah di Master Kategori SK
+                        </Link>
+                      </p>
+                    )}
+                  </div>
                 )}
               />
               {errors.kategori_sk_id && (

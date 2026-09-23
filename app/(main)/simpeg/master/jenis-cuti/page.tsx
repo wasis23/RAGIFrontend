@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { Plus, Filter, Edit2, Trash2, ShieldAlert, CheckCircle2, XCircle, Clock, CalendarDays } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Plus, Filter, Edit2, Trash2, CalendarDays, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,11 +17,13 @@ import { Textarea } from '@/components/ui/Textarea';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { simpegService } from '@/services/simpeg.service';
-import type { MasterJenisCuti, TipeDurasiCuti } from '@/types/simpeg.types';
+import type { MasterJenisCuti, MasterJenisIzinJamKerja } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 
+// ── ZOD SCHEMAS ──────────────────────────────────────────
 const masterJenisCutiSchema = z.object({
   nama: z.string().min(1, 'Nama jenis izin/cuti wajib diisi'),
   kode: z.string().optional(),
@@ -45,44 +47,61 @@ const masterJenisCutiSchema = z.object({
 
 type MasterJenisCutiFormValues = z.infer<typeof masterJenisCutiSchema>;
 
+const masterJenisIzinSchema = z.object({
+  nama: z.string().min(1, 'Nama jenis izin jam kerja wajib diisi'),
+  kode: z.string().min(1, 'Kode jenis izin wajib diisi'),
+  tipe_potongan: z.enum(['tidak_potong', 'potong_jam'], {
+    message: 'Tipe potongan jam kerja wajib dipilih',
+  }),
+  urutan: z.number().min(0, 'Nomor urutan minimal 0'),
+  deskripsi: z.string().optional(),
+  is_active: z.boolean(),
+});
+
+type MasterJenisIzinFormValues = z.infer<typeof masterJenisIzinSchema>;
+
 export default function MasterJenisCutiPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const tabParam = searchParams.get('tab');
+
   const { hasPermission } = useAuth();
-  const canRead = hasPermission('simpeg.cuti.read') || hasPermission('simpeg.cuti.manage') || hasPermission('simpeg.cuti.update');
-  const canManage = hasPermission('simpeg.cuti.manage') || hasPermission('simpeg.cuti.update') || hasPermission('simpeg.cuti.create');
+  const canRead = hasPermission('simpeg.cuti.read') || hasPermission('simpeg.cuti.manage');
+  const canManage = hasPermission('simpeg.cuti.manage') || hasPermission('simpeg.cuti.create');
 
-  const [loading, setLoading] = useState(true);
-  const [dataList, setDataList] = useState<MasterJenisCuti[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | undefined>();
+  const [activeTab, setActiveTab] = useState<'cuti' | 'izin-kerja'>(
+    tabParam === 'izin-kerja' ? 'izin-kerja' : 'cuti'
+  );
 
-  // Filter & Sorting states
-  const [search, setSearch] = useState('');
-  const [filterTipe, setFilterTipe] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterOrderBy, setFilterOrderBy] = useState('nama');
-  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(15);
-  const [showFilter, setShowFilter] = useState(false);
+  // Sync tab with URL
+  const handleTabChange = (newTab: 'cuti' | 'izin-kerja') => {
+    setActiveTab(newTab);
+    router.replace(`/simpeg/master/jenis-cuti${newTab === 'izin-kerja' ? '?tab=izin-kerja' : ''}`, { scroll: false });
+  };
 
-  // Modal State (Create / Edit)
-  const [showModal, setShowModal] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // ── TAB 1: CUTI STATES ─────────────────────────────────
+  const [loadingCuti, setLoadingCuti] = useState(true);
+  const [dataCutiList, setDataCutiList] = useState<MasterJenisCuti[]>([]);
+  const [metaCuti, setMetaCuti] = useState<PaginationMeta | undefined>();
+  const [pageCuti, setPageCuti] = useState(1);
+  const [limitCuti, setLimitCuti] = useState(15);
+  const [searchCuti, setSearchCuti] = useState('');
+  const [filterTipeCuti, setFilterTipeCuti] = useState('');
+  const [filterStatusCuti, setFilterStatusCuti] = useState('');
+  const [filterOrderByCuti, setFilterOrderByCuti] = useState('nama');
+  const [filterOrderDirCuti, setFilterOrderDirCuti] = useState<'asc' | 'desc'>('asc');
+  const [showFilterCuti, setShowFilterCuti] = useState(false);
 
-  // Delete State
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedDelete, setSelectedDelete] = useState<MasterJenisCuti | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Modal Cuti
+  const [showModalCuti, setShowModalCuti] = useState(false);
+  const [editCutiId, setEditCutiId] = useState<number | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<MasterJenisCutiFormValues>({
+  // Delete Cuti
+  const [deleteConfirmCutiOpen, setDeleteConfirmCutiOpen] = useState(false);
+  const [itemToDeleteCuti, setItemToDeleteCuti] = useState<{ id: number; nama: string } | null>(null);
+  const [isDeletingCuti, setIsDeletingCuti] = useState(false);
+
+  const formCuti = useForm<MasterJenisCutiFormValues>({
     resolver: zodResolver(masterJenisCutiSchema),
     defaultValues: {
       nama: '',
@@ -96,44 +115,102 @@ export default function MasterJenisCutiPage() {
     },
   });
 
-  const watchTipeDurasi = watch('tipe_durasi');
+  // ── TAB 2: IZIN KERJA STATES ───────────────────────────
+  const [loadingIzin, setLoadingIzin] = useState(true);
+  const [dataIzinList, setDataIzinList] = useState<MasterJenisIzinJamKerja[]>([]);
+  const [metaIzin, setMetaIzin] = useState<PaginationMeta | undefined>();
+  const [pageIzin, setPageIzin] = useState(1);
+  const [limitIzin, setLimitIzin] = useState(15);
+  const [searchIzin, setSearchIzin] = useState('');
+  const [filterPotonganIzin, setFilterPotonganIzin] = useState('');
+  const [filterStatusIzin, setFilterStatusIzin] = useState('');
+  const [filterOrderByIzin, setFilterOrderByIzin] = useState('urutan');
+  const [filterOrderDirIzin, setFilterOrderDirIzin] = useState<'asc' | 'desc'>('asc');
+  const [showFilterIzin, setShowFilterIzin] = useState(false);
 
-  const loadData = useCallback(async () => {
+  // Modal Izin
+  const [showModalIzin, setShowModalIzin] = useState(false);
+  const [editIzinId, setEditIzinId] = useState<number | null>(null);
+
+  // Delete Izin
+  const [deleteConfirmIzinOpen, setDeleteConfirmIzinOpen] = useState(false);
+  const [itemToDeleteIzin, setItemToDeleteIzin] = useState<{ id: number; nama: string } | null>(null);
+  const [isDeletingIzin, setIsDeletingIzin] = useState(false);
+
+  const formIzin = useForm<MasterJenisIzinFormValues>({
+    resolver: zodResolver(masterJenisIzinSchema),
+    defaultValues: {
+      nama: '',
+      kode: '',
+      tipe_potongan: 'tidak_potong',
+      urutan: 1,
+      deskripsi: '',
+      is_active: true,
+    },
+  });
+
+  // ── FETCH CUTI ─────────────────────────────────────────
+  const fetchCuti = useCallback(async () => {
     if (!canRead) return;
-    setLoading(true);
+    setLoadingCuti(true);
     try {
-      const res: any = await simpegService.getMasterJenisCutiList({
-        page,
-        limit,
-        search: search || undefined,
-        tipe_durasi: filterTipe || undefined,
-        is_active: filterStatus !== '' ? filterStatus : undefined,
-        sort_by: filterOrderBy,
-        sort_dir: filterOrderDir,
-      });
+      const params: Record<string, any> = {
+        page: pageCuti,
+        per_page: limitCuti,
+        sort_by: filterOrderByCuti,
+        sort_order: filterOrderDirCuti,
+      };
+      if (searchCuti) params.search = searchCuti;
+      if (filterTipeCuti) params.tipe_durasi = filterTipeCuti;
+      if (filterStatusCuti !== '') params.is_active = filterStatusCuti;
 
-      if (res?.meta) {
-        setDataList(res.data || []);
-        setMeta(res.meta);
-      } else {
-        const items = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        setDataList(items);
-      }
-    } catch (err) {
-      console.error('Gagal memuat master jenis cuti', err);
-      toast.error('Gagal memuat daftar jenis izin & cuti.');
+      const res = await simpegService.getMasterJenisCutiList(params);
+      setDataCutiList(res.data || []);
+      if (res.meta) setMetaCuti(res.meta);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal memuat master jenis cuti');
     } finally {
-      setLoading(false);
+      setLoadingCuti(false);
     }
-  }, [canRead, page, limit, search, filterTipe, filterStatus, filterOrderBy, filterOrderDir]);
+  }, [canRead, pageCuti, limitCuti, searchCuti, filterTipeCuti, filterStatusCuti, filterOrderByCuti, filterOrderDirCuti]);
+
+  // ── FETCH IZIN JAM KERJA ───────────────────────────────
+  const fetchIzin = useCallback(async () => {
+    if (!canRead) return;
+    setLoadingIzin(true);
+    try {
+      const params: Record<string, any> = {
+        page: pageIzin,
+        per_page: limitIzin,
+        sort_by: filterOrderByIzin,
+        sort_order: filterOrderDirIzin,
+      };
+      if (searchIzin) params.search = searchIzin;
+      if (filterPotonganIzin) params.tipe_potongan = filterPotonganIzin;
+      if (filterStatusIzin !== '') params.is_active = filterStatusIzin;
+
+      const res = await simpegService.getMasterJenisIzinJamKerjaList(params);
+      setDataIzinList(res.data || []);
+      if (res.meta) setMetaIzin(res.meta);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal memuat master jenis izin jam kerja');
+    } finally {
+      setLoadingIzin(false);
+    }
+  }, [canRead, pageIzin, limitIzin, searchIzin, filterPotonganIzin, filterStatusIzin, filterOrderByIzin, filterOrderDirIzin]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (activeTab === 'cuti') {
+      fetchCuti();
+    } else {
+      fetchIzin();
+    }
+  }, [activeTab, fetchCuti, fetchIzin]);
 
-  const handleOpenCreate = () => {
-    setEditId(null);
-    reset({
+  // ── HANDLERS CUTI ──────────────────────────────────────
+  const handleOpenCreateCuti = () => {
+    setEditCutiId(null);
+    formCuti.reset({
       nama: '',
       kode: '',
       tipe_durasi: 'fleksibel',
@@ -143,252 +220,383 @@ export default function MasterJenisCutiPage() {
       keterangan: '',
       is_active: true,
     });
-    setShowModal(true);
+    setShowModalCuti(true);
   };
 
-  const handleOpenEdit = (item: MasterJenisCuti) => {
-    setEditId(item.id);
-    reset({
+  const handleOpenEditCuti = (item: MasterJenisCuti) => {
+    setEditCutiId(item.id);
+    formCuti.reset({
       nama: item.nama,
       kode: item.kode || '',
       tipe_durasi: item.tipe_durasi,
       durasi_hari: item.durasi_hari || 0,
       satuan: item.satuan || 'hari',
-      lampiran_wajib: Boolean(item.lampiran_wajib),
+      lampiran_wajib: item.lampiran_wajib,
       keterangan: item.keterangan || '',
-      is_active: Boolean(item.is_active),
+      is_active: item.is_active,
     });
-    setShowModal(true);
+    setShowModalCuti(true);
   };
 
-  const onSubmit = async (values: MasterJenisCutiFormValues) => {
-    if (!canManage) {
-      toast.error('Akses ditolak: Anda tidak memiliki izin mengelola master jenis cuti.');
-      return;
-    }
-
-    setIsSubmitting(true);
+  const onSubmitCuti = async (values: MasterJenisCutiFormValues) => {
     try {
-      const payload: Partial<MasterJenisCuti> = {
-        nama: values.nama,
-        kode: values.kode ? values.kode.toUpperCase().trim() : undefined,
-        tipe_durasi: values.tipe_durasi,
-        durasi_hari: values.tipe_durasi === 'ditetapkan' ? Number(values.durasi_hari) : 0,
-        satuan: values.satuan || 'hari',
-        lampiran_wajib: values.lampiran_wajib,
-        keterangan: values.keterangan || '',
-        is_active: values.is_active,
-      };
-
-      if (editId) {
-        await simpegService.updateMasterJenisCuti(editId, payload);
-        toast.success('Master jenis izin/cuti berhasil diperbarui');
+      if (editCutiId) {
+        await simpegService.updateMasterJenisCuti(editCutiId, values);
+        toast.success('Jenis cuti berhasil diperbarui');
       } else {
-        await simpegService.createMasterJenisCuti(payload);
-        toast.success('Master jenis izin/cuti baru berhasil ditambahkan');
+        await simpegService.createMasterJenisCuti(values);
+        toast.success('Jenis cuti berhasil ditambahkan');
       }
-
-      setShowModal(false);
-      loadData();
+      setShowModalCuti(false);
+      fetchCuti();
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Gagal menyimpan master jenis cuti';
-      toast.error(msg);
-    } finally {
-      setIsSubmitting(false);
+      toast.error(err?.response?.data?.message || 'Gagal menyimpan jenis cuti');
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedDelete) return;
-    setIsDeleting(true);
+  const handleConfirmDeleteCuti = async () => {
+    if (!itemToDeleteCuti) return;
+    setIsDeletingCuti(true);
     try {
-      await simpegService.deleteMasterJenisCuti(selectedDelete.id);
-      toast.success(`Jenis cuti ${selectedDelete.nama} berhasil dihapus/dinonaktifkan.`);
-      setShowDeleteModal(false);
-      loadData();
+      await simpegService.deleteMasterJenisCuti(itemToDeleteCuti.id);
+      toast.success('Jenis cuti berhasil dihapus');
+      setDeleteConfirmCutiOpen(false);
+      setItemToDeleteCuti(null);
+      fetchCuti();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus jenis cuti.');
+      toast.error(err?.response?.data?.message || 'Gagal menghapus jenis cuti');
     } finally {
-      setIsDeleting(false);
+      setIsDeletingCuti(false);
     }
   };
 
-  const columns: ColumnDef<MasterJenisCuti>[] = [
+  // ── HANDLERS IZIN JAM KERJA ────────────────────────────
+  const handleOpenCreateIzin = () => {
+    setEditIzinId(null);
+    formIzin.reset({
+      nama: '',
+      kode: '',
+      tipe_potongan: 'tidak_potong',
+      urutan: (dataIzinList.length > 0 ? Math.max(...dataIzinList.map((d) => d.urutan || 0)) + 1 : 1),
+      deskripsi: '',
+      is_active: true,
+    });
+    setShowModalIzin(true);
+  };
+
+  const handleOpenEditIzin = (item: MasterJenisIzinJamKerja) => {
+    setEditIzinId(item.id);
+    formIzin.reset({
+      nama: item.nama,
+      kode: item.kode,
+      tipe_potongan: item.tipe_potongan,
+      urutan: item.urutan,
+      deskripsi: item.deskripsi || '',
+      is_active: item.is_active,
+    });
+    setShowModalIzin(true);
+  };
+
+  const onSubmitIzin = async (values: MasterJenisIzinFormValues) => {
+    try {
+      if (editIzinId) {
+        await simpegService.updateMasterJenisIzinJamKerja(editIzinId, values);
+        toast.success('Jenis izin jam kerja berhasil diperbarui');
+      } else {
+        await simpegService.createMasterJenisIzinJamKerja(values);
+        toast.success('Jenis izin jam kerja berhasil ditambahkan');
+      }
+      setShowModalIzin(false);
+      fetchIzin();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menyimpan jenis izin jam kerja');
+    }
+  };
+
+  const handleConfirmDeleteIzin = async () => {
+    if (!itemToDeleteIzin) return;
+    setIsDeletingIzin(true);
+    try {
+      await simpegService.deleteMasterJenisIzinJamKerja(itemToDeleteIzin.id);
+      toast.success('Jenis izin jam kerja berhasil dihapus');
+      setDeleteConfirmIzinOpen(false);
+      setItemToDeleteIzin(null);
+      fetchIzin();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus jenis izin jam kerja');
+    } finally {
+      setIsDeletingIzin(false);
+    }
+  };
+
+  // ── COLUMNS CUTI ───────────────────────────────────────
+  const columnsCuti: ColumnDef<MasterJenisCuti>[] = [
     {
       key: 'nama',
-      label: 'Nama Jenis Izin & Cuti',
+      label: 'JENIS CUTI & KODE',
       render: (row) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-slate-800">{row.nama}</span>
-          {row.kode && (
-            <span className="text-xs text-slate-400 font-mono tracking-wider">{row.kode}</span>
-          )}
-          {row.keterangan && (
-            <span className="text-xs text-slate-500 line-clamp-1 mt-0.5">{row.keterangan}</span>
-          )}
+          <span className="font-semibold text-slate-800 text-xs">{row.nama}</span>
+          <span className="text-2xs text-slate-500 font-mono tracking-wider">{row.kode || '-'}</span>
         </div>
       ),
     },
     {
       key: 'tipe_durasi',
-      label: 'Tipe Durasi',
-      render: (row) => {
-        const isDitetapkan = row.tipe_durasi === 'ditetapkan';
-        return (
-          <Badge
-            variant={isDitetapkan ? 'amber' : 'blue'}
-            className="capitalize font-medium flex items-center gap-1 w-fit"
-          >
-            {isDitetapkan ? <Clock size={12} /> : <CalendarDays size={12} />}
-            {isDitetapkan ? 'Durasi Ditetapkan' : 'Durasi Fleksibel'}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: 'durasi_hari',
-      label: 'Durasi Baku',
+      label: 'TIPE DURASI',
       render: (row) => (
-        <div className="text-sm">
-          {row.tipe_durasi === 'ditetapkan' ? (
-            <span className="font-bold text-slate-900 bg-amber-50 text-amber-800 px-2 py-0.5 rounded-md border border-amber-200">
-              {row.durasi_hari} {row.satuan || 'Hari'}
-            </span>
-          ) : (
-            <span className="text-slate-400 italic">Fleksibel (Bebas)</span>
-          )}
+        <div className="flex flex-col">
+          <Badge variant={row.tipe_durasi === 'ditetapkan' ? 'info' : 'warning'} className="text-2xs capitalize w-fit">
+            {row.tipe_durasi}
+          </Badge>
+          <span className="text-2xs text-slate-500 mt-0.5">
+            {row.tipe_durasi === 'ditetapkan' ? `${row.durasi_hari} ${row.satuan}` : 'Sesuai Pengajuan'}
+          </span>
         </div>
       ),
     },
     {
       key: 'lampiran_wajib',
-      label: 'Berkas Lampiran',
+      label: 'SYARAT LAMPIRAN',
       render: (row) => (
-        <Badge
-          variant={row.lampiran_wajib ? 'warning' : 'secondary'}
-          className="text-xs font-medium"
-        >
-          {row.lampiran_wajib ? 'Wajib Lampiran' : 'Opsional'}
+        <Badge variant={row.lampiran_wajib ? 'danger' : 'gray'} className="text-2xs">
+          {row.lampiran_wajib ? 'Wajib Unggah' : 'Opsional'}
         </Badge>
       ),
     },
     {
       key: 'is_active',
-      label: 'Status',
+      label: 'STATUS',
       render: (row) => (
-        <Badge
-          variant={row.is_active ? 'success' : 'danger'}
-          className="capitalize text-xs font-medium"
-        >
+        <Badge variant={row.is_active ? 'success' : 'gray'} className="text-2xs">
           {row.is_active ? 'Aktif' : 'Nonaktif'}
         </Badge>
       ),
     },
     {
-      key: 'aksi',
-      label: 'Aksi',
-      align: 'right',
+      key: 'id',
+      label: 'AKSI',
       render: (row) => (
-        <div className="flex justify-end">
-          <DropdownMenu
-            items={[
-              {
-                label: 'Edit',
-                icon: <Edit2 size={14} />,
-                onClick: () => handleOpenEdit(row),
+        <DropdownMenu
+          items={[
+            {
+              label: 'Edit Data',
+              icon: <Edit2 size={14} />,
+              onClick: () => handleOpenEditCuti(row),
+            },
+            {
+              label: 'Hapus Data',
+              icon: <Trash2 size={14} />,
+              variant: 'danger',
+              onClick: () => {
+                setItemToDeleteCuti({ id: row.id, nama: row.nama });
+                setDeleteConfirmCutiOpen(true);
               },
-              {
-                label: 'Hapus',
-                icon: <Trash2 size={14} />,
-                variant: 'danger',
-                onClick: () => {
-                  setSelectedDelete(row);
-                  setShowDeleteModal(true);
-                },
-              },
-            ]}
-          />
-        </div>
+            },
+          ]}
+        />
       ),
     },
   ];
 
-  if (!canRead) {
-    return (
-      <div className="p-8 text-center flex flex-col items-center justify-center space-y-3">
-        <ShieldAlert className="w-12 h-12 text-rose-500" />
-        <h2 className="text-lg font-bold text-slate-800">Akses Dibatasi</h2>
-        <p className="text-slate-500 text-sm max-w-md">
-          Anda tidak memiliki izin untuk melihat modul Master Jenis Cuti & Izin Kepegawaian.
-        </p>
-      </div>
-    );
-  }
+  // ── COLUMNS IZIN JAM KERJA ─────────────────────────────
+  const columnsIzin: ColumnDef<MasterJenisIzinJamKerja>[] = [
+    {
+      key: 'nama',
+      label: 'JENIS IZIN & KODE',
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-slate-800 text-xs">{row.nama}</span>
+          <span className="text-2xs text-slate-500 font-mono tracking-wider">{row.kode}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'tipe_potongan',
+      label: 'TIPE POTONGAN JAM',
+      render: (row) => (
+        <Badge variant={row.tipe_potongan === 'tidak_potong' ? 'success' : 'danger'} className="text-2xs">
+          {row.tipe_potongan === 'tidak_potong' ? 'Tidak Memotong Jam' : 'Memotong Jam Kerja'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'urutan',
+      label: 'NO. URUT',
+      render: (row) => (
+        <span className="text-xs text-slate-700 font-medium px-2 py-0.5 bg-slate-100 rounded-md">
+          {row.urutan}
+        </span>
+      ),
+    },
+    {
+      key: 'deskripsi',
+      label: 'DESKRIPSI',
+      render: (row) => (
+        <p className="text-xs text-slate-600 line-clamp-2">{row.deskripsi || '-'}</p>
+      ),
+    },
+    {
+      key: 'is_active',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge variant={row.is_active ? 'success' : 'gray'} className="text-2xs">
+          {row.is_active ? 'Aktif' : 'Nonaktif'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'id',
+      label: 'AKSI',
+      render: (row) => (
+        <DropdownMenu
+          items={[
+            {
+              label: 'Edit Data',
+              icon: <Edit2 size={14} />,
+              onClick: () => handleOpenEditIzin(row),
+            },
+            {
+              label: 'Hapus Data',
+              icon: <Trash2 size={14} />,
+              variant: 'danger',
+              onClick: () => {
+                setItemToDeleteIzin({ id: row.id, nama: row.nama });
+                setDeleteConfirmIzinOpen(true);
+              },
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Mobile-first Header with Action Buttons */}
+    <div className="w-full flex-col grid-cols-1 gap-4 space-y-4">
       <PageHeader
-        title="Master Jenis Izin & Cuti"
-        description="Pengaturan durasi cuti baku (ditetapkan) dan fleksibel untuk seluruh pegawai dan dosen"
+        title="Master Regulasi Cuti & Izin Kerja"
+        description="Pengaturan master regulasi cuti tahunan/khusus dan jenis izin keterlambatan / pulang cepat pegawai."
         action={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              icon={<Filter size={16} />}
-              onClick={() => setShowFilter(true)}
+              onClick={() => {
+                if (activeTab === 'cuti') setShowFilterCuti(true);
+                else setShowFilterIzin(true);
+              }}
+              className="flex items-center gap-2 border-[var(--module-primary)] text-[var(--module-primary)] hover:bg-[var(--module-primary-subtle)]"
             >
+              <Filter size={16} />
               Filter
             </Button>
             {canManage && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreate}>
-                Tambah Jenis Cuti
+              <Button
+                variant="primary"
+                onClick={() => {
+                  if (activeTab === 'cuti') handleOpenCreateCuti();
+                  else handleOpenCreateIzin();
+                }}
+                className="flex items-center gap-2"
+              >
+                <Plus size={16} />
+                Tambah {activeTab === 'cuti' ? 'Jenis Cuti' : 'Jenis Izin Jam Kerja'}
               </Button>
             )}
           </div>
         }
       />
 
-      {/* Filter Drawer (Right-to-Left) */}
+      {/* ── TAB NAVIGASI STANDAR ── */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto scrollbar-none">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => handleTabChange('cuti')}
+          className={`flex items-center gap-2 px-4 py-4 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'cuti'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          <CalendarDays size={16} />
+          Master Jenis Cuti Pegawai
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => handleTabChange('izin-kerja')}
+          className={`flex items-center gap-2 px-4 py-4 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'izin-kerja'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Clock size={16} />
+          Master Jenis Izin Jam Kerja
+        </Button>
+      </div>
+
+      {/* ── TAB CONTENT ── */}
+      {activeTab === 'cuti' && (
+        <DataTable
+          columns={columnsCuti}
+          data={dataCutiList}
+          isLoading={loadingCuti}
+          meta={metaCuti}
+          onPageChange={(newPage) => setPageCuti(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimitCuti(newLimit);
+            setPageCuti(1);
+          }}
+        />
+      )}
+
+      {activeTab === 'izin-kerja' && (
+        <DataTable
+          columns={columnsIzin}
+          data={dataIzinList}
+          isLoading={loadingIzin}
+          meta={metaIzin}
+          onPageChange={(newPage) => setPageIzin(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimitIzin(newLimit);
+            setPageIzin(1);
+          }}
+        />
+      )}
+
+      {/* ── FILTER DRAWER CUTI ── */}
       <Drawer
-        open={showFilter}
-        onClose={() => setShowFilter(false)}
-        title="Filter Jenis Izin & Cuti"
+        open={showFilterCuti}
+        onClose={() => setShowFilterCuti(false)}
+        title="Filter & Urutkan Jenis Cuti"
       >
         <div className="space-y-4">
           <Input
-            label="Pencarian"
+            label="Cari Kata Kunci"
             placeholder="Cari nama, kode, atau keterangan..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            value={searchCuti}
+            onChange={(e) => setSearchCuti(e.target.value)}
           />
 
           <Select
             label="Tipe Durasi"
-            value={filterTipe}
-            onChange={(val) => {
-              setFilterTipe(val);
-              setPage(1);
-            }}
+            value={filterTipeCuti}
+            onChange={(val) => setFilterTipeCuti(val || '')}
             options={[
-              { value: '', label: 'Semua Tipe Durasi' },
-              { value: 'ditetapkan', label: 'Durasi Ditetapkan (Pasti)' },
-              { value: 'fleksibel', label: 'Durasi Fleksibel (Bebas)' },
+              { value: '', label: '-- Semua Tipe Durasi --' },
+              { value: 'ditetapkan', label: 'Ditetapkan (Jumlah Hari Pasti)' },
+              { value: 'fleksibel', label: 'Fleksibel (Bebas Ditentukan Saat Izin)' },
             ]}
           />
 
           <Select
-            label="Status Aktif"
-            value={filterStatus}
-            onChange={(val) => {
-              setFilterStatus(val);
-              setPage(1);
-            }}
+            label="Status Data"
+            value={filterStatusCuti}
+            onChange={(val) => setFilterStatusCuti(val || '')}
             options={[
-              { value: '', label: 'Semua Status' },
+              { value: '', label: '-- Semua Status --' },
               { value: '1', label: 'Hanya Aktif' },
               { value: '0', label: 'Hanya Nonaktif' },
             ]}
@@ -396,24 +604,23 @@ export default function MasterJenisCutiPage() {
 
           <hr className="border-t border-slate-200 my-2" />
 
-          {/* Sorting 2-Column Grid */}
           <div className="grid grid-cols-2 gap-4">
             <Select
               label="Urut Berdasarkan"
-              value={filterOrderBy}
-              onChange={(val) => setFilterOrderBy(val)}
+              value={filterOrderByCuti}
+              onChange={(val) => setFilterOrderByCuti(val || 'nama')}
               options={[
-                { value: 'nama', label: 'Nama' },
+                { value: 'nama', label: 'Nama Cuti' },
                 { value: 'kode', label: 'Kode' },
-                { value: 'tipe_durasi', label: 'Tipe Durasi' },
                 { value: 'durasi_hari', label: 'Durasi Hari' },
                 { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'id', label: 'ID' },
               ]}
             />
             <Select
               label="Arah"
-              value={filterOrderDir}
-              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              value={filterOrderDirCuti}
+              onChange={(val) => setFilterOrderDirCuti((val as 'asc' | 'desc') || 'asc')}
               options={[
                 { value: 'asc', label: 'A - Z (Naik)' },
                 { value: 'desc', label: 'Z - A (Turun)' },
@@ -421,115 +628,189 @@ export default function MasterJenisCutiPage() {
             />
           </div>
 
-          <div className="pt-4 flex gap-2">
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
             <Button
               variant="outline"
-              className="w-full"
               onClick={() => {
-                setSearch('');
-                setFilterTipe('');
-                setFilterStatus('');
-                setFilterOrderBy('nama');
-                setFilterOrderDir('asc');
-                setPage(1);
+                setSearchCuti('');
+                setFilterTipeCuti('');
+                setFilterStatusCuti('');
+                setFilterOrderByCuti('nama');
+                setFilterOrderDirCuti('asc');
               }}
             >
-              Reset Filter
+              Reset
             </Button>
-            <Button className="w-full" onClick={() => setShowFilter(false)}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowFilterCuti(false);
+                setPageCuti(1);
+                fetchCuti();
+              }}
+            >
               Terapkan
             </Button>
           </div>
         </div>
       </Drawer>
 
-      {/* Main DataTable */}
-      <DataTable
-        columns={columns}
-        data={dataList}
-        isLoading={loading}
-        meta={meta}
-        onPageChange={(newPage) => setPage(newPage)}
-        emptyMessage="Belum ada data master jenis cuti / izin."
-      />
-
-      {/* Modal Form Tambah / Ubah */}
-      <Modal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        title={editId ? 'Ubah Jenis Izin & Cuti' : 'Tambah Jenis Izin & Cuti'}
-        size="lg"
+      {/* ── FILTER DRAWER IZIN JAM KERJA ── */}
+      <Drawer
+        open={showFilterIzin}
+        onClose={() => setShowFilterIzin(false)}
+        title="Filter & Urutkan Jenis Izin Jam Kerja"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-4">
+          <Input
+            label="Cari Kata Kunci"
+            placeholder="Cari nama atau kode izin..."
+            value={searchIzin}
+            onChange={(e) => setSearchIzin(e.target.value)}
+          />
+
+          <Select
+            label="Tipe Potongan Jam"
+            value={filterPotonganIzin}
+            onChange={(val) => setFilterPotonganIzin(val || '')}
+            options={[
+              { value: '', label: '-- Semua Tipe Potongan --' },
+              { value: 'tidak_potong', label: 'Tidak Memotong Jam' },
+              { value: 'potong_jam', label: 'Memotong Jam Kerja' },
+            ]}
+          />
+
+          <Select
+            label="Status Data"
+            value={filterStatusIzin}
+            onChange={(val) => setFilterStatusIzin(val || '')}
+            options={[
+              { value: '', label: '-- Semua Status --' },
+              { value: '1', label: 'Hanya Aktif' },
+              { value: '0', label: 'Hanya Nonaktif' },
+            ]}
+          />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderByIzin}
+              onChange={(val) => setFilterOrderByIzin(val || 'urutan')}
+              options={[
+                { value: 'urutan', label: 'No. Urutan' },
+                { value: 'nama', label: 'Nama Izin' },
+                { value: 'kode', label: 'Kode Izin' },
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'id', label: 'ID' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDirIzin}
+              onChange={(val) => setFilterOrderDirIzin((val as 'asc' | 'desc') || 'asc')}
+              options={[
+                { value: 'asc', label: 'A - Z (Naik)' },
+                { value: 'desc', label: 'Z - A (Turun)' },
+              ]}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearchIzin('');
+                setFilterPotonganIzin('');
+                setFilterStatusIzin('');
+                setFilterOrderByIzin('urutan');
+                setFilterOrderDirIzin('asc');
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowFilterIzin(false);
+                setPageIzin(1);
+                fetchIzin();
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        </div>
+      </Drawer>
+
+      {/* ── MODAL CUTI ── */}
+      <Modal
+        open={showModalCuti}
+        onClose={() => setShowModalCuti(false)}
+        title={editCutiId ? 'Edit Master Jenis Cuti' : 'Tambah Master Jenis Cuti'}
+      >
+        <form onSubmit={formCuti.handleSubmit(onSubmitCuti)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Nama Jenis Cuti *"
+                placeholder="Contoh: Cuti Tahunan Pegawai"
+                error={formCuti.formState.errors.nama?.message}
+                {...formCuti.register('nama')}
+              />
+            </div>
             <Input
-              label="Nama Jenis Cuti / Izin"
-              placeholder="Contoh: Izin Menikah"
-              required
-              error={errors.nama?.message}
-              {...register('nama')}
+              label="Kode Cuti (Opsional)"
+              placeholder="Contoh: CT-01"
+              error={formCuti.formState.errors.kode?.message}
+              {...formCuti.register('kode')}
             />
-
-            <Input
-              label="Kode Unik (Opsional)"
-              placeholder="Contoh: IZIN_MENIKAH"
-              error={errors.kode?.message}
-              {...register('kode')}
-            />
-
             <Controller
               name="tipe_durasi"
-              control={control}
+              control={formCuti.control}
               render={({ field }) => (
                 <Select
-                  label="Tipe Durasi"
-                  required
+                  label="Tipe Durasi *"
                   value={field.value}
-                  onChange={(val) => {
-                    field.onChange(val);
-                    if (val === 'fleksibel') {
-                      setValue('durasi_hari', 0);
-                    }
-                  }}
-                  error={errors.tipe_durasi?.message}
+                  onChange={field.onChange}
                   options={[
-                    { value: 'ditetapkan', label: 'Durasi Ditetapkan (Baku/Pasti)' },
-                    { value: 'fleksibel', label: 'Durasi Fleksibel (Bebas Dipilih)' },
+                    { value: 'ditetapkan', label: 'Ditetapkan (Jumlah Hari Baku)' },
+                    { value: 'fleksibel', label: 'Fleksibel (Dapat Diisi Bebas)' },
                   ]}
                 />
               )}
             />
 
-            {watchTipeDurasi === 'ditetapkan' ? (
-              <Input
-                label="Durasi Baku (Hari)"
-                type="number"
-                min={1}
-                required
-                placeholder="Contoh: 14"
-                error={errors.durasi_hari?.message}
-                {...register('durasi_hari', { valueAsNumber: true })}
-              />
-            ) : (
-              <div className="flex flex-col justify-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <span className="text-xs font-semibold text-slate-700">Durasi Hari</span>
-                <span className="text-xs text-slate-500 mt-0.5">
-                  Tipe fleksibel: durasi ditentukan pemohon saat pengajuan
-                </span>
-              </div>
+            {formCuti.watch('tipe_durasi') === 'ditetapkan' && (
+              <>
+                <Input
+                  type="number"
+                  label="Durasi Hari *"
+                  placeholder="12"
+                  error={formCuti.formState.errors.durasi_hari?.message}
+                  {...formCuti.register('durasi_hari', { valueAsNumber: true })}
+                />
+                <Input
+                  label="Satuan *"
+                  placeholder="hari"
+                  error={formCuti.formState.errors.satuan?.message}
+                  {...formCuti.register('satuan')}
+                />
+              </>
             )}
 
             <Controller
               name="lampiran_wajib"
-              control={control}
+              control={formCuti.control}
               render={({ field }) => (
                 <Select
-                  label="Kebutuhan Berkas Lampiran"
-                  value={field.value ? '1' : '0'}
-                  onChange={(val) => field.onChange(val === '1')}
+                  label="Kewajiban Unggah Lampiran *"
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
                   options={[
-                    { value: '0', label: 'Opsional (Tidak Wajib)' },
-                    { value: '1', label: 'Wajib Lampirkan Dokumen / Surat' },
+                    { value: 'false', label: 'Opsional (Tidak Wajib)' },
+                    { value: 'true', label: 'Wajib Lampirkan Surat/Bukti' },
                   ]}
                 />
               )}
@@ -537,15 +818,15 @@ export default function MasterJenisCutiPage() {
 
             <Controller
               name="is_active"
-              control={control}
+              control={formCuti.control}
               render={({ field }) => (
                 <Select
-                  label="Status Aktif"
-                  value={field.value ? '1' : '0'}
-                  onChange={(val) => field.onChange(val === '1')}
+                  label="Status Regulasi *"
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
                   options={[
-                    { value: '1', label: 'Aktif' },
-                    { value: '0', label: 'Nonaktif' },
+                    { value: 'true', label: 'Aktif (Dapat Dipilih Pegawai)' },
+                    { value: 'false', label: 'Nonaktif' },
                   ]}
                 />
               )}
@@ -553,67 +834,132 @@ export default function MasterJenisCutiPage() {
 
             <div className="md:col-span-2">
               <Textarea
-                label="Keterangan / Persyaratan"
-                placeholder="Deskripsi singkat atau aturan pemakaian izin/cuti ini..."
-                rows={2}
-                error={errors.keterangan?.message}
-                {...register('keterangan')}
+                label="Keterangan / Regulasi Tambahan"
+                placeholder="Penjelasan ketentuan..."
+                rows={3}
+                {...formCuti.register('keterangan')}
               />
             </div>
           </div>
 
-          <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowModal(false)}
-              disabled={isSubmitting}
-            >
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button variant="outline" type="button" onClick={() => setShowModalCuti(false)}>
               Batal
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
-              {editId ? 'Simpan Perubahan' : 'Tambah Jenis Cuti'}
+            <Button variant="primary" type="submit" loading={formCuti.formState.isSubmitting}>
+              {editCutiId ? 'Simpan Perubahan' : 'Tambah Jenis Cuti'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal Konfirmasi Hapus */}
+      {/* ── MODAL IZIN JAM KERJA ── */}
       <Modal
-        open={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title="Konfirmasi Hapus Jenis Cuti"
-        size="md"
+        open={showModalIzin}
+        onClose={() => setShowModalIzin(false)}
+        title={editIzinId ? 'Edit Master Jenis Izin Jam Kerja' : 'Tambah Master Jenis Izin Jam Kerja'}
       >
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Apakah Anda yakin ingin menghapus jenis izin/cuti{' '}
-            <strong className="text-slate-900">{selectedDelete?.nama}</strong>?
-          </p>
-          <p className="text-xs text-slate-500 bg-amber-50 p-3 rounded-lg border border-amber-200">
-            Jika jenis cuti ini telah memiliki riwayat permohonan, data hanya akan dinonaktifkan
-            (soft deleted) agar rekaman cuti pegawai tetap valid.
-          </p>
+        <form onSubmit={formIzin.handleSubmit(onSubmitIzin)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Nama Jenis Izin Jam Kerja *"
+                placeholder="Contoh: Izin Datang Terlambat"
+                error={formIzin.formState.errors.nama?.message}
+                {...formIzin.register('nama')}
+              />
+            </div>
+            <Input
+              label="Kode Izin *"
+              placeholder="Contoh: IZIN_TERLAMBAT"
+              error={formIzin.formState.errors.kode?.message}
+              {...formIzin.register('kode')}
+            />
+            <Controller
+              name="tipe_potongan"
+              control={formIzin.control}
+              render={({ field }) => (
+                <Select
+                  label="Tipe Potongan Jam Kerja *"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={[
+                    { value: 'tidak_potong', label: 'Tidak Potong Jam (Toleransi Dinas/Keperluan)' },
+                    { value: 'potong_jam', label: 'Potong Jam Kerja Efektif' },
+                  ]}
+                />
+              )}
+            />
 
-          <div className="pt-2 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowDeleteModal(false)}
-              disabled={isDeleting}
-            >
+            <Input
+              type="number"
+              label="Nomor Urutan Tampilan *"
+              placeholder="1"
+              error={formIzin.formState.errors.urutan?.message}
+              {...formIzin.register('urutan', { valueAsNumber: true })}
+            />
+
+            <Controller
+              name="is_active"
+              control={formIzin.control}
+              render={({ field }) => (
+                <Select
+                  label="Status Tampil *"
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(val) => field.onChange(val === 'true')}
+                  options={[
+                    { value: 'true', label: 'Aktif (Muncul di Form Pengajuan Izin)' },
+                    { value: 'false', label: 'Nonaktif' },
+                  ]}
+                />
+              )}
+            />
+
+            <div className="md:col-span-2">
+              <Textarea
+                label="Deskripsi / Catatan"
+                placeholder="Penjelasan aturan izin ini..."
+                rows={3}
+                {...formIzin.register('deskripsi')}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button variant="outline" type="button" onClick={() => setShowModalIzin(false)}>
               Batal
             </Button>
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              isLoading={isDeleting}
-            >
-              Hapus
+            <Button variant="primary" type="submit" loading={formIzin.formState.isSubmitting}>
+              {editIzinId ? 'Simpan Perubahan' : 'Tambah Jenis Izin'}
             </Button>
           </div>
-        </div>
+        </form>
       </Modal>
+
+      {/* ── CONFIRM DIALOGS ── */}
+      <ConfirmDialog
+        isOpen={deleteConfirmCutiOpen}
+        onClose={() => setDeleteConfirmCutiOpen(false)}
+        onConfirm={handleConfirmDeleteCuti}
+        title="Hapus Master Jenis Cuti"
+        message={`Apakah Anda yakin ingin menghapus jenis cuti "${itemToDeleteCuti?.nama}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Hapus Data"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeletingCuti}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmIzinOpen}
+        onClose={() => setDeleteConfirmIzinOpen(false)}
+        onConfirm={handleConfirmDeleteIzin}
+        title="Hapus Master Jenis Izin Jam Kerja"
+        message={`Apakah Anda yakin ingin menghapus jenis izin "${itemToDeleteIzin?.nama}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Ya, Hapus Data"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeletingIzin}
+      />
     </div>
   );
 }

@@ -186,3 +186,20 @@ export function angkaTerbilang(angka: number | null | undefined): string {
   const result = convert(bilangan).trim();
   return `${result} Rupiah`;
 }
+
+// ============================================================
+// getStorageFileUrl — Mengembalikan URL file storage publik Backend
+// ============================================================
+export function getStorageFileUrl(path: string | null | undefined): string {
+  if (!path) return '#';
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path.replace('http://localhost/storage', 'http://localhost:8000/storage')
+               .replace('http://127.0.0.1/storage', 'http://127.0.0.1:8000/storage');
+  }
+
+  const backendOrigin = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api')
+    .replace(/\/api\/?$/, '');
+
+  const cleanPath = path.replace(/^\/?(storage\/)?/, '');
+  return `${backendOrigin}/storage/${cleanPath}`;
+}

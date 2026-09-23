@@ -212,11 +212,12 @@ export default function PengajuanCutiPage() {
         description="Lengkapi data permohonan cuti kerja dan unggah berkas pendukung sesuai jenis izin yang dipilih"
         action={
           <Button
-            onClick={() => router.back()}
-            className="bg-orange-500 hover:bg-orange-600 text-white border-none shadow-sm font-bold"
+            onClick={() => router.push('/simpeg/cuti')}
+            style={{ background: 'var(--module-primary, #3b82f6)' }}
+            className="text-white border-none shadow-sm font-bold"
             icon={<ArrowLeft size={16} />}
           >
-            Kembali
+            Kembali ke Cuti & Izin
           </Button>
         }
       />
