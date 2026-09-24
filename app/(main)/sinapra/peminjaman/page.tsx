@@ -70,8 +70,8 @@ export default function PeminjamanPage() {
     keperluan: '',
   });
 
-  // Modal Approval Ruangan
   const [approvingRuangan, setApprovingRuangan] = useState<PeminjamanRuangan | null>(null);
+  const [isApprovingRuangan, setIsApprovingRuangan] = useState(false);
   const [approvalRuanganForm, setApprovalRuanganForm] = useState<ApprovePeminjamanRuanganPayload>({
     is_approved: true,
     catatan_approver: '',
@@ -102,6 +102,7 @@ export default function PeminjamanPage() {
 
   // Modal Approval Aset
   const [approvingAset, setApprovingAset] = useState<PeminjamanAset | null>(null);
+  const [isApprovingAset, setIsApprovingAset] = useState(false);
   const [approvalAsetForm, setApprovalAsetForm] = useState<ApprovePeminjamanAsetPayload>({
     is_approved: true,
     catatan_approver: '',
@@ -220,7 +221,7 @@ export default function PeminjamanPage() {
 
   const loadAsetOptions = async (inputValue: string) => {
     try {
-      const res: any = await sinapraService.getAsetList({ search: inputValue });
+      const res: any = await sinapraService.getAsetList({ search: inputValue, is_borrowable: true });
       let list = res?.data?.items || res?.data || res || [];
       if (Array.isArray(list)) {
         return list.map((a: Aset) => ({ value: a.id.toString(), label: `${a.kode_aset} - ${a.nama}` }));
@@ -255,13 +256,28 @@ export default function PeminjamanPage() {
     e.preventDefault();
     if (!approvingRuangan) return;
 
+    setIsApprovingRuangan(true);
     try {
-      await sinapraService.approvePeminjamanRuangan(approvingRuangan.id, approvalRuanganForm);
-      toast.success(`Permohonan ruangan berhasil ${approvalRuanganForm.is_approved ? 'disetujui' : 'ditolak'}!`);
+      const isLaboranStage = approvingRuangan.status === 'pending_laboran';
+      if (isLaboranStage) {
+        await sinapraService.approveLaboranRuangan(approvingRuangan.id, {
+          is_approved: approvalRuanganForm.is_approved,
+          catatan_laboran: approvalRuanganForm.catatan_penolakan || approvalRuanganForm.catatan_approver,
+        });
+        toast.success(`Verifikasi laboran ruangan berhasil ${approvalRuanganForm.is_approved ? 'disetujui' : 'ditolak'}!`);
+      } else {
+        await sinapraService.approvePeminjamanRuangan(approvingRuangan.id, {
+          is_approved: approvalRuanganForm.is_approved,
+          catatan_penolakan: approvalRuanganForm.catatan_penolakan || approvalRuanganForm.catatan_approver,
+        });
+        toast.success(`Permohonan ruangan berhasil ${approvalRuanganForm.is_approved ? 'disetujui' : 'ditolak'}!`);
+      }
       fetchRuanganList();
       setApprovingRuangan(null);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal memproses approval ruangan.');
+    } finally {
+      setIsApprovingRuangan(false);
     }
   };
 
@@ -289,13 +305,28 @@ export default function PeminjamanPage() {
     e.preventDefault();
     if (!approvingAset) return;
 
+    setIsApprovingAset(true);
     try {
-      await sinapraService.approvePeminjamanAset(approvingAset.id, approvalAsetForm);
-      toast.success(`Permohonan aset berhasil ${approvalAsetForm.is_approved ? 'disetujui' : 'ditolak'}!`);
+      const isLaboranStage = approvingAset.status === 'pending_laboran';
+      if (isLaboranStage) {
+        await sinapraService.approveLaboranAset(approvingAset.id, {
+          is_approved: approvalAsetForm.is_approved,
+          catatan_laboran: approvalAsetForm.catatan_penolakan || approvalAsetForm.catatan_approver,
+        });
+        toast.success(`Verifikasi laboran aset berhasil ${approvalAsetForm.is_approved ? 'disetujui' : 'ditolak'}!`);
+      } else {
+        await sinapraService.approvePeminjamanAset(approvingAset.id, {
+          is_approved: approvalAsetForm.is_approved,
+          catatan_penolakan: approvalAsetForm.catatan_penolakan || approvalAsetForm.catatan_approver,
+        });
+        toast.success(`Permohonan aset berhasil ${approvalAsetForm.is_approved ? 'disetujui' : 'ditolak'}!`);
+      }
       fetchAsetList();
       setApprovingAset(null);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal memproses approval peminjaman aset.');
+    } finally {
+      setIsApprovingAset(false);
     }
   };
 
@@ -371,52 +402,70 @@ export default function PeminjamanPage() {
     {
       key: 'status',
       label: 'STATUS',
-      render: (row) => (
-        <Badge
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
-            color: 'var(--module-primary)',
-            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
-          }}
-          className="text-2xs capitalize"
-        >
-          {row.status?.replace('_', ' ')}
-        </Badge>
-      ),
+      render: (row) => {
+        let label = row.status?.replace(/_/g, ' ');
+        if (row.status === 'pending_laboran') {
+          label = 'Tahap Laboran';
+        } else if (row.status === 'pending_admin_sinapra') {
+          label = 'Tahap Admin';
+        } else if (row.status === 'disetujui') {
+          label = 'Disetujui';
+        } else if (row.status === 'ditolak_laboran' || row.status === 'ditolak_admin_sinapra' || row.status === 'ditolak') {
+          label = row.status === 'ditolak_laboran' ? 'Ditolak Laboran' : 'Ditolak Admin';
+        }
+
+        return (
+          <Badge
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+              color: 'var(--module-primary)',
+              borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+            }}
+            className="text-2xs font-medium border capitalize"
+          >
+            {label}
+          </Badge>
+        );
+      },
     },
     {
       key: 'aksi',
       label: 'AKSI',
       align: 'right',
-      render: (row) => (
-        <div className="flex justify-end">
-          <DropdownMenu
-            items={[
-              ...(row.status === 'pending'
-                ? [
-                    {
-                      label: 'Proses Approval',
-                      icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
-                      onClick: () => {
-                        setApprovingRuangan(row);
-                        setApprovalRuanganForm({ is_approved: true, catatan_approver: '' });
+      render: (row) => {
+        const canApprove = row.status === 'pending' || row.status === 'pending_laboran' || row.status === 'pending_admin_sinapra';
+        const isLaboran = row.status === 'pending_laboran';
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                ...(canApprove
+                  ? [
+                      {
+                        label: isLaboran ? 'Verifikasi Laboran' : 'Persetujuan Admin',
+                        icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
+                        onClick: () => {
+                          setApprovingRuangan(row);
+                          setApprovalRuanganForm({ is_approved: true, catatan_approver: '' });
+                        },
                       },
-                    },
-                  ]
-                : []),
-              {
-                label: 'Detail Jadwal',
-                icon: <Clock size={16} className="text-[var(--module-primary)]" />,
-                onClick: () => {
-                  toast(`Jadwal: ${formatDate(row.tanggal)} (${row.jam_mulai} - ${row.jam_selesai} WIB)`, {
-                    icon: <Info size={16} className="text-[var(--module-primary)]" />,
-                  });
+                    ]
+                  : []),
+                {
+                  label: 'Detail Jadwal',
+                  icon: <Clock size={16} className="text-[var(--module-primary)]" />,
+                  onClick: () => {
+                    toast(`Jadwal: ${formatDate(row.tanggal)} (${row.jam_mulai} - ${row.jam_selesai} WIB)`, {
+                      icon: <Info size={16} className="text-[var(--module-primary)]" />,
+                    });
+                  },
                 },
-              },
-            ]}
-          />
-        </div>
-      ),
+              ]}
+            />
+          </div>
+        );
+      },
     },
   ];
 
@@ -475,67 +524,87 @@ export default function PeminjamanPage() {
     {
       key: 'status',
       label: 'STATUS',
-      render: (row) => (
-        <Badge
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
-            color: 'var(--module-primary)',
-            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
-          }}
-          className="text-2xs capitalize"
-        >
-          {row.status?.replace('_', ' ')}
-        </Badge>
-      ),
+      render: (row) => {
+        let label = row.status?.replace(/_/g, ' ');
+        if (row.status === 'pending_laboran') {
+          label = 'Tahap Laboran';
+        } else if (row.status === 'pending_admin_sinapra') {
+          label = 'Tahap Admin';
+        } else if (row.status === 'disetujui' || row.status === 'dipinjam') {
+          label = row.status === 'dipinjam' ? 'Sedang Dipinjam' : 'Disetujui';
+        } else if (row.status === 'ditolak_laboran' || row.status === 'ditolak_admin_sinapra' || row.status === 'ditolak') {
+          label = row.status === 'ditolak_laboran' ? 'Ditolak Laboran' : 'Ditolak Admin';
+        } else if (row.status === 'kembali') {
+          label = 'Sudah Kembali';
+        }
+
+        return (
+          <Badge
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+              color: 'var(--module-primary)',
+              borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+            }}
+            className="text-2xs font-medium border capitalize"
+          >
+            {label}
+          </Badge>
+        );
+      },
     },
     {
       key: 'aksi',
       label: 'AKSI',
       align: 'right',
-      render: (row) => (
-        <div className="flex justify-end">
-          <DropdownMenu
-            items={[
-              ...(row.status === 'pending'
-                ? [
-                    {
-                      label: 'Proses Approval',
-                      icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
-                      onClick: () => {
-                        setApprovingAset(row);
-                        setApprovalAsetForm({ is_approved: true, catatan_approver: '' });
+      render: (row) => {
+        const canApprove = row.status === 'pending' || row.status === 'pending_laboran' || row.status === 'pending_admin_sinapra';
+        const isLaboran = row.status === 'pending_laboran';
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu
+              items={[
+                ...(canApprove
+                  ? [
+                      {
+                        label: isLaboran ? 'Verifikasi Laboran' : 'Persetujuan Admin',
+                        icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
+                        onClick: () => {
+                          setApprovingAset(row);
+                          setApprovalAsetForm({ is_approved: true, catatan_approver: '' });
+                        },
                       },
-                    },
-                  ]
-                : []),
-              ...(row.status === 'dipinjam'
-                ? [
-                    {
-                      label: 'Kembalikan Aset',
-                      icon: <RotateCcw size={16} className="text-[var(--module-primary)]" />,
-                      onClick: () => {
-                        setReturningAset(row);
-                        setReturnAsetForm({
-                          kondisi_kembali: 'baik',
-                          catatan: '',
-                        });
+                    ]
+                  : []),
+                ...(row.status === 'dipinjam'
+                  ? [
+                      {
+                        label: 'Kembalikan Aset',
+                        icon: <RotateCcw size={16} className="text-[var(--module-primary)]" />,
+                        onClick: () => {
+                          setReturningAset(row);
+                          setReturnAsetForm({
+                            kondisi_kembali: 'baik',
+                            catatan: '',
+                          });
+                        },
                       },
-                    },
-                  ]
-                : []),
-              {
-                label: 'Detail Peminjaman',
-                icon: <FileText size={16} className="text-[var(--module-primary)]" />,
-                onClick: () => {
-                  toast(`Keperluan: ${row.keperluan || '-'}`, {
-                    icon: <Info size={16} className="text-[var(--module-primary)]" />,
-                  });
+                    ]
+                  : []),
+                {
+                  label: 'Detail Peminjaman',
+                  icon: <FileText size={16} className="text-[var(--module-primary)]" />,
+                  onClick: () => {
+                    toast(`Keperluan: ${row.keperluan || '-'}`, {
+                      icon: <Info size={16} className="text-[var(--module-primary)]" />,
+                    });
+                  },
                 },
-              },
-            ]}
-          />
-        </div>
-      ),
+              ]}
+            />
+          </div>
+        );
+      },
     },
   ];
 
@@ -698,11 +767,18 @@ export default function PeminjamanPage() {
       <Modal
         open={!!approvingRuangan}
         onClose={() => setApprovingRuangan(null)}
-        title="Proses Approval Peminjaman Ruangan"
+        title={approvingRuangan?.status === 'pending_laboran' ? 'Verifikasi Laboran Peminjaman Ruangan' : 'Persetujuan Admin Peminjaman Ruangan'}
         footer={
           <>
             <Button variant="secondary" onClick={() => setApprovingRuangan(null)}>Batal</Button>
-            <Button variant="primary" onClick={handleProcessApprovalRuangan}>Simpan Keputusan</Button>
+            <Button
+              variant="primary"
+              onClick={handleProcessApprovalRuangan}
+              isLoading={isApprovingRuangan}
+              disabled={isApprovingRuangan}
+            >
+              {approvingRuangan?.status === 'pending_laboran' ? 'Verifikasi Laboran' : 'Simpan Keputusan'}
+            </Button>
           </>
         }
       >
@@ -711,22 +787,28 @@ export default function PeminjamanPage() {
             <div><strong>Ruangan:</strong> {approvingRuangan?.ruangan?.nama}</div>
             <div><strong>Pemohon:</strong> {approvingRuangan?.user?.name}</div>
             <div><strong>Keperluan:</strong> {approvingRuangan?.keperluan}</div>
+            <div><strong>Jadwal:</strong> {approvingRuangan?.tanggal ? formatDate(approvingRuangan.tanggal) : '-'} ({approvingRuangan?.jam_mulai} - {approvingRuangan?.jam_selesai} WIB)</div>
+            {approvingRuangan?.catatan_laboran && (
+              <div className="border-t border-slate-200 text-[var(--module-primary)]">
+                <strong>Catatan Laboran:</strong> {approvingRuangan.catatan_laboran}
+              </div>
+            )}
           </div>
 
           <Select
-            label="Keputusan Status Approval"
+            label={approvingRuangan?.status === 'pending_laboran' ? 'Keputusan Verifikasi Laboran' : 'Keputusan Persetujuan Admin'}
             value={approvalRuanganForm.is_approved ? 'true' : 'false'}
             onChange={(val) => setApprovalRuanganForm({ ...approvalRuanganForm, is_approved: val === 'true' })}
             options={[
-              { value: 'true', label: 'Setujui Permohonan' },
-              { value: 'false', label: 'Tolak Permohonan' },
+              { value: 'true', label: approvingRuangan?.status === 'pending_laboran' ? 'Verifikasi & Teruskan ke Admin' : 'Setujui Permohonan' },
+              { value: 'false', label: approvingRuangan?.status === 'pending_laboran' ? 'Tolak Verifikasi' : 'Tolak Permohonan' },
             ]}
           />
 
           <Textarea
-            label="Catatan Approver"
+            label={approvingRuangan?.status === 'pending_laboran' ? 'Catatan Laboran (Opsional)' : 'Catatan Penolakan / Arahan Admin'}
             rows={3}
-            placeholder="Alasan penolakan / instruksi khusus..."
+            placeholder={approvingRuangan?.status === 'pending_laboran' ? 'Kondisi kesiapan laboratorium / alat praktikum...' : 'Alasan penolakan / arahan peminjaman...'}
             value={approvalRuanganForm.catatan_approver || ''}
             onChange={(e) => setApprovalRuanganForm({ ...approvalRuanganForm, catatan_approver: e.target.value })}
           />
@@ -795,35 +877,48 @@ export default function PeminjamanPage() {
       <Modal
         open={!!approvingAset}
         onClose={() => setApprovingAset(null)}
-        title="Proses Approval Peminjaman Aset"
+        title={approvingAset?.status === 'pending_laboran' ? 'Verifikasi Laboran Peminjaman Aset' : 'Persetujuan Admin Peminjaman Aset'}
         footer={
           <>
             <Button variant="secondary" onClick={() => setApprovingAset(null)}>Batal</Button>
-            <Button variant="primary" onClick={handleProcessApprovalAset}>Simpan Keputusan</Button>
+            <Button
+              variant="primary"
+              onClick={handleProcessApprovalAset}
+              isLoading={isApprovingAset}
+              disabled={isApprovingAset}
+            >
+              {approvingAset?.status === 'pending_laboran' ? 'Verifikasi Laboran' : 'Simpan Keputusan'}
+            </Button>
           </>
         }
       >
         <form onSubmit={handleProcessApprovalAset} className="space-y-4">
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm">
-            <div><strong>Barang Aset:</strong> {approvingAset?.aset?.nama}</div>
+            <div><strong>Barang Aset:</strong> {approvingAset?.aset?.nama} [{approvingAset?.aset?.kode_aset}]</div>
             <div><strong>Pemohon:</strong> {approvingAset?.user?.name}</div>
             <div><strong>Keperluan:</strong> {approvingAset?.keperluan}</div>
+            <div><strong>Periode Pinjam:</strong> {approvingAset?.tanggal_pinjam ? formatDate(approvingAset.tanggal_pinjam) : '-'} s.d {approvingAset?.tanggal_kembali_rencana ? formatDate(approvingAset.tanggal_kembali_rencana) : '-'}</div>
+            {approvingAset?.catatan_laboran && (
+              <div className="border-t border-slate-200 text-[var(--module-primary)]">
+                <strong>Catatan Laboran:</strong> {approvingAset.catatan_laboran}
+              </div>
+            )}
           </div>
 
           <Select
-            label="Keputusan Status Approval"
+            label={approvingAset?.status === 'pending_laboran' ? 'Keputusan Verifikasi Laboran' : 'Keputusan Persetujuan Admin'}
             value={approvalAsetForm.is_approved ? 'true' : 'false'}
             onChange={(val) => setApprovalAsetForm({ ...approvalAsetForm, is_approved: val === 'true' })}
             options={[
-              { value: 'true', label: 'Setujui Permohonan' },
-              { value: 'false', label: 'Tolak Permohonan' },
+              { value: 'true', label: approvingAset?.status === 'pending_laboran' ? 'Verifikasi & Teruskan ke Admin' : 'Setujui Permohonan' },
+              { value: 'false', label: approvingAset?.status === 'pending_laboran' ? 'Tolak Verifikasi' : 'Tolak Permohonan' },
             ]}
           />
 
           <Textarea
-            label="Catatan Approver"
+            label={approvingAset?.status === 'pending_laboran' ? 'Catatan Laboran (Opsional)' : 'Catatan Penolakan / Arahan Admin'}
             rows={3}
-            placeholder="Catatan pengambilan barang / instruksi..."
+            placeholder={approvingAset?.status === 'pending_laboran' ? 'Kondisi fisik aset / kelengkapan komponen...' : 'Alasan penolakan / arahan peminjaman...'}
             value={approvalAsetForm.catatan_approver || ''}
             onChange={(e) => setApprovalAsetForm({ ...approvalAsetForm, catatan_approver: e.target.value })}
           />
@@ -918,9 +1013,11 @@ export default function PeminjamanPage() {
               onChange={(val) => setRuanganStatusFilter(val)}
               options={[
                 { value: '', label: 'Semua Status' },
-                { value: 'pending', label: 'Menunggu Approval (Pending)' },
+                { value: 'pending_laboran', label: 'Menunggu Verifikasi Laboran' },
+                { value: 'pending_admin_sinapra', label: 'Menunggu Persetujuan Admin SINAPRA' },
                 { value: 'disetujui', label: 'Disetujui' },
-                { value: 'ditolak', label: 'Ditolak' },
+                { value: 'ditolak_laboran', label: 'Ditolak Laboran' },
+                { value: 'ditolak_admin_sinapra', label: 'Ditolak Admin SINAPRA' },
                 { value: 'selesai', label: 'Selesai' },
               ]}
             />
@@ -964,10 +1061,13 @@ export default function PeminjamanPage() {
               onChange={(val) => setAsetStatusFilter(val)}
               options={[
                 { value: '', label: 'Semua Status' },
-                { value: 'pending', label: 'Menunggu Approval (Pending)' },
+                { value: 'pending_laboran', label: 'Menunggu Verifikasi Laboran' },
+                { value: 'pending_admin_sinapra', label: 'Menunggu Persetujuan Admin SINAPRA' },
+                { value: 'disetujui', label: 'Disetujui' },
                 { value: 'dipinjam', label: 'Sedang Dipinjam' },
+                { value: 'ditolak_laboran', label: 'Ditolak Laboran' },
+                { value: 'ditolak_admin_sinapra', label: 'Ditolak Admin SINAPRA' },
                 { value: 'kembali', label: 'Sudah Kembali' },
-                { value: 'ditolak', label: 'Ditolak' },
               ]}
             />
 

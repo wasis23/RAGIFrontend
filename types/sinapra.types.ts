@@ -47,8 +47,25 @@ export interface Ruangan {
   keterangan?: string;
   status: 'aktif' | 'maintenance' | 'nonaktif';
   gedung?: Gedung;
+  laboran?: { id: number; name: string; username?: string; email: string; pivot?: { ruangan_id: number; user_id: number; is_primary: boolean } }[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface LaboranRuangan {
+  id: number;
+  ruangan_id: number;
+  user_id: number;
+  is_primary: boolean;
+  user?: { id: number; name: string; email: string; username?: string };
+  ruangan?: Ruangan;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AssignLaboranPayload {
+  user_id: number;
+  is_primary?: boolean;
 }
 
 export interface RuanganFormPayload {
@@ -118,6 +135,8 @@ export interface Aset {
   nilai_buku: number;
   kondisi: 'baik' | 'rusak_ringan' | 'rusak_berat';
   status: 'tersedia' | 'dipinjam' | 'maintenance' | 'disetujui_diapkir';
+  is_borrowable?: boolean;
+  is_lab_asset?: boolean;
   keterangan?: string;
   kategori?: KategoriAset;
   ruangan?: Ruangan;
@@ -137,6 +156,8 @@ export interface AsetFormPayload {
   harga_perolehan: number;
   kondisi?: 'baik' | 'rusak_ringan' | 'rusak_berat';
   status?: 'tersedia' | 'dipinjam' | 'maintenance' | 'disetujui_diapkir';
+  is_borrowable?: boolean;
+  is_lab_asset?: boolean;
   keterangan?: string;
 }
 
@@ -160,11 +181,17 @@ export interface PeminjamanRuangan {
   tanggal: string;
   jam_mulai: string;
   jam_selesai: string;
-  status: 'pending' | 'disetujui' | 'ditolak' | 'batal';
+  status: 'pending' | 'pending_laboran' | 'pending_admin_sinapra' | 'disetujui' | 'ditolak' | 'ditolak_laboran' | 'ditolak_admin_sinapra' | 'batal' | 'selesai';
+  laboran_approved_by?: number;
+  laboran_approved_at?: string;
+  catatan_laboran?: string;
+  admin_approved_at?: string;
+  catatan_penolakan?: string;
   catatan_approver?: string;
   ruangan?: Ruangan;
   user?: { id: number; name: string; email: string };
   approver?: { id: number; name: string; email: string };
+  laboran_approver?: { id: number; name: string; email: string };
   created_at?: string;
   updated_at?: string;
 }
@@ -177,8 +204,14 @@ export interface ApplyPeminjamanRuanganPayload {
   jam_selesai: string;
 }
 
+export interface ApproveLaboranPayload {
+  is_approved: boolean;
+  catatan_laboran?: string;
+}
+
 export interface ApprovePeminjamanRuanganPayload {
   is_approved: boolean;
+  catatan_penolakan?: string;
   catatan_approver?: string;
 }
 
@@ -191,13 +224,19 @@ export interface PeminjamanAset {
   tanggal_pinjam: string;
   tanggal_kembali_rencana: string;
   tanggal_kembali_realisasi?: string;
-  status: 'pending' | 'dipinjam' | 'ditolak' | 'kembali';
+  status: 'pending' | 'pending_laboran' | 'pending_admin_sinapra' | 'disetujui' | 'dipinjam' | 'ditolak' | 'ditolak_laboran' | 'ditolak_admin_sinapra' | 'kembali' | 'terlambat';
   kondisi_pinjam: 'baik' | 'rusak_ringan';
   kondisi_kembali?: 'baik' | 'rusak_ringan' | 'rusak_berat';
+  laboran_approved_by?: number;
+  laboran_approved_at?: string;
+  catatan_laboran?: string;
+  catatan_penolakan?: string;
+  admin_approved_at?: string;
   catatan_approver?: string;
   aset?: Aset;
   user?: { id: number; name: string; email: string };
   approver?: { id: number; name: string; email: string };
+  laboran_approver?: { id: number; name: string; email: string };
   created_at?: string;
   updated_at?: string;
 }
@@ -211,6 +250,7 @@ export interface ApplyPeminjamanAsetPayload {
 
 export interface ApprovePeminjamanAsetPayload {
   is_approved: boolean;
+  catatan_penolakan?: string;
   catatan_approver?: string;
 }
 
@@ -323,4 +363,120 @@ export interface SinapraFilterParams extends PaginationParams {
   prioritas?: string;
   unit_kerja_id?: number;
   tanggal?: string;
+  is_borrowable?: boolean;
+  is_lab_asset?: boolean;
+  ruangan_id?: number;
+  kategori?: string;
+  status_kelayakan?: string;
+  mendekati_kadaluarsa?: boolean;
+  lokasi_penyimpanan?: string;
+  satuan?: string;
+  status_stok?: string;
+  catatan?: string;
+  tanggal_pengajuan?: string;
+  aset_id?: number;
+  institusi_kalibrasi?: string;
+  nomor_sertifikat?: string;
+  tanggal_kalibrasi?: string;
+  tanggal_kadaluarsa?: string;
+}
+
+// ------------------------------------------------------------
+// 7. FASE 4: Manajemen Khusus Laboratorium Types
+// ------------------------------------------------------------
+export interface LabBhp {
+  id: number;
+  ruangan_id: number;
+  kode_bhp: string;
+  nama_bhp: string;
+  kategori: string;
+  stok_saat_ini: number;
+  stok_minimum: number;
+  satuan: string;
+  spesifikasi?: string;
+  lokasi_penyimpanan?: string;
+  ruangan?: Ruangan;
+  transaksi?: LabBhpTransaksi[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LabBhpFormPayload {
+  ruangan_id: number;
+  kode_bhp: string;
+  nama_bhp: string;
+  kategori?: string;
+  stok_saat_ini?: number;
+  stok_minimum?: number;
+  satuan?: string;
+  spesifikasi?: string;
+  lokasi_penyimpanan?: string;
+}
+
+export interface LabBhpTransaksi {
+  id: number;
+  bhp_id: number;
+  user_id: number;
+  jenis_transaksi: 'masuk' | 'keluar';
+  jumlah: number;
+  tanggal: string;
+  keterangan?: string;
+  user?: { id: number; name: string; username?: string };
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LabBhpTransaksiPayload {
+  jenis_transaksi: 'masuk' | 'keluar';
+  jumlah: number;
+  tanggal?: string;
+  keterangan?: string;
+}
+
+export interface BebasTanggungan {
+  id: number;
+  user_id: number;
+  nomor_surat?: string;
+  tanggal_pengajuan: string;
+  tanggal_disetujui?: string;
+  disetujui_oleh?: number;
+  status: 'diajukan' | 'disetujui' | 'ditolak';
+  catatan?: string;
+  mahasiswa?: { id: number; name: string; username?: string; email: string };
+  approver?: { id: number; name: string; username?: string };
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface BebasTanggunganFormPayload {
+  catatan?: string;
+}
+
+export interface ApproveBebasTanggunganPayload {
+  is_approved: boolean;
+  catatan?: string;
+}
+
+export interface AlatKalibrasi {
+  id: number;
+  aset_id: number;
+  institusi_kalibrasi: string;
+  nomor_sertifikat?: string;
+  tanggal_kalibrasi: string;
+  tanggal_kadaluarsa: string;
+  status_kelayakan: 'laik' | 'tidak_laik' | 'butuh_perbaikan';
+  catatan?: string;
+  aset?: Aset;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AlatKalibrasiFormPayload {
+  aset_id: number;
+  institusi_kalibrasi: string;
+  nomor_sertifikat?: string;
+  tanggal_kalibrasi: string;
+  tanggal_kadaluarsa: string;
+  status_kelayakan?: 'laik' | 'tidak_laik' | 'butuh_perbaikan';
+  catatan?: string;
 }

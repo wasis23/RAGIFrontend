@@ -15,6 +15,7 @@ import type {
   PeminjamanRuangan,
   ApplyPeminjamanRuanganPayload,
   ApprovePeminjamanRuanganPayload,
+  ApproveLaboranPayload,
   PeminjamanAset,
   ApplyPeminjamanAsetPayload,
   ApprovePeminjamanAsetPayload,
@@ -25,6 +26,15 @@ import type {
   PengajuanPengadaanFormPayload,
   UpdateStatusPengadaanPayload,
   SinapraFilterParams,
+  LabBhp,
+  LabBhpFormPayload,
+  LabBhpTransaksi,
+  LabBhpTransaksiPayload,
+  BebasTanggungan,
+  BebasTanggunganFormPayload,
+  ApproveBebasTanggunganPayload,
+  AlatKalibrasi,
+  AlatKalibrasiFormPayload,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
@@ -82,6 +92,21 @@ export const sinapraService = {
 
   checkKetersediaanRuangan: async (payload: CheckKetersediaanPayload): Promise<ApiResponse<CheckKetersediaanResponse>> => {
     const { data } = await apiClient.post<ApiResponse<CheckKetersediaanResponse>>('/sinapra/ruangan/check-ketersediaan', payload);
+    return data;
+  },
+
+  getLaboranByRuangan: async (ruanganId: number): Promise<ApiResponse<any[]>> => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/sinapra/ruangan/${ruanganId}/laboran`);
+    return data;
+  },
+
+  assignLaboran: async (ruanganId: number, payload: { user_id: number; is_primary?: boolean }): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/sinapra/ruangan/${ruanganId}/laboran`, payload);
+    return data;
+  },
+
+  unassignLaboran: async (ruanganId: number, userId: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/ruangan/${ruanganId}/laboran/${userId}`);
     return data;
   },
 
@@ -158,6 +183,11 @@ export const sinapraService = {
     return data;
   },
 
+  approveLaboranRuangan: async (id: number, payload: ApproveLaboranPayload): Promise<ApiResponse<PeminjamanRuangan>> => {
+    const { data } = await apiClient.post<ApiResponse<PeminjamanRuangan>>(`/sinapra/peminjaman-ruangan/${id}/approve-laboran`, payload);
+    return data;
+  },
+
   approvePeminjamanRuangan: async (id: number, payload: ApprovePeminjamanRuanganPayload): Promise<ApiResponse<PeminjamanRuangan>> => {
     const { data } = await apiClient.post<ApiResponse<PeminjamanRuangan>>(`/sinapra/peminjaman-ruangan/${id}/approve`, payload);
     return data;
@@ -176,6 +206,11 @@ export const sinapraService = {
 
   getPeminjamanAsetDetail: async (id: number): Promise<ApiResponse<PeminjamanAset>> => {
     const { data } = await apiClient.get<ApiResponse<PeminjamanAset>>(`/sinapra/peminjaman-aset/${id}`);
+    return data;
+  },
+
+  approveLaboranAset: async (id: number, payload: ApproveLaboranPayload): Promise<ApiResponse<PeminjamanAset>> => {
+    const { data } = await apiClient.post<ApiResponse<PeminjamanAset>>(`/sinapra/peminjaman-aset/${id}/approve-laboran`, payload);
     return data;
   },
 
@@ -238,6 +273,84 @@ export const sinapraService = {
 
   deletePengadaan: async (id: number): Promise<ApiResponse<null>> => {
     const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/pengadaan/${id}`);
+    return data;
+  },
+
+  // ── FASE 4: BAHAN HABIS PAKAI (BHP LAB) ─────────────────────
+  getLabBhpList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<LabBhp>> => {
+    const { data } = await apiClient.get<PaginatedResponse<LabBhp>>('/sinapra/lab-bhp', { params });
+    return data;
+  },
+
+  createLabBhp: async (payload: LabBhpFormPayload): Promise<ApiResponse<LabBhp>> => {
+    const { data } = await apiClient.post<ApiResponse<LabBhp>>('/sinapra/lab-bhp', payload);
+    return data;
+  },
+
+  getLabBhpDetail: async (id: number): Promise<ApiResponse<LabBhp>> => {
+    const { data } = await apiClient.get<ApiResponse<LabBhp>>(`/sinapra/lab-bhp/${id}`);
+    return data;
+  },
+
+  updateLabBhp: async (id: number, payload: Partial<LabBhpFormPayload>): Promise<ApiResponse<LabBhp>> => {
+    const { data } = await apiClient.put<ApiResponse<LabBhp>>(`/sinapra/lab-bhp/${id}`, payload);
+    return data;
+  },
+
+  deleteLabBhp: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/lab-bhp/${id}`);
+    return data;
+  },
+
+  transaksiLabBhp: async (id: number, payload: LabBhpTransaksiPayload): Promise<ApiResponse<{ transaksi: LabBhpTransaksi; stok_terkini: number }>> => {
+    const { data } = await apiClient.post<ApiResponse<{ transaksi: LabBhpTransaksi; stok_terkini: number }>>(`/sinapra/lab-bhp/${id}/transaksi`, payload);
+    return data;
+  },
+
+  // ── FASE 4: SURAT BEBAS TANGGUNGAN LAB ───────────────────────
+  getBebasTanggunganList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<BebasTanggungan>> => {
+    const { data } = await apiClient.get<PaginatedResponse<BebasTanggungan>>('/sinapra/bebas-tanggungan', { params });
+    return data;
+  },
+
+  applyBebasTanggungan: async (payload: BebasTanggunganFormPayload): Promise<ApiResponse<BebasTanggungan>> => {
+    const { data } = await apiClient.post<ApiResponse<BebasTanggungan>>('/sinapra/bebas-tanggungan', payload);
+    return data;
+  },
+
+  getBebasTanggunganDetail: async (id: number): Promise<ApiResponse<BebasTanggungan>> => {
+    const { data } = await apiClient.get<ApiResponse<BebasTanggungan>>(`/sinapra/bebas-tanggungan/${id}`);
+    return data;
+  },
+
+  approveBebasTanggungan: async (id: number, payload: ApproveBebasTanggunganPayload): Promise<ApiResponse<BebasTanggungan>> => {
+    const { data } = await apiClient.post<ApiResponse<BebasTanggungan>>(`/sinapra/bebas-tanggungan/${id}/approve`, payload);
+    return data;
+  },
+
+  // ── FASE 4: KALIBRASI ALAT PRESISI ──────────────────────────
+  getAlatKalibrasiList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<AlatKalibrasi>> => {
+    const { data } = await apiClient.get<PaginatedResponse<AlatKalibrasi>>('/sinapra/alat-kalibrasi', { params });
+    return data;
+  },
+
+  createAlatKalibrasi: async (payload: AlatKalibrasiFormPayload): Promise<ApiResponse<AlatKalibrasi>> => {
+    const { data } = await apiClient.post<ApiResponse<AlatKalibrasi>>('/sinapra/alat-kalibrasi', payload);
+    return data;
+  },
+
+  getAlatKalibrasiDetail: async (id: number): Promise<ApiResponse<AlatKalibrasi>> => {
+    const { data } = await apiClient.get<ApiResponse<AlatKalibrasi>>(`/sinapra/alat-kalibrasi/${id}`);
+    return data;
+  },
+
+  updateAlatKalibrasi: async (id: number, payload: Partial<AlatKalibrasiFormPayload>): Promise<ApiResponse<AlatKalibrasi>> => {
+    const { data } = await apiClient.put<ApiResponse<AlatKalibrasi>>(`/sinapra/alat-kalibrasi/${id}`, payload);
+    return data;
+  },
+
+  deleteAlatKalibrasi: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/alat-kalibrasi/${id}`);
     return data;
   },
 };
