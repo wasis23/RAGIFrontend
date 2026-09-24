@@ -52,6 +52,7 @@ import type {
   MasterSatuan,
   MasterVendor,
   MasterKategoriBhp,
+  AsetLabelData,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
@@ -526,6 +527,19 @@ export const sinapraService = {
 
   deleteMasterKategoriBhp: async (id: number): Promise<ApiResponse<null>> => {
     const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/master/kategori-bhp/${id}`);
+    return data;
+  },
+
+  // ── CETAK LABEL BARCODE & QR CODE ASET ────────────────────────
+  getAsetLabel: async (id: number): Promise<ApiResponse<AsetLabelData>> => {
+    const { data } = await apiClient.get<ApiResponse<AsetLabelData>>(`/sinapra/aset/${id}/label`);
+    return data;
+  },
+
+  getBatchAsetLabels: async (asetIds: number[]): Promise<ApiResponse<AsetLabelData[]>> => {
+    const { data } = await apiClient.post<ApiResponse<AsetLabelData[]>>('/sinapra/aset/labels/batch', {
+      aset_ids: asetIds,
+    });
     return data;
   },
 };

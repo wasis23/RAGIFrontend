@@ -238,6 +238,25 @@ export interface AsetFormPayload {
   keterangan?: string;
 }
 
+export interface AsetLabelData {
+  id: number;
+  kode_aset: string;
+  nama: string;
+  merk?: string | null;
+  model?: string | null;
+  serial_number?: string | null;
+  kategori?: string | null;
+  ruangan_id?: number | null;
+  lokasi_ruangan?: string | null;
+  lokasi_gedung?: string | null;
+  tanggal_perolehan?: string | null;
+  kondisi?: string;
+  status?: string;
+  qr_content?: string;
+  qr_code_svg?: string;
+  instansi?: string;
+}
+
 export interface PenyusutanAsetResult {
   aset_id: number;
   kode_aset: string;
