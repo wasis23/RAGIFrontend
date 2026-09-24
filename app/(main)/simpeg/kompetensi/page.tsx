@@ -698,16 +698,15 @@ export default function KompetensiPage() {
         }
       />
 
-      {/* Tab Navigation (Mengikuti Format Presensi Pegawai) */}
+      {/* Tab Navigation (Mengikuti Format Master Surat Tugas & Presensi) */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <Button
           type="button"
-          variant="ghost"
+          variant="tab"
           onClick={() => setActiveTab('sertifikasi')}
-          style={activeTab === 'sertifikasi' ? { backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)', borderColor: 'var(--module-primary)' } : undefined}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'sertifikasi'
-              ? '!border-[var(--module-primary)] !text-[var(--module-primary)] !bg-[var(--module-primary-subtle)] font-bold'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
@@ -716,12 +715,11 @@ export default function KompetensiPage() {
 
         <Button
           type="button"
-          variant="ghost"
+          variant="tab"
           onClick={() => setActiveTab('tes')}
-          style={activeTab === 'tes' ? { backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)', borderColor: 'var(--module-primary)' } : undefined}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'tes'
-              ? '!border-[var(--module-primary)] !text-[var(--module-primary)] !bg-[var(--module-primary-subtle)] font-bold'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
@@ -730,12 +728,11 @@ export default function KompetensiPage() {
 
         <Button
           type="button"
-          variant="ghost"
+          variant="tab"
           onClick={() => setActiveTab('pelatihan')}
-          style={activeTab === 'pelatihan' ? { backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)', borderColor: 'var(--module-primary)' } : undefined}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'pelatihan'
-              ? '!border-[var(--module-primary)] !text-[var(--module-primary)] !bg-[var(--module-primary-subtle)] font-bold'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
