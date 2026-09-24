@@ -24,6 +24,7 @@ import type {
   LabBhp,
   BebasTanggungan,
   AlatKalibrasi,
+  LabEarlyWarningsData,
 } from '@/types/sinapra.types';
 import {
   FlaskConical,
@@ -36,6 +37,10 @@ import {
   CheckCircle,
   AlertTriangle,
   Clock,
+  BellRing,
+  Calendar,
+  ChevronRight,
+  ShieldAlert,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -193,6 +198,12 @@ export default function SinapraLaboratoriumPage() {
   const [kalibrasiOrderDir, setKalibrasiOrderDir] = useState<'asc' | 'desc'>('desc');
   const [showKalibrasiFilter, setShowKalibrasiFilter] = useState(false);
 
+  // ─────────────────────────────────────────────────────────────
+  // 4. STATE EARLY WARNING SYSTEM (EWS)
+  // ─────────────────────────────────────────────────────────────
+  const [earlyWarnings, setEarlyWarnings] = useState<LabEarlyWarningsData | null>(null);
+  const [isEwsLoading, setIsEwsLoading] = useState(false);
+
   // Dialog Konfirmasi Hapus
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
@@ -306,6 +317,24 @@ export default function SinapraLaboratoriumPage() {
     kalibrasiOrderBy,
     kalibrasiOrderDir,
   ]);
+
+  const fetchEarlyWarnings = useCallback(async () => {
+    setIsEwsLoading(true);
+    try {
+      const res: any = await sinapraService.getLabEarlyWarnings();
+      if (res?.data) {
+        setEarlyWarnings(res.data);
+      }
+    } catch {
+      // Non-blocking warning fetch
+    } finally {
+      setIsEwsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEarlyWarnings();
+  }, [fetchEarlyWarnings]);
 
   useEffect(() => {
     if (activeTab === 'bhp') fetchBhp();
@@ -843,6 +872,120 @@ export default function SinapraLaboratoriumPage() {
           </div>
         }
       />
+
+      {/* ── EARLY WARNING SYSTEM (EWS) ALERT BANNER & SUMMARY ── */}
+      {earlyWarnings && earlyWarnings.summary.total_warnings > 0 && (
+        <div
+          className="rounded-lg border bg-white p-4 space-y-4 shadow-xs"
+          style={{ borderColor: 'var(--module-primary)' }}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 p-2">
+            <div className="flex items-center gap-2" style={{ color: 'var(--module-primary)' }}>
+              <ShieldAlert size={18} className="shrink-0" style={{ color: 'var(--module-primary)' }} />
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider">
+                  Peringatan Dini Operasional Laboratorium (Early Warning System)
+                </h3>
+                <p className="text-2xs text-slate-500">
+                  Ditemukan <strong>{earlyWarnings.summary.total_warnings}</strong> hal kritis yang membutuhkan perhatian operasional laboran/admin.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<BellRing size={16} />}
+              onClick={() => {
+                setActiveTab('bhp');
+                setBhpStatusStok('menipis');
+              }}
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            >
+              Lihat BHP Kritis ({earlyWarnings.summary.total_bhp_critical})
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {/* Card 1: Stok BHP Menipis */}
+            <div
+              onClick={() => {
+                setActiveTab('bhp');
+                setBhpStatusStok('menipis');
+              }}
+              className="rounded-lg border border-slate-200 bg-white p-4 flex items-center justify-between gap-2 cursor-pointer transition-all hover:shadow-xs"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
+                  style={{ color: 'var(--module-primary)' }}
+                >
+                  <FlaskConical size={20} />
+                </div>
+                <div>
+                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500 block">
+                    Stok BHP Kritis
+                  </span>
+                  <p className="text-xs font-bold text-slate-800">
+                    {earlyWarnings.summary.total_bhp_critical} Item Perlu Restock
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Card 2: Kalibrasi Kedaluwarsa / Mendekati */}
+            <div
+              onClick={() => {
+                setActiveTab('kalibrasi');
+                setKalibrasiMendekati(true);
+              }}
+              className="rounded-lg border border-slate-200 bg-white p-4 flex items-center justify-between gap-2 cursor-pointer transition-all hover:shadow-xs"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
+                  style={{ color: 'var(--module-primary)' }}
+                >
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500 block">
+                    Kalibrasi Kedaluwarsa
+                  </span>
+                  <p className="text-xs font-bold text-slate-800">
+                    {earlyWarnings.summary.total_kalibrasi_critical} Instrumen Presisi
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Card 3: Peminjaman Lab Pending */}
+            <div
+              onClick={() => router.push('/sinapra/peminjaman')}
+              className="rounded-lg border border-slate-200 bg-white p-4 flex items-center justify-between gap-2 cursor-pointer transition-all hover:shadow-xs"
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-10 w-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center"
+                  style={{ color: 'var(--module-primary)' }}
+                >
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500 block">
+                    Peminjaman Lab Pending
+                  </span>
+                  <p className="text-xs font-bold text-slate-800">
+                    {earlyWarnings.summary.total_pending_peminjaman} Menunggu Approval
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* NAVIGASI TAB BAKU */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
@@ -1499,6 +1642,7 @@ export default function SinapraLaboratoriumPage() {
           </div>
         </form>
       </Modal>
+
 
 
       {/* ───────────────────────────────────────────────────────────── */}

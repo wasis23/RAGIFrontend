@@ -598,6 +598,48 @@ export interface AlatKalibrasiFormPayload {
   catatan?: string;
 }
 
+export interface LabEarlyWarningsSummary {
+  total_bhp_critical: number;
+  total_kalibrasi_critical: number;
+  total_pending_peminjaman: number;
+  total_warnings: number;
+}
+
+export interface KalibrasiCriticalItem {
+  id: number;
+  aset_id: number;
+  kode_aset: string;
+  nama_aset: string;
+  ruangan_nama: string;
+  gedung_nama: string;
+  institusi_kalibrasi?: string;
+  nomor_sertifikat?: string;
+  tanggal_kadaluarsa: string | null;
+  status_kelayakan: string;
+  is_expired: boolean;
+  days_remaining: number;
+}
+
+export interface PendingPeminjamanItem {
+  id: number;
+  ruangan_id: number;
+  ruangan_nama: string;
+  gedung_nama: string;
+  peminjam_nama: string;
+  keperluan: string;
+  tanggal: string | null;
+  jam_mulai: string;
+  jam_selesai: string;
+  status: string;
+}
+
+export interface LabEarlyWarningsData {
+  summary: LabEarlyWarningsSummary;
+  bhp_critical: LabBhp[];
+  kalibrasi_critical: KalibrasiCriticalItem[];
+  pending_peminjaman: PendingPeminjamanItem[];
+}
+
 // ------------------------------------------------------------
 // 6. FASE 5: Stock Opname, Mutasi Aset, & Disposal Pemutihan
 // ------------------------------------------------------------

@@ -53,9 +53,16 @@ import type {
   MasterVendor,
   MasterKategoriBhp,
   AsetLabelData,
+  LabEarlyWarningsData,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
+  // ── FASE 4: EARLY WARNING SYSTEM LABORATORIUM ──────────────
+  getLabEarlyWarnings: async (): Promise<ApiResponse<LabEarlyWarningsData>> => {
+    const { data } = await apiClient.get<ApiResponse<LabEarlyWarningsData>>('/sinapra/laboratorium/early-warnings');
+    return data;
+  },
+
   // ── GEDUNG ──────────────────────────────────────────────────
   getGedungList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<Gedung>> => {
     const { data } = await apiClient.get<PaginatedResponse<Gedung>>('/sinapra/gedung', { params });
