@@ -84,9 +84,11 @@ export default function SinapraLaboratoriumPage() {
   const [bhpPage, setBhpPage] = useState(1);
   const [bhpSearch, setBhpSearch] = useState('');
   const [bhpKategori, setBhpKategori] = useState('');
+  const [bhpKategoriId, setBhpKategoriId] = useState<string>('');
   const [bhpRuanganId, setBhpRuanganId] = useState<string>('');
   const [bhpLokasi, setBhpLokasi] = useState('');
   const [bhpSatuan, setBhpSatuan] = useState('');
+  const [bhpSatuanId, setBhpSatuanId] = useState<string>('');
   const [bhpStatusStok, setBhpStatusStok] = useState('');
   const [bhpOrderBy, setBhpOrderBy] = useState('created_at');
   const [bhpOrderDir, setBhpOrderDir] = useState<'asc' | 'desc'>('desc');
@@ -182,6 +184,7 @@ export default function SinapraLaboratoriumPage() {
   const [kalibrasiStatus, setKalibrasiStatus] = useState('');
   const [kalibrasiMendekati, setKalibrasiMendekati] = useState(false);
   const [kalibrasiAsetId, setKalibrasiAsetId] = useState('');
+  const [kalibrasiVendorId, setKalibrasiVendorId] = useState('');
   const [kalibrasiInstitusi, setKalibrasiInstitusi] = useState('');
   const [kalibrasiNomorSertifikat, setKalibrasiNomorSertifikat] = useState('');
   const [kalibrasiTanggal, setKalibrasiTanggal] = useState('');
@@ -218,9 +221,11 @@ export default function SinapraLaboratoriumPage() {
         per_page: 15,
         search: bhpSearch || undefined,
         kategori: bhpKategori || undefined,
+        kategori_bhp_id: bhpKategoriId ? Number(bhpKategoriId) : undefined,
         ruangan_id: bhpRuanganId ? Number(bhpRuanganId) : undefined,
         lokasi_penyimpanan: bhpLokasi || undefined,
         satuan: bhpSatuan || undefined,
+        satuan_id: bhpSatuanId ? Number(bhpSatuanId) : undefined,
         status_stok: bhpStatusStok || undefined,
         sort_by: bhpOrderBy,
         sort_dir: bhpOrderDir,
@@ -234,7 +239,7 @@ export default function SinapraLaboratoriumPage() {
     } finally {
       setBhpLoading(false);
     }
-  }, [bhpPage, bhpSearch, bhpKategori, bhpRuanganId, bhpLokasi, bhpSatuan, bhpStatusStok, bhpOrderBy, bhpOrderDir]);
+  }, [bhpPage, bhpSearch, bhpKategori, bhpKategoriId, bhpRuanganId, bhpLokasi, bhpSatuan, bhpSatuanId, bhpStatusStok, bhpOrderBy, bhpOrderDir]);
 
   const fetchSbt = useCallback(async () => {
     setSbtLoading(true);
@@ -268,6 +273,7 @@ export default function SinapraLaboratoriumPage() {
         per_page: 15,
         search: kalibrasiSearch || undefined,
         aset_id: kalibrasiAsetId ? Number(kalibrasiAsetId) : undefined,
+        vendor_id: kalibrasiVendorId ? Number(kalibrasiVendorId) : undefined,
         institusi_kalibrasi: kalibrasiInstitusi || undefined,
         nomor_sertifikat: kalibrasiNomorSertifikat || undefined,
         tanggal_kalibrasi: kalibrasiTanggal || undefined,
@@ -290,6 +296,7 @@ export default function SinapraLaboratoriumPage() {
     kalibrasiPage,
     kalibrasiSearch,
     kalibrasiAsetId,
+    kalibrasiVendorId,
     kalibrasiInstitusi,
     kalibrasiNomorSertifikat,
     kalibrasiTanggal,
@@ -312,9 +319,11 @@ export default function SinapraLaboratoriumPage() {
   const handleResetBhpFilter = () => {
     setBhpSearch('');
     setBhpKategori('');
+    setBhpKategoriId('');
     setBhpRuanganId('');
     setBhpLokasi('');
     setBhpSatuan('');
+    setBhpSatuanId('');
     setBhpStatusStok('');
     setBhpOrderBy('created_at');
     setBhpOrderDir('desc');
@@ -346,6 +355,7 @@ export default function SinapraLaboratoriumPage() {
     setKalibrasiStatus('');
     setKalibrasiMendekati(false);
     setKalibrasiAsetId('');
+    setKalibrasiVendorId('');
     setKalibrasiInstitusi('');
     setKalibrasiNomorSertifikat('');
     setKalibrasiTanggal('');
@@ -498,6 +508,45 @@ export default function SinapraLaboratoriumPage() {
       return items.map((a: any) => ({
         value: String(a.id),
         label: `${a.nama} [${a.kode_aset}] - ${a.ruangan?.nama || 'Lab'}`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadKategoriBhpOptions = async (query: string) => {
+    try {
+      const res: any = await sinapraService.getMasterKategoriBhpList({ search: query, per_page: 20 });
+      const items = Array.isArray(res?.data) ? res.data : [];
+      return items.map((k: any) => ({
+        value: String(k.id),
+        label: `${k.nama} [${k.kode}]`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadSatuanOptions = async (query: string) => {
+    try {
+      const res: any = await sinapraService.getMasterSatuanList({ search: query, per_page: 20 });
+      const items = Array.isArray(res?.data) ? res.data : [];
+      return items.map((s: any) => ({
+        value: String(s.id),
+        label: `${s.nama} [${s.kode}]`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadVendorOptions = async (query: string) => {
+    try {
+      const res: any = await sinapraService.getMasterVendorList({ search: query, per_page: 20 });
+      const items = Array.isArray(res?.data) ? res.data : [];
+      return items.map((v: any) => ({
+        value: String(v.id),
+        label: `${v.nama} [${v.kode}]`,
       }));
     } catch {
       return [];
@@ -919,8 +968,20 @@ export default function SinapraLaboratoriumPage() {
             onChange={(sel: any) => setBhpRuanganId(sel ? sel.value : '')}
           />
 
+          <AsyncSelect
+            label="Master Kategori BHP"
+            placeholder="Semua Kategori BHP..."
+            loadOptions={loadKategoriBhpOptions}
+            value={
+              bhpKategoriId
+                ? { value: bhpKategoriId, label: `Kategori #${bhpKategoriId}` }
+                : null
+            }
+            onChange={(sel: any) => setBhpKategoriId(sel ? sel.value : '')}
+          />
+
           <Input
-            label="Kategori BHP"
+            label="Kategori BHP (Teks/Kode)"
             placeholder="cth: komponen_elektronik, reagen"
             value={bhpKategori}
             onChange={(e) => setBhpKategori(e.target.value)}
@@ -933,8 +994,20 @@ export default function SinapraLaboratoriumPage() {
             onChange={(e) => setBhpLokasi(e.target.value)}
           />
 
+          <AsyncSelect
+            label="Master Satuan"
+            placeholder="Semua Satuan Barang..."
+            loadOptions={loadSatuanOptions}
+            value={
+              bhpSatuanId
+                ? { value: bhpSatuanId, label: `Satuan #${bhpSatuanId}` }
+                : null
+            }
+            onChange={(sel: any) => setBhpSatuanId(sel ? sel.value : '')}
+          />
+
           <Input
-            label="Satuan"
+            label="Satuan (Teks)"
             placeholder="cth: Pcs, Roll, Botol..."
             value={bhpSatuan}
             onChange={(e) => setBhpSatuan(e.target.value)}
@@ -1112,6 +1185,18 @@ export default function SinapraLaboratoriumPage() {
                 : null
             }
             onChange={(sel: any) => setKalibrasiAsetId(sel ? sel.value : '')}
+          />
+
+          <AsyncSelect
+            label="Vendor / Rekanan Kalibrasi"
+            placeholder="Semua Vendor Kalibrasi..."
+            loadOptions={loadVendorOptions}
+            value={
+              kalibrasiVendorId
+                ? { value: kalibrasiVendorId, label: `Vendor #${kalibrasiVendorId}` }
+                : null
+            }
+            onChange={(sel: any) => setKalibrasiVendorId(sel ? sel.value : '')}
           />
 
           <Input

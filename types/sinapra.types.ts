@@ -55,6 +55,57 @@ export interface MasterSatuan {
   updated_at?: string;
 }
 
+export interface MasterVendor {
+  id: number;
+  kode: string;
+  nama: string;
+  jenis_rekanan: string;
+  alamat?: string | null;
+  telepon?: string | null;
+  email?: string | null;
+  pic_nama?: string | null;
+  pic_kontak?: string | null;
+  nomor_npwp?: string | null;
+  is_active: boolean;
+  urutan: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterVendorFormPayload {
+  kode: string;
+  nama: string;
+  jenis_rekanan?: string;
+  alamat?: string | null;
+  telepon?: string | null;
+  email?: string | null;
+  pic_nama?: string | null;
+  pic_kontak?: string | null;
+  nomor_npwp?: string | null;
+  is_active?: boolean;
+  urutan?: number;
+}
+
+export interface MasterKategoriBhp {
+  id: number;
+  kode: string;
+  nama: string;
+  deskripsi?: string | null;
+  is_active: boolean;
+  urutan: number;
+  created_at?: string;
+  updated_at?: string;
+  bhp_count?: number;
+}
+
+export interface MasterKategoriBhpFormPayload {
+  kode: string;
+  nama: string;
+  deskripsi?: string | null;
+  is_active?: boolean;
+  urutan?: number;
+}
+
 export interface Ruangan {
   id: number;
   gedung_id: number;
@@ -394,6 +445,11 @@ export interface SinapraFilterParams extends PaginationParams {
   is_borrowable?: boolean;
   is_lab_asset?: boolean;
   ruangan_id?: number;
+  kategori_bhp_id?: number;
+  satuan_id?: number;
+  vendor_id?: number;
+  jenis_rekanan?: string;
+  is_active?: string | boolean;
   kategori?: string;
   status_kelayakan?: string;
   mendekati_kadaluarsa?: boolean;
@@ -420,15 +476,19 @@ export interface SinapraFilterParams extends PaginationParams {
 export interface LabBhp {
   id: number;
   ruangan_id: number;
+  kategori_bhp_id?: number | null;
+  satuan_id?: number | null;
   kode_bhp: string;
   nama_bhp: string;
-  kategori: string;
+  kategori?: string;
   stok_saat_ini: number;
   stok_minimum: number;
-  satuan: string;
+  satuan?: string;
   spesifikasi?: string;
   lokasi_penyimpanan?: string;
   ruangan?: Ruangan;
+  kategori_bhp?: MasterKategoriBhp | null;
+  satuan_data?: MasterSatuan | null;
   transaksi?: LabBhpTransaksi[];
   created_at?: string;
   updated_at?: string;
@@ -436,6 +496,8 @@ export interface LabBhp {
 
 export interface LabBhpFormPayload {
   ruangan_id: number;
+  kategori_bhp_id?: number | null;
+  satuan_id?: number | null;
   kode_bhp: string;
   nama_bhp: string;
   kategori?: string;
@@ -493,6 +555,7 @@ export interface ApproveBebasTanggunganPayload {
 export interface AlatKalibrasi {
   id: number;
   aset_id: number;
+  vendor_id?: number | null;
   institusi_kalibrasi: string;
   nomor_sertifikat?: string;
   tanggal_kalibrasi: string;
@@ -500,13 +563,15 @@ export interface AlatKalibrasi {
   status_kelayakan: 'laik' | 'tidak_laik' | 'butuh_perbaikan';
   catatan?: string;
   aset?: Aset;
+  vendor?: MasterVendor | null;
   created_at?: string;
   updated_at?: string;
 }
 
 export interface AlatKalibrasiFormPayload {
   aset_id: number;
-  institusi_kalibrasi: string;
+  vendor_id?: number | null;
+  institusi_kalibrasi?: string;
   nomor_sertifikat?: string;
   tanggal_kalibrasi: string;
   tanggal_kadaluarsa: string;

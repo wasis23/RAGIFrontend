@@ -272,6 +272,8 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
       { id: 9102, parent_id: 910, name: 'Master Tipe Referensi', url: '/sinapra/master/tipe-referensi', icon: 'Tags', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
       { id: 9103, parent_id: 910, name: 'Master Tipe Ruangan', url: '/sinapra/master/tipe-ruangan', icon: 'Layers', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
       { id: 9104, parent_id: 910, name: 'Master Satuan', url: '/sinapra/master/satuan', icon: 'Tag', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
+      { id: 9105, parent_id: 910, name: 'Master Vendor / Rekanan', url: '/sinapra/master/vendor', icon: 'Briefcase', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
+      { id: 9106, parent_id: 910, name: 'Master Kategori BHP', url: '/sinapra/master/kategori-bhp', icon: 'Package', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
     ],
   },
 ];

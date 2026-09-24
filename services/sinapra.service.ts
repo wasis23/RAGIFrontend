@@ -50,6 +50,8 @@ import type {
   KalenderRuanganMeta,
   MasterTipeRuangan,
   MasterSatuan,
+  MasterVendor,
+  MasterKategoriBhp,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
@@ -472,6 +474,58 @@ export const sinapraService = {
 
   deleteMasterSatuan: async (id: number): Promise<ApiResponse<null>> => {
     const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/master/satuan/${id}`);
+    return data;
+  },
+
+  // ── MASTER VENDOR / REKANAN ──────────────────────────────────
+  getMasterVendorList: async (params?: any): Promise<PaginatedResponse<MasterVendor>> => {
+    const { data } = await apiClient.get<PaginatedResponse<MasterVendor>>('/sinapra/master/vendor', { params });
+    return data;
+  },
+
+  getMasterVendorDetail: async (id: number): Promise<ApiResponse<MasterVendor>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterVendor>>(`/sinapra/master/vendor/${id}`);
+    return data;
+  },
+
+  createMasterVendor: async (payload: Partial<MasterVendor>): Promise<ApiResponse<MasterVendor>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterVendor>>('/sinapra/master/vendor', payload);
+    return data;
+  },
+
+  updateMasterVendor: async (id: number, payload: Partial<MasterVendor>): Promise<ApiResponse<MasterVendor>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterVendor>>(`/sinapra/master/vendor/${id}`, payload);
+    return data;
+  },
+
+  deleteMasterVendor: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/master/vendor/${id}`);
+    return data;
+  },
+
+  // ── MASTER KATEGORI BHP ──────────────────────────────────────
+  getMasterKategoriBhpList: async (params?: any): Promise<PaginatedResponse<MasterKategoriBhp>> => {
+    const { data } = await apiClient.get<PaginatedResponse<MasterKategoriBhp>>('/sinapra/master/kategori-bhp', { params });
+    return data;
+  },
+
+  getMasterKategoriBhpDetail: async (id: number): Promise<ApiResponse<MasterKategoriBhp>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterKategoriBhp>>(`/sinapra/master/kategori-bhp/${id}`);
+    return data;
+  },
+
+  createMasterKategoriBhp: async (payload: Partial<MasterKategoriBhp>): Promise<ApiResponse<MasterKategoriBhp>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterKategoriBhp>>('/sinapra/master/kategori-bhp', payload);
+    return data;
+  },
+
+  updateMasterKategoriBhp: async (id: number, payload: Partial<MasterKategoriBhp>): Promise<ApiResponse<MasterKategoriBhp>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterKategoriBhp>>(`/sinapra/master/kategori-bhp/${id}`, payload);
+    return data;
+  },
+
+  deleteMasterKategoriBhp: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/master/kategori-bhp/${id}`);
     return data;
   },
 };
