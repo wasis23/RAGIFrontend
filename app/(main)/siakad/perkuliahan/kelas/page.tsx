@@ -208,9 +208,16 @@ export default function PerkuliahanKelasPage() {
       key: 'kode_kelas',
       label: 'KODE KELAS',
       render: (row) => (
-        <span className="font-mono font-bold text-slate-900 text-xs">
-          {row.kode_kelas}
-        </span>
+        <div>
+          <span className="font-mono font-bold text-slate-900 text-xs block">
+            {row.kode_kelas}
+          </span>
+          {row.is_gabungan && (
+            <span className="badge badge-purple text-2xs font-bold mt-0.5" title={`Gabungan: ${((row.program_studis || []).map((p: any) => p.nama).join(', ') || row.program_studi?.nama || '')}`}>
+              Gabungan {(row.program_studis || []).length > 0 ? `(${(row.program_studis || []).length} prodi)` : ''}
+            </span>
+          )}
+        </div>
       ),
     },
     {

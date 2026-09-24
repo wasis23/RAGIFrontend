@@ -578,7 +578,8 @@ export function Sidebar() {
       '/siakad', '/sikeu', '/simpeg', '/spmb', '/sinapra', '/sippm', '/admin', '/dashboard',
       '/sikeu/master', '/siakad/master', '/simpeg/master',
     ];
-    let best: { id: string | number; len: number; exact: boolean; depth: number } | null = null;
+    let bestId: string | number | null = null;
+    let bestScore: [number, number, number] | null = null;
     const consider = (url: string, id: string | number, depth: number) => {
       if (!url || url.startsWith('#')) return;
       let exact = false;
@@ -590,21 +591,21 @@ export function Sidebar() {
       } else if (!pathname.startsWith(url + '/')) {
         return;
       }
-      const cand = { id, len: url.length, exact, depth };
-      if (!best) {
-        best = cand;
-        return;
+      const score: [number, number, number] = [exact ? 1 : 0, url.length, depth];
+      const better =
+        !bestScore ||
+        score[0] > bestScore[0] ||
+        (score[0] === bestScore[0] && (score[1] > bestScore[1] || (score[1] === bestScore[1] && score[2] > bestScore[2])));
+      if (better) {
+        bestScore = score;
+        bestId = id;
       }
-      const rank = (c: typeof cand) => [c.exact ? 1 : 0, c.len, c.depth];
-      const a = rank(cand);
-      const b = rank(best);
-      if (a[0] > b[0] || (a[0] === b[0] && (a[1] > b[1] || (a[1] === b[1] && a[2] > b[2])))) best = cand;
     };
     menus.forEach((m) => {
       consider(m.url, m.id, 0);
       m.children?.forEach((c) => consider(c.url, c.id, 1));
     });
-    return best?.id ?? null;
+    return bestId;
   };
 
   const activeMenuUrl = computeActiveUrl(dynamicMenus);

@@ -474,6 +474,11 @@ export const siakadService = {
     return response.data;
   },
 
+  duplicateRps: async (id: number, payload: { tahun_ajaran: string; semester?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/obe/rps/${id}/duplicate`, payload);
+    return response.data;
+  },
+
   submitRps: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.post(`/v1/siakad/obe/rps/${id}/submit`);
     return response.data;

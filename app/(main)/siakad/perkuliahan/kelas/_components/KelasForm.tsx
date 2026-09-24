@@ -32,6 +32,8 @@ const kelasSchema = z.object({
   hari: z.string().min(1, 'Hari wajib dipilih'),
   jam_mulai: z.string().min(1, 'Jam mulai wajib diisi'),
   jam_selesai: z.string().min(1, 'Jam selesai wajib diisi'),
+  is_gabungan: z.boolean().optional(),
+  gabungan_program_studi_ids: z.array(z.number()).optional(),
 });
 
 export type KelasFormValues = z.infer<typeof kelasSchema>;
@@ -50,6 +52,8 @@ export interface KelasFormInitial {
   hari: string;
   jam_mulai: string;
   jam_selesai: string;
+  is_gabungan: boolean;
+  gabungan_program_studi_ids: number[];
 }
 
 function SectionTitle({ step, title, description, icon }: { step: string; title: string; description: string; icon: React.ReactNode }) {
@@ -118,6 +122,8 @@ export default function KelasForm({
       hari: 'senin',
       jam_mulai: '08:00',
       jam_selesai: '10:30',
+      is_gabungan: false,
+      gabungan_program_studi_ids: [],
     },
   });
 
@@ -184,6 +190,8 @@ export default function KelasForm({
             hari: 'senin',
             jam_mulai: '08:00',
             jam_selesai: '10:30',
+            is_gabungan: false,
+            gabungan_program_studi_ids: [],
           });
         }
       } catch {
@@ -210,6 +218,8 @@ export default function KelasForm({
         hari: initialValues.hari || 'senin',
         jam_mulai: initialValues.jam_mulai || '08:00',
         jam_selesai: initialValues.jam_selesai || '10:30',
+        is_gabungan: initialValues.is_gabungan || false,
+        gabungan_program_studi_ids: initialValues.gabungan_program_studi_ids || [],
       });
     }
   }, [mode, initialValues, reset]);
@@ -349,6 +359,8 @@ export default function KelasForm({
           hari: values.hari,
           jam_mulai: values.jam_mulai,
           jam_selesai: values.jam_selesai,
+          is_gabungan: values.is_gabungan || false,
+          gabungan_program_studi_ids: values.gabungan_program_studi_ids || [],
         });
         toast.success('Kelas perkuliahan berhasil diperbarui');
       } else {
@@ -491,6 +503,46 @@ export default function KelasForm({
                   error={errors.nama_kelas?.message}
                   {...register('nama_kelas')}
                 />
+              </div>
+
+              <div className="md:col-span-3 flex items-start gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <Controller
+                  name="is_gabungan"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      type="checkbox"
+                      checked={!!field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                      className="mt-1 rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    />
+                  )}
+                />
+                <div className="flex-1">
+                  <span className="text-xs font-extrabold text-slate-900 block">Kelas Gabungan (lintas prodi)</span>
+                  <span className="text-2xs text-slate-500 block">Satu jadwal, satu pengampu, dan satu penilaian OBE dipakai bersama beberapa prodi. Mahasiswa tiap prodi peserta bisa KRS ke kelas ini.</span>
+                  {watch('is_gabungan') && (
+                    <div className="mt-2">
+                      <Controller
+                        name="gabungan_program_studi_ids"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            label="Prodi Peserta Gabungan"
+                            required
+                            placeholder="Pilih prodi peserta..."
+                            options={prodiOptions}
+                            value={field.value || []}
+                            onChange={(vals: any) => field.onChange((vals || []).map(Number))}
+                            isMulti
+                            hint="Homebase + prodi terpilih bisa mengisi KRS ke kelas ini"
+                            error={errors.gabungan_program_studi_ids?.message}
+                          />
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </CardBody>

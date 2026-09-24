@@ -942,6 +942,11 @@ export default function InputNilaiPage() {
                         <span className="badge badge-yellow text-2xs font-bold uppercase tracking-wider">
                           Kelas Aktif: {selectedKelasObj.nama_kelas} ({selectedKelasObj.kode_kelas})
                         </span>
+                        {obeKelasData?.kelas?.is_gabungan && (
+                          <span className="badge bg-purple-500/20 text-purple-200 border border-purple-400/30 text-2xs font-bold" title={(obeKelasData?.kelas?.program_studis || []).map((p: any) => p.nama).join(', ')}>
+                            Kelas Gabungan ({(obeKelasData?.kelas?.program_studis || []).length} prodi)
+                          </span>
+                        )}
                         <span className="badge bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-2xs font-bold">
                           Sistem Penilaian OBE
                         </span>

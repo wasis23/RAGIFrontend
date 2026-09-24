@@ -43,6 +43,8 @@ export default function EditKelasPerkuliahanPage() {
           hari: k.hari || 'senin',
           jam_mulai: (k.jam_mulai || '08:00').substring(0, 5),
           jam_selesai: (k.jam_selesai || '10:30').substring(0, 5),
+          is_gabungan: Boolean(k.is_gabungan),
+          gabungan_program_studi_ids: (k.program_studis || []).map((p: any) => p.id),
         });
       } catch (err: any) {
         toast.error(err.response?.data?.message || 'Gagal memuat detail kelas');

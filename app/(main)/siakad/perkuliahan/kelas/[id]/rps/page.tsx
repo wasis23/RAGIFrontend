@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, FileText, BookOpen, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, FileText, BookOpen, AlertCircle, Copy } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
@@ -27,6 +29,12 @@ export default function KelasRpsPage() {
     pustaka_pendukung: '',
     mingguan: [] as any[],
   });
+
+  // Impor dari RPS MK sama periode lain
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [rpsSources, setRpsSources] = useState<any[]>([]);
+  const [sourceRpsId, setSourceRpsId] = useState('');
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (!kelasId) return;
@@ -92,8 +100,47 @@ export default function KelasRpsPage() {
     ? `${kelas.tahun_akademik.tahun_mulai}/${kelas.tahun_akademik.tahun_selesai || ''}`
     : kelas?.tahun_akademik?.nama || '';
 
-  const handleSave = async () => {
+  const handleOpenImport = async () => {
     if (!kelas) return;
+    try {
+      const res = await siakadService.getRps({ mata_kuliah_id: kelas.mata_kuliah_id });
+      const others = (res.data || []).filter((r: any) => r.id !== rpsDetail?.id);
+      setRpsSources(others);
+      setSourceRpsId(others[0]?.id ? String(others[0].id) : '');
+      setIsImportOpen(true);
+    } catch {
+      toast.error('Gagal memuat daftar RPS periode lain');
+    }
+  };
+
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sourceRpsId) return;
+    try {
+      setImporting(true);
+      const res = await siakadService.duplicateRps(Number(sourceRpsId), {
+        tahun_ajaran: tahunAjaran,
+        semester: kelas?.mata_kuliah?.semester_anjuran || kelas?.mata_kuliah?.semester_default || 1,
+      });
+      toast.success(res.message || 'RPS berhasil diimpor sebagai draft');
+      setIsImportOpen(false);
+      if (res.data) {
+        setRpsDetail(res.data);
+        setForm({
+          deskripsi_singkat: res.data.deskripsi_singkat || '',
+          pustaka_utama: res.data.pustaka_utama || '',
+          pustaka_pendukung: res.data.pustaka_pendukung || '',
+          mingguan: res.data.mingguan || [],
+        });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengimpor RPS');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleSave = async () => {    if (!kelas) return;
     try {
       setSaving(true);
       await siakadService.storeRps({
@@ -134,6 +181,9 @@ export default function KelasRpsPage() {
           <div className="flex items-center gap-2">
             <Button variant="outline" icon={<ArrowLeft size={16} />} onClick={() => router.push('/siakad/perkuliahan/kelas')}>
               Kembali
+            </Button>
+            <Button variant="outline" icon={<Copy size={14} />} onClick={handleOpenImport} className="font-bold text-xs">
+              Impor Periode Lain
             </Button>
             <Button variant="primary" icon={<Save size={14} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
               {saving ? 'Menyimpan...' : 'Simpan RPS'}
@@ -244,6 +294,40 @@ export default function KelasRpsPage() {
           </Button>
         </div>
       </div>
+
+      <Modal
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        title="Impor RPS dari Periode Lain"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsImportOpen(false)}>Batal</Button>
+            <Button variant="primary" onClick={handleImport} disabled={importing || !sourceRpsId} icon={<Copy size={14} />}>
+              {importing ? 'Mengimpor...' : 'Impor sebagai Draft'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleImport} className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Salin isi RPS <strong>{kelas?.mata_kuliah?.nama}</strong> dari periode lain ke periode <strong>{kelas?.tahun_akademik?.nama || tahunAjaran}</strong> sebagai draft — tinggal ubah yang berbeda saja.
+          </p>
+          {rpsSources.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">Tidak ada RPS MK ini di periode lain.</p>
+          ) : (
+            <Select
+              label="Sumber RPS"
+              required
+              options={rpsSources.map((r: any) => ({
+                value: r.id,
+                label: `${r.tahun_ajaran} • Smt ${r.semester} • ${r.status || 'draft'} (${(r.mingguan_count ?? '?')} pertemuan)`,
+              }))}
+              value={sourceRpsId || ''}
+              onChange={(v: any) => setSourceRpsId(String(v || ''))}
+            />
+          )}
+        </form>
+      </Modal>
     </div>
   );
 }
