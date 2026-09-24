@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarCheck, MapPin, Plus, Search, Filter, Clock, Users, Edit3, Trash2, BookOpen, FileText, CheckCircle2, Award, Download, MoreVertical, X, Save } from 'lucide-react';
+import { CalendarCheck, MapPin, Plus, Search, Filter, Clock, Users, Edit3, Trash2, BookOpen, FileText, CheckCircle2, Award, Download, MoreVertical, X, Save, Eye, ExternalLink } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -304,14 +304,40 @@ export default function PerkuliahanKelasPage() {
       render: (row) => (
         <Button
           variant="outline"
-          icon={<FileText size={12} />}
+          icon={isMahasiswa ? <Eye size={12} /> : <FileText size={12} />}
           className="text-2xs py-1 px-2.5 h-auto font-bold"
           onClick={() => router.push(`/siakad/perkuliahan/kelas/${row.id}/rps`)}
         >
-          Kelola RPS
+          {isMahasiswa ? 'Lihat RPS' : 'Kelola RPS'}
         </Button>
       ),
     },
+    ...(process.env.NEXT_PUBLIC_LMS_URL
+      ? [
+          {
+            key: 'lms',
+            label: 'KELAS LMS',
+            align: 'center' as const,
+            render: (row: any) => (
+              <Button
+                variant="outline"
+                icon={<ExternalLink size={12} />}
+                className="text-2xs py-1 px-2.5 h-auto font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                onClick={() =>
+                  window.open(
+                    `${process.env.NEXT_PUBLIC_LMS_URL}/course/${row.mata_kuliah?.kode_mk || row.id}`,
+                    '_blank',
+                    'noopener'
+                  )
+                }
+                title="Buka materi kelas ini di LMS (SSO)"
+              >
+                Buka LMS
+              </Button>
+            ),
+          },
+        ]
+      : []),
     ...(!isMahasiswa && !isDosen
       ? [
           {

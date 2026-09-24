@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, FileText, BookOpen, AlertCircle, Copy } from 'lucide-react';
+import { ArrowLeft, Save, FileText, BookOpen, AlertCircle, Copy, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { siakadService } from '@/services/siakad.service';
+import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
 const defaultBobot = (mingguKe: number) => (mingguKe === 8 ? 25 : mingguKe === 16 ? 30 : 3);
@@ -18,6 +19,10 @@ export default function KelasRpsPage() {
   const params = useParams();
   const router = useRouter();
   const kelasId = Number(params.id);
+  const { user } = useAuthStore();
+  const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
+  // Mahasiswa hanya boleh MELIHAT RPS, tidak mengedit
+  const readOnly = userRoles.includes('mahasiswa');
 
   const [kelas, setKelas] = useState<any | null>(null);
   const [rpsDetail, setRpsDetail] = useState<any | null>(null);
@@ -140,7 +145,8 @@ export default function KelasRpsPage() {
     }
   };
 
-  const handleSave = async () => {    if (!kelas) return;
+  const handleSave = async () => {
+    if (readOnly) return;    if (!kelas) return;
     try {
       setSaving(true);
       await siakadService.storeRps({
@@ -182,12 +188,20 @@ export default function KelasRpsPage() {
             <Button variant="outline" icon={<ArrowLeft size={16} />} onClick={() => router.push('/siakad/perkuliahan/kelas')}>
               Kembali
             </Button>
-            <Button variant="outline" icon={<Copy size={14} />} onClick={handleOpenImport} className="font-bold text-xs">
-              Impor Periode Lain
-            </Button>
-            <Button variant="primary" icon={<Save size={14} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
-              {saving ? 'Menyimpan...' : 'Simpan RPS'}
-            </Button>
+            {readOnly ? (
+              <Badge variant="blue" className="inline-flex items-center gap-1.5 px-3 py-2">
+                <Eye size={13} /> Mode Lihat Saja
+              </Badge>
+            ) : (
+              <>
+                <Button variant="outline" icon={<Copy size={14} />} onClick={handleOpenImport} className="font-bold text-xs">
+                  Impor Periode Lain
+                </Button>
+                <Button variant="primary" icon={<Save size={14} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
+                  {saving ? 'Menyimpan...' : 'Simpan RPS'}
+                </Button>
+              </>
+            )}
           </div>
         }
       />
@@ -223,6 +237,7 @@ export default function KelasRpsPage() {
             rows={4}
             placeholder="Tuliskan deskripsi ringkas mengenai mata kuliah ini..."
             value={form.deskripsi_singkat}
+            disabled={readOnly}
             onChange={(e) => setForm({ ...form, deskripsi_singkat: e.target.value })}
             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-primary-500 font-medium"
           />
@@ -244,6 +259,7 @@ export default function KelasRpsPage() {
           <textarea
             rows={3}
             value={form.pustaka_utama}
+            disabled={readOnly}
             onChange={(e) => setForm({ ...form, pustaka_utama: e.target.value })}
             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-primary-500 font-medium"
           />
@@ -253,6 +269,7 @@ export default function KelasRpsPage() {
           <textarea
             rows={3}
             value={form.pustaka_pendukung}
+            disabled={readOnly}
             onChange={(e) => setForm({ ...form, pustaka_pendukung: e.target.value })}
             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-primary-500 font-medium"
           />
@@ -272,26 +289,36 @@ export default function KelasRpsPage() {
               <div key={mingguKe} className={`p-3 grid grid-cols-1 md:grid-cols-12 gap-2 items-center ${isMidOrFinal ? 'bg-primary-50/50' : ''}`}>
                 <div className="md:col-span-1 text-center font-mono font-black text-xs text-primary-700">Mg {mingguKe}</div>
                 <div className="md:col-span-4">
-                  <Input label="Sub-CPMK" placeholder={`Sub-CPMK Minggu ${mingguKe}`} value={existing.kemampuan_akhir || ''} onChange={(e) => updateMinggu(mingguKe, 'kemampuan_akhir', e.target.value)} />
+                  <Input label="Sub-CPMK" placeholder={`Sub-CPMK Minggu ${mingguKe}`} value={existing.kemampuan_akhir || ''} disabled={readOnly}
+                  onChange={(e) => updateMinggu(mingguKe, 'kemampuan_akhir', e.target.value)} />
                 </div>
                 <div className="md:col-span-4">
-                  <Input label="Bahan Kajian / Topik" placeholder={mingguKe === 8 ? 'Ujian Tengah Semester (UTS)' : mingguKe === 16 ? 'Evaluasi Akhir (UAS/Proyek)' : `Materi pekan ${mingguKe}`} value={existing.bahan_kajian || ''} onChange={(e) => updateMinggu(mingguKe, 'bahan_kajian', e.target.value)} />
+                  <Input label="Bahan Kajian / Topik" placeholder={mingguKe === 8 ? 'Ujian Tengah Semester (UTS)' : mingguKe === 16 ? 'Evaluasi Akhir (UAS/Proyek)' : `Materi pekan ${mingguKe}`} value={existing.bahan_kajian || ''} disabled={readOnly}
+                  onChange={(e) => updateMinggu(mingguKe, 'bahan_kajian', e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
-                  <Input label="Metode" placeholder="Kuliah & PBL" value={existing.bentuk_metode || ''} onChange={(e) => updateMinggu(mingguKe, 'bentuk_metode', e.target.value)} />
+                  <Input label="Metode" placeholder="Kuliah & PBL" value={existing.bentuk_metode || ''} disabled={readOnly}
+                  onChange={(e) => updateMinggu(mingguKe, 'bentuk_metode', e.target.value)} />
                 </div>
                 <div className="md:col-span-1">
-                  <Input label="Bobot %" type="number" min={0} max={100} value={existing.bobot_penilaian ?? defaultBobot(mingguKe)} onChange={(e) => updateMinggu(mingguKe, 'bobot_penilaian', Number(e.target.value))} className="text-center font-mono font-bold" />
+                  <Input label="Bobot %" type="number" min={0} max={100} value={existing.bobot_penilaian ?? defaultBobot(mingguKe)} disabled={readOnly}
+                  onChange={(e) => updateMinggu(mingguKe, 'bobot_penilaian', Number(e.target.value))} className="text-center font-mono font-bold" />
                 </div>
               </div>
             );
           })}
         </div>
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-          <Button type="button" variant="secondary" onClick={() => router.push('/siakad/perkuliahan/kelas')}>Batal</Button>
-          <Button variant="primary" icon={<Save size={14} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
-            {saving ? 'Menyimpan...' : 'Simpan RPS & 16 Pertemuan'}
-          </Button>
+          {readOnly ? (
+            <p className="text-2xs text-slate-400 italic">Dokumen RPS ini hanya dapat dilihat. Perubahan dilakukan oleh dosen pengampu.</p>
+          ) : (
+            <>
+              <Button type="button" variant="secondary" onClick={() => router.push('/siakad/perkuliahan/kelas')}>Batal</Button>
+              <Button variant="primary" icon={<Save size={14} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
+                {saving ? 'Menyimpan...' : 'Simpan RPS & 16 Pertemuan'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

@@ -356,6 +356,9 @@ export default function AdminMahasiswaBiodataPage() {
   };
 
   const isTransfer = Boolean(mahasiswa?.konversi_id || mahasiswa?.konversi_transfer || formData.status === 'aktif' && mahasiswa?.jalur_masuk === 'Transfer');
+  const konversiStatus = mahasiswa?.konversi_transfer?.status || (mahasiswa?.konversi_id ? 'disetujui' : '');
+  // Konversi yang sudah DISETUJUI terkunci: tidak bisa diedit/dihapus dari UI manapun
+  const konversiLocked = konversiStatus === 'disetujui';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -898,7 +901,7 @@ export default function AdminMahasiswaBiodataPage() {
                         </p>
                       </div>
                       
-                      {mahasiswa.konversi_id && (
+                      {mahasiswa.konversi_id && !konversiLocked && (
                         <Button
                           variant="danger"
                           size="sm"
@@ -913,6 +916,26 @@ export default function AdminMahasiswaBiodataPage() {
                       )}
                     </div>
 
+                    {konversiLocked ? (
+                      <div className="space-y-3">
+                        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-start gap-2">
+                          <span className="font-extrabold">Terkunci — sudah disetujui.</span>
+                          <span>Penyetaraan ini menjadi dokumen akademik resmi dan tidak dapat diubah/dihapus. Perubahan hanya via penolakan status oleh BAAK di menu Konversi.</span>
+                        </div>
+                        <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs bg-white">
+                          {(mahasiswa?.konversi_transfer?.details || konversiForm.details || []).map((d: any, i: number) => (
+                            <div key={i} className="p-3 flex items-center justify-between gap-3">
+                              <div>
+                                <strong className="text-slate-900 block">{d.nama_mk_asal} ({d.kode_mk_asal})</strong>
+                                <span className="text-2xs text-slate-500">{d.sks_asal} SKS asal • Diakui: {d.mata_kuliah_diakui?.nama || d.mataKuliahDiakui?.nama || ''}</span>
+                              </div>
+                              <span className="font-mono font-black text-primary-700">{d.nilai_huruf_asal}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                    <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
                         label="Perguruan Tinggi Asal *"
@@ -1032,6 +1055,8 @@ export default function AdminMahasiswaBiodataPage() {
                         <Save size={14} /> Simpan Penyetaraan Konversi
                       </Button>
                     </div>
+                    </>
+                    )}
                   </div>
                 )}
               </div>

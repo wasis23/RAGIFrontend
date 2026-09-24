@@ -368,11 +368,21 @@ export default function HasilStudiPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="bg-primary-900 text-white rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="bg-slate-900 text-white rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg border border-slate-700">
             <div>
-              <span className="badge badge-yellow text-2xs font-bold uppercase">Profil Hasil Studi</span>
-              <h2 className="text-lg font-black mt-1">{mhs?.nama_lengkap} <span className="font-mono text-sm font-bold text-primary-200">({mhs?.nim})</span></h2>
-              <p className="text-xs text-primary-200">{mhs?.program_studi?.nama} • Angkatan {mhs?.angkatan || '-'} • IPK {Number(summary?.ipk ?? transkrip?.ringkasan?.ipk ?? mhs?.ipk ?? 0).toFixed(2)}</p>
+              <span className="inline-block bg-amber-400 text-slate-900 text-2xs font-black uppercase tracking-wider px-2.5 py-1 rounded-md">
+                Profil Hasil Studi
+              </span>
+              <h2 className="text-lg font-black mt-2 text-white">
+                {mhs?.nama_lengkap}{' '}
+                <span className="font-mono text-sm font-bold text-slate-300">({mhs?.nim})</span>
+              </h2>
+              <p className="text-xs text-slate-200 mt-1">
+                {mhs?.program_studi?.nama} • Angkatan {mhs?.angkatan || '-'} • IPK{' '}
+                <strong className="font-mono text-sm text-amber-300">
+                  {Number(summary?.ipk ?? transkrip?.ringkasan?.ipk ?? mhs?.ipk ?? 0).toFixed(2)}
+                </strong>
+              </p>
             </div>
             <Select
               label=""
@@ -455,7 +465,7 @@ export default function HasilStudiPage() {
                 <Button variant="outline" className="text-xs" onClick={() => setIsPrintOpen(false)}>Tutup</Button>
               </div>
             </div>
-            <div className="space-y-4 text-xs text-slate-900">
+            <div className="printable-document space-y-4 text-xs text-slate-900">
               <h2 className="font-black uppercase">Transkrip Akademik — {mhs?.program_studi?.nama}</h2>
               <p>Nama: <strong>{mhs?.nama_lengkap}</strong> • NIM: <strong className="font-mono">{mhs?.nim}</strong> • IPK: <strong className="font-mono">{transkrip?.ringkasan?.ipk}</strong> • SKS Lulus: <strong>{transkrip?.ringkasan?.total_sks_lulus}</strong></p>
               <table className="w-full text-left border border-slate-300">
