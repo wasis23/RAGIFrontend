@@ -16,9 +16,14 @@ import {
   Info,
   CalendarDays
 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Drawer } from '@/components/ui/Drawer';
@@ -31,7 +36,8 @@ import type {
   Ruangan,
   Gedung,
   KalenderRuanganItem, 
-  KalenderRuanganFilterParams 
+  KalenderRuanganFilterParams,
+  ApplyPeminjamanRuanganPayload
 } from '@/types/sinapra.types';
 import type { PaginationMeta } from '@/types/api.types';
 
@@ -71,6 +77,19 @@ const toISODate = (d: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+// ─────────────────────────────────────────────────────────────
+// ZOD VALIDATION SCHEMA (FORM <= 5 INPUTS)
+// ─────────────────────────────────────────────────────────────
+const quickBookingSchema = z.object({
+  ruangan_id: z.number().min(1, 'Ruangan wajib dipilih'),
+  tanggal: z.string().min(1, 'Tanggal pemakaian wajib diisi'),
+  jam_mulai: z.string().min(1, 'Jam mulai wajib diisi'),
+  jam_selesai: z.string().min(1, 'Jam selesai wajib diisi'),
+  keperluan: z.string().min(3, 'Keperluan peminjaman minimal 3 karakter'),
+});
+
+type QuickBookingFormData = z.infer<typeof quickBookingSchema>;
+
 export default function KalenderRuanganPage() {
   const router = useRouter();
 
@@ -106,6 +125,66 @@ export default function KalenderRuanganPage() {
   // Detail Modal State
   const [selectedEvent, setSelectedEvent] = useState<KalenderRuanganItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Quick Booking Modal State (<= 5 inputs)
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedRuanganOption, setSelectedRuanganOption] = useState<{ value: number; label: string } | null>(null);
+
+  const {
+    register: registerBooking,
+    handleSubmit: handleSubmitBooking,
+    reset: resetBooking,
+    setValue: setBookingValue,
+    watch: watchBooking,
+    formState: { errors: bookingErrors, isSubmitting: isBookingSubmitting },
+  } = useForm<QuickBookingFormData>({
+    resolver: zodResolver(quickBookingSchema),
+    defaultValues: {
+      ruangan_id: 0,
+      tanggal: toISODate(new Date()),
+      jam_mulai: '08:00',
+      jam_selesai: '10:00',
+      keperluan: '',
+    },
+  });
+
+  const handleOpenQuickBooking = (tanggal: string, defaultHour?: number) => {
+    const startHourStr = defaultHour !== undefined ? String(defaultHour).padStart(2, '0') + ':00' : '08:00';
+    const endHourStr = defaultHour !== undefined ? String(Math.min(defaultHour + 2, 23)).padStart(2, '0') + ':00' : '10:00';
+
+    if (filterRuangan) {
+      setSelectedRuanganOption(filterRuangan);
+      setBookingValue('ruangan_id', filterRuangan.value);
+    } else {
+      setSelectedRuanganOption(null);
+      setBookingValue('ruangan_id', 0);
+    }
+
+    setBookingValue('tanggal', tanggal);
+    setBookingValue('jam_mulai', startHourStr);
+    setBookingValue('jam_selesai', endHourStr);
+    setBookingValue('keperluan', '');
+    setIsBookingModalOpen(true);
+  };
+
+  const onSubmitQuickBooking = async (data: QuickBookingFormData) => {
+    try {
+      const payload: ApplyPeminjamanRuanganPayload = {
+        ruangan_id: data.ruangan_id,
+        tanggal: data.tanggal,
+        jam_mulai: data.jam_mulai,
+        jam_selesai: data.jam_selesai,
+        keperluan: data.keperluan,
+      };
+      await sinapraService.applyPeminjamanRuangan(payload);
+      toast.success('Permohonan peminjaman ruangan berhasil dikirim!');
+      setIsBookingModalOpen(false);
+      resetBooking();
+      fetchEvents();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengirim permohonan peminjaman ruangan.');
+    }
+  };
 
   // Rentang Tanggal Kalender Mingguan
   const weekDays = useMemo(() => {
@@ -514,11 +593,26 @@ export default function KalenderRuanganPage() {
                   </div>
 
                   {/* List Event Hari Tersebut */}
-                  <div className="flex-1 space-y-2 overflow-y-auto max-h-[420px] pr-0.5">
+                  <div className="flex-1 space-y-4 overflow-y-auto">
                     {dayEvents.length === 0 ? (
-                      <p className="text-2xs text-slate-400 text-center py-6 italic">
-                        Tidak ada agenda
-                      </p>
+                      <div className="text-center p-4 flex flex-col items-center justify-center gap-2">
+                        <p className="text-2xs text-slate-400 italic">
+                          Tidak ada agenda terjadwal
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<Plus size={16} />}
+                          onClick={() => handleOpenQuickBooking(dayStr, 8)}
+                          className="w-full text-2xs"
+                          style={{
+                            borderColor: 'var(--module-primary)',
+                            color: 'var(--module-primary)',
+                          }}
+                        >
+                          Booking Slot
+                        </Button>
+                      </div>
                     ) : (
                       dayEvents.map((evt) => {
                         const isSinapra = evt.source === 'sinapra';
@@ -529,22 +623,19 @@ export default function KalenderRuanganPage() {
                               setSelectedEvent(evt);
                               setIsDetailOpen(true);
                             }}
-                            className={`p-2 rounded-lg border text-left cursor-pointer transition-all hover:shadow-sm ${
-                              isSinapra
-                                ? 'bg-indigo-50/70 border-indigo-200 hover:border-indigo-400 text-indigo-950'
-                                : 'bg-emerald-50/70 border-emerald-200 hover:border-emerald-400 text-emerald-950'
-                            }`}
+                            className="p-2 rounded-lg border border-slate-200 bg-white text-left cursor-pointer transition-all hover:shadow-xs"
                           >
-                            <div className="flex items-center justify-between gap-1 mb-1">
-                              <span className="text-2xs font-bold font-mono px-1.5 py-0.5 rounded bg-white/80 border border-slate-200 text-slate-700">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-2xs font-bold font-mono p-2 rounded bg-white border border-slate-200 text-slate-700">
                                 {evt.jam_mulai} - {evt.jam_selesai}
                               </span>
                               <span
-                                className={`text-[9px] font-bold uppercase px-1 rounded ${
+                                style={
                                   isSinapra
-                                    ? 'bg-indigo-200/60 text-indigo-700'
-                                    : 'bg-emerald-200/60 text-emerald-700'
-                                }`}
+                                    ? { backgroundColor: 'var(--module-primary)', color: '#ffffff' }
+                                    : { backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)' }
+                                }
+                                className="text-2xs font-bold uppercase p-2 rounded"
                               >
                                 {isSinapra ? 'SINAPRA' : 'KULIAH'}
                               </span>
@@ -552,7 +643,7 @@ export default function KalenderRuanganPage() {
                             <p className="text-xs font-bold line-clamp-2 leading-tight">
                               {evt.title}
                             </p>
-                            <p className="text-2xs text-slate-600 truncate mt-1 flex items-center gap-0.5">
+                            <p className="text-2xs text-slate-600 truncate flex items-center gap-2">
                               <MapPin size={10} className="shrink-0 text-slate-400" />
                               {evt.ruangan_nama}
                             </p>
@@ -561,6 +652,25 @@ export default function KalenderRuanganPage() {
                       })
                     )}
                   </div>
+
+                  {/* Tombol Booking Tambahan di Hari Tersebut jika ada event */}
+                  {dayEvents.length > 0 && (
+                    <div className="border-t border-slate-200 p-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        icon={<Plus size={16} />}
+                        onClick={() => handleOpenQuickBooking(dayStr)}
+                        className="w-full text-2xs"
+                        style={{
+                          borderColor: 'var(--module-primary)',
+                          color: 'var(--module-primary)',
+                        }}
+                      >
+                        Pinjam di Hari Ini
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -762,6 +872,100 @@ export default function KalenderRuanganPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* ── MODAL QUICK BOOKING RUANGAN (FORM <= 5 INPUTS) ── */}
+      <Modal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        title="Booking Cepat Ruangan Kampus"
+        size="md"
+      >
+        <form onSubmit={handleSubmitBooking(onSubmitQuickBooking)} className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Pilih ruangan dan tentukan durasi peminjaman untuk reservasi langsung pada kalender.
+          </p>
+
+          <div>
+            <AsyncSelect
+              label="Pilih Ruangan Kampus"
+              placeholder="Ketik untuk mencari ruangan..."
+              loadOptions={loadRuanganOptions}
+              value={selectedRuanganOption}
+              onChange={(val: any) => {
+                setSelectedRuanganOption(val);
+                setBookingValue('ruangan_id', val ? Number(val.value) : 0, { shouldValidate: true });
+              }}
+            />
+            {bookingErrors.ruangan_id && (
+              <p className="text-2xs text-[var(--module-primary)]">{bookingErrors.ruangan_id.message}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Tanggal Pemakaian"
+                type="date"
+                {...registerBooking('tanggal')}
+              />
+              {bookingErrors.tanggal && (
+                <p className="text-2xs text-[var(--module-primary)]">{bookingErrors.tanggal.message}</p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Input
+                  label="Jam Mulai"
+                  type="time"
+                  {...registerBooking('jam_mulai')}
+                />
+                {bookingErrors.jam_mulai && (
+                  <p className="text-2xs text-[var(--module-primary)]">{bookingErrors.jam_mulai.message}</p>
+                )}
+              </div>
+              <div>
+                <Input
+                  label="Jam Selesai"
+                  type="time"
+                  {...registerBooking('jam_selesai')}
+                />
+                {bookingErrors.jam_selesai && (
+                  <p className="text-2xs text-[var(--module-primary)]">{bookingErrors.jam_selesai.message}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <Textarea
+              label="Keperluan Peminjaman Ruangan"
+              placeholder="cth: Rapat Koordinasi Panitia Seminar, Bimbingan Skripsi, Praktikum Tambahan..."
+              rows={3}
+              {...registerBooking('keperluan')}
+            />
+            {bookingErrors.keperluan && (
+              <p className="text-2xs text-[var(--module-primary)]">{bookingErrors.keperluan.message}</p>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-200 p-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsBookingModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              isLoading={isBookingSubmitting}
+              disabled={isBookingSubmitting}
+            >
+              Kirim Permohonan Pinjam
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
