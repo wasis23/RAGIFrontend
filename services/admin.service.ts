@@ -86,7 +86,7 @@ export const adminService = {
   },
 
   // ── PERMISSIONS ───────────────────────────────────────────
-  getPermissions: async (params?: PaginationParams): Promise<PaginatedResponse<Permission>> => {
+  getPermissions: async (params?: PaginationParams & { module?: string }): Promise<PaginatedResponse<Permission>> => {
     const { data } = await apiClient.get<PaginatedResponse<Permission>>('/admin/permissions', { params });
     return data;
   },
@@ -107,8 +107,13 @@ export const adminService = {
   },
 
   // ── ROLE-PERMISSIONS MAPPING ──────────────────────────────
-  getRolePermissions: async (): Promise<ApiResponse<RolePermission[]>> => {
-    const { data } = await apiClient.get<ApiResponse<RolePermission[]>>('/admin/role-permissions');
+  getRolePermissions: async (params?: {
+    search?: string;
+    role_id?: number;
+    per_page?: number;
+    page?: number;
+  }): Promise<ApiResponse<RolePermission[]>> => {
+    const { data } = await apiClient.get<ApiResponse<RolePermission[]>>('/admin/role-permissions', { params });
     return data;
   },
 

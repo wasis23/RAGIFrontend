@@ -27,15 +27,16 @@ export default function AdminRolePermissionsPage() {
   const [assignedMap, setAssignedMap] = useState<Record<number, number[]>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMatrixLoading, setIsMatrixLoading] = useState(false);
 
+  // Initial: roles + modules saja. Matrix menyusul via efek filter di bawah
+  // agar setiap ganti role/module selalu request /api/admin/role-permissions.
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitial = async () => {
       setIsLoading(true);
       try {
-        const [rolesRes, rolePermsRes, permsRes, modulesRes] = await Promise.allSettled([
+        const [rolesRes, modulesRes] = await Promise.allSettled([
           adminService.getRoles({ per_page: 100 }),
-          adminService.getRolePermissions(),
-          adminService.getPermissions({ per_page: 500 }),
           moduleService.getAllModules(),
         ]);
 
@@ -51,6 +52,51 @@ export default function AdminRolePermissionsPage() {
           toast.error('Gagal memuat data role. Periksa koneksi ke server.');
         }
 
+        if (modulesRes.status === 'fulfilled') {
+          setAppModules(modulesRes.value);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchInitial();
+  }, []);
+
+  // Refetch server setiap filter berubah (mirip pola role-menus):
+  // ganti role -> GET /api/admin/role-permissions?role_id=X
+  // ganti module -> request ulang matrix role + daftar permission modul tersebut.
+  useEffect(() => {
+    if (!selectedRoleId) return;
+
+    const fetchMatrix = async () => {
+      setIsMatrixLoading(true);
+      try {
+        const [rolePermsRes, permsRes] = await Promise.allSettled([
+          adminService.getRolePermissions({
+            role_id: selectedRoleId,
+            per_page: 100,
+          }),
+          adminService.getPermissions({
+            per_page: 500,
+            ...(selectedModule !== 'all' ? { module: selectedModule } : {}),
+          }),
+        ]);
+
+        if (rolePermsRes.status === 'fulfilled') {
+          const res = rolePermsRes.value;
+          const rolePermsList = Array.isArray(res?.data)
+            ? res.data
+            : ((res?.data as unknown as { items?: unknown[] })?.items ?? []);
+          const map: Record<number, number[]> = {};
+          (rolePermsList as any[]).forEach((item) => {
+            const pIds = (item.permissions || []).map((p: { id: number }) => p.id);
+            map[item.id] = pIds;
+          });
+          setAssignedMap((prev) => ({ ...prev, ...map }));
+        } else {
+          toast.error('Gagal memuat pemetaan role-permission dari server.');
+        }
+
         if (permsRes.status === 'fulfilled') {
           const res = permsRes.value;
           const permList = Array.isArray(res?.data)
@@ -60,31 +106,13 @@ export default function AdminRolePermissionsPage() {
             permList.map((p) => ({ id: (p as any).id, name: (p as any).name, slug: (p as any).slug, module: (p as any).module }))
           );
         }
-
-        if (rolePermsRes.status === 'fulfilled') {
-          const res = rolePermsRes.value;
-          const rolePermsList = Array.isArray(res?.data)
-            ? res.data
-            : ((res?.data as unknown as { items?: unknown[] })?.items ?? []);
-          if (rolePermsList.length) {
-            const map: Record<number, number[]> = {};
-            (rolePermsList as any[]).forEach((item) => {
-              const pIds = (item.permissions || []).map((p: { id: number }) => p.id);
-              map[item.id] = pIds;
-            });
-            setAssignedMap((prev) => ({ ...prev, ...map }));
-          }
-        }
-
-        if (modulesRes.status === 'fulfilled') {
-          setAppModules(modulesRes.value);
-        }
       } finally {
-        setIsLoading(false);
+        setIsMatrixLoading(false);
       }
     };
-    fetchData();
-  }, []);
+
+    fetchMatrix();
+  }, [selectedRoleId, selectedModule]);
 
   const currentAssigned = assignedMap[selectedRoleId] || [];
 
@@ -192,8 +220,14 @@ export default function AdminRolePermissionsPage() {
           />
         </div>
         <p className="mt-3 text-[0.8125rem] text-slate-400">
-          Terdapat <strong>{currentAssigned.length}</strong> hak akses aktif dari total{' '}
-          {permissions.length} permission.
+          {isMatrixLoading ? (
+            <>Memuat pemetaan dari server…</>
+          ) : (
+            <>
+              Terdapat <strong>{currentAssigned.length}</strong> hak akses aktif dari total{' '}
+              {permissions.length} permission.
+            </>
+          )}
         </p>
       </div>
 
