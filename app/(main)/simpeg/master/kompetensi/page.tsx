@@ -504,7 +504,7 @@ export default function MasterKompetensiPage() {
         }
       />
 
-      {/* ── TAB NAVIGASI STANDAR ── */}
+      {/* ── TAB NAVIGASI STANDAR (Mengikuti Format Presensi Pegawai) ── */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto scrollbar-none">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -521,9 +521,10 @@ export default function MasterKompetensiPage() {
                 setFilterStatus('');
                 setFilterKategoriTes('');
               }}
-              className={`flex items-center gap-2 px-4 py-4 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+              style={isActive ? { backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)', borderColor: 'var(--module-primary)' } : undefined}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
                 isActive
-                  ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] font-bold'
+                  ? '!border-[var(--module-primary)] !text-[var(--module-primary)] !bg-[var(--module-primary-subtle)] font-bold'
                   : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
               }`}
             >
