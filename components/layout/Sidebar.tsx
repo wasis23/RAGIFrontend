@@ -48,7 +48,12 @@ import {
   Settings,
   AlertTriangle,
   Coins,
-  Tag
+  Tag,
+  DoorOpen,
+  Handshake,
+  Ruler,
+  Package,
+  Boxes
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -74,7 +79,7 @@ const getIcon = (iconName: string) => {
     'FaBookOpen': FileText,
     'FaAward': Award,
     'FaLayers': Layers,
-    'FaBoxes': Layers,
+    'FaBoxes': Boxes,
     'FaCalendar': Calendar,
     'FaTrophy': Award,
     'FaBriefcase': Briefcase,
@@ -120,6 +125,11 @@ const getIcon = (iconName: string) => {
     'FaCoins': Coins,
     'FaExclamationTriangle': AlertTriangle,
     'FaTag': Tag,
+    'FaDoorOpen': DoorOpen,
+    'FaHandshake': Handshake,
+    'FaRulerCombined': Ruler,
+    'Package': Package,
+    'Boxes': Boxes,
     'Layers': Layers,
     'Tag': Tag,
   };
@@ -254,7 +264,7 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
   { id: 903, parent_id: null, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
   { id: 904, parent_id: null, name: 'Maintenance', url: '/sinapra/maintenance', icon: 'FaWrench', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
   { id: 905, parent_id: null, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
-  { id: 906, parent_id: null, name: 'Laboratorium', url: '/sinapra/laboratorium', icon: 'FaFlask', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
+  { id: 906, parent_id: null, name: 'Laboratorium & BHP', url: '/sinapra/laboratorium', icon: 'FaFlask', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
   { id: 907, parent_id: null, name: 'Audit & Mutasi', url: '/sinapra/audit-mutasi', icon: 'FaClipboardCheck', module: 'sinapra', permission_id: null, order_index: 7, is_active: true },
   { id: 908, parent_id: null, name: 'Kalender Ruangan', url: '/sinapra/kalender', icon: 'FaCalendarAlt', module: 'sinapra', permission_id: null, order_index: 8, is_active: true },
   {
@@ -268,12 +278,12 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
     order_index: 9,
     is_active: true,
     children: [
-      { id: 9101, parent_id: 910, name: 'Master Referensi', url: '/sinapra/master/referensi', icon: 'Database', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
-      { id: 9102, parent_id: 910, name: 'Master Tipe Referensi', url: '/sinapra/master/tipe-referensi', icon: 'Tags', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
-      { id: 9103, parent_id: 910, name: 'Master Tipe Ruangan', url: '/sinapra/master/tipe-ruangan', icon: 'Layers', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
-      { id: 9104, parent_id: 910, name: 'Master Satuan', url: '/sinapra/master/satuan', icon: 'Tag', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
-      { id: 9105, parent_id: 910, name: 'Master Vendor / Rekanan', url: '/sinapra/master/vendor', icon: 'Briefcase', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
-      { id: 9106, parent_id: 910, name: 'Master Kategori BHP', url: '/sinapra/master/kategori-bhp', icon: 'Package', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
+      { id: 9101, parent_id: 910, name: 'Master Kategori Aset', url: '/sinapra/master/kategori-aset', icon: 'FaTags', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
+      { id: 9102, parent_id: 910, name: 'Master Tipe Ruangan', url: '/sinapra/master/tipe-ruangan', icon: 'FaDoorOpen', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
+      { id: 9103, parent_id: 910, name: 'Master Vendor & Rekanan', url: '/sinapra/master/vendor', icon: 'Briefcase', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
+      { id: 9104, parent_id: 910, name: 'Master Kategori BHP Lab', url: '/sinapra/master/kategori-bhp', icon: 'Package', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
+      { id: 9105, parent_id: 910, name: 'Master Satuan Barang', url: '/sinapra/master/satuan', icon: 'Tag', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
+      { id: 9106, parent_id: 910, name: 'Master Referensi Status & Kondisi', url: '/sinapra/master/referensi', icon: 'Database', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
     ],
   },
 ];
