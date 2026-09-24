@@ -572,10 +572,47 @@ export function Sidebar() {
     return best;
   };
 
-  const activeMenuUrl = computeActiveUrl(dynamicMenus);
+  // ID pemenang tunggal: exact > prefix terpanjang; anak grup > menu atas bila URL sama.
+  const computeActiveId = (menus: Menu[]): string | number | null => {
+    const moduleRoots = [
+      '/siakad', '/sikeu', '/simpeg', '/spmb', '/sinapra', '/sippm', '/admin', '/dashboard',
+      '/sikeu/master', '/siakad/master', '/simpeg/master',
+    ];
+    let best: { id: string | number; len: number; exact: boolean; depth: number } | null = null;
+    const consider = (url: string, id: string | number, depth: number) => {
+      if (!url || url.startsWith('#')) return;
+      let exact = false;
+      if (moduleRoots.includes(url)) {
+        if (pathname !== url) return;
+        exact = true;
+      } else if (pathname === url) {
+        exact = true;
+      } else if (!pathname.startsWith(url + '/')) {
+        return;
+      }
+      const cand = { id, len: url.length, exact, depth };
+      if (!best) {
+        best = cand;
+        return;
+      }
+      const rank = (c: typeof cand) => [c.exact ? 1 : 0, c.len, c.depth];
+      const a = rank(cand);
+      const b = rank(best);
+      if (a[0] > b[0] || (a[0] === b[0] && (a[1] > b[1] || (a[1] === b[1] && a[2] > b[2])))) best = cand;
+    };
+    menus.forEach((m) => {
+      consider(m.url, m.id, 0);
+      m.children?.forEach((c) => consider(c.url, c.id, 1));
+    });
+    return best?.id ?? null;
+  };
 
-  const isMainActive = (path: string) => {
+  const activeMenuUrl = computeActiveUrl(dynamicMenus);
+  const activeMenuId = computeActiveId(dynamicMenus);
+
+  const isMainActive = (path: string, id?: string | number) => {
     if (!path || path.startsWith('#')) return false;
+    if (activeMenuId !== null && id !== undefined) return activeMenuId === id;
     if (activeMenuUrl) return activeMenuUrl === path;
     if (pathname === path) return true;
 
@@ -719,7 +756,7 @@ export function Sidebar() {
                           <Link
                             key={child.id}
                             href={child.url}
-                            className={`sidebar-item ${isMainActive(child.url) ? 'active' : ''}`}
+                            className={`sidebar-item ${isMainActive(child.url, child.id) ? 'active' : ''}`}
                             title={child.name}
                           >
                             {getIcon(child.icon)}
@@ -736,7 +773,7 @@ export function Sidebar() {
                     <div key={menu.id}>
                       <Link
                         href={menu.url}
-                        className={`sidebar-item ${isMainActive(menu.url) ? 'active' : ''}`}
+                        className={`sidebar-item ${isMainActive(menu.url, menu.id) ? 'active' : ''}`}
                         title={menu.name}
                       >
                         {getIcon(menu.icon)}
@@ -748,7 +785,7 @@ export function Sidebar() {
                             <Link
                               key={child.id}
                               href={child.url}
-                              className={`sidebar-item sidebar-submenu-item ${isMainActive(child.url) ? 'active' : ''}`}
+                              className={`sidebar-item sidebar-submenu-item ${isMainActive(child.url, child.id) ? 'active' : ''}`}
                               title={child.name}
                             >
                               {getIcon(child.icon)}
