@@ -355,6 +355,7 @@ export interface UpdateStatusPengadaanPayload {
 // 6. Query Parameters
 // ------------------------------------------------------------
 export interface SinapraFilterParams extends PaginationParams {
+  limit?: number;
   status?: string;
   tipe?: string;
   gedung_id?: number;
@@ -379,6 +380,11 @@ export interface SinapraFilterParams extends PaginationParams {
   nomor_sertifikat?: string;
   tanggal_kalibrasi?: string;
   tanggal_kadaluarsa?: string;
+  ruangan_asal_id?: number;
+  ruangan_tujuan_id?: number;
+  metode_disposal?: string;
+  tanggal_mulai?: string;
+  tanggal_disposal?: string;
 }
 
 // ------------------------------------------------------------
@@ -480,3 +486,149 @@ export interface AlatKalibrasiFormPayload {
   status_kelayakan?: 'laik' | 'tidak_laik' | 'butuh_perbaikan';
   catatan?: string;
 }
+
+// ------------------------------------------------------------
+// 6. FASE 5: Stock Opname, Mutasi Aset, & Disposal Pemutihan
+// ------------------------------------------------------------
+export interface StockOpnameItem {
+  id: number;
+  stock_opname_id: number;
+  aset_id: number;
+  status_keberadaan: 'sesuai' | 'tidak_ditemukan' | 'rusak' | 'tertukar';
+  kondisi_fisik: 'baik' | 'rusak_ringan' | 'rusak_berat';
+  catatan?: string;
+  aset?: Aset;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StockOpname {
+  id: number;
+  ruangan_id: number;
+  kode_opname: string;
+  tanggal_mulai: string;
+  tanggal_selesai?: string;
+  petugas_user_id: number;
+  status: 'berlangsung' | 'selesai';
+  catatan?: string;
+  ruangan?: Ruangan;
+  petugas?: { id: number; name: string; username?: string; email?: string };
+  items?: StockOpnameItem[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StockOpnameFormPayload {
+  ruangan_id: number;
+  tanggal_mulai?: string;
+  catatan?: string;
+}
+
+export interface StockOpnameItemUpdatePayload {
+  status_keberadaan?: 'sesuai' | 'tidak_ditemukan' | 'rusak' | 'tertukar';
+  kondisi_fisik?: 'baik' | 'rusak_ringan' | 'rusak_berat';
+  catatan?: string;
+}
+
+export interface MutasiAset {
+  id: number;
+  aset_id: number;
+  ruangan_asal_id: number;
+  ruangan_tujuan_id: number;
+  pemohon_id: number;
+  disetujui_oleh?: number;
+  tanggal_pengajuan: string;
+  tanggal_disetujui?: string;
+  status: 'diajukan' | 'disetujui' | 'ditolak';
+  alasan: string;
+  catatan?: string;
+  aset?: Aset;
+  ruanganAsal?: Ruangan;
+  ruanganTujuan?: Ruangan;
+  pemohon?: { id: number; name: string; username?: string; email?: string };
+  approver?: { id: number; name: string; username?: string; email?: string };
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MutasiAsetFormPayload {
+  aset_id: number;
+  ruangan_tujuan_id: number;
+  alasan: string;
+  catatan?: string;
+}
+
+export interface ApproveMutasiPayload {
+  is_approved: boolean;
+  catatan?: string;
+}
+
+export interface DisposalAset {
+  id: number;
+  aset_id: number;
+  nomor_bap?: string;
+  tanggal_disposal: string;
+  metode_disposal: 'rusak_total' | 'kadaluwarsa' | 'hilang' | 'hibah' | 'lelang' | 'lainnya';
+  nilai_residu: number;
+  alasan: string;
+  diajukan_oleh: number;
+  disetujui_oleh?: number;
+  status: 'diajukan' | 'disetujui' | 'ditolak';
+  catatan?: string;
+  aset?: Aset;
+  pemohon?: { id: number; name: string; username?: string; email?: string };
+  approver?: { id: number; name: string; username?: string; email?: string };
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DisposalAsetFormPayload {
+  aset_id: number;
+  nomor_bap?: string;
+  tanggal_disposal?: string;
+  metode_disposal: 'rusak_total' | 'kadaluwarsa' | 'hilang' | 'hibah' | 'lelang' | 'lainnya';
+  nilai_residu?: number;
+  alasan: string;
+  catatan?: string;
+}
+
+export interface ApproveDisposalPayload {
+  is_approved: boolean;
+  catatan?: string;
+}
+
+// ------------------------------------------------------------
+// 6. Kalender Terpadu Ketersediaan Ruangan Types (FASE 6)
+// ------------------------------------------------------------
+export interface KalenderRuanganItem {
+  id: string;
+  raw_id: number;
+  source: 'sinapra' | 'siakad';
+  ruangan_id: number;
+  ruangan_nama: string;
+  gedung_nama: string;
+  title: string;
+  tanggal: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  penanggung_jawab: string;
+  tipe: string;
+  status: string;
+  badge_label: string;
+  catatan?: string | null;
+}
+
+export interface KalenderRuanganFilterParams {
+  start_date?: string;
+  end_date?: string;
+  ruangan_id?: number | string;
+  gedung_id?: number | string;
+  source?: 'semua' | 'sinapra' | 'siakad';
+}
+
+export interface KalenderRuanganMeta {
+  start_date: string;
+  end_date: string;
+  total_events: number;
+}
+

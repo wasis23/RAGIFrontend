@@ -250,6 +250,9 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
   { id: 903, parent_id: null, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
   { id: 904, parent_id: null, name: 'Maintenance', url: '/sinapra/maintenance', icon: 'FaWrench', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
   { id: 905, parent_id: null, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
+  { id: 906, parent_id: null, name: 'Laboratorium', url: '/sinapra/laboratorium', icon: 'FaFlask', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
+  { id: 907, parent_id: null, name: 'Audit & Mutasi', url: '/sinapra/audit-mutasi', icon: 'FaClipboardCheck', module: 'sinapra', permission_id: null, order_index: 7, is_active: true },
+  { id: 908, parent_id: null, name: 'Kalender Ruangan', url: '/sinapra/kalender', icon: 'FaCalendarAlt', module: 'sinapra', permission_id: null, order_index: 8, is_active: true },
 ];
 
 const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [

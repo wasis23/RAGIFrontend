@@ -35,6 +35,19 @@ import type {
   ApproveBebasTanggunganPayload,
   AlatKalibrasi,
   AlatKalibrasiFormPayload,
+  StockOpname,
+  StockOpnameFormPayload,
+  StockOpnameItem,
+  StockOpnameItemUpdatePayload,
+  MutasiAset,
+  MutasiAsetFormPayload,
+  ApproveMutasiPayload,
+  DisposalAset,
+  DisposalAsetFormPayload,
+  ApproveDisposalPayload,
+  KalenderRuanganItem,
+  KalenderRuanganFilterParams,
+  KalenderRuanganMeta,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
@@ -351,6 +364,70 @@ export const sinapraService = {
 
   deleteAlatKalibrasi: async (id: number): Promise<ApiResponse<null>> => {
     const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/alat-kalibrasi/${id}`);
+    return data;
+  },
+
+  // ── FASE 5: STOCK OPNAME FISIK ──────────────────────────────
+  getStockOpnameList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<StockOpname>> => {
+    const { data } = await apiClient.get<PaginatedResponse<StockOpname>>('/sinapra/stock-opname', { params });
+    return data;
+  },
+
+  getStockOpnameDetail: async (id: number): Promise<ApiResponse<StockOpname>> => {
+    const { data } = await apiClient.get<ApiResponse<StockOpname>>(`/sinapra/stock-opname/${id}`);
+    return data;
+  },
+
+  createStockOpname: async (payload: StockOpnameFormPayload): Promise<ApiResponse<StockOpname>> => {
+    const { data } = await apiClient.post<ApiResponse<StockOpname>>('/sinapra/stock-opname', payload);
+    return data;
+  },
+
+  updateStockOpnameItem: async (id: number, itemId: number, payload: StockOpnameItemUpdatePayload): Promise<ApiResponse<StockOpnameItem>> => {
+    const { data } = await apiClient.put<ApiResponse<StockOpnameItem>>(`/sinapra/stock-opname/${id}/items/${itemId}`, payload);
+    return data;
+  },
+
+  finishStockOpname: async (id: number, payload?: { catatan?: string }): Promise<ApiResponse<StockOpname>> => {
+    const { data } = await apiClient.post<ApiResponse<StockOpname>>(`/sinapra/stock-opname/${id}/finish`, payload || {});
+    return data;
+  },
+
+  // ── FASE 5: MUTASI ASET ANTAR-RUANGAN ───────────────────────
+  getMutasiList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<MutasiAset>> => {
+    const { data } = await apiClient.get<PaginatedResponse<MutasiAset>>('/sinapra/mutasi-aset', { params });
+    return data;
+  },
+
+  createMutasi: async (payload: MutasiAsetFormPayload): Promise<ApiResponse<MutasiAset>> => {
+    const { data } = await apiClient.post<ApiResponse<MutasiAset>>('/sinapra/mutasi-aset', payload);
+    return data;
+  },
+
+  approveMutasi: async (id: number, payload: ApproveMutasiPayload): Promise<ApiResponse<MutasiAset>> => {
+    const { data } = await apiClient.post<ApiResponse<MutasiAset>>(`/sinapra/mutasi-aset/${id}/approve`, payload);
+    return data;
+  },
+
+  // ── FASE 5: PENGHAPUSAN / DISPOSAL ASET ─────────────────────
+  getDisposalList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<DisposalAset>> => {
+    const { data } = await apiClient.get<PaginatedResponse<DisposalAset>>('/sinapra/disposal-aset', { params });
+    return data;
+  },
+
+  createDisposal: async (payload: DisposalAsetFormPayload): Promise<ApiResponse<DisposalAset>> => {
+    const { data } = await apiClient.post<ApiResponse<DisposalAset>>('/sinapra/disposal-aset', payload);
+    return data;
+  },
+
+  approveDisposal: async (id: number, payload: ApproveDisposalPayload): Promise<ApiResponse<DisposalAset>> => {
+    const { data } = await apiClient.post<ApiResponse<DisposalAset>>(`/sinapra/disposal-aset/${id}/approve`, payload);
+    return data;
+  },
+
+  // ── FASE 6: KALENDER TERPADU RUANGAN (SINAPRA + SIAKAD) ─────
+  getKalenderRuangan: async (params?: KalenderRuanganFilterParams): Promise<{ success: boolean; message: string; data: KalenderRuanganItem[]; meta: KalenderRuanganMeta }> => {
+    const { data } = await apiClient.get<{ success: boolean; message: string; data: KalenderRuanganItem[]; meta: KalenderRuanganMeta }>('/sinapra/kalender-ruangan', { params });
     return data;
   },
 };
