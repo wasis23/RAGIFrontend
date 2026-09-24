@@ -8,9 +8,11 @@ import { z } from 'zod';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { sinapraService } from '@/services/sinapra.service';
+import { referensiService } from '@/services/referensi.service';
 import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -35,11 +37,31 @@ export default function EditBhpPage() {
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [selectedRuangan, setSelectedRuangan] = useState<{ value: string; label: string } | null>(null);
+  const [kategoriOptions, setKategoriOptions] = useState<{ value: string; label: string }[]>([]);
+  const [satuanOptions, setSatuanOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const fetchReferences = async () => {
+      try {
+        const [resKat, resSat] = await Promise.all([
+          referensiService.getAll({ modul: 'sinapra', tipe: 'kategori_bhp' }),
+          referensiService.getAll({ modul: 'sinapra', tipe: 'satuan_barang' }),
+        ]);
+        setKategoriOptions((resKat || []).map((r) => ({ value: r.kode || String(r.id), label: r.nama })));
+        setSatuanOptions((resSat || []).map((r) => ({ value: r.kode || r.nama, label: r.nama })));
+      } catch {
+        setKategoriOptions([]);
+        setSatuanOptions([]);
+      }
+    };
+    fetchReferences();
+  }, []);
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<BhpFormData>({
@@ -184,10 +206,11 @@ export default function EditBhpPage() {
               </div>
 
               <div>
-                <Input
+                <Select
                   label="Kategori BHP"
-                  placeholder="cth: komponen_elektronik, reagen"
-                  {...register('kategori')}
+                  value={watch('kategori')}
+                  onChange={(val) => setValue('kategori', val, { shouldValidate: true })}
+                  options={kategoriOptions}
                 />
                 {errors.kategori && (
                   <p className="text-xs text-[var(--module-primary)]">{errors.kategori.message}</p>
@@ -195,10 +218,11 @@ export default function EditBhpPage() {
               </div>
 
               <div>
-                <Input
-                  label="Satuan"
-                  placeholder="cth: Pcs, Roll, Botol"
-                  {...register('satuan')}
+                <Select
+                  label="Satuan Barang / BHP"
+                  value={watch('satuan')}
+                  onChange={(val) => setValue('satuan', val, { shouldValidate: true })}
+                  options={satuanOptions}
                 />
                 {errors.satuan && (
                   <p className="text-xs text-[var(--module-primary)]">{errors.satuan.message}</p>

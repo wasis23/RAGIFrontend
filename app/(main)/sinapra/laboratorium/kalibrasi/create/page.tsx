@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { sinapraService } from '@/services/sinapra.service';
+import { referensiService } from '@/services/referensi.service';
 import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -30,6 +31,19 @@ type KalibrasiFormData = z.infer<typeof kalibrasiSchema>;
 export default function CreateKalibrasiPage() {
   const router = useRouter();
   const [selectedAset, setSelectedAset] = useState<{ value: string; label: string } | null>(null);
+  const [statusKelayakanOptions, setStatusKelayakanOptions] = useState<{ value: string; label: string }[]>([]);
+
+  React.useEffect(() => {
+    const fetchReferences = async () => {
+      try {
+        const res = await referensiService.getAll({ modul: 'sinapra', tipe: 'status_kelayakan_kalibrasi' });
+        setStatusKelayakanOptions((res || []).map((r) => ({ value: r.kode || String(r.id), label: r.nama })));
+      } catch {
+        setStatusKelayakanOptions([]);
+      }
+    };
+    fetchReferences();
+  }, []);
 
   const {
     register,
@@ -139,11 +153,7 @@ export default function CreateKalibrasiPage() {
                 label="Status Kelayakan Fisik"
                 value={watch('status_kelayakan')}
                 onChange={(val) => setValue('status_kelayakan', val as 'laik' | 'tidak_laik' | 'butuh_perbaikan', { shouldValidate: true })}
-                options={[
-                  { value: 'laik', label: 'Laik Operasional' },
-                  { value: 'butuh_perbaikan', label: 'Butuh Perbaikan / Kalibrasi Ulang' },
-                  { value: 'tidak_laik', label: 'Tidak Laik (Afkir)' },
-                ]}
+                options={statusKelayakanOptions}
               />
               {errors.status_kelayakan && (
                 <p className="text-xs text-[var(--module-primary)]">{errors.status_kelayakan.message}</p>

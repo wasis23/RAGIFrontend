@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { formatCurrency } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
+import { referensiService } from '@/services/referensi.service';
 import type {
   PengajuanPengadaanFormPayload,
   DetailPengadaanItemPayload,
@@ -20,6 +22,19 @@ import type {
 export default function CreatePengadaanPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [satuanOptions, setSatuanOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const fetchReferences = async () => {
+      try {
+        const resSat = await referensiService.getAll({ modul: 'sinapra', tipe: 'satuan_barang' });
+        setSatuanOptions((resSat || []).map((r) => ({ value: r.kode || r.nama, label: r.nama })));
+      } catch {
+        setSatuanOptions([]);
+      }
+    };
+    fetchReferences();
+  }, []);
 
   const [formData, setFormData] = useState<PengajuanPengadaanFormPayload>({
     unit_kerja_id: null,
@@ -234,12 +249,11 @@ export default function CreatePengadaanPage() {
                         onChange={(e) => handleItemChange(idx, 'jumlah', parseInt(e.target.value) || 1)}
                       />
 
-                      <Input
+                      <Select
                         label="Satuan Barang"
-                        required
-                        placeholder="cth: Unit / Buah / Paket"
                         value={item.satuan}
-                        onChange={(e) => handleItemChange(idx, 'satuan', e.target.value)}
+                        onChange={(val) => handleItemChange(idx, 'satuan', val)}
+                        options={satuanOptions}
                       />
 
                       <Input

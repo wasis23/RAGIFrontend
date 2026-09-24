@@ -99,6 +99,8 @@ const getIcon = (iconName: string) => {
     'FaCloudUploadAlt': RefreshCw,
     'FaDatabase': Database,
     'FaTags': Tags,
+    'Database': Database,
+    'Tags': Tags,
     'FaSlidersH': Sliders,
     'FaSliders': Sliders,
     'FaBars': MenuIcon,
@@ -253,6 +255,21 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
   { id: 906, parent_id: null, name: 'Laboratorium', url: '/sinapra/laboratorium', icon: 'FaFlask', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
   { id: 907, parent_id: null, name: 'Audit & Mutasi', url: '/sinapra/audit-mutasi', icon: 'FaClipboardCheck', module: 'sinapra', permission_id: null, order_index: 7, is_active: true },
   { id: 908, parent_id: null, name: 'Kalender Ruangan', url: '/sinapra/kalender', icon: 'FaCalendarAlt', module: 'sinapra', permission_id: null, order_index: 8, is_active: true },
+  {
+    id: 910,
+    parent_id: null,
+    name: 'MASTER DATA',
+    url: '#master_sinapra',
+    icon: 'Database',
+    module: 'sinapra',
+    permission_id: null,
+    order_index: 9,
+    is_active: true,
+    children: [
+      { id: 9101, parent_id: 910, name: 'Master Referensi', url: '/sinapra/master/referensi', icon: 'Database', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
+      { id: 9102, parent_id: 910, name: 'Master Tipe Referensi', url: '/sinapra/master/tipe-referensi', icon: 'Tags', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
+    ],
+  },
 ];
 
 const SPMB_STUDENT_FALLBACK_MENUS: Menu[] = [
