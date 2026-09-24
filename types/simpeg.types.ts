@@ -205,6 +205,7 @@ export interface PengajuanCuti {
   approved_by?: number | null;
   catatan_approval?: string | null;
   file_pendukung?: string | null;
+  file_pendukung_url?: string | null;
   pegawai?: Pegawai | null;
   master_jenis_cuti?: MasterJenisCuti | null;
   approver?: User | null;
@@ -462,4 +463,84 @@ export interface CutoffReport {
     scheduled_start?: string;
   }>;
 }
+
+// ── MASTER DATA KOMPETENSI, IZIN JAM KERJA & KATEGORI SK ──
+export interface MasterJenisSertifikasi {
+  id: number;
+  nama: string;
+  kode: string;
+  deskripsi?: string | null;
+  is_active: boolean;
+  sertifikasi_dosen_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterJenisTes {
+  id: number;
+  nama: string;
+  kode: string;
+  kategori: 'bahasa' | 'potensi_akademik';
+  skor_min: number;
+  skor_max: number;
+  deskripsi?: string | null;
+  is_active: boolean;
+  riwayat_tes_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterJenisPelatihan {
+  id: number;
+  nama: string;
+  deskripsi?: string | null;
+  is_active: boolean;
+  riwayat_pelatihan_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterPeranPelatihan {
+  id: number;
+  nama: string;
+  deskripsi?: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterTingkatKegiatan {
+  id: number;
+  nama: string;
+  deskripsi?: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterJenisIzinJamKerja {
+  id: number;
+  nama: string;
+  kode: string;
+  tipe_potongan: 'tidak_potong' | 'potong_jam';
+  deskripsi?: string | null;
+  urutan: number;
+  is_active: boolean;
+  izin_jam_kerja_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterKategoriSk {
+  id: number;
+  nama: string;
+  kode: string;
+  deskripsi?: string | null;
+  urutan: number;
+  is_active: boolean;
+  sk_pegawai_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 

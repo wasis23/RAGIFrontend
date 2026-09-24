@@ -391,11 +391,6 @@ export default function DokumenPage() {
         description="Arsip Surat Keputusan (SK), Ijazah, Transkrip, KTP, KK, dan Sertifikat Kepegawaian (Restricted Access)"
         action={
           <div className="flex gap-2">
-            {canCreate && (
-              <Button icon={<Upload size={16} />} onClick={handleOpenUpload}>
-                Unggah Dokumen Baru
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -403,6 +398,11 @@ export default function DokumenPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button icon={<Upload size={16} />} onClick={handleOpenUpload}>
+                Unggah Dokumen Baru
+              </Button>
+            )}
           </div>
         }
       />
@@ -646,18 +646,27 @@ export default function DokumenPage() {
               </div>
             </div>
 
-            {previewData.file_url && (
-              <div className="pt-2 text-center">
-                <a
-                  href={previewData.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:underline font-semibold"
-                >
-                  <ExternalLink size={14} /> Buka Berkas Langsung dari Storage Server
-                </a>
-              </div>
-            )}
+            {previewData.file_url && (() => {
+              let directUrl = previewData.file_url;
+              if (directUrl.startsWith('/')) {
+                const backendOrigin = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:8000';
+                directUrl = `${backendOrigin}${directUrl}`;
+              } else if (directUrl.startsWith('http://localhost/storage') || directUrl.startsWith('http://127.0.0.1/storage')) {
+                directUrl = directUrl.replace('http://localhost/storage', 'http://localhost:8000/storage').replace('http://127.0.0.1/storage', 'http://127.0.0.1:8000/storage');
+              }
+              return (
+                <div className="pt-4 text-center">
+                  <a
+                    href={directUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-xs text-[var(--module-primary)] hover:underline font-semibold"
+                  >
+                    <ExternalLink size={14} /> Buka Berkas Langsung dari Storage Server
+                  </a>
+                </div>
+              );
+            })()}
           </div>
         )}
       </Modal>

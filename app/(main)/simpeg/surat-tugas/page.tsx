@@ -41,7 +41,7 @@ import type { PaginationMeta } from '@/types/api.types';
 
 export default function SuratTugasListPage() {
   const router = useRouter();
-  const { user, isAdmin, hasPermission } = useAuth();
+  const { user, isAdmin, hasRole, hasPermission } = useAuth();
   const canApprove = isAdmin || hasPermission('simpeg.surat_tugas.approve');
   const canCreate = isAdmin || hasPermission('simpeg.surat_tugas.create');
   const canDelete = isAdmin || hasPermission('simpeg.surat_tugas.delete');
@@ -286,17 +286,24 @@ export default function SuratTugasListPage() {
       label: 'Kegiatan & Nomor Surat',
       render: (row: SuratTugas) => (
         <div className="space-y-1">
-          <p className="font-semibold text-slate-900 text-sm">{row.nama_kegiatan}</p>
+          <p className="font-bold text-slate-800 dark:text-slate-100 text-xs">{row.nama_kegiatan}</p>
           <div className="flex items-center gap-2 flex-wrap">
             {row.nomor_surat ? (
-              <span className="text-xs font-mono font-medium text-primary-700 bg-primary-50 px-2 py-0.5 rounded border border-primary-200">
+              <span
+                className="text-2xs font-mono font-semibold px-2 py-0.5 rounded border"
+                style={{
+                  color: 'var(--module-primary)',
+                  backgroundColor: 'var(--module-primary-subtle)',
+                  borderColor: 'var(--module-primary)',
+                }}
+              >
                 {row.nomor_surat}
               </span>
             ) : (
-              <span className="text-xs text-slate-500 italic">Belum ada nomor resmi</span>
+              <span className="text-2xs text-slate-400 italic">Belum ada nomor resmi</span>
             )}
             {row.kategori_kegiatan && (
-              <span className="text-[11px] text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+              <span className="text-2xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                 {row.kategori_kegiatan.nama}
               </span>
             )}
@@ -309,14 +316,14 @@ export default function SuratTugasListPage() {
       label: 'Penanggung Jawab / Tim',
       render: (row: SuratTugas) => (
         <div className="space-y-0.5">
-          <p className="text-xs font-medium text-slate-900">
+          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
             {row.pegawai?.nama_lengkap || 'Pegawai'}
           </p>
-          <p className="text-[11px] text-slate-500">
-            {row.pegawai?.nip ? `NIP: ${row.pegawai.nip}` : row.pegawai?.unit_kerja?.nama || '-'}
+          <p className="text-2xs font-mono text-slate-400">
+            {row.pegawai?.nip ? `NIP. ${row.pegawai.nip}` : row.pegawai?.unit_kerja?.nama || '-'}
           </p>
           {row.anggota && row.anggota.length > 0 && (
-            <div className="flex items-center gap-1 text-[11px] text-sky-700 font-medium pt-0.5">
+            <div className="flex items-center gap-1 text-2xs text-sky-700 font-medium pt-0.5">
               <Users size={12} />
               <span>+{row.anggota.length} Anggota Rombongan</span>
             </div>
@@ -329,11 +336,11 @@ export default function SuratTugasListPage() {
       label: 'Tujuan & Jadwal',
       render: (row: SuratTugas) => (
         <div className="space-y-1 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-800 font-medium">
+          <div className="flex items-center gap-1.5 text-slate-800 dark:text-slate-200 font-medium">
             <MapPin size={13} className="text-rose-500 shrink-0" />
             <span>{row.lokasi_tujuan}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+          <div className="flex items-center gap-1.5 text-slate-400 text-2xs font-mono">
             <Calendar size={13} className="text-slate-400 shrink-0" />
             <span>
               {row.tanggal_berangkat} s/d {row.tanggal_kembali}
@@ -346,16 +353,16 @@ export default function SuratTugasListPage() {
       key: 'jenis_transportasi_id',
       label: 'Armada & Transportasi',
       render: (row: SuratTugas) => (
-        <div className="space-y-1 text-xs text-slate-700">
+        <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
           <div className="flex items-center gap-1.5 font-medium">
             <Car size={13} className="text-slate-500 shrink-0" />
             <span>{row.jenis_transportasi?.nama || 'Transportasi'}</span>
           </div>
           {row.kendaraan_dinas && (
-            <p className="text-[11px] text-slate-500">{row.kendaraan_dinas}</p>
+            <p className="text-2xs text-slate-400">{row.kendaraan_dinas}</p>
           )}
           {row.nama_driver && (
-            <p className="text-[11px] text-slate-500">Driver: {row.nama_driver}</p>
+            <p className="text-2xs text-slate-400">Driver: {row.nama_driver}</p>
           )}
         </div>
       ),
@@ -387,7 +394,7 @@ export default function SuratTugasListPage() {
         const actionItems: DropdownMenuItem[] = [
           {
             label: 'Lihat Rincian & Logistik',
-            icon: <Eye size={14} />,
+            icon: <Eye size={16} />,
             onClick: () => router.push(`/simpeg/surat-tugas/${row.id}`),
           },
         ];
@@ -395,7 +402,7 @@ export default function SuratTugasListPage() {
         if (canApprove && row.status === 'diajukan') {
           actionItems.push({
             label: 'Persetujuan / Approval',
-            icon: <Check size={14} />,
+            icon: <Check size={16} />,
             onClick: () => {
               setSelectedForApproval(row);
               setNomorSurat(row.nomor_surat || '');
@@ -406,10 +413,12 @@ export default function SuratTugasListPage() {
           });
         }
 
-        if (['disetujui', 'selesai'].includes(row.status)) {
+        const isKetuaOrAdmin = canApprove || hasRole('superadmin') || hasPermission('simpeg.surat_tugas.update');
+
+        if (isKetuaOrAdmin && ['disetujui', 'selesai'].includes(row.status)) {
           actionItems.push({
             label: row.file_lpj ? 'Perbarui LPJ' : 'Unggah Laporan LPJ',
-            icon: <Upload size={14} />,
+            icon: <Upload size={16} />,
             onClick: () => {
               setSelectedForLpj(row);
               setLaporanKegiatan(row.laporan_kegiatan || '');
@@ -422,7 +431,7 @@ export default function SuratTugasListPage() {
         if (canDelete && ['draft', 'diajukan', 'ditolak'].includes(row.status)) {
           actionItems.push({
             label: 'Hapus Pengajuan',
-            icon: <Trash2 size={14} />,
+            icon: <Trash2 size={16} />,
             variant: 'danger',
             onClick: () => {
               setItemToDelete(row);
@@ -442,28 +451,20 @@ export default function SuratTugasListPage() {
         title="Surat Tugas & Logistik Dinas"
         description="Pengelolaan perjalanan dinas, penugasan armada kendaraan kampus, rombongan tim dosen, persetujuan pimpinan, serta pertanggungjawaban LPJ."
         action={
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
+              icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2 border-slate-300"
             >
-              <Filter size={15} />
-              <span>Filter</span>
-              {(statusFilter || kategoriFilter || transportasiFilter || tahunFilter) && (
-                <span className="w-2 h-2 rounded-full bg-primary-600" />
-              )}
+              Filter
             </Button>
             {canCreate && (
               <Button
-                variant="primary"
-                size="sm"
+                icon={<Plus size={16} />}
                 onClick={() => router.push('/simpeg/surat-tugas/create')}
-                className="flex items-center gap-2"
               >
-                <Plus size={15} />
-                <span>Buat Pengajuan</span>
+                Buat Pengajuan
               </Button>
             )}
           </div>
@@ -513,45 +514,15 @@ export default function SuratTugasListPage() {
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <Input
-              placeholder="Cari kegiatan, nomor surat, tujuan, pegawai..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 text-xs sm:text-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Select
-              options={statusOptions}
-              value={statusFilter}
-              onChange={(val: any) => {
-                setStatusFilter(val || '');
-                setPage(1);
-              }}
-              placeholder="Filter Status"
-              className="w-full sm:w-48 text-xs"
-            />
-          </div>
-        </div>
-
-        <DataTable
-          columns={columns}
-          data={items}
-          isLoading={isLoading}
-          meta={meta || undefined}
-          onPageChange={(p) => setPage(p)}
-          emptyMessage="Belum ada permohonan surat tugas dinas yang tercatat."
-        />
-      </div>
+      {/* Main Table */}
+      <DataTable
+        columns={columns}
+        data={items}
+        isLoading={isLoading}
+        meta={meta || undefined}
+        onPageChange={(p) => setPage(p)}
+        emptyMessage="Belum ada permohonan surat tugas dinas yang tercatat."
+      />
 
       {/* Filter Drawer */}
       <Drawer
@@ -577,6 +548,18 @@ export default function SuratTugasListPage() {
         }
       >
         <div className="space-y-4 text-xs sm:text-sm">
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">Pencarian</label>
+            <Input
+              placeholder="Cari kegiatan, nomor surat, tujuan, pegawai..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+
           <div>
             <label className="block font-medium text-slate-700 mb-1">Status Pengajuan</label>
             <Select

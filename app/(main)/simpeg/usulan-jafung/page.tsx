@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Award, Plus, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Award, Plus, Filter, ShieldAlert } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
+import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -30,6 +31,10 @@ export default function UsulanJafungPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [meta, setMeta] = useState<PaginationMeta | undefined>();
+  const [showFilter, setShowFilter] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('created_at');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
 
   // Modal Request State
   const [showModal, setShowModal] = useState(false);
@@ -51,7 +56,7 @@ export default function UsulanJafungPage() {
           const pegId = resMe.data.id;
           setFormData(prev => ({ ...prev, pegawai_id: pegId }));
           const [resUsulan, resJaf] = await Promise.all([
-            simpegService.getUsulanJafungList({ pegawai_id: pegId, page, limit }),
+            simpegService.getUsulanJafungList({ pegawai_id: pegId, page, limit, search: search || undefined, sort_by: filterOrderBy, sort_dir: filterOrderDir }),
             simpegService.getJabatanFungsionalList(),
           ]);
           setUsulanList(resUsulan.data || []);
@@ -60,7 +65,7 @@ export default function UsulanJafungPage() {
         }
       } else {
         const [resUsulan, resJaf] = await Promise.all([
-          simpegService.getUsulanJafungList({ page, limit }),
+          simpegService.getUsulanJafungList({ page, limit, search: search || undefined, sort_by: filterOrderBy, sort_dir: filterOrderDir }),
           simpegService.getJabatanFungsionalList(),
         ]);
         setUsulanList(resUsulan.data || []);
@@ -76,7 +81,7 @@ export default function UsulanJafungPage() {
 
   useEffect(() => {
     loadData();
-  }, [canRead, page, limit]);
+  }, [canRead, page, limit, filterOrderBy, filterOrderDir]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,21 +165,23 @@ export default function UsulanJafungPage() {
       <PageHeader
         title="Usulan Kenaikan Jabatan Fungsional (Jafung & KUM Dosen)"
         description="Pengajuan & Verifikasi Angka Kredit Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
-      />
-
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-lg">Daftar Usulan Jafung Dosen ({usulanList.length})</h3>
-        <div className="flex gap-3">
-          <Button variant="outline" size="sm" onClick={loadData}>
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
-          </Button>
-          {canCreate && (
-            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
-              <Plus size={16} /> Ajukan Kenaikan Jafung
+        action={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => setShowFilter(true)}
+            >
+              Filter
             </Button>
-          )}
-        </div>
-      </div>
+            {canCreate && (
+              <Button icon={<Plus size={16} />} onClick={() => setShowModal(true)}>
+                Ajukan Kenaikan Jafung
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       <DataTable
         columns={columns}
@@ -188,6 +195,67 @@ export default function UsulanJafungPage() {
         }}
         emptyMessage="Belum ada usulan kenaikan Jafung Dosen."
       />
+
+      {/* Drawer Filter */}
+      <Drawer
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        title="Filter Usulan Jafung Dosen"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Dosen / Jafung"
+            placeholder="Ketik nama dosen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <hr className="my-2 border-slate-200" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val) => setFilterOrderBy(val)}
+              options={[
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'angka_kredit_usulan', label: 'KUM Usulan' },
+                { value: 'id', label: 'ID' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              options={[
+                { value: 'desc', label: 'Z - A (Terbaru)' },
+                { value: 'asc', label: 'A - Z (Terlama)' },
+              ]}
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch('');
+                setFilterOrderBy('created_at');
+                setFilterOrderDir('desc');
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                setShowFilter(false);
+                loadData();
+              }}
+            >
+              Terapkan
+            </Button>
+          </div>
+        </div>
+      </Drawer>
 
       {/* Modal Ajukan Jafung */}
       {canCreate && (

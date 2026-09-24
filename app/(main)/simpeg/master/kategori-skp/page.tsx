@@ -218,7 +218,7 @@ export default function MasterKategoriSkpPage() {
         label: 'No. Urut',
         align: 'center',
         render: (row) => (
-          <span className="font-bold text-slate-700 text-sm">{row.urutan ?? '-'}</span>
+          <span className="font-bold text-slate-700 text-xs">{row.urutan ?? '-'}</span>
         ),
       },
       {
@@ -226,8 +226,8 @@ export default function MasterKategoriSkpPage() {
         label: 'Nama Kategori Sasaran Kinerja',
         render: (row) => (
           <div>
-            <div className="font-semibold text-slate-900 text-sm">{row.nama}</div>
-            <div className="text-xs font-mono text-slate-500">{row.kode}</div>
+            <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">{row.nama}</div>
+            <div className="text-2xs font-mono text-slate-400">{row.kode}</div>
           </div>
         ),
       },
@@ -235,7 +235,7 @@ export default function MasterKategoriSkpPage() {
         key: 'deskripsi',
         label: 'Deskripsi / Lingkup Tugas',
         render: (row) => (
-          <span className="text-xs text-slate-600 line-clamp-2">
+          <span className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
             {row.deskripsi || '-'}
           </span>
         ),
@@ -324,7 +324,6 @@ export default function MasterKategoriSkpPage() {
             </Button>
             {canManage && (
               <Button
-                variant="primary"
                 icon={<Plus size={16} />}
                 onClick={handleOpenCreate}
               >
@@ -335,37 +334,18 @@ export default function MasterKategoriSkpPage() {
         }
       />
 
-      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pb-2 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <ListChecks size={20} className="text-[var(--module-primary)] shrink-0" />
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Daftar Master Kategori SKP
-              </h2>
-              <p className="text-xs text-slate-500">
-                Kategori ini tampil pada pilihan dropdown saat pegawai menyusun butir sasaran kinerja (SKP).
-              </p>
-            </div>
-          </div>
-          <div className="text-xs text-slate-500">
-            Total: <strong>{meta?.total ?? dataList.length}</strong> Kategori
-          </div>
-        </div>
-
-        <DataTable
-          columns={columns}
-          data={dataList}
-          isLoading={loading}
-          meta={meta}
-          onPageChange={(p) => setPage(p)}
-          onLimitChange={(l) => {
-            setLimit(l);
-            setPage(1);
-          }}
-          emptyMessage="Belum ada data kategori sasaran kinerja. Klik tombol 'Tambah Kategori SKP' di atas untuk membuat data baru."
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={dataList}
+        isLoading={loading}
+        meta={meta}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
+        emptyMessage="Belum ada data kategori sasaran kinerja. Klik tombol 'Tambah Kategori SKP' di atas untuk membuat data baru."
+      />
 
       {/* DRAWER FILTER */}
       <Drawer

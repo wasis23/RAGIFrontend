@@ -534,9 +534,9 @@ export default function CreateSuratTugasPage() {
               variant="outline"
               size="sm"
               onClick={() => append({ pegawai_id: '', peran: 'Anggota', keterangan: '' })}
-              className="flex items-center gap-1.5"
+              className="flex items-center gap-2"
             >
-              <Plus size={14} />
+              <Plus size={16} />
               <span>Tambah Anggota</span>
             </Button>
           </div>
@@ -566,8 +566,11 @@ export default function CreateSuratTugasPage() {
                       render={({ field: memberField }) => (
                         <AsyncSelect
                           loadOptions={loadPegawaiOptions}
-                          onChange={(val: any) => memberField.onChange(val ? val.value : '')}
+                          value={memberField.value}
+                          onChange={(val: any) => memberField.onChange(val ? (typeof val === 'object' ? val.value : val) : '')}
                           placeholder="Cari nama pegawai..."
+                          error={errors.anggota?.[idx]?.pegawai_id?.message}
+                          isClearable
                         />
                       )}
                     />

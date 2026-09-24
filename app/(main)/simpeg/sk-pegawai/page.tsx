@@ -269,13 +269,13 @@ export default function SkPegawaiListPage() {
       label: 'Nomor & Judul SK',
       render: (row: SkPegawai) => (
         <div>
-          <div className="font-semibold text-slate-900 dark:text-white">
+          <div className="font-mono font-bold text-xs text-[var(--module-primary)]">
             {row.nomor_sk}
           </div>
-          <div className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1">
+          <div className="text-2xs text-slate-500 line-clamp-1">
             {row.judul_sk}
           </div>
-          <div className="text-[11px] text-slate-400">
+          <div className="text-2xs text-slate-400">
             Penetap: {row.pejabat_penetap}
           </div>
         </div>
@@ -286,10 +286,10 @@ export default function SkPegawaiListPage() {
       label: 'Pegawai Pemilik',
       render: (row: SkPegawai) => (
         <div>
-          <div className="font-medium text-slate-900 dark:text-white">
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
             {row.pegawai?.nama_lengkap || '-'}
           </div>
-          <div className="text-xs text-slate-500">
+          <div className="text-2xs font-mono text-slate-400">
             {row.pegawai?.nip ? `NIP. ${row.pegawai.nip}` : row.pegawai?.nidn ? `NIDN. ${row.pegawai.nidn}` : ''}
             {row.pegawai?.unit_kerja?.nama ? ` • ${row.pegawai.unit_kerja.nama}` : ''}
           </div>
@@ -300,7 +300,7 @@ export default function SkPegawaiListPage() {
       key: 'kategori_sk',
       label: 'Kategori SK',
       render: (row: SkPegawai) => (
-        <span className="font-medium text-slate-800 dark:text-slate-200">
+        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
           {row.kategori_sk?.nama || '-'}
         </span>
       ),
@@ -310,10 +310,10 @@ export default function SkPegawaiListPage() {
       label: 'TMT Berlaku',
       render: (row: SkPegawai) => (
         <div className="text-xs">
-          <div className="font-semibold text-slate-800 dark:text-slate-200">
+          <div className="font-bold text-slate-800 dark:text-slate-200 text-xs">
             TMT: {new Date(row.tmt_sk).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
           </div>
-          <div className="text-slate-500">
+          <div className="text-2xs text-slate-400">
             {row.tmt_selesai
               ? `s/d ${new Date(row.tmt_selesai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
               : 'Berlaku Seterusnya'}
@@ -347,20 +347,17 @@ export default function SkPegawaiListPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2"
             >
-              <Filter size={16} />
-              <span>Filter</span>
+              Filter
             </Button>
             {canCreate && (
               <Button
-                variant="primary"
+                icon={<Plus size={16} />}
                 onClick={() => router.push('/simpeg/sk-pegawai/create')}
-                className="flex items-center gap-2"
               >
-                <Plus size={16} />
-                <span>Laporkan SK</span>
+                Laporkan SK
               </Button>
             )}
           </div>
@@ -410,37 +407,14 @@ export default function SkPegawaiListPage() {
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <Input
-              type="text"
-              placeholder="Cari nomor SK, judul, pejabat, pegawai..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="pl-9 w-full"
-            />
-          </div>
-          <div className="text-xs text-slate-500">
-            Menampilkan {items.length} dari {meta?.total ?? items.length} data
-          </div>
-        </div>
-
-        <div className="p-4">
-          <DataTable
-            columns={columns}
-            data={items}
-            meta={meta || undefined}
-            isLoading={isLoading}
-            onPageChange={setPage}
-          />
-        </div>
-      </div>
+      {/* Main Table */}
+      <DataTable
+        columns={columns}
+        data={items}
+        meta={meta || undefined}
+        isLoading={isLoading}
+        onPageChange={setPage}
+      />
 
       {/* Filter Drawer */}
       <Drawer
@@ -449,66 +423,54 @@ export default function SkPegawaiListPage() {
         title="Filter Arsip SK Pegawai"
       >
         <div className="space-y-4 p-4">
-          <div>
-            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-              Kategori SK
-            </label>
+          <Input
+            label="Pencarian"
+            type="text"
+            placeholder="Cari nomor SK, judul, pejabat, pegawai..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <Select
+            label="Kategori SK"
+            options={kategoriOptions}
+            value={kategoriFilter}
+            onChange={(val: any) => setKategoriFilter(val || '')}
+          />
+
+          <Select
+            label="Status Verifikasi"
+            options={statusOptions}
+            value={statusFilter}
+            onChange={(val: any) => setStatusFilter(val || '')}
+          />
+
+          <Input
+            label="Tahun Penetapan SK"
+            type="number"
+            placeholder="Contoh: 2026"
+            value={tahunFilter}
+            onChange={(e) => setTahunFilter(e.target.value)}
+          />
+
+          <hr className="my-4 border-slate-200 dark:border-slate-700" />
+
+          <div className="grid grid-cols-2 gap-4">
             <Select
-              options={kategoriOptions}
-              value={kategoriFilter}
-              onChange={(val: any) => setKategoriFilter(val || '')}
-              className="mt-1 w-full"
+              label="Urut Berdasarkan"
+              options={sortOptions}
+              value={sortBy}
+              onChange={(val: any) => setSortBy(val || 'tanggal_sk')}
             />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-              Status Verifikasi
-            </label>
             <Select
-              options={statusOptions}
-              value={statusFilter}
-              onChange={(val: any) => setStatusFilter(val || '')}
-              className="mt-1 w-full"
+              label="Arah Urutan"
+              options={sortOrderOptions}
+              value={sortOrder}
+              onChange={(val: any) => setSortOrder(val || 'desc')}
             />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-              Tahun Penetapan SK
-            </label>
-            <Input
-              type="number"
-              placeholder="Contoh: 2026"
-              value={tahunFilter}
-              onChange={(e) => setTahunFilter(e.target.value)}
-              className="mt-1 w-full"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200 dark:border-slate-700">
-            <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Urut Berdasarkan
-              </label>
-              <Select
-                options={sortOptions}
-                value={sortBy}
-                onChange={(val: any) => setSortBy(val || 'tanggal_sk')}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Arah Urutan
-              </label>
-              <Select
-                options={sortOrderOptions}
-                value={sortOrder}
-                onChange={(val: any) => setSortOrder(val || 'desc')}
-                className="mt-1 w-full"
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-3 pt-6">

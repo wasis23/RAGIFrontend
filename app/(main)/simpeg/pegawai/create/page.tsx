@@ -18,11 +18,14 @@ import type { UnitKerja } from '@/types/simpeg.types';
 
 const pegawaiSchema = z.object({
   nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
+  gelar_depan: z.string().optional().nullable(),
+  gelar_belakang: z.string().optional().nullable(),
   email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
-  nidn: z.string().optional().nullable(),
-  nuptk: z.string().optional().nullable(),
-  nip: z.string().optional().nullable(),
+  nidn: z.string().min(1, 'NIDN wajib diisi'),
+  nuptk: z.string().min(1, 'NUPTK wajib diisi'),
+  nip: z.string().min(1, 'NIP wajib diisi'),
   nik: z.string().optional().nullable(),
+  tanggal_masuk: z.string().min(1, 'Tanggal Masuk wajib diisi'),
   unit_kerja_id: z.string().optional().nullable(),
   role_ids: z.array(z.string().or(z.number())).min(1, 'Pilih minimal satu jenis pegawai / peran SSO'),
   status_kepegawaian: z.enum(['pns', 'non_pns', 'kontrak', 'tetap_yayasan'], {
@@ -38,7 +41,7 @@ const pegawaiSchema = z.object({
   }),
   telepon: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
-  shift_template_id: z.string().optional().nullable(),
+  shift_template_id: z.string().min(1, 'Shift Kerja (Jadwal Presensi) wajib dipilih'),
 });
 
 type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
@@ -56,11 +59,14 @@ export default function CreatePegawaiPage() {
     resolver: zodResolver(pegawaiSchema),
     defaultValues: {
       nama_lengkap: '',
+      gelar_depan: '',
+      gelar_belakang: '',
       email: '',
       nidn: '',
       nuptk: '',
       nip: '',
       nik: '',
+      tanggal_masuk: '',
       unit_kerja_id: '',
       role_ids: [],
       status_kepegawaian: 'tetap_yayasan',
@@ -136,11 +142,14 @@ export default function CreatePegawaiPage() {
     try {
       const payload: any = {
         unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : null,
-        nidn: values.nidn || null,
-        nuptk: values.nuptk || null,
-        nip: values.nip || null,
+        nidn: values.nidn,
+        nuptk: values.nuptk,
+        nip: values.nip,
         nik: values.nik || null,
         nama_lengkap: values.nama_lengkap,
+        gelar_depan: values.gelar_depan || null,
+        gelar_belakang: values.gelar_belakang || null,
+        tanggal_masuk: values.tanggal_masuk,
         tempat_lahir: values.tempat_lahir || null,
         tanggal_lahir: values.tanggal_lahir || null,
         jenis_kelamin: values.jenis_kelamin,
@@ -149,7 +158,7 @@ export default function CreatePegawaiPage() {
         status: values.status,
         telepon: values.telepon || null,
         alamat: values.alamat || null,
-        shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
+        shift_template_id: Number(values.shift_template_id),
       };
 
       if (values.email) {
@@ -199,11 +208,64 @@ export default function CreatePegawaiPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               <Input
-                label="Nama Lengkap & Gelar"
+                label="Gelar Depan (Opsional)"
+                placeholder="Contoh: Dr., Prof."
+                error={errors.gelar_depan?.message}
+                {...register('gelar_depan')}
+              />
+
+              <Input
+                label="Nama Lengkap"
                 required
-                placeholder="Contoh: Dr. Wasis Utama, M.Kom."
+                placeholder="Contoh: Wasis Utama"
                 error={errors.nama_lengkap?.message}
                 {...register('nama_lengkap')}
+              />
+
+              <Input
+                label="Gelar Belakang (Opsional)"
+                placeholder="Contoh: M.Kom., Ph.D."
+                error={errors.gelar_belakang?.message}
+                {...register('gelar_belakang')}
+              />
+
+              <Input
+                label="NIP (Nomor Induk Pegawai)"
+                required
+                placeholder="Contoh: 199001012022011001"
+                error={errors.nip?.message}
+                {...register('nip')}
+              />
+
+              <Input
+                label="NIDN (Nomor Induk Dosen Nasional)"
+                required
+                placeholder="Contoh: 0415018501"
+                error={errors.nidn?.message}
+                {...register('nidn')}
+              />
+
+              <Input
+                label="NUPTK (Nomor Pendidik & Tenaga Kependidikan)"
+                required
+                placeholder="Contoh: 3560763664230001"
+                error={errors.nuptk?.message}
+                {...register('nuptk')}
+              />
+
+              <Input
+                type="date"
+                label="Tanggal Masuk"
+                required
+                error={errors.tanggal_masuk?.message}
+                {...register('tanggal_masuk')}
+              />
+
+              <Input
+                label="NIK (KTP)"
+                placeholder="Contoh: 327101..."
+                error={errors.nik?.message}
+                {...register('nik')}
               />
 
               <Input
@@ -212,34 +274,6 @@ export default function CreatePegawaiPage() {
                 placeholder="Contoh: nama@campus.ac.id"
                 error={errors.email?.message}
                 {...register('email')}
-              />
-
-              <Input
-                label="NIDN (Nomor Induk Dosen Nasional)"
-                placeholder="Contoh: 0415018501"
-                error={errors.nidn?.message}
-                {...register('nidn')}
-              />
-
-              <Input
-                label="NUPTK (Nomor Pendidik & Tenaga Kependidikan)"
-                placeholder="Contoh: 3560763664230001"
-                error={errors.nuptk?.message}
-                {...register('nuptk')}
-              />
-
-              <Input
-                label="NIP (Nomor Induk Pegawai)"
-                placeholder="Contoh: 199001012022011001"
-                error={errors.nip?.message}
-                {...register('nip')}
-              />
-
-              <Input
-                label="NIK (KTP)"
-                placeholder="Contoh: 327101..."
-                error={errors.nik?.message}
-                {...register('nik')}
               />
 
               <div className="md:col-span-2 lg:col-span-3">
@@ -339,12 +373,13 @@ export default function CreatePegawaiPage() {
                   render={({ field }) => (
                     <AsyncSelect
                       label="Shift Kerja (Jadwal Presensi)"
+                      required
                       placeholder="Cari tipe shift (contoh: Reguler / Pagi / Malam)..."
                       hint="Menentukan jam masuk-pulang & hari libur mingguan pegawai."
                       loadOptions={loadShiftOptions}
                       value={field.value ? { value: field.value, label: field.value } : null}
                       onChange={(opt) => field.onChange(opt ? opt.value : '')}
-                      isClearable
+                      isClearable={false}
                       error={errors.shift_template_id?.message}
                     />
                   )}

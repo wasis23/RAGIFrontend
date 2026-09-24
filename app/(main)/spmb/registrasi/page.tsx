@@ -48,6 +48,7 @@ import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/
 import { useSpmbStore } from '@/store/spmbStore';
 import { useUiStore } from '@/store/uiStore';
 import api from '@/lib/axios';
+import type { BiayaBebanItem } from '@/types/spmb.types';
 
 import { XenditCheckoutModal } from '@/components/sikeu/payment-gateway/XenditCheckoutModal';
 
@@ -393,6 +394,8 @@ export default function RegistrasiSpmbPage() {
   const [loading, setLoading] = useState(false);
   const [tarif, setTarif] = useState(0);
   const [loadingTarif, setLoadingTarif] = useState(false);
+  const [bebanPendaftaran, setBebanPendaftaran] = useState<BiayaBebanItem[]>([]);
+  const [totalBebanDaftarUlang, setTotalBebanDaftarUlang] = useState(0);
   const [isEditingBiodata, setIsEditingBiodata] = useState(false);
   const [copiedVa, setCopiedVa] = useState(false);
   const [isCheckingRegistration, setIsCheckingRegistration] = useState(true);
@@ -782,6 +785,31 @@ export default function RegistrasiSpmbPage() {
       setTarif(0);
     }
   }, [selectedJalur, selectedGelombang]);
+
+  // Rincian beban awal pendaftaran berdasarkan Master Biaya gelombang + prodi
+  useEffect(() => {
+    const loadBeban = async () => {
+      if (!selectedGelombang || !selectedProdi) {
+        setBebanPendaftaran([]);
+        setTotalBebanDaftarUlang(0);
+        return;
+      }
+      try {
+        const res = await spmbService.getBiayaPendaftaran({
+          gelombang_id: Number(selectedGelombang),
+          program_studi_id: Number(selectedProdi),
+        });
+        const info = res?.data;
+        setBebanPendaftaran(info?.beban_pendaftaran || []);
+        setTotalBebanDaftarUlang(Number(info?.total_daftar_ulang || 0));
+        const totalPendaftaran = Number(info?.total_pendaftaran || 0);
+        if (totalPendaftaran > 0) setTarif(totalPendaftaran);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    loadBeban();
+  }, [selectedGelombang, selectedProdi]);
 
   const fetchJalur = async () => {
     try {
@@ -1396,16 +1424,39 @@ export default function RegistrasiSpmbPage() {
               </div>
 
               {selectedJalur && selectedGelombang && (
-                <div className="p-4 bg-primary-50/60 border border-primary-100 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Biaya Formulir Pendaftaran</h4>
-                    <p className="text-xs text-slate-600 mt-0.5">
-                      Tarif otomatis dihitung untuk jalur: <strong className="text-slate-800">{selectedJalurObj?.nama}</strong>
+                <div className="p-4 bg-primary-50/60 border border-primary-100 rounded-xl">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">Rincian Beban Awal Pendaftaran</h4>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        Komponen biaya yang dibebankan saat pendaftaran untuk jalur <strong className="text-slate-800">{selectedJalurObj?.nama}</strong>.
+                      </p>
+                    </div>
+                    <div className="text-lg font-extrabold text-primary-700">
+                      {loadingTarif ? <Loader2 size={16} className="animate-spin" /> : `Rp ${tarif.toLocaleString('id-ID')}`}
+                    </div>
+                  </div>
+
+                  {bebanPendaftaran.length > 0 && (
+                    <ul className="mt-3 space-y-1.5 border-t border-primary-100 pt-3">
+                      {bebanPendaftaran.map((item) => (
+                        <li key={item.komponen_biaya_id} className="flex items-center justify-between gap-3 text-xs">
+                          <span className="text-slate-700">
+                            {item.nama} <span className="text-slate-400 font-mono">({item.kode})</span>
+                          </span>
+                          <span className="font-semibold text-slate-800">
+                            Rp {Number(item.nominal).toLocaleString('id-ID')}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {totalBebanDaftarUlang > 0 && (
+                    <p className="mt-3 text-[11px] text-slate-500">
+                      Komponen lain (Rp {totalBebanDaftarUlang.toLocaleString('id-ID')}) dibebankan saat daftar ulang.
                     </p>
-                  </div>
-                  <div className="text-lg font-extrabold text-primary-700">
-                    {loadingTarif ? <Loader2 size={16} className="animate-spin" /> : `Rp ${tarif.toLocaleString('id-ID')}`}
-                  </div>
+                  )}
                 </div>
               )}
             </div>

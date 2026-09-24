@@ -458,6 +458,20 @@ export default function PegawaiPage() {
         action={
           isAdmin ? (
             <div className="flex gap-2">
+              {canCreate && (
+                <Button
+                  variant="outline"
+                  icon={<Upload size={16} />}
+                  onClick={() => {
+                    setImportFile(null);
+                    setImportResult(null);
+                    setShowImportModal(true);
+                  }}
+                >
+                  Import Pegawai
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 icon={<Filter size={16} />}
@@ -466,32 +480,10 @@ export default function PegawaiPage() {
                 Filter
               </Button>
 
-              <Button
-                variant="outline"
-                icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
-                onClick={loadPegawai}
-                title="Refresh"
-              >
-                Refresh
-              </Button>
-
               {canCreate && (
-                <>
-                  <Button
-                    variant="outline"
-                    icon={<Upload size={16} />}
-                    onClick={() => {
-                      setImportFile(null);
-                      setImportResult(null);
-                      setShowImportModal(true);
-                    }}
-                  >
-                    Import Pegawai
-                  </Button>
-                  <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
-                    Tambah Pegawai
-                  </Button>
-                </>
+                <Button icon={<Plus size={16} />} onClick={handleOpenCreateModal}>
+                  Tambah Pegawai
+                </Button>
               )}
             </div>
           ) : undefined

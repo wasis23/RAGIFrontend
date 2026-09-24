@@ -14,7 +14,6 @@ export interface JalurMasuk {
 export interface GelombangPenerimaan {
   id: number;
   jalur_masuk_id: number;
-  tahun_akademik_id: number;
   nama: string;
   tanggal_buka: string;
   tanggal_tutup: string;
@@ -220,24 +219,6 @@ export const spmbService = {
     return response.data;
   },
 
-  // Biaya Daftar Ulang
-  getTarifUktSpmb: async (params?: { page?: number; limit?: number; search?: string; master_program_studi_id?: number; master_sikeu_biaya_id?: number; sort_by?: string; sort_dir?: string }) => {
-    const response = await api.get('/spmb/master/tarif-ukt', { params });
-    return response.data;
-  },
-
-  storeTarifUktSpmb: async (data: { nama: string; deskripsi?: string; master_sikeu_biaya_id: number; master_program_studi_id: number }) => {
-    const response = await api.post('/spmb/master/tarif-ukt', data);
-    return response.data;
-  },
-  updateTarifUktSpmb: async (id: number, data: { nama: string; deskripsi?: string; master_sikeu_biaya_id: number; master_program_studi_id: number }) => {
-    const response = await api.put(`/spmb/master/tarif-ukt/${id}`, data);
-    return response.data;
-  },
-  deleteTarifUktSpmb: async (id: number) => {
-    const response = await api.delete(`/spmb/master/tarif-ukt/${id}`);
-    return response.data;
-  },
   // Kuota Prodi
   getKuotaProdi: async (params?: {
     page?: number;
@@ -387,6 +368,157 @@ export const spmbService = {
 
   deleteBerkasRequirement: async (id: number) => {
     const response = await api.delete(`/spmb/master/berkas-requirement/${id}`);
+    return response.data;
+  },
+
+  // ====================================================
+  // MASTER KOMPONEN BIAYA (DINAMIS)
+  // ====================================================
+  getKomponenBiayaList: async (params?: {
+    search?: string;
+    is_active?: boolean | string;
+    kategori?: string;
+    per_page?: number;
+    limit?: number;
+    page?: number;
+    sort_by?: string;
+    sort_order?: string;
+    tipe_potongan?: boolean | string;
+  }) => {
+    const formattedParams = {
+      ...params,
+      per_page: params?.per_page || params?.limit || 10,
+    };
+    const response = await api.get('/spmb/master/komponen-biaya', { params: formattedParams });
+    return response.data;
+  },
+
+  getKomponenBiayaById: async (id: number) => {
+    const response = await api.get(`/spmb/master/komponen-biaya/${id}`);
+    return response.data;
+  },
+
+  createKomponenBiaya: async (data: {
+    kode?: string;
+    nama: string;
+    kategori?: string;
+    tipe_potongan?: boolean;
+    urutan?: number;
+    position_type?: string;
+    reference_id?: number;
+    is_active?: boolean;
+    keterangan?: string;
+  }) => {
+    const response = await api.post('/spmb/master/komponen-biaya', data);
+    return response.data;
+  },
+
+  updateKomponenBiaya: async (
+    id: number,
+    data: {
+      kode?: string;
+      nama: string;
+      kategori?: string;
+      tipe_potongan?: boolean;
+      urutan?: number;
+      position_type?: string;
+      reference_id?: number;
+      is_active?: boolean;
+      keterangan?: string;
+    }
+  ) => {
+    const response = await api.put(`/spmb/master/komponen-biaya/${id}`, data);
+    return response.data;
+  },
+
+  deleteKomponenBiaya: async (id: number) => {
+    const response = await api.delete(`/spmb/master/komponen-biaya/${id}`);
+    return response.data;
+  },
+
+  // ====================================================
+  // MASTER BIAYA SPMB (HEADER & DETAIL MATRIX)
+  // ====================================================
+  getMasterBiayaList: async (params?: {
+    gelombang_id?: number | string;
+    program_studi_id?: number | string;
+    search?: string;
+    is_active?: boolean | string;
+    jumlah_komponen?: number | string;
+    beban_pendaftaran?: number | string;
+    beban_daftar_ulang?: number | string;
+    total_biaya?: number | string;
+    page?: number;
+    per_page?: number;
+    limit?: number;
+    sort_by?: string;
+    sort_dir?: string;
+  }) => {
+    const formattedParams = {
+      ...params,
+      per_page: params?.per_page || params?.limit || 15,
+    };
+    const response = await api.get('/spmb/master/biaya', { params: formattedParams });
+    return response.data;
+  },
+
+  getMasterBiayaById: async (id: number) => {
+    const response = await api.get(`/spmb/master/biaya/${id}`);
+    return response.data;
+  },
+
+  createMasterBiaya: async (data: {
+    gelombang_id: number;
+    program_studi_id: number;
+    is_active?: boolean;
+    keterangan?: string;
+    items: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; keterangan?: string }[];
+  }) => {
+    const response = await api.post('/spmb/master/biaya', data);
+    return response.data;
+  },
+
+  updateMasterBiaya: async (
+    id: number,
+    data: {
+      gelombang_id?: number;
+      program_studi_id?: number;
+      is_active?: boolean;
+      keterangan?: string;
+      items?: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; keterangan?: string }[];
+    }
+  ) => {
+    const response = await api.put(`/spmb/master/biaya/${id}`, data);
+    return response.data;
+  },
+
+  deleteMasterBiaya: async (id: number) => {
+    const response = await api.delete(`/spmb/master/biaya/${id}`);
+    return response.data;
+  },
+
+  batchUpdateMasterBiaya: async (data: {
+    gelombang_id: number;
+    rows: {
+      program_studi_id: number;
+      is_active?: boolean;
+      items: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean }[];
+    }[];
+  }) => {
+    const response = await api.post('/spmb/master/biaya/batch', data);
+    return response.data;
+  },
+
+  getBiayaPendaftaran: async (params: { gelombang_id: number; program_studi_id: number }) => {
+    const response = await api.get('/spmb/biaya-pendaftaran', { params });
+    return response.data;
+  },
+
+  copyBiayaFromGelombang: async (data: {
+    from_gelombang_id: number;
+    to_gelombang_id: number;
+  }) => {
+    const response = await api.post('/spmb/master/biaya/copy-from-gelombang', data);
     return response.data;
   },
 };

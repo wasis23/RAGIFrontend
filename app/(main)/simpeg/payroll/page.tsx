@@ -335,15 +335,6 @@ export default function PayrollPage() {
                 Kalkulasi Payroll
               </Button>
             )}
-            {canCreate && (
-              <Button
-                icon={<Send size={16} />}
-                onClick={() => setShowSubmitModal(true)}
-                className="bg-primary-600 hover:bg-primary-700 text-white"
-              >
-                Kirim Pengajuan ke SIKEU
-              </Button>
-            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -351,6 +342,14 @@ export default function PayrollPage() {
             >
               Filter
             </Button>
+            {canCreate && (
+              <Button
+                icon={<Send size={16} />}
+                onClick={() => setShowSubmitModal(true)}
+              >
+                Kirim Pengajuan ke SIKEU
+              </Button>
+            )}
           </div>
         }
       />

@@ -26,7 +26,6 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { PageHeader } from '@/components/layout/PageHeader';
-import api from '@/lib/axios';
 
 // ============================================================
 // VALIDATION SCHEMA (MANDATORY ZOD STANDARD)
@@ -34,8 +33,6 @@ import api from '@/lib/axios';
 const gelombangFormSchema = z.object({
   nama: z.string().min(1, 'Nama gelombang wajib diisi').max(255, 'Nama gelombang maksimal 255 karakter'),
   jalur_masuk_id: z.number().min(1, 'Jalur masuk wajib dipilih'),
-  tahun_akademik_id: z.number().min(1, 'Tahun akademik wajib dipilih'),
-  master_biaya_id: z.number().min(1, 'Tarif biaya pendaftaran SIKEU wajib dipilih'),
   biaya_pendaftaran: z.number().min(0, 'Biaya pendaftaran minimal 0').optional(),
   kuota_total: z.number().min(1, 'Kuota pendaftar minimal 1'),
   tanggal_buka: z.string().min(1, 'Tanggal buka pendaftaran wajib diisi'),
@@ -134,11 +131,9 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
   const [fetching, setFetching] = useState(true);
 
   // Selected Option States for AsyncSelects to ensure instant label display
-  const [selectedTahunAkademik, setSelectedTahunAkademik] = useState<any>(null);
   const [selectedJalur, setSelectedJalur] = useState<any>(null);
-  const [selectedMasterBiaya, setSelectedMasterBiaya] = useState<any>(null);
 
-  const { register, handleSubmit, control, reset, watch, setValue, formState: { errors } } = useForm<GelombangFormValues>({
+  const { register, handleSubmit, control, reset, watch, formState: { errors } } = useForm<GelombangFormValues>({
     resolver: zodResolver(gelombangFormSchema) as any,
     defaultValues: {
       nama: '',
@@ -151,27 +146,9 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
     }
   });
 
-  const selectedMasterBiayaId = watch('master_biaya_id');
-  const selectedBiaya = watch('biaya_pendaftaran');
   const selectedStatus = watch('status');
   const tglBuka = watch('tanggal_buka');
   const tglTutup = watch('tanggal_tutup');
-
-  const loadTahunAkademik = useCallback(async (input: string) => {
-    try {
-      const res = await spmbService.getTahunAkademikList();
-      const list = res?.data || [];
-      return list
-        .filter((t: any) => (t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`).toLowerCase().includes(input.toLowerCase()))
-        .map((t: any) => ({
-          value: t.id,
-          label: t.nama || `${t.tahun_mulai}/${t.tahun_selesai}`,
-          ...t
-        }));
-    } catch {
-      return [];
-    }
-  }, []);
 
   const loadJalurMasuk = useCallback(async (input: string) => {
     try {
@@ -189,25 +166,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
     }
   }, []);
 
-  const loadMasterBiaya = useCallback(async (input: string) => {
-    try {
-      const response = await api.get('/v1/sikeu/master/master-biaya?module_code=spmb');
-      const list = response.data?.data || [];
-      return list
-        .filter((item: any) => 
-          (item.nama || '').toLowerCase().includes(input.toLowerCase()) || 
-          (item.kode || '').toLowerCase().includes(input.toLowerCase())
-        )
-        .map((item: any) => ({
-          value: item.id,
-          label: `[${item.kode}] ${item.nama} (Rp ${Number(item.nominal_standar || 0).toLocaleString('id-ID')})`,
-          ...item
-        }));
-    } catch {
-      return [];
-    }
-  }, []);
-
   // Load Existing Gelombang Detail
   useEffect(() => {
     if (!id) return;
@@ -217,21 +175,7 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
         setFetching(true);
         const res = await spmbService.getGelombangById(id);
         const row = res.data;
-        const mbId = row.master_biaya_id || row.master_biaya?.id;
-        const rowNominal = Math.round(Number(row.biaya_pendaftaran || row.master_biaya?.nominal_standar || 0));
-        
-        if (row.tahun_akademik) {
-          setSelectedTahunAkademik({
-            value: row.tahun_akademik.id,
-            label: row.tahun_akademik.nama || `${row.tahun_akademik.tahun_mulai}/${row.tahun_akademik.tahun_selesai}`,
-            ...row.tahun_akademik
-          });
-        } else if (row.tahun_akademik_id) {
-          setSelectedTahunAkademik({
-            value: row.tahun_akademik_id,
-            label: `Tahun Akademik #${row.tahun_akademik_id}`
-          });
-        }
+        const rowNominal = Math.round(Number(row.biaya_pendaftaran || 0));
 
         if (row.jalur_masuk) {
           setSelectedJalur({
@@ -246,19 +190,9 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
           });
         }
 
-        if (row.master_biaya) {
-          setSelectedMasterBiaya({
-            value: row.master_biaya.id,
-            label: `[${row.master_biaya.kode}] ${row.master_biaya.nama} (Rp ${Number(row.master_biaya.nominal_standar || 0).toLocaleString('id-ID')})`,
-            ...row.master_biaya
-          });
-        }
-
         reset({
           nama: row.nama,
           jalur_masuk_id: row.jalur_masuk_id ? Number(row.jalur_masuk_id) : undefined,
-          tahun_akademik_id: row.tahun_akademik_id ? Number(row.tahun_akademik_id) : undefined,
-          master_biaya_id: mbId ? Number(mbId) : undefined,
           biaya_pendaftaran: rowNominal,
           kuota_total: row.kuota_total,
           status: row.status,
@@ -289,8 +223,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
       const payload = {
         ...data,
         jalur_masuk_id: Number(data.jalur_masuk_id),
-        tahun_akademik_id: Number(data.tahun_akademik_id),
-        master_biaya_id: data.master_biaya_id ? Number(data.master_biaya_id) : undefined,
         biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
       };
       await spmbService.updateGelombang(id, payload as any);
@@ -344,29 +276,6 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Controller
-                  name="tahun_akademik_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Tahun Akademik"
-                      required
-                      placeholder="Pilih Tahun Akademik..."
-                      loadOptions={loadTahunAkademik}
-                      defaultOptions
-                      value={selectedTahunAkademik ?? field.value}
-                      onChange={(opt: any) => {
-                        setSelectedTahunAkademik(opt);
-                        field.onChange(opt ? Number(opt.value) : undefined);
-                      }}
-                      error={errors.tahun_akademik_id?.message}
-                      hint="Tahun akademik penerimaan."
-                    />
-                  )}
-                />
-              </div>
-
-              <div>
-                <Controller
                   name="jalur_masuk_id"
                   control={control}
                   render={({ field }) => (
@@ -411,30 +320,13 @@ export default function EditGelombangPage({ params }: { params: Promise<{ id: st
               </div>
 
               <div>
-                <Controller
-                  name="master_biaya_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Tarif Biaya (Mapping SIKEU)"
-                      required
-                      placeholder="Pilih Tarif Keuangan SIKEU..."
-                      loadOptions={loadMasterBiaya}
-                      defaultOptions
-                      value={selectedMasterBiaya ?? field.value}
-                      onChange={(opt: any) => {
-                        setSelectedMasterBiaya(opt);
-                        const idVal = opt ? Number(opt.value) : undefined;
-                        field.onChange(idVal);
-                        if (opt) {
-                          const nominal = Number(opt.nominal_standar ?? opt.nominal ?? 0);
-                          setValue('biaya_pendaftaran', nominal);
-                        }
-                      }}
-                      error={errors.master_biaya_id?.message}
-                      hint={selectedBiaya ? `Nominal: Rp ${Number(selectedBiaya).toLocaleString('id-ID')}` : 'Pilih tarif master modul SIKEU.'}
-                    />
-                  )}
+                <Input 
+                  type="number"
+                  label="Biaya Pendaftaran (Rp)"
+                  placeholder="0"
+                  hint="Nominal biaya pendaftaran gelombang ini."
+                  error={errors.biaya_pendaftaran?.message}
+                  {...register('biaya_pendaftaran', { valueAsNumber: true })} 
                 />
               </div>
 
