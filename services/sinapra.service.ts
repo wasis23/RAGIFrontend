@@ -48,6 +48,8 @@ import type {
   KalenderRuanganItem,
   KalenderRuanganFilterParams,
   KalenderRuanganMeta,
+  MasterTipeRuangan,
+  MasterSatuan,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
@@ -428,6 +430,48 @@ export const sinapraService = {
   // ── FASE 6: KALENDER TERPADU RUANGAN (SINAPRA + SIAKAD) ─────
   getKalenderRuangan: async (params?: KalenderRuanganFilterParams): Promise<{ success: boolean; message: string; data: KalenderRuanganItem[]; meta: KalenderRuanganMeta }> => {
     const { data } = await apiClient.get<{ success: boolean; message: string; data: KalenderRuanganItem[]; meta: KalenderRuanganMeta }>('/sinapra/kalender-ruangan', { params });
+    return data;
+  },
+
+  // ── MASTER TIPE RUANGAN ──────────────────────────────────────
+  getMasterTipeRuanganList: async (params?: any): Promise<PaginatedResponse<MasterTipeRuangan>> => {
+    const { data } = await apiClient.get<PaginatedResponse<MasterTipeRuangan>>('/sinapra/master/tipe-ruangan', { params });
+    return data;
+  },
+
+  createMasterTipeRuangan: async (payload: Partial<MasterTipeRuangan>): Promise<ApiResponse<MasterTipeRuangan>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterTipeRuangan>>('/sinapra/master/tipe-ruangan', payload);
+    return data;
+  },
+
+  updateMasterTipeRuangan: async (id: number, payload: Partial<MasterTipeRuangan>): Promise<ApiResponse<MasterTipeRuangan>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterTipeRuangan>>(`/sinapra/master/tipe-ruangan/${id}`, payload);
+    return data;
+  },
+
+  deleteMasterTipeRuangan: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/master/tipe-ruangan/${id}`);
+    return data;
+  },
+
+  // ── MASTER SATUAN BARANG ─────────────────────────────────────
+  getMasterSatuanList: async (params?: any): Promise<PaginatedResponse<MasterSatuan>> => {
+    const { data } = await apiClient.get<PaginatedResponse<MasterSatuan>>('/sinapra/master/satuan', { params });
+    return data;
+  },
+
+  createMasterSatuan: async (payload: Partial<MasterSatuan>): Promise<ApiResponse<MasterSatuan>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterSatuan>>('/sinapra/master/satuan', payload);
+    return data;
+  },
+
+  updateMasterSatuan: async (id: number, payload: Partial<MasterSatuan>): Promise<ApiResponse<MasterSatuan>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterSatuan>>(`/sinapra/master/satuan/${id}`, payload);
+    return data;
+  },
+
+  deleteMasterSatuan: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/master/satuan/${id}`);
     return data;
   },
 };

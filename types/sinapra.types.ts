@@ -32,13 +32,37 @@ export interface GedungFormPayload {
   status?: 'aktif' | 'renovasi' | 'nonaktif';
 }
 
+export interface MasterTipeRuangan {
+  id: number;
+  kode: string;
+  nama: string;
+  deskripsi?: string | null;
+  is_active: boolean;
+  urutan: number;
+  created_at?: string;
+  updated_at?: string;
+  ruangan_count?: number;
+}
+
+export interface MasterSatuan {
+  id: number;
+  kode: string;
+  nama: string;
+  keterangan?: string | null;
+  is_active: boolean;
+  urutan: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Ruangan {
   id: number;
   gedung_id: number;
+  tipe_ruangan_id?: number | null;
   kode: string;
   nama: string;
   lantai: number;
-  tipe: 'kelas' | 'laboratorium' | 'kantor' | 'aula' | 'gudang' | 'lainnya';
+  tipe?: 'kelas' | 'laboratorium' | 'kantor' | 'aula' | 'gudang' | 'lainnya';
   kapasitas: number;
   luas_m2?: number;
   ada_ac: boolean;
@@ -47,6 +71,7 @@ export interface Ruangan {
   keterangan?: string;
   status: 'aktif' | 'maintenance' | 'nonaktif';
   gedung?: Gedung;
+  tipe_ruangan?: MasterTipeRuangan | null;
   laboran?: { id: number; name: string; username?: string; email: string; pivot?: { ruangan_id: number; user_id: number; is_primary: boolean } }[];
   created_at?: string;
   updated_at?: string;
@@ -70,10 +95,11 @@ export interface AssignLaboranPayload {
 
 export interface RuanganFormPayload {
   gedung_id: number;
+  tipe_ruangan_id?: number | null;
   kode: string;
   nama: string;
   lantai: number;
-  tipe: 'kelas' | 'laboratorium' | 'kantor' | 'aula' | 'gudang' | 'lainnya';
+  tipe?: 'kelas' | 'laboratorium' | 'kantor' | 'aula' | 'gudang' | 'lainnya';
   kapasitas: number;
   luas_m2?: number;
   ada_ac?: boolean;
@@ -358,6 +384,7 @@ export interface SinapraFilterParams extends PaginationParams {
   limit?: number;
   status?: string;
   tipe?: string;
+  tipe_ruangan_id?: number;
   gedung_id?: number;
   kategori_id?: number;
   kondisi?: string;

@@ -79,6 +79,7 @@ export default function GedungRuanganPage() {
   const [ruanganMeta, setRuanganMeta] = useState<PaginationMeta | undefined>(undefined);
   const [ruanganSearch, setRuanganSearch] = useState('');
   const [ruanganTipeFilter, setRuanganTipeFilter] = useState('');
+  const [ruanganTipeRuanganFilterObj, setRuanganTipeRuanganFilterObj] = useState<{ value: string; label: string } | null>(null);
   const [ruanganStatusFilter, setRuanganStatusFilter] = useState('');
   const [ruanganGedungFilterObj, setRuanganGedungFilterObj] = useState<{ value: string; label: string } | null>(null);
   const [ruanganSortBy, setRuanganSortBy] = useState('nama');
@@ -90,9 +91,11 @@ export default function GedungRuanganPage() {
   const [deletingRuangan, setDeletingRuangan] = useState<Ruangan | null>(null);
   const [isDeletingRuangan, setIsDeletingRuangan] = useState(false);
   const [selectedGedungObj, setSelectedGedungObj] = useState<{ value: string; label: string } | null>(null);
+  const [selectedTipeRuanganObj, setSelectedTipeRuanganObj] = useState<{ value: string; label: string } | null>(null);
 
   const [ruanganForm, setRuanganForm] = useState<RuanganFormPayload>({
     gedung_id: 0,
+    tipe_ruangan_id: null,
     kode: '',
     nama: '',
     lantai: 1,
@@ -168,6 +171,7 @@ export default function GedungRuanganPage() {
         page: ruanganPage,
         search: ruanganSearch,
         tipe: ruanganTipeFilter || undefined,
+        tipe_ruangan_id: ruanganTipeRuanganFilterObj ? parseInt(ruanganTipeRuanganFilterObj.value) : undefined,
         status: ruanganStatusFilter || undefined,
         gedung_id: ruanganGedungFilterObj ? parseInt(ruanganGedungFilterObj.value) : undefined,
         sort_by: ruanganSortBy || undefined,
@@ -209,7 +213,7 @@ export default function GedungRuanganPage() {
 
   useEffect(() => {
     if (activeTab === 'ruangan') fetchRuangan();
-  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganTipeFilter, ruanganGedungFilterObj, ruanganSortBy, ruanganSortDir]);
+  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganTipeFilter, ruanganTipeRuanganFilterObj, ruanganGedungFilterObj, ruanganSortBy, ruanganSortDir]);
 
   const loadGedungOptions = async (inputValue: string) => {
     try {
@@ -217,6 +221,22 @@ export default function GedungRuanganPage() {
       let list = res?.data?.items || res?.data || res || [];
       if (Array.isArray(list)) {
         return list.map((g: Gedung) => ({ value: g.id.toString(), label: `${g.kode} - ${g.nama}` }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const loadTipeRuanganOptions = async (inputValue: string) => {
+    try {
+      const res: any = await sinapraService.getMasterTipeRuanganList({ search: inputValue, is_active: true });
+      let list = res?.data?.items || res?.data || res || [];
+      if (Array.isArray(list)) {
+        return list.map((item: any) => ({
+          value: item.id.toString(),
+          label: `${item.nama} (${item.kode})`,
+        }));
       }
       return [];
     } catch {
@@ -298,8 +318,10 @@ export default function GedungRuanganPage() {
   const handleOpenCreateRuangan = () => {
     setEditingRuangan(null);
     setSelectedGedungObj(null);
+    setSelectedTipeRuanganObj(null);
     setRuanganForm({
       gedung_id: 0,
+      tipe_ruangan_id: null,
       kode: '',
       nama: '',
       lantai: 1,
@@ -319,9 +341,17 @@ export default function GedungRuanganPage() {
     setEditingRuangan(r);
     if (r.gedung) {
       setSelectedGedungObj({ value: r.gedung.id.toString(), label: `${r.gedung.kode} - ${r.gedung.nama}` });
+    } else {
+      setSelectedGedungObj(null);
+    }
+    if (r.tipe_ruangan) {
+      setSelectedTipeRuanganObj({ value: r.tipe_ruangan.id.toString(), label: `${r.tipe_ruangan.nama} (${r.tipe_ruangan.kode})` });
+    } else {
+      setSelectedTipeRuanganObj(null);
     }
     setRuanganForm({
       gedung_id: r.gedung_id,
+      tipe_ruangan_id: r.tipe_ruangan_id || (r.tipe_ruangan?.id ?? null),
       kode: r.kode,
       nama: r.nama,
       lantai: r.lantai,
@@ -541,7 +571,7 @@ export default function GedungRuanganPage() {
       render: (row) => (
         <div>
           <span className="capitalize text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-            {row.tipe}
+            {row.tipe_ruangan?.nama || row.tipe}
           </span>
           <span className="text-2xs text-slate-400 block">
             Kapasitas {row.kapasitas} Orang
@@ -873,18 +903,19 @@ export default function GedungRuanganPage() {
             />
           </div>
 
-          <Select
+          <AsyncSelect
             label="Tipe Ruangan"
-            value={ruanganForm.tipe}
-            onChange={(val) => setRuanganForm({ ...ruanganForm, tipe: val as any })}
-            options={[
-              { value: 'kelas', label: 'Ruang Kelas Teori' },
-              { value: 'laboratorium', label: 'Laboratorium Praktikum' },
-              { value: 'kantor', label: 'Ruang Kantor / Dosen' },
-              { value: 'aula', label: 'Aula / Auditorium' },
-              { value: 'gudang', label: 'Gudang Sarpras' },
-              { value: 'lainnya', label: 'Fasilitas Lainnya' },
-            ]}
+            required
+            placeholder="Pilih atau cari tipe ruangan..."
+            value={selectedTipeRuanganObj}
+            onChange={(selected: any) => {
+              setSelectedTipeRuanganObj(selected);
+              setRuanganForm({
+                ...ruanganForm,
+                tipe_ruangan_id: selected ? parseInt(selected.value) : null,
+              });
+            }}
+            loadOptions={loadTipeRuanganOptions}
           />
 
           <Select
@@ -1023,6 +1054,7 @@ export default function GedungRuanganPage() {
                 } else {
                   setRuanganSearch('');
                   setRuanganTipeFilter('');
+                  setRuanganTipeRuanganFilterObj(null);
                   setRuanganStatusFilter('');
                   setRuanganGedungFilterObj(null);
                   setRuanganSortBy('nama');
@@ -1102,11 +1134,12 @@ export default function GedungRuanganPage() {
               loadOptions={loadGedungOptions}
             />
 
-            <Input
+            <AsyncSelect
               label="Tipe Ruangan"
-              placeholder="Cth: kelas, laboratorium, kantor..."
-              value={ruanganTipeFilter}
-              onChange={(e) => setRuanganTipeFilter(e.target.value)}
+              placeholder="Pilih tipe ruangan..."
+              value={ruanganTipeRuanganFilterObj}
+              onChange={(sel: any) => setRuanganTipeRuanganFilterObj(sel)}
+              loadOptions={loadTipeRuanganOptions}
             />
 
             <Select

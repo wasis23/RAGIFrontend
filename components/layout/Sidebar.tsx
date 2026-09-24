@@ -120,6 +120,8 @@ const getIcon = (iconName: string) => {
     'FaCoins': Coins,
     'FaExclamationTriangle': AlertTriangle,
     'FaTag': Tag,
+    'Layers': Layers,
+    'Tag': Tag,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -268,6 +270,8 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
     children: [
       { id: 9101, parent_id: 910, name: 'Master Referensi', url: '/sinapra/master/referensi', icon: 'Database', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
       { id: 9102, parent_id: 910, name: 'Master Tipe Referensi', url: '/sinapra/master/tipe-referensi', icon: 'Tags', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
+      { id: 9103, parent_id: 910, name: 'Master Tipe Ruangan', url: '/sinapra/master/tipe-ruangan', icon: 'Layers', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
+      { id: 9104, parent_id: 910, name: 'Master Satuan', url: '/sinapra/master/satuan', icon: 'Tag', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
     ],
   },
 ];
