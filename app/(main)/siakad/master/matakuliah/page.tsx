@@ -1,19 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Plus, Filter, Edit2, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Filter, Edit2, Trash2, GitFork } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { PrasyaratForm, type PrasyaratFormValues } from '@/components/siakad/MataKuliahForm';
+import { SIAKAD_OPTION_TYPES, useSiakadOptions } from '@/lib/siakad-options';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
 export default function MataKuliahPage() {
+  const router = useRouter();
   const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
   const [kurikulums, setKurikulums] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
@@ -32,21 +38,63 @@ export default function MataKuliahPage() {
     tipe: '',
   });
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMk, setEditingMk] = useState<any | null>(null);
   const [deletingMk, setDeletingMk] = useState<any | null>(null);
-  const [selectedProdiModal, setSelectedProdiModal] = useState<number | string>('');
-  const [form, setForm] = useState({
-    kurikulum_id: 1,
-    kode_mk: '',
-    nama: '',
-    sks_teori: 2,
-    sks_praktik: 1,
-    semester_anjuran: 1,
-    tipe: 'wajib',
-  });
-  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const tipeOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.TIPE_MK);
+  const tipeLabel = (v: string) => tipeOptions.find((o) => o.value === v)?.label || v || '-';
+
+  // Prasyarat MK Modal State
+  const [prasyaratMkTarget, setPrasyaratMkTarget] = useState<any | null>(null);
+  const [prasyaratList, setPrasyaratList] = useState<any[]>([]);
+  const [loadingPrasyarat, setLoadingPrasyarat] = useState(false);
+  const [deletingPrasyaratId, setDeletingPrasyaratId] = useState<number | null>(null);
+
+  const fetchPrasyaratForMk = async (mkId: number) => {
+    try {
+      setLoadingPrasyarat(true);
+      const res = await siakadService.getPrasyaratMks({ mata_kuliah_id: mkId });
+      if (res.data) setPrasyaratList(res.data);
+    } catch (err: any) {
+      toast.error('Gagal memuat prasyarat mata kuliah');
+    } finally {
+      setLoadingPrasyarat(false);
+    }
+  };
+
+  const handleOpenPrasyaratModal = (mk: any) => {
+    setPrasyaratMkTarget(mk);
+    fetchPrasyaratForMk(mk.id);
+  };
+
+  const handleAddPrasyarat = async (values: PrasyaratFormValues) => {
+    if (!prasyaratMkTarget) return;
+    try {
+      await siakadService.createPrasyaratMk({
+        mata_kuliah_id: prasyaratMkTarget.id,
+        prasyarat_id: values.prasyarat_id,
+        tipe: values.tipe,
+        nilai_minimum: values.nilai_minimum,
+      });
+      toast.success('Prasyarat berhasil ditambahkan');
+      fetchPrasyaratForMk(prasyaratMkTarget.id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal menambahkan prasyarat');
+      throw err;
+    }
+  };
+
+  const handleDeletePrasyarat = async (id: number) => {
+    try {
+      setDeletingPrasyaratId(id);
+      await siakadService.deletePrasyaratMk(id);
+      toast.success('Prasyarat berhasil dihapus');
+      if (prasyaratMkTarget) fetchPrasyaratForMk(prasyaratMkTarget.id);
+    } catch (err: any) {
+      toast.error('Gagal menghapus prasyarat');
+    } finally {
+      setDeletingPrasyaratId(null);
+    }
+  };
 
   const fetchInitialData = async () => {
     try {
@@ -63,7 +111,7 @@ export default function MataKuliahPage() {
     try {
       setLoading(true);
       const res = await siakadService.getMataKuliahs({
-        search: appliedFilters.search,
+        search: appliedFilters.search || undefined,
         program_studi_id: appliedFilters.prodi_id || undefined,
         kurikulum_id: appliedFilters.kurikulum || undefined,
         tipe: appliedFilters.tipe || undefined,
@@ -85,67 +133,18 @@ export default function MataKuliahPage() {
     fetchMataKuliah();
   }, [appliedFilters]);
 
-  const handleOpenModal = (item?: any) => {
-    if (item) {
-      setEditingMk(item);
-      const currentKur = kurikulums.find((k) => k.id === item.kurikulum_id);
-      setSelectedProdiModal(currentKur?.program_studi_id || '');
-      setForm({
-        kurikulum_id: item.kurikulum_id,
-        kode_mk: item.kode_mk,
-        nama: item.nama,
-        sks_teori: item.sks_teori,
-        sks_praktik: item.sks_praktik,
-        semester_anjuran: item.semester_anjuran,
-        tipe: item.tipe,
-      });
-    } else {
-      setEditingMk(null);
-      const defaultProdiId = prodis[0]?.id || '';
-      setSelectedProdiModal(defaultProdiId);
-      const matchingKur = kurikulums.find((k) => k.program_studi_id === defaultProdiId);
-      setForm({
-        kurikulum_id: matchingKur?.id || kurikulums[0]?.id || 1,
-        kode_mk: '',
-        nama: '',
-        sks_teori: 2,
-        sks_praktik: 1,
-        semester_anjuran: 1,
-        tipe: 'wajib',
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const handleSave = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    try {
-      setSaving(true);
-      if (editingMk) {
-        await siakadService.updateMataKuliah(editingMk.id, form);
-        toast.success('Mata kuliah berhasil diperbarui');
-      } else {
-        await siakadService.createMataKuliah(form);
-        toast.success('Mata kuliah berhasil ditambahkan');
-      }
-      setIsModalOpen(false);
-      fetchMataKuliah();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan mata kuliah');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async () => {
     if (!deletingMk) return;
     try {
+      setDeleting(true);
       await siakadService.deleteMataKuliah(deletingMk.id);
       toast.success('Mata kuliah berhasil dihapus');
       setDeletingMk(null);
       fetchMataKuliah();
     } catch (err: any) {
       toast.error('Gagal menghapus mata kuliah');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -164,8 +163,8 @@ export default function MataKuliahPage() {
       label: 'NAMA MATA KULIAH',
       render: (row) => (
         <div>
-          <span className="font-bold text-slate-900 text-sm block">{row.nama}</span>
-          <span className="text-2xs text-slate-400 font-mono">
+          <span className="font-bold text-slate-900 text-xs block">{row.nama}</span>
+          <span className="text-2xs text-slate-500 font-mono">
             {row.sks_teori} SKS Teori + {row.sks_praktik} SKS Praktik
           </span>
         </div>
@@ -197,9 +196,9 @@ export default function MataKuliahPage() {
       render: (row) => (
         <div>
           <span className="font-bold text-slate-900 text-xs block">
-            {row.kurikulum?.program_studi?.nama || row.kurikulum?.program_studi?.nama_singkat || 'Umum Kampus'}
+            {row.kurikulum?.program_studi?.nama || '-'}
           </span>
-          <span className="text-2xs text-slate-500 font-mono">
+          <span className="text-2xs text-slate-500">
             {row.kurikulum?.nama || '-'}
           </span>
         </div>
@@ -210,8 +209,8 @@ export default function MataKuliahPage() {
       label: 'TIPE',
       align: 'center',
       render: (row) => (
-        <Badge variant={row.tipe === 'wajib' ? 'blue' : 'purple'} className="capitalize">
-          {row.tipe}
+        <Badge variant={row.tipe === 'pilihan' ? 'purple' : 'blue'} className="capitalize">
+          {tipeLabel(row.tipe)}
         </Badge>
       ),
     },
@@ -224,9 +223,14 @@ export default function MataKuliahPage() {
           <DropdownMenu
             items={[
               {
+                label: 'Kelola Prasyarat MK',
+                icon: <GitFork size={14} />,
+                onClick: () => handleOpenPrasyaratModal(row),
+              },
+              {
                 label: 'Edit Mata Kuliah',
                 icon: <Edit2 size={14} />,
-                onClick: () => handleOpenModal(row),
+                onClick: () => router.push(`/siakad/master/matakuliah/${row.id}/edit`),
               },
               {
                 label: 'Hapus Mata Kuliah',
@@ -263,7 +267,7 @@ export default function MataKuliahPage() {
             <Button
               variant="primary"
               icon={<Plus size={16} />}
-              onClick={() => handleOpenModal()}
+              onClick={() => router.push('/siakad/master/matakuliah/create')}
             >
               Tambah Mata Kuliah
             </Button>
@@ -322,165 +326,129 @@ export default function MataKuliahPage() {
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
-          <div>
-            <label className="label">Program Studi</label>
-            <select
-              value={filterProdi}
-              onChange={(e) => {
-                setFilterProdi(e.target.value);
-                setFilterKurikulum('');
-              }}
-              className="select w-full"
-            >
-              <option value="">Semua Program Studi</option>
-              {prodis.map((p) => (
-                <option key={p.id} value={p.id.toString()}>{p.nama} ({p.jenjang || 'S1'})</option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Program Studi"
+            placeholder="Semua Program Studi"
+            options={prodis.map((p) => ({
+              value: p.id,
+              label: `${p.nama}${p.jenjang ? ` (${p.jenjang})` : ''}`,
+            }))}
+            value={filterProdi || ''}
+            onChange={(val: any) => {
+              setFilterProdi(val ? String(val) : '');
+              setFilterKurikulum('');
+            }}
+            isClearable
+          />
 
-          <div>
-            <label className="label">Kurikulum</label>
-            <select
-              value={filterKurikulum}
-              onChange={(e) => setFilterKurikulum(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Kurikulum</option>
-              {kurikulums
-                .filter((k) => !filterProdi || String(k.program_studi_id) === String(filterProdi))
-                .map((k) => (
-                  <option key={k.id} value={k.id.toString()}>{k.nama} ({k.program_studi?.nama || 'Prodi'})</option>
-                ))}
-            </select>
-          </div>
+          <Select
+            label="Kurikulum"
+            placeholder="Semua Kurikulum"
+            options={kurikulums
+              .filter((k) => !filterProdi || String(k.program_studi_id) === String(filterProdi))
+              .map((k) => ({
+                value: k.id,
+                label: `${k.nama} — ${k.program_studi?.nama || ''}`,
+              }))}
+            value={filterKurikulum || ''}
+            onChange={(val: any) => setFilterKurikulum(val ? String(val) : '')}
+            isClearable
+          />
 
-          <div>
-            <label className="label">Tipe Mata Kuliah</label>
-            <select
-              value={filterTipe}
-              onChange={(e) => setFilterTipe(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Tipe</option>
-              <option value="wajib">Wajib Program Studi</option>
-              <option value="pilihan">Pilihan Bebas</option>
-            </select>
-          </div>
+          <Select
+            label="Tipe Mata Kuliah"
+            placeholder="Semua Tipe"
+            options={tipeOptions}
+            value={filterTipe || ''}
+            onChange={(val: any) => setFilterTipe(val ? String(val) : '')}
+            isClearable
+          />
         </div>
       </Drawer>
 
-      <Modal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingMk ? 'Edit Mata Kuliah' : 'Tambah Mata Kuliah Baru'}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-              Batal
-            </Button>
-            <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Menyimpan...' : 'Simpan Mata Kuliah'}
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Kode Mata Kuliah"
-            required
-            disabled={Boolean(editingMk)}
-            placeholder="IF2101"
-            value={form.kode_mk}
-            onChange={(e) => setForm({ ...form, kode_mk: e.target.value })}
-          />
-
-          <Input
-            label="Nama Mata Kuliah"
-            required
-            placeholder="Pemrograman Web Lanjut"
-            value={form.nama}
-            onChange={(e) => setForm({ ...form, nama: e.target.value })}
-          />
-
-          <div>
-            <label className="label">Kurikulum Acuan *</label>
-            <select
-              disabled={Boolean(editingMk)}
-              value={form.kurikulum_id}
-              onChange={(e) => setForm({ ...form, kurikulum_id: parseInt(e.target.value) })}
-              className="select w-full"
-            >
-              {kurikulums.map((k) => (
-                <option key={k.id} value={k.id}>{k.nama}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="label">Tipe Mata Kuliah *</label>
-            <select
-              value={form.tipe}
-              onChange={(e) => setForm({ ...form, tipe: e.target.value })}
-              className="select w-full"
-            >
-              <option value="wajib">Wajib Program Studi</option>
-              <option value="pilihan">Pilihan</option>
-            </select>
-          </div>
-
-          <Input
-            label="SKS Teori"
-            type="number"
-            required
-            min="0"
-            value={form.sks_teori}
-            onChange={(e) => setForm({ ...form, sks_teori: parseInt(e.target.value) || 0 })}
-          />
-
-          <Input
-            label="SKS Praktik"
-            type="number"
-            required
-            min="0"
-            value={form.sks_praktik}
-            onChange={(e) => setForm({ ...form, sks_praktik: parseInt(e.target.value) || 0 })}
-          />
-
-          <div className="md:col-span-2">
-            <Input
-              label="Semester Anjuran (1 - 8)"
-              type="number"
-              required
-              min="1"
-              max="8"
-              value={form.semester_anjuran}
-              onChange={(e) => setForm({ ...form, semester_anjuran: parseInt(e.target.value) || 1 })}
-            />
-          </div>
-        </form>
-      </Modal>
-
-      {/* Delete Modal */}
-      <Modal
-        open={Boolean(deletingMk)}
+      <ConfirmDialog
+        isOpen={Boolean(deletingMk)}
         onClose={() => setDeletingMk(null)}
+        onConfirm={handleDelete}
         title="Hapus Mata Kuliah?"
-        size="sm"
+        message={
+          <span>
+            Apakah Anda yakin ingin menghapus mata kuliah <strong>{deletingMk?.nama}</strong> ({deletingMk?.kode_mk})? Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        isLoading={deleting}
+      />
+
+      {/* Modal Kelola Prasyarat Mata Kuliah (<= 5 field) */}
+      <Modal
+        open={Boolean(prasyaratMkTarget)}
+        onClose={() => setPrasyaratMkTarget(null)}
+        title={`Kelola Prasyarat: ${prasyaratMkTarget?.kode_mk} — ${prasyaratMkTarget?.nama}`}
+        size="lg"
         footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingMk(null)}>
-              Batal
-            </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Hapus
-            </Button>
-          </>
+          <Button variant="secondary" onClick={() => setPrasyaratMkTarget(null)}>
+            Tutup
+          </Button>
         }
       >
-        <p className="text-slate-500 text-sm">
-          Apakah Anda yakin ingin menghapus mata kuliah <strong>{deletingMk?.nama}</strong> ({deletingMk?.kode_mk})? Tindakan ini tidak dapat dibatalkan.
-        </p>
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            {prasyaratMkTarget && (
+              <PrasyaratForm
+                key={prasyaratMkTarget.id}
+                excludeMkId={prasyaratMkTarget.id}
+                onSubmit={handleAddPrasyarat}
+              />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-slate-800 uppercase">
+              Daftar Prasyarat Terdaftar ({prasyaratList.length})
+            </h4>
+
+            {loadingPrasyarat ? (
+              <p className="text-xs text-slate-400 py-3 text-center">Memuat daftar prasyarat...</p>
+            ) : prasyaratList.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
+                Belum ada mata kuliah prasyarat yang ditentukan untuk mata kuliah ini.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+                {prasyaratList.map((item) => (
+                  <div key={item.id} className="p-3 bg-white flex items-center justify-between hover:bg-slate-50 transition">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-slate-900">
+                          {item.prasyarat?.kode_mk}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-700">
+                          {item.prasyarat?.nama}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant={item.tipe === 'lulus' ? 'green' : 'blue'} className="text-2xs">
+                          {item.tipe === 'lulus' ? `Wajib Lulus (Min. ${item.nilai_minimum})` : 'Pernah Diambil'}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={<Trash2 size={12} />}
+                      onClick={() => handleDeletePrasyarat(item.id)}
+                      disabled={deletingPrasyaratId === item.id}
+                      className="text-2xs text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+                    >
+                      {deletingPrasyaratId === item.id ? 'Menghapus...' : 'Hapus'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   );

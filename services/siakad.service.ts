@@ -19,8 +19,56 @@ export const siakadService = {
     return response.data;
   },
 
+  updateTahunAkademik: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/akademik/tahun-akademik/${id}`, payload);
+    return response.data;
+  },
+
   setActiveTahunAkademik: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.patch(`/v1/siakad/akademik/tahun-akademik/${id}/set-active`);
+    return response.data;
+  },
+
+  // Skala Nilai Mutu
+  getSkalaNilais: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/akademik/skala-nilai', { params });
+    return response.data;
+  },
+
+  createSkalaNilai: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/akademik/skala-nilai', payload);
+    return response.data;
+  },
+
+  updateSkalaNilai: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/akademik/skala-nilai/${id}`, payload);
+    return response.data;
+  },
+
+  deleteSkalaNilai: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/akademik/skala-nilai/${id}`);
+    return response.data;
+  },
+
+  // Prasyarat Mata Kuliah
+  getPrasyaratMks: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/akademik/prasyarat-mk', { params });
+    return response.data;
+  },
+
+  createPrasyaratMk: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/akademik/prasyarat-mk', payload);
+    return response.data;
+  },
+
+  deletePrasyaratMk: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/akademik/prasyarat-mk/${id}`);
+    return response.data;
+  },
+
+  // Referensi Opsi Master Akademik (pengganti literal: jenjang, akreditasi, tipe MK, dsb.)
+  getReferensiOptions: async (tipe: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/akademik/referensi-options', { params: { tipe } });
     return response.data;
   },
 
@@ -50,13 +98,54 @@ export const siakadService = {
     return response.data;
   },
 
-  generateNim: async (payload: { program_studi_id: number; angkatan: number; nama_lengkap: string; jenis_kelamin: string; id?: number }): Promise<ApiResponse<any>> => {
+  generateNim: async (payload: {
+    program_studi_id: number;
+    angkatan: number;
+    nama_lengkap: string;
+    jenis_kelamin: string;
+    id?: number;
+    custom_nim?: string;
+    use_no_pendaftaran?: boolean;
+  }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/mahasiswa/generate-nim', payload);
     return response.data;
   },
 
-  generateMissingNims: async (): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post('/v1/siakad/mahasiswa/generate-missing-nims');
+  generateMissingNims: async (params?: { scheme?: 'standard' | 'no_pendaftaran' }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/mahasiswa/generate-missing-nims', params);
+    return response.data;
+  },
+
+  exportNimData: async (params?: any): Promise<Blob> => {
+    const response = await apiClient.get('/v1/siakad/mahasiswa/export-nim', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  exportBukuInduk: async (params?: { program_studi_id?: number | string; angkatan?: number | string; status?: string }): Promise<Blob> => {
+    const response = await apiClient.get('/v1/siakad/mahasiswa/export-buku-induk', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  updateMahasiswaStatus: async (id: number, payload: { status: string; alasan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/mahasiswa/${id}/status`, payload);
+    return response.data;
+  },
+
+  bulkUpdateMahasiswaStatus: async (payload: { ids: number[]; status: string; alasan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/mahasiswa/bulk-status', payload);
+    return response.data;
+  },
+
+  importNimData: async (formData: FormData): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/mahasiswa/import-nim', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 
@@ -104,6 +193,11 @@ export const siakadService = {
 
   bulkAssignPa: async (payload: { mahasiswa_ids: number[]; dosen_wali_id: number }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/mahasiswa/bulk-assign-pa', payload);
+    return response.data;
+  },
+
+  autoDistributePa: async (payload: { dosen_ids: number[]; program_studi_id?: number; angkatan?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/mahasiswa/auto-distribute-pa', payload);
     return response.data;
   },
 
@@ -227,6 +321,11 @@ export const siakadService = {
     return response.data;
   },
 
+  getKelasDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/perkuliahan/kelas/${id}`);
+    return response.data;
+  },
+
   updateKelas: async (id: number, payload: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.put(`/v1/siakad/perkuliahan/kelas/${id}`, payload);
     return response.data;
@@ -240,6 +339,11 @@ export const siakadService = {
   // KRS API
   getKrs: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/perkuliahan/krs', { params });
+    return response.data;
+  },
+
+  getKrsMonitoring: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/krs/monitoring', { params });
     return response.data;
   },
 
@@ -335,6 +439,11 @@ export const siakadService = {
     return response.data;
   },
 
+  syncKelasKomponenFromObe: async (kelasId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/obe/kelas/${kelasId}/sync-komponen-obe`);
+    return response.data;
+  },
+
   getKelasNilaiObe: async (kelasId: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.get(`/v1/siakad/obe/kelas/${kelasId}/nilai`);
     return response.data;
@@ -422,6 +531,36 @@ export const siakadService = {
     return response.data;
   },
 
+  // Matrix CPL ↔ MK
+  getMatrixCplMk: async (params?: { program_studi_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/matrix-cpl-mk', { params });
+    return response.data;
+  },
+
+  toggleMatrixCplMk: async (payload: { mata_kuliah_id: number; cpl_id: number; is_checked: boolean }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/matrix-cpl-mk/toggle', payload);
+    return response.data;
+  },
+
+  // Audit Pemetaan OBE per Mata Kuliah
+  getAuditPemetaan: async (params?: { program_studi_id?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/audit-pemetaan', { params });
+    return response.data;
+  },
+
+  // Kepatuhan / Ketertiban Dosen Input Nilai (Integrasi SIMPEG)
+  getDosenKepatuhanNilai: async (params?: { tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/dosen-kepatuhan-nilai', { params });
+    return response.data;
+  },
+
+  // Mode Penilaian
+  updateModePenilaian: async (taId: number, modeOrPayload: 'full_obe' | 'semi_obe' | 'konvensional' | { mode_penilaian: string }): Promise<ApiResponse<any>> => {
+    const payload = typeof modeOrPayload === 'string' ? { mode_penilaian: modeOrPayload } : modeOrPayload;
+    const response = await apiClient.patch(`/v1/siakad/akademik/tahun-akademik/${taId}/mode-penilaian`, payload);
+    return response.data;
+  },
+
   // Absensi Mahasiswa
   getPertemuans: async (kelasId: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.get(`/v1/siakad/perkuliahan/kelas/${kelasId}/pertemuan`);
@@ -440,11 +579,6 @@ export const siakadService = {
 
   saveAbsensi: async (pertemuanId: number, payload: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.post(`/v1/siakad/perkuliahan/pertemuan/${pertemuanId}/absensi`, payload);
-    return response.data;
-  },
-
-  updateModePenilaian: async (taId: number, payload: { mode_penilaian: string }): Promise<ApiResponse<any>> => {
-    const response = await apiClient.patch(`/v1/siakad/akademik/tahun-akademik/${taId}/mode-penilaian`, payload);
     return response.data;
   },
 

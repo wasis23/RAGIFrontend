@@ -4,7 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Drawer } from '@/components/ui/Drawer';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 import {
@@ -15,24 +19,31 @@ import {
   Save,
   RefreshCw,
   Database,
-  Calendar,
   Sparkles,
-  ChevronRight,
   BookOpen,
   Trash2,
   Plus,
+  Filter,
+  Search,
+  Eye,
 } from 'lucide-react';
 
 export default function AdminMahasiswaBiodataPage() {
-  const [kelasOptions, setKelasOptions] = useState<any[]>([]);
-  const [mhsOptions, setMhsOptions] = useState<any[]>([]);
   const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
-  
-  const [selectedKelasId, setSelectedKelasId] = useState<string>('');
+  const [prodis, setProdis] = useState<any[]>([]);
+
+  // Direktori mahasiswa (pencarian langsung, tanpa perantara kelas)
+  const [directory, setDirectory] = useState<any[]>([]);
+  const [meta, setMeta] = useState<any>(undefined);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filterProdi, setFilterProdi] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
+
   const [selectedMhsId, setSelectedMhsId] = useState<string>('');
-  
-  const [loadingKelas, setLoadingKelas] = useState(true);
-  const [loadingMhs, setLoadingMhs] = useState(false);
+
+  const [loadingDir, setLoadingDir] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncingFeeder, setSyncingFeeder] = useState(false);
@@ -79,51 +90,52 @@ export default function AdminMahasiswaBiodataPage() {
     details: [] as any[],
   });
 
-  // Fetch initial classes and courses
+  // Cari langsung di seluruh mahasiswa (debounce 400ms), tanpa perantara kelas
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        setLoadingKelas(true);
-        const [kelasRes, mkRes] = await Promise.all([
-          siakadService.getKelas({ per_page: 200 }),
+        const [mkRes, prodiRes] = await Promise.all([
           siakadService.getMataKuliahs({ per_page: 200 }),
+          siakadService.getProdi(),
         ]);
-        if (kelasRes.data) setKelasOptions(kelasRes.data);
         if (mkRes.data) setMatakuliahs(mkRes.data);
+        if (prodiRes.data) setProdis(prodiRes.data);
       } catch (err) {
-        toast.error('Gagal memuat data kelas / mata kuliah');
-      } finally {
-        setLoadingKelas(false);
+        toast.error('Gagal memuat data referensi');
       }
     };
     fetchInitialData();
   }, []);
 
-  // Fetch students when class changes
   useEffect(() => {
-    if (!selectedKelasId) {
-      setMhsOptions([]);
-      setSelectedMhsId('');
-      setMahasiswa(null);
-      return;
-    }
-    const fetchStudents = async () => {
+    if (selectedMhsId) return;
+    const fetchDirectory = async () => {
       try {
-        setLoadingMhs(true);
-        const res = await siakadService.getMahasiswas({ kelas_id: selectedKelasId, per_page: 100 });
-        if (res.data) {
-          setMhsOptions(res.data);
-          setSelectedMhsId('');
-          setMahasiswa(null);
-        }
+        setLoadingDir(true);
+        const res: any = await siakadService.getMahasiswas({
+          search: debouncedSearch || undefined,
+          program_studi_id: filterProdi || undefined,
+          page,
+          per_page: 10,
+        });
+        setDirectory(res.data || []);
+        if (res.meta) setMeta(res.meta);
       } catch (err) {
-        toast.error('Gagal memuat mahasiswa kelas');
+        toast.error('Gagal memuat direktori mahasiswa');
       } finally {
-        setLoadingMhs(false);
+        setLoadingDir(false);
       }
     };
-    fetchStudents();
-  }, [selectedKelasId]);
+    fetchDirectory();
+  }, [debouncedSearch, filterProdi, page, selectedMhsId]);
 
   // Fetch student profile details when student changes
   useEffect(() => {
@@ -318,13 +330,15 @@ export default function AdminMahasiswaBiodataPage() {
     }
   };
 
+  const [confirmDeleteKonversi, setConfirmDeleteKonversi] = useState(false);
+
   const handleDeleteKonversi = async () => {
     if (!mahasiswa?.konversi_id) return;
-    if (!window.confirm('Apakah Anda yakin ingin menghapus data konversi transfer mahasiswa ini?')) return;
     try {
       setSaving(true);
       await siakadService.deleteKonversi(mahasiswa.konversi_id);
       toast.success('Konversi transfer berhasil dihapus');
+      setConfirmDeleteKonversi(false);
       setKonversiForm({
         kampus_asal: '',
         prodi_asal: '',
@@ -346,62 +360,132 @@ export default function AdminMahasiswaBiodataPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Kelola Biodata Mahasiswa (Kelas)"
-        description="Pilih kelas dan mahasiswa untuk menampilkan, melengkapi, serta menyelaraskan biodata resmi PDDikti Neo Feeder."
+        title="Kelola Biodata Mahasiswa"
+        description="Cari mahasiswa langsung by NIM/nama, buka profil, lengkapi biodata resmi PDDikti Neo Feeder."
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD', href: '/siakad' },
           { label: 'Civitas' },
           { label: 'Biodata Mahasiswa' },
         ]}
+        action={
+          <div className="flex items-center gap-2">
+            {!selectedMhsId && (
+              <Button variant="outline" icon={<Filter size={15} />} className="font-bold text-xs min-h-[38px]" onClick={() => setShowFilter(true)}>
+                Filter
+              </Button>
+            )}
+            {selectedMhsId && (
+              <Button
+                variant="outline"
+                className="font-bold text-xs min-h-[38px]"
+                onClick={() => {
+                  setSelectedMhsId('');
+                  setMahasiswa(null);
+                  setPage(1);
+                }}
+              >
+                ← Ganti Mahasiswa
+              </Button>
+            )}
+          </div>
+        }
       />
 
-      {/* Selectors Card */}
-      <div className="card p-6 bg-slate-50 border border-slate-200 shadow-sm rounded-2xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="label font-bold text-slate-800">1. Pilih Kelas / Jadwal Kuliah *</label>
-            <select
-              value={selectedKelasId}
-              onChange={(e) => setSelectedKelasId(e.target.value)}
-              className="select w-full bg-white border-slate-300 font-medium"
-              disabled={loadingKelas}
-            >
-              <option value="">-- Pilih Kelas Kuliah --</option>
-              {kelasOptions.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.mata_kuliah?.nama} ({k.nama_kelas}) - {k.hari?.toUpperCase()} {k.jam_mulai}
-                </option>
-              ))}
-            </select>
-            {loadingKelas && <p className="text-2xs text-slate-400 mt-1 animate-pulse">Memuat daftar kelas...</p>}
+      {/* Direktori pencarian langsung */}
+      {!selectedMhsId && (
+        <div className="space-y-4">
+          <div className="card p-4 flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div className="flex-1">
+              <Input
+                label="Cari Mahasiswa (NIM / Nama / NIK)"
+                placeholder="Ketik NIM atau nama... (otomatis mencari)"
+                prefixIcon={<Search size={15} />}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="w-full sm:w-64">
+              <Select
+                label="Program Studi"
+                placeholder="Semua Prodi"
+                options={prodis.map((p) => ({ value: p.id, label: p.nama }))}
+                value={filterProdi || ''}
+                onChange={(v: any) => {
+                  setFilterProdi(String(v || ''));
+                  setPage(1);
+                }}
+                isClearable
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="label font-bold text-slate-800">2. Pilih Mahasiswa Terdaftar *</label>
-            <select
-              value={selectedMhsId}
-              onChange={(e) => setSelectedMhsId(e.target.value)}
-              className="select w-full bg-white border-slate-300 font-medium"
-              disabled={!selectedKelasId || loadingMhs}
-            >
-              <option value="">
-                {!selectedKelasId
-                  ? '-- Pilih Kelas Terlebih Dahulu --'
-                  : mhsOptions.length === 0
-                  ? '-- Tidak Ada Mahasiswa di Kelas Ini --'
-                  : '-- Pilih Mahasiswa --'}
-              </option>
-              {mhsOptions.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nim || 'Belum ada NIM'} - {m.nama_lengkap}
-                </option>
-              ))}
-            </select>
-            {loadingMhs && <p className="text-2xs text-slate-400 mt-1 animate-pulse">Memuat daftar mahasiswa...</p>}
-          </div>
+          <DataTable
+            columns={[
+              {
+                key: 'nim',
+                label: 'NIM & NAMA',
+                render: (m: any) => (
+                  <div>
+                    <span className="font-bold text-slate-900 block text-xs">{m.nama_lengkap}</span>
+                    <span className="font-mono text-2xs text-slate-500">{m.nim || 'Belum ada NIM'}</span>
+                  </div>
+                ),
+              },
+              {
+                key: 'prodi',
+                label: 'PRODI / ANGKATAN',
+                render: (m: any) => (
+                  <div>
+                    <span className="text-xs text-slate-700 block">{m.program_studi?.nama || '-'}</span>
+                    <span className="text-2xs text-slate-400">Angkatan {m.angkatan || '-'}</span>
+                  </div>
+                ),
+              },
+              {
+                key: 'status',
+                label: 'STATUS',
+                align: 'center',
+                render: (m: any) => <StatusBadge active={m.status === 'aktif'} />,
+              },
+              {
+                key: 'aksi',
+                label: 'AKSI',
+                align: 'right',
+                render: (m: any) => (
+                  <Button variant="primary" icon={<Eye size={13} />} className="text-2xs py-1.5 px-3 h-auto font-bold" onClick={() => setSelectedMhsId(String(m.id))}>
+                    Buka Biodata →
+                  </Button>
+                ),
+              },
+            ]}
+            data={directory}
+            isLoading={loadingDir}
+            meta={meta}
+            onPageChange={setPage}
+            emptyMessage="Tidak ada mahasiswa ditemukan. Coba kata kunci lain."
+          />
+
+          <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Mahasiswa">
+            <div className="flex flex-col gap-5">
+              <Select
+                label="Program Studi"
+                placeholder="Semua Prodi"
+                options={prodis.map((p) => ({ value: p.id, label: p.nama }))}
+                value={filterProdi || ''}
+                onChange={(v: any) => {
+                  setFilterProdi(String(v || ''));
+                  setPage(1);
+                }}
+                isClearable
+              />
+              <Button variant="secondary" onClick={() => { setSearch(''); setFilterProdi(''); setPage(1); setShowFilter(false); }}>
+                Reset
+              </Button>
+            </div>
+          </Drawer>
         </div>
-      </div>
+      )}
 
       {/* Loading detail state */}
       {loadingDetail && (
@@ -820,7 +904,7 @@ export default function AdminMahasiswaBiodataPage() {
                           size="sm"
                           icon={<Trash2 size={13} />}
                           className="font-bold text-xs h-auto py-1 px-3 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100"
-                          onClick={handleDeleteKonversi}
+                          onClick={() => setConfirmDeleteKonversi(true)}
                           disabled={saving}
                           type="button"
                         >
@@ -970,6 +1054,17 @@ export default function AdminMahasiswaBiodataPage() {
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDeleteKonversi}
+        onClose={() => setConfirmDeleteKonversi(false)}
+        onConfirm={handleDeleteKonversi}
+        title="Hapus Konversi Transfer?"
+        message="Data penyetaraan MK mahasiswa ini akan dihapus dan tidak dapat dibatalkan."
+        confirmText="Ya, Hapus"
+        variant="danger"
+        isLoading={saving}
+      />
     </div>
   );
 }

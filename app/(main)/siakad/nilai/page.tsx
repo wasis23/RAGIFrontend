@@ -24,14 +24,20 @@ import {
   Target,
   BarChart3,
   Check,
-  AlertCircle
+  AlertCircle,
+  UserX,
+  RefreshCw
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SIAKAD_OPTION_TYPES, useSiakadOptions } from '@/lib/siakad-options';
 import { siakadService } from '@/services/siakad.service';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
@@ -51,6 +57,7 @@ export default function InputNilaiPage() {
   // Multi-period state
   const [tahunAkademiks, setTahunAkademiks] = useState<any[]>([]);
   const [selectedTaId, setSelectedTaId] = useState<number | null>(null);
+  const modeOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.MODE_PENILAIAN);
 
   // Transkrip data
   const [transkripData, setTranskripData] = useState<any | null>(null);
@@ -92,11 +99,12 @@ export default function InputNilaiPage() {
   const [editingKomponen, setEditingKomponen] = useState<any | null>(null);
   const [formKomponen, setFormKomponen] = useState({
     nama_komponen: '',
-    teknik_penilaian: 'tugas',
+    teknik_penilaian: '',
     bobot: 20,
     cpmk_id: '',
   });
   const [savingKomponen, setSavingKomponen] = useState(false);
+  const teknikOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.TEKNIK_PENILAIAN);
 
   // Custom CPMK by Dosen
   const [isAddingCpmk, setIsAddingCpmk] = useState(false);
@@ -113,10 +121,14 @@ export default function InputNilaiPage() {
   const [formObeScores, setFormObeScores] = useState<Record<number, number>>({});
   const [isFinalObe, setIsFinalObe] = useState(true);
   const [savingObeScores, setSavingObeScores] = useState(false);
+  const [syncingKomponen, setSyncingKomponen] = useState(false);
+  const [komponenToDelete, setKomponenToDelete] = useState<any | null>(null);
+  const [deletingKomponen, setDeletingKomponen] = useState(false);
 
   // Student OBE Portfolio Tab
   const [portofolioObeData, setPortofolioObeData] = useState<any | null>(null);
   const [loadingPortofolioObe, setLoadingPortofolioObe] = useState(false);
+  const [portofolioError, setPortofolioError] = useState<string | null>(null);
 
   // Student Porto Detail Modal / Drawer from class grading view
   const [portoDrawerStudent, setPortoDrawerStudent] = useState<any | null>(null);
@@ -223,16 +235,29 @@ export default function InputNilaiPage() {
     }
   };
 
-  const fetchPortofolioObe = async () => {
-    const targetMhsId = selectedMahasiswa?.id ? selectedMahasiswa.id : undefined;
+  const fetchPortofolioObe = async (mhsId?: number) => {
+    const targetMhsId = mhsId ?? selectedMahasiswa?.id;
+    // Admin/dosen wajib memilih mahasiswa dulu; mahasiswa memakai akunnya sendiri.
+    if (!isMahasiswa && !targetMhsId) return;
     try {
       setLoadingPortofolioObe(true);
+      setPortofolioError(null);
       const res = await siakadService.getMahasiswaPortofolioObe(targetMhsId);
       if (res.data) {
         setPortofolioObeData(res.data);
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat portofolio capaian OBE');
+      const status = err?.response?.status;
+      setPortofolioObeData(null);
+      if (status === 404) {
+        setPortofolioError(
+          isMahasiswa
+            ? 'Akun Anda belum terhubung dengan data mahasiswa. Hubungi BAAK untuk menautkan NIM ke akun ini.'
+            : 'Data mahasiswa tidak ditemukan. Pilih mahasiswa lain dari direktori.'
+        );
+      } else {
+        toast.error('Gagal memuat portofolio capaian OBE');
+      }
     } finally {
       setLoadingPortofolioObe(false);
     }
@@ -256,6 +281,11 @@ export default function InputNilaiPage() {
   useEffect(() => {
     fetchTahunAkademiks();
   }, []);
+
+  // Mahasiswa dialihkan ke menu Hasil Studi (KHS + Transkrip + Porto digabung)
+  useEffect(() => {
+    if (isMahasiswa) router.replace('/siakad/hasil-studi');
+  }, [isMahasiswa]);
 
   useEffect(() => {
     if (!isMahasiswa) {
@@ -351,7 +381,7 @@ export default function InputNilaiPage() {
       });
       toast.success('Komponen penilaian OBE berhasil diperbarui');
       setEditingKomponen(null);
-      setFormKomponen({ nama_komponen: '', teknik_penilaian: 'tugas', bobot: 20, cpmk_id: '' });
+      setFormKomponen({ nama_komponen: '', teknik_penilaian: '', bobot: 20, cpmk_id: '' });
       fetchObeKelasData(selectedKelasObj.id);
     } catch (err: any) {
       toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan komponen asesmen');
@@ -360,14 +390,32 @@ export default function InputNilaiPage() {
     }
   };
 
-  const handleDeleteKomponen = async (id: number) => {
-    if (!confirm('Hapus komponen penilaian OBE ini?')) return;
+  const handleDeleteKomponen = async () => {
+    if (!komponenToDelete || !selectedKelasObj) return;
     try {
-      await siakadService.deleteKelasKomponenObe(id);
+      setDeletingKomponen(true);
+      await siakadService.deleteKelasKomponenObe(komponenToDelete.id);
       toast.success('Komponen berhasil dihapus');
+      setKomponenToDelete(null);
       fetchObeKelasData(selectedKelasObj.id);
     } catch (err: any) {
-      toast.error('Gagal menghapus komponen');
+      toast.error(err.response?.data?.message || 'Gagal menghapus komponen');
+    } finally {
+      setDeletingKomponen(false);
+    }
+  };
+
+  const handleSyncKomponenFromMaster = async () => {
+    if (!selectedKelasObj) return;
+    try {
+      setSyncingKomponen(true);
+      const res = await siakadService.syncKelasKomponenFromObe(selectedKelasObj.id);
+      toast.success(res.message || 'Komponen asesmen berhasil disinkronkan dari Master CPMK OBE');
+      fetchObeKelasData(selectedKelasObj.id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal sinkronisasi dari Master OBE');
+    } finally {
+      setSyncingKomponen(false);
     }
   };
 
@@ -501,7 +549,8 @@ export default function InputNilaiPage() {
           className="text-2xs py-1.5 px-3 h-auto font-bold shadow-xs"
           onClick={() => {
             setSelectedMahasiswa(m);
-            fetchPortofolioObe();
+            setPortofolioObeData(null);
+            fetchPortofolioObe(m.id);
           }}
         >
           Lihat Detail Portofolio OBE →
@@ -554,10 +603,11 @@ export default function InputNilaiPage() {
       label: 'KODE & MATA KULIAH',
       render: (row) => {
         const mk = row.krs_detail?.kelas?.mata_kuliah;
+        const kelas = row.krs_detail?.kelas;
         return (
           <div>
-            <span className="font-extrabold text-slate-900 block">{mk?.nama || 'Mata Kuliah'}</span>
-            <span className="text-2xs text-slate-400 font-mono">{mk?.kode_mk || 'MK'}</span>
+            <span className="font-extrabold text-slate-900 block text-xs">{mk?.nama || 'Mata Kuliah'}</span>
+            <span className="text-2xs text-slate-400 font-mono">{mk?.kode_mk || 'MK'} • {kelas?.nama_kelas || ''}</span>
           </div>
         );
       },
@@ -567,46 +617,14 @@ export default function InputNilaiPage() {
       label: 'SKS',
       align: 'center',
       render: (row) => (
-        <span className="font-bold font-mono text-slate-800">
-          {row.krs_detail?.kelas?.mata_kuliah?.total_sks || 3} SKS
+        <span className="font-bold font-mono text-slate-800 text-xs">
+          {row.krs_detail?.kelas?.mata_kuliah?.total_sks || 3}
         </span>
       ),
     },
     {
-      key: 'tugas',
-      label: 'TUGAS (20%)',
-      align: 'center',
-      render: (row) => (
-        <span className="font-mono text-xs">{Number(row.nilai_harian || 0).toFixed(1)}</span>
-      ),
-    },
-    {
-      key: 'kuis',
-      label: 'KUIS (15%)',
-      align: 'center',
-      render: (row) => (
-        <span className="font-mono text-xs">{Number(row.nilai_praktik || 0).toFixed(1)}</span>
-      ),
-    },
-    {
-      key: 'uts',
-      label: 'UTS (30%)',
-      align: 'center',
-      render: (row) => (
-        <span className="font-mono text-xs">{Number(row.nilai_uts || 0).toFixed(1)}</span>
-      ),
-    },
-    {
-      key: 'uas',
-      label: 'PROYEK/UAS (35%)',
-      align: 'center',
-      render: (row) => (
-        <span className="font-mono text-xs">{Number(row.nilai_uas || 0).toFixed(1)}</span>
-      ),
-    },
-    {
       key: 'nilai_akhir',
-      label: 'NILAI AKHIR',
+      label: 'ANGKA',
       align: 'center',
       render: (row) => (
         <span className="font-mono font-black text-slate-900 text-xs">
@@ -622,10 +640,12 @@ export default function InputNilaiPage() {
         const variant =
           row.nilai_huruf === 'A' || row.nilai_huruf === 'A-'
             ? 'green'
-            : row.nilai_huruf === 'B+' || row.nilai_huruf === 'B'
+            : row.nilai_huruf === 'B+' || row.nilai_huruf === 'B' || row.nilai_huruf === 'B-'
             ? 'blue'
             : row.nilai_huruf === 'C+' || row.nilai_huruf === 'C'
             ? 'amber'
+            : row.nilai_huruf === 'D'
+            ? 'rose'
             : 'gray';
         return <Badge variant={variant as any}>{row.nilai_huruf || '-'}</Badge>;
       },
@@ -641,14 +661,27 @@ export default function InputNilaiPage() {
       ),
     },
     {
-      key: 'status',
-      label: 'STATUS KELULUSAN',
+      key: 'mutu_x_sks',
+      label: 'SKS × MUTU',
       align: 'center',
       render: (row) => {
-        const isLulus = row.nilai_huruf !== 'E' && row.nilai_huruf !== 'D';
+        const sks = row.krs_detail?.kelas?.mata_kuliah?.total_sks || 3;
+        return (
+          <span className="font-mono font-black text-slate-900 text-xs">
+            {(Number(row.bobot_mutu || 0) * sks).toFixed(2)}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      align: 'center',
+      render: (row) => {
+        const isLulus = row.nilai_huruf !== 'E' && row.nilai_huruf !== 'D' && !!row.nilai_huruf;
         return (
           <Badge variant={isLulus ? 'green' : 'rose'} className="text-2xs font-bold">
-            {isLulus ? '✓ Lulus (Tercapai)' : '✗ Belum Lulus'}
+            {row.is_final ? (isLulus ? '✓ Lulus' : '✗ Belum Lulus') : 'Draft'}
           </Badge>
         );
       },
@@ -733,61 +766,29 @@ export default function InputNilaiPage() {
           ]}
           action={
             <div className="flex items-center gap-2.5 flex-wrap justify-start md:justify-end">
-              {activeTab === 'khs' && (
-                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                  <Calendar size={14} className="text-primary-600 shrink-0" />
-                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Periode:</span>
-                  <select
-                    value={selectedTaId || ''}
-                    onChange={(e) => {
-                      setSelectedTaId(Number(e.target.value));
-                      setSelectedKelasObj(null);
-                    }}
-                    className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
-                  >
-                    {(isMahasiswa && transkripData?.mahasiswa?.angkatan
-                      ? tahunAkademiks.filter((ta) => {
-                          const startYear = ta.tahun_mulai || Number(String(ta.kode).slice(0, 4));
-                          return startYear >= Number(transkripData.mahasiswa.angkatan) || ta.is_active;
-                        })
-                      : tahunAkademiks
-                    ).map((ta) => (
-                      <option key={ta.id} value={ta.id}>
-                        {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {activeTab === 'khs' && selectedTaObj && (
+                <Badge variant="blue" className="inline-flex items-center gap-1.5 px-3 py-1.5">
+                  <Calendar size={12} />
+                  {selectedTaObj.nama}
+                  {selectedTaObj.is_active ? ' • Aktif' : ''}
+                </Badge>
               )}
 
-              {isAdmin && selectedTaObj && (
-                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                  <Settings size={14} className="text-emerald-600 shrink-0" />
-                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Mode Penilaian:</span>
-                  <select
-                    value={selectedTaObj.mode_penilaian || 'semi_obe'}
-                    onChange={async (e) => {
-                      const nextMode = e.target.value;
-                      try {
-                        await siakadService.updateModePenilaian(selectedTaObj.id, { mode_penilaian: nextMode });
-                        toast.success(`Mode penilaian periode berhasil diubah ke ${nextMode}`);
-                        setTahunAkademiks(prev => prev.map(t => t.id === selectedTaObj.id ? { ...t, mode_penilaian: nextMode } : t));
-                      } catch(err) {
-                        toast.error('Gagal memperbarui mode penilaian');
-                      }
-                    }}
-                    className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
-                  >
-                    <option value="full_obe">Pure OBE (CPMK)</option>
-                    <option value="semi_obe">Hybrid OBE (UTS/UAS)</option>
-                    <option value="konvensional">Konvensional</option>
-                  </select>
-                </div>
+              {isAdmin && selectedTaObj?.mode_penilaian && (
+                <button
+                  onClick={() => router.push('/siakad/master/konfigurasi-penilaian')}
+                  title="Kelola mode penilaian"
+                  className="cursor-pointer"
+                >
+                  <Badge variant="purple" className="inline-flex items-center gap-1.5 px-3 py-1.5">
+                    <Settings size={12} />
+                    {modeOptions.find((o) => o.value === selectedTaObj.mode_penilaian)?.label || selectedTaObj.mode_penilaian}
+                  </Badge>
+                </button>
               )}
 
-              {/* Filter Button for Admin & Dosen */}
-              {!isMahasiswa && (
-                ((activeTab === 'khs' && !selectedKelasObj) ||
+              {/* Filter Button (periode via Drawer, termasuk mahasiswa di tab KHS) */}
+              {((activeTab === 'khs' && (isMahasiswa || !selectedKelasObj)) ||
                  (activeTab === 'portofolio_obe' && !selectedMahasiswa) ||
                  (activeTab === 'transkrip' && !selectedMahasiswa)) && (
                   <Button
@@ -798,8 +799,7 @@ export default function InputNilaiPage() {
                   >
                     Filter
                   </Button>
-                )
-              )}
+                )}
 
               {/* Tombol Cetak KHS */}
               {activeTab === 'khs' && (isMahasiswa || (selectedMahasiswa && !selectedKelasObj)) && (
@@ -828,42 +828,22 @@ export default function InputNilaiPage() {
           }
         />
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation — menu ini khusus Penilaian Kelas; Hasil Studi pindah ke /siakad/hasil-studi */}
         <div className="flex items-center gap-2 border-b border-slate-200">
           <button
             onClick={() => setActiveTab('khs')}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
-              activeTab === 'khs'
-                ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
+            className="flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl"
           >
             <BookOpen size={16} />
             Penilaian & KHS Kelas (OBE)
           </button>
 
           <button
-            onClick={() => setActiveTab('portofolio_obe')}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
-              activeTab === 'portofolio_obe'
-                ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Target size={16} />
-            Portofolio Capaian OBE (CPL & CPMK)
-          </button>
-
-          <button
-            onClick={() => setActiveTab('transkrip')}
-            className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
-              activeTab === 'transkrip'
-                ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
+            onClick={() => router.push('/siakad/hasil-studi')}
+            className="flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer border-transparent text-slate-500 hover:text-slate-900"
           >
             <Award size={16} />
-            Transkrip Akademik Kumulatif
+            Hasil Studi Mahasiswa (Transkrip + Porto) →
           </button>
         </div>
 
@@ -911,6 +891,26 @@ export default function InputNilaiPage() {
                     }
                   >
                     <div className="flex flex-col gap-5">
+                      <Select
+                        label="Periode Akademik"
+                        placeholder="Pilih periode semester..."
+                        options={(isMahasiswa && transkripData?.mahasiswa?.angkatan
+                          ? tahunAkademiks.filter((ta) => {
+                              const startYear = ta.tahun_mulai || Number(String(ta.kode).slice(0, 4));
+                              return startYear >= Number(transkripData.mahasiswa.angkatan) || ta.is_active;
+                            })
+                          : tahunAkademiks
+                        ).map((ta) => ({
+                          value: ta.id,
+                          label: `${ta.nama}${ta.is_active ? ' — Aktif' : ''}`,
+                        }))}
+                        value={selectedTaId || ''}
+                        onChange={(val: any) => {
+                          setSelectedTaId(Number(val));
+                          setSelectedKelasObj(null);
+                        }}
+                      />
+
                       <Input
                         label="Pencarian Kelas"
                         placeholder="Cari nama mata kuliah atau kelas..."
@@ -918,19 +918,17 @@ export default function InputNilaiPage() {
                         onChange={(e) => setSearchKelas(e.target.value)}
                       />
 
-                      <div>
-                        <label className="label">Program Studi</label>
-                        <select
-                          value={filterProdiKelas}
-                          onChange={(e) => setFilterProdiKelas(e.target.value)}
-                          className="select w-full"
-                        >
-                          <option value="">Semua Program Studi</option>
-                          {prodis.map((p) => (
-                            <option key={p.id} value={p.id}>{p.nama}</option>
-                          ))}
-                        </select>
-                      </div>
+                      <Select
+                        label="Program Studi"
+                        placeholder="Semua Program Studi"
+                        options={prodis.map((p) => ({
+                          value: p.id,
+                          label: p.nama,
+                        }))}
+                        value={filterProdiKelas || ''}
+                        onChange={(val: any) => setFilterProdiKelas(String(val || ''))}
+                        isClearable
+                      />
                     </div>
                   </Drawer>
                 </div>
@@ -947,6 +945,17 @@ export default function InputNilaiPage() {
                         <span className="badge bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-2xs font-bold">
                           Sistem Penilaian OBE
                         </span>
+                        {obeKelasData?.kelayakan && (
+                          obeKelasData.kelayakan.boleh ? (
+                            <span className="badge bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-2xs font-bold">
+                              ✓ Siap Dinilai (RPS terisi, bobot 100%)
+                            </span>
+                          ) : (
+                            <span className="badge bg-rose-500/20 text-rose-200 border border-rose-400/30 text-2xs font-bold" title={obeKelasData.kelayakan.pesan}>
+                              🔒 Input Dikunci (RPS/bobot belum lengkap)
+                            </span>
+                          )
+                        )}
                       </div>
                       <h2 className="text-xl font-black text-white">
                         {selectedKelasObj.mata_kuliah?.nama} ({selectedKelasObj.mata_kuliah?.total_sks} SKS)
@@ -970,8 +979,10 @@ export default function InputNilaiPage() {
                       <Button
                         variant="primary"
                         icon={<Edit3 size={14} />}
-                        className="text-xs font-bold py-2.5 px-4 h-auto bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-sm whitespace-nowrap"
+                        className="text-xs font-bold py-2.5 px-4 h-auto bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-sm whitespace-nowrap disabled:opacity-50"
                         onClick={() => router.push(`/siakad/nilai/input/${selectedKelasObj.id}`)}
+                        disabled={Boolean(obeKelasData?.kelayakan && !obeKelasData.kelayakan.boleh)}
+                        title={obeKelasData?.kelayakan?.boleh === false ? obeKelasData.kelayakan.pesan : undefined}
                       >
                         Input Nilai Kelas (Halaman Penuh)
                       </Button>
@@ -1020,32 +1031,33 @@ export default function InputNilaiPage() {
                       </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs min-w-full">
+                    <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                      <table className="w-full text-left text-xs border-collapse min-w-[1080px] bg-white">
                         <thead>
                           {/* TIER 1: Super Header Berjenjang */}
-                          <tr className="bg-slate-100 text-slate-700 font-extrabold border-y border-slate-300 text-2xs uppercase tracking-wider">
-                            <th colSpan={2} className="py-2.5 px-4 text-center">DATA MAHASISWA</th>
-                            <th colSpan={obeKelasData?.komponen?.length || 1} className="py-2.5 px-3 text-center border-l border-slate-300 bg-sky-50 text-sky-900">
+                          <tr className="bg-slate-50 text-slate-700 font-extrabold border-b border-slate-200 text-2xs uppercase tracking-wider">
+                            <th className="py-2.5 px-3 text-center w-12 sticky left-0 bg-slate-50 z-10">NO</th>
+                            <th className="py-2.5 px-4 min-w-[200px] sticky left-12 bg-slate-50 z-10 border-r border-slate-200">DATA MAHASISWA</th>
+                            <th colSpan={obeKelasData?.komponen?.length || 1} className="py-2.5 px-3 text-center border-l border-slate-200 bg-sky-50 text-sky-900">
                               {obeKelasData?.mode_penilaian === 'full_obe'
                                 ? '🎯 1. PENCAPAIAN CPMK KELAS (Skor 0 - 100)'
                                 : '📋 1. NILAI KOMPONEN ASESMEN (Skor 0 - 100)'}
                             </th>
                             {obeKelasData?.mode_penilaian === 'semi_obe' && (
-                              <th colSpan={obeKelasData?.cpmks?.length || 1} className="py-2.5 px-3 text-center border-l border-slate-300 bg-purple-50 text-purple-900">
+                              <th colSpan={obeKelasData?.cpmks?.length || 1} className="py-2.5 px-3 text-center border-l border-slate-200 bg-purple-50 text-purple-900">
                                 🎯 2. EVALUASI KETERCAPAIAN CPMK (Target ≥65)
                               </th>
                             )}
-                            <th colSpan={3} className="py-2.5 px-3 text-center border-l border-slate-300 bg-amber-50 text-amber-900">
+                            <th colSpan={3} className="py-2.5 px-3 text-center border-l border-slate-200 bg-amber-50 text-amber-900">
                               🏆 {obeKelasData?.mode_penilaian === 'semi_obe' ? '3. REKAPITULASI HASIL' : '2. REKAPITULASI HASIL'}
                             </th>
-                            <th className="py-2.5 px-4 text-right border-l border-slate-300">AKSI</th>
+                            <th className="py-2.5 px-4 text-right border-l border-slate-200 bg-slate-50 min-w-[220px]">AKSI</th>
                           </tr>
 
                           {/* TIER 2: Nama-nama Kolom Spesifik */}
-                          <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-2xs">
-                            <th className="py-3 px-4 w-12 text-center">NO</th>
-                            <th className="py-3 px-4 min-w-[180px]">NIM & NAMA MAHASISWA</th>
+                          <tr className="bg-white text-slate-600 font-bold border-b border-slate-200 text-2xs">
+                            <th className="py-3 px-3 text-center sticky left-0 bg-white z-10">NO</th>
+                            <th className="py-3 px-4 sticky left-12 bg-white z-10 border-r border-slate-200">NIM & NAMA MAHASISWA</th>
 
                             {/* Header Dinamis Komponen */}
                             {obeKelasData?.komponen?.map((comp: any) => (
@@ -1087,10 +1099,10 @@ export default function InputNilaiPage() {
                             <tr><td colSpan={14} className="py-8 text-center text-slate-400">Belum ada mahasiswa terdaftar di kelas ini</td></tr>
                           ) : (
                             obeKelasData.peserta.map((p: any, idx: number) => (
-                              <tr key={p.krs_detail_id} className="hover:bg-slate-50/80 transition">
-                                <td className="py-3.5 px-4 text-center font-bold text-slate-400">{idx + 1}</td>
-                                <td className="py-3.5 px-4 font-mono">
-                                  <span className="font-bold text-slate-900 block font-sans">{p.mahasiswa?.nama_lengkap}</span>
+                              <tr key={p.krs_detail_id} className="hover:bg-slate-50 transition bg-white border-b border-slate-100 last:border-0">
+                                <td className="py-3 px-3 text-center font-bold text-slate-400 sticky left-0 bg-white z-10">N{idx + 1}</td>
+                                <td className="py-3 px-4 sticky left-12 bg-white z-10 border-r border-slate-200">
+                                  <span className="font-bold text-slate-900 block text-xs">{p.mahasiswa?.nama_lengkap}</span>
                                   <span className="text-2xs text-slate-500 font-mono">{p.mahasiswa?.nim}</span>
                                 </td>
 
@@ -1142,8 +1154,10 @@ export default function InputNilaiPage() {
                                     <Button
                                       variant="primary"
                                       icon={<Edit3 size={13} />}
-                                      className="text-2xs py-1 px-2.5 h-auto font-bold whitespace-nowrap"
+                                      className="text-2xs py-1 px-2.5 h-auto font-bold whitespace-nowrap disabled:opacity-50"
                                       onClick={() => router.push(`/siakad/nilai/input/${selectedKelasObj.id}`)}
+                                      disabled={Boolean(obeKelasData?.kelayakan && !obeKelasData.kelayakan.boleh)}
+                                      title={obeKelasData?.kelayakan?.boleh === false ? obeKelasData.kelayakan.pesan : undefined}
                                     >
                                       Input Nilai
                                     </Button>
@@ -1300,6 +1314,36 @@ export default function InputNilaiPage() {
                 )}
 
                 {/* Radar & Progress Cards Capaian CPL */}
+                {portofolioError && !portofolioObeData && !loadingPortofolioObe ? (
+                  <EmptyState
+                    icon={<UserX size={40} />}
+                    title="Data Mahasiswa Tidak Ditemukan"
+                    description={portofolioError}
+                    action={
+                      <div className="flex items-center gap-2">
+                        {!isMahasiswa && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedMahasiswa(null);
+                              setPortofolioError(null);
+                            }}
+                          >
+                            Kembali ke Direktori
+                          </Button>
+                        )}
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => fetchPortofolioObe()}
+                        >
+                          Coba Lagi
+                        </Button>
+                      </div>
+                    }
+                  />
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {portofolioObeData?.cpl_summary?.map((cpl: any) => {
                     const score = Number(cpl.skor_rata_rata || 0);
@@ -1337,6 +1381,7 @@ export default function InputNilaiPage() {
                     );
                   })}
                 </div>
+                )}
               </div>
             )}
           </div>
@@ -1558,20 +1603,14 @@ export default function InputNilaiPage() {
                     </div>
 
                     <div>
-                      <label className="block text-slate-600 font-bold mb-1">Teknik Asesmen</label>
-                      <select
-                        value={formKomponen.teknik_penilaian}
-                        onChange={(e) => setFormKomponen({ ...formKomponen, teknik_penilaian: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-xs outline-none"
-                      >
-                        <option value="tugas">Tugas Terstruktur</option>
-                        <option value="kuis">Kuis Formatif</option>
-                        <option value="proyek">Proyek (PBL)</option>
-                        <option value="tes_tulis">Tes Tulis (UTS/UAS)</option>
-                        <option value="praktikum">Praktikum Laboratorium</option>
-                        <option value="portofolio">Portofolio</option>
-                        <option value="unjuk_kerja">Unjuk Kerja</option>
-                      </select>
+                      <Select
+                        label="Teknik Asesmen"
+                        required
+                        placeholder="Pilih teknik..."
+                        options={teknikOptions}
+                        value={formKomponen.teknik_penilaian || ''}
+                        onChange={(val: any) => setFormKomponen({ ...formKomponen, teknik_penilaian: String(val || '') })}
+                      />
                     </div>
 
                     {obeKelasData?.mode_penilaian === 'semi_obe' && (
@@ -1601,7 +1640,7 @@ export default function InputNilaiPage() {
                         className="text-xs"
                         onClick={() => {
                           setEditingKomponen(null);
-                          setFormKomponen({ nama_komponen: '', teknik_penilaian: 'tugas', bobot: 20, cpmk_id: '' });
+                          setFormKomponen({ nama_komponen: '', teknik_penilaian: '', bobot: 20, cpmk_id: '' });
                         }}
                       >
                         Batal Edit
@@ -1615,7 +1654,22 @@ export default function InputNilaiPage() {
 
                 {/* List Komponen Aktif */}
                 <div className="space-y-2">
-                  <span className="text-xs font-bold text-slate-700 block">Daftar Komponen Asesmen Terdaftar:</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-700 block">Daftar Komponen Asesmen Terdaftar:</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      icon={<RefreshCw size={13} />}
+                      className="text-2xs py-1.5 px-3 h-auto font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                      onClick={handleSyncKomponenFromMaster}
+                      disabled={syncingKomponen}
+                    >
+                      {syncingKomponen ? 'Menyinkronkan...' : 'Sync dari Master OBE (CPMK)'}
+                    </Button>
+                  </div>
+                  <p className="text-2xs text-slate-500 leading-relaxed">
+                    Sinkronisasi mengambil ulang nama, bobot, dan target CPMK dari Master OBE mata kuliah. Ditolak otomatis bila komponen sudah memiliki nilai agar nilai tidak hilang.
+                  </p>
                   <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs">
                     {obeKelasData?.komponen?.map((comp: any) => (
                       <div key={comp.id} className="p-3 flex items-center justify-between bg-white hover:bg-slate-50">
@@ -1649,7 +1703,7 @@ export default function InputNilaiPage() {
                             variant="outline"
                             icon={<Trash2 size={12} className="text-rose-600" />}
                             className="text-2xs py-1 px-2 h-auto hover:bg-rose-50"
-                            onClick={() => handleDeleteKomponen(comp.id)}
+                            onClick={() => setKomponenToDelete(comp)}
                           />
                         </div>
                       </div>
@@ -1890,6 +1944,17 @@ export default function InputNilaiPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!komponenToDelete}
+        onClose={() => setKomponenToDelete(null)}
+        onConfirm={handleDeleteKomponen}
+        title="Hapus Komponen Asesmen?"
+        message={`Komponen "${komponenToDelete?.nama_komponen}" akan dihapus dari kelas ini. Nilai yang sudah tersimpan pada komponen tersebut ikut terhapus.`}
+        confirmText="Ya, Hapus"
+        variant="danger"
+        isLoading={deletingKomponen}
+      />
 
       {/* ======================================================== */}
       {/* DRAWER PORTOFOLIO CAPAIAN OBE MAHASISWA DARI INPUT NILAI */}

@@ -30,6 +30,83 @@ import { siakadService } from '@/services/siakad.service';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
+// ── Grafik SVG ringan (tanpa dependensi tambahan) ──
+function Donut({ segments, size = 120, thickness = 14, centerTop, centerBottom }: {
+  segments: { value: number; color: string; label: string }[];
+  size?: number;
+  thickness?: number;
+  centerTop: string;
+  centerBottom?: string;
+}) {
+  const r = (size - thickness) / 2;
+  const c = size / 2;
+  const circ = 2 * Math.PI * r;
+  const total = segments.reduce((a, s) => a + s.value, 0) || 1;
+  let offset = 0;
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} className="-rotate-90">
+          <circle cx={c} cy={c} r={r} fill="none" stroke="#f1f5f9" strokeWidth={thickness} />
+          {segments.map((s, i) => {
+            const frac = s.value / total;
+            const el = (
+              <circle
+                key={i}
+                cx={c}
+                cy={c}
+                r={r}
+                fill="none"
+                stroke={s.color}
+                strokeWidth={thickness}
+                strokeDasharray={`${frac * circ} ${circ}`}
+                strokeDashoffset={-offset * circ}
+                strokeLinecap="butt"
+              />
+            );
+            offset += frac;
+            return el;
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-mono font-black text-slate-900 text-sm leading-none">{centerTop}</span>
+          {centerBottom && <span className="text-2xs text-slate-500 mt-0.5">{centerBottom}</span>}
+        </div>
+      </div>
+      <div className="space-y-1.5 text-xs">
+        {segments.map((s, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: s.color }} />
+            <span className="text-slate-600">{s.label}</span>
+            <strong className="font-mono text-slate-900">{s.value}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HBar({ label, value, max = 100, color = 'var(--module-primary)', hint }: {
+  label: string;
+  value: number;
+  max?: number;
+  color?: string;
+  hint?: string;
+}) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-bold text-slate-700">{label}</span>
+        <span className="font-mono font-black text-slate-900">{value}{hint ? <span className="text-slate-400 font-normal"> {hint}</span> : null}</span>
+      </div>
+      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
 export default function SiakadDashboardPage() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
@@ -53,6 +130,11 @@ export default function SiakadDashboardPage() {
     total_matakuliah: 0,
   });
 
+  // Data grafik pantauan (nilai, OBE, kepatuhan)
+  const [obeDash, setObeDash] = useState<any | null>(null);
+  const [audit, setAudit] = useState<any | null>(null);
+  const [patuh, setPatuh] = useState<any | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -63,10 +145,18 @@ export default function SiakadDashboardPage() {
             setStudentData(res.data);
           }
         } else {
-          const res = await siakadService.getDashboardSummary();
-          if (res.data) {
-            setSummary(res.data);
+          const [dashRes, obeRes, auditRes, patuhRes] = await Promise.all([
+            siakadService.getDashboardSummary(),
+            siakadService.getObeDashboard().catch(() => null),
+            siakadService.getAuditPemetaan().catch(() => null),
+            siakadService.getDosenKepatuhanNilai().catch(() => null),
+          ]);
+          if (dashRes.data) {
+            setSummary(dashRes.data);
           }
+          if (obeRes?.data) setObeDash(obeRes.data);
+          if (auditRes?.data) setAudit(auditRes.data);
+          if (patuhRes?.data) setPatuh(patuhRes.data);
         }
       } catch (err: any) {
         console.error('Failed to load dashboard data', err);
@@ -242,6 +332,42 @@ export default function SiakadDashboardPage() {
           );
         })()}
 
+        {/* Visual capaian: progres SKS + skala IPS/IPK */}
+        {(() => {
+          const akademik = studentData?.akademik_summary || {
+            ipk: '0.00',
+            ips: '0.00',
+            total_sks_lulus: 0,
+          };
+          const ipkNum = parseFloat(akademik.ipk) || 0;
+          const ipsNum = parseFloat(akademik.ips) || 0;
+          const sksLulus = Number(akademik.total_sks_lulus || 0);
+          const targetSks = 144;
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="card p-5 space-y-3">
+                <h4 className="text-sm font-extrabold text-slate-900">Progres SKS Kelulusan</h4>
+                <Donut
+                  segments={[
+                    { value: sksLulus, color: '#10b981', label: 'SKS lulus' },
+                    { value: Math.max(0, targetSks - sksLulus), color: '#e2e8f0', label: 'Sisa target' },
+                  ]}
+                  centerTop={`${sksLulus}`}
+                  centerBottom={`/ ${targetSks} SKS`}
+                />
+              </div>
+              <div className="card p-5 space-y-4">
+                <h4 className="text-sm font-extrabold text-slate-900">Skala Prestasi (maks 4.00)</h4>
+                <HBar label="IPS Semester Berjalan" value={ipsNum} max={4} color="var(--module-primary)" hint="/ 4.00" />
+                <HBar label="IPK Kumulatif" value={ipkNum} max={4} color="#10b981" hint="/ 4.00" />
+                <Link href="/siakad/hasil-studi" className="text-2xs font-bold text-primary-600 hover:underline">
+                  Lihat KHS & Portofolio OBE →
+                </Link>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Quick Menu Shortcuts */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
           <Link
@@ -271,15 +397,15 @@ export default function SiakadDashboardPage() {
           </Link>
 
           <Link
-            href="/siakad/nilai"
+            href="/siakad/hasil-studi"
             className="card p-4 hover:border-primary-300 hover:shadow-md transition flex items-center gap-3.5 group"
           >
             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
               <Award size={18} />
             </div>
             <div>
-              <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">KHS & Transkrip</p>
-              <p className="text-2xs text-slate-500">Nilai & Mutu Akademik</p>
+              <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">Hasil Studi</p>
+              <p className="text-2xs text-slate-500">KHS, Transkrip & Porto OBE</p>
             </div>
           </Link>
 
@@ -291,8 +417,8 @@ export default function SiakadDashboardPage() {
               <Layers size={18} />
             </div>
             <div>
-              <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">Portofolio OBE</p>
-              <p className="text-2xs text-slate-500">Capaian CPL & CPMK</p>
+              <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">Penilaian Kelas</p>
+              <p className="text-2xs text-slate-500">Input Nilai OBE Dosen</p>
             </div>
           </Link>
 
@@ -412,6 +538,7 @@ export default function SiakadDashboardPage() {
       icon: <BookOpen size={20} className="text-blue-600" />,
       href: '/siakad/master/kurikulum',
       badge: 'Master Data',
+      roles: ['superadmin', 'admin'],
     },
     {
       title: 'Data Mahasiswa & NIM',
@@ -419,6 +546,7 @@ export default function SiakadDashboardPage() {
       icon: <GraduationCap size={20} className="text-indigo-600" />,
       href: '/siakad/civitas/mahasiswa',
       badge: 'Civitas',
+      roles: ['superadmin', 'admin'],
     },
     {
       title: 'Konversi Nilai Transfer',
@@ -426,6 +554,7 @@ export default function SiakadDashboardPage() {
       icon: <FileSpreadsheet size={20} className="text-amber-600" />,
       href: '/siakad/civitas/konversi',
       badge: 'Civitas',
+      roles: ['superadmin', 'admin'],
     },
     {
       title: 'Jadwal & Ruang Kelas',
@@ -433,6 +562,7 @@ export default function SiakadDashboardPage() {
       icon: <CalendarCheck size={20} className="text-emerald-600" />,
       href: '/siakad/perkuliahan/kelas',
       badge: 'Perkuliahan',
+      roles: ['superadmin', 'admin', 'dosen'],
     },
     {
       title: 'Rencana Studi (KRS)',
@@ -440,13 +570,23 @@ export default function SiakadDashboardPage() {
       icon: <CheckCircle2 size={20} className="text-teal-600" />,
       href: '/siakad/krs',
       badge: 'Bimbingan PA',
+      roles: ['superadmin', 'admin', 'dosen'],
     },
     {
-      title: 'Penilaian KHS & OBE',
-      desc: 'Input nilai asesmen dan capaian CPMK',
+      title: 'Penilaian Kelas (OBE)',
+      desc: 'Input nilai asesmen dan capaian CPMK per kelas',
       icon: <Award size={20} className="text-rose-600" />,
       href: '/siakad/nilai',
       badge: 'OBE Grading',
+      roles: ['superadmin', 'admin', 'dosen'],
+    },
+    {
+      title: 'Hasil Studi Mahasiswa',
+      desc: 'KHS semester, transkrip, dan portofolio CPL/CPMK',
+      icon: <GraduationCap size={20} className="text-indigo-600" />,
+      href: '/siakad/hasil-studi',
+      badge: 'Transkrip + Porto',
+      roles: ['superadmin', 'admin', 'dosen'],
     },
     {
       title: 'Kurikulum & RPS OBE',
@@ -454,6 +594,7 @@ export default function SiakadDashboardPage() {
       icon: <Layers size={20} className="text-sky-600" />,
       href: '/siakad/obe',
       badge: 'SN-DIKTI',
+      roles: ['superadmin', 'admin', 'dosen', 'kaprodi'],
     },
     {
       title: 'Sinkronisasi Neo Feeder',
@@ -461,8 +602,14 @@ export default function SiakadDashboardPage() {
       icon: <Database size={20} className="text-purple-600" />,
       href: '/siakad/feeder-sync',
       badge: 'WS Dikti',
+      roles: ['superadmin', 'admin'],
     },
   ];
+
+  const isFullAccess = userRoles.includes('superadmin') || userRoles.includes('admin');
+  const visibleNavs = quickNavs.filter(
+    (n) => isFullAccess || (n.roles || []).some((r) => userRoles.includes(r))
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -511,6 +658,128 @@ export default function SiakadDashboardPage() {
         ))}
       </div>
 
+      {/* Grafik Pantauan Akademik (Nilai, OBE, Kepatuhan) */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Grafik Pantauan Akademik</h3>
+            <p className="text-xs text-slate-500">
+              Ketercapaian OBE, kesiapan penilaian, dan ketertiban input nilai dosen semester {activeSemesterName}
+            </p>
+          </div>
+          <Link href="/siakad/obe">
+            <Button variant="outline" className="text-xs font-bold">
+              Buka Pemantauan OBE
+            </Button>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Ketercapaian CPL per ranah */}
+          <div className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <TrendingUp size={16} className="text-primary-600" />
+                Ketercapaian CPL per Ranah
+              </h4>
+              <span className="text-2xs text-slate-400 font-bold">Target ≥ 65</span>
+            </div>
+            {(() => {
+              const stats = obeDash?.cpl_kategori_stats || {};
+              const rows = [
+                { label: 'Sikap & Tata Nilai', value: Number(stats.sikap || 0), color: '#10b981' },
+                { label: 'Pengetahuan', value: Number(stats.pengetahuan || 0), color: 'var(--module-primary)' },
+                { label: 'Keterampilan Umum', value: Number(stats.keterampilan_umum || 0), color: '#8b5cf6' },
+                { label: 'Keterampilan Khusus', value: Number(stats.keterampilan_khusus || 0), color: '#f59e0b' },
+              ];
+              return (
+                <div className="space-y-3">
+                  {rows.map((r) => (
+                    <HBar key={r.label} label={r.label} value={r.value} color={r.color} hint="%" />
+                  ))}
+                  {!obeDash && (
+                    <p className="text-2xs text-slate-400 italic">{loading ? 'Memuat...' : 'Belum ada data ketercapaian.'}</p>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Kesiapan penilaian MK */}
+          <div className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-extrabold text-slate-900">Kesiapan Penilaian MK</h4>
+              <Link href="/siakad/obe" className="text-2xs font-bold text-primary-600 hover:underline">
+                Audit →
+              </Link>
+            </div>
+            {(() => {
+              const s = audit?.summary || { siap_dinilai: 0, belum_lengkap: 0, tanpa_cpmk: 0 };
+              return (
+                <Donut
+                  segments={[
+                    { value: Number(s.siap_dinilai || 0), color: '#10b981', label: 'Siap dinilai (100%)' },
+                    { value: Number(s.belum_lengkap || 0) - Number(s.tanpa_cpmk || 0) > 0 ? Number(s.belum_lengkap || 0) - Number(s.tanpa_cpmk || 0) : 0, color: '#f59e0b', label: 'Bobot belum 100%' },
+                    { value: Number(s.tanpa_cpmk || 0), color: '#f43f5e', label: 'Belum ada CPMK' },
+                  ]}
+                  centerTop={`${s.total_matakuliah || 0}`}
+                  centerBottom="Mata Kuliah"
+                />
+              );
+            })()}
+          </div>
+
+          {/* Ketertiban dosen input nilai */}
+          <div className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-extrabold text-slate-900">Ketertiban Input Nilai Dosen</h4>
+              <Link href="/siakad/obe/kepatuhan" className="text-2xs font-bold text-primary-600 hover:underline">
+                Detail →
+              </Link>
+            </div>
+            {(() => {
+              const s = patuh?.summary || { dosen_selesai_100: 0, dosen_sedang_berjalan: 0, dosen_terlambat: 0 };
+              return (
+                <Donut
+                  segments={[
+                    { value: Number(s.dosen_selesai_100 || 0), color: '#10b981', label: 'Selesai 100%' },
+                    { value: Number(s.dosen_sedang_berjalan || 0), color: 'var(--module-primary)', label: 'Berjalan' },
+                    { value: Number(s.dosen_terlambat || 0), color: '#f43f5e', label: 'Terlambat' },
+                  ]}
+                  centerTop={`${patuh?.summary?.total_dosen_mengajar || 0}`}
+                  centerBottom="Dosen Mengajar"
+                />
+              );
+            })()}
+          </div>
+
+          {/* Kelengkapan RPS */}
+          <div className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-extrabold text-slate-900">Kelengkapan Dokumen RPS</h4>
+              <Link href="/siakad/obe/rps" className="text-2xs font-bold text-primary-600 hover:underline">
+                Verifikasi →
+              </Link>
+            </div>
+            {(() => {
+              const s = obeDash?.summary || {};
+              const totalMk = Number(s.total_matakuliah || 0);
+              const approved = Number(s.rps_disetujui || 0);
+              const diajukan = Number(s.rps_diajukan || 0);
+              const draft = Number(s.rps_draft || 0);
+              const pct = totalMk > 0 ? Math.round((approved / totalMk) * 100) : 0;
+              return (
+                <div className="space-y-3">
+                  <HBar label="RPS disetujui Kaprodi" value={approved} max={Math.max(1, totalMk)} color="#10b981" hint={`/ ${totalMk} MK (${pct}%)`} />
+                  <HBar label="Menunggu verifikasi" value={diajukan} max={Math.max(1, totalMk)} color="#f59e0b" hint={`/ ${totalMk} MK`} />
+                  <HBar label="Masih draft" value={draft} max={Math.max(1, totalMk)} color="#94a3b8" hint={`/ ${totalMk} MK`} />
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </section>
+
       {/* Modul Operasional Grid */}
       <section className="space-y-4">
         <div>
@@ -521,7 +790,7 @@ export default function SiakadDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickNavs.map((nav, idx) => (
+          {visibleNavs.map((nav, idx) => (
             <Link
               key={idx}
               href={nav.href}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { FileSpreadsheet, Plus, Filter, Trash2, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,7 @@ import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
 export default function KonversiTransferPage() {
+  const router = useRouter();
   const [konversis, setKonversis] = useState<any[]>([]);
   const [mahasiswas, setMahasiswas] = useState<any[]>([]);
   const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
@@ -254,10 +256,7 @@ export default function KonversiTransferPage() {
             <Button
               variant="primary"
               icon={<Plus size={16} />}
-              onClick={() => {
-                setMhsSearchModal('');
-                setIsModalOpen(true);
-              }}
+              onClick={() => router.push('/siakad/civitas/konversi/create')}
             >
               Input Konversi Transfer
             </Button>

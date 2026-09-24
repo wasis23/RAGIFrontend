@@ -126,7 +126,7 @@ const SIAKAD_MAHASISWA_MENUS: Menu[] = [
   { id: 710, parent_id: null, name: 'Dashboard Mahasiswa', url: '/siakad', icon: 'FaChartPie', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
   { id: 711, parent_id: null, name: 'KRS Semester Aktif', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
   { id: 712, parent_id: null, name: 'Jadwal Kuliah & RPS', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
-  { id: 713, parent_id: null, name: 'KHS & Transkrip Nilai', url: '/siakad/nilai', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+  { id: 713, parent_id: null, name: 'Hasil Studi (KHS & Transkrip)', url: '/siakad/hasil-studi', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
   { id: 714, parent_id: null, name: 'Tagihan SPP (SIKEU)', url: '/sikeu/mahasiswa/tagihan', icon: 'FaCreditCard', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
   { id: 715, parent_id: null, name: 'Biodata PDDIKTI', url: '/siakad/profil', icon: 'FaUser', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
 ];
@@ -138,30 +138,34 @@ const SIAKAD_DOSEN_MENUS: Menu[] = [
   { id: 722, parent_id: null, name: 'Bimbingan & Approval KRS', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
   { id: 723, parent_id: null, name: 'Input & Rekap Nilai', url: '/siakad/nilai', icon: 'FaPen', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
   { id: 724, parent_id: null, name: 'Mahasiswa Bimbingan', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
-  { id: 725, parent_id: null, name: 'Kurikulum & RPS (OBE)', url: '/siakad/obe', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
+  { id: 725, parent_id: null, name: 'CPMK Mata Kuliah', url: '/siakad/obe/cpmk', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
+  { id: 726, parent_id: null, name: 'RPS Pembelajaran', url: '/siakad/obe/rps', icon: 'FaFileAlt', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
 ];
 
 // Menus SIAKAD untuk Administrator / BAAK
 const SIAKAD_ADMIN_MENUS: Menu[] = [
   { id: 701, parent_id: null, name: 'Dashboard Akademik', url: '/siakad', icon: 'FaGraduationCap', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
-  { 
-    id: 702, parent_id: null, name: 'MASTER DATA', url: '#master_siakad', icon: 'FaDatabase', module: 'siakad', permission_id: null, order_index: 2, is_active: true,
-    children: [
-      { id: 7021, parent_id: 702, name: 'Fakultas & Prodi', url: '/siakad/master/fakultas', icon: 'FaBuilding', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
-      { id: 7022, parent_id: 702, name: 'Kurikulum', url: '/siakad/master/kurikulum', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
-      { id: 7023, parent_id: 702, name: 'Mata Kuliah', url: '/siakad/master/matakuliah', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
-      { id: 7024, parent_id: 702, name: 'Master Referensi', url: '/siakad/master/referensi', icon: 'FaDatabase', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
-      { id: 7025, parent_id: 702, name: 'Master Tipe Referensi', url: '/siakad/master/tipe-referensi', icon: 'FaTags', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
-    ]
-  },
   {
-    id: 703, parent_id: null, name: 'CIVITAS AKADEMIKA', url: '#civitas_siakad', icon: 'FaUsers', module: 'siakad', permission_id: null, order_index: 3, is_active: true,
+    id: 703, parent_id: null, name: 'CIVITAS AKADEMIKA', url: '#civitas_siakad', icon: 'FaUsers', module: 'siakad', permission_id: null, order_index: 2, is_active: true,
     children: [
-      { id: 7031, parent_id: 703, name: 'Mahasiswa', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+      { id: 7031, parent_id: 703, name: 'Mahasiswa & Plotting PA', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
       { id: 7032, parent_id: 703, name: 'Konversi Transfer', url: '/siakad/civitas/konversi', icon: 'FaExchangeAlt', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
-      { id: 7033, parent_id: 703, name: 'Dosen', url: '/siakad/civitas/dosen', icon: 'FaChalkboardTeacher', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+      { id: 7033, parent_id: 703, name: 'Dosen Pengajar', url: '/siakad/civitas/dosen', icon: 'FaChalkboardTeacher', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
       { id: 7034, parent_id: 703, name: 'Biodata Mahasiswa', url: '/siakad/civitas/biodata', icon: 'FaUser', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
       { id: 7035, parent_id: 703, name: 'Penerima Beasiswa', url: '/siakad/civitas/beasiswa', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
+    ]
+  },
+  { 
+    id: 702, parent_id: null, name: 'MASTER AKADEMIK (BAAK)', url: '#master_siakad', icon: 'FaDatabase', module: 'siakad', permission_id: null, order_index: 3, is_active: true,
+    children: [
+      { id: 7020, parent_id: 702, name: 'Tahun Akademik', url: '/siakad/master/tahun-akademik', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 0, is_active: true },
+      { id: 7021, parent_id: 702, name: 'Fakultas & Prodi', url: '/siakad/master/fakultas', icon: 'FaBuilding', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+      { id: 7022, parent_id: 702, name: 'Kurikulum OBE', url: '/siakad/master/kurikulum', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+      { id: 7023, parent_id: 702, name: 'Mata Kuliah', url: '/siakad/master/matakuliah', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+      { id: 7024, parent_id: 702, name: 'Skala Nilai', url: '/siakad/master/skala-nilai', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+      { id: 7025, parent_id: 702, name: 'Konfigurasi Penilaian & OBE', url: '/siakad/master/konfigurasi-penilaian', icon: 'FaSlidersH', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
+      { id: 7026, parent_id: 702, name: 'Master Referensi', url: '/siakad/master/referensi', icon: 'FaDatabase', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
+      { id: 7027, parent_id: 702, name: 'Master Tipe Referensi', url: '/siakad/master/tipe-referensi', icon: 'FaTags', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
     ]
   },
   {
@@ -170,7 +174,11 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
       { id: 7041, parent_id: 704, name: 'Kelas & Jadwal', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
       { id: 7042, parent_id: 704, name: 'KRS Mahasiswa', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
       { id: 7043, parent_id: 704, name: 'Input Nilai OBE', url: '/siakad/nilai', icon: 'FaPen', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
-      { id: 7044, parent_id: 704, name: 'Kurikulum & RPS (OBE)', url: '/siakad/obe', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+      { id: 7044, parent_id: 704, name: 'Pemantauan OBE', url: '/siakad/obe', icon: 'FaChartBar', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+      { id: 7045, parent_id: 704, name: 'CPL & Kurikulum', url: '/siakad/obe/cpl', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
+      { id: 7046, parent_id: 704, name: 'CPMK Mata Kuliah', url: '/siakad/obe/cpmk', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
+      { id: 7047, parent_id: 704, name: 'RPS & Verifikasi', url: '/siakad/obe/rps', icon: 'FaFileAlt', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
+      { id: 7048, parent_id: 704, name: 'Ketertiban Dosen Nilai', url: '/siakad/obe/kepatuhan', icon: 'FaUserCheck', module: 'siakad', permission_id: null, order_index: 8, is_active: true },
     ]
   },
   {
@@ -178,7 +186,8 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
     children: [
       { id: 7051, parent_id: 705, name: 'Sync Neo Feeder', url: '/siakad/feeder-sync', icon: 'FaCloudUploadAlt', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
     ]
-  }
+  },
+  { id: 706, parent_id: null, name: 'Panduan & Alur SIAKAD', url: '/siakad/panduan', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
 ];
 
 // Fallback menus untuk setiap modul
@@ -537,8 +546,35 @@ export function Sidebar() {
     }
   }, [user, pathname]);
 
+  // Satu-satunya URL menu yang boleh aktif: exact match menang, lalu prefix TERPANJANG.
+  // Mencegah dua menu beda fitur menyala bersamaan (mis. /siakad/obe + /siakad/obe/cpl).
+  const computeActiveUrl = (menus: Menu[]): string | null => {
+    const moduleRoots = [
+      '/siakad', '/sikeu', '/simpeg', '/spmb', '/sinapra', '/sippm', '/admin', '/dashboard',
+      '/sikeu/master', '/siakad/master', '/simpeg/master',
+    ];
+    let best: string | null = null;
+    const consider = (url: string) => {
+      if (!url || url.startsWith('#')) return;
+      if (moduleRoots.includes(url)) {
+        if (pathname === url && (!best || best.length < url.length)) best = url;
+        return;
+      }
+      if (pathname !== url && !pathname.startsWith(url + '/')) return;
+      if (!best || best.length < url.length) best = url;
+    };
+    menus.forEach((m) => {
+      consider(m.url);
+      m.children?.forEach((c) => consider(c.url));
+    });
+    return best;
+  };
+
+  const activeMenuUrl = computeActiveUrl(dynamicMenus);
+
   const isMainActive = (path: string) => {
     if (!path || path.startsWith('#')) return false;
+    if (activeMenuUrl) return activeMenuUrl === path;
     if (pathname === path) return true;
 
     const isModuleRoot = [
