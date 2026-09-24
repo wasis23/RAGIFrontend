@@ -10,6 +10,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
+import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
 import toast from 'react-hot-toast';
 import {
   User,
@@ -888,7 +889,8 @@ export default function AdminMahasiswaBiodataPage() {
                 </div>
 
                 {/* Konversi Section for Transfer Student */}
-                {isTransfer && (
+                {/* Konversi selalu tampil agar susulan tetap bisa dibuat setelah tolak/hapus */}
+                {(
                   <div className="card p-6 bg-amber-50/50 border border-amber-200 rounded-2xl shadow-xs space-y-6">
                     <div className="flex items-center justify-between border-b border-amber-200 pb-3">
                       <div>
@@ -898,6 +900,9 @@ export default function AdminMahasiswaBiodataPage() {
                         </h3>
                         <p className="text-xs text-amber-800">
                           Mapping mata kuliah asal ke mata kuliah kurikulum lokal kampus saat ini.
+                          {!isTransfer && (
+                            <span className="block text-slate-500">Mahasiswa ini belum bertanda transfer — isi bagian ini bila ternyata pindahan.</span>
+                          )}
                         </p>
                       </div>
                       
@@ -928,6 +933,9 @@ export default function AdminMahasiswaBiodataPage() {
                               <div>
                                 <strong className="text-slate-900 block">{d.nama_mk_asal} ({d.kode_mk_asal})</strong>
                                 <span className="text-2xs text-slate-500">{d.sks_asal} SKS asal • Diakui: {d.mata_kuliah_diakui?.nama || d.mataKuliahDiakui?.nama || ''}</span>
+                                {(d.status || 'diakui') === 'ditolak' && (
+                                  <span className="text-2xs text-rose-600 block font-bold">Ditolak: {d.catatan_penolakan || '-'}</span>
+                                )}
                               </div>
                               <span className="font-mono font-black text-primary-700">{d.nilai_huruf_asal}</span>
                             </div>
@@ -1023,20 +1031,12 @@ export default function AdminMahasiswaBiodataPage() {
                                   onChange={(e) => handleKonversiDetailChange(idx, 'nilai_huruf_asal', e.target.value)}
                                   required
                                 />
-                                <div>
-                                  <label className="label font-bold text-slate-700">Disetarakan Ke MK Lokal *</label>
-                                  <select
-                                    value={detail.mata_kuliah_diakui_id}
-                                    onChange={(e) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', parseInt(e.target.value))}
-                                    className="select w-full text-xs font-bold bg-white"
-                                  >
-                                    {matakuliahs.map((mk) => (
-                                      <option key={mk.id} value={mk.id}>
-                                        {mk.kode_mk} - {mk.nama} ({mk.total_sks} SKS)
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                <MkProdiSelect
+                                  value={detail.mata_kuliah_diakui_id}
+                                  onChange={(id) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', id)}
+                                  matakuliahs={matakuliahs}
+                                  required
+                                />
                               </div>
                             </div>
                           ))}

@@ -186,8 +186,13 @@ export const siakadService = {
     return response.data;
   },
 
-  updateKonversiStatus: async (id: number, payload: { status: string; catatan?: string }): Promise<ApiResponse<any>> => {
+  updateKonversiStatus: async (id: number, payload: { status: string; catatan?: string; details?: { id: number; status: string; catatan_penolakan?: string }[] }): Promise<ApiResponse<any>> => {
     const response = await apiClient.patch(`/v1/siakad/mahasiswa/konversi/${id}/status`, payload);
+    return response.data;
+  },
+
+  bulkUpdateKonversiStatus: async (payload: { ids: number[]; status: string; catatan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/mahasiswa/konversi/bulk-status', payload);
     return response.data;
   },
 
@@ -424,6 +429,21 @@ export const siakadService = {
     return response.data;
   },
 
+  getSubCpmk: async (params?: { cpmk_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/sub-cpmk', { params });
+    return response.data;
+  },
+
+  storeSubCpmk: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/sub-cpmk', payload);
+    return response.data;
+  },
+
+  deleteSubCpmk: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/sub-cpmk/${id}`);
+    return response.data;
+  },
+
   getKelasKomponenObe: async (kelasId: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.get(`/v1/siakad/obe/kelas/${kelasId}/komponen`);
     return response.data;
@@ -476,6 +496,26 @@ export const siakadService = {
 
   duplicateRps: async (id: number, payload: { tahun_ajaran: string; semester?: number }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post(`/v1/siakad/obe/rps/${id}/duplicate`, payload);
+    return response.data;
+  },
+
+  getSoalList: async (params?: { rps_id?: number; rps_mingguan_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/soal', { params });
+    return response.data;
+  },
+
+  saveSoal: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/soal', payload);
+    return response.data;
+  },
+
+  deleteSoal: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/soal/${id}`);
+    return response.data;
+  },
+
+  downloadRekapCsv: async (kelasId: number): Promise<Blob> => {
+    const response = await apiClient.get(`/v1/siakad/obe/kelas/${kelasId}/rekap-csv`, { responseType: 'blob' });
     return response.data;
   },
 
@@ -550,6 +590,16 @@ export const siakadService = {
   // Audit Pemetaan OBE per Mata Kuliah
   getAuditPemetaan: async (params?: { program_studi_id?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/audit-pemetaan', { params });
+    return response.data;
+  },
+
+  getGrafikCpl: async (params?: { program_studi_id?: number; angkatan?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/grafik-cpl', { params });
+    return response.data;
+  },
+
+  getGrafikCpmk: async (params?: { program_studi_id?: number; mata_kuliah_id?: number; angkatan?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/grafik-cpmk', { params });
     return response.data;
   },
 

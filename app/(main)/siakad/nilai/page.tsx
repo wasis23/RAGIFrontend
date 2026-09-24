@@ -26,7 +26,8 @@ import {
   Check,
   AlertCircle,
   UserX,
-  RefreshCw
+  RefreshCw,
+  Download
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -260,6 +261,24 @@ export default function InputNilaiPage() {
       }
     } finally {
       setLoadingPortofolioObe(false);
+    }
+  };
+
+  const handleDownloadRekap = async () => {
+    if (!selectedKelasObj) return;
+    try {
+      const blob = await siakadService.downloadRekapCsv(selectedKelasObj.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `rekap_nilai_${selectedKelasObj.kode_kelas || selectedKelasObj.id}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Rekap nilai berhasil diunduh (CSV)');
+    } catch {
+      toast.error('Gagal mengunduh rekap nilai');
     }
   };
 
@@ -1021,6 +1040,14 @@ export default function InputNilaiPage() {
                           Nilai akhir dihitung secara proporsional dari seluruh komponen asesmen OBE yang telah diukur.
                         </p>
                       </div>
+                      <Button
+                        variant="outline"
+                        icon={<Download size={14} />}
+                        className="text-xs font-bold shrink-0"
+                        onClick={handleDownloadRekap}
+                      >
+                        Unduh Rekap (CSV)
+                      </Button>
                     </div>
 
                     {/* Kotak Edukasi / Panduan Membaca Matriks OBE */}

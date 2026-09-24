@@ -67,6 +67,7 @@ export default function KelasRpsPage() {
               pustaka_pendukung: dRes.data.pustaka_pendukung || '',
               mingguan: dRes.data.mingguan || [],
             });
+            fetchSoal(dRes.data.id);
           }
         }
       } catch (err: any) {
@@ -78,6 +79,53 @@ export default function KelasRpsPage() {
     init();
   }, [kelasId]);
 
+  // Bank soal per minggu/SubCPMK
+  const [soalList, setSoalList] = useState<any[]>([]);
+  const [openSoalMinggu, setOpenSoalMinggu] = useState<number | null>(null);
+  const [soalForm, setSoalForm] = useState({ sub_cpmk_id: '', pertanyaan: '', bobot: 10, kunci_jawaban: '' });
+  const [savingSoal, setSavingSoal] = useState(false);
+
+  const fetchSoal = async (rpsId: number) => {
+    try {
+      const res = await siakadService.getSoalList({ rps_id: rpsId });
+      if (res.data) setSoalList(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setSoalList([]);
+    }
+  };
+
+  const handleSaveSoal = async (e: React.FormEvent, mingguKe: number, mingguanId?: number) => {
+    e.preventDefault();
+    if (!rpsDetail?.id || !soalForm.pertanyaan.trim()) return;
+    try {
+      setSavingSoal(true);
+      await siakadService.saveSoal({
+        rps_id: rpsDetail.id,
+        rps_mingguan_id: mingguanId || undefined,
+        sub_cpmk_id: soalForm.sub_cpmk_id ? Number(soalForm.sub_cpmk_id) : undefined,
+        pertanyaan: soalForm.pertanyaan,
+        bobot: Number(soalForm.bobot) || 0,
+        kunci_jawaban: soalForm.kunci_jawaban || undefined,
+      });
+      toast.success('Soal tersimpan di bank soal minggu ' + mingguKe);
+      setSoalForm({ sub_cpmk_id: '', pertanyaan: '', bobot: 10, kunci_jawaban: '' });
+      fetchSoal(rpsDetail.id);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan soal');
+    } finally {
+      setSavingSoal(false);
+    }
+  };
+
+  const handleDeleteSoal = async (id: number) => {
+    try {
+      await siakadService.deleteSoal(id);
+      toast.success('Soal dihapus');
+      if (rpsDetail?.id) fetchSoal(rpsDetail.id);
+    } catch {
+      toast.error('Gagal menghapus soal');
+    }
+  };
   const updateMinggu = (mingguKe: number, field: string, value: any) => {
     setForm((prev) => {
       const updated = [...(prev.mingguan || [])];
@@ -137,6 +185,7 @@ export default function KelasRpsPage() {
           pustaka_pendukung: res.data.pustaka_pendukung || '',
           mingguan: res.data.mingguan || [],
         });
+        fetchSoal(res.data.id);
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal mengimpor RPS');
@@ -285,8 +334,16 @@ export default function KelasRpsPage() {
           {Array.from({ length: 16 }, (_, i) => i + 1).map((mingguKe) => {
             const existing = form.mingguan?.find((m: any) => m.minggu_ke === mingguKe) || {};
             const isMidOrFinal = mingguKe === 8 || mingguKe === 16;
+            const soalMinggu = soalList.filter((s: any) => s.mingguan?.minggu_ke === mingguKe);
+            const subOptions: { value: number; label: string }[] = [];
+            (rpsDetail?.mata_kuliah?.cpmks || []).forEach((c: any) => {
+              (c.subCpmks || c.sub_cpmks || []).forEach((sc: any) => {
+                subOptions.push({ value: sc.id, label: `${c.kode_cpmk} / ${sc.kode_sub_cpmk || sc.kode || 'Sub'} — ${(sc.deskripsi || '').substring(0, 40)}` });
+              });
+            });
             return (
-              <div key={mingguKe} className={`p-3 grid grid-cols-1 md:grid-cols-12 gap-2 items-center ${isMidOrFinal ? 'bg-primary-50/50' : ''}`}>
+              <div key={mingguKe}>
+              <div className={`p-3 grid grid-cols-1 md:grid-cols-12 gap-2 items-center ${isMidOrFinal ? 'bg-primary-50/50' : ''}`}>
                 <div className="md:col-span-1 text-center font-mono font-black text-xs text-primary-700">Mg {mingguKe}</div>
                 <div className="md:col-span-4">
                   <Input label="Sub-CPMK" placeholder={`Sub-CPMK Minggu ${mingguKe}`} value={existing.kemampuan_akhir || ''} disabled={readOnly}
@@ -304,6 +361,63 @@ export default function KelasRpsPage() {
                   <Input label="Bobot %" type="number" min={0} max={100} value={existing.bobot_penilaian ?? defaultBobot(mingguKe)} disabled={readOnly}
                   onChange={(e) => updateMinggu(mingguKe, 'bobot_penilaian', Number(e.target.value))} className="text-center font-mono font-bold" />
                 </div>
+                <div className="md:col-span-12 text-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-2xs py-1 px-2.5 h-auto font-bold"
+                    onClick={() => setOpenSoalMinggu(openSoalMinggu === mingguKe ? null : mingguKe)}
+                  >
+                    Bank Soal ({soalMinggu.length}) {openSoalMinggu === mingguKe ? '▲' : '▼'}
+                  </Button>
+                </div>
+              </div>
+              {openSoalMinggu === mingguKe && (
+                <div className="mx-3 mb-3 p-3 bg-slate-50/70 border border-dashed border-slate-200 rounded-xl space-y-2">
+                  {soalMinggu.length === 0 && <p className="text-2xs text-slate-400 italic">Belum ada soal minggu ini.</p>}
+                  {soalMinggu.map((s: any) => (
+                    <div key={s.id} className="flex items-start justify-between gap-2 text-xs bg-white border border-slate-200 rounded-lg p-2.5">
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-800">{s.pertanyaan}</p>
+                        <p className="text-2xs text-slate-500 mt-0.5">
+                          {s.sub_cpmk_id ? `SubCPMK #${s.sub_cpmk_id} • ` : ''}Bobot {s.bobot}
+                          {s.kunci_jawaban ? ` • Kunci: ${String(s.kunci_jawaban).substring(0, 60)}` : ''}
+                        </p>
+                      </div>
+                      {!readOnly && (
+                        <button type="button" onClick={() => handleDeleteSoal(s.id)} className="text-rose-600 text-2xs font-bold shrink-0 hover:underline">
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!readOnly && (
+                    <form onSubmit={(e) => handleSaveSoal(e, mingguKe, existing.id)} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end bg-white border border-slate-200 rounded-lg p-2.5">
+                      <div className="md:col-span-3">
+                        <Select
+                          label="SubCPMK (opsional)"
+                          placeholder="Umum minggu ini"
+                          options={subOptions}
+                          value={soalForm.sub_cpmk_id || ''}
+                          onChange={(v: any) => setSoalForm({ ...soalForm, sub_cpmk_id: String(v || '') })}
+                          isClearable
+                        />
+                      </div>
+                      <div className="md:col-span-5">
+                        <Input label="Pertanyaan *" required placeholder="Tulis butir soal..." value={soalForm.pertanyaan} onChange={(e) => setSoalForm({ ...soalForm, pertanyaan: e.target.value })} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Input label="Bobot" type="number" min={0} value={soalForm.bobot} onChange={(e) => setSoalForm({ ...soalForm, bobot: Number(e.target.value) })} className="text-center font-mono" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Button type="submit" variant="primary" className="text-2xs font-bold w-full" disabled={savingSoal || !soalForm.pertanyaan.trim()}>
+                          {savingSoal ? '...' : '+ Soal'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
               </div>
             );
           })}

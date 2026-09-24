@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
@@ -41,6 +42,7 @@ import toast from 'react-hot-toast';
 export type ObeTabKey =
   | 'dashboard'
   | 'audit_pemetaan'
+  | 'grafik_capaian'
   | 'cpl'
   | 'matrix_cpl_mk'
   | 'cpmk'
@@ -63,6 +65,7 @@ export function ObeWorkspace({
   visibleTabs = [
     'dashboard',
     'audit_pemetaan',
+    'grafik_capaian',
     'cpl',
     'matrix_cpl_mk',
     'cpmk',
@@ -100,6 +103,44 @@ export function ObeWorkspace({
 
   // Kepatuhan / Ketertiban Dosen Nilai Data
   const [kepatuhanData, setKepatuhanData] = useState<any | null>(null);
+
+  // Grafik Capaian CPL/CPMK (bar + drill-down)
+  const [grafikCpl, setGrafikCpl] = useState<any[]>([]);
+  const [grafikCpmk, setGrafikCpmk] = useState<any[]>([]);
+  const [grafikAngkatan, setGrafikAngkatan] = useState<string>('');
+  const [grafikTaId, setGrafikTaId] = useState<string>('');
+  const [grafikMkId, setGrafikMkId] = useState<string>('');
+  const [tahunList, setTahunList] = useState<any[]>([]);
+  const [drillMkId, setDrillMkId] = useState<number | null>(null);
+
+  const fetchGrafik = async () => {
+    try {
+      setLoading(true);
+      const [cplRes, cpmkRes, taRes, mkRes] = await Promise.all([
+        siakadService.getGrafikCpl({
+          program_studi_id: selectedProdiId || undefined,
+          angkatan: grafikAngkatan ? Number(grafikAngkatan) : undefined,
+          tahun_akademik_id: grafikTaId ? Number(grafikTaId) : undefined,
+        }),
+        siakadService.getGrafikCpmk({
+          program_studi_id: selectedProdiId || undefined,
+          mata_kuliah_id: grafikMkId ? Number(grafikMkId) : undefined,
+          angkatan: grafikAngkatan ? Number(grafikAngkatan) : undefined,
+          tahun_akademik_id: grafikTaId ? Number(grafikTaId) : undefined,
+        }),
+        siakadService.getTahunAkademiks().catch(() => null),
+        siakadService.getMataKuliahs({ program_studi_id: selectedProdiId || undefined, per_page: 200 }).catch(() => null),
+      ]);
+      if (cplRes.data) setGrafikCpl(Array.isArray(cplRes.data) ? cplRes.data : []);
+      if (cpmkRes.data) setGrafikCpmk(Array.isArray(cpmkRes.data) ? cpmkRes.data : []);
+      if (taRes?.data) setTahunList(taRes.data);
+      if (mkRes?.data) setMatakuliahList(Array.isArray(mkRes.data) ? mkRes.data : []);
+    } catch {
+      toast.error('Gagal memuat grafik capaian');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // CPL Data
   const [cplList, setCplList] = useState<any[]>([]);
@@ -589,6 +630,7 @@ export function ObeWorkspace({
         mata_kuliah_id: selectedMkId,
       });
       if (res.data) setCpmkList(Array.isArray(res.data) ? res.data : []);
+      fetchSubCpmk();
     } catch (err) {
       toast.error('Gagal memuat CPMK mata kuliah');
     } finally {
@@ -644,6 +686,7 @@ export function ObeWorkspace({
     if (selectedProdiId) {
       if (activeTab === 'dashboard') fetchDashboard();
       if (activeTab === 'audit_pemetaan') fetchAuditPemetaan();
+      if (activeTab === 'grafik_capaian') fetchGrafik();
       if (activeTab === 'kepatuhan_dosen') fetchKepatuhanDosen();
       if (activeTab === 'cpl') fetchCpl();
       if (activeTab === 'matrix_cpl_mk') fetchMatrixCplMk();
@@ -685,6 +728,54 @@ export function ObeWorkspace({
     }
   };
 
+  // SubCPMK per CPMK (expandable)
+  const [subMap, setSubMap] = useState<Record<number, any[]>>({});
+  const [subDraft, setSubDraft] = useState<Record<number, { kode: string; deskripsi: string }>>({});
+  const [savingSub, setSavingSub] = useState(false);
+
+  const fetchSubCpmk = async () => {
+    try {
+      const res = await siakadService.getSubCpmk();
+      const list: any[] = Array.isArray(res.data) ? res.data : [];
+      const grouped: Record<number, any[]> = {};
+      list.forEach((s: any) => {
+        if (!grouped[s.cpmk_id]) grouped[s.cpmk_id] = [];
+        grouped[s.cpmk_id].push(s);
+      });
+      setSubMap(grouped);
+    } catch {
+      setSubMap({});
+    }
+  };
+
+  const handleSaveSub = async (cpmkId: number) => {
+    const d = subDraft[cpmkId];
+    if (!d?.kode?.trim() || !d?.deskripsi?.trim()) {
+      toast.error('Kode dan deskripsi SubCPMK wajib diisi');
+      return;
+    }
+    try {
+      setSavingSub(true);
+      await siakadService.storeSubCpmk({ cpmk_id: cpmkId, kode_sub_cpmk: d.kode.trim(), deskripsi: d.deskripsi.trim() });
+      toast.success('SubCPMK berhasil ditambahkan');
+      setSubDraft((prev) => ({ ...prev, [cpmkId]: { kode: '', deskripsi: '' } }));
+      fetchSubCpmk();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan SubCPMK');
+    } finally {
+      setSavingSub(false);
+    }
+  };
+
+  const handleDeleteSub = async (id: number) => {
+    try {
+      await siakadService.deleteSubCpmk(id);
+      toast.success('SubCPMK dihapus');
+      fetchSubCpmk();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menghapus SubCPMK');
+    }
+  };
   // CPMK Handlers
   const handleSaveCpmk = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1012,6 +1103,7 @@ export function ObeWorkspace({
           [
             { key: 'dashboard', label: 'Pemantauan & Monitoring OBE', icon: <BarChart3 size={16} /> },
             { key: 'audit_pemetaan', label: `Audit Pemetaan MK (${auditData?.summary?.total_matakuliah || matakuliahList.length})`, icon: <ShieldCheck size={16} /> },
+            { key: 'grafik_capaian', label: 'Grafik Capaian CPL/CPMK', icon: <BarChart3 size={16} /> },
             { key: 'cpl', label: `Perumusan CPL Prodi (${cplList.length || 4})`, icon: <Award size={16} /> },
             { key: 'matrix_cpl_mk', label: 'Matriks CPL ↔ Mata Kuliah', icon: <Layers size={16} /> },
             { key: 'cpmk', label: 'Pemetaan CPMK Mata Kuliah', icon: <Target size={16} /> },
@@ -1325,6 +1417,196 @@ export function ObeWorkspace({
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB: GRAFIK CAPAIAN CPL & CPMK (BATANG + DRILL-DOWN) */}
+      {/* ======================================================== */}
+      {activeTab === 'grafik_capaian' && (
+        <div className="space-y-5 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="label">Angkatan Mahasiswa</label>
+              <input
+                type="number"
+                placeholder="Semua angkatan"
+                value={grafikAngkatan}
+                onChange={(e) => setGrafikAngkatan(e.target.value)}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs outline-none focus:ring-1 focus:ring-primary-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="label">Periode Penilaian</label>
+              <select
+                value={grafikTaId}
+                onChange={(e) => setGrafikTaId(e.target.value)}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs outline-none bg-white"
+              >
+                <option value="">Semua periode</option>
+                {tahunList.map((t: any) => (
+                  <option key={t.id} value={t.id}>{t.nama}{t.is_active ? ' — Aktif' : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Mata Kuliah (drill CPMK)</label>
+              <select
+                value={grafikMkId}
+                onChange={(e) => { setGrafikMkId(e.target.value); setDrillMkId(null); }}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs outline-none bg-white"
+              >
+                <option value="">Semua MK prodi</option>
+                {matakuliahList.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.kode_mk} — {m.nama}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <Button variant="primary" className="text-xs font-bold w-full" onClick={fetchGrafik} disabled={loading}>
+                {loading ? 'Memuat...' : 'Terapkan Filter'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Grafik batang CPL */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                <BarChart3 size={16} className="text-primary-600" />
+                Rata-rata Capaian CPL ({selectedProdiObj?.nama})
+              </h3>
+              <p className="text-xs text-slate-500">Target kelulusan ≥ 65. Klik batang untuk detail tidak tersedia — rincian per MK ada di bawah.</p>
+            </div>
+            {loading ? (
+              <p className="text-xs text-slate-400 py-6 text-center">Memuat grafik...</p>
+            ) : grafikCpl.length === 0 ? (
+              <p className="text-xs text-slate-400 py-6 text-center italic">Belum ada data capaian pada filter ini.</p>
+            ) : (
+              <div className="space-y-3">
+                {grafikCpl.map((c: any) => (
+                  <div key={c.cpl_id} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-800">
+                        <span className="font-mono text-primary-700 mr-1.5">{c.kode_cpl}</span>
+                        {c.deskripsi?.substring(0, 80)}{(c.deskripsi || '').length > 80 ? '...' : ''}
+                      </span>
+                      <span className={`font-mono font-black ${c.is_tercapai ? 'text-emerald-700' : 'text-amber-600'}`}>
+                        {Number(c.skor_rata_rata).toFixed(1)}% <span className="text-2xs text-slate-400 font-normal">({c.total_mahasiswa} mhs)</span>
+                      </span>
+                    </div>
+                    <div className="relative w-full bg-slate-100 h-5 rounded-lg overflow-hidden">
+                      <div
+                        className={`h-full rounded-lg transition-all ${c.is_tercapai ? 'bg-emerald-500' : c.total_pengukuran > 0 ? 'bg-amber-500' : 'bg-slate-200'}`}
+                        style={{ width: `${Math.min(100, Math.max(0, Number(c.skor_rata_rata)))}%` }}
+                      />
+                      <div className="absolute inset-y-0 border-l-2 border-dashed border-rose-400" style={{ left: '65%' }} title="Target 65" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Grafik batang CPMK + drill-down per MK → mahasiswa */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+            <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+              <Target size={16} className="text-primary-600" />
+              Rata-rata Capaian CPMK per Mata Kuliah
+            </h3>
+            {loading ? (
+              <p className="text-xs text-slate-400 py-6 text-center">Memuat grafik...</p>
+            ) : grafikCpmk.length === 0 ? (
+              <p className="text-xs text-slate-400 py-6 text-center italic">Belum ada data capaian pada filter ini.</p>
+            ) : (
+              <div className="space-y-4">
+                {grafikCpmk.map((mk: any) => (
+                  <div key={mk.mata_kuliah_id} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setDrillMkId(drillMkId === mk.mata_kuliah_id ? null : mk.mata_kuliah_id)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      <span className="text-xs font-extrabold text-slate-900">{mk.kode_mk} — {mk.nama} <span className="text-2xs text-slate-400 font-normal">({mk.total_sks} SKS)</span></span>
+                      <span className="text-2xs font-bold text-primary-600">{drillMkId === mk.mata_kuliah_id ? 'Tutup rincian ▲' : 'Rincian mahasiswa ▼'}</span>
+                    </button>
+                    <div className="p-4 space-y-3">
+                      {(mk.cpmks || []).map((c: any) => (
+                        <div key={c.cpmk_id} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-700">
+                              <span className="font-mono text-purple-700 mr-1.5">{c.kode_cpmk}</span>
+                              Bobot {c.bobot_persentase}%
+                            </span>
+                            <span className={`font-mono font-black ${c.is_tercapai ? 'text-emerald-700' : 'text-amber-600'}`}>
+                              {Number(c.skor_rata_rata).toFixed(1)}% <span className="text-2xs text-slate-400 font-normal">({c.total_mahasiswa} mhs)</span>
+                            </span>
+                          </div>
+                          <div className="relative w-full bg-slate-100 h-4 rounded-lg overflow-hidden">
+                            <div
+                              className={`h-full rounded-lg ${c.is_tercapai ? 'bg-purple-500' : c.total_mahasiswa > 0 ? 'bg-amber-500' : 'bg-slate-200'}`}
+                              style={{ width: `${Math.min(100, Math.max(0, Number(c.skor_rata_rata)))}%` }}
+                            />
+                            <div className="absolute inset-y-0 border-l-2 border-dashed border-rose-400" style={{ left: '65%' }} />
+                          </div>
+                        </div>
+                      ))}
+                      {drillMkId === mk.mata_kuliah_id && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <DataTable
+                            columns={[
+                              {
+                                key: 'mhs',
+                                label: 'NIM & MAHASISWA',
+                                render: (r: any) => (
+                                  <div>
+                                    <span className="font-bold text-slate-900 block text-xs">{r.nama_lengkap}</span>
+                                    <span className="font-mono text-2xs text-slate-400">{r.nim}</span>
+                                  </div>
+                                ),
+                              },
+                              ...(mk.cpmks || []).map((c: any) => ({
+                                key: `cpmk-${c.cpmk_id}`,
+                                label: c.kode_cpmk,
+                                align: 'center' as const,
+                                render: (r: any) => {
+                                  const s = (r.per_cpmk || {})[c.cpmk_id];
+                                  if (!s) return <span className="text-slate-300">-</span>;
+                                  return (
+                                    <span className={`font-mono font-bold text-xs ${s.is_tercapai ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                      {Number(s.skor).toFixed(1)}
+                                    </span>
+                                  );
+                                },
+                              })),
+                              {
+                                key: 'huruf',
+                                label: 'HURUF',
+                                align: 'center' as const,
+                                render: (r: any) => <Badge variant="blue">{r.nilai_huruf || '-'}</Badge>,
+                              },
+                            ]}
+                            data={(() => {
+                              const byMhs: Record<string, any> = {};
+                              (mk.cpmks || []).forEach((c: any) => {
+                                (c.mahasiswa || []).forEach((s: any) => {
+                                  const k = s.nim || s.nama_lengkap;
+                                  if (!byMhs[k]) byMhs[k] = { nim: s.nim, nama_lengkap: s.nama_lengkap, nilai_huruf: s.nilai_huruf, per_cpmk: {} };
+                                  byMhs[k].per_cpmk[c.cpmk_id] = s;
+                                });
+                              });
+                              return Object.values(byMhs);
+                            })()}
+                            emptyMessage="Belum ada mahasiswa dinilai."
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1717,6 +1999,62 @@ export function ObeWorkspace({
             data={cpmkList}
             isLoading={loading}
             emptyMessage="Belum ada CPMK untuk mata kuliah ini."
+            renderExpandedRow={(row: any) => {
+              const subs = subMap[row.id] || [];
+              const draft = subDraft[row.id] || { kode: '', deskripsi: '' };
+              return (
+                <div className="space-y-2">
+                  <p className="text-2xs font-extrabold uppercase tracking-wider text-slate-500">
+                    SubCPMK dari {row.kode_cpmk} ({subs.length})
+                  </p>
+                  {subs.length === 0 && (
+                    <p className="text-2xs text-slate-400 italic">Belum ada SubCPMK — dipakai untuk menautkan soal bank soal.</p>
+                  )}
+                  {subs.map((s: any) => (
+                    <div key={s.id} className="flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2">
+                      <div className="text-xs min-w-0">
+                        <strong className="font-mono text-slate-900">{s.kode_sub_cpmk}</strong>
+                        <span className="text-slate-600"> — {s.deskripsi}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSub(s.id)}
+                        className="text-rose-600 text-2xs font-bold shrink-0 hover:underline"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-white border border-dashed border-slate-300 rounded-lg p-2.5">
+                    <div className="sm:col-span-3">
+                      <Input
+                        placeholder="Kode, cth. Sub-1"
+                        value={draft.kode}
+                        onChange={(e) => setSubDraft((p) => ({ ...p, [row.id]: { ...draft, kode: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="sm:col-span-7">
+                      <Input
+                        placeholder="Deskripsi kemampuan spesifik..."
+                        value={draft.deskripsi}
+                        onChange={(e) => setSubDraft((p) => ({ ...p, [row.id]: { ...draft, deskripsi: e.target.value } }))}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        className="text-2xs font-bold w-full"
+                        disabled={savingSub}
+                        onClick={() => handleSaveSub(row.id)}
+                      >
+                        + Tambah
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }}
           />
         </div>
       )}
@@ -2538,7 +2876,7 @@ export default function KurikulumObePage() {
   return (
     <ObeWorkspace
       initialTab="dashboard"
-      visibleTabs={['dashboard', 'audit_pemetaan']}
+      visibleTabs={['dashboard', 'audit_pemetaan', 'grafik_capaian']}
       title="Pemantauan & Audit OBE"
       description="Monitoring ketercapaian CPL, audit kesiapan penilaian MK (bobot 100%), dan kesiapan dosen pengampu."
       breadcrumbLabel="Pemantauan OBE"

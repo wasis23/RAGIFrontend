@@ -199,6 +199,7 @@ const GUIDES: GuideSection[] = [
       'Buka menu KRS. Ganti periode tampil lewat tombol "Filter" bila ingin melihat semester lalu.',
       'Klik "Ambil Mata Kuliah", pilih kelas yang dibuka pada periode tersebut, lalu tambahkan.',
       'Periksa total SKS, lalu klik "Ajukan ke Dosen Wali".',
+      'Mahasiswa pindahan: buka tab "Penyetaraan Konversi" di halaman yang sama untuk mengajukan pengakuan MK asal (lihat statusnya di tab tersebut).',
       'Pantau status persetujuan. Bila perlu ubah, klik "Revisi / Ubah Rencana Studi".',
       'Cetak KRS via tombol "Cetak KRS" setelah disetujui.',
     ],

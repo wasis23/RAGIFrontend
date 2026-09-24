@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { siakadService } from '@/services/siakad.service';
+import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
 import toast from 'react-hot-toast';
 
 export default function CreateKonversiTransferPage() {
@@ -299,25 +300,16 @@ export default function CreateKonversiTransferPage() {
                     }}
                   />
 
-                  <div>
-                    <label className="label">Disetarakan Ke MK Lokal *</label>
-                    <select
-                      value={detail.mata_kuliah_diakui_id}
-                      onChange={(e) => {
-                        const d = [...form.details];
-                        d[idx].mata_kuliah_diakui_id = parseInt(e.target.value);
-                        setForm({ ...form, details: d });
-                      }}
-                      className="select w-full"
-                      required
-                    >
-                      {matakuliahs.map((mk) => (
-                        <option key={mk.id} value={mk.id}>
-                          {mk.kode_mk} - {mk.nama} ({mk.total_sks} SKS)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <MkProdiSelect
+                    value={detail.mata_kuliah_diakui_id}
+                    onChange={(id) => {
+                      const d = [...form.details];
+                      d[idx].mata_kuliah_diakui_id = id;
+                      setForm({ ...form, details: d });
+                    }}
+                    matakuliahs={matakuliahs}
+                    required
+                  />
                 </div>
               </div>
             ))}

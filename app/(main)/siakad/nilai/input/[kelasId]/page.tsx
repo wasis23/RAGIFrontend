@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Award, ArrowLeft, Save, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Award, ArrowLeft, Save, CheckCircle2, AlertCircle, RefreshCw, Download } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -271,6 +271,29 @@ export default function InputNilaiKelasPage() {
               const canSave = !saving && isBobot100 && !terkunci;
               return (
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    icon={<Download size={14} />}
+                    className="text-xs font-bold"
+                    onClick={async () => {
+                      try {
+                        const blob = await siakadService.downloadRekapCsv(kelasId);
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', `rekap_nilai_${kelasData?.kode_kelas || kelasId}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        window.URL.revokeObjectURL(url);
+                        toast.success('Rekap nilai berhasil diunduh (CSV)');
+                      } catch {
+                        toast.error('Gagal mengunduh rekap nilai');
+                      }
+                    }}
+                  >
+                    Unduh Rekap
+                  </Button>
                   <Button
                     variant="outline"
                     icon={<Save size={14} />}

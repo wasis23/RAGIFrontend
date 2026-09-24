@@ -12,6 +12,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
+import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
 import toast from 'react-hot-toast';
 
 export default function KonversiTransferPage() {
@@ -33,6 +34,58 @@ export default function KonversiTransferPage() {
   const [mhsSearchModal, setMhsSearchModal] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingKonversi, setDeletingKonversi] = useState<any | null>(null);
+
+  // Verifikasi per-MK (setujui sebagian / tolak)
+  const [verifTarget, setVerifTarget] = useState<any | null>(null);
+  const [verifDetails, setVerifDetails] = useState<{ id: number; status: string; catatan_penolakan: string }[]>([]);
+  const [verifCatatan, setVerifCatatan] = useState('');
+  const [savingVerif, setSavingVerif] = useState(false);
+
+  // Pilih banyak usulan (verifikasi massal per mahasiswa)
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [savingBulkVerif, setSavingBulkVerif] = useState(false);
+
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds((prev) => (prev.length === konversis.length ? [] : konversis.map((k: any) => k.id)));
+  };
+
+  const handleBulkVerifikasi = async (status: 'disetujui' | 'ditolak') => {
+    if (selectedIds.length === 0) return;
+    try {
+      setSavingBulkVerif(true);
+      const res = await siakadService.bulkUpdateKonversiStatus({ ids: selectedIds, status });
+      toast.success(res.message || `Verifikasi massal ${status} berhasil`);
+      setSelectedIds([]);
+      fetchKonversi();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal verifikasi massal');
+    } finally {
+      setSavingBulkVerif(false);
+    }
+  };
+
+  const handleVerifikasi = async (status: 'disetujui' | 'ditolak') => {
+    if (!verifTarget) return;
+    try {
+      setSavingVerif(true);
+      const res = await siakadService.updateKonversiStatus(verifTarget.id, {
+        status,
+        catatan: verifCatatan || undefined,
+        details: verifDetails,
+      });
+      toast.success(res.message || `Konversi ${status}`);
+      setVerifTarget(null);
+      fetchKonversi();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal memproses verifikasi');
+    } finally {
+      setSavingVerif(false);
+    }
+  };
   const [form, setForm] = useState({
     mahasiswa_id: 1,
     kampus_asal: '',
@@ -148,6 +201,27 @@ export default function KonversiTransferPage() {
 
   const columns: ColumnDef<any>[] = [
     {
+      key: 'select',
+      label: '',
+      align: 'center',
+      headerRender: () => (
+        <input
+          type="checkbox"
+          onChange={handleSelectAll}
+          checked={konversis.length > 0 && selectedIds.length === konversis.length}
+          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+        />
+      ),
+      render: (row) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(row.id)}
+          onChange={() => handleToggleSelect(row.id)}
+          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+        />
+      ),
+    },
+    {
       key: 'no_transaksi',
       label: 'NO TRANSAKSI',
       render: (row) => (
@@ -198,6 +272,11 @@ export default function KonversiTransferPage() {
               <span className="font-bold text-primary-700">
                 {d.mata_kuliah_diakui?.nama} ({d.mata_kuliah_diakui?.total_sks} SKS)
               </span>
+              {(d.status || 'diakui') === 'ditolak' && (
+                <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold" title={d.catatan_penolakan || 'Ditolak'}>
+                  Ditolak
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -208,7 +287,10 @@ export default function KonversiTransferPage() {
       label: 'STATUS',
       align: 'center',
       render: (row) => (
-        <Badge variant="green" className="inline-flex items-center gap-1">
+        <Badge
+          variant={row.status === 'disetujui' ? 'green' : row.status === 'diajukan' ? 'amber' : row.status === 'ditolak' ? 'rose' : 'gray'}
+          className="inline-flex items-center gap-1 capitalize"
+        >
           <CheckCircle2 size={12} /> {row.status}
         </Badge>
       ),
@@ -221,6 +303,25 @@ export default function KonversiTransferPage() {
         <div className="flex justify-end">
           <DropdownMenu
             items={[
+              ...(row.status !== 'disetujui'
+                ? [
+                    {
+                      label: 'Verifikasi per MK',
+                      icon: <CheckCircle2 size={14} />,
+                      onClick: () => {
+                        setVerifTarget(row);
+                        setVerifDetails(
+                          (row.details || []).map((d: any) => ({
+                            id: d.id,
+                            status: d.status || 'diakui',
+                            catatan_penolakan: d.catatan_penolakan || '',
+                          }))
+                        );
+                        setVerifCatatan(row.catatan || '');
+                      },
+                    },
+                  ]
+                : []),
               {
                 label: 'Hapus Riwayat Konversi',
                 icon: <Trash2 size={14} />,
@@ -271,6 +372,32 @@ export default function KonversiTransferPage() {
         isLoading={loading}
         emptyMessage="Belum ada riwayat konversi transfer mahasiswa."
       />
+
+      {/* Bilah verifikasi massal per mahasiswa */}
+      {selectedIds.length > 0 && (
+        <div className="card p-4 flex items-center justify-between border-primary-500 bg-primary-950 text-white shadow-xl animate-fade-in">
+          <p className="text-xs font-extrabold text-white">
+            {selectedIds.length} Usulan Terpilih
+            <span className="block text-2xs font-normal text-primary-200">Keputusan per mahasiswa (seluruh MK-nya ikut).</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" className="text-xs font-bold py-1.5 px-3 h-auto" onClick={() => setSelectedIds([])}>
+              Batal
+            </Button>
+            <Button variant="danger" className="text-xs font-bold py-1.5 px-3 h-auto" onClick={() => handleBulkVerifikasi('ditolak')} disabled={savingBulkVerif}>
+              Tolak Massal
+            </Button>
+            <Button
+              variant="primary"
+              className="text-xs font-bold py-1.5 px-4 h-auto bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs border-none"
+              onClick={() => handleBulkVerifikasi('disetujui')}
+              disabled={savingBulkVerif}
+            >
+              Setujui Massal →
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Filter Drawer */}
       <Drawer
@@ -470,22 +597,17 @@ export default function KonversiTransferPage() {
                       setForm({ ...form, details: d });
                     }}
                   />
-                  <div>
-                    <label className="label">Disetarakan Ke MK</label>
-                    <select
-                      value={detail.mata_kuliah_diakui_id}
-                      onChange={(e) => {
-                        const d = [...form.details];
-                        d[idx].mata_kuliah_diakui_id = parseInt(e.target.value);
-                        setForm({ ...form, details: d });
-                      }}
-                      className="select w-full text-xs"
-                    >
-                      {matakuliahs.map((mk) => (
-                        <option key={mk.id} value={mk.id}>{mk.kode_mk} - {mk.nama}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <MkProdiSelect
+                    value={detail.mata_kuliah_diakui_id}
+                    onChange={(id) => {
+                      const d = [...form.details];
+                      d[idx].mata_kuliah_diakui_id = id;
+                      setForm({ ...form, details: d });
+                    }}
+                    matakuliahs={matakuliahs}
+                    label="Disetarakan Ke MK"
+                    className="select w-full text-xs"
+                  />
                 </div>
               </div>
             ))}
@@ -513,6 +635,97 @@ export default function KonversiTransferPage() {
         <p className="text-slate-500 text-sm">
           Apakah Anda yakin ingin menghapus data konversi transfer untuk <strong>{deletingKonversi?.mahasiswa?.nama_lengkap}</strong>? Tindakan ini tidak dapat dibatalkan.
         </p>
+      </Modal>
+
+      {/* Modal Verifikasi per MK */}
+      <Modal
+        open={!!verifTarget}
+        onClose={() => setVerifTarget(null)}
+        title={`Verifikasi Konversi — ${verifTarget?.mahasiswa?.nama_lengkap || ''}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setVerifTarget(null)}>
+              Batal
+            </Button>
+            <Button variant="danger" onClick={() => handleVerifikasi('ditolak')} disabled={savingVerif}>
+              Tolak Semua
+            </Button>
+            <Button variant="primary" onClick={() => handleVerifikasi('disetujui')} disabled={savingVerif}>
+              {savingVerif ? 'Menyimpan...' : 'Setujui (sesuai tandai)'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Tandai tiap MK <strong>Diakui</strong> atau <strong>Ditolak</strong>. MK yang ditolak tidak masuk transkrip. Menyetujui butuh minimal 1 MK diakui.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="text-2xs py-1 px-2.5 h-auto font-bold"
+              onClick={() => setVerifDetails((prev) => prev.map((v) => ({ ...v, status: 'diakui', catatan_penolakan: '' })))}
+            >
+              Tandai Semua Diakui
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="text-2xs py-1 px-2.5 h-auto font-bold"
+              onClick={() => setVerifDetails((prev) => prev.map((v) => ({ ...v, status: 'ditolak' })))}
+            >
+              Tandai Semua Ditolak
+            </Button>
+          </div>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {(verifTarget?.details || []).map((d: any) => {
+              const st = verifDetails.find((v) => v.id === d.id);
+              const cur = st?.status || 'diakui';
+              return (
+                <div key={d.id} className="p-3 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs">
+                      <strong className="text-slate-900 block">{d.kode_mk_asal} ({d.nilai_huruf_asal}) → {d.mata_kuliah_diakui?.nama}</strong>
+                      <span className="text-2xs text-slate-500">{d.sks_asal} SKS asal</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        type="button"
+                        variant={cur === 'diakui' ? 'primary' : 'outline'}
+                        className="text-2xs py-1 px-2.5 h-auto font-bold"
+                        onClick={() => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, status: 'diakui', catatan_penolakan: '' } : v)))}
+                      >
+                        Diakui
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={cur === 'ditolak' ? 'danger' : 'outline'}
+                        className="text-2xs py-1 px-2.5 h-auto font-bold"
+                        onClick={() => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, status: 'ditolak' } : v)))}
+                      >
+                        Tolak
+                      </Button>
+                    </div>
+                  </div>
+                  {cur === 'ditolak' && (
+                    <Input
+                      placeholder="Alasan penolakan MK ini..."
+                      value={st?.catatan_penolakan || ''}
+                      onChange={(e) => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, catatan_penolakan: e.target.value } : v)))}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <Input
+            label="Catatan Verifikasi (umum)"
+            placeholder="cth. Sesuai SK Rektor No. ..."
+            value={verifCatatan}
+            onChange={(e) => setVerifCatatan(e.target.value)}
+          />
+        </div>
       </Modal>
     </div>
   );

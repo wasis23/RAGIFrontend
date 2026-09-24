@@ -29,6 +29,7 @@ import {
   GraduationCap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -953,8 +954,8 @@ export default function KrsMahasiswaPage() {
             )}
           </div>
 
-          {/* Tabs for Transfer Student */}
-          {isTransferStudent && (
+          {/* Tabs KRS + Penyetaraan — tab konversi selalu tampil agar pengajuan awal bisa dibuat */}
+          {isMahasiswa && (
             <div className="flex border-b border-slate-200/90 mt-2 gap-2">
               <button
                 type="button"
@@ -1186,21 +1187,13 @@ export default function KrsMahasiswaPage() {
                               required
                               disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
                             />
-                            <div>
-                              <label className="label font-bold text-slate-700">Disetarakan Ke MK Lokal *</label>
-                              <select
-                                value={detail.mata_kuliah_diakui_id}
-                                onChange={(e) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', parseInt(e.target.value))}
-                                className="select w-full text-xs font-bold bg-white"
-                                disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                              >
-                                {matakuliahs.map((mk) => (
-                                  <option key={mk.id} value={mk.id}>
-                                    {mk.kode_mk} - {mk.nama} ({mk.total_sks} SKS)
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                            <MkProdiSelect
+                              value={detail.mata_kuliah_diakui_id}
+                              onChange={(id) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', id)}
+                              matakuliahs={matakuliahs}
+                              required
+                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                            />
                           </div>
                         </div>
                       ))}

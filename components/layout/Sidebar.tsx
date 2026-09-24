@@ -142,6 +142,7 @@ const SIAKAD_DOSEN_MENUS: Menu[] = [
   { id: 724, parent_id: null, name: 'Mahasiswa Bimbingan', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
   { id: 725, parent_id: null, name: 'CPMK Mata Kuliah', url: '/siakad/obe/cpmk', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
   { id: 726, parent_id: null, name: 'RPS Pembelajaran', url: '/siakad/obe/rps', icon: 'FaFileAlt', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
+  { id: 727, parent_id: null, name: 'Bank Soal', url: '/siakad/obe/soal', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 8, is_active: true },
 ];
 
 // Menus SIAKAD untuk Administrator / BAAK
