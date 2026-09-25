@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { authService } from '@/services/auth.service';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { TurnstileWidget, type TurnstileHandle } from '@/components/ui/TurnstileWidget';
 
 const schema = z.object({
   email: z.string().min(1, 'Email wajib diisi').email('Format email tidak valid'),
@@ -20,6 +21,9 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -28,7 +32,7 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      await authService.forgotPassword({ email: data.email });
+      await authService.forgotPassword({ email: data.email, captcha_token: captchaToken });
       setSentEmail(data.email);
       setIsSuccess(true);
     } catch (err: any) {
@@ -38,6 +42,7 @@ export default function ForgotPasswordPage() {
       toast.error(message);
     } finally {
       setIsLoading(false);
+      captchaRef.current?.reset();
     }
   };
 
@@ -107,11 +112,14 @@ export default function ForgotPasswordPage() {
           {...register('email')}
         />
 
+        <TurnstileWidget ref={captchaRef} action="forgot_password" onVerify={setCaptchaToken} />
+
         <Button
           type="submit"
           full
           size="lg"
           loading={isLoading}
+          disabled={isLoading || (!!siteKey && !captchaToken)}
           icon={<Send size={16} />}
         >
           Kirim Tautan Reset

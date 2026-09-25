@@ -171,6 +171,8 @@ export interface RefreshTokenResponse {
 
 export interface ForgotPasswordRequest {
   email: string;
+  /** Token Cloudflare Turnstile (opsional; dikirim bila widget aktif). */
+  captcha_token?: string;
 }
 
 export interface ResetPasswordRequest {
