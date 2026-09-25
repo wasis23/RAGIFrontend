@@ -131,6 +131,7 @@ const getIcon = (iconName: string) => {
     'FaDoorOpen': DoorOpen,
     'FaHandshake': Handshake,
     'FaHandsHelping': HeartHandshake,
+    'BookOpen': BookOpen,
     'FaRulerCombined': Ruler,
     'Package': Package,
     'Boxes': Boxes,
