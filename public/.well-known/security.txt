@@ -1,0 +1,4 @@
+Contact: mailto:informasi@poltekindonusa.ac.id
+Expires: 2027-12-31T00:00:00.000Z
+Preferred-Languages: id, en
+Canonical: https://ragispace.com/.well-known/security.txt

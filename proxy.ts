@@ -34,6 +34,27 @@ function isPublicRoute(pathname: string): boolean {
   return false;
 }
 
+// Cegah OPEN REDIRECT (vektor phishing/abuse): hanya izinkan path relatif,
+// atau URL absolut yang host-nya masih di domain kita sendiri.
+function isSafeRedirect(target: string, host: string, baseDomain: string): boolean {
+  if (!target) return false;
+  // Path relatif (tolak protocol-relative '//evil.com').
+  if (target.startsWith('/') && !target.startsWith('//')) return true;
+  try {
+    const url = new URL(target);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    const targetHost = url.hostname.toLowerCase();
+    const currentHost = host.toLowerCase().split(':')[0];
+    if (targetHost === currentHost) return true;
+    if (baseDomain && (targetHost === baseDomain || targetHost.endsWith(`.${baseDomain}`))) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================
 // PROXY — Multi-Tenant Subdomain Routing (Next.js 16)
 //
@@ -114,12 +135,7 @@ export async function proxy(request: NextRequest) {
   // 3. Jika sudah login dan mengakses /login, alihkan ke dashboard / redirect URL
   if (token && pathname === '/login') {
     const redirectParam = request.nextUrl.searchParams.get('redirect');
-    if (
-      redirectParam &&
-      (redirectParam.startsWith('http://') ||
-        redirectParam.startsWith('https://') ||
-        redirectParam.startsWith('/'))
-    ) {
+    if (redirectParam && isSafeRedirect(redirectParam, host, ctx.baseDomain)) {
       return NextResponse.redirect(new URL(redirectParam, request.url));
     }
     return NextResponse.redirect(new URL('/dashboard', request.url));
