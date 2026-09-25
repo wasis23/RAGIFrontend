@@ -86,12 +86,16 @@ export const simpegSuratTugasService = {
   approve: async (id: number, payload: {
     status: 'disetujui' | 'ditolak';
     nomor_surat?: string;
+    nominal_disetujui?: number | string;
     catatan_approval?: string;
     file_surat_tugas?: File | null;
   }): Promise<ApiResponse<SuratTugas>> => {
     const formData = new FormData();
     formData.append('status', payload.status);
     if (payload.nomor_surat) formData.append('nomor_surat', payload.nomor_surat);
+    if (payload.nominal_disetujui !== undefined && payload.nominal_disetujui !== null && payload.nominal_disetujui !== '') {
+      formData.append('nominal_disetujui', payload.nominal_disetujui.toString());
+    }
     if (payload.catatan_approval) formData.append('catatan_approval', payload.catatan_approval);
     if (payload.file_surat_tugas) formData.append('file_surat_tugas', payload.file_surat_tugas);
 
