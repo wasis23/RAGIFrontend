@@ -27,10 +27,15 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
+import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
 export default function MahasiswaPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
+  // Dosen murni (bukan admin/kaprodi): hanya bimbingan, read-only
+  const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
   const [mahasiswas, setMahasiswas] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
   const [dosens, setDosens] = useState<any[]>([]);
@@ -40,12 +45,14 @@ export default function MahasiswaPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterProdi, setFilterProdi] = useState('');
+  const [filterAngkatan, setFilterAngkatan] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDosenPa, setFilterDosenPa] = useState('');
   const [filterNim, setFilterNim] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     prodi: '',
+    angkatan: '',
     status: '',
     dosenPa: '',
     nim: '',
@@ -140,7 +147,9 @@ export default function MahasiswaPage() {
       const res = await siakadService.getMahasiswas({
         search: appliedFilters.search,
         program_studi_id: appliedFilters.prodi,
+        angkatan: appliedFilters.angkatan,
         status: appliedFilters.status,
+        advisees_only: isDosenOnly ? true : undefined,
       });
       if (res.data) {
         let list = res.data;
@@ -171,7 +180,7 @@ export default function MahasiswaPage() {
 
   useEffect(() => {
     fetchMahasiswa();
-  }, [appliedFilters]);
+  }, [appliedFilters, isDosenOnly]);
 
   const handleSyncSpmb = async () => {
     try {
@@ -656,17 +665,21 @@ export default function MahasiswaPage() {
             >
               Filter
             </Button>
-            <Button
-              variant="primary"
-              icon={<Plus size={16} />}
-              onClick={() => router.push('/siakad/civitas/mahasiswa/create')}
-            >
-              Tambah Mahasiswa
-            </Button>
+            {!isDosenOnly && (
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={() => router.push('/siakad/civitas/mahasiswa/create')}
+              >
+                Tambah Mahasiswa
+              </Button>
+            )}
           </div>
         }
       />
 
+      {!isDosenOnly && (
+      <>
       {/* Bilah Alat Massal — dikelompokkan agar header tidak berantakan */}
       <div className="card p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <div className="flex items-center gap-2">
@@ -763,9 +776,17 @@ export default function MahasiswaPage() {
           </div>
         </div>
       </div>
+      </>
+      )}
+
+      {isDosenOnly && (
+        <p className="text-2xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+          Menampilkan <strong>mahasiswa bimbingan Anda</strong> saja. Kelola catatan dan aktivitas di menu Bimbingan PA.
+        </p>
+      )}
 
       {/* Floating Action Bar jika ada mahasiswa yang dicentang */}
-      {selectedMhsIds.length > 0 && (
+      {!isDosenOnly && selectedMhsIds.length > 0 && (
         <div className="card p-4 flex items-center justify-between border-primary-500 bg-primary-950 text-white shadow-xl animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary-700 text-white font-black flex items-center justify-center text-xs">
@@ -812,7 +833,7 @@ export default function MahasiswaPage() {
 
       {/* Full-bleed DataTable Card */}
       <DataTable
-        columns={columns}
+        columns={isDosenOnly ? columns.filter((c) => c.key !== 'select' && c.key !== 'aksi') : columns}
         data={mahasiswas}
         isLoading={loading}
         emptyMessage="Belum ada data mahasiswa yang terdaftar."
@@ -830,10 +851,11 @@ export default function MahasiswaPage() {
               onClick={() => {
                 setFilterSearch('');
                 setFilterProdi('');
+                setFilterAngkatan('');
                 setFilterNim('');
                 setFilterDosenPa('');
                 setFilterStatus('');
-                setAppliedFilters({ search: '', prodi: '', nim: '', dosenPa: '', status: '' });
+                setAppliedFilters({ search: '', prodi: '', angkatan: '', nim: '', dosenPa: '', status: '' });
                 setShowFilter(false);
               }}
             >
@@ -845,6 +867,7 @@ export default function MahasiswaPage() {
                 setAppliedFilters({
                   search: filterSearch,
                   prodi: filterProdi,
+                  angkatan: filterAngkatan,
                   nim: filterNim,
                   dosenPa: filterDosenPa,
                   status: filterStatus,
@@ -875,6 +898,20 @@ export default function MahasiswaPage() {
               <option value="">Semua Program Studi</option>
               {prodis.map((p) => (
                 <option key={p.id} value={p.id.toString()}>{p.nama}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label">Tahun Angkatan</label>
+            <select
+              value={filterAngkatan}
+              onChange={(e) => setFilterAngkatan(e.target.value)}
+              className="select w-full"
+            >
+              <option value="">Semua Angkatan</option>
+              {Array.from({ length: 8 }, (_, i) => new Date().getFullYear() - i).map((yr) => (
+                <option key={yr} value={String(yr)}>Angkatan {yr}</option>
               ))}
             </select>
           </div>

@@ -267,16 +267,16 @@ export default function InputNilaiPage() {
   const handleDownloadRekap = async () => {
     if (!selectedKelasObj) return;
     try {
-      const blob = await siakadService.downloadRekapCsv(selectedKelasObj.id);
+      const blob = await siakadService.downloadRekapXlsx(selectedKelasObj.id);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `rekap_nilai_${selectedKelasObj.kode_kelas || selectedKelasObj.id}.csv`);
+      link.setAttribute('download', `rekap_nilai_${selectedKelasObj.kode_kelas || selectedKelasObj.id}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Rekap nilai berhasil diunduh (CSV)');
+      toast.success('Rekap nilai berhasil diunduh (XLSX)');
     } catch {
       toast.error('Gagal mengunduh rekap nilai');
     }
@@ -820,8 +820,8 @@ export default function InputNilaiPage() {
                   </Button>
                 )}
 
-              {/* Tombol Cetak KHS */}
-              {activeTab === 'khs' && (isMahasiswa || (selectedMahasiswa && !selectedKelasObj)) && (
+              {/* Tombol Cetak KHS (khusus portal mahasiswa, dosen/admin cetak terpusat di /siakad/hasil-studi) */}
+              {activeTab === 'khs' && isMahasiswa && (
                 <Button
                   variant="outline"
                   icon={<Printer size={15} />}
@@ -854,7 +854,7 @@ export default function InputNilaiPage() {
             className="flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl"
           >
             <BookOpen size={16} />
-            Penilaian & KHS Kelas (OBE)
+            Penilaian Kelas (OBE)
           </button>
 
           <button
@@ -984,16 +984,16 @@ export default function InputNilaiPage() {
                       <h2 className="text-xl font-black text-white">
                         {selectedKelasObj.mata_kuliah?.nama} ({selectedKelasObj.mata_kuliah?.total_sks} SKS)
                       </h2>
-                      <p className="text-xs text-primary-200">
-                        Dosen Pengampu: <strong>{selectedKelasObj.dosen_pengampu?.[0]?.dosen?.nama_lengkap || 'Dosen Pengampu'}</strong> • Jadwal: {selectedKelasObj.hari ? selectedKelasObj.hari.toUpperCase() : 'SENIN'} ({selectedKelasObj.ruangan?.nama || 'Ruang Kuliah'})
+                      <p className="text-xs text-slate-200">
+                        Dosen Pengampu: <strong className="text-white">{selectedKelasObj.dosen_pengampu?.[0]?.dosen?.nama_lengkap || 'Dosen Pengampu'}</strong> • Jadwal: {selectedKelasObj.hari ? selectedKelasObj.hari.toUpperCase() : 'SENIN'} ({selectedKelasObj.ruangan?.nama || 'Ruang Kuliah'})
                       </p>
 
                       {/* Bobot Kurikulum CPMK */}
                       <div className="flex items-center gap-1.5 pt-1 flex-wrap text-xs">
                         <span className="text-2xs font-bold text-primary-300 uppercase mr-1">Bobot Kurikulum CPMK:</span>
                         {obeKelasData?.cpmks?.map((c: any) => (
-                          <span key={c.id} className="badge bg-primary-800 text-primary-100 border border-primary-600 text-2xs font-semibold" title={c.deskripsi}>
-                            <strong>{c.kode_cpmk}</strong>: {c.bobot_persentase}% Bobot MK
+                          <span key={c.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/15 text-white border border-white/25 text-2xs font-semibold" title={c.deskripsi}>
+                            <strong className="text-amber-300">{c.kode_cpmk}</strong>: {c.bobot_persentase}% Bobot MK
                           </span>
                         ))}
                       </div>
@@ -1046,7 +1046,7 @@ export default function InputNilaiPage() {
                         className="text-xs font-bold shrink-0"
                         onClick={handleDownloadRekap}
                       >
-                        Unduh Rekap (CSV)
+                        Unduh Rekap (XLSX)
                       </Button>
                     </div>
 

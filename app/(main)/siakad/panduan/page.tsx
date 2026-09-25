@@ -374,6 +374,27 @@ const GUIDES: GuideSection[] = [
     ],
   },
   {
+    id: 'bimbingan-pa',
+    title: 'Bimbingan PA: Pantau, Catat, dan Laporkan Aktivitas',
+    category: 'krs',
+    categoryLabel: 'KRS & Studi',
+    summary:
+      'Dosen PA memantau komposisi bimbingan, mencatat kendala, dan menyusun laporan; Kaprodi memantau seluruh prodi.',
+    targetUrl: '/siakad/bimbingan',
+    targetLabel: 'Buka Bimbingan PA',
+    rolesAllowed: ['dosen', 'kaprodi', 'superadmin', 'admin'],
+    steps: [
+      'Buka menu "Bimbingan PA". Dosen melihat ringkasan + mahasiswa bimbingannya; Kaprodi/Admin melihat rekap semua dosen.',
+      'Periksa badge kendala tiap mahasiswa (status non-aktif, KRS belum disetujui, IPK rendah, penanganan khusus).',
+      'Klik "Catatan" untuk mencatat kendala (kategori: akademik/KRS/KHS/keuangan/pribadi) dan tandai bila butuh penanganan khusus.',
+      'Isi Kesimpulan + Rekomendasi pada panel Laporan Aktivitas per periode, lalu "Simpan Laporan (Final)".',
+      'Tindak lanjut catatan (dipantau/diproses/selesai) diperbarui berkala hingga tuntas.',
+    ],
+    tips: [
+      'Direktori mahasiswa di menu Civitas & Hasil Studi otomatis terbatas pada bimbingan Anda (dosen).',
+    ],
+  },
+  {
     id: 'absensi-dosen',
     title: 'Cara Mengisi Absensi Perkuliahan (Dosen)',
     category: 'perkuliahan',

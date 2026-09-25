@@ -7,7 +7,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { RichTextarea } from '@/components/ui/RichTextarea';
 import { siakadService } from '@/services/siakad.service';
+import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
 export interface SoalFormInitial {
@@ -37,7 +39,24 @@ export default function SoalForm({
   loadingInitial?: boolean;
 }) {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
+  const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
+  const [taughtMkIds, setTaughtMkIds] = useState<number[]>([]);
   const [rpsList, setRpsList] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isDosenOnly) return;
+    siakadService
+      .getKelas({ my_teaching_only: true, per_page: 200 })
+      .then((res) => {
+        const ids: number[] = (res.data || []).map((k: any) => Number(k.mata_kuliah_id)).filter(Boolean);
+        setTaughtMkIds([...new Set(ids)]);
+      })
+      .catch(() => setTaughtMkIds([]));
+  }, [isDosenOnly]);
+
+  const rpsTerlihat = isDosenOnly ? rpsList.filter((r: any) => taughtMkIds.includes(r.mata_kuliah_id)) : rpsList;
   const [rpsDetail, setRpsDetail] = useState<any | null>(null);
   const [form, setForm] = useState<SoalFormInitial>({
     rps_id: '',
@@ -85,9 +104,15 @@ export default function SoalForm({
     });
   });
 
+  const plainText = (html: string) =>
+    String(html || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.rps_id || !form.pertanyaan.trim()) {
+    if (!form.rps_id || !plainText(form.pertanyaan)) {
       toast.error('RPS dan pertanyaan wajib diisi');
       return;
     }
@@ -145,7 +170,7 @@ export default function SoalForm({
               label="RPS Tujuan *"
               required
               placeholder="Pilih RPS (MK • periode)..."
-              options={rpsList.map((r: any) => ({
+              options={rpsTerlihat.map((r: any) => ({
                 value: r.id,
                 label: `${r.mata_kuliah?.kode_mk || ''} — ${r.mata_kuliah?.nama || ''} (${r.tahun_ajaran || ''})`,
               }))}
@@ -176,12 +201,12 @@ export default function SoalForm({
             />
           </div>
           <div className="md:col-span-2 lg:col-span-3">
-            <Input
+            <RichTextarea
               label="Pertanyaan *"
               required
-              placeholder="Tulis butir soal..."
+              placeholder="Tulis butir soal... (teks, daftar, penekanan)"
               value={form.pertanyaan}
-              onChange={(e) => setForm({ ...form, pertanyaan: e.target.value })}
+              onChange={(html) => setForm({ ...form, pertanyaan: html })}
             />
           </div>
           <Input
@@ -193,11 +218,12 @@ export default function SoalForm({
             className="font-mono"
           />
           <div className="md:col-span-2">
-            <Input
+            <RichTextarea
               label="Kunci Jawaban (opsional)"
               placeholder="Kunci / rubrik singkat..."
               value={form.kunci_jawaban}
-              onChange={(e) => setForm({ ...form, kunci_jawaban: e.target.value })}
+              onChange={(html) => setForm({ ...form, kunci_jawaban: html })}
+              minHeight={64}
             />
           </div>
         </div>

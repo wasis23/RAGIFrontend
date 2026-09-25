@@ -142,6 +142,68 @@ export const siakadService = {
     return response.data;
   },
 
+  // Bimbingan PA
+  getPaRekap: async (params?: { dosen_id?: number; program_studi_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/rekap', { params });
+    return response.data;
+  },
+
+  getPaAdvisees: async (params?: { dosen_id?: number; search?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/advisees', { params });
+    return response.data;
+  },
+
+  getPaCatatan: async (params?: { dosen_id?: number; mahasiswa_id?: number; hanya_khusus?: boolean }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/catatan', { params });
+    return response.data;
+  },
+
+  createPaCatatan: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/bimbingan/catatan', payload);
+    return response.data;
+  },
+
+  updatePaCatatan: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/bimbingan/catatan/${id}`, payload);
+    return response.data;
+  },
+
+  deletePaCatatan: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/bimbingan/catatan/${id}`);
+    return response.data;
+  },
+
+  getPaLaporan: async (params?: { dosen_id?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/laporan', { params });
+    return response.data;
+  },
+
+  savePaLaporan: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/bimbingan/laporan', payload);
+    return response.data;
+  },
+
+  // Aktivitas Bimbingan PA per Kelas (Model SIMPA Indonusa)
+  getPaAktivitas: async (params?: { dosen_id?: number; tahun_akademik_id?: number; kelas?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/aktivitas', { params });
+    return response.data;
+  },
+
+  getPaKomposisiKelas: async (params?: { dosen_id?: number; kelas?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/aktivitas/komposisi', { params });
+    return response.data;
+  },
+
+  savePaAktivitas: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/bimbingan/aktivitas', payload);
+    return response.data;
+  },
+
+  deletePaAktivitas: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/bimbingan/aktivitas/${id}`);
+    return response.data;
+  },
+
   importNimData: async (formData: FormData): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/mahasiswa/import-nim', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -514,8 +576,8 @@ export const siakadService = {
     return response.data;
   },
 
-  downloadRekapCsv: async (kelasId: number): Promise<Blob> => {
-    const response = await apiClient.get(`/v1/siakad/obe/kelas/${kelasId}/rekap-csv`, { responseType: 'blob' });
+  downloadRekapXlsx: async (kelasId: number): Promise<Blob> => {
+    const response = await apiClient.get(`/v1/siakad/obe/kelas/${kelasId}/rekap-xlsx`, { responseType: 'blob' });
     return response.data;
   },
 

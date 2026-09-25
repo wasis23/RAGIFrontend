@@ -27,19 +27,57 @@ export interface PengajuanOperasional {
   ruangan?: { id: number; nama: string; kode: string };
   unit_kas?: { id: number; nama_kas: string };
   items?: PengajuanItemPayload[] & { subtotal?: number }[];
-  lpj?: any[];
+  surat_tugas?: {
+    id: number;
+    nomor_surat?: string;
+    nama_kegiatan: string;
+    lokasi_tujuan: string;
+    tanggal_berangkat: string;
+    tanggal_kembali: string;
+    estimasi_biaya?: number;
+    nominal_disetujui?: number;
+    biaya_realisasi?: number;
+    sisa_nominal?: number;
+    status_pencairan?: string;
+    file_surat_tugas?: string;
+    file_lpj?: string;
+    pegawai?: {
+      id: number;
+      nama_lengkap: string;
+      nip?: string;
+      unit_kerja?: { id: number; nama: string };
+    };
+  };
+  bukti_pencairan_path?: string;
+  tanggal_pencairan?: string;
   history_approval?: any[];
   created_at?: string;
 }
 
 export const pengajuanOperasionalService = {
-  list: async (params?: { search?: string; status?: string; status_in?: string; kategori?: string; dari?: string; sampai?: string; page?: number; per_page?: number }) => {
+  list: async (params?: { search?: string; status?: string; status_in?: string; kategori?: string; tab?: string; dari?: string; sampai?: string; page?: number; per_page?: number }) => {
     const { data } = await apiClient.get<ApiResponse<PengajuanOperasional[]>>('/v1/sikeu/pengajuan-operasional', { params });
     return data;
   },
 
   detail: async (id: number | string) => {
     const { data } = await apiClient.get<ApiResponse<PengajuanOperasional>>(`/v1/sikeu/pengajuan-operasional/${id}`);
+    return data;
+  },
+
+  setujuiPanjarSimpeg: async (id: number | string, payload: { unit_kas_id: number; nominal_disetujui: number; catatan?: string }) => {
+    const { data } = await apiClient.post<ApiResponse<PengajuanOperasional>>(
+      `/v1/sikeu/pengajuan-operasional/${id}/setujui-panjar-simpeg`,
+      payload
+    );
+    return data;
+  },
+
+  tutupLpjSimpeg: async (id: number | string, payload?: { catatan?: string }) => {
+    const { data } = await apiClient.post<ApiResponse<PengajuanOperasional>>(
+      `/v1/sikeu/pengajuan-operasional/${id}/tutup-lpj-simpeg`,
+      payload || {}
+    );
     return data;
   },
 
@@ -93,6 +131,11 @@ export const pengajuanOperasionalService = {
 
   listUnitKas: async () => {
     const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/unit-kas');
+    return data;
+  },
+
+  listKategori: async () => {
+    const { data } = await apiClient.get<ApiResponse<{ id: string; nama: string }[]>>('/v1/sikeu/referensi/kategori-pengajuan');
     return data;
   },
 };

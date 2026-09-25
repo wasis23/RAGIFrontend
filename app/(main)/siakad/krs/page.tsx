@@ -27,6 +27,7 @@ import {
   Save,
   BarChart3,
   GraduationCap,
+  FileText,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
@@ -37,6 +38,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import { siakadService } from '@/services/siakad.service';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
@@ -47,6 +49,7 @@ export default function KrsMahasiswaPage() {
   const isMahasiswa = userRoles.includes('mahasiswa');
   const isDosen = userRoles.includes('dosen');
   const isAdmin = userRoles.includes('superadmin') || userRoles.includes('admin');
+  const isDosenOnlyTab = isDosen && !isAdmin && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
 
   const [krsList, setKrsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,151 +75,7 @@ export default function KrsMahasiswaPage() {
   // Print modal state
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Penyetaraan Konversi States & Handlers (Moved from Profile Page)
-  const [activeTab, setActiveTab] = useState<'krs' | 'konversi'>('krs');
-  const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
-  const [konversiForm, setKonversiForm] = useState({
-    kampus_asal: '',
-    prodi_asal: '',
-    catatan: '',
-    details: [] as any[],
-  });
-  const [savingKonversi, setSavingKonversi] = useState(false);
 
-  useEffect(() => {
-    if (mhs?.konversi_transfer) {
-      setKonversiForm({
-        kampus_asal: mhs.konversi_transfer.kampus_asal || '',
-        prodi_asal: mhs.konversi_transfer.prodi_asal || '',
-        catatan: mhs.konversi_transfer.catatan || '',
-        details: mhs.konversi_transfer.details || [],
-      });
-    }
-  }, [studentKrsData]);
-
-  useEffect(() => {
-    if (isMahasiswa && activeTab === 'konversi') {
-      const fetchMk = async () => {
-        try {
-          const res = await siakadService.getMataKuliahs({ per_page: 200 });
-          if (res.data) setMatakuliahs(res.data);
-        } catch (err) {}
-      };
-      fetchMk();
-    }
-  }, [activeTab, isMahasiswa]);
-
-  const handleAddKonversiDetail = () => {
-    setKonversiForm((prev) => ({
-      ...prev,
-      details: [
-        ...prev.details,
-        {
-          mata_kuliah_diakui_id: matakuliahs[0]?.id || 1,
-          kode_mk_asal: '',
-          nama_mk_asal: '',
-          sks_asal: 3,
-          nilai_huruf_asal: 'A',
-        },
-      ],
-    }));
-  };
-
-  const handleRemoveKonversiDetail = (idx: number) => {
-    setKonversiForm((prev) => {
-      const updated = [...prev.details];
-      updated.splice(idx, 1);
-      return { ...prev, details: updated };
-    });
-  };
-
-  const handleKonversiDetailChange = (idx: number, field: string, value: any) => {
-    setKonversiForm((prev) => {
-      const updated = [...prev.details];
-      updated[idx] = { ...updated[idx], [field]: value };
-      return { ...prev, details: updated };
-    });
-  };
-
-  const handleSaveKonversi = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mhs?.id) return;
-    
-    if (!konversiForm.kampus_asal || !konversiForm.prodi_asal) {
-      toast.error('Kampus Asal dan Program Studi Asal wajib diisi');
-      return;
-    }
-    if (konversiForm.details.length === 0) {
-      toast.error('Minimal harus menginputkan 1 mata kuliah penyetaraan');
-      return;
-    }
-
-    try {
-      setSavingKonversi(true);
-      const payload = {
-        mahasiswa_id: mhs.id,
-        kampus_asal: konversiForm.kampus_asal,
-        prodi_asal: konversiForm.prodi_asal,
-        catatan: konversiForm.catatan,
-        status: 'draft', // saved as draft
-        details: konversiForm.details.map((d: any) => ({
-          mata_kuliah_diakui_id: Number(d.mata_kuliah_diakui_id),
-          kode_mk_asal: d.kode_mk_asal,
-          nama_mk_asal: d.nama_mk_asal,
-          sks_asal: Number(d.sks_asal),
-          nilai_huruf_asal: d.nilai_huruf_asal,
-        })),
-      };
-      
-      const res = await siakadService.createKonversi(payload);
-      toast.success(res.message || 'Konversi transfer berhasil disimpan sebagai DRAFT');
-      await fetchStudentActiveKrs(selectedTaId);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan konversi transfer');
-    } finally {
-      setSavingKonversi(false);
-    }
-  };
-
-  const handleSubmitKonversi = async () => {
-    if (!mhs?.konversi_id) return;
-    if (!confirm('Kirim usulan konversi transfer Anda ke Dosen PA? Data tidak akan bisa diubah selama proses review.')) return;
-    
-    try {
-      setSavingKonversi(true);
-      const res = await siakadService.updateKonversiStatus(mhs.konversi_id, {
-        status: 'diajukan',
-        catatan: 'Diajukan oleh mahasiswa transfer untuk validasi PA.'
-      });
-      toast.success(res.message || 'Usulan konversi transfer berhasil diajukan');
-      await fetchStudentActiveKrs(selectedTaId);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal mengajukan konversi transfer');
-    } finally {
-      setSavingKonversi(false);
-    }
-  };
-
-  const handleDeleteKonversi = async () => {
-    if (!mhs?.konversi_id) return;
-    if (!window.confirm('Apakah Anda yakin ingin menghapus data konversi transfer Anda?')) return;
-    try {
-      setSavingKonversi(true);
-      await siakadService.deleteKonversi(mhs.konversi_id);
-      toast.success('Konversi transfer berhasil dihapus');
-      setKonversiForm({
-        kampus_asal: '',
-        prodi_asal: '',
-        catatan: '',
-        details: [],
-      });
-      await fetchStudentActiveKrs(selectedTaId);
-    } catch (err: any) {
-      toast.error('Gagal menghapus konversi transfer');
-    } finally {
-      setSavingKonversi(false);
-    }
-  };
 
   // Roles checked at top
 
@@ -660,6 +519,8 @@ export default function KrsMahasiswaPage() {
     },
   ];
 
+
+
   const studentKrsColumns: ColumnDef<any>[] = [
     {
       key: 'kode_mk',
@@ -954,36 +815,7 @@ export default function KrsMahasiswaPage() {
             )}
           </div>
 
-          {/* Tabs KRS + Penyetaraan — tab konversi selalu tampil agar pengajuan awal bisa dibuat */}
-          {isMahasiswa && (
-            <div className="flex border-b border-slate-200/90 mt-2 gap-2">
-              <button
-                type="button"
-                className={`px-5 py-3 -mb-px font-extrabold text-xs uppercase tracking-wider border-b-2 transition ${
-                  activeTab === 'krs'
-                    ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-                onClick={() => setActiveTab('krs')}
-              >
-                Rencana Studi (KRS)
-              </button>
-              <button
-                type="button"
-                className={`px-5 py-3 -mb-px font-extrabold text-xs uppercase tracking-wider border-b-2 transition ${
-                  activeTab === 'konversi'
-                    ? 'border-amber-600 text-amber-700 bg-amber-50 rounded-t-lg'
-                    : 'border-transparent text-slate-500 hover:text-slate-700'
-                }`}
-                onClick={() => setActiveTab('konversi')}
-              >
-                Penyetaraan Konversi
-              </button>
-            </div>
-          )}
-
-          {activeTab === 'krs' ? (
-            /* Daftar Mata Kuliah yang Diambil (Full-Bleed DataTable) */
+            {/* Daftar Mata Kuliah yang Diambil (Full-Bleed DataTable) */}
             <div className="space-y-4">
               <DataTable
                 columns={studentKrsColumns}
@@ -1019,214 +851,6 @@ export default function KrsMahasiswaPage() {
                 </div>
               )}
             </div>
-          ) : (
-            /* Penyetaraan Konversi Form (tab === 'konversi') */
-            <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-3 flex-wrap gap-2">
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="text-amber-500" size={18} />
-                    Penyetaraan Nilai Konversi (Mahasiswa Pindahan)
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Mapping mata kuliah asal ke mata kuliah kurikulum lokal kampus saat ini.
-                  </p>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {mhs?.konversi_transfer?.status && (
-                    <span className={`badge text-2xs font-black uppercase ${
-                      mhs.konversi_transfer.status === 'disetujui' ? 'badge-green' : mhs.konversi_transfer.status === 'diajukan' ? 'badge-yellow' : mhs.konversi_transfer.status === 'ditolak' ? 'badge-red' : 'badge-slate'
-                    }`}>
-                      Status: {mhs.konversi_transfer.status}
-                    </span>
-                  )}
-                  {mhs?.konversi_id && mhs?.konversi_transfer?.status === 'draft' && (
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      icon={<Trash2 size={13} />}
-                      className="font-bold text-xs h-auto py-1 px-3 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100"
-                      onClick={handleDeleteKonversi}
-                      disabled={savingKonversi}
-                      type="button"
-                    >
-                      Hapus Konversi
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Status Notice */}
-              {mhs?.konversi_transfer?.status === 'diajukan' && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-xs text-yellow-800 flex items-start gap-2.5">
-                  <Clock size={16} className="mt-0.5 shrink-0 text-yellow-600" />
-                  <div>
-                    <strong className="font-bold block">Usulan Sedang Ditinjau</strong>
-                    Usulan konversi transfer Anda telah diajukan ke Dosen PA. Perubahan data dikunci selama masa review.
-                  </div>
-                </div>
-              )}
-
-              {mhs?.konversi_transfer?.status === 'disetujui' && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs text-emerald-800 flex items-start gap-2.5">
-                  <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" />
-                  <div>
-                    <strong className="font-bold block">Usulan Disetujui</strong>
-                    Usulan konversi Anda telah disetujui oleh Dosen PA. Mata kuliah yang diakui secara otomatis lulus dan tidak perlu diambil kembali di KRS.
-                  </div>
-                </div>
-              )}
-
-              {mhs?.konversi_transfer?.status === 'ditolak' && (
-                <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 flex items-start gap-2.5">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-600" />
-                  <div>
-                    <strong className="font-bold block">Usulan Ditolak</strong>
-                    Catatan Dosen PA: <strong>{mhs.konversi_transfer.catatan || '-'}</strong>. Silakan perbaiki data di bawah dan simpan/ajukan kembali.
-                  </div>
-                </div>
-              )}
-
-              <form onSubmit={handleSaveKonversi} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Perguruan Tinggi Asal *"
-                    placeholder="Contoh: Universitas Gadjah Mada"
-                    value={konversiForm.kampus_asal}
-                    onChange={(e) => setKonversiForm({ ...konversiForm, kampus_asal: e.target.value })}
-                    required
-                    disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                  />
-                  <Input
-                    label="Program Studi Asal *"
-                    placeholder="Contoh: S1 Teknik Informatika"
-                    value={konversiForm.prodi_asal}
-                    onChange={(e) => setKonversiForm({ ...konversiForm, prodi_asal: e.target.value })}
-                    required
-                    disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                  />
-                  <div className="md:col-span-2">
-                    <label className="label font-bold text-slate-700">Catatan Tambahan (Opsional)</label>
-                    <textarea
-                      rows={2}
-                      placeholder="e.g. Diakui sebanyak 10 mata kuliah..."
-                      value={konversiForm.catatan}
-                      onChange={(e) => setKonversiForm({ ...konversiForm, catatan: e.target.value })}
-                      className="textarea w-full text-xs font-bold"
-                      disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                    />
-                  </div>
-                </div>
-
-                {/* Converted Course List */}
-                <div className="space-y-3 pt-3 border-t border-slate-200">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Mata Kuliah Yang Diakui</h4>
-                    {!(mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui') && (
-                      <button
-                        type="button"
-                        onClick={handleAddKonversiDetail}
-                        className="text-xs font-bold text-amber-900 bg-amber-200 hover:bg-amber-300 py-1 px-3 rounded-lg flex items-center gap-1.5 cursor-pointer transition"
-                      >
-                        <Plus size={14} /> Tambah Baris Mata Kuliah
-                      </button>
-                    )}
-                  </div>
-
-                  {konversiForm.details.length === 0 ? (
-                    <p className="text-xs text-center py-6 text-slate-400 italic">Belum ada mata kuliah yang disetarakan. Klik tombol di atas untuk menambah.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {konversiForm.details.map((detail: any, idx: number) => (
-                        <div key={idx} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 relative shadow-2xs">
-                          {!(mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui') && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveKonversiDetail(idx)}
-                              className="absolute right-3 top-3 text-rose-600 hover:text-rose-800 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                            >
-                              <Trash2 size={12} /> Hapus Baris
-                            </button>
-                          )}
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-20">
-                            <Input
-                              label="Kode MK Asal *"
-                              placeholder="e.g. INF-101"
-                              value={detail.kode_mk_asal}
-                              onChange={(e) => handleKonversiDetailChange(idx, 'kode_mk_asal', e.target.value)}
-                              required
-                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                            />
-                            <Input
-                              label="Nama MK Asal *"
-                              placeholder="e.g. Pemrograman Dasar"
-                              value={detail.nama_mk_asal}
-                              onChange={(e) => handleKonversiDetailChange(idx, 'nama_mk_asal', e.target.value)}
-                              required
-                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <Input
-                              label="SKS Asal *"
-                              type="number"
-                              min="1"
-                              value={detail.sks_asal}
-                              onChange={(e) => handleKonversiDetailChange(idx, 'sks_asal', parseInt(e.target.value) || 0)}
-                              required
-                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                            />
-                            <Input
-                              label="Nilai Huruf Asal *"
-                              placeholder="e.g. A, B+, C"
-                              value={detail.nilai_huruf_asal}
-                              onChange={(e) => handleKonversiDetailChange(idx, 'nilai_huruf_asal', e.target.value)}
-                              required
-                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                            />
-                            <MkProdiSelect
-                              value={detail.mata_kuliah_diakui_id}
-                              onChange={(id) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', id)}
-                              matakuliahs={matakuliahs}
-                              required
-                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  {mhs?.konversi_id && (mhs?.konversi_transfer?.status === 'draft' || mhs?.konversi_transfer?.status === 'ditolak') && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="font-bold text-xs"
-                      onClick={handleSubmitKonversi}
-                      disabled={savingKonversi}
-                    >
-                      <Send size={14} /> Ajukan Penyetaraan ke Dosen PA
-                    </Button>
-                  )}
-                  {!(mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui') && (
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      className="font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
-                      disabled={savingKonversi}
-                    >
-                      <Save size={14} /> Simpan Draft Penyetaraan
-                    </Button>
-                  )}
-                </div>
-              </form>
-            </div>
-          )}
         </div>
       )}
 
@@ -1369,8 +993,9 @@ export default function KrsMahasiswaPage() {
               }`}
             >
               <UserCheck size={14} />
-              Daftar Pengajuan KRS Mahasiswa
+              {isDosen && !isAdmin ? 'KRS Anak Bimbingan' : 'Daftar Pengajuan KRS Mahasiswa'}
             </button>
+            {!isDosenOnlyTab && (
             <button
               type="button"
               onClick={() => setAdminTab('monitoring')}
@@ -1383,6 +1008,7 @@ export default function KrsMahasiswaPage() {
               <BarChart3 size={14} />
               Monitoring Progres KRS per Program Studi
             </button>
+            )}
           </div>
 
           {adminTab === 'daftar' ? (
@@ -1445,7 +1071,6 @@ export default function KrsMahasiswaPage() {
                 </div>
               )}
 
-              {/* Full-bleed DataTable */}
               <DataTable
                 columns={columns}
                 data={krsList}
@@ -2067,6 +1692,7 @@ export default function KrsMahasiswaPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

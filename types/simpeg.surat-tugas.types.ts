@@ -52,7 +52,11 @@ export interface SuratTugas {
   maksud_tujuan?: string | null;
   beban_anggaran?: string | null;
   estimasi_biaya?: number | string | null;
+  nominal_disetujui?: number | string | null;
   biaya_realisasi?: number | string | null;
+  sisa_nominal?: number | string | null;
+  sikeu_pencairan_id?: number | null;
+  status_pencairan?: string | null;
   laporan_kegiatan?: string | null;
   kendaraan_dinas?: string | null;
   nama_driver?: string | null;
@@ -76,5 +80,18 @@ export interface SuratTugas {
     name?: string;
     username?: string;
     email?: string;
+  };
+  pencairan_kas?: {
+    id: number;
+    nomor_pengajuan: string;
+    nominal_diajukan: number;
+    nominal_disetujui: number;
+    total_realisasi?: number;
+    sisa_nominal?: number;
+    status: string;
+    unit_kas_id?: number;
+    unit_kas?: { id: number; nama_kas: string };
+    bukti_pencairan_path?: string;
+    tanggal_pencairan?: string;
   };
 }

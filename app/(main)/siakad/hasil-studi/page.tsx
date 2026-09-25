@@ -21,6 +21,7 @@ export default function HasilStudiPage() {
   const router = useRouter();
   const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
   const isMahasiswa = userRoles.includes('mahasiswa');
+  const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
 
   const [subTab, setSubTab] = useState<SubTab>('khs');
   const [tahunAkademiks, setTahunAkademiks] = useState<any[]>([]);
@@ -61,7 +62,7 @@ export default function HasilStudiPage() {
   useEffect(() => {
     if (!isMahasiswa && !selectedMhs) fetchDirectory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchMhs, filterProdi, selectedMhs]);
+  }, [searchMhs, filterProdi, selectedMhs, isDosenOnly]);
 
   useEffect(() => {
     if (isMahasiswa || selectedMhs) {
@@ -78,7 +79,8 @@ export default function HasilStudiPage() {
       const res = await siakadService.getMahasiswas({
         search: searchMhs || undefined,
         program_studi_id: filterProdi || undefined,
-        per_page: 15,
+        per_page: 25,
+        advisees_only: isDosenOnly ? true : undefined,
       });
       if (res.data) setDirectory(res.data);
     } finally {
@@ -358,6 +360,11 @@ export default function HasilStudiPage() {
 
       {!isMahasiswa && !selectedMhs ? (
         <div className="space-y-4">
+          {isDosenOnly && (
+            <p className="text-2xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+              Menampilkan <strong>mahasiswa bimbingan Anda</strong> saja.
+            </p>
+          )}
           <DataTable columns={dirColumns} data={directory} isLoading={loadingDir} emptyMessage="Pilih mahasiswa untuk melihat hasil studinya." />
           <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Mahasiswa">
             <div className="flex flex-col gap-5">

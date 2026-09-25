@@ -156,9 +156,24 @@ const SIAKAD_DOSEN_MENUS: Menu[] = [
   { id: 722, parent_id: null, name: 'Bimbingan & Approval KRS', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
   { id: 723, parent_id: null, name: 'Input & Rekap Nilai', url: '/siakad/nilai', icon: 'FaPen', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
   { id: 724, parent_id: null, name: 'Mahasiswa Bimbingan', url: '/siakad/civitas/mahasiswa', icon: 'FaUserGraduate', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
-  { id: 725, parent_id: null, name: 'CPMK Mata Kuliah', url: '/siakad/obe/cpmk', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
-  { id: 726, parent_id: null, name: 'RPS Pembelajaran', url: '/siakad/obe/rps', icon: 'FaFileAlt', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
-  { id: 727, parent_id: null, name: 'Bank Soal', url: '/siakad/obe/soal', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 8, is_active: true },
+  { id: 7245, parent_id: null, name: 'Konversi Nilai Transfer', url: '/siakad/civitas/konversi', icon: 'FaExchangeAlt', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
+  { id: 725, parent_id: null, name: 'CPMK Mata Kuliah', url: '/siakad/obe/cpmk', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
+  { id: 726, parent_id: null, name: 'RPS Pembelajaran', url: '/siakad/obe/rps', icon: 'FaFileAlt', module: 'siakad', permission_id: null, order_index: 8, is_active: true },
+  { id: 727, parent_id: null, name: 'Bank Soal', url: '/siakad/obe/soal', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 9, is_active: true },
+  { id: 728, parent_id: null, name: 'Bimbingan PA', url: '/siakad/bimbingan', icon: 'FaHandsHelping', module: 'siakad', permission_id: null, order_index: 10, is_active: true },
+];
+
+// Menus SIAKAD untuk Kaprodi/Wakil (monitor prodi + verifikasi, tanpa master/feeder)
+const SIAKAD_KAPRODI_MENUS: Menu[] = [
+  { id: 730, parent_id: null, name: 'Dashboard Prodi', url: '/siakad', icon: 'FaChartPie', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+  { id: 731, parent_id: null, name: 'Pemantauan OBE', url: '/siakad/obe', icon: 'FaChartBar', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+  { id: 732, parent_id: null, name: 'CPL & Kurikulum', url: '/siakad/obe/cpl', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+  { id: 733, parent_id: null, name: 'CPMK Mata Kuliah', url: '/siakad/obe/cpmk', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
+  { id: 734, parent_id: null, name: 'RPS & Verifikasi', url: '/siakad/obe/rps', icon: 'FaFileAlt', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
+  { id: 735, parent_id: null, name: 'Ketertiban Dosen', url: '/siakad/obe/kepatuhan', icon: 'FaUserCheck', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
+  { id: 736, parent_id: null, name: 'Bimbingan PA Prodi', url: '/siakad/bimbingan', icon: 'FaHandsHelping', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
+  { id: 737, parent_id: null, name: 'Hasil Studi', url: '/siakad/hasil-studi', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 8, is_active: true },
+  { id: 738, parent_id: null, name: 'Input & Rekap Nilai', url: '/siakad/nilai', icon: 'FaPen', module: 'siakad', permission_id: null, order_index: 9, is_active: true },
 ];
 
 // Menus SIAKAD untuk Administrator / BAAK
@@ -468,7 +483,7 @@ const SIPPM_FALLBACK_MENUS: Menu[] = [
   },
 ];
 
-const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean; isPetugas: boolean }) => Menu[]> = {
+const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }) => Menu[]> = {
   sso: () => IAM_FALLBACK_MENUS,
   iam: () => IAM_FALLBACK_MENUS,
   simpeg: () => SIMPEG_FALLBACK_MENUS,
@@ -476,8 +491,9 @@ const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isD
   sikeu: ({ isMahasiswa, isPetugas }) => (isPetugas ? SIKEU_PETUGAS_KAS_KECIL_MENUS : isMahasiswa ? SIKEU_MAHASISWA_MENUS : SIKEU_FALLBACK_MENUS),
   sinapra: () => SINAPRA_FALLBACK_MENUS,
   spmb: ({ isPanitia }) => (!isPanitia ? SPMB_STUDENT_FALLBACK_MENUS : SPMB_FALLBACK_MENUS),
-  siakad: ({ isMahasiswa, isDosen }) => {
+  siakad: ({ isMahasiswa, isDosen, isKaprodi }) => {
     if (isMahasiswa) return SIAKAD_MAHASISWA_MENUS;
+    if (isKaprodi) return SIAKAD_KAPRODI_MENUS;
     if (isDosen) return SIAKAD_DOSEN_MENUS;
     return SIAKAD_ADMIN_MENUS;
   },
@@ -485,7 +501,7 @@ const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isD
 
 const getFallbackMenusForModule = (
   mod: string,
-  opts: { isMahasiswa: boolean; isDosen: boolean; isPanitia: boolean; isPetugas: boolean }
+  opts: { isMahasiswa: boolean; isDosen: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }
 ): Menu[] => {
   const handler = FALLBACK_MENUS_REGISTRY[mod];
   return handler ? handler(opts) : [];
@@ -504,7 +520,8 @@ export function Sidebar() {
   );
 
   const isMahasiswaRole = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
-  const isDosenRole = (userRoleSlugs.includes('dosen') || userRoleSlugs.includes('kaprodi') || userRoleSlugs.includes('wakil_prodi')) && !isSuperAdmin && !isAdmin;
+  const isDosenRole = userRoleSlugs.includes('dosen') && !isSuperAdmin && !isAdmin;
+  const isKaprodiRole = (userRoleSlugs.includes('kaprodi') || userRoleSlugs.includes('wakil_prodi')) && !isSuperAdmin && !isAdmin;
 
   const isPetugasKasKecilRole =
     (userRoleSlugs.includes('petugas_kas_kecil') ||
@@ -574,7 +591,7 @@ export function Sidebar() {
         } catch (error) {
           console.error("Failed to load menus", error);
           const mod = getModule();
-          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
+          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
         } finally {
           setLoading(false);
         }
@@ -582,7 +599,7 @@ export function Sidebar() {
       fetchMenus();
     } else {
       const mod = getModule();
-      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
+      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
       setLoading(false);
     }
   }, [user, pathname]);
