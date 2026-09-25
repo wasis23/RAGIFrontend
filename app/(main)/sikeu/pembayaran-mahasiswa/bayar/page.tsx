@@ -279,7 +279,7 @@ function BayarKasirContent() {
         tgl_mulai: filterTglMulai || undefined,
         tgl_selesai: filterTglSelesai || undefined,
         sort_by: filterSortBy || 'waktu_bayar',
-        sort_dir: filterSortDir || 'desc',
+        sort_order: filterSortDir || 'desc',
       });
 
       if (res?.data) {

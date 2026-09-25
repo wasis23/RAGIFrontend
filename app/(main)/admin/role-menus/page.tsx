@@ -21,6 +21,7 @@ export default function AdminRoleMenusPage() {
   const [assignedMenus, setAssignedMenus] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [menusLoading, setMenusLoading] = useState(false);
 
   // Helper untuk mendapatkan list ID dari hierarki menu
   const getFlatMenuIds = (menuList: Menu[]): number[] => {
@@ -39,7 +40,7 @@ export default function AdminRoleMenusPage() {
       setIsLoading(true);
       try {
         const [rolesRes, modulesRes] = await Promise.allSettled([
-          adminService.getRoles(),
+          adminService.getRoles({ per_page: 100 }),
           moduleService.getAllModules(),
         ]);
 
@@ -60,26 +61,45 @@ export default function AdminRoleMenusPage() {
           modulesData = modulesRes.value.filter((m) => m.is_active);
           setAppModules(modulesData);
         }
-
-        // Fetch menus for each active module
-        const menusMap: Record<string, Menu[]> = {};
-        await Promise.all(
-          modulesData.map(async (mod) => {
-            try {
-              const menus = await menuService.getAllMenus(mod.code);
-              menusMap[mod.code] = menus;
-            } catch {
-              console.error(`Failed to fetch menus for module ${mod.code}`);
-            }
-          })
-        );
-        setMenusByModule(menusMap);
       } finally {
         setIsLoading(false);
       }
     };
     fetchInitialData();
   }, []);
+
+  // Ambil menu sesuai modul terpilih — request ulang tiap kali modul diganti.
+  useEffect(() => {
+    // Tunggu daftar modul termuat dulu bila mode "semua modul".
+    if (selectedModule === 'all' && appModules.length === 0) return;
+
+    let cancelled = false;
+
+    const fetchMenus = async () => {
+      setMenusLoading(true);
+      try {
+        if (selectedModule === 'all') {
+          const entries = await Promise.all(
+            appModules.map(async (mod) => [mod.code, await menuService.getAllMenus(mod.code)] as const)
+          );
+          if (!cancelled) setMenusByModule(Object.fromEntries(entries));
+        } else {
+          const menus = await menuService.getAllMenus(selectedModule);
+          if (!cancelled) setMenusByModule({ [selectedModule]: menus });
+        }
+      } catch {
+        if (!cancelled) toast.error('Gagal memuat menu modul.');
+      } finally {
+        if (!cancelled) setMenusLoading(false);
+      }
+    };
+
+    fetchMenus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedModule, appModules]);
 
   // Fetch assigned menus when selected role changes
   useEffect(() => {
@@ -205,7 +225,7 @@ export default function AdminRoleMenusPage() {
         </p>
       </div>
 
-      {isLoading ? (
+      {isLoading || menusLoading ? (
         <div className="p-8 text-center text-slate-400">Memuat data menu...</div>
       ) : (
         <div className="flex flex-col gap-4">

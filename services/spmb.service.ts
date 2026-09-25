@@ -1,4 +1,5 @@
 import api from '@/lib/axios';
+import type { ReferralValidationResult, MyReferralData } from '@/types/spmb.types';
 
 export interface JalurMasuk {
   id: number;
@@ -47,6 +48,15 @@ export interface PendaftaranCalonMhs {
   master_jalur_kelas_id?: number | string;
   info_daftar?: string;
   ket_info_daftar?: string;
+  used_referral_code?: string | null;
+  referrer_user_id?: number | null;
+  referral_validated_at?: string | null;
+  referrer?: {
+    id: number;
+    username?: string;
+    name?: string;
+    referral_code?: string;
+  } | null;
   no_pendaftaran: string;
   nim?: string;
   nama_lengkap: string;
@@ -286,11 +296,6 @@ export const spmbService = {
     return response.data;
   },
 
-  tetapkanKelulusan: async (id: number, data: { status: string; program_studi_diterima_id?: number; nilai_total?: number; catatan?: string; is_published?: boolean }) => {
-    const response = await api.post(`/spmb/pendaftar/${id}/kelulusan`, data);
-    return response.data;
-  },
-
   getSikeuTarifList: async (moduleId?: number) => {
     try {
       const url = moduleId ? `/v1/sikeu/master/master-biaya?module_id=${moduleId}` : '/v1/sikeu/master/master-biaya?module=spmb';
@@ -519,6 +524,46 @@ export const spmbService = {
     to_gelombang_id: number;
   }) => {
     const response = await api.post('/spmb/master/biaya/copy-from-gelombang', data);
+    return response.data;
+  },
+
+  // ====================================================
+  // REFERRAL — Kode Rujukan Mahasiswa Baru
+  // ====================================================
+  validateReferral: async (code: string): Promise<{ status: string; message: string; data: ReferralValidationResult }> => {
+    const response = await api.get('/spmb/referral/validate', { params: { code } });
+    return response.data;
+  },
+
+  getMyReferral: async (): Promise<{ status: string; message: string; data: MyReferralData }> => {
+    const response = await api.get('/spmb/referral/saya');
+    return response.data;
+  },
+
+  getReferralReport: async (params?: {
+    search?: string;
+    referrer?: string;
+    pendaftar?: string;
+    status?: string;
+    referral_code?: string;
+    gelombang_id?: string;
+    start_date?: string;
+    end_date?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+  }) => {
+    const response = await api.get('/spmb/laporan/referral', { params });
+    return response.data;
+  },
+
+  getReferralSummary: async (): Promise<{
+    status: string;
+    message: string;
+    data: { claimed: number; qualified: number; rewarded: number; cancelled: number };
+  }> => {
+    const response = await api.get('/spmb/laporan/referral-summary');
     return response.data;
   },
 };

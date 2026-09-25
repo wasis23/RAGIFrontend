@@ -153,6 +153,10 @@ export interface Pendaftaran {
   penghasilan_ortu?: string;
   nama_wali?: string;
   telepon_wali?: string;
+  used_referral_code?: string | null;
+  referrer_user_id?: number | null;
+  referral_validated_at?: string | null;
+  referrer?: PendaftaranReferrer | null;
   status: PendaftaranStatus;
   catatan_verifikasi?: string | null;
   created_at?: string;
@@ -334,4 +338,63 @@ export interface MasterBiayaMatrixRow {
   total_biaya: number;
   is_active: boolean;
   keterangan?: string | null;
+}
+
+// ============================================================
+// REFERRAL — Kode Rujukan Mahasiswa Baru
+// ============================================================
+
+export type ReferralUsageStatus = 'claimed' | 'qualified' | 'rewarded' | 'cancelled';
+
+export interface PendaftaranReferrer {
+  id: number;
+  username?: string;
+  name?: string;
+  referral_code?: string;
+}
+
+export interface ReferralValidationResult {
+  referral_code: string;
+  referrer_user_id: number;
+  referrer_name: string;
+  is_valid: boolean;
+}
+
+export interface ReferralSummary {
+  referral_code: string | null;
+  total: number;
+  claimed: number;
+  qualified: number;
+  rewarded: number;
+  cancelled: number;
+}
+
+export interface ReferralUsageItem {
+  id: number;
+  referral_code: string;
+  status: ReferralUsageStatus;
+  qualified_at?: string | null;
+  rewarded_at?: string | null;
+  referee_name?: string | null;
+  no_pendaftaran?: string | null;
+  nama_pendaftar?: string | null;
+  status_pendaftaran?: string | null;
+  created_at?: string;
+}
+
+export interface MyReferralData {
+  summary: ReferralSummary;
+  usages?: ReferralUsageItem[];
+}
+
+export interface ReferralReportItem extends ReferralUsageItem {
+  referrer?: PendaftaranReferrer & { email?: string };
+  pendaftaran?: {
+    id: number;
+    no_pendaftaran?: string;
+    nama_lengkap?: string;
+    status?: string;
+    status_pembayaran?: string;
+    gelombang_penerimaan?: { id: number; nama: string } | null;
+  } | null;
 }

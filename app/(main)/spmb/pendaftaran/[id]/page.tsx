@@ -20,7 +20,8 @@ import {
   Hash,
   CreditCard,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Gift
 } from 'lucide-react';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
 import toast from 'react-hot-toast';
@@ -283,6 +284,19 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
               <MetadataItem label="Pekerjaan Ibu" value={pendaftar.pekerjaan_ibu} />
               <MetadataItem label="Penghasilan Ortu" value={pendaftar.penghasilan_ortu} />
               <MetadataItem label="Wali / Telepon" value={pendaftar.nama_wali ? `${pendaftar.nama_wali} (${pendaftar.telepon_wali || '-'})` : '-'} />
+            </div>
+          </DetailSection>
+
+          {/* SECTION C2: KODE REFERRAL */}
+          <DetailSection title="Kode Referral" icon={Gift} defaultOpen={false}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+              <MetadataItem label="Kode Digunakan" value={pendaftar.used_referral_code || '-'} />
+              <MetadataItem label="Direferensikan Oleh" value={pendaftar.referrer?.name || pendaftar.referrer?.username || '-'} />
+              <MetadataItem label="Kode Referrer" value={pendaftar.referrer?.referral_code || '-'} />
+              <MetadataItem
+                label="Divalidasi Pada"
+                value={pendaftar.referral_validated_at ? new Date(pendaftar.referral_validated_at).toLocaleString('id-ID') : '-'}
+              />
             </div>
           </DetailSection>
 

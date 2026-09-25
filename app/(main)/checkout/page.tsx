@@ -122,7 +122,7 @@ function UniversalCheckoutContent() {
       const pendaftaranId = vaData.calon_mahasiswa_id;
       const bankCode = selectedMethod.toUpperCase();
 
-      await api.post(`/v1/sikeu/callback/spmb/${pendaftaranId}`, {
+      await api.post(`/v1/sikeu/callback/spmb/${pendaftaranId}/simulate`, {
         order_id: `XND-UNIVERSAL-${Date.now()}`,
         nominal: vaData.total_bayar,
         status: 'settlement',

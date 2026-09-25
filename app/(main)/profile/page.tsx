@@ -5,17 +5,19 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { User as UserIcon, Lock, Mail, Phone, Shield, Eye, EyeOff, Save, CheckCircle2, Copy, Share2, Check } from 'lucide-react';
+import { User as UserIcon, Lock, Mail, Phone, Shield, Eye, EyeOff, Save, CheckCircle2, Copy, Check, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { authService } from '@/services/auth.service';
+import { spmbService } from '@/services/spmb.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { formatDate } from '@/lib/utils';
 import type { User } from '@/types/auth.types';
+import type { MyReferralData } from '@/types/spmb.types';
 
 // Schema ganti password
 const changePasswordSchema = z
@@ -41,6 +43,7 @@ export default function ProfilePage() {
   const { hasRole } = useAuth();
   const [profileData, setProfileData] = useState<User | null>(user);
   const [copied, setCopied] = useState(false);
+  const [referral, setReferral] = useState<MyReferralData | null>(null);
 
   useEffect(() => {
     authService.getMe()
@@ -56,6 +59,16 @@ export default function ProfilePage() {
       });
   }, [setUser]);
 
+  useEffect(() => {
+    spmbService.getMyReferral()
+      .then((res) => {
+        if (res?.data) setReferral(res.data);
+      })
+      .catch(() => {
+        // Diamkan bila endpoint referral tidak tersedia untuk role ini.
+      });
+  }, []);
+
   const activeUser = profileData || user;
   const displayUser = activeUser || {
     id: 1,
@@ -64,8 +77,8 @@ export default function ProfilePage() {
     username: 'Pengguna Terdaftar',
     email: 'user@kampus.ac.id',
     phone: '081234567890',
-    referral_code: 'REF-0DUEEU',
-    referal_code: 'REF-0DUEEU',
+    referral_code: '',
+    referal_code: '',
     is_active: true,
     is_verified: true,
     email_verified_at: new Date().toISOString(),
@@ -74,7 +87,12 @@ export default function ProfilePage() {
   };
 
   const fullName = displayUser.name || displayUser.nama_lengkap || displayUser.username;
-  const referralCode = displayUser.referral_code || displayUser.referal_code || 'REF-0DUEEU';
+  const referralCode =
+    referral?.summary?.referral_code || displayUser.referral_code || displayUser.referal_code || '';
+  const referralShareLink =
+    referralCode && typeof window !== 'undefined'
+      ? `${window.location.origin}/register?ref=${referralCode}`
+      : '';
 
   const isMahasiswa = hasRole('mahasiswa');
 
@@ -111,6 +129,15 @@ export default function ProfilePage() {
       navigator.clipboard.writeText(referralCode);
       setCopied(true);
       toast.success(`Kode referal "${referralCode}" berhasil disalin!`);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleShareReferral = () => {
+    if (referralShareLink && typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(referralShareLink);
+      setCopied(true);
+      toast.success('Tautan pendaftaran referral berhasil disalin!');
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -164,7 +191,7 @@ export default function ProfilePage() {
                 </span>
                 <div className="flex items-center justify-center gap-2">
                   <span className="px-3 py-2 font-mono font-extrabold text-xs bg-white rounded-lg border border-slate-300 text-slate-900 shadow-2xs tracking-wider">
-                    {referralCode}
+                    {referralCode || '—'}
                   </span>
                   <Button
                     type="button"
@@ -176,6 +203,33 @@ export default function ProfilePage() {
                   >
                     {copied ? 'Tersalin' : 'Salin'}
                   </Button>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  icon={<Share2 size={16} />}
+                  onClick={handleShareReferral}
+                  disabled={!referralCode}
+                >
+                  Bagikan Tautan Pendaftaran
+                </Button>
+
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <div className="p-2 rounded-lg bg-white border border-slate-200">
+                    <span className="block text-2xs uppercase tracking-wider text-slate-400 font-bold">Total</span>
+                    <span className="text-sm font-extrabold text-slate-800">{referral?.summary.total ?? 0}</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-white border border-slate-200">
+                    <span className="block text-2xs uppercase tracking-wider text-slate-400 font-bold">Lolos</span>
+                    <span className="text-sm font-extrabold text-[var(--module-primary)]">{referral?.summary.qualified ?? 0}</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-white border border-slate-200">
+                    <span className="block text-2xs uppercase tracking-wider text-slate-400 font-bold">Reward</span>
+                    <span className="text-sm font-extrabold text-[var(--module-primary)]">{referral?.summary.rewarded ?? 0}</span>
+                  </div>
                 </div>
               </div>
 

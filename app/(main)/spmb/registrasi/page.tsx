@@ -21,6 +21,7 @@ import {
   Sparkles,
   Info,
   Edit3,
+  Edit2,
   Copy,
   Loader2,
   Building,
@@ -35,6 +36,9 @@ import {
   FileText,
   Award,
   FileSpreadsheet,
+  Gift,
+  XCircle,
+  Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -104,6 +108,12 @@ const spmbRegistrasiSchema = z.object({
   penghasilan_ortu: z.string().optional(),
   nama_wali: z.string().optional(),
   telepon_wali: z.string().optional(),
+  used_referral_code: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^REF-[A-Z0-9]{6}$/i.test(val.trim()), {
+      message: 'Format kode referral tidak valid (contoh: REF-A1B2C3)',
+    }),
 });
 
 type SpmbFormValues = z.infer<typeof spmbRegistrasiSchema>;
@@ -369,6 +379,7 @@ export default function RegistrasiSpmbPage() {
       nama_ibu: '',
       pekerjaan_ibu: '',
       penghasilan_ortu: '',
+      used_referral_code: '',
     },
   });
 
@@ -407,6 +418,46 @@ export default function RegistrasiSpmbPage() {
   const [referensiMap, setReferensiMap] = useState<Record<string, { value: string; label: string }[]>>({});
   const [berkasRequirements, setBerkasRequirements] = useState<DokumenItemConfig[]>(DEFAULT_FALLBACK_DOCUMENTS);
   const [loadingBerkas, setLoadingBerkas] = useState(false);
+  const [referralCheck, setReferralCheck] = useState<{
+    status: 'idle' | 'checking' | 'valid' | 'invalid';
+    name?: string;
+    message?: string;
+  }>({ status: 'idle' });
+
+  const referralCodeValue = watch('used_referral_code');
+
+  const checkReferralCode = async () => {
+    const code = String(getValues('used_referral_code') || '').trim().toUpperCase();
+    if (!code) {
+      setReferralCheck({ status: 'idle' });
+      return;
+    }
+    if (!/^REF-[A-Z0-9]{6}$/i.test(code)) {
+      setReferralCheck({ status: 'invalid', message: 'Format kode tidak valid.' });
+      return;
+    }
+
+    setReferralCheck({ status: 'checking' });
+    try {
+      const res = await spmbService.validateReferral(code);
+      setReferralCheck({ status: 'valid', name: res?.data?.referrer_name, message: 'Kode referral valid.' });
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.errors?.referral_code?.[0] ||
+        err?.response?.data?.message ||
+        'Kode referral tidak valid.';
+      setReferralCheck({ status: 'invalid', message });
+    }
+  };
+
+  useEffect(() => {
+    const code = getValues('used_referral_code');
+    if (code && code !== String(code).toUpperCase()) {
+      setValue('used_referral_code', String(code).toUpperCase());
+    }
+    setReferralCheck((prev) => (prev.status === 'idle' ? prev : { status: 'idle' }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [referralCodeValue]);
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
@@ -581,6 +632,7 @@ export default function RegistrasiSpmbPage() {
           telepon_wali: p.telepon_wali || '',
           info_daftar: p.info_daftar || '',
           ket_info_daftar: p.ket_info_daftar || '',
+          used_referral_code: p.used_referral_code || '',
         });
 
         const initialJalurId = p.gelombang_penerimaan?.jalur_masuk_id || p.jalur_id;
@@ -1154,6 +1206,16 @@ export default function RegistrasiSpmbPage() {
                 </p>
                 <Button
                   type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setIsCheckoutModalOpen(true)}
+                  className="w-full sm:w-auto text-xs font-bold shrink-0"
+                  icon={<CreditCard size={16} />}
+                >
+                  Bayar Sekarang
+                </Button>
+                <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   isLoading={loadingReset}
@@ -1195,6 +1257,25 @@ export default function RegistrasiSpmbPage() {
             </Button>
           </div>
         </div>
+
+        <XenditCheckoutModal
+          isOpen={isCheckoutModalOpen}
+          onClose={() => setIsCheckoutModalOpen(false)}
+          pendaftaranId={pendaftaran?.id || 0}
+          noPendaftaran={pendaftaran?.no_pendaftaran || ''}
+          namaMhs={pendaftaran?.nama_lengkap || ''}
+          totalBayar={totalBayar}
+          vaNumber={vaNumber}
+          bankCode={bankCode}
+          onSuccess={async () => {
+            try {
+              const res = await spmbService.getMyPendaftaran();
+              if (res?.data) setSuksesData(res.data);
+            } catch {
+              // polling akan menyusul
+            }
+          }}
+        />
       </div>
     );
   }
@@ -1421,6 +1502,48 @@ export default function RegistrasiSpmbPage() {
                     />
                   )}
                 />
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <Gift size={16} className="text-[var(--module-primary)]" />
+                  <h4 className="font-bold text-slate-900 text-sm">Punya Kode Referral?</h4>
+                  <span className="text-2xs text-slate-500 font-medium">(Opsional)</span>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Masukkan kode rujukan dari mahasiswa/alumni jika Anda mendaftar melalui rekomendasi mereka.
+                </p>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Input
+                      label="Kode Referral"
+                      placeholder="REF-A1B2C3"
+                      error={errors.used_referral_code?.message}
+                      className="font-mono tracking-wider uppercase"
+                      {...register('used_referral_code')}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    icon={<Search size={16} />}
+                    onClick={checkReferralCode}
+                    loading={referralCheck.status === 'checking'}
+                  >
+                    Cek
+                  </Button>
+                </div>
+                {referralCheck.status === 'valid' && (
+                  <p className="text-xs text-[var(--module-primary)] font-semibold flex items-center gap-2">
+                    <CheckCircle2 size={16} /> Valid — direferensikan oleh {referralCheck.name}.
+                  </p>
+                )}
+                {referralCheck.status === 'invalid' && (
+                  <p className="text-xs text-[var(--danger)] font-semibold flex items-center gap-2">
+                    <XCircle size={16} /> {referralCheck.message}
+                  </p>
+                )}
               </div>
 
               {selectedJalur && selectedGelombang && (
@@ -2024,6 +2147,28 @@ export default function RegistrasiSpmbPage() {
                     })}
                   </div>
                 </div>
+                {/* Referral Review */}
+                {formValues.used_referral_code ? (
+                  <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+                        Kode Referral
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        icon={<Edit2 size={16} />}
+                        onClick={() => setCurrentStep(1)}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-mono font-bold text-slate-800">{formValues.used_referral_code}</span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Final Warning Box */}

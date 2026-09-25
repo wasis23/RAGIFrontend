@@ -48,7 +48,11 @@ import {
   Settings,
   AlertTriangle,
   Coins,
-  Tag
+  Tag,
+  Share2,
+  DoorOpen,
+  Handshake,
+  Ruler
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -118,6 +122,10 @@ const getIcon = (iconName: string) => {
     'FaCoins': Coins,
     'FaExclamationTriangle': AlertTriangle,
     'FaTag': Tag,
+    'FaShareAlt': Share2,
+    'FaDoorOpen': DoorOpen,
+    'FaHandshake': Handshake,
+    'FaRulerCombined': Ruler,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -254,10 +262,9 @@ const SPMB_FALLBACK_MENUS: Menu[] = [
   {
     id: 802, parent_id: null, name: 'ADMISI & PENDAFTARAN', url: '#admisi_spmb', icon: 'FaUserCheck', module: 'spmb', permission_id: null, order_index: 2, is_active: true,
     children: [
-      { id: 8021, parent_id: 802, name: 'Data Calon Mahasiswa', url: '/spmb/pendaftar', icon: 'FaUsers', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
-      { id: 8022, parent_id: 802, name: 'Pendaftaran Mahasiswa Baru', url: '/spmb/pendaftaran', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
-      { id: 8023, parent_id: 802, name: 'Verifikasi Daftar Ulang', url: '/spmb/daftar-ulang', icon: 'FaClipboardCheck', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
-      { id: 8024, parent_id: 802, name: 'Registrasi Online', url: '/spmb/registrasi', icon: 'FaPen', module: 'spmb', permission_id: null, order_index: 4, is_active: true },
+      { id: 8022, parent_id: 802, name: 'Pendaftaran Mahasiswa Baru', url: '/spmb/pendaftaran', icon: 'FaUserPlus', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
+      { id: 8023, parent_id: 802, name: 'Verifikasi Daftar Ulang', url: '/spmb/daftar-ulang', icon: 'FaClipboardCheck', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
+      { id: 8024, parent_id: 802, name: 'Registrasi Online', url: '/spmb/registrasi', icon: 'FaPen', module: 'spmb', permission_id: null, order_index: 3, is_active: true },
     ]
   },
   {
@@ -278,6 +285,7 @@ const SPMB_FALLBACK_MENUS: Menu[] = [
     id: 804, parent_id: null, name: 'LAPORAN & STATISTIK', url: '#laporan_spmb', icon: 'FaChartBar', module: 'spmb', permission_id: null, order_index: 4, is_active: true,
     children: [
       { id: 8041, parent_id: 804, name: 'Statistik Pendaftaran', url: '/spmb/laporan/statistik', icon: 'FaChartBar', module: 'spmb', permission_id: null, order_index: 1, is_active: true },
+      { id: 8042, parent_id: 804, name: 'Laporan Referral', url: '/spmb/laporan/referral', icon: 'FaShareAlt', module: 'spmb', permission_id: null, order_index: 2, is_active: true },
     ]
   },
 ];

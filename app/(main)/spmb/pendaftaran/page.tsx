@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { 
   Eye, 
   Filter, 
   CheckCircle2, 
   XCircle, 
+  X, 
+  Check, 
   Clock, 
   FileText, 
   ShieldCheck, 
@@ -21,7 +26,6 @@ import {
   ChevronUp, 
   ExternalLink, 
   Save, 
-  Check, 
   AlertCircle,
   Hash,
   CreditCard
@@ -36,10 +40,23 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 import { SPMB_STATUS_CONFIG, SpmbStatusBadge, SpmbPaymentBadge } from '@/components/spmb/SpmbStatusBadge';
+
+// ============================================================
+// SKEMA VALIDASI KEPUTUSAN ADMINISTRASI
+// ============================================================
+const decisionSchema = z.object({
+  is_lulus: z.enum(['true', 'false'], {
+    message: 'Pilih keputusan administrasi terlebih dahulu.',
+  }),
+  catatan: z.string().max(500, 'Catatan maksimal 500 karakter').optional().or(z.literal('')),
+});
+
+type DecisionFormValues = z.infer<typeof decisionSchema>;
 
 // ============================================================
 // CLEAN KEY-VALUE METADATA ITEM (NO CLUTTERED BOXES)
@@ -120,12 +137,14 @@ export default function DataPendaftarPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterReferralCode, setFilterReferralCode] = useState('');
   const [filterOrderBy, setFilterOrderBy] = useState('created_at');
   const [filterOrderDir, setFilterOrderDir] = useState('desc');
   
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     status: '',
+    referral_code: '',
     orderBy: 'created_at',
     orderDir: 'desc'
   });
@@ -133,6 +152,47 @@ export default function DataPendaftarPage() {
   const [paginationMeta, setPaginationMeta] = useState<any>(null);
 
   const [isForbidden, setIsForbidden] = useState(false);
+
+  // Modal Keputusan Administrasi (aksi cepat dari daftar)
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
+  const [decisionTarget, setDecisionTarget] = useState<PendaftaranCalonMhs | null>(null);
+
+  const {
+    register: registerDecision,
+    handleSubmit: handleDecisionSubmit,
+    setValue: setDecisionValue,
+    watch: watchDecision,
+    reset: resetDecision,
+    formState: { errors: decisionErrors, isSubmitting: isSavingDecision },
+  } = useForm<DecisionFormValues>({
+    resolver: zodResolver(decisionSchema),
+    defaultValues: { is_lulus: '' as unknown as 'true' | 'false', catatan: '' },
+  });
+
+  const decisionIsLulus = watchDecision('is_lulus');
+
+  const handleOpenDecision = (row: PendaftaranCalonMhs) => {
+    setDecisionTarget(row);
+    resetDecision({ is_lulus: '' as unknown as 'true' | 'false', catatan: '' });
+    setShowDecisionModal(true);
+  };
+
+  const handleSaveDecision = async (values: DecisionFormValues) => {
+    if (!decisionTarget) return;
+
+    try {
+      await spmbService.updateStatusPendaftaran(decisionTarget.id, {
+        status: values.is_lulus === 'true' ? 'lulus_administrasi' : 'gagal_administrasi',
+        catatan_verifikasi: values.catatan,
+      });
+      toast.success('Keputusan administrasi berhasil disimpan.');
+      setShowDecisionModal(false);
+      fetchData();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message || 'Gagal menyimpan keputusan administrasi.');
+    }
+  };
 
   // Fetch Pendaftaran list with server-side pagination
   const fetchData = useCallback(async () => {
@@ -150,6 +210,9 @@ export default function DataPendaftarPage() {
       }
       if (appliedFilters.status?.trim()) {
         queryParams.status = appliedFilters.status.trim();
+      }
+      if (appliedFilters.referral_code?.trim()) {
+        queryParams.referral_code = appliedFilters.referral_code.trim();
       }
 
       const res = await spmbService.getPendaftaran(queryParams);
@@ -295,6 +358,19 @@ export default function DataPendaftarPage() {
               )
             },
             { 
+              key: 'used_referral_code', 
+              label: 'Referral', 
+              render: (row) => (
+                row.used_referral_code ? (
+                  <span className="font-mono text-2xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                    {row.used_referral_code}
+                  </span>
+                ) : (
+                  <span className="text-2xs text-slate-400">-</span>
+                )
+              )
+            },
+            { 
               key: 'status', 
               label: 'Status Pendaftaran & Pembayaran', 
               render: (row) => (
@@ -312,9 +388,14 @@ export default function DataPendaftarPage() {
                 <DropdownMenu
                   items={[
                     {
-                      label: 'Verifikasi',
+                      label: 'Verifikasi & Detail',
                       icon: <Eye size={15} />,
                       onClick: () => handleOpenDetail(row)
+                    },
+                    {
+                      label: 'Keputusan Administrasi',
+                      icon: <CheckCircle2 size={16} />,
+                      onClick: () => handleOpenDecision(row)
                     }
                   ]}
                 />
@@ -342,14 +423,15 @@ export default function DataPendaftarPage() {
             title="Data Pendaftaran Tidak Ditemukan"
             description="Belum ada data pendaftar calon mahasiswa yang sesuai dengan pencarian atau filter saat ini."
             action={
-              (appliedFilters.search || appliedFilters.status) && (
+              (appliedFilters.search || appliedFilters.status || appliedFilters.referral_code) && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     setFilterSearch('');
                     setFilterStatus('');
-                    setAppliedFilters({ search: '', status: '', orderBy: 'created_at', orderDir: 'desc' });
+                    setFilterReferralCode('');
+                    setAppliedFilters({ search: '', status: '', referral_code: '', orderBy: 'created_at', orderDir: 'desc' });
                     setPage(1);
                   }}
                   className="mt-2"
@@ -388,6 +470,12 @@ export default function DataPendaftarPage() {
                       {row.program_studi?.nama || '-'}
                     </span>
                   </div>
+                  {row.used_referral_code && (
+                    <div className="col-span-2">
+                      <span className="text-slate-400 block text-2xs font-medium">Kode Referral</span>
+                      <span className="text-slate-700 font-semibold font-mono">{row.used_referral_code}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-1 flex items-center justify-between text-xs text-primary-600 font-bold">
@@ -436,9 +524,10 @@ export default function DataPendaftarPage() {
               onClick={() => {
                 setFilterSearch('');
                 setFilterStatus('');
+                setFilterReferralCode('');
                 setFilterOrderBy('created_at');
                 setFilterOrderDir('desc');
-                setAppliedFilters({ search: '', status: '', orderBy: 'created_at', orderDir: 'desc' });
+                setAppliedFilters({ search: '', status: '', referral_code: '', orderBy: 'created_at', orderDir: 'desc' });
                 setShowFilter(false);
                 setPage(1);
               }}
@@ -452,6 +541,7 @@ export default function DataPendaftarPage() {
                 setAppliedFilters({
                   search: filterSearch,
                   status: filterStatus,
+                  referral_code: filterReferralCode,
                   orderBy: filterOrderBy,
                   orderDir: filterOrderDir
                 });
@@ -486,6 +576,13 @@ export default function DataPendaftarPage() {
               { value: 'gagal_administrasi', label: 'Gagal Administrasi' }
             ]}
           />
+
+          <Input
+            label="Kode Referral"
+            placeholder="REF-A1B2C3"
+            value={filterReferralCode}
+            onChange={(e) => setFilterReferralCode(e.target.value.toUpperCase())}
+          />
           
           <hr style={{ borderTop: '1px solid var(--border-light)', margin: '0.5rem 0' }} />
 
@@ -498,6 +595,7 @@ export default function DataPendaftarPage() {
                 { value: 'created_at', label: 'Tanggal Daftar' },
                 { value: 'nama_lengkap', label: 'Nama Pendaftar' },
                 { value: 'no_pendaftaran', label: 'No Pendaftaran' },
+                { value: 'used_referral_code', label: 'Kode Referral' },
                 { value: 'status', label: 'Status' }
               ]}
             />
@@ -514,6 +612,66 @@ export default function DataPendaftarPage() {
           </div>
         </div>
       </Drawer>
+
+      {/* Modal Keputusan Administrasi */}
+      <Modal
+        open={showDecisionModal}
+        onClose={() => setShowDecisionModal(false)}
+        title="Keputusan Administrasi Pendaftar"
+        footer={
+          <>
+            <Button variant="secondary" icon={<X size={16} />} onClick={() => setShowDecisionModal(false)} disabled={isSavingDecision}>
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="decision-form"
+              variant="primary"
+              icon={<Check size={16} />}
+              loading={isSavingDecision}
+              disabled={isSavingDecision}
+            >
+              Simpan Keputusan
+            </Button>
+          </>
+        }
+      >
+        {decisionTarget && (
+          <form id="decision-form" onSubmit={handleDecisionSubmit(handleSaveDecision)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="col-span-1 md:col-span-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
+              <p className="text-2xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pendaftar</p>
+              <p className="font-bold text-slate-800 text-sm">
+                {decisionTarget.nama_lengkap} ({decisionTarget.no_pendaftaran})
+              </p>
+            </div>
+
+            <div className="col-span-1 md:col-span-2">
+              <Select
+                label="Keputusan Kelulusan Administrasi"
+                required
+                error={decisionErrors.is_lulus?.message}
+                value={decisionIsLulus}
+                onChange={(val) => setDecisionValue('is_lulus', val as 'true' | 'false', { shouldValidate: true })}
+                options={[
+                  { value: '', label: '-- Pilih Keputusan --' },
+                  { value: 'true', label: 'Lulus Administrasi' },
+                  { value: 'false', label: 'Gagal Administrasi' },
+                ]}
+              />
+            </div>
+
+            <div className="col-span-1 md:col-span-2">
+              <Textarea
+                label="Catatan Verifikasi (Opsional)"
+                rows={3}
+                placeholder="Berikan catatan jika diperlukan..."
+                error={decisionErrors.catatan?.message}
+                {...registerDecision('catatan')}
+              />
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

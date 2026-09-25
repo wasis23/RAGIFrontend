@@ -37,12 +37,12 @@ export function XenditCheckoutModal({
   const handleSimulatePayment = async () => {
     setIsProcessing(true);
     try {
-      await api.post(`/v1/sikeu/callback/spmb/${pendaftaranId}`, {
+      await api.post(`/v1/sikeu/callback/spmb/${pendaftaranId}/simulate`, {
         order_id: `XND-TRX-${Date.now()}`,
         nominal: totalBayar,
         status: 'settlement',
-        bank_kode: bankCode || 'BNI',
-        channel: `VA_${bankCode || 'BNI'}`,
+        bank_kode: selectedMethod.replace('va_', '').toUpperCase() || bankCode || 'BNI',
+        channel: `VA_${selectedMethod.replace('va_', '').toUpperCase() || bankCode || 'BNI'}`,
       });
 
       setStep('success');
