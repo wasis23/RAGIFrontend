@@ -277,16 +277,16 @@ export default function InputNilaiKelasPage() {
                     className="text-xs font-bold"
                     onClick={async () => {
                       try {
-                        const blob = await siakadService.downloadRekapCsv(kelasId);
+                        const blob = await siakadService.downloadRekapXlsx(kelasId);
                         const url = window.URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
-                        link.setAttribute('download', `rekap_nilai_${kelasData?.kode_kelas || kelasId}.csv`);
+                        link.setAttribute('download', `rekap_nilai_${kelasData?.kode_kelas || kelasId}.xlsx`);
                         document.body.appendChild(link);
                         link.click();
                         link.remove();
                         window.URL.revokeObjectURL(url);
-                        toast.success('Rekap nilai berhasil diunduh (CSV)');
+                        toast.success('Rekap nilai berhasil diunduh (XLSX)');
                       } catch {
                         toast.error('Gagal mengunduh rekap nilai');
                       }

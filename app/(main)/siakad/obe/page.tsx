@@ -113,6 +113,28 @@ export function ObeWorkspace({
   const [tahunList, setTahunList] = useState<any[]>([]);
   const [drillMkId, setDrillMkId] = useState<number | null>(null);
 
+  // Dosen murni: hanya MK yang diajarnya (mendukung lintas prodi)
+  const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
+  const [taughtMkIds, setTaughtMkIds] = useState<number[]>([]);
+  const [taughtLoaded, setTaughtLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!isDosenOnly) {
+      setTaughtLoaded(true);
+      return;
+    }
+    siakadService
+      .getKelas({ my_teaching_only: true, per_page: 200 })
+      .then((res) => {
+        const ids: number[] = (res.data || []).map((k: any) => Number(k.mata_kuliah_id)).filter(Boolean);
+        setTaughtMkIds([...new Set(ids)]);
+      })
+      .catch(() => setTaughtMkIds([]))
+      .finally(() => setTaughtLoaded(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDosenOnly]);
+
+
   const fetchGrafik = async () => {
     try {
       setLoading(true);
@@ -156,6 +178,7 @@ export function ObeWorkspace({
 
   // CPMK Data
   const [matakuliahList, setMatakuliahList] = useState<any[]>([]);
+  const mkTerlihat = isDosenOnly ? matakuliahList.filter((m: any) => taughtMkIds.includes(m.id)) : matakuliahList;
   const [selectedMkId, setSelectedMkId] = useState<number | ''>('');
   const [cpmkList, setCpmkList] = useState<any[]>([]);
   const [isCpmkModalOpen, setIsCpmkModalOpen] = useState(false);
@@ -1458,7 +1481,7 @@ export function ObeWorkspace({
                 className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs outline-none bg-white"
               >
                 <option value="">Semua MK prodi</option>
-                {matakuliahList.map((m: any) => (
+                {mkTerlihat.map((m: any) => (
                   <option key={m.id} value={m.id}>{m.kode_mk} — {m.nama}</option>
                 ))}
               </select>
@@ -1938,7 +1961,7 @@ export function ObeWorkspace({
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <div className="min-w-[280px] sm:min-w-[340px]">
                 <Select
-                  options={matakuliahList.map((m) => ({
+                  options={mkTerlihat.map((m) => ({
                     value: m.id,
                     label: `${m.kode_mk} - ${m.nama} (${m.total_sks} SKS, Smt ${m.semester_default || '-'})`,
                   }))}
@@ -2074,9 +2097,14 @@ export function ObeWorkspace({
             </p>
           </div>
 
+          {isDosenOnly && taughtLoaded && taughtMkIds.length === 0 && (
+            <p className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              Anda belum mengampu kelas pada periode ini — RPS yang tampil dibatasi MK yang Anda ampu.
+            </p>
+          )}
           <DataTable
             columns={rpsColumns}
-            data={rpsList}
+            data={isDosenOnly ? rpsList.filter((r: any) => taughtMkIds.includes(r.mata_kuliah_id)) : rpsList}
             isLoading={loading}
             emptyMessage="Belum ada dokumen RPS yang terdaftar."
           />

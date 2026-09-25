@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileSpreadsheet, Plus, Filter, Trash2, CheckCircle2 } from 'lucide-react';
+import { FileSpreadsheet, Plus, Filter, Trash2, CheckCircle2, Edit } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -13,10 +13,16 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
 import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
+import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
 export default function KonversiTransferPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const userRoles = user?.roles?.map((r: any) => typeof r === 'string' ? r : r.slug) || [];
+  const isDosen = userRoles.includes('dosen');
+  const isAdmin = userRoles.includes('superadmin') || userRoles.includes('admin');
+
   const [konversis, setKonversis] = useState<any[]>([]);
   const [mahasiswas, setMahasiswas] = useState<any[]>([]);
   const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
@@ -35,6 +41,11 @@ export default function KonversiTransferPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingKonversi, setDeletingKonversi] = useState<any | null>(null);
 
+  // Edit Usulan MK State (Dosen PA / Admin)
+  const [selectedEditKonversi, setSelectedEditKonversi] = useState<any | null>(null);
+  const [editKonversiDetails, setEditKonversiDetails] = useState<any[]>([]);
+  const [savingEditKonversi, setSavingEditKonversi] = useState(false);
+
   // Verifikasi per-MK (setujui sebagian / tolak)
   const [verifTarget, setVerifTarget] = useState<any | null>(null);
   const [verifDetails, setVerifDetails] = useState<{ id: number; status: string; catatan_penolakan: string }[]>([]);
@@ -44,6 +55,41 @@ export default function KonversiTransferPage() {
   // Pilih banyak usulan (verifikasi massal per mahasiswa)
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [savingBulkVerif, setSavingBulkVerif] = useState(false);
+
+  // Kurikulum prodi mhs terpilih (hitung kekurangan SKS)
+  const [verifKurikulum, setVerifKurikulum] = useState<any | null>(null);
+
+  const openVerifikasi = async (row: any) => {
+    setVerifTarget(row);
+    setVerifDetails(
+      (row.details || []).map((d: any) => ({
+        id: d.id,
+        status: d.status || 'diakui',
+        catatan_penolakan: d.catatan_penolakan || '',
+      }))
+    );
+    setVerifCatatan(row.catatan || '');
+    setVerifKurikulum(null);
+    try {
+      const prodiId = row.mahasiswa?.program_studi_id;
+      if (prodiId) {
+        const res = await siakadService.getKurikulums({ program_studi_id: prodiId });
+        const list = Array.isArray(res.data) ? res.data : [];
+        setVerifKurikulum(list[0] || null);
+      }
+    } catch {}
+  };
+
+  const verifSks = (() => {
+    const details = verifTarget?.details || [];
+    const diakui = details.filter((d: any) => {
+      const st = verifDetails.find((v) => v.id === d.id);
+      return (st?.status || d.status || 'diakui') === 'diakui';
+    });
+    const sksDiakui = diakui.reduce((a: number, d: any) => a + Number(d.mata_kuliah_diakui?.total_sks || d.sks_asal || 0), 0);
+    const wajib = Number(verifKurikulum?.total_sks_lulus || 0);
+    return { diakui: diakui.length, ditolak: details.length - diakui.length, sksDiakui, wajib, kurang: wajib > 0 ? Math.max(0, wajib - sksDiakui) : 0 };
+  })();
 
   const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -131,8 +177,9 @@ export default function KonversiTransferPage() {
     try {
       setLoading(true);
       const res = await siakadService.getKonversis({
-        search: appliedFilters.search,
+        search: appliedFilters.search || undefined,
         mahasiswa_id: appliedFilters.mhsId || undefined,
+        advisees_only: isDosen && !isAdmin ? true : undefined,
       });
       if (res.data) setKonversis(res.data);
     } catch (err: any) {
@@ -148,7 +195,87 @@ export default function KonversiTransferPage() {
 
   useEffect(() => {
     fetchKonversi();
-  }, [appliedFilters]);
+  }, [appliedFilters, isDosen, isAdmin]);
+
+  const startEditKonversi = (row: any) => {
+    setSelectedEditKonversi(row);
+    setEditKonversiDetails(
+      (row.details || []).map((d: any) => ({
+        mata_kuliah_diakui_id: d.mata_kuliah_diakui_id,
+        kode_mk_asal: d.kode_mk_asal || '',
+        nama_mk_asal: d.nama_mk_asal || '',
+        sks_asal: d.sks_asal || 3,
+        nilai_huruf_asal: d.nilai_huruf_asal || 'A',
+      }))
+    );
+  };
+
+  const handleAddEditRow = () => {
+    const defaultMkId = matakuliahs[0]?.id || 1;
+    setEditKonversiDetails((prev) => [
+      ...prev,
+      {
+        mata_kuliah_diakui_id: defaultMkId,
+        kode_mk_asal: '',
+        nama_mk_asal: '',
+        sks_asal: 3,
+        nilai_huruf_asal: 'A',
+      },
+    ]);
+  };
+
+  const handleRemoveEditRow = (idx: number) => {
+    setEditKonversiDetails((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleEditRowField = (idx: number, field: string, val: any) => {
+    setEditKonversiDetails((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [field]: val };
+      return copy;
+    });
+  };
+
+  const handleSaveEditedKonversi = async () => {
+    if (!selectedEditKonversi) return;
+    if (editKonversiDetails.length === 0) {
+      toast.error('Minimal harus ada 1 baris mata kuliah konversi');
+      return;
+    }
+    for (const d of editKonversiDetails) {
+      if (!d.kode_mk_asal || !d.nama_mk_asal) {
+        toast.error('Kode MK asal dan Nama MK asal tidak boleh kosong');
+        return;
+      }
+    }
+
+    try {
+      setSavingEditKonversi(true);
+      const payload = {
+        mahasiswa_id: selectedEditKonversi.mahasiswa_id,
+        kampus_asal: selectedEditKonversi.kampus_asal,
+        prodi_asal: selectedEditKonversi.prodi_asal,
+        catatan: selectedEditKonversi.catatan,
+        status: selectedEditKonversi.status || 'diajukan',
+        details: editKonversiDetails.map((d: any) => ({
+          mata_kuliah_diakui_id: Number(d.mata_kuliah_diakui_id),
+          kode_mk_asal: d.kode_mk_asal,
+          nama_mk_asal: d.nama_mk_asal,
+          sks_asal: Number(d.sks_asal),
+          nilai_huruf_asal: d.nilai_huruf_asal,
+        })),
+      };
+
+      await siakadService.createKonversi(payload);
+      toast.success('Perubahan mata kuliah konversi berhasil disimpan');
+      setSelectedEditKonversi(null);
+      fetchKonversi();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyimpan perubahan konversi');
+    } finally {
+      setSavingEditKonversi(false);
+    }
+  };
 
   const handleAddDetail = () => {
     setForm({
@@ -303,22 +430,17 @@ export default function KonversiTransferPage() {
         <div className="flex justify-end">
           <DropdownMenu
             items={[
+              {
+                label: 'Edit Usulan MK',
+                icon: <Edit size={14} />,
+                onClick: () => startEditKonversi(row),
+              },
               ...(row.status !== 'disetujui'
                 ? [
                     {
                       label: 'Verifikasi per MK',
                       icon: <CheckCircle2 size={14} />,
-                      onClick: () => {
-                        setVerifTarget(row);
-                        setVerifDetails(
-                          (row.details || []).map((d: any) => ({
-                            id: d.id,
-                            status: d.status || 'diakui',
-                            catatan_penolakan: d.catatan_penolakan || '',
-                          }))
-                        );
-                        setVerifCatatan(row.catatan || '');
-                      },
+                      onClick: () => openVerifikasi(row),
                     },
                   ]
                 : []),
@@ -657,8 +779,25 @@ export default function KonversiTransferPage() {
         }
       >
         <div className="space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Mahasiswa</span>
+              <strong className="text-slate-900">{verifTarget?.mahasiswa?.nama_lengkap}</strong>
+              <span className="font-mono text-2xs text-slate-500 block">{verifTarget?.mahasiswa?.nim} • {verifTarget?.mahasiswa?.program_studi?.nama || ''}</span>
+            </div>
+            <div>
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Kampus Asal</span>
+              <strong className="text-slate-900 block text-xs">{verifTarget?.kampus_asal}</strong>
+              <span className="text-2xs text-slate-500">{verifTarget?.prodi_asal}</span>
+            </div>
+            <div>
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Status Usulan</span>
+              <Badge variant={verifTarget?.status === 'diajukan' ? 'amber' : 'gray'} className="capitalize">{verifTarget?.status}</Badge>
+            </div>
+          </div>
+
           <p className="text-xs text-slate-600">
-            Tandai tiap MK <strong>Diakui</strong> atau <strong>Ditolak</strong>. MK yang ditolak tidak masuk transkrip. Menyetujui butuh minimal 1 MK diakui.
+            Bandingkan MK asal (kiri) dengan MK lokal yang diakui (kanan). Tandai tiap baris <strong>Diakui</strong>/<strong>Ditolak</strong>.
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -678,46 +817,85 @@ export default function KonversiTransferPage() {
               Tandai Semua Ditolak
             </Button>
           </div>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {(verifTarget?.details || []).map((d: any) => {
-              const st = verifDetails.find((v) => v.id === d.id);
-              const cur = st?.status || 'diakui';
-              return (
-                <div key={d.id} className="p-3 border border-slate-200 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs">
-                      <strong className="text-slate-900 block">{d.kode_mk_asal} ({d.nilai_huruf_asal}) → {d.mata_kuliah_diakui?.nama}</strong>
-                      <span className="text-2xs text-slate-500">{d.sks_asal} SKS asal</span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        type="button"
-                        variant={cur === 'diakui' ? 'primary' : 'outline'}
-                        className="text-2xs py-1 px-2.5 h-auto font-bold"
-                        onClick={() => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, status: 'diakui', catatan_penolakan: '' } : v)))}
-                      >
-                        Diakui
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={cur === 'ditolak' ? 'danger' : 'outline'}
-                        className="text-2xs py-1 px-2.5 h-auto font-bold"
-                        onClick={() => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, status: 'ditolak' } : v)))}
-                      >
-                        Tolak
-                      </Button>
-                    </div>
-                  </div>
-                  {cur === 'ditolak' && (
-                    <Input
-                      placeholder="Alasan penolakan MK ini..."
-                      value={st?.catatan_penolakan || ''}
-                      onChange={(e) => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, catatan_penolakan: e.target.value } : v)))}
-                    />
-                  )}
-                </div>
-              );
-            })}
+          <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-72 overflow-y-auto">
+            <table className="w-full text-left text-xs min-w-[640px]">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr className="text-2xs uppercase text-slate-500">
+                  <th className="py-2 px-3">MK Asal (kiri)</th>
+                  <th className="py-2 px-3 text-center w-10">→</th>
+                  <th className="py-2 px-3">MK Lokal Diakui (kanan)</th>
+                  <th className="py-2 px-3 text-center">Keputusan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(verifTarget?.details || []).map((d: any) => {
+                  const st = verifDetails.find((v) => v.id === d.id);
+                  const cur = st?.status || 'diakui';
+                  return (
+                    <Fragment key={d.id}>
+                      <tr className={cur === 'ditolak' ? 'bg-rose-50/50' : 'hover:bg-slate-50'}>
+                        <td className="py-2.5 px-3">
+                          <strong className="text-slate-900 block">{d.kode_mk_asal} — {d.nama_mk_asal}</strong>
+                          <span className="text-2xs text-slate-500">{d.sks_asal} SKS • Nilai {d.nilai_huruf_asal}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-slate-300 font-black">→</td>
+                        <td className="py-2.5 px-3">
+                          <strong className="text-primary-700 block">{d.mata_kuliah_diakui?.kode_mk} — {d.mata_kuliah_diakui?.nama}</strong>
+                          <span className="text-2xs text-slate-500">{d.mata_kuliah_diakui?.total_sks} SKS lokal</span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              type="button"
+                              variant={cur === 'diakui' ? 'primary' : 'outline'}
+                              className="text-2xs py-1 px-2 h-auto font-bold"
+                              onClick={() => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, status: 'diakui', catatan_penolakan: '' } : v)))}
+                            >
+                              Diakui
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={cur === 'ditolak' ? 'danger' : 'outline'}
+                              className="text-2xs py-1 px-2 h-auto font-bold"
+                              onClick={() => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, status: 'ditolak' } : v)))}
+                            >
+                              Tolak
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                      {cur === 'ditolak' && (
+                        <tr className="bg-rose-50/50">
+                          <td colSpan={4} className="py-1.5 px-3">
+                            <Input
+                              placeholder="Alasan penolakan MK ini..."
+                              value={st?.catatan_penolakan || ''}
+                              onChange={(e) => setVerifDetails((prev) => prev.map((v) => (v.id === d.id ? { ...v, catatan_penolakan: e.target.value } : v)))}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-center">
+              <span className="text-2xs text-emerald-700 block uppercase font-bold">Diakui</span>
+              <strong className="font-mono text-sm text-emerald-800">{verifSks.diakui} MK • {verifSks.sksDiakui} SKS</strong>
+            </div>
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-center">
+              <span className="text-2xs text-rose-700 block uppercase font-bold">Ditolak</span>
+              <strong className="font-mono text-sm text-rose-800">{verifSks.ditolak} MK</strong>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center sm:col-span-2">
+              <span className="text-2xs text-slate-500 block uppercase font-bold">Estimasi kekurangan SKS lulus</span>
+              <strong className="font-mono text-sm text-slate-900">
+                {verifKurikulum ? `${verifSks.kurang} SKS (wajib ${verifSks.wajib})` : 'Kurikulum prodi belum ada'}
+              </strong>
+            </div>
           </div>
           <Input
             label="Catatan Verifikasi (umum)"
@@ -725,6 +903,146 @@ export default function KonversiTransferPage() {
             value={verifCatatan}
             onChange={(e) => setVerifCatatan(e.target.value)}
           />
+        </div>
+      </Modal>
+
+      {/* Modal Edit Usulan Penyetaraan MK (Dosen PA / Admin) */}
+      <Modal
+        open={Boolean(selectedEditKonversi)}
+        onClose={() => setSelectedEditKonversi(null)}
+        title={`Edit Usulan Penyetaraan MK — ${selectedEditKonversi?.mahasiswa?.nama_lengkap || ''}`}
+        size="xl"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSelectedEditKonversi(null)}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveEditedKonversi}
+              disabled={savingEditKonversi}
+            >
+              {savingEditKonversi ? 'Menyimpan...' : 'Simpan Perubahan MK'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Mahasiswa</span>
+              <strong className="text-slate-900">{selectedEditKonversi?.mahasiswa?.nama_lengkap}</strong>
+              <span className="font-mono text-2xs text-slate-500 block">NIM: {selectedEditKonversi?.mahasiswa?.nim || '-'}</span>
+            </div>
+            <div>
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Kampus Asal</span>
+              <strong className="text-slate-900 block text-xs">{selectedEditKonversi?.kampus_asal}</strong>
+              <span className="text-2xs text-slate-500">{selectedEditKonversi?.prodi_asal}</span>
+            </div>
+            <div>
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Status Saat Ini</span>
+              <Badge variant={selectedEditKonversi?.status === 'disetujui' ? 'green' : 'amber'} className="capitalize">
+                {selectedEditKonversi?.status || 'diajukan'}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 uppercase">
+                  Daftar Mata Kuliah Penyetaraan ({editKonversiDetails.length} MK)
+                </h4>
+                <p className="text-2xs text-slate-500">
+                  Dosen PA dapat menyesuaikan kode/nama MK asal, bobot SKS, nilai huruf, atau memilih MK lokal yang tepat.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                icon={<Plus size={13} />}
+                className="text-2xs py-1 px-2.5 h-auto font-bold"
+                onClick={handleAddEditRow}
+              >
+                Tambah Baris MK
+              </Button>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+              {editKonversiDetails.map((det, idx) => (
+                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-700 text-2xs uppercase">Baris #{idx + 1}</span>
+                    {editKonversiDetails.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEditRow(idx)}
+                        className="text-rose-500 hover:text-rose-700 text-2xs flex items-center gap-1 font-bold cursor-pointer"
+                      >
+                        <Trash2 size={13} /> Hapus
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-2xs font-bold text-slate-500 block uppercase">Mata Kuliah Asal</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          label="Kode MK Asal"
+                          placeholder="CS101"
+                          value={det.kode_mk_asal}
+                          onChange={(e) => handleEditRowField(idx, 'kode_mk_asal', e.target.value)}
+                          required
+                        />
+                        <div className="col-span-2">
+                          <Input
+                            label="Nama MK Asal"
+                            placeholder="Dasar Pemrograman"
+                            value={det.nama_mk_asal}
+                            onChange={(e) => handleEditRowField(idx, 'nama_mk_asal', e.target.value)}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          label="SKS Asal"
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={det.sks_asal}
+                          onChange={(e) => handleEditRowField(idx, 'sks_asal', Number(e.target.value) || 3)}
+                          required
+                        />
+                        <div>
+                          <label className="label">Nilai Huruf Asal</label>
+                          <select
+                            value={det.nilai_huruf_asal}
+                            onChange={(e) => handleEditRowField(idx, 'nilai_huruf_asal', e.target.value)}
+                            className="select text-xs font-bold py-1 px-2 w-full"
+                          >
+                            {['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'D', 'E'].map((g) => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-2xs font-bold text-slate-500 block uppercase">Disetarakan Ke MK Lokal</span>
+                      <MkProdiSelect
+                        value={det.mata_kuliah_diakui_id}
+                        onChange={(val) => handleEditRowField(idx, 'mata_kuliah_diakui_id', val)}
+                        matakuliahs={matakuliahs}
+                        label="Pilih MK Kurikulum Lokal"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </Modal>
     </div>

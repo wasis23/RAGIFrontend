@@ -11,6 +11,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
+import { richToSafeHtml } from '@/components/ui/RichTextarea';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
@@ -19,12 +20,15 @@ export default function BankSoalPage() {
   const router = useRouter();
   const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
   const readOnly = userRoles.includes('mahasiswa');
+  const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
+  const [taughtMkIds, setTaughtMkIds] = useState<number[]>([]);
 
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [mkFilter, setMkFilter] = useState('');
+  const [prodiFilter, setProdiFilter] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [toDelete, setToDelete] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -48,6 +52,16 @@ export default function BankSoalPage() {
 
   useEffect(() => {
     fetchList();
+    if (isDosenOnly) {
+      siakadService
+        .getKelas({ my_teaching_only: true, per_page: 200 })
+        .then((res) => {
+          const ids: number[] = (res.data || []).map((k: any) => Number(k.mata_kuliah_id)).filter(Boolean);
+          setTaughtMkIds([...new Set(ids)]);
+        })
+        .catch(() => setTaughtMkIds([]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async () => {
@@ -66,14 +80,26 @@ export default function BankSoalPage() {
   };
 
   const filtered = list.filter((s: any) => {
+    if (isDosenOnly && !taughtMkIds.includes(Number(s.rps?.mata_kuliah_id))) return false;
     if (mkFilter && String(s.rps?.mata_kuliah_id) !== String(mkFilter)) return false;
+    const prodiNama = s.rps?.mataKuliah?.kurikulum?.program_studi?.nama || '';
+    if (prodiFilter && prodiNama !== prodiFilter) return false;
     if (debounced) {
       const q = debounced.toLowerCase();
-      const hay = `${s.pertanyaan || ''} ${s.rps?.mataKuliah?.nama || ''} ${s.rps?.mataKuliah?.kode_mk || ''}`.toLowerCase();
+      const hay = `${String(s.pertanyaan || '').replace(/<[^>]*>/g, ' ')} ${s.rps?.mataKuliah?.nama || ''} ${s.rps?.mataKuliah?.kode_mk || ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
   });
+
+  const prodiOptions = (() => {
+    const set = new Set<string>();
+    list.forEach((s: any) => {
+      const n = s.rps?.mataKuliah?.kurikulum?.program_studi?.nama;
+      if (n) set.add(n);
+    });
+    return [...set].sort();
+  })();
 
   const mkOptions = (() => {
     const map = new Map<number, string>();
@@ -91,10 +117,12 @@ export default function BankSoalPage() {
       label: 'PERTANYAAN',
       render: (r) => (
         <div>
-          <span className="text-xs text-slate-800 block leading-relaxed">{r.pertanyaan}</span>
+          <div
+            className="text-xs text-slate-800 leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+            dangerouslySetInnerHTML={{ __html: richToSafeHtml(r.pertanyaan) }}
+          />
           <span className="text-2xs text-slate-400">
             {r.subCpmk ? `SubCPMK: ${r.subCpmk.kode_sub_cpmk} • ` : ''}Bobot {r.bobot}
-            {r.kunci_jawaban ? ` • Kunci: ${String(r.kunci_jawaban).substring(0, 50)}` : ''}
           </span>
         </div>
       ),
@@ -106,6 +134,9 @@ export default function BankSoalPage() {
         <div>
           <span className="font-bold text-slate-900 block text-xs">{r.rps?.mataKuliah?.nama || '-'}</span>
           <span className="font-mono text-2xs text-slate-400">{r.rps?.mataKuliah?.kode_mk || ''} • {r.rps?.tahun_ajaran || ''}</span>
+          {r.rps?.mataKuliah?.kurikulum?.program_studi?.nama && (
+            <span className="block text-2xs font-bold text-purple-700 mt-0.5">{r.rps.mataKuliah.kurikulum.program_studi.nama}</span>
+          )}
         </div>
       ),
     },
@@ -185,6 +216,15 @@ export default function BankSoalPage() {
       <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Bank Soal">
         <div className="flex flex-col gap-5">
           <div>
+            <label className="label">Program Studi</label>
+            <select value={prodiFilter} onChange={(e) => setProdiFilter(e.target.value)} className="select w-full">
+              <option value="">Semua Program Studi</option>
+              {prodiOptions.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="label">Mata Kuliah</label>
             <select value={mkFilter} onChange={(e) => setMkFilter(e.target.value)} className="select w-full">
               <option value="">Semua Mata Kuliah</option>
@@ -197,6 +237,7 @@ export default function BankSoalPage() {
             variant="secondary"
             onClick={() => {
               setMkFilter('');
+              setProdiFilter('');
               setSearch('');
               setShowFilter(false);
             }}
