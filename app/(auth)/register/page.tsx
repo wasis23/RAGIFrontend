@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Eye, EyeOff, Loader2, Gift, CheckCircle2, XCircle, Search } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { spmbService } from '@/services/spmb.service';
+import { TurnstileWidget, type TurnstileHandle } from '@/components/ui/TurnstileWidget';
 
 // Skema validasi: kode referral opsional, format REF-XXXXXX bila diisi.
 const registerSchema = z
@@ -45,6 +46,9 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [referralCheck, setReferralCheck] = useState<ReferralCheckState>({ status: 'idle' });
+  const [captchaToken, setCaptchaToken] = useState('');
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   const {
     register,
@@ -140,12 +144,14 @@ export default function RegisterPage() {
       };
       const code = (data.referral_code || '').trim().toUpperCase();
       if (code) payload.referral_code = code;
+      if (captchaToken) payload.captcha_token = captchaToken;
 
       await registerAndLogin(payload, '/dashboard');
     } catch {
       // registerAndLogin sudah menangani toast error.
     } finally {
       setIsLoading(false);
+      captchaRef.current?.reset();
     }
   };
 
@@ -284,10 +290,14 @@ export default function RegisterPage() {
           {...register('password_confirmation')}
         />
 
+        <div>
+          <TurnstileWidget ref={captchaRef} action="register" onVerify={setCaptchaToken} />
+        </div>
+
         <div className="pt-6">
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (!!siteKey && !captchaToken)}
             className="w-full h-12 text-[15px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[10px] transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? (

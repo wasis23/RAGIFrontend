@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { TurnstileWidget, type TurnstileHandle } from '@/components/ui/TurnstileWidget';
 
 const loginSchema = z.object({
   identifier: z
@@ -24,6 +25,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const { login, is_loading } = useAuth();
 
   const {
@@ -35,15 +39,20 @@ export default function LoginPage() {
     defaultValues: { identifier: '', password: '', remember_me: false },
   });
 
-  const onSubmit = (data: LoginFormValues) => {
+  const onSubmit = async (data: LoginFormValues) => {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get('redirect');
 
-    login({
-      identifier: data.identifier,
-      password: data.password,
-      remember_me: data.remember_me,
-    }, redirect);
+    try {
+      await login({
+        identifier: data.identifier,
+        password: data.password,
+        remember_me: data.remember_me,
+        captcha_token: captchaToken,
+      }, redirect);
+    } finally {
+      captchaRef.current?.reset();
+    }
   };
 
   return (
@@ -136,12 +145,17 @@ export default function LoginPage() {
           </Link>
         </div>
 
+        {/* Bot protection */}
+        <div className="login-field">
+          <TurnstileWidget ref={captchaRef} action="login" onVerify={setCaptchaToken} />
+        </div>
+
         {/* Submit */}
         <button
           type="submit"
           id="btn-login"
           className="btn-login-submit"
-          disabled={is_loading}
+          disabled={is_loading || (!!siteKey && !captchaToken)}
         >
           {is_loading ? (
             <span className="login-spinner" />

@@ -52,6 +52,7 @@ import {
   Share2,
   DoorOpen,
   Handshake,
+  HeartHandshake,
   Ruler,
   Package,
   Boxes
@@ -129,6 +130,7 @@ const getIcon = (iconName: string) => {
     'FaShareAlt': Share2,
     'FaDoorOpen': DoorOpen,
     'FaHandshake': Handshake,
+    'FaHandsHelping': HeartHandshake,
     'FaRulerCombined': Ruler,
     'Package': Package,
     'Boxes': Boxes,

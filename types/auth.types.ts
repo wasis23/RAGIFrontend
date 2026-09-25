@@ -148,6 +148,8 @@ export interface LoginRequest {
   identifier: string; // email atau username
   password: string;
   remember_me?: boolean;
+  /** Token Cloudflare Turnstile (opsional; dikirim bila widget aktif). */
+  captcha_token?: string;
 }
 
 export interface LoginResponse {
