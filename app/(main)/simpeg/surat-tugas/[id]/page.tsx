@@ -113,6 +113,10 @@ export default function SuratTugasDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Confirm Panjar dialog state (Tahap 4)
+  const [confirmPanjarDialogOpen, setConfirmPanjarDialogOpen] = useState(false);
+  const [isConfirmingPanjar, setIsConfirmingPanjar] = useState(false);
+
   // Fetch detail
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -230,6 +234,22 @@ export default function SuratTugasDetailPage() {
     }
   };
 
+  // Konfirmasi Panjar Dosen (Tahap 4)
+  const handleConfirmPanjar = async () => {
+    if (!item) return;
+    setIsConfirmingPanjar(true);
+    try {
+      await simpegSuratTugasService.konfirmasiPanjar(item.id);
+      toast.success('Panjar perjalanan dinas berhasil dikonfirmasi! Antrean siap dicairkan oleh Keuangan.');
+      setConfirmPanjarDialogOpen(false);
+      fetchDetail();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengonfirmasi panjar.');
+    } finally {
+      setIsConfirmingPanjar(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="w-full max-w-5xl mx-auto py-6 text-center text-slate-500">
@@ -253,6 +273,19 @@ export default function SuratTugasDetailPage() {
         backUrl="/simpeg/surat-tugas"
         action={
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Tahap 4: Konfirmasi Panjar oleh Dosen */}
+            {item.status_pencairan === 'panjar_disetujui' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setConfirmPanjarDialogOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <CheckCircle size={16} />
+                <span>Konfirmasi Panjar ({formatRupiah(item.nominal_disetujui)})</span>
+              </Button>
+            )}
+
             {canApprove && item.status === 'diajukan' && (
               <Button
                 variant="primary"
@@ -334,18 +367,95 @@ export default function SuratTugasDetailPage() {
         )}
       </div>
 
+      {/* BANNERS ALUR PANJAR & PENCAIRAN SIKEU */}
+      {/* Tahap 4: Banner Menunggu Konfirmasi Panjar */}
+      {item.status_pencairan === 'panjar_disetujui' && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start justify-between gap-4 text-xs text-amber-900 flex-wrap sm:flex-nowrap">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+            <div className="flex flex-col gap-2">
+              <p className="font-bold text-amber-950 text-sm">Panjar Disetujui Keuangan: {formatRupiah(item.nominal_disetujui)}</p>
+              <p>
+                Bagian Keuangan telah menyetujui alokasi panjar dana tugas dinas ini{item.pencairan_kas?.unit_kas?.nama_kas ? ` melalui ${item.pencairan_kas.unit_kas.nama_kas}` : ''}.
+                Silakan periksa dan klik tombol konfirmasi agar panjar dapat segera dicairkan ke rekening Anda.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setConfirmPanjarDialogOpen(true)}
+            className="shrink-0 font-bold flex items-center gap-2"
+          >
+            <CheckCircle size={16} />
+            <span>Konfirmasi Panjar</span>
+          </Button>
+        </div>
+      )}
+
+      {/* Tahap 4 Selesai: Banner Siap Dicairkan (Dynamic Module Color Binding) */}
+      {item.status_pencairan === 'siap_cair' && (
+        <div
+          className="rounded-xl border p-4 flex items-start gap-3 text-xs"
+          style={{
+            borderColor: 'var(--module-primary)',
+            backgroundColor: 'var(--module-primary-subtle)',
+          }}
+        >
+          <CheckCircle size={18} style={{ color: 'var(--module-primary)' }} className="shrink-0" />
+          <div className="flex flex-col gap-2">
+            <p className="font-semibold text-sm" style={{ color: 'var(--module-primary)' }}>
+              Menunggu Pencairan Dana oleh Keuangan
+            </p>
+            <p style={{ color: 'var(--module-primary)' }}>
+              Panjar sebesar {formatRupiah(item.nominal_disetujui)} telah Anda konfirmasi dan saat ini berada dalam antrean pencairan Bagian Keuangan (SIKEU).
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tahap 5: Banner Dana Dicairkan & Unduh Resi Transfer */}
+      {item.status_pencairan === 'dicairkan' && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-4 flex items-start justify-between gap-4 text-xs text-emerald-950 flex-wrap sm:flex-nowrap">
+          <div className="flex items-start gap-3">
+            <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+            <div className="flex flex-col gap-2">
+              <p className="font-bold text-emerald-950 text-sm">Dana Panjar Telah Dicairkan oleh Keuangan</p>
+              <p>
+                Dana sebesar <strong className="tabular-nums">{formatRupiah(item.nominal_disetujui)}</strong> telah dicairkan
+                {item.pencairan_kas?.unit_kas?.nama_kas ? ` dari ${item.pencairan_kas.unit_kas.nama_kas}` : ''}
+                {item.pencairan_kas?.tanggal_pencairan ? ` pada tanggal ${item.pencairan_kas.tanggal_pencairan}` : ''}.
+                Setelah tugas selesai dilaksanakan, silakan unggah berkas LPJ serta rincian biaya riil yang terpakai.
+              </p>
+            </div>
+          </div>
+          {item.pencairan_kas?.bukti_pencairan_path && (
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${item.pencairan_kas.bukti_pencairan_path}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ backgroundColor: 'var(--module-primary)' }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg font-bold text-xs hover:opacity-90 transition shrink-0"
+            >
+              <Download size={16} />
+              <span>Unduh Bukti Transfer</span>
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Approval Details Banner if Approved or Rejected */}
       {item.status === 'disetujui' && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3 text-xs text-emerald-900">
-          <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold text-emerald-950">Surat Tugas Resmi Telah Disetujui</p>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3 text-xs text-slate-700">
+          <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+          <div className="flex flex-col gap-2">
+            <p className="font-semibold text-slate-900">Surat Tugas Resmi Telah Disetujui Pimpinan</p>
             <p>
               Presensi kepegawaian otomatis terisi sebagai <strong>DINAS LUAR</strong> untuk seluruh anggota
               tim pada rentang tanggal dinas ({item.tanggal_berangkat} s/d {item.tanggal_kembali}).
             </p>
             {item.catatan_approval && (
-              <p className="text-emerald-800 italic mt-1">&quot;{item.catatan_approval}&quot;</p>
+              <p className="text-slate-600 italic pt-2">&quot;{item.catatan_approval}&quot;</p>
             )}
           </div>
         </div>
@@ -565,14 +675,34 @@ export default function SuratTugasDetailPage() {
             <h3 className="text-sm font-bold text-slate-900">Rekapitulasi Anggaran, Pencairan SIKEU & Realisasi LPJ</h3>
           </div>
           <div>
-            {item.status_pencairan === 'belum_cair' && (
-              <Badge style={{ backgroundColor: 'var(--module-primary)', color: 'white' }}>
-                Pencairan Dana: Menunggu SIKEU
+            {item.status_pencairan === 'menunggu_keuangan' && (
+              <Badge variant="warning">
+                Pencairan Dana: Menunggu Keuangan
+              </Badge>
+            )}
+            {item.status_pencairan === 'panjar_disetujui' && (
+              <Badge variant="info">
+                Pencairan Dana: Panjar Disetujui Keuangan
+              </Badge>
+            )}
+            {item.status_pencairan === 'siap_cair' && (
+              <Badge variant="info">
+                Pencairan Dana: Siap Dicairkan Keuangan
               </Badge>
             )}
             {item.status_pencairan === 'dicairkan' && (
-              <Badge style={{ backgroundColor: 'var(--module-primary)', color: 'white' }}>
+              <Badge variant="success">
                 Pencairan Dana: Telah Dicairkan SIKEU
+              </Badge>
+            )}
+            {item.status_pencairan === 'lpj_diunggah' && (
+              <Badge variant="warning">
+                LPJ: Menunggu Verifikasi SIKEU
+              </Badge>
+            )}
+            {item.status_pencairan === 'selesai' && (
+              <Badge variant="success">
+                LPJ: Terverifikasi & Kas Selesai
               </Badge>
             )}
             {item.status_pencairan === 'tidak_perlu' && (
@@ -695,7 +825,7 @@ export default function SuratTugasDetailPage() {
           <h3 className="text-sm font-bold text-slate-900">Dokumen Resmi & Pelaporan LPJ</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`grid grid-cols-1 ${item.pencairan_kas?.bukti_pencairan_path ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
           {/* Berkas Surat Tugas */}
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
             <p className="text-xs font-semibold text-slate-800">Berkas Surat Tugas Resmi</p>
@@ -718,6 +848,29 @@ export default function SuratTugasDetailPage() {
               </p>
             )}
           </div>
+
+          {/* Bukti Pencairan Kasbon / Transfer Keuangan jika ada */}
+          {item.pencairan_kas?.bukti_pencairan_path && (
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-slate-800">Bukti Transfer Kasbon (SIKEU)</p>
+              <div className="flex items-center justify-between gap-2 pt-2">
+                <span className="text-xs text-slate-600 truncate">Bukti_Pencairan_Kas.pdf</span>
+                <a
+                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${item.pencairan_kas.bukti_pencairan_path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--module-primary)' }}
+                  className="inline-flex items-center gap-2 text-xs font-semibold hover:underline transition shrink-0"
+                >
+                  <Download size={16} />
+                  <span>Unduh Bukti</span>
+                </a>
+              </div>
+              <p className="text-2xs text-slate-500">
+                Dicairkan: {formatRupiah(item.pencairan_kas.nominal_disetujui)} {item.pencairan_kas.unit_kas ? `(${item.pencairan_kas.unit_kas.nama_kas})` : ''}
+              </p>
+            </div>
+          )}
 
           {/* Berkas LPJ */}
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
@@ -1026,6 +1179,18 @@ export default function SuratTugasDetailPage() {
         isLoading={isDeleting}
         title="Hapus Pengajuan Surat Tugas"
         message="Apakah Anda yakin ingin menghapus permohonan surat tugas ini? Tindakan ini tidak dapat dibatalkan."
+      />
+
+      {/* Confirm Panjar Dialog (Tahap 4) */}
+      <ConfirmDialog
+        isOpen={confirmPanjarDialogOpen}
+        onClose={() => setConfirmPanjarDialogOpen(false)}
+        onConfirm={handleConfirmPanjar}
+        isLoading={isConfirmingPanjar}
+        title="Konfirmasi Panjar Perjalanan Dinas"
+        message={`Apakah Anda menyetujui dan mengonfirmasi panjar sebesar ${formatRupiah(item.nominal_disetujui)} untuk penugasan ini? Setelah dikonfirmasi, pengajuan akan siap dicairkan oleh Keuangan.`}
+        confirmText="Konfirmasi Panjar"
+        cancelText="Batal"
       />
     </div>
   );

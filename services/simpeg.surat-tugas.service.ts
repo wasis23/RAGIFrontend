@@ -121,6 +121,11 @@ export const simpegSuratTugasService = {
     return data;
   },
 
+  konfirmasiPanjar: async (id: number): Promise<ApiResponse<SuratTugas>> => {
+    const { data } = await apiClient.post<ApiResponse<SuratTugas>>(`/simpeg/surat-tugas/${id}/konfirmasi-panjar`);
+    return data;
+  },
+
   delete: async (id: number): Promise<ApiResponse<null>> => {
     const { data } = await apiClient.delete<ApiResponse<null>>(`/simpeg/surat-tugas/${id}`);
     return data;

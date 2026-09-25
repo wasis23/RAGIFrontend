@@ -81,4 +81,17 @@ export interface SuratTugas {
     username?: string;
     email?: string;
   };
+  pencairan_kas?: {
+    id: number;
+    nomor_pengajuan: string;
+    nominal_diajukan: number;
+    nominal_disetujui: number;
+    total_realisasi?: number;
+    sisa_nominal?: number;
+    status: string;
+    unit_kas_id?: number;
+    unit_kas?: { id: number; nama_kas: string };
+    bukti_pencairan_path?: string;
+    tanggal_pencairan?: string;
+  };
 }
