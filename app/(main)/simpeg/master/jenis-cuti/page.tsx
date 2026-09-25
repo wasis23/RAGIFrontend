@@ -240,11 +240,15 @@ export default function MasterJenisCutiPage() {
 
   const onSubmitCuti = async (values: MasterJenisCutiFormValues) => {
     try {
+      const payload = {
+        ...values,
+        durasi_hari: values.tipe_durasi === 'fleksibel' ? 0 : Number(values.durasi_hari || 0),
+      };
       if (editCutiId) {
-        await simpegService.updateMasterJenisCuti(editCutiId, values);
+        await simpegService.updateMasterJenisCuti(editCutiId, payload);
         toast.success('Jenis cuti berhasil diperbarui');
       } else {
-        await simpegService.createMasterJenisCuti(values);
+        await simpegService.createMasterJenisCuti(payload);
         toast.success('Jenis cuti berhasil ditambahkan');
       }
       setShowModalCuti(false);
