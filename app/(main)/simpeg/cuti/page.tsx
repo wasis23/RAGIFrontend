@@ -666,14 +666,14 @@ export default function CutiDanIzinKerjaPage() {
         }
       />
 
-      {/* Modern Navigation Tabs */}
+      {/* Modern Navigation Tabs (Mengikuti Format Master Surat Tugas & Presensi) */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         {canReadCuti && (
           <Button
             type="button"
-            variant="ghost"
+            variant="tab"
             onClick={() => setActiveTab('cuti')}
-            className={`flex items-center gap-2 p-4 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'cuti'
                 ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
@@ -685,9 +685,9 @@ export default function CutiDanIzinKerjaPage() {
         {canReadIzinKerja && (
           <Button
             type="button"
-            variant="ghost"
+            variant="tab"
             onClick={() => setActiveTab('izin-kerja')}
-            className={`flex items-center gap-2 p-4 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'izin-kerja'
                 ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'

@@ -1,7 +1,7 @@
 import { ButtonHTMLAttributes, ReactNode } from 'react';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost' | 'outline' | 'outline-danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost' | 'outline' | 'outline-danger' | 'tab';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   isLoading?: boolean;
@@ -22,9 +22,10 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const baseClass = 'btn';
-  const variantClass = `btn-${variant}`;
-  const sizeClass = size !== 'md' ? `btn-${size}` : '';
+  const isTab = variant === 'tab';
+  const baseClass = isTab ? '' : 'btn';
+  const variantClass = isTab ? '' : `btn-${variant}`;
+  const sizeClass = size !== 'md' && !isTab ? `btn-${size}` : '';
   const fullClass = full ? 'btn-full' : '';
   const isBusy = loading || isLoading;
 

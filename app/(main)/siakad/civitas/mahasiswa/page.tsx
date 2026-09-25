@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   GraduationCap,
   Plus,
@@ -9,11 +10,18 @@ import {
   Trash2,
   RefreshCw,
   Sparkles,
+  Shuffle,
+  Users,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  BookOpen,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
@@ -22,6 +30,7 @@ import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
 export default function MahasiswaPage() {
+  const router = useRouter();
   const [mahasiswas, setMahasiswas] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
   const [dosens, setDosens] = useState<any[]>([]);
@@ -48,9 +57,50 @@ export default function MahasiswaPage() {
   const [selectedBulkDosenId, setSelectedBulkDosenId] = useState<number | ''>('');
   const [assigningPa, setAssigningPa] = useState(false);
 
+  // Auto Distribute PA State
+  const [isAutoDistributeModalOpen, setIsAutoDistributeModalOpen] = useState(false);
+  const [distributeDosenIds, setDistributeDosenIds] = useState<number[]>([]);
+  const [distributeProdiId, setDistributeProdiId] = useState<string>('');
+  const [distributeAngkatan, setDistributeAngkatan] = useState<string>('2025');
+  const [distributing, setDistributing] = useState(false);
+
   // Sync & Generate NIM States
   const [syncingSpmb, setSyncingSpmb] = useState(false);
   const [generatingNims, setGeneratingNims] = useState(false);
+
+  // Individual NIM Assignment Modal
+  const [isNimModalOpen, setIsNimModalOpen] = useState(false);
+  const [targetMhsForNim, setTargetMhsForNim] = useState<any | null>(null);
+  const [nimMethod, setNimMethod] = useState<'standard' | 'no_pendaftaran' | 'custom'>('standard');
+  const [customNimInput, setCustomNimInput] = useState('');
+  const [generatingIndividualNim, setGeneratingIndividualNim] = useState(false);
+
+  // Batch Generate NIM Modal
+  const [isBatchNimModalOpen, setIsBatchNimModalOpen] = useState(false);
+  const [batchNimScheme, setBatchNimScheme] = useState<'standard' | 'no_pendaftaran'>('standard');
+
+  // Export / Import NIM CSV States
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Buku Induk States
+  const [isBukuModalOpen, setIsBukuModalOpen] = useState(false);
+  const [bukuProdi, setBukuProdi] = useState('');
+  const [bukuAngkatan, setBukuAngkatan] = useState('');
+  const [bukuStatus, setBukuStatus] = useState('');
+  const [downloadingBuku, setDownloadingBuku] = useState(false);
+
+  // Ubah Status Akademik States (keluar = dropout, lulus via yudisium)
+  const [statusTarget, setStatusTarget] = useState<any | null>(null);
+  const [statusForm, setStatusForm] = useState({ status: 'aktif', alasan: '' });
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  // Ubah Status Massal (checklist) — hanya aktif/cuti/lulus; dropout/mangkir wajib satuan
+  const [isBulkStatusOpen, setIsBulkStatusOpen] = useState(false);
+  const [bulkStatusForm, setBulkStatusForm] = useState({ status: 'lulus', alasan: '' });
+  const [savingBulkStatus, setSavingBulkStatus] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -136,16 +186,175 @@ export default function MahasiswaPage() {
     }
   };
 
+  const handleOpenNimModal = (mhs: any) => {
+    setTargetMhsForNim(mhs);
+    const noPendaftaran = mhs.spmb_konversi?.pendaftaran_calon_mhs?.no_pendaftaran;
+    if (noPendaftaran) {
+      setNimMethod('no_pendaftaran');
+      setCustomNimInput(noPendaftaran);
+    } else {
+      setNimMethod('standard');
+      setCustomNimInput('');
+    }
+    setIsNimModalOpen(true);
+  };
+
+  const handleSaveIndividualNim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetMhsForNim) return;
+
+    try {
+      setGeneratingIndividualNim(true);
+      const payload: any = {
+        id: targetMhsForNim.id,
+        nama_lengkap: targetMhsForNim.nama_lengkap,
+        program_studi_id: targetMhsForNim.program_studi_id,
+        angkatan: targetMhsForNim.angkatan,
+        jenis_kelamin: targetMhsForNim.jenis_kelamin,
+      };
+
+      if (nimMethod === 'no_pendaftaran') {
+        payload.use_no_pendaftaran = true;
+      } else if (nimMethod === 'custom') {
+        if (!customNimInput.trim()) {
+          toast.error('Masukkan NIM manual terlebih dahulu');
+          return;
+        }
+        payload.custom_nim = customNimInput.trim();
+      }
+
+      await siakadService.generateNim(payload);
+      toast.success(`NIM berhasil ditetapkan untuk ${targetMhsForNim.nama_lengkap}`);
+      setIsNimModalOpen(false);
+      fetchMahasiswa();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal menetapkan NIM');
+    } finally {
+      setGeneratingIndividualNim(false);
+    }
+  };
+
   const handleGenerateMissingNims = async () => {
     try {
       setGeneratingNims(true);
-      const res = await siakadService.generateMissingNims();
+      const res = await siakadService.generateMissingNims({ scheme: batchNimScheme });
       toast.success(res.message || 'NIM berhasil di-generate bagi data yang belum ada');
+      setIsBatchNimModalOpen(false);
       fetchMahasiswa();
     } catch (err: any) {
       toast.error(err.response?.data?.message || err.message || 'Gagal generate NIM');
     } finally {
       setGeneratingNims(false);
+    }
+  };
+
+  const handleExportNim = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await siakadService.exportNimData({
+        program_studi_id: appliedFilters.prodi || undefined,
+        status: appliedFilters.status || undefined,
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `data_nim_mahasiswa_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Data NIM berhasil diunduh');
+    } catch (err: any) {
+      toast.error('Gagal mengunduh data NIM');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadBukuInduk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setDownloadingBuku(true);
+      const blob = await siakadService.exportBukuInduk({
+        program_studi_id: bukuProdi || undefined,
+        angkatan: bukuAngkatan || undefined,
+        status: bukuStatus || undefined,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `buku_induk_${bukuAngkatan || 'semua'}_${bukuStatus || 'semua'}_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Buku induk berhasil diunduh');
+      setIsBukuModalOpen(false);
+    } catch (err: any) {
+      toast.error('Gagal mengunduh buku induk');
+    } finally {
+      setDownloadingBuku(false);
+    }
+  };
+
+  const handleSaveStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statusTarget) return;
+    try {
+      setSavingStatus(true);
+      const res = await siakadService.updateMahasiswaStatus(statusTarget.id, statusForm);
+      toast.success(res.message || 'Status akademik berhasil diperbarui');
+      setStatusTarget(null);
+      fetchMahasiswa();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal memperbarui status');
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const handleSaveBulkStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedMhsIds.length === 0) return;
+    try {
+      setSavingBulkStatus(true);
+      const res = await siakadService.bulkUpdateMahasiswaStatus({
+        ids: selectedMhsIds,
+        status: bulkStatusForm.status,
+        alasan: bulkStatusForm.alasan || undefined,
+      });
+      toast.success(res.message || 'Status massal berhasil diperbarui');
+      setIsBulkStatusOpen(false);
+      setSelectedMhsIds([]);
+      fetchMahasiswa();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal memperbarui status massal');
+    } finally {
+      setSavingBulkStatus(false);
+    }
+  };
+
+  const handleImportNim = async (e: React.FormEvent) => {    e.preventDefault();
+    if (!importFile) {
+      toast.error('Pilih file CSV terlebih dahulu');
+      return;
+    }
+
+    try {
+      setIsImporting(true);
+      const formData = new FormData();
+      formData.append('file', importFile);
+
+      const res = await siakadService.importNimData(formData);
+      toast.success(res.message || 'Import data NIM berhasil diperbarui');
+      setIsImportModalOpen(false);
+      setImportFile(null);
+      fetchMahasiswa();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal mengimpor file CSV');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -183,6 +392,29 @@ export default function MahasiswaPage() {
       toast.error(err.response?.data?.message || err.message || 'Gagal menetapkan Dosen PA');
     } finally {
       setAssigningPa(false);
+    }
+  };
+
+  const handleAutoDistributePa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (distributeDosenIds.length === 0) {
+      toast.error('Pilih minimal 1 Dosen PA untuk distribusi mahasiswa');
+      return;
+    }
+    try {
+      setDistributing(true);
+      const res = await siakadService.autoDistributePa({
+        dosen_ids: distributeDosenIds,
+        program_studi_id: distributeProdiId ? Number(distributeProdiId) : undefined,
+        angkatan: distributeAngkatan ? Number(distributeAngkatan) : undefined,
+      });
+      toast.success(res.message || 'Mahasiswa berhasil didistribusikan ke Dosen PA secara merata');
+      setIsAutoDistributeModalOpen(false);
+      fetchMahasiswa();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal mendistribusikan Dosen PA');
+    } finally {
+      setDistributing(false);
     }
   };
 
@@ -295,21 +527,7 @@ export default function MahasiswaPage() {
               <Badge variant="amber" className="text-2xs">Belum Ada NIM</Badge>
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    await siakadService.generateNim({
-                      id: row.id,
-                      nama_lengkap: row.nama_lengkap,
-                      program_studi_id: row.program_studi_id,
-                      angkatan: row.angkatan,
-                      jenis_kelamin: row.jenis_kelamin,
-                    });
-                    toast.success(`NIM berhasil di-generate untuk ${row.nama_lengkap}`);
-                    fetchMahasiswa();
-                  } catch (err: any) {
-                    toast.error('Gagal generate NIM');
-                  }
-                }}
+                onClick={() => handleOpenNimModal(row)}
                 className="text-2xs font-bold text-primary-600 hover:text-primary-800 underline cursor-pointer"
               >
                 + Buat NIM
@@ -393,29 +611,19 @@ export default function MahasiswaPage() {
                 icon: <Edit2 size={14} />,
                 onClick: () => handleOpenModal(row),
               },
-              ...(!row.nim
-                ? [
-                    {
-                      label: 'Generate NIM',
-                      icon: <Sparkles size={14} />,
-                      onClick: async () => {
-                        try {
-                          await siakadService.generateNim({
-                            id: row.id,
-                            nama_lengkap: row.nama_lengkap,
-                            program_studi_id: row.program_studi_id,
-                            angkatan: row.angkatan,
-                            jenis_kelamin: row.jenis_kelamin,
-                          });
-                          toast.success('NIM berhasil di-generate');
-                          fetchMahasiswa();
-                        } catch (err: any) {
-                          toast.error('Gagal generate NIM');
-                        }
-                      },
-                    },
-                  ]
-                : []),
+              {
+                label: row.nim ? 'Ubah / Sesuaikan NIM' : 'Tetapkan NIM',
+                icon: <Sparkles size={14} />,
+                onClick: () => handleOpenNimModal(row),
+              },
+              {
+                label: 'Ubah Status Akademik',
+                icon: <RefreshCw size={14} />,
+                onClick: () => {
+                  setStatusTarget(row);
+                  setStatusForm({ status: row.status || 'aktif', alasan: '' });
+                },
+              },
               {
                 label: 'Hapus Mahasiswa',
                 icon: <Trash2 size={14} />,
@@ -443,43 +651,118 @@ export default function MahasiswaPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
-              icon={<RefreshCw size={15} className={syncingSpmb ? 'animate-spin' : ''} />}
-              onClick={handleSyncSpmb}
-              disabled={syncingSpmb}
-            >
-              {syncingSpmb ? 'Menyinkronkan...' : 'Tarik dari SPMB'}
-            </Button>
-            <Button
-              variant="outline"
-              icon={<Sparkles size={15} />}
-              onClick={handleGenerateMissingNims}
-              disabled={generatingNims}
-            >
-              {generatingNims ? 'Memproses...' : 'Generate NIM'}
-            </Button>
-            <Button
-              variant="outline"
-              icon={<GraduationCap size={16} />}
-              onClick={() => {
-                if (selectedMhsIds.length === 0) {
-                  toast('Centang mahasiswa di tabel terlebih dahulu untuk menetapkan Dosen PA.', { icon: 'ℹ️' });
-                } else {
-                  setIsBulkPaModalOpen(true);
-                }
-              }}
-            >
-              Plotting Dosen PA ({selectedMhsIds.length})
-            </Button>
-            <Button
-              variant="outline"
               icon={<Filter size={16} />}
               onClick={() => setShowFilter(true)}
             >
               Filter
             </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => router.push('/siakad/civitas/mahasiswa/create')}
+            >
+              Tambah Mahasiswa
+            </Button>
           </div>
         }
       />
+
+      {/* Bilah Alat Massal — dikelompokkan agar header tidak berantakan */}
+      <div className="card p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+            <FileSpreadsheet size={17} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold text-slate-900">Kelola NIM Massal</p>
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Download size={13} />} onClick={handleExportNim} disabled={isExporting}>
+                {isExporting ? 'Mengunduh...' : 'Export CSV'}
+              </Button>
+              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Upload size={13} />} onClick={() => setIsImportModalOpen(true)}>
+                Import
+              </Button>
+              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Sparkles size={13} />} onClick={() => setIsBatchNimModalOpen(true)}>
+                Generate
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
+          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <RefreshCw size={17} className={syncingSpmb ? 'animate-spin' : ''} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold text-slate-900">Sinkronisasi SPMB</p>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" onClick={handleSyncSpmb} disabled={syncingSpmb}>
+                {syncingSpmb ? 'Menyinkronkan...' : 'Tarik Pendaftar Lulus →'}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <BookOpen size={17} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold text-slate-900">Buku Induk</p>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-2xs py-1 px-2.5 h-auto"
+                icon={<Download size={13} />}
+                onClick={() => {
+                  setBukuProdi(appliedFilters.prodi || '');
+                  setBukuAngkatan('');
+                  setBukuStatus('');
+                  setIsBukuModalOpen(true);
+                }}
+              >
+                Unduh Rekap (CSV)
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
+          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
+            <Users size={17} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold text-slate-900">Dosen PA {selectedMhsIds.length > 0 && <span className="text-primary-600">({selectedMhsIds.length} dipilih)</span>}</p>
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-2xs py-1 px-2.5 h-auto"
+                icon={<GraduationCap size={13} />}
+                onClick={() => {
+                  if (selectedMhsIds.length === 0) {
+                    toast('Centang mahasiswa di tabel terlebih dahulu untuk menetapkan Dosen PA.', { icon: 'ℹ️' });
+                  } else {
+                    setIsBulkPaModalOpen(true);
+                  }
+                }}
+              >
+                Plotting PA
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-2xs py-1 px-2.5 h-auto"
+                icon={<Shuffle size={13} />}
+                onClick={() => {
+                  setDistributeDosenIds(dosens.slice(0, 3).map((d) => d.id));
+                  setIsAutoDistributeModalOpen(true);
+                }}
+              >
+                Bagi Rata DPA
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Floating Action Bar jika ada mahasiswa yang dicentang */}
       {selectedMhsIds.length > 0 && (
@@ -505,6 +788,16 @@ export default function MahasiswaPage() {
               onClick={() => setSelectedMhsIds([])}
             >
               Batal
+            </Button>
+            <Button
+              variant="secondary"
+              className="text-xs font-bold py-1.5 px-3 h-auto"
+              onClick={() => {
+                setBulkStatusForm({ status: 'lulus', alasan: '' });
+                setIsBulkStatusOpen(true);
+              }}
+            >
+              Ubah Status Massal
             </Button>
             <Button
               variant="primary"
@@ -675,6 +968,111 @@ export default function MahasiswaPage() {
         </div>
       </Modal>
 
+      {/* Modal Distribusi Bagi Rata Dosen PA Otomatis */}
+      <Modal
+        open={isAutoDistributeModalOpen}
+        onClose={() => setIsAutoDistributeModalOpen(false)}
+        title="Distribusi / Bagi Rata Dosen PA Otomatis"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsAutoDistributeModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleAutoDistributePa}
+              disabled={distributing || distributeDosenIds.length === 0}
+            >
+              {distributing ? 'Mendistribusikan...' : `Bagi Rata ke (${distributeDosenIds.length}) Dosen`}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 leading-relaxed">
+            Sistem akan mengambil seluruh mahasiswa aktif yang <strong>belum memiliki Dosen PA</strong> pada Program Studi / Angkatan terpilih, kemudian membagikannya secara proporsional dan merata (Round-Robin) kepada daftar dosen yang dicentang di bawah.
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Target Program Studi</label>
+              <select
+                value={distributeProdiId}
+                onChange={(e) => setDistributeProdiId(e.target.value)}
+                className="select w-full text-xs font-bold"
+              >
+                <option value="">Semua Program Studi</option>
+                {prodis.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nama}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Target Angkatan</label>
+              <select
+                value={distributeAngkatan}
+                onChange={(e) => setDistributeAngkatan(e.target.value)}
+                className="select w-full text-xs font-bold"
+              >
+                <option value="">Semua Angkatan</option>
+                {Array.from({ length: 6 }, (_, i) => {
+                  const y = new Date().getFullYear() - i;
+                  return <option key={y} value={y}>{y}</option>;
+                })}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="label flex items-center justify-between">
+              <span>Pilih Dosen PA Penerima Mahasiswa Bimbingan ({distributeDosenIds.length} Dosen) *</span>
+              <button
+                type="button"
+                className="text-2xs text-primary-600 hover:underline font-bold"
+                onClick={() => {
+                  if (distributeDosenIds.length === dosens.length) {
+                    setDistributeDosenIds([]);
+                  } else {
+                    setDistributeDosenIds(dosens.map((d) => d.id));
+                  }
+                }}
+              >
+                {distributeDosenIds.length === dosens.length ? 'Batal Pilih Semua' : 'Pilih Semua Dosen'}
+              </button>
+            </label>
+            <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1.5 bg-slate-50">
+              {dosens.map((d) => {
+                const isChecked = distributeDosenIds.includes(d.id);
+                return (
+                  <label
+                    key={d.id}
+                    className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                      isChecked ? 'bg-primary-50 text-primary-900 border border-primary-200' : 'bg-white text-slate-700 hover:bg-slate-100 border border-transparent'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setDistributeDosenIds([...distributeDosenIds, d.id]);
+                        } else {
+                          setDistributeDosenIds(distributeDosenIds.filter((id) => id !== d.id));
+                        }
+                      }}
+                      className="rounded text-primary-600"
+                    />
+                    <span className="font-bold">{d.nama_lengkap}</span>
+                    <span className="text-2xs text-slate-400 font-mono ml-auto">NIDN: {d.nidn || '-'}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
       {/* Modal Form Mahasiswa */}
       <Modal
         open={isModalOpen}
@@ -782,6 +1180,377 @@ export default function MahasiswaPage() {
         <p className="text-slate-500 text-sm">
           Apakah Anda yakin ingin menghapus mahasiswa <strong>{deletingMhs?.nama_lengkap}</strong> ({deletingMhs?.nim || 'Belum ada NIM'})? Tindakan ini tidak dapat dibatalkan.
         </p>
+      </Modal>
+
+      {/* Modal Penetapan NIM Mahasiswa (Individual) */}
+      <Modal
+        open={isNimModalOpen}
+        onClose={() => setIsNimModalOpen(false)}
+        title="Penetapan & Penomoran NIM"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsNimModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveIndividualNim}
+              disabled={generatingIndividualNim}
+            >
+              {generatingIndividualNim ? 'Menyimpan...' : 'Simpan NIM'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-1">
+            <p className="font-bold text-slate-800">{targetMhsForNim?.nama_lengkap}</p>
+            <p className="text-slate-500">
+              Prodi: <span className="font-semibold text-slate-700">{targetMhsForNim?.program_studi?.nama || '-'}</span> | Angkatan: <span className="font-semibold text-slate-700">{targetMhsForNim?.angkatan}</span>
+            </p>
+            {targetMhsForNim?.spmb_konversi?.pendaftaran_calon_mhs?.no_pendaftaran && (
+              <p className="text-primary-700 font-mono text-2xs">
+                No. Pendaftaran SPMB: <strong>{targetMhsForNim.spmb_konversi.pendaftaran_calon_mhs.no_pendaftaran}</strong>
+              </p>
+            )}
+            {targetMhsForNim?.nim && (
+              <p className="text-amber-700 font-mono text-2xs">
+                NIM Saat Ini: <strong>{targetMhsForNim.nim}</strong>
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="label">Pilih Metode Penomoran NIM *</label>
+            <div className="space-y-2">
+              <label className={`flex items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${nimMethod === 'standard' ? 'border-primary-500 bg-primary-50/50 text-primary-950 font-semibold' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                <input
+                  type="radio"
+                  name="nimMethod"
+                  value="standard"
+                  checked={nimMethod === 'standard'}
+                  onChange={() => setNimMethod('standard')}
+                  className="mt-0.5 text-primary-600 focus:ring-primary-500"
+                />
+                <div>
+                  <p className="font-bold">Format Standar Kampus (Otomatis)</p>
+                  <p className="text-2xs text-slate-500 font-normal mt-0.5">
+                    Menggunakan format kombinasi: <code>{"{2 digit thn}{2 digit kode prodi}{4 digit nomor urut}"}</code>.
+                  </p>
+                </div>
+              </label>
+
+              {targetMhsForNim?.spmb_konversi?.pendaftaran_calon_mhs?.no_pendaftaran && (
+                <label className={`flex items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${nimMethod === 'no_pendaftaran' ? 'border-primary-500 bg-primary-50/50 text-primary-950 font-semibold' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                  <input
+                    type="radio"
+                    name="nimMethod"
+                    value="no_pendaftaran"
+                    checked={nimMethod === 'no_pendaftaran'}
+                    onChange={() => {
+                      setNimMethod('no_pendaftaran');
+                      setCustomNimInput(targetMhsForNim.spmb_konversi.pendaftaran_calon_mhs.no_pendaftaran);
+                    }}
+                    className="mt-0.5 text-primary-600 focus:ring-primary-500"
+                  />
+                  <div>
+                    <p className="font-bold">Gunakan Nomor Pendaftaran SPMB</p>
+                    <p className="text-2xs text-slate-500 font-normal mt-0.5">
+                      Menjadikan nomor pendaftaran <code>{targetMhsForNim.spmb_konversi.pendaftaran_calon_mhs.no_pendaftaran}</code> langsung sebagai NIM resmi mahasiswa.
+                    </p>
+                  </div>
+                </label>
+              )}
+
+              <label className={`flex items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${nimMethod === 'custom' ? 'border-primary-500 bg-primary-50/50 text-primary-950 font-semibold' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                <input
+                  type="radio"
+                  name="nimMethod"
+                  value="custom"
+                  checked={nimMethod === 'custom'}
+                  onChange={() => setNimMethod('custom')}
+                  className="mt-0.5 text-primary-600 focus:ring-primary-500"
+                />
+                <div>
+                  <p className="font-bold">Input Manual / Kombinasi Karakter Kampus</p>
+                  <p className="text-2xs text-slate-500 font-normal mt-0.5">
+                    Masukkan format NIM khusus kampus (bebas huruf, tanda hubung, atau angka unik).
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {nimMethod === 'custom' && (
+            <div className="pt-2 animate-fade-in">
+              <Input
+                label="Nomor Induk Mahasiswa (NIM) Baru *"
+                placeholder="Contoh: TI-2025-001 / 25.01.009"
+                value={customNimInput}
+                onChange={(e) => setCustomNimInput(e.target.value)}
+                required
+              />
+              <p className="text-2xs text-slate-400 mt-1">
+                Pastikan NIM belum pernah digunakan oleh mahasiswa lain.
+              </p>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Modal Generate Missing NIMs (Batch) */}
+      <Modal
+        open={isBatchNimModalOpen}
+        onClose={() => setIsBatchNimModalOpen(false)}
+        title="Generate NIM Otomatis (Massal)"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsBatchNimModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleGenerateMissingNims}
+              disabled={generatingNims}
+            >
+              {generatingNims ? 'Memproses...' : 'Proses Generate Sekarang'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Pilih skema penomoran untuk seluruh mahasiswa aktif yang <strong>belum memiliki NIM</strong>:
+          </p>
+
+          <div className="space-y-2">
+            <label className={`flex items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${batchNimScheme === 'standard' ? 'border-primary-500 bg-primary-50/50 text-primary-950 font-semibold' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+              <input
+                type="radio"
+                name="batchNimScheme"
+                value="standard"
+                checked={batchNimScheme === 'standard'}
+                onChange={() => setBatchNimScheme('standard')}
+                className="mt-0.5 text-primary-600 focus:ring-primary-500"
+              />
+              <div>
+                <p className="font-bold">Format Standar Kampus (Urut Otomatis)</p>
+                <p className="text-2xs text-slate-500 font-normal mt-0.5">
+                  Format: <code>{"{2 digit thn}{2 digit prodi}{4 digit nomor urut}"}</code>.
+                </p>
+              </div>
+            </label>
+
+            <label className={`flex items-start gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-colors ${batchNimScheme === 'no_pendaftaran' ? 'border-primary-500 bg-primary-50/50 text-primary-950 font-semibold' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+              <input
+                type="radio"
+                name="batchNimScheme"
+                value="no_pendaftaran"
+                checked={batchNimScheme === 'no_pendaftaran'}
+                onChange={() => setBatchNimScheme('no_pendaftaran')}
+                className="mt-0.5 text-primary-600 focus:ring-primary-500"
+              />
+              <div>
+                <p className="font-bold">Gunakan Nomor Pendaftaran SPMB (Jika Ada)</p>
+                <p className="text-2xs text-slate-500 font-normal mt-0.5">
+                  Mahasiswa yang berasal dari SPMB akan memakai No. Pendaftaran SPMB sebagai NIM. Mahasiswa lain akan memakai format standar.
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Import NIM CSV */}
+      <Modal
+        open={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        title="Import Data NIM dari File CSV"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsImportModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleImportNim}
+              disabled={isImporting || !importFile}
+            >
+              {isImporting ? 'Mengimpor...' : 'Mulai Import CSV'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleImportNim} className="space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 space-y-1.5 leading-relaxed">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5">
+              <FileSpreadsheet size={15} className="text-primary-600" /> Petunjuk Import NIM Offline:
+            </p>
+            <ol className="list-decimal list-inside space-y-1 text-2xs text-slate-600 pl-1">
+              <li>Klik tombol <strong>Export NIM (CSV)</strong> untuk mengunduh daftar mahasiswa kampus saat ini.</li>
+              <li>Buka file di Microsoft Excel atau Google Sheets.</li>
+              <li>Isi kolom <code>NIM_BARU</code> dengan format penomoran kampus yang diinginkan (bebas huruf & angka).</li>
+              <li>Simpan sebagai file <strong>CSV (Comma Delimited)</strong> lalu unggah kembali melalui form di bawah.</li>
+            </ol>
+          </div>
+
+          <div>
+            <label className="label">Pilih File CSV (*.csv) *</label>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              required
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setImportFile(e.target.files[0]);
+                }
+              }}
+              className="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer border border-slate-200 rounded-xl p-2 bg-white"
+            />
+            {importFile && (
+              <p className="text-2xs text-emerald-600 font-semibold mt-1.5">
+                ✓ File terpilih: {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
+              </p>
+            )}
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Buku Induk */}
+      <Modal
+        open={isBukuModalOpen}
+        onClose={() => setIsBukuModalOpen(false)}
+        title="Unduh Buku Induk Mahasiswa"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsBukuModalOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleDownloadBukuInduk} disabled={downloadingBuku} icon={<Download size={14} />}>
+              {downloadingBuku ? 'Mengunduh...' : 'Unduh CSV'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleDownloadBukuInduk} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Program Studi"
+            placeholder="Semua Prodi"
+            options={prodis.map((p) => ({ value: p.id, label: p.nama }))}
+            value={bukuProdi || ''}
+            onChange={(v: any) => setBukuProdi(String(v || ''))}
+            isClearable
+          />
+          <Input
+            label="Angkatan"
+            type="number"
+            placeholder="cth. 2024 (kosongkan = semua)"
+            value={bukuAngkatan}
+            onChange={(e) => setBukuAngkatan(e.target.value)}
+          />
+          <div className="md:col-span-2">
+            <label className="label">Status Akademik</label>
+            <select value={bukuStatus} onChange={(e) => setBukuStatus(e.target.value)} className="select w-full">
+              <option value="">Semua Status</option>
+              <option value="aktif">Aktif</option>
+              <option value="cuti">Cuti</option>
+              <option value="mangkir">Mangkir</option>
+              <option value="dropout">Dropout / Keluar</option>
+              <option value="lulus">Lulus</option>
+            </select>
+          </div>
+          <p className="md:col-span-2 text-2xs text-slate-500">
+            Rekapan berisi NIM, biodata, prodi, angkatan, jalur masuk, dosen wali, status, dan IPK — cocok dibuka di Excel.
+          </p>
+        </form>
+      </Modal>
+
+      {/* Modal Ubah Status Akademik */}
+      <Modal
+        open={!!statusTarget}
+        onClose={() => setStatusTarget(null)}
+        title={`Ubah Status — ${statusTarget?.nama_lengkap || ''}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setStatusTarget(null)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleSaveStatus} disabled={savingStatus}>
+              {savingStatus ? 'Menyimpan...' : 'Simpan Status'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveStatus} className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Status saat ini: <strong className="capitalize">{statusTarget?.status}</strong>
+            <span className="block text-2xs text-slate-400 mt-0.5">Mahasiswa keluar (DO/mengundurkan diri) dicatat sebagai Dropout. Kelulusan tetap via menu Yudisium.</span>
+          </p>
+          <div>
+            <label className="label">Status Baru *</label>
+            <select
+              value={statusForm.status}
+              onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
+              className="select w-full"
+              required
+            >
+              <option value="aktif">Aktif</option>
+              <option value="cuti">Cuti</option>
+              <option value="mangkir">Mangkir</option>
+              <option value="dropout">Dropout / Keluar</option>
+              <option value="lulus">Lulus</option>
+            </select>
+          </div>
+          <Input
+            label="Alasan / Keterangan"
+            placeholder="cth. Mengundurkan diri atas permintaan sendiri (No. surat...)"
+            value={statusForm.alasan}
+            onChange={(e) => setStatusForm({ ...statusForm, alasan: e.target.value })}
+            hint="Wajib diisi bila status non-aktif. Tercatat di riwayat status akademik."
+          />
+        </form>
+      </Modal>
+      {/* Modal Ubah Status Massal */}
+      <Modal
+        open={isBulkStatusOpen}
+        onClose={() => setIsBulkStatusOpen(false)}
+        title={`Ubah Status Massal — ${selectedMhsIds.length} Mahasiswa`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsBulkStatusOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="primary" onClick={handleSaveBulkStatus} disabled={savingBulkStatus}>
+              {savingBulkStatus ? 'Menyimpan...' : `Terapkan ke ${selectedMhsIds.length} Mahasiswa`}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveBulkStatus} className="space-y-4">
+          <div>
+            <label className="label">Status Baru (massal) *</label>
+            <select
+              value={bulkStatusForm.status}
+              onChange={(e) => setBulkStatusForm({ ...bulkStatusForm, status: e.target.value })}
+              className="select w-full"
+              required
+            >
+              <option value="lulus">Lulus (wisuda/yudisium serentak)</option>
+              <option value="aktif">Aktif (aktifkan kembali)</option>
+              <option value="cuti">Cuti (kolektif)</option>
+            </select>
+            <p className="text-2xs text-slate-400 mt-1">
+              Dropout/keluar & mangkir tidak tersedia massal — wajib per mahasiswa dengan alasan individual.
+            </p>
+          </div>
+          <Input
+            label="Alasan Bersama"
+            placeholder="cth. Yudisium Periode Gasal 2025/2026 (SK No. ...)"
+            value={bulkStatusForm.alasan}
+            onChange={(e) => setBulkStatusForm({ ...bulkStatusForm, alasan: e.target.value })}
+            hint="Wajib bila status lulus/cuti. Dicatat di riwayat tiap mahasiswa."
+          />
+        </form>
       </Modal>
     </div>
   );

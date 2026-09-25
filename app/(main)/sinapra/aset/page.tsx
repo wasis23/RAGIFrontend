@@ -14,7 +14,8 @@ import {
   MapPin,
   TrendingDown,
   Layers,
-  Eye
+  Eye,
+  Printer,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -28,13 +29,15 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { AsetLabelPrintModal } from '@/components/sinapra/AsetLabelPrintModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
 import type {
   Aset,
   KategoriAset,
   KategoriAsetFormPayload,
-  PenyusutanAsetResult
+  PenyusutanAsetResult,
+  AsetLabelData,
 } from '@/types/sinapra.types';
 import type { PaginationMeta } from '@/types/api.types';
 
@@ -66,6 +69,96 @@ export default function AsetPage() {
   const [showPenyusutanModal, setShowPenyusutanModal] = useState(false);
   const [penyusutanData, setPenyusutanData] = useState<PenyusutanAsetResult | null>(null);
   const [isPenyusutanLoading, setIsPenyusutanLoading] = useState(false);
+
+  // Modal Cetak Label Barcode & QR Code
+  const [printLabels, setPrintLabels] = useState<AsetLabelData[]>([]);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isLoadingLabels, setIsLoadingLabels] = useState(false);
+
+  const handlePrintSingleLabel = async (item: Aset) => {
+    setIsLoadingLabels(true);
+    setIsPrintModalOpen(true);
+    try {
+      const res = await sinapraService.getAsetLabel(item.id);
+      if (res?.data) {
+        setPrintLabels([res.data]);
+      } else {
+        setPrintLabels([{
+          id: item.id,
+          kode_aset: item.kode_aset,
+          nama: item.nama,
+          merk: item.merk,
+          kategori: item.kategori?.nama,
+          lokasi_ruangan: item.ruangan?.nama,
+          tanggal_perolehan: item.tanggal_perolehan,
+          kondisi: item.kondisi,
+          status: item.status,
+        }]);
+      }
+    } catch {
+      toast.error('Gagal mengambil data label barcode aset');
+      setPrintLabels([{
+        id: item.id,
+        kode_aset: item.kode_aset,
+        nama: item.nama,
+        merk: item.merk,
+        kategori: item.kategori?.nama,
+        lokasi_ruangan: item.ruangan?.nama,
+        tanggal_perolehan: item.tanggal_perolehan,
+        kondisi: item.kondisi,
+        status: item.status,
+      }]);
+    } finally {
+      setIsLoadingLabels(false);
+    }
+  };
+
+  const handlePrintBatchLabels = async () => {
+    if (asetList.length === 0) {
+      toast.error('Tidak ada data aset untuk dicetak.');
+      return;
+    }
+    setIsLoadingLabels(true);
+    setIsPrintModalOpen(true);
+    try {
+      const ids = asetList.map((a) => a.id);
+      const res = await sinapraService.getBatchAsetLabels(ids);
+      if (Array.isArray(res?.data) && res.data.length > 0) {
+        setPrintLabels(res.data);
+      } else {
+        setPrintLabels(
+          asetList.map((item) => ({
+            id: item.id,
+            kode_aset: item.kode_aset,
+            nama: item.nama,
+            merk: item.merk,
+            kategori: item.kategori?.nama,
+            lokasi_ruangan: item.ruangan?.nama,
+            tanggal_perolehan: item.tanggal_perolehan,
+            kondisi: item.kondisi,
+            status: item.status,
+          }))
+        );
+      }
+    } catch {
+      toast.error('Gagal mengambil data label batch aset');
+      setPrintLabels(
+        asetList.map((item) => ({
+          id: item.id,
+          kode_aset: item.kode_aset,
+          nama: item.nama,
+          merk: item.merk,
+          kategori: item.kategori?.nama,
+          lokasi_ruangan: item.ruangan?.nama,
+          tanggal_perolehan: item.tanggal_perolehan,
+          kondisi: item.kondisi,
+          status: item.status,
+        }))
+      );
+    } finally {
+      setIsLoadingLabels(false);
+    }
+  };
 
   // ------------------------------------------------------------
   // KATEGORI ASET STATES (MODAL 5 INPUT)
@@ -386,6 +479,16 @@ export default function AsetPage() {
           <DropdownMenu
             items={[
               {
+                label: 'Lihat Detail Aset',
+                icon: <Eye size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => router.push(`/sinapra/aset/${row.id}`),
+              },
+              {
+                label: 'Cetak Label Barcode / QR',
+                icon: <Printer size={16} className="text-[var(--module-primary)]" />,
+                onClick: () => handlePrintSingleLabel(row),
+              },
+              {
                 label: 'Hitung Penyusutan',
                 icon: <Calculator size={16} className="text-[var(--module-primary)]" />,
                 onClick: () => handleHitungPenyusutan(row),
@@ -417,14 +520,21 @@ export default function AsetPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              icon={<Printer size={16} />}
+              onClick={handlePrintBatchLabels}
+            >
+              Cetak Label
+            </Button>
+            <Button variant="secondary" icon={<Layers size={16} />} onClick={handleOpenKategoriManager}>
+              Kelola Kategori
+            </Button>
+            <Button
+              variant="outline"
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setShowFilterDrawer(true)}
             >
               Filter
-            </Button>
-            <Button variant="secondary" icon={<Layers size={16} />} onClick={handleOpenKategoriManager}>
-              Kelola Kategori
             </Button>
             <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/aset/create')}>
               Tambah Aset Baru
@@ -692,6 +802,14 @@ export default function AsetPage() {
         confirmText="Hapus"
         variant="danger"
         isLoading={isDeletingKategori}
+      />
+
+      {/* MODAL CETAK LABEL BARCODE & QR CODE */}
+      <AsetLabelPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        labels={printLabels}
+        isLoading={isLoadingLabels}
       />
     </div>
   );

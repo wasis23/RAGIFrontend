@@ -29,6 +29,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
+import { referensiService } from '@/services/referensi.service';
 import type {
   MaintenanceLog,
   MaintenanceLogFormPayload,
@@ -74,6 +75,26 @@ export default function MaintenancePage() {
     biaya: 0,
     hasil_perbaikan: '',
   });
+
+  const [prioritasOptions, setPrioritasOptions] = useState<{ value: string; label: string }[]>([]);
+  const [statusOptions, setStatusOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const fetchReferences = async () => {
+      try {
+        const [resPrioritas, resStatus] = await Promise.all([
+          referensiService.getAll({ modul: 'sinapra', tipe: 'prioritas_maintenance' }),
+          referensiService.getAll({ modul: 'sinapra', tipe: 'status_tiket_maintenance' }),
+        ]);
+        setPrioritasOptions((resPrioritas || []).map((r) => ({ value: r.kode || String(r.id), label: r.nama })));
+        setStatusOptions((resStatus || []).map((r) => ({ value: r.kode || String(r.id), label: r.nama })));
+      } catch {
+        setPrioritasOptions([]);
+        setStatusOptions([]);
+      }
+    };
+    fetchReferences();
+  }, []);
 
   // ------------------------------------------------------------
   // FETCH DATA FUNCTIONS
@@ -431,10 +452,7 @@ export default function MaintenancePage() {
             onChange={(val) => setStatusFilter(val)}
             options={[
               { value: '', label: 'Semua Status' },
-              { value: 'dilaporkan', label: 'Dilaporkan' },
-              { value: 'proses', label: 'Proses Pengerjaan' },
-              { value: 'selesai', label: 'Selesai' },
-              { value: 'batal', label: 'Batal' },
+              ...statusOptions,
             ]}
           />
 
@@ -444,10 +462,7 @@ export default function MaintenancePage() {
             onChange={(val) => setPrioritasFilter(val)}
             options={[
               { value: '', label: 'Semua Prioritas' },
-              { value: 'rendah', label: 'Rendah' },
-              { value: 'sedang', label: 'Sedang' },
-              { value: 'tinggi', label: 'Tinggi' },
-              { value: 'darurat', label: 'Darurat' },
+              ...prioritasOptions,
             ]}
           />
 
@@ -572,12 +587,7 @@ export default function MaintenancePage() {
               label="Tingkat Prioritas"
               value={formData.prioritas || 'sedang'}
               onChange={(val) => setFormData({ ...formData, prioritas: val as any })}
-              options={[
-                { value: 'rendah', label: 'Rendah' },
-                { value: 'sedang', label: 'Sedang' },
-                { value: 'tinggi', label: 'Tinggi' },
-                { value: 'darurat', label: 'Darurat' },
-              ]}
+              options={prioritasOptions}
             />
 
             {editingLog && (
@@ -585,12 +595,7 @@ export default function MaintenancePage() {
                 label="Status Penanganan"
                 value={formData.status || 'dilaporkan'}
                 onChange={(val) => setFormData({ ...formData, status: val as any })}
-                options={[
-                  { value: 'dilaporkan', label: 'Dilaporkan' },
-                  { value: 'proses', label: 'Proses Pengerjaan' },
-                  { value: 'selesai', label: 'Selesai Ditangani' },
-                  { value: 'batal', label: 'Batal' },
-                ]}
+                options={statusOptions}
               />
             )}
 

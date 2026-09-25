@@ -24,11 +24,15 @@ import {
   ChevronDown,
   Settings,
   Check,
-  Save
+  Save,
+  BarChart3,
+  GraduationCap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
@@ -55,16 +59,6 @@ export default function KrsMahasiswaPage() {
   // Multi-period state
   const [tahunAkademiks, setTahunAkademiks] = useState<any[]>([]);
   const [selectedTaId, setSelectedTaId] = useState<number | null>(null);
-  const [isManagePeriodModalOpen, setIsManagePeriodModalOpen] = useState(false);
-  const [isNewPeriodOpen, setIsNewPeriodOpen] = useState(false);
-  const [newPeriodForm, setNewPeriodForm] = useState({
-    kode: '',
-    nama: '',
-    tahun_mulai: 2026,
-    tahun_selesai: 2027,
-    is_active: false,
-  });
-  const [settingActivePeriod, setSettingActivePeriod] = useState(false);
 
   // Student active KRS state
   const [studentKrsData, setStudentKrsData] = useState<any | null>(null);
@@ -227,12 +221,33 @@ export default function KrsMahasiswaPage() {
   // Roles checked at top
 
   // Admin filter states & prodi
+  const [adminTab, setAdminTab] = useState<'daftar' | 'monitoring'>('daftar');
+  const [monitoringData, setMonitoringData] = useState<any | null>(null);
+  const [loadingMonitoring, setLoadingMonitoring] = useState(false);
   const [prodiList, setProdiList] = useState<any[]>([]);
   const [filterProdi, setFilterProdi] = useState('');
   const [filterAngkatan, setFilterAngkatan] = useState('');
   const [filterSpp, setFilterSpp] = useState('');
+  const [filterOnlyKonversi, setFilterOnlyKonversi] = useState(true);
   const [selectedKrsIds, setSelectedKrsIds] = useState<number[]>([]);
   const [isBulkApproving, setIsBulkApproving] = useState(false);
+
+  const fetchMonitoringKrs = async () => {
+    try {
+      setLoadingMonitoring(true);
+      const res = await siakadService.getKrsMonitoring({
+        tahun_akademik_id: selectedTaId || undefined,
+        program_studi_id: filterProdi || undefined,
+      });
+      if (res.data) {
+        setMonitoringData(res.data);
+      }
+    } catch {
+      toast.error('Gagal memuat monitoring KRS per program studi');
+    } finally {
+      setLoadingMonitoring(false);
+    }
+  };
 
   const fetchTahunAkademiks = async () => {
     try {
@@ -281,6 +296,7 @@ export default function KrsMahasiswaPage() {
         status_spp: filterSpp || undefined,
         tahun_akademik_id: selectedTaId || undefined,
         advisees_only: isDosen && !isAdmin ? true : undefined,
+        only_konversi: filterOnlyKonversi ? true : undefined,
       });
       if (res.data) {
         setKrsList(res.data);
@@ -302,9 +318,13 @@ export default function KrsMahasiswaPage() {
     if (isMahasiswa) {
       fetchStudentActiveKrs(selectedTaId);
     } else {
-      fetchKrsList();
+      if (adminTab === 'monitoring') {
+        fetchMonitoringKrs();
+      } else {
+        fetchKrsList();
+      }
     }
-  }, [search, filterStatus, filterProdi, filterAngkatan, filterSpp, selectedTaId, isMahasiswa]);
+  }, [search, filterStatus, filterProdi, filterAngkatan, filterSpp, filterOnlyKonversi, selectedTaId, isMahasiswa, adminTab]);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -547,6 +567,99 @@ export default function KrsMahasiswaPage() {
     },
   ];
 
+  const monitoringColumns: ColumnDef<any>[] = [
+    {
+      key: 'program_studi',
+      label: 'PROGRAM STUDI',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-900 block text-xs">
+            {row.nama_prodi} {row.jenjang ? `(${row.jenjang})` : ''}
+          </span>
+          <span className="text-2xs text-slate-400">
+            Fakultas: {row.fakultas} • Kode: {row.kode_prodi || '-'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'total_mhs',
+      label: 'MHS AKTIF',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-800 text-xs">
+          {row.total_mahasiswa_aktif}
+        </span>
+      ),
+    },
+    {
+      key: 'sudah_krs',
+      label: 'SUDAH KRS',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono font-bold text-emerald-600 text-xs">
+          {row.sudah_krs}
+        </span>
+      ),
+    },
+    {
+      key: 'belum_krs',
+      label: 'BELUM KRS',
+      align: 'center',
+      render: (row) => (
+        <span className="font-mono font-bold text-rose-600 text-xs">
+          {row.belum_krs}
+        </span>
+      ),
+    },
+    {
+      key: 'rincian_status',
+      label: 'RINCIAN STATUS KRS',
+      render: (row) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Badge variant="green" className="text-2xs">
+            Disetujui: {row.disetujui}
+          </Badge>
+          <Badge variant="amber" className="text-2xs">
+            Diajukan: {row.diajukan}
+          </Badge>
+          <Badge variant="gray" className="text-2xs">
+            Draft: {row.draft}
+          </Badge>
+          {row.terkunci_keuangan > 0 && (
+            <Badge variant="red" className="text-2xs">
+              Lock SPP: {row.terkunci_keuangan}
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'persentase',
+      label: 'PROGRESS KRS',
+      render: (row) => (
+        <div className="w-full min-w-[130px] space-y-1">
+          <div className="flex justify-between items-center text-2xs">
+            <span className="font-semibold text-slate-700">{row.persentase_krs}% KRS</span>
+            <span className="text-slate-400 font-mono text-2xs">({row.persentase_disetujui}% Disetujui)</span>
+          </div>
+          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden flex">
+            <div
+              className="bg-emerald-500 h-2 transition-all duration-300"
+              style={{ width: `${Math.min(row.persentase_disetujui, 100)}%` }}
+              title={`Disetujui: ${row.persentase_disetujui}%`}
+            />
+            <div
+              className="bg-amber-400 h-2 transition-all duration-300"
+              style={{ width: `${Math.min(Math.max(0, row.persentase_krs - row.persentase_disetujui), 100)}%` }}
+              title={`Menunggu / Draft: ${(row.persentase_krs - row.persentase_disetujui).toFixed(1)}%`}
+            />
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   const studentKrsColumns: ColumnDef<any>[] = [
     {
       key: 'kode_mk',
@@ -648,52 +761,37 @@ export default function KrsMahasiswaPage() {
           ]}
           action={
             <div className="flex items-center gap-2.5 flex-wrap justify-start md:justify-end">
-              {/* Dropdown Periode Akademik */}
-              <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                <Calendar size={14} className="text-primary-600 shrink-0" />
-                <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">Periode:</span>
-                <select
-                  value={selectedTaId || ''}
-                  onChange={(e) => setSelectedTaId(Number(e.target.value))}
-                  className="text-xs font-bold text-slate-900 bg-transparent outline-none cursor-pointer pr-1"
-                >
-                  {(isMahasiswa && studentKrsData?.mahasiswa?.angkatan
-                    ? tahunAkademiks.filter((ta) => {
-                        const startYear = ta.tahun_mulai || Number(String(ta.kode).slice(0, 4));
-                        return startYear >= Number(studentKrsData.mahasiswa.angkatan) || ta.is_active;
-                      })
-                    : tahunAkademiks
-                  ).map((ta) => (
-                    <option key={ta.id} value={ta.id}>
-                      {ta.nama} {ta.is_active ? '★ (Aktif)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filter Button for Admin & Dosen */}
-              {!isMahasiswa && (
-                <Button
-                  variant="outline"
-                  icon={<Filter size={15} />}
-                  className="font-bold min-h-[38px] text-xs"
-                  onClick={() => setShowFilter(true)}
-                >
-                  Filter
-                </Button>
+              {/* Badge Periode Aktif (detail pilih via Filter) */}
+              {selectedTaObj && (
+                <Badge variant="blue" className="inline-flex items-center gap-1.5 px-3 py-1.5">
+                  <Calendar size={12} />
+                  {selectedTaObj.nama}
+                  {selectedTaObj.is_active ? ' • Aktif' : ''}
+                </Badge>
               )}
 
-              {/* Admin Kelola / Aktifkan Periode Button */}
+              {/* Filter Button (semua peran — periode via Drawer) */}
+              <Button
+                variant="outline"
+                icon={<Filter size={15} />}
+                className="font-bold min-h-[38px] text-xs"
+                onClick={() => setShowFilter(true)}
+              >
+                Filter
+              </Button>
+
+              {/* Admin: kelola periode terpusat di master */}
               {isAdmin && (
-                <Button
-                  variant="outline"
-                  icon={<Settings size={14} className="text-slate-700" />}
-                  className="font-bold text-xs py-2 px-3 h-auto border-slate-300 hover:bg-slate-50 text-slate-800"
-                  onClick={() => setIsManagePeriodModalOpen(true)}
-                  title="Kelola & Aktifkan Periode Semester"
-                >
-                  Kelola Periode
-                </Button>
+                <Link href="/siakad/master/tahun-akademik">
+                  <Button
+                    variant="outline"
+                    icon={<Settings size={14} className="text-slate-700" />}
+                    className="font-bold text-xs py-2 px-3 h-auto border-slate-300 hover:bg-slate-50 text-slate-800"
+                    title="Kelola periode di master tahun akademik"
+                  >
+                    Kelola Periode
+                  </Button>
+                </Link>
               )}
 
               {/* Mahasiswa Action Buttons */}
@@ -856,14 +954,14 @@ export default function KrsMahasiswaPage() {
             )}
           </div>
 
-          {/* Tabs for Transfer Student */}
-          {isTransferStudent && (
-            <div className="flex border-b border-slate-200/90 mt-2">
+          {/* Tabs KRS + Penyetaraan — tab konversi selalu tampil agar pengajuan awal bisa dibuat */}
+          {isMahasiswa && (
+            <div className="flex border-b border-slate-200/90 mt-2 gap-2">
               <button
                 type="button"
-                className={`py-3 px-6 font-bold text-xs uppercase tracking-wider border-b-2 transition ${
+                className={`px-5 py-3 -mb-px font-extrabold text-xs uppercase tracking-wider border-b-2 transition ${
                   activeTab === 'krs'
-                    ? 'border-primary-600 text-primary-600'
+                    ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
                 onClick={() => setActiveTab('krs')}
@@ -872,9 +970,9 @@ export default function KrsMahasiswaPage() {
               </button>
               <button
                 type="button"
-                className={`py-3 px-6 font-bold text-xs uppercase tracking-wider border-b-2 transition ${
+                className={`px-5 py-3 -mb-px font-extrabold text-xs uppercase tracking-wider border-b-2 transition ${
                   activeTab === 'konversi'
-                    ? 'border-amber-600 text-amber-700'
+                    ? 'border-amber-600 text-amber-700 bg-amber-50 rounded-t-lg'
                     : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
                 onClick={() => setActiveTab('konversi')}
@@ -1089,21 +1187,13 @@ export default function KrsMahasiswaPage() {
                               required
                               disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
                             />
-                            <div>
-                              <label className="label font-bold text-slate-700">Disetarakan Ke MK Lokal *</label>
-                              <select
-                                value={detail.mata_kuliah_diakui_id}
-                                onChange={(e) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', parseInt(e.target.value))}
-                                className="select w-full text-xs font-bold bg-white"
-                                disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
-                              >
-                                {matakuliahs.map((mk) => (
-                                  <option key={mk.id} value={mk.id}>
-                                    {mk.kode_mk} - {mk.nama} ({mk.total_sks} SKS)
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                            <MkProdiSelect
+                              value={detail.mata_kuliah_diakui_id}
+                              onChange={(id) => handleKonversiDetailChange(idx, 'mata_kuliah_diakui_id', id)}
+                              matakuliahs={matakuliahs}
+                              required
+                              disabled={mhs?.konversi_transfer?.status === 'diajukan' || mhs?.konversi_transfer?.status === 'disetujui'}
+                            />
                           </div>
                         </div>
                       ))}
@@ -1267,45 +1357,161 @@ export default function KrsMahasiswaPage() {
       {/* ======================================================== */}
       {!isMahasiswa && (
         <div className="space-y-4">
-          {/* Bulk Action Toolbar */}
-          {selectedKrsIds.length > 0 && (
-            <div className="bg-primary-50 border border-primary-200 rounded-xl p-3.5 flex items-center justify-between flex-wrap gap-3 animate-fade-in">
-              <div className="flex items-center gap-2">
-                <Badge variant="purple" className="font-black text-xs">
-                  {selectedKrsIds.length} KRS Terpilih
-                </Badge>
-                <span className="text-xs text-primary-900 font-semibold">
-                  Siap untuk diverifikasi dan disetujui secara bersamaan.
-                </span>
+          {/* Tab Navigasi Admin / Dosen */}
+          <div className="flex border-b border-slate-200 gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setAdminTab('daftar')}
+              className={`px-4 py-3 -mb-px text-xs font-extrabold transition-all border-b-2 flex items-center gap-1.5 ${
+                adminTab === 'daftar'
+                  ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <UserCheck size={14} />
+              Daftar Pengajuan KRS Mahasiswa
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdminTab('monitoring')}
+              className={`px-4 py-3 -mb-px text-xs font-extrabold transition-all border-b-2 flex items-center gap-1.5 ${
+                adminTab === 'monitoring'
+                  ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <BarChart3 size={14} />
+              Monitoring Progres KRS per Program Studi
+            </button>
+          </div>
+
+          {adminTab === 'daftar' ? (
+            <>
+              {/* Notice Kebijakan Persetujuan KRS */}
+              <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 flex items-start gap-3 text-xs text-sky-900">
+                <Sparkles size={16} className="text-sky-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">Mode Persetujuan KRS Aktif:</span>
+                    <Badge variant={filterOnlyKonversi ? 'blue' : 'gray'} className="text-2xs">
+                      {filterOnlyKonversi ? 'Fokus Mahasiswa Konversi Transfer' : 'Semua Mahasiswa'}
+                    </Badge>
+                  </div>
+                  <p className="text-slate-600 mt-1 leading-relaxed">
+                    {filterOnlyKonversi
+                      ? 'Mahasiswa reguler tanpa konversi nilai secara otomatis disetujui oleh sistem saat KRS diajukan. Halaman ini memprioritaskan mahasiswa jalur transfer/pindahan yang membutuhkan verifikasi silang mata kuliah oleh Dosen PA.'
+                      : 'Menampilkan seluruh pengajuan KRS (reguler & konversi). Gunakan Filter untuk menyaring berdasarkan status atau prodi.'}
+                  </p>
+                </div>
+                {filterOnlyKonversi && (
+                  <Button
+                    variant="outline"
+                    className="text-2xs py-1 px-2.5 h-auto border-sky-300 text-sky-800 hover:bg-sky-100 shrink-0"
+                    onClick={() => setFilterOnlyKonversi(false)}
+                  >
+                    Tampilkan Semua
+                  </Button>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="text-xs py-1 px-3 h-auto"
-                  onClick={() => setSelectedKrsIds([])}
-                >
-                  Batalkan Pilihan
-                </Button>
-                <Button
-                  variant="primary"
-                  icon={<CheckCircle2 size={14} />}
-                  className="text-xs py-1.5 px-4 h-auto font-bold shadow-xs"
-                  onClick={handleBulkApprove}
-                  disabled={isBulkApproving}
-                >
-                  {isBulkApproving ? 'Memproses...' : `Setujui (${selectedKrsIds.length}) KRS Sekaligus`}
-                </Button>
-              </div>
+              {/* Bulk Action Toolbar */}
+              {selectedKrsIds.length > 0 && (
+                <div className="bg-primary-50 border border-primary-200 rounded-xl p-3.5 flex items-center justify-between flex-wrap gap-3 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="purple" className="font-black text-xs">
+                      {selectedKrsIds.length} KRS Terpilih
+                    </Badge>
+                    <span className="text-xs text-primary-900 font-semibold">
+                      Siap untuk diverifikasi dan disetujui secara bersamaan.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className="text-xs py-1 px-3 h-auto"
+                      onClick={() => setSelectedKrsIds([])}
+                    >
+                      Batalkan Pilihan
+                    </Button>
+                    <Button
+                      variant="primary"
+                      icon={<CheckCircle2 size={14} />}
+                      className="text-xs py-1.5 px-4 h-auto font-bold shadow-xs"
+                      onClick={handleBulkApprove}
+                      disabled={isBulkApproving}
+                    >
+                      {isBulkApproving ? 'Memproses...' : `Setujui (${selectedKrsIds.length}) KRS Sekaligus`}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Full-bleed DataTable */}
+              <DataTable
+                columns={columns}
+                data={krsList}
+                isLoading={loading}
+                emptyMessage="Belum ada data KRS yang sesuai filter."
+              />
+            </>
+          ) : (
+            /* TAB MONITORING PROGRES KRS BAAK PER PRODI */
+            <div className="space-y-4 animate-fade-in">
+              {/* Ringkasan Metrik KRS Universitas */}
+              {monitoringData?.summary && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
+                    <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">Total Mahasiswa Aktif</span>
+                    <span className="text-xl font-extrabold text-slate-900 font-mono mt-0.5 block">
+                      {monitoringData.summary.total_mahasiswa_aktif}
+                    </span>
+                    <span className="text-2xs text-slate-400 mt-1 block">Seluruh Program Studi</span>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
+                    <span className="text-2xs font-bold text-emerald-700 uppercase tracking-wider block">Sudah KRS-an</span>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="text-xl font-extrabold text-emerald-600 font-mono">
+                        {monitoringData.summary.total_sudah_krs}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-700 font-mono">
+                        ({monitoringData.summary.persentase_krs}%)
+                      </span>
+                    </div>
+                    <span className="text-2xs text-slate-400 mt-1 block">Disetujui: {monitoringData.summary.total_disetujui}</span>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
+                    <span className="text-2xs font-bold text-rose-700 uppercase tracking-wider block">Belum Mengisi KRS</span>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="text-xl font-extrabold text-rose-600 font-mono">
+                        {monitoringData.summary.total_belum_krs}
+                      </span>
+                      <span className="text-xs font-bold text-rose-700 font-mono">
+                        ({monitoringData.summary.total_mahasiswa_aktif > 0 ? (100 - monitoringData.summary.persentase_krs).toFixed(1) : 0}%)
+                      </span>
+                    </div>
+                    <span className="text-2xs text-slate-400 mt-1 block">Perlu tindak lanjut / reminder</span>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
+                    <span className="text-2xs font-bold text-amber-700 uppercase tracking-wider block">Terkunci Keuangan (SIKEU)</span>
+                    <span className="text-xl font-extrabold text-amber-600 font-mono mt-0.5 block">
+                      {monitoringData.summary.total_terkunci_keuangan}
+                    </span>
+                    <span className="text-2xs text-slate-400 mt-1 block">Belum lunas SPP / tanpa dispensasi</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabel Rekapitulasi Per Program Studi */}
+              <DataTable
+                columns={monitoringColumns}
+                data={monitoringData?.prodi || []}
+                isLoading={loadingMonitoring}
+                emptyMessage="Tidak ada data monitoring program studi yang sesuai filter."
+              />
             </div>
           )}
-
-          {/* Full-bleed DataTable */}
-          <DataTable
-            columns={columns}
-            data={krsList}
-            isLoading={loading}
-            emptyMessage="Belum ada data KRS yang sesuai filter."
-          />
 
           {/* Drawer Filter */}
           <Drawer
@@ -1321,6 +1527,7 @@ export default function KrsMahasiswaPage() {
                     setFilterProdi('');
                     setFilterAngkatan('');
                     setFilterStatus('');
+                    setFilterOnlyKonversi(true);
                     setShowFilter(false);
                   }}
                 >
@@ -1329,7 +1536,11 @@ export default function KrsMahasiswaPage() {
                 <Button
                   variant="primary"
                   onClick={() => {
-                    fetchKrsList();
+                    if (adminTab === 'monitoring') {
+                      fetchMonitoringKrs();
+                    } else {
+                      fetchKrsList();
+                    }
                     setShowFilter(false);
                   }}
                 >
@@ -1339,6 +1550,23 @@ export default function KrsMahasiswaPage() {
             }
           >
             <div className="flex flex-col gap-5">
+              <Select
+                label="Periode Akademik"
+                placeholder="Pilih periode semester..."
+                options={(isMahasiswa && studentKrsData?.mahasiswa?.angkatan
+                  ? tahunAkademiks.filter((ta) => {
+                      const startYear = ta.tahun_mulai || Number(String(ta.kode).slice(0, 4));
+                      return startYear >= Number(studentKrsData.mahasiswa.angkatan) || ta.is_active;
+                    })
+                  : tahunAkademiks
+                ).map((ta) => ({
+                  value: ta.id,
+                  label: `${ta.nama}${ta.is_active ? ' — Aktif' : ''}`,
+                }))}
+                value={selectedTaId || ''}
+                onChange={(val: any) => setSelectedTaId(Number(val))}
+              />
+
               <Input
                 label="Pencarian Mahasiswa"
                 placeholder="Cari NIM, nama mahasiswa, atau dosen wali..."
@@ -1346,50 +1574,52 @@ export default function KrsMahasiswaPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
 
-              <div>
-                <label className="label">Program Studi</label>
-                <select
-                  value={filterProdi}
-                  onChange={(e) => setFilterProdi(e.target.value)}
-                  className="select w-full"
-                >
-                  <option value="">Semua Program Studi</option>
-                  {prodiList.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nama} ({p.jenjang || 'S1'})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Program Studi"
+                placeholder="Semua Program Studi"
+                options={prodiList.map((p) => ({
+                  value: p.id,
+                  label: `${p.nama}${p.jenjang ? ` (${p.jenjang})` : ''}`,
+                }))}
+                value={filterProdi || ''}
+                onChange={(val: any) => setFilterProdi(String(val || ''))}
+                isClearable
+              />
 
-              <div>
-                <label className="label">Tahun Angkatan</label>
-                <select
-                  value={filterAngkatan}
-                  onChange={(e) => setFilterAngkatan(e.target.value)}
-                  className="select w-full"
-                >
-                  <option value="">Semua Angkatan</option>
-                  <option value="2023">Angkatan 2023</option>
-                  <option value="2024">Angkatan 2024</option>
-                  <option value="2025">Angkatan 2025</option>
-                  <option value="2026">Angkatan 2026</option>
-                </select>
-              </div>
+              <Select
+                label="Tahun Angkatan"
+                placeholder="Semua Angkatan"
+                options={Array.from({ length: 8 }, (_, i) => {
+                  const year = new Date().getFullYear() - i;
+                  return { value: String(year), label: `Angkatan ${year}` };
+                })}
+                value={filterAngkatan || ''}
+                onChange={(val: any) => setFilterAngkatan(String(val || ''))}
+                isClearable
+              />
 
-              <div>
-                <label className="label">Status Persetujuan KRS</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="select w-full"
-                >
-                  <option value="">Semua Status KRS</option>
-                  <option value="diajukan">Diajukan (Menunggu)</option>
-                  <option value="disetujui">Disetujui</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
+              <Select
+                label="Status Persetujuan KRS"
+                placeholder="Semua Status KRS"
+                options={[
+                  { value: 'diajukan', label: 'Diajukan (Menunggu)' },
+                  { value: 'disetujui', label: 'Disetujui' },
+                  { value: 'draft', label: 'Draft' },
+                ]}
+                value={filterStatus || ''}
+                onChange={(val: any) => setFilterStatus(String(val || ''))}
+                isClearable
+              />
+
+              <Select
+                label="Kategori Mahasiswa"
+                options={[
+                  { value: 'konversi', label: 'Khusus Mahasiswa Konversi Transfer (Perlu Review DPA)' },
+                  { value: 'semua', label: 'Semua Mahasiswa (Reguler & Konversi)' },
+                ]}
+                value={filterOnlyKonversi ? 'konversi' : 'semua'}
+                onChange={(val: any) => setFilterOnlyKonversi(val === 'konversi')}
+              />
             </div>
           </Drawer>
         </div>
@@ -1532,159 +1762,6 @@ export default function KrsMahasiswaPage() {
       )}
 
       {/* MODAL MANAJEMEN & PENGAKTIFAN PERIODE SEMESTER */}
-      {isManagePeriodModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in print:hidden">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-5">
-            <div className="flex justify-between items-center border-b pb-3">
-              <div>
-                <h3 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                  <Calendar size={18} className="text-primary-600" />
-                  Manajemen & Pengaktifan Periode Semester
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Tentukan semester aktif untuk proses KRS, perkuliahan, dan penilaian.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsManagePeriodModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* List Periode Tahun Akademik */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-700">Daftar Periode Semester:</span>
-                <Button
-                  variant="outline"
-                  icon={<Plus size={13} />}
-                  className="text-2xs py-1 px-2.5 h-auto font-bold text-primary-700"
-                  onClick={() => setIsNewPeriodOpen(!isNewPeriodOpen)}
-                >
-                  {isNewPeriodOpen ? 'Tutup Form' : '+ Tambah Periode Baru'}
-                </Button>
-              </div>
-
-              {/* Form Tambah Periode Baru */}
-              {isNewPeriodOpen && (
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    try {
-                      await siakadService.storeTahunAkademik(newPeriodForm);
-                      toast.success('Periode tahun akademik berhasil ditambahkan');
-                      setIsNewPeriodOpen(false);
-                      setNewPeriodForm({ kode: '', nama: '', tahun_mulai: 2026, tahun_selesai: 2027, is_active: false });
-                      fetchTahunAkademiks();
-                    } catch (err: any) {
-                      toast.error('Gagal menambahkan periode');
-                    }
-                  }}
-                  className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs"
-                >
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-slate-600 font-bold mb-1">Kode Periode (e.g. 20262)</label>
-                      <input
-                        type="text"
-                        required
-                        value={newPeriodForm.kode}
-                        onChange={(e) => setNewPeriodForm({ ...newPeriodForm, kode: e.target.value })}
-                        placeholder="e.g. 20262"
-                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg font-mono font-bold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-bold mb-1">Nama Periode</label>
-                      <input
-                        type="text"
-                        required
-                        value={newPeriodForm.nama}
-                        onChange={(e) => setNewPeriodForm({ ...newPeriodForm, nama: e.target.value })}
-                        placeholder="e.g. 2026/2027 Genap"
-                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg font-bold"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button type="submit" variant="primary" className="text-2xs py-1 px-3 h-auto font-bold">
-                      Simpan Periode
-                    </Button>
-                  </div>
-                </form>
-              )}
-
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                    <tr>
-                      <th className="py-2.5 px-3 w-24">KODE</th>
-                      <th className="py-2.5 px-3">NAMA PERIODE</th>
-                      <th className="py-2.5 px-3 text-center w-32">STATUS</th>
-                      <th className="py-2.5 px-3 text-right w-40">AKSI</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {tahunAkademiks.map((ta) => (
-                      <tr key={ta.id} className={ta.is_active ? 'bg-emerald-50/50 font-bold' : 'hover:bg-slate-50'}>
-                        <td className="py-2.5 px-3 font-mono font-black text-slate-900">{ta.kode}</td>
-                        <td className="py-2.5 px-3">{ta.nama}</td>
-                        <td className="py-2.5 px-3 text-center">
-                          {ta.is_active ? (
-                            <span className="badge badge-green text-2xs font-bold">★ Periode Aktif</span>
-                          ) : (
-                            <span className="badge badge-gray text-2xs">Non-aktif</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          {!ta.is_active ? (
-                            <Button
-                              variant="primary"
-                              icon={<Check size={12} />}
-                              className="text-2xs py-1 px-2.5 h-auto font-bold bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-xs"
-                              disabled={settingActivePeriod}
-                              onClick={async () => {
-                                try {
-                                  setSettingActivePeriod(true);
-                                  await siakadService.setActiveTahunAkademik(ta.id);
-                                  toast.success(`Periode ${ta.nama} berhasil diaktifkan!`);
-                                  setSelectedTaId(ta.id);
-                                  await fetchTahunAkademiks();
-                                  fetchKrsList();
-                                } catch (err: any) {
-                                  toast.error('Gagal mengaktifkan periode');
-                                } finally {
-                                  setSettingActivePeriod(false);
-                                }
-                              }}
-                            >
-                              Jadikan Aktif
-                            </Button>
-                          ) : (
-                            <span className="text-2xs text-emerald-700 font-bold">Sedang Berjalan</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t">
-              <Button
-                variant="outline"
-                className="text-xs font-bold"
-                onClick={() => setIsManagePeriodModalOpen(false)}
-              >
-                Tutup
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ======================================================== */}
       {/* MODAL DETAIL KRS MAHASISWA (ADMIN & DOSEN WALI) */}

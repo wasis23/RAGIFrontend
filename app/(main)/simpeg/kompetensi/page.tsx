@@ -698,11 +698,11 @@ export default function KompetensiPage() {
         }
       />
 
-      {/* Tab Navigation (Mengikuti Format Master Jabatan & Jenjang Fungsional) */}
+      {/* Tab Navigation (Mengikuti Format Master Surat Tugas & Presensi) */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <Button
           type="button"
-          variant="ghost"
+          variant="tab"
           onClick={() => setActiveTab('sertifikasi')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'sertifikasi'
@@ -715,7 +715,7 @@ export default function KompetensiPage() {
 
         <Button
           type="button"
-          variant="ghost"
+          variant="tab"
           onClick={() => setActiveTab('tes')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'tes'
@@ -728,7 +728,7 @@ export default function KompetensiPage() {
 
         <Button
           type="button"
-          variant="ghost"
+          variant="tab"
           onClick={() => setActiveTab('pelatihan')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'pelatihan'

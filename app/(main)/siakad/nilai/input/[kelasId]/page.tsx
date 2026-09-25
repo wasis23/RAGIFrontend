@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Award, ArrowLeft, Save, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Award, ArrowLeft, Save, CheckCircle2, AlertCircle, RefreshCw, Download } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
@@ -25,6 +27,9 @@ export default function InputNilaiKelasPage() {
   const [komponenList, setKomponenList] = useState<any[]>([]);
   const [pesertaList, setPesertaList] = useState<any[]>([]);
   const [modePenilaian, setModePenilaian] = useState<string>('semi_obe');
+  const [skalaList, setSkalaList] = useState<any[]>([]);
+  const [confirmFinalOpen, setConfirmFinalOpen] = useState(false);
+  const [kelayakan, setKelayakan] = useState<{ boleh: boolean; pesan: string | null; rps?: any; bobot?: any } | null>(null);
 
   // State to hold temporary input scores in memory
   // Structure: { krs_detail_id: { komponen_id: score_value } }
@@ -33,8 +38,13 @@ export default function InputNilaiKelasPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await siakadService.getKelasNilaiObe(kelasId);
+      const [res, skalaRes] = await Promise.all([
+        siakadService.getKelasNilaiObe(kelasId),
+        siakadService.getSkalaNilais().catch(() => null),
+      ]);
+      if (skalaRes?.data) setSkalaList(skalaRes.data);
       if (res.data) {
+        setKelayakan(res.data.kelayakan || null);
         setKelasData(res.data.kelas);
         setKomponenList(res.data.komponen || []);
         setModePenilaian(res.data.mode_penilaian || 'semi_obe');
@@ -98,6 +108,23 @@ export default function InputNilaiKelasPage() {
   };
 
   const getGradeLetter = (total: number) => {
+    const aktif = skalaList.filter((s: any) => s.is_active !== false);
+    const cocok = aktif.find((s: any) => total >= Number(s.batas_bawah) && total <= Number(s.batas_atas));
+    if (cocok) {
+      const huruf = String(cocok.nilai_huruf);
+      const isBaik = ['A', 'A-'].includes(huruf);
+      const isCukup = huruf.startsWith('B');
+      return {
+        letter: huruf,
+        class: isBaik
+          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+          : isCukup
+          ? 'bg-blue-50 text-blue-700 border-blue-100'
+          : huruf.startsWith('C')
+          ? 'bg-amber-50 text-amber-700 border-amber-100'
+          : 'bg-red-100 text-red-800 border-red-200',
+      };
+    }
     if (total >= 85) return { letter: 'A', class: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
     if (total >= 80) return { letter: 'A-', class: 'bg-emerald-50 text-emerald-700 border-emerald-100' };
     if (total >= 75) return { letter: 'B+', class: 'bg-blue-100 text-blue-800 border-blue-200' };
@@ -109,12 +136,40 @@ export default function InputNilaiKelasPage() {
     return { letter: 'E', class: 'bg-red-100 text-red-800 border-red-200' };
   };
 
+  const handleConfirmFinal = async () => {
+    setConfirmFinalOpen(false);
+    try {
+      setSaving(true);
+      const gradesPayload = pesertaList.map((p) => {
+        const studentScores = scores[p.krs_detail_id] || {};
+        const formattedScores: Record<number, number> = {};
+        komponenList.forEach((comp) => {
+          formattedScores[comp.id] = Number(studentScores[comp.id]) || 0;
+        });
+        return {
+          krs_detail_id: p.krs_detail_id,
+          scores: formattedScores,
+        };
+      });
+
+      const res = await siakadService.saveBulkNilaiObe(kelasId, {
+        is_final: true,
+        grades: gradesPayload,
+      });
+
+      toast.success(res.message || 'Nilai berhasil dipublikasikan (Final)');
+      router.push('/siakad/nilai');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan nilai');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async (isFinal: boolean) => {
     if (isFinal) {
-      const confirmPublish = confirm(
-        'PERINGATAN: Mempublikasikan nilai secara FINAL akan mengunci nilai dan memperbarui KHS/IPK mahasiswa. Nilai yang dikunci tidak dapat diubah kembali kecuali oleh Administrator. Lanjutkan?'
-      );
-      if (!confirmPublish) return;
+      setConfirmFinalOpen(true);
+      return;
     }
 
     try {
@@ -209,26 +264,107 @@ export default function InputNilaiKelasPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              icon={<Save size={14} />}
-              className="text-xs font-bold"
-              onClick={() => handleSave(false)}
-              disabled={saving}
-            >
-              Simpan Draft
-            </Button>
-            <Button
-              variant="primary"
-              icon={<CheckCircle2 size={14} />}
-              className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-xs"
-              onClick={() => handleSave(true)}
-              disabled={saving}
-            >
-              Simpan & Publikasikan (Final)
-            </Button>
+            {(() => {
+              const totalBobot = komponenList.reduce((acc, c) => acc + (Number(c.bobot) || 0), 0);
+              const isBobot100 = Math.abs(totalBobot - 100) < 0.01;
+              const terkunci = Boolean(kelayakan && !kelayakan.boleh);
+              const canSave = !saving && isBobot100 && !terkunci;
+              return (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    icon={<Download size={14} />}
+                    className="text-xs font-bold"
+                    onClick={async () => {
+                      try {
+                        const blob = await siakadService.downloadRekapCsv(kelasId);
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', `rekap_nilai_${kelasData?.kode_kelas || kelasId}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
+                        window.URL.revokeObjectURL(url);
+                        toast.success('Rekap nilai berhasil diunduh (CSV)');
+                      } catch {
+                        toast.error('Gagal mengunduh rekap nilai');
+                      }
+                    }}
+                  >
+                    Unduh Rekap
+                  </Button>
+                  <Button
+                    variant="outline"
+                    icon={<Save size={14} />}
+                    className="text-xs font-bold"
+                    onClick={() => handleSave(false)}
+                    disabled={!canSave}
+                    title={terkunci ? 'Terkunci: lengkapi RPS & bobot 100%' : undefined}
+                  >
+                    Simpan Draft
+                  </Button>
+                  <Button
+                    variant="primary"
+                    icon={<CheckCircle2 size={14} />}
+                    className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-xs disabled:opacity-50"
+                    onClick={() => handleSave(true)}
+                    disabled={!canSave}
+                    title={terkunci ? 'Terkunci: lengkapi RPS & bobot 100%' : undefined}
+                  >
+                    Simpan & Publikasikan (Final)
+                  </Button>
+                </div>
+              );
+            })()}
           </div>
         </div>
+
+        {/* Kunci prasyarat: RPS wajib terisi + bobot 100% */}
+        {kelayakan && !kelayakan.boleh && (
+          <div className="p-4 bg-rose-50 border border-rose-300 rounded-2xl flex items-start gap-3 text-xs text-rose-950">
+            <AlertCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="font-extrabold text-sm">🔒 Pengisian Nilai Dikunci</p>
+              <p className="text-2xs leading-relaxed">{kelayakan.pesan}</p>
+              <div className="flex items-center gap-2 flex-wrap text-2xs font-bold">
+                <span className={`px-2 py-0.5 rounded border ${kelayakan.rps?.terisi ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-rose-700 border-rose-200'}`}>
+                  RPS: {kelayakan.rps?.terisi ? `Terisi (${kelayakan.rps.jumlah_pertemuan} pertemuan)` : 'Belum diisi'}
+                </span>
+                {kelayakan.bobot && (
+                  <span className={`px-2 py-0.5 rounded border ${kelayakan.bobot.valid_100 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-white text-rose-700 border-rose-200'}`}>
+                    Bobot {kelayakan.bobot.tipe === 'cpmk' ? 'CPMK' : 'komponen'}: {kelayakan.bobot.total}%
+                  </span>
+                )}
+                <Button variant="outline" className="text-2xs py-1 px-2.5 h-auto font-bold" onClick={() => router.push(`/siakad/perkuliahan/kelas/${kelasId}/rps`)}>
+                  Lengkapi RPS →
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Warning Alert jika Bobot Asesmen Belum 100% */}
+        {(() => {
+          const totalBobot = komponenList.reduce((acc, c) => acc + (Number(c.bobot) || 0), 0);
+          const isBobot100 = Math.abs(totalBobot - 100) < 0.01;
+          if (!isBobot100 && komponenList.length > 0) {
+            return (
+              <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-3 text-xs text-amber-950">
+                <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-extrabold text-sm">
+                    🔒 Pengisian Nilai Ditangguhkan: Total Bobot Belum 100% (Saat Ini: {totalBobot}%)
+                  </p>
+                  <p className="text-2xs text-amber-800 leading-relaxed">
+                    Sesuai standar OBE, akumulasi bobot seluruh instrumen penilaian/CPMK wajib tepat <strong>100.0%</strong> sebelum dosen pengampu dapat menginputkan dan mempublikasikan nilai mahasiswa. Harap atur bobot asesmen kelas terlebih dahulu di modul Kurikulum & Penilaian OBE.
+                  </p>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {komponenList.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 bg-slate-50 border border-dashed rounded-2xl text-slate-400">
@@ -237,28 +373,32 @@ export default function InputNilaiKelasPage() {
             <p className="text-2xs text-slate-400">Dosen pengembang wajib melakukan penyusunan bobot asesmen (UTS, UAS, Tugas, dll.) pada menu OBE terlebih dahulu.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto border border-slate-200 rounded-2xl">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50 font-extrabold text-slate-600 border-b">
+          <div className="overflow-x-auto border border-slate-200 rounded-2xl bg-white">
+            <table className="w-full text-left text-xs border-collapse min-w-[900px] bg-white">
+              <thead className="bg-slate-50 font-extrabold text-slate-600 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4 w-12 text-center">NO</th>
-                  <th className="py-3 px-4 min-w-[150px]">NIM & MAHASISWA</th>
+                  <th className="py-3 px-3 text-center w-12 sticky left-0 bg-slate-50 z-10">NO</th>
+                  <th className="py-3 px-4 min-w-[200px] sticky left-12 bg-slate-50 z-10 border-r border-slate-200">NIM & MAHASISWA</th>
                   {komponenList.map((comp) => (
-                    <th key={comp.id} className="py-3 px-3 text-center w-28 border-l border-slate-100">
-                      <span className="block text-2xs truncate max-w-[110px]" title={comp.nama_komponen}>
+                    <th key={comp.id} className="py-3 px-3 text-center min-w-[130px] border-l border-slate-200 bg-sky-50/40">
+                      <span className="block text-xs text-slate-900 truncate max-w-[150px]" title={comp.nama_komponen}>
                         {comp.nama_komponen}
                       </span>
-                      <Badge variant="purple" className="text-[10px] font-black mt-0.5">
-                        {comp.bobot}%
+                      <span className="block text-2xs text-slate-500 font-semibold mt-0.5">
+                        {comp.teknik_penilaian ? String(comp.teknik_penilaian).replace(/_/g, ' ') : 'Asesmen'}
+                        {comp.cpmk ? ` • ${comp.cpmk.kode_cpmk}` : ''}
+                      </span>
+                      <Badge variant="purple" className="text-[10px] font-black mt-1">
+                        Bobot {comp.bobot}%
                       </Badge>
                     </th>
                   ))}
-                  <th className="py-3 px-4 text-center w-24 border-l border-slate-200 bg-slate-100/50">TOTAL SKOR</th>
-                  <th className="py-3 px-4 text-center w-24 border-l border-slate-100 bg-slate-100/50">NILAI HURUF</th>
-                  <th className="py-3 px-4 text-center w-28 border-l border-slate-100 bg-slate-100/50">STATUS</th>
+                  <th className="py-3 px-4 text-center min-w-[100px] border-l border-slate-200 bg-amber-50 font-black text-slate-900">TOTAL</th>
+                  <th className="py-3 px-4 text-center min-w-[90px] bg-amber-50 font-black text-slate-900">HURUF</th>
+                  <th className="py-3 px-4 text-center min-w-[120px] bg-amber-50 font-black text-slate-900">STATUS</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-semibold text-slate-700">
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-700 bg-white">
                 {pesertaList.length === 0 ? (
                   <tr>
                     <td colSpan={komponenList.length + 5} className="py-8 text-center text-slate-400 italic bg-slate-50">
@@ -272,9 +412,9 @@ export default function InputNilaiKelasPage() {
                     const isStudentFinal = p.is_final || false;
 
                     return (
-                      <tr key={p.krs_detail_id} className="hover:bg-slate-50/50 transition">
-                        <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
-                        <td className="py-3 px-4">
+                      <tr key={p.krs_detail_id} className="hover:bg-slate-50 transition bg-white">
+                        <td className="py-3 px-3 text-center font-mono text-slate-400 sticky left-0 bg-white z-10">{idx + 1}</td>
+                        <td className="py-3 px-4 sticky left-12 bg-white z-10 border-r border-slate-200">
                           <span className="font-bold text-slate-900 block text-xs">
                             {p.mahasiswa?.nama_lengkap || 'Mahasiswa'}
                           </span>
@@ -283,13 +423,16 @@ export default function InputNilaiKelasPage() {
                           </span>
                         </td>
                         {komponenList.map((comp) => (
-                          <td key={comp.id} className="py-3 px-3 text-center border-l border-slate-100">
-                            <input
-                              type="text"
+                          <td key={comp.id} className="py-2.5 px-3 text-center border-l border-slate-100 bg-white">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.1"
                               value={scores[p.krs_detail_id]?.[comp.id] ?? ''}
                               onChange={(e) => handleScoreChange(p.krs_detail_id, comp.id, e.target.value)}
-                              disabled={isStudentFinal && !isAdmin}
-                              className="w-16 text-center text-xs font-bold py-1 px-1.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+                              disabled={(isStudentFinal && !isAdmin) || Boolean(kelayakan && !kelayakan.boleh)}
+                              className="w-20 text-center font-mono font-bold"
                               placeholder="0"
                             />
                           </td>
@@ -318,6 +461,17 @@ export default function InputNilaiKelasPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmFinalOpen}
+        onClose={() => setConfirmFinalOpen(false)}
+        onConfirm={handleConfirmFinal}
+        title="Publikasikan Nilai Final?"
+        message="Mempublikasikan nilai FINAL akan mengunci nilai dan memperbarui KHS/IPK mahasiswa. Nilai terkunci hanya dapat diubah oleh Administrator. Lanjutkan?"
+        confirmText="Ya, Publikasikan"
+        variant="warning"
+        isLoading={saving}
+      />
     </div>
   );
 }
