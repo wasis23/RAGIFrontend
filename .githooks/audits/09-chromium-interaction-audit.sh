@@ -11,6 +11,7 @@
 echo "🤖 [Audit 9/9: Chromium Interaction] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
+AI_ENGINE="${AI_ENGINE:-agy}"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 BASE_URL="${LAPORAN_BASE_URL:-http://localhost:3000}"
@@ -32,7 +33,7 @@ if [ -z "$STAGED_DIFF" ]; then
 fi
 
 if [ ${#STAGED_DIFF} -gt 80000 ]; then
-    STAGED_DIFF="${STAGED_DIFF:0:80000}"
+    STAGED_DIFF="${STAGED_DIFF:0:80000}"$'\n\n[CATATAN: diff dipotong pada 80.000 karakter. Nilai HANYA yang terlihat di atas; JANGAN mengarang pelanggaran pada file/bagian yang tidak tampak.]'
 fi
 
 mkdir -p "$SHOT_DIR" "$LAPORAN_DIR"
@@ -60,6 +61,8 @@ ROUTES: daftar route halaman yang terdampak (contoh: /spmb/registrasi, /login) a
 ALASAN: satu kalimat alasan klasifikasi
 
 HANYA nilai baris baru (+). Abaikan konteks dan file tak diubah.
+
+- JANGAN menuduh sebuah simbol/komponen/ikon "tidak di-import" atau "tidak terdefinisi": diff hanya memuat potongan file, sehingga baris import sering berada DI LUAR diff. Validitas import sudah diverifikasi terpisah (tsc --noEmit untuk FE, php -l untuk BE). Laporkan hanya pelanggaran yang benar-benar terlihat pada baris (+).
 
 Git Diff:
 EOF

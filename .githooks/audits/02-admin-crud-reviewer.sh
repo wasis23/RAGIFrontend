@@ -6,6 +6,7 @@
 echo "🤖 [Audit 2/9: Admin CRUD Standard] Memeriksa perubahan dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
+AI_ENGINE="${AI_ENGINE:-agy}"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
@@ -21,7 +22,7 @@ if [ -z "$STAGED_DIFF" ]; then
 fi
 
 if [ ${#STAGED_DIFF} -gt 80000 ]; then
-    STAGED_DIFF="${STAGED_DIFF:0:80000}"
+    STAGED_DIFF="${STAGED_DIFF:0:80000}"$'\n\n[CATATAN: diff dipotong pada 80.000 karakter. Nilai HANYA yang terlihat di atas; JANGAN mengarang pelanggaran pada file/bagian yang tidak tampak.]'
 fi
 
 # ------------------------------------------------------------------------------
@@ -72,7 +73,10 @@ Aturan Baku Admin CRUD (11 ATURAN KETAT):
    - BENAR: setiap kolom informasi pada tabel memiliki input filter yang padan di dalam Sidebar Filter (Drawer).
 
 Catatan:
+- CAKUPAN: Aturan 6, 7, dan 11 (sort komprehensif, tombol "Tambah Data", paritas filter 1:1) HANYA berlaku untuk halaman CRUD pengelolaan data yang memang memiliki aksi Tambah/kelola data. Halaman LAPORAN/STATISTIK/detail read-only TIDAK wajib memiliki tombol "Tambah Data" dan TIDAK wajib paritas filter 1:1 — JANGAN menolak halaman laporan karena tidak ada tombol Tambah Data.
 - HANYA periksa baris baru (+) yaitu baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah (tanpa `+`).
+
+- JANGAN menuduh sebuah simbol/komponen/ikon "tidak di-import" atau "tidak terdefinisi": diff hanya memuat potongan file, sehingga baris import sering berada DI LUAR diff. Validitas import sudah diverifikasi terpisah (tsc --noEmit untuk FE, php -l untuk BE). Laporkan hanya pelanggaran yang benar-benar terlihat pada baris (+).
 
 Git Diff:
 EOF

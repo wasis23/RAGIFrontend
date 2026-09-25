@@ -10,6 +10,7 @@
 echo "🤖 [Audit 10: Filter & Table Standard] Memeriksa posisi tombol Filter dan warna background tabel (Wajib Putih)..."
 
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
+AI_ENGINE="${AI_ENGINE:-agy}"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
@@ -36,7 +37,7 @@ if [ -z "$TARGET_FILES" ] && [ -z "$STAGED_DIFF" ]; then
 fi
 
 if [ ${#STAGED_DIFF} -gt 80000 ]; then
-    STAGED_DIFF="${STAGED_DIFF:0:80000}"
+    STAGED_DIFF="${STAGED_DIFF:0:80000}"$'\n\n[CATATAN: diff dipotong pada 80.000 karakter. Nilai HANYA yang terlihat di atas; JANGAN mengarang pelanggaran pada file/bagian yang tidak tampak.]'
 fi
 
 # ------------------------------------------------------------------------------
@@ -223,6 +224,8 @@ ATURAN BAKU:
 
 Catatan:
 - HANYA periksa baris baru (+) yaitu baris kode baru yang DITAMBAHKAN atau DIUBAH (diawali tanda `+`). JANGAN menolak baris konteks yang tidak diubah (tanpa `+`).
+
+- JANGAN menuduh sebuah simbol/komponen/ikon "tidak di-import" atau "tidak terdefinisi": diff hanya memuat potongan file, sehingga baris import sering berada DI LUAR diff. Validitas import sudah diverifikasi terpisah (tsc --noEmit untuk FE, php -l untuk BE). Laporkan hanya pelanggaran yang benar-benar terlihat pada baris (+).
 
 Git Diff:
 EOF
