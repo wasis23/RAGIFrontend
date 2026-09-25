@@ -1,4 +1,5 @@
 import { ROUTES, TOKEN_KEY } from './constants';
+import { getStaticTenantConfig, type TenantConfig } from './tenant-config';
 
 // ============================================================
 // DOMAIN / SUBDOMAIN RESOLUTION — Multi-Tenant Frontend (satu codebase)
@@ -6,30 +7,20 @@ import { ROUTES, TOKEN_KEY } from './constants';
 // Konteks tenant ditentukan dari hostname:
 //   sso.polinus.cloud      -> portal SSO (default)
 //   siakad.polinus.cloud   -> modul SIAKAD
-//   sikeu.polinus.cloud    -> modul SIKEU
-//   <module>.polinus.cloud -> <module>
+//   clientcompany.com      -> custom domain (dipetakan via Edge Config)
 //
 // Backend tetap single-tenant (satu API_BASE_URL). FE hanya
-// menentukan landing & konteks modul berdasarkan subdomain.
+// menentukan landing & konteks modul berdasarkan subdomain/custom domain.
+// Pemetaan domain dinamis dibaca dari Vercel Edge Config (lib/tenant-config).
 // ============================================================
 
-export const BASE_DOMAINS = ['polinus.cloud', 'polinus.ac.id', 'ragi.cloud'];
+// Backward-compatible exports (diturunkan dari konfigurasi statis).
+export const BASE_DOMAINS: string[] = getStaticTenantConfig().baseDomains;
 
 // Subdomain yang BUKAN modul (dianggap portal SSO default)
-export const RESERVED_SUBDOMAINS = new Set([
-  'sso',
-  'www',
-  'api',
-  'mail',
-  'webmail',
-  'ftp',
-  'cloudflare',
-  'ragife',
-  'ragibe',
-  'localhost',
-  'demo-sso',
-  'demo',
-]);
+export const RESERVED_SUBDOMAINS: Set<string> = new Set(
+  getStaticTenantConfig().reservedSubdomains,
+);
 
 // Label tampilan per modul (untuk branding navbar/header)
 export const MODULE_LABELS: Record<string, string> = {
@@ -60,38 +51,40 @@ export interface DomainContext {
   isModule: boolean;
   isDefault: boolean;
   isDemo: boolean;
+  /** Host bukan bagian base domain & tidak ada di domainMap (apex pihak ketiga tak dikenal). */
+  isUnknownDomain: boolean;
+  /** Host dipetakan eksplisit lewat Edge Config domainMap (custom domain). */
+  isCustomDomain: boolean;
 }
 
-/**
- * Resolve konteks tenant dari hostname (framework-agnostic & pure,
- * aman dipakai di proxy.ts (server) maupun komponen client).
- * Mendukung deteksi lingkungan Demo (prefix 'demo-').
- */
-export function resolveDomainContext(hostname: string): DomainContext {
-  const host = (hostname || '').trim().toLowerCase().split(':')[0];
+function isDevHost(host: string): boolean {
+  return (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '[::1]' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local') ||
+    host.endsWith('.test')
+  );
+}
 
-  let baseDomain = '';
-  let subdomain = '';
+/** Host platform Vercel (preview/production URL) — selalu portal default. */
+function isPlatformHost(host: string): boolean {
+  return (
+    host.endsWith('.vercel.app') ||
+    host.endsWith('.vercel.dev') ||
+    host.endsWith('.now.sh')
+  );
+}
 
-  for (const bd of BASE_DOMAINS) {
-    if (host === bd) {
-      baseDomain = bd;
-      subdomain = '';
-      break;
-    }
-    if (host.endsWith(`.${bd}`)) {
-      baseDomain = bd;
-      subdomain = host.slice(0, -(bd.length + 1));
-      break;
-    }
-  }
-
-  // Fallback: host tidak dikenal -> ambil label pertama sebagai subdomain
-  if (!baseDomain) {
-    const parts = host.split('.');
-    subdomain = parts.length > 1 ? parts[0] : '';
-  }
-
+function buildContext(
+  host: string,
+  baseDomain: string,
+  subdomain: string,
+  isCustomDomain: boolean,
+  isUnknownDomain: boolean,
+  reserved: Set<string>,
+): DomainContext {
   const sub = subdomain.toLowerCase();
 
   // Environment demo: subdomain "demo" atau "demo-<module>" (mis. demo-sso,
@@ -99,7 +92,7 @@ export function resolveDomainContext(hostname: string): DomainContext {
   const isDemoEnv = sub === 'demo' || sub.startsWith('demo-');
   const moduleSub = isDemoEnv ? (sub === 'demo' ? '' : sub.slice('demo-'.length)) : sub;
 
-  const isReserved = moduleSub === '' || RESERVED_SUBDOMAINS.has(moduleSub);
+  const isReserved = moduleSub === '' || reserved.has(moduleSub);
   const moduleSlug = isReserved ? null : moduleSub;
   const modulePath = moduleSlug ? `/${moduleSlug}` : null;
 
@@ -116,7 +109,82 @@ export function resolveDomainContext(hostname: string): DomainContext {
     isModule: moduleSlug !== null,
     isDefault: moduleSlug === null,
     isDemo: isDemoEnv,
+    isUnknownDomain,
+    isCustomDomain,
   };
+}
+
+/**
+ * Resolve konteks tenant dengan konfigurasi eksplisit (dari Edge Config
+ * atau konfigurasi statis). Pure function — aman dipakai di proxy/server.
+ *
+ * Urutan prioritas:
+ *   1. domainMap[host]  -> custom domain / pemetaan eksplisit (menang).
+ *   2. baseDomains      -> cocokkan suffix lalu ambil label subdomain.
+ *   3. host dev lokal   -> label subdomain dianggap modul (mis. spmb.localhost).
+ *   4. host lain        -> portal default + ditandai isUnknownDomain.
+ */
+export function resolveDomainContextWithConfig(
+  hostname: string,
+  config: TenantConfig,
+): DomainContext {
+  const host = (hostname || '').trim().toLowerCase().split(':')[0];
+  const reserved = new Set(config.reservedSubdomains.map((s) => s.toLowerCase()));
+
+  // 1. Pemetaan eksplisit (custom domain).
+  const mapped = config.domainMap[host];
+  if (mapped) {
+    if (mapped === 'default' || reserved.has(mapped)) {
+      return buildContext(host, '', '', true, false, reserved);
+    }
+    return buildContext(host, '', mapped, true, false, reserved);
+  }
+
+  // 2. Cocokkan base domain (suffix).
+  let baseDomain = '';
+  let subdomain = '';
+  for (const bd of config.baseDomains) {
+    const norm = bd.toLowerCase();
+    if (host === norm) {
+      baseDomain = norm;
+      subdomain = '';
+      break;
+    }
+    if (host.endsWith(`.${norm}`)) {
+      baseDomain = norm;
+      subdomain = host.slice(0, -(norm.length + 1));
+      break;
+    }
+  }
+
+  if (baseDomain) {
+    return buildContext(host, baseDomain, subdomain, false, false, reserved);
+  }
+
+  // 3. Host platform Vercel (preview/production) -> portal default.
+  if (isPlatformHost(host)) {
+    return buildContext(host, '', '', false, false, reserved);
+  }
+
+  // 4. Dev lokal (subdomain.localhost, dsb) -> pakai label subdomain.
+  if (isDevHost(host)) {
+    const parts = host.split('.');
+    subdomain = parts.length > 1 ? parts[0] : '';
+    return buildContext(host, '', subdomain, false, false, reserved);
+  }
+
+  // 5. Host tak dikenal tanpa pemetaan -> portal default (jangan pernah
+  //    memperlakukan apex domain pihak ketiga sebagai modul).
+  return buildContext(host, '', '', false, true, reserved);
+}
+
+/**
+ * Resolve konteks tenant dari hostname (framework-agnostic & pure,
+ * memakai konfigurasi statis). Untuk runtime Edge Config-aware, gunakan
+ * `resolveDomainContextAsync` di server/proxy.
+ */
+export function resolveDomainContext(hostname: string): DomainContext {
+  return resolveDomainContextWithConfig(hostname, getStaticTenantConfig());
 }
 
 /**
@@ -127,6 +195,21 @@ export function resolveDomainContext(hostname: string): DomainContext {
 export function getDefaultLandingPath(hostname: string): string {
   const ctx = resolveDomainContext(hostname);
   return ctx.modulePath ?? ROUTES.DASHBOARD;
+}
+
+/**
+ * Header konteks tenant untuk diteruskan ke backend (single-tenant BE tetap
+ * dapat men-scope query per modul). Client-safe.
+ */
+export function getTenantHeaders(hostname?: string): Record<string, string> {
+  const host =
+    hostname ??
+    (typeof window !== 'undefined' ? window.location.hostname : '');
+  const ctx = resolveDomainContext(host);
+  return {
+    'x-tenant-host': ctx.hostname,
+    'x-tenant-module': ctx.moduleSlug ?? 'default',
+  };
 }
 
 /**
