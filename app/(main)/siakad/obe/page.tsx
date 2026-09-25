@@ -1125,9 +1125,9 @@ export function ObeWorkspace({
         {(
           [
             { key: 'dashboard', label: 'Pemantauan & Monitoring OBE', icon: <BarChart3 size={16} /> },
-            { key: 'audit_pemetaan', label: `Audit Pemetaan MK (${auditData?.summary?.total_matakuliah || matakuliahList.length})`, icon: <ShieldCheck size={16} /> },
+            { key: 'audit_pemetaan', label: `Audit Pemetaan MK (${auditData?.summary?.total_matakuliah ?? matakuliahList.length})`, icon: <ShieldCheck size={16} /> },
             { key: 'grafik_capaian', label: 'Grafik Capaian CPL/CPMK', icon: <BarChart3 size={16} /> },
-            { key: 'cpl', label: `Perumusan CPL Prodi (${cplList.length || 4})`, icon: <Award size={16} /> },
+            { key: 'cpl', label: `Perumusan CPL Prodi (${cplList.length})`, icon: <Award size={16} /> },
             { key: 'matrix_cpl_mk', label: 'Matriks CPL ↔ Mata Kuliah', icon: <Layers size={16} /> },
             { key: 'cpmk', label: 'Pemetaan CPMK Mata Kuliah', icon: <Target size={16} /> },
             { key: 'rps', label: 'Dokumen RPS & Verifikasi Kaprodi', icon: <FileText size={16} /> },
@@ -1163,7 +1163,7 @@ export function ObeWorkspace({
             <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">CPL Terumuskan</span>
               <span className="text-2xl font-black text-slate-900 font-mono">
-                {dashboardData?.summary?.total_cpl || 4}
+                {dashboardData?.summary?.total_cpl ?? 0}
               </span>
               <p className="text-2xs text-slate-400">Standar SN-Dikti / IABEE</p>
             </div>
@@ -1171,7 +1171,7 @@ export function ObeWorkspace({
             <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">CPMK Terpetakan</span>
               <span className="text-2xl font-black text-primary-700 font-mono">
-                {dashboardData?.summary?.total_cpmk || 24}
+                {dashboardData?.summary?.total_cpmk ?? 0}
               </span>
               <p className="text-2xs text-slate-400">Lintas Seluruh Mata Kuliah</p>
             </div>
@@ -1179,15 +1179,17 @@ export function ObeWorkspace({
             <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">Mata Kuliah Ber-RPS</span>
               <span className="text-2xl font-black text-emerald-700 font-mono">
-                {dashboardData?.summary?.total_rps || 8} / {dashboardData?.summary?.total_matakuliah || 8}
+                {dashboardData?.summary?.total_rps ?? 0} / {dashboardData?.summary?.total_matakuliah ?? 0}
               </span>
-              <p className="text-2xs text-emerald-600 font-bold">100% Kelengkapan Dokumen</p>
+              <p className="text-2xs text-emerald-600 font-bold">
+                {dashboardData?.summary?.persentase_rps_approved ?? 0}% Terverifikasi
+              </p>
             </div>
 
             <div className="card p-5 space-y-1">
               <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider block">RPS Disetujui Kaprodi</span>
               <span className="text-2xl font-black text-purple-700 font-mono">
-                {dashboardData?.summary?.rps_disetujui || 8}
+                {dashboardData?.summary?.rps_disetujui ?? 0}
               </span>
               <p className="text-2xs text-purple-600 font-bold">Siap Pembelajaran Aktif</p>
             </div>
@@ -1198,57 +1200,67 @@ export function ObeWorkspace({
             <div>
               <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                 <TrendingUp size={16} className="text-primary-600" />
-                Rata-rata Ketercapaian CPL Lulusan per Ranah Kompetensi ({selectedProdiObj?.nama})
+                Rata-rata Ketercapaian CPL Lulusan per Ranah Kompetensi ({selectedProdiObj?.nama || 'Prodi'})
               </h3>
               <p className="text-xs text-slate-500">
-                Data agregat asesmen portofolio mahasiswa per ranah CPL untuk akreditasi program studi.
+                Data agregat asesmen portofolio mahasiswa per ranah CPL yang dihitung dari penilaian riil.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold">
-                  <span className="text-slate-800">1. Ranah Sikap & Tata Nilai (CPL-01)</span>
-                  <span className="text-emerald-700 font-mono font-black text-sm">88.5%</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: '88.5%' }} />
-                </div>
-                <span className="text-2xs text-slate-500 block">Target Threshold: ≥65% (Tercapai Sangat Baik)</span>
-              </div>
-
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold">
-                  <span className="text-slate-800">2. Ranah Penguasaan Pengetahuan (CPL-02)</span>
-                  <span className="text-primary-700 font-mono font-black text-sm">82.4%</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-primary-500 h-full rounded-full" style={{ width: '82.4%' }} />
-                </div>
-                <span className="text-2xs text-slate-500 block">Target Threshold: ≥65% (Tercapai Sangat Baik)</span>
-              </div>
-
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold">
-                  <span className="text-slate-800">3. Ranah Keterampilan Umum & Kolaborasi (CPL-03)</span>
-                  <span className="text-emerald-700 font-mono font-black text-sm">85.0%</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: '85%' }} />
-                </div>
-                <span className="text-2xs text-slate-500 block">Target Threshold: ≥65% (Tercapai Sangat Baik)</span>
-              </div>
-
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold">
-                  <span className="text-slate-800">4. Ranah Keterampilan Khusus / Keahlian (CPL-04)</span>
-                  <span className="text-primary-700 font-mono font-black text-sm">81.2%</span>
-                </div>
-                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-primary-500 h-full rounded-full" style={{ width: '81.2%' }} />
-                </div>
-                <span className="text-2xs text-slate-500 block">Target Threshold: ≥65% (Tercapai Sangat Baik)</span>
-              </div>
+              {[
+                {
+                  label: '1. Ranah Sikap & Tata Nilai (Sikap)',
+                  key: 'sikap',
+                  score: Number(dashboardData?.cpl_kategori_stats?.sikap || 0),
+                  color: 'emerald',
+                },
+                {
+                  label: '2. Ranah Penguasaan Pengetahuan (Pengetahuan)',
+                  key: 'pengetahuan',
+                  score: Number(dashboardData?.cpl_kategori_stats?.pengetahuan || 0),
+                  color: 'primary',
+                },
+                {
+                  label: '3. Ranah Keterampilan Umum & Kolaborasi (KU)',
+                  key: 'keterampilan_umum',
+                  score: Number(dashboardData?.cpl_kategori_stats?.keterampilan_umum || 0),
+                  color: 'emerald',
+                },
+                {
+                  label: '4. Ranah Keterampilan Khusus / Keahlian (KK)',
+                  key: 'keterampilan_khusus',
+                  score: Number(dashboardData?.cpl_kategori_stats?.keterampilan_khusus || 0),
+                  color: 'primary',
+                },
+              ].map((item) => {
+                const isPassed = item.score >= 65;
+                return (
+                  <div key={item.key} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-slate-800">{item.label}</span>
+                      <span className={`font-mono font-black text-sm ${isPassed && item.score > 0 ? 'text-emerald-700' : item.score > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                        {item.score > 0 ? `${item.score.toFixed(1)}%` : '0.0%'}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          isPassed && item.score > 0
+                            ? 'bg-emerald-500'
+                            : item.score > 0
+                            ? 'bg-amber-500'
+                            : 'bg-slate-300'
+                        }`}
+                        style={{ width: `${Math.min(100, Math.max(0, item.score))}%` }}
+                      />
+                    </div>
+                    <span className="text-2xs text-slate-500 block">
+                      Target Threshold: ≥65% {item.score >= 65 ? '(Tercapai Sangat Baik)' : item.score > 0 ? '(Di Bawah Target)' : '(Belum Ada Asesmen Masuk)'}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
