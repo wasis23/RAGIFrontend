@@ -75,6 +75,7 @@ export interface SkPegawai {
   tmt_selesai?: string | null;
   pejabat_penetap: string;
   file_sk: string;
+  file_sk_url?: string | null;
   keterangan?: string | null;
   status_verifikasi: SkVerifikasiStatus;
   catatan_verifikasi?: string | null;

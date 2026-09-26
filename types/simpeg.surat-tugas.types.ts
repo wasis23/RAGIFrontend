@@ -66,7 +66,9 @@ export interface SuratTugas {
   kontak_driver?: string | null;
   keterangan?: string | null;
   file_surat_tugas?: string | null;
+  file_surat_tugas_url?: string | null;
   file_lpj?: string | null;
+  file_lpj_url?: string | null;
   tanggal_upload_lpj?: string | null;
   status: SuratTugasStatus;
   catatan_approval?: string | null;
@@ -95,6 +97,7 @@ export interface SuratTugas {
     unit_kas_id?: number;
     unit_kas?: { id: number; nama_kas: string };
     bukti_pencairan_path?: string;
+    bukti_pencairan_url?: string;
     tanggal_pencairan?: string;
   };
 }

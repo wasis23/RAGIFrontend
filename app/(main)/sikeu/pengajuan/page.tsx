@@ -1,6 +1,6 @@
 'use client';
 
-import { formatRupiah, formatDate } from '@/lib/utils';
+import { formatRupiah, formatDate, getStorageFileUrl } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
@@ -1001,7 +1001,7 @@ export default function PengajuanOperasionalPage() {
             {selectedItemForTutupLpj?.surat_tugas?.file_lpj && (
               <div className="pt-2">
                 <a
-                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${selectedItemForTutupLpj.surat_tugas.file_lpj}`}
+                  href={selectedItemForTutupLpj.surat_tugas.file_lpj_url || getStorageFileUrl(selectedItemForTutupLpj.surat_tugas.file_lpj)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 text-xs font-bold text-[var(--module-primary)] hover:underline"

@@ -18,6 +18,7 @@ import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { simpegIzinKerjaService } from '@/services/simpeg.izin-sk.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getStorageFileUrl } from '@/lib/utils';
 import type { IzinJamKerja, IzinJamKerjaStatus } from '@/types/simpeg.izin-sk.types';
 
 export default function IzinKerjaDetailPage() {
@@ -253,7 +254,7 @@ export default function IzinKerjaDetailPage() {
                   </div>
                 </div>
                 <a
-                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${data.file_bukti}`}
+                  href={data.file_bukti_url || getStorageFileUrl(data.file_bukti)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"

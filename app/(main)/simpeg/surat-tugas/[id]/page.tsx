@@ -33,6 +33,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { simpegSuratTugasService } from '@/services/simpeg.surat-tugas.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getStorageFileUrl } from '@/lib/utils';
 import type { SuratTugas, SuratTugasStatus } from '@/types/simpeg.surat-tugas.types';
 
 const approvalFormSchema = z.object({
@@ -431,7 +432,7 @@ export default function SuratTugasDetailPage() {
           </div>
           {item.pencairan_kas?.bukti_pencairan_path && (
             <a
-              href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${item.pencairan_kas.bukti_pencairan_path}`}
+              href={item.pencairan_kas.bukti_pencairan_url || getStorageFileUrl(item.pencairan_kas.bukti_pencairan_path)}
               target="_blank"
               rel="noopener noreferrer"
               style={{ backgroundColor: 'var(--module-primary)' }}
@@ -833,7 +834,7 @@ export default function SuratTugasDetailPage() {
               <div className="flex items-center justify-between gap-2 pt-1">
                 <span className="text-xs text-slate-600 truncate">Surat_Tugas_Resmi.pdf</span>
                 <a
-                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${item.file_surat_tugas}`}
+                  href={item.file_surat_tugas_url || getStorageFileUrl(item.file_surat_tugas)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 transition shrink-0"
@@ -856,7 +857,7 @@ export default function SuratTugasDetailPage() {
               <div className="flex items-center justify-between gap-2 pt-2">
                 <span className="text-xs text-slate-600 truncate">Bukti_Pencairan_Kas.pdf</span>
                 <a
-                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${item.pencairan_kas.bukti_pencairan_path}`}
+                  href={item.pencairan_kas.bukti_pencairan_url || getStorageFileUrl(item.pencairan_kas.bukti_pencairan_path)}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: 'var(--module-primary)' }}
@@ -880,7 +881,7 @@ export default function SuratTugasDetailPage() {
                 <div className="flex items-center justify-between gap-2 pt-1">
                   <span className="text-xs text-slate-600 truncate">Laporan_LPJ_Dinas.pdf</span>
                   <a
-                    href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${item.file_lpj}`}
+                    href={item.file_lpj_url || getStorageFileUrl(item.file_lpj)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition shrink-0"

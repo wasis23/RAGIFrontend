@@ -46,7 +46,9 @@ export interface PengajuanOperasional {
     nama_rekening?: string | null;
     status_pencairan?: string;
     file_surat_tugas?: string;
+    file_surat_tugas_url?: string;
     file_lpj?: string;
+    file_lpj_url?: string;
     pegawai?: {
       id: number;
       nama_lengkap: string;
@@ -59,6 +61,7 @@ export interface PengajuanOperasional {
     };
   };
   bukti_pencairan_path?: string;
+  bukti_pencairan_url?: string;
   tanggal_pencairan?: string;
   history_approval?: any[];
   created_at?: string;
