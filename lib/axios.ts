@@ -27,14 +27,9 @@ apiClient.interceptors.request.use(
       config.headers['X-Environment'] = 'demo';
     }
 
-    // 2. Ambil token dari key yang sesuai (demo vs produksi)
-    let token = typeof window !== 'undefined' ? localStorage.getItem(tokenKey) : null;
-    if (!token) {
-      token = getCookie(tokenKey);
-      if (token && typeof window !== 'undefined') {
-        localStorage.setItem(tokenKey, token);
-      }
-    }
+    // 2. Token: COOKIE lintas-subdomain sebagai sumber utama (agar sesi/
+    //    impersonasi konsisten antar modul; localStorage bersifat per-origin).
+    const token = typeof document !== 'undefined' ? getCookie(tokenKey) : null;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -101,6 +96,13 @@ apiClient.interceptors.response.use(
 
         localStorage.setItem(TOKEN_KEY, access_token);
         localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+
+        // Sinkronkan cookie lintas-subdomain agar subdomain modul lain
+        // memakai token terbaru (bukan token lama dari localStorage).
+        if (typeof document !== 'undefined') {
+          const domainAttr = getCookieDomain();
+          document.cookie = `${TOKEN_KEY}=${access_token}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+        }
 
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
         originalRequest.headers.Authorization = `Bearer ${access_token}`;

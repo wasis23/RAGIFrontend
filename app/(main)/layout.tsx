@@ -45,14 +45,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const tokenKey = getAuthTokenKey();
-    let token = typeof window !== 'undefined' ? localStorage.getItem(tokenKey) : null;
-    if (!token && typeof document !== 'undefined') {
-      const cookieToken = getCookie(tokenKey);
-      if (cookieToken) {
-        token = cookieToken;
-        localStorage.setItem(tokenKey, cookieToken);
-      }
-    }
+    // Token bersumber dari cookie lintas-subdomain (konsisten antar modul).
+    const token = typeof document !== 'undefined' ? getCookie(tokenKey) : null;
 
     if (token) {
       authService
