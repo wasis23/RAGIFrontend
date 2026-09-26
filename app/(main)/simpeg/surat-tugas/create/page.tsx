@@ -56,8 +56,8 @@ const suratTugasFormSchema = z
     anggota: z
       .array(
         z.object({
-          pegawai_id: z.string().min(1, 'Pegawai anggota tim wajib dipilih'),
-          peran: z.string().min(1, 'Peran wajib diisi'),
+          pegawai_id: z.string().optional(),
+          peran: z.string().optional(),
           keterangan: z.string().optional(),
         })
       )
@@ -106,6 +106,8 @@ export default function CreateSuratTugasPage() {
     handleSubmit,
     control,
     setValue,
+    watch,
+    getValues,
     formState: { errors },
   } = useForm<SuratTugasFormValues>({
     resolver: zodResolver(suratTugasFormSchema),
@@ -138,6 +140,28 @@ export default function CreateSuratTugasPage() {
     control,
     name: 'anggota',
   });
+
+  // Auto-sync tanggal: saat tanggal berangkat diisi, defaultkan tanggal kegiatan mulai jika belum diisi
+  const watchedTanggalBerangkat = watch('tanggal_berangkat');
+  const watchedTanggalKembali = watch('tanggal_kembali');
+
+  useEffect(() => {
+    if (watchedTanggalBerangkat) {
+      const currentMulai = getValues('tanggal_mulai');
+      if (!currentMulai) {
+        setValue('tanggal_mulai', watchedTanggalBerangkat, { shouldValidate: true });
+      }
+    }
+  }, [watchedTanggalBerangkat, setValue, getValues]);
+
+  useEffect(() => {
+    if (watchedTanggalKembali) {
+      const currentSelesai = getValues('tanggal_selesai');
+      if (!currentSelesai) {
+        setValue('tanggal_selesai', watchedTanggalKembali, { shouldValidate: true });
+      }
+    }
+  }, [watchedTanggalKembali, setValue, getValues]);
 
   // Fetch masters
   useEffect(() => {
@@ -219,6 +243,22 @@ export default function CreateSuratTugasPage() {
     label: t.nama,
   })) || [];
 
+  const onValidationError = (formErrors: any) => {
+    const errorEntries = Object.entries(formErrors);
+    if (errorEntries.length > 0) {
+      const [firstKey, firstVal]: [string, any] = errorEntries[0];
+      const message = firstVal?.message || firstVal?.root?.message || 'Mohon periksa kelengkapan kolom wajib bertanda bintang merah.';
+      toast.error(`Periksa isian: ${message}`);
+
+      const el = document.querySelector(`[name="${firstKey}"]`) || document.getElementById(firstKey);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      toast.error('Mohon periksa kembali isian formulir Anda.');
+    }
+  };
+
   const onSubmit = async (values: SuratTugasFormValues, status: 'draft' | 'diajukan' = 'diajukan') => {
     setIsSubmitting(true);
     try {
@@ -231,9 +271,16 @@ export default function CreateSuratTugasPage() {
       formData.append('lokasi_tujuan', values.lokasi_tujuan);
       formData.append('tanggal_berangkat', values.tanggal_berangkat);
       formData.append('tanggal_kembali', values.tanggal_kembali);
-      formData.append('tanggal_mulai', values.tanggal_mulai);
-      formData.append('tanggal_selesai', values.tanggal_selesai);
-      formData.append('maksud_tujuan', values.maksud_tujuan);
+      formData.append('tanggal_mulai', values.tanggal_mulai || values.tanggal_berangkat);
+      formData.append('tanggal_selesai', values.tanggal_selesai || values.tanggal_kembali);
+      formData.append(
+        'maksud_tujuan',
+        values.maksud_tujuan && values.maksud_tujuan.trim().length >= 5
+          ? values.maksud_tujuan
+          : status === 'draft'
+          ? 'Draf pengajuan surat tugas dinas luar kampus'
+          : values.maksud_tujuan
+      );
       formData.append('status', status);
 
       if (values.beban_anggaran) formData.append('beban_anggaran', values.beban_anggaran);
@@ -246,10 +293,12 @@ export default function CreateSuratTugasPage() {
       if (values.nama_driver) formData.append('nama_driver', values.nama_driver);
       if (values.kontak_driver) formData.append('kontak_driver', values.kontak_driver);
 
+      // Saring anggota rombongan: hanya kirim yang memiliki pegawai_id valid
       if (values.anggota && values.anggota.length > 0) {
-        values.anggota.forEach((item, index) => {
-          formData.append(`anggota[${index}][pegawai_id]`, item.pegawai_id);
-          formData.append(`anggota[${index}][peran]`, item.peran);
+        const validAnggota = values.anggota.filter((item) => item.pegawai_id && item.pegawai_id.trim() !== '');
+        validAnggota.forEach((item, index) => {
+          formData.append(`anggota[${index}][pegawai_id]`, item.pegawai_id!);
+          formData.append(`anggota[${index}][peran]`, item.peran || 'Anggota');
           if (item.keterangan) formData.append(`anggota[${index}][keterangan]`, item.keterangan);
         });
       }
@@ -266,7 +315,14 @@ export default function CreateSuratTugasPage() {
       );
       router.push('/simpeg/surat-tugas');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan surat tugas.');
+      const resp = err.response?.data;
+      if (resp?.errors && typeof resp.errors === 'object') {
+        const firstErrorKey = Object.keys(resp.errors)[0];
+        const errorMsg = resp.errors[firstErrorKey]?.[0] || resp.message;
+        toast.error(`Gagal menyimpan: ${errorMsg}`);
+      } else {
+        toast.error(resp?.message || 'Gagal menyimpan surat tugas.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -732,7 +788,7 @@ export default function CreateSuratTugasPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={handleSubmit((data) => onSubmit(data, 'draft'))}
+              onClick={handleSubmit((data) => onSubmit(data, 'draft'), onValidationError)}
               isLoading={isSubmitting}
             >
               Simpan sebagai Draf
@@ -740,7 +796,7 @@ export default function CreateSuratTugasPage() {
             <Button
               type="button"
               variant="primary"
-              onClick={handleSubmit((data) => onSubmit(data, 'diajukan'))}
+              onClick={handleSubmit((data) => onSubmit(data, 'diajukan'), onValidationError)}
               isLoading={isSubmitting}
             >
               Kirim Permohonan

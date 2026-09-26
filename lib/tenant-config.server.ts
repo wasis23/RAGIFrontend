@@ -45,7 +45,7 @@ export async function getTenantConfig(): Promise<TenantConfig> {
 
   let value = getStaticTenantConfig();
 
-  if (process.env.EDGE_CONFIG) {
+  if (process.env.EDGE_CONFIG && !process.env.EDGE_CONFIG.includes('ecfg_xxx')) {
     try {
       const remote = await edgeConfigGet<Partial<TenantConfig>>('tenant_config');
       value = normalizeConfig(remote);
