@@ -44,8 +44,21 @@ export interface JabatanFungsionalAkademik {
   nama: string;
   angka_kredit_min?: number | null;
   angka_kredit_max?: number | null;
-  golongan: GolonganJafung;
+  golongan: string;
+  golongan_pangkat_id?: number | null;
   tunjangan_nominal?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MasterGolonganPangkat {
+  id: number;
+  kode: string;
+  nama: string;
+  pangkat?: string | null;
+  ruang?: string | null;
+  urutan: number;
+  is_active: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -89,8 +102,10 @@ export interface Pegawai {
   status: StatusPegawai;
   alamat?: string | null;
   telepon?: string | null;
-  nomor_rekening?: string | null;
+  nama_bank?: string | null;
   bank_nama?: string | null;
+  nomor_rekening?: string | null;
+  nama_rekening?: string | null;
   user?: User | null;
   unit_kerja?: UnitKerja | null;
   shift_template_id?: number | null;

@@ -4,6 +4,7 @@ import type {
   UnitKerja,
   Jabatan,
   JabatanFungsionalAkademik,
+  MasterGolonganPangkat,
   Pegawai,
   RiwayatJabatan,
   RiwayatPendidikanPegawai,
@@ -87,13 +88,61 @@ export const simpegService = {
   },
 
   // ── JABATAN FUNGSIONAL ──────────────────────────────────────
-  getJabatanFungsionalList: async (): Promise<ApiResponse<JabatanFungsionalAkademik[]>> => {
-    const { data } = await apiClient.get<ApiResponse<JabatanFungsionalAkademik[]>>('/simpeg/jabatan-fungsional');
+  getJabatanFungsionalList: async (params?: {
+    page?: number;
+    limit?: number;
+    per_page?: number;
+    search?: string;
+    golongan?: string;
+    sort_by?: string;
+    sort_dir?: string;
+  }): Promise<ApiResponse<JabatanFungsionalAkademik[]>> => {
+    const { data } = await apiClient.get<ApiResponse<JabatanFungsionalAkademik[]>>('/simpeg/jabatan-fungsional', { params });
     return data;
   },
 
   createJabatanFungsional: async (payload: Partial<JabatanFungsionalAkademik>): Promise<ApiResponse<JabatanFungsionalAkademik>> => {
     const { data } = await apiClient.post<ApiResponse<JabatanFungsionalAkademik>>('/simpeg/jabatan-fungsional', payload);
+    return data;
+  },
+
+  getGolonganPangkatOptions: async (): Promise<ApiResponse<{ id: number; value: string; label: string; pangkat?: string; ruang?: string }[]>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/jabatan-fungsional/master/golongan');
+    return data;
+  },
+
+  // ── MASTER GOLONGAN PANGKAT ──────────────────────────────────
+  getMasterGolonganPangkatList: async (params?: {
+    page?: number;
+    per_page?: number;
+    limit?: number;
+    search?: string;
+    is_active?: boolean | string;
+    ruang?: string;
+    sort_by?: string;
+    sort_order?: string;
+  }): Promise<ApiResponse<MasterGolonganPangkat[]>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterGolonganPangkat[]>>('/simpeg/master-golongan-pangkat', { params });
+    return data;
+  },
+
+  getMasterGolonganPangkatById: async (id: number): Promise<ApiResponse<MasterGolonganPangkat>> => {
+    const { data } = await apiClient.get<ApiResponse<MasterGolonganPangkat>>(`/simpeg/master-golongan-pangkat/${id}`);
+    return data;
+  },
+
+  createMasterGolonganPangkat: async (payload: Partial<MasterGolonganPangkat>): Promise<ApiResponse<MasterGolonganPangkat>> => {
+    const { data } = await apiClient.post<ApiResponse<MasterGolonganPangkat>>('/simpeg/master-golongan-pangkat', payload);
+    return data;
+  },
+
+  updateMasterGolonganPangkat: async (id: number, payload: Partial<MasterGolonganPangkat>): Promise<ApiResponse<MasterGolonganPangkat>> => {
+    const { data } = await apiClient.put<ApiResponse<MasterGolonganPangkat>>(`/simpeg/master-golongan-pangkat/${id}`, payload);
+    return data;
+  },
+
+  deleteMasterGolonganPangkat: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/simpeg/master-golongan-pangkat/${id}`);
     return data;
   },
 

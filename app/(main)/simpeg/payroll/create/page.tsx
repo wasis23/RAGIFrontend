@@ -49,6 +49,7 @@ export default function CreatePayrollPage() {
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors },
   } = useForm<PayrollFormValues>({
     resolver: zodResolver(payrollSchema),
@@ -175,9 +176,25 @@ export default function CreatePayrollPage() {
                   placeholder="Cari nama pegawai / NIP..."
                   loadOptions={loadPegawaiOptions}
                   value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
-                  onChange={(opt) => {
+                  onChange={async (opt) => {
                     setSelectedPegawaiOption(opt);
                     field.onChange(opt ? opt.value : '');
+                    if (opt?.value) {
+                      try {
+                        const res = await simpegService.getPegawaiDetail(Number(opt.value));
+                        if (res?.data) {
+                          const p = res.data;
+                          if (p.nama_bank || p.bank_nama) {
+                            setValue('bank_nama', p.nama_bank || p.bank_nama || '');
+                          }
+                          if (p.nomor_rekening) {
+                            setValue('nomor_rekening', p.nomor_rekening || '');
+                          }
+                        }
+                      } catch (e) {
+                        console.error('Gagal mengambil detail rekening pegawai', e);
+                      }
+                    }
                   }}
                   isClearable
                   error={errors.pegawai_id?.message}

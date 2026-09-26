@@ -42,8 +42,10 @@ const pegawaiSchema = z.object({
   }),
   telepon: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
+  nama_bank: z.string().optional().nullable(),
   bank_nama: z.string().optional().nullable(),
   nomor_rekening: z.string().optional().nullable(),
+  nama_rekening: z.string().optional().nullable(),
   shift_template_id: z.string().optional().nullable(),
 });
 
@@ -104,8 +106,10 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       jenis_kelamin: 'L',
       telepon: '',
       alamat: '',
+      nama_bank: '',
       bank_nama: '',
       nomor_rekening: '',
+      nama_rekening: '',
       shift_template_id: '',
     },
   });
@@ -200,8 +204,10 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             status: peg.status || 'aktif',
             telepon: peg.telepon || '',
             alamat: peg.alamat || '',
-            bank_nama: peg.bank_nama || '',
+            nama_bank: peg.nama_bank || peg.bank_nama || '',
+            bank_nama: peg.bank_nama || peg.nama_bank || '',
             nomor_rekening: peg.nomor_rekening || '',
+            nama_rekening: peg.nama_rekening || '',
             shift_template_id: peg.shift_template_id ? String(peg.shift_template_id) : '',
           };
           reset(formVals);
@@ -250,8 +256,10 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         status: values.status,
         telepon: values.telepon || null,
         alamat: values.alamat || null,
-        bank_nama: values.bank_nama || null,
+        nama_bank: values.nama_bank || values.bank_nama || null,
+        bank_nama: values.bank_nama || values.nama_bank || null,
         nomor_rekening: values.nomor_rekening || null,
+        nama_rekening: values.nama_rekening || null,
         shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
       };
 
@@ -573,7 +581,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               <Input
                 label="Nama Bank Pencairan"
                 placeholder="Contoh: Bank Mandiri / BNI / BRI"
-                error={errors.bank_nama?.message}
+                error={errors.bank_nama?.message || errors.nama_bank?.message}
                 {...register('bank_nama')}
               />
 
@@ -582,6 +590,13 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 placeholder="Ketik Nomor Rekening..."
                 error={errors.nomor_rekening?.message}
                 {...register('nomor_rekening')}
+              />
+
+              <Input
+                label="Nama Pemilik Rekening (Atas Nama)"
+                placeholder="Contoh: Dr. Ir. Budi Santoso, M.Kom"
+                error={errors.nama_rekening?.message}
+                {...register('nama_rekening')}
               />
 
               <div className="lg:col-span-3">

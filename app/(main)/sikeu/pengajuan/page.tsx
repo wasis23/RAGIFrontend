@@ -867,6 +867,18 @@ export default function PengajuanOperasionalPage() {
             <p className="text-emerald-950 font-bold text-sm">
               Nominal Panjar: {formatRupiah(selectedItemForCair?.nominal_disetujui || selectedItemForCair?.nominal_diajukan)}
             </p>
+            <div className="bg-white/90 rounded border border-emerald-200 p-2 text-xs text-emerald-900 flex flex-col gap-2">
+              <span className="font-semibold text-emerald-950">Rekening Tujuan Transfer:</span>
+              <span>
+                Bank: <strong>{selectedItemForCair?.nama_bank_penerima || selectedItemForCair?.surat_tugas?.nama_bank || selectedItemForCair?.surat_tugas?.pegawai?.nama_bank || selectedItemForCair?.surat_tugas?.pegawai?.bank_nama || '-'}</strong>
+              </span>
+              <span>
+                No. Rekening: <strong className="font-mono">{selectedItemForCair?.nomor_rekening_penerima || selectedItemForCair?.surat_tugas?.nomor_rekening || selectedItemForCair?.surat_tugas?.pegawai?.nomor_rekening || '-'}</strong>
+              </span>
+              <span>
+                Atas Nama: <strong>{selectedItemForCair?.nama_rekening_penerima || selectedItemForCair?.surat_tugas?.nama_rekening || selectedItemForCair?.surat_tugas?.pegawai?.nama_rekening || selectedItemForCair?.surat_tugas?.pegawai?.nama_lengkap || '-'}</strong>
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

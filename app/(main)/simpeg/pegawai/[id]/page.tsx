@@ -584,11 +584,15 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                 <div className="flex flex-col gap-3 text-sm">
                   <div>
                     <span className="text-xs text-slate-400 block font-medium">Nama Bank</span>
-                    <span className="font-semibold text-slate-800">{pegawai.bank_nama || '-'}</span>
+                    <span className="font-semibold text-slate-800">{pegawai.nama_bank || pegawai.bank_nama || '-'}</span>
                   </div>
                   <div>
                     <span className="text-xs text-slate-400 block font-medium">Nomor Rekening</span>
                     <span className="font-semibold font-mono text-slate-800">{pegawai.nomor_rekening || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block font-medium">Atas Nama Rekening</span>
+                    <span className="font-semibold text-slate-800">{pegawai.nama_rekening || pegawai.nama_lengkap || '-'}</span>
                   </div>
                   <div>
                     <span className="text-xs text-slate-400 block font-medium">Terdaftar Tanggal Masuk</span>

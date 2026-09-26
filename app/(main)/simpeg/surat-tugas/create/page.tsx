@@ -46,6 +46,9 @@ const suratTugasFormSchema = z
     maksud_tujuan: z.string().min(5, 'Maksud dan tujuan minimal 5 karakter'),
     beban_anggaran: z.string().optional(),
     estimasi_biaya: z.string().optional(),
+    nama_bank: z.string().optional(),
+    nomor_rekening: z.string().optional(),
+    nama_rekening: z.string().optional(),
     keterangan: z.string().optional(),
     kendaraan_dinas: z.string().optional(),
     nama_driver: z.string().optional(),
@@ -120,6 +123,9 @@ export default function CreateSuratTugasPage() {
       maksud_tujuan: '',
       beban_anggaran: '',
       estimasi_biaya: '',
+      nama_bank: '',
+      nomor_rekening: '',
+      nama_rekening: '',
       keterangan: '',
       kendaraan_dinas: '',
       nama_driver: '',
@@ -202,6 +208,9 @@ export default function CreateSuratTugasPage() {
 
       if (values.beban_anggaran) formData.append('beban_anggaran', values.beban_anggaran);
       if (values.estimasi_biaya) formData.append('estimasi_biaya', values.estimasi_biaya);
+      if (values.nama_bank) formData.append('nama_bank', values.nama_bank);
+      if (values.nomor_rekening) formData.append('nomor_rekening', values.nomor_rekening);
+      if (values.nama_rekening) formData.append('nama_rekening', values.nama_rekening);
       if (values.keterangan) formData.append('keterangan', values.keterangan);
       if (values.kendaraan_dinas) formData.append('kendaraan_dinas', values.kendaraan_dinas);
       if (values.nama_driver) formData.append('nama_driver', values.nama_driver);
@@ -285,9 +294,26 @@ export default function CreateSuratTugasPage() {
                   <AsyncSelect
                     loadOptions={loadPegawaiOptions}
                     value={selectedKetuaOption}
-                    onChange={(val: any) => {
+                    onChange={async (val: any) => {
                       setSelectedKetuaOption(val);
                       field.onChange(val ? val.value : '');
+                      if (val?.value) {
+                        try {
+                          const res = await simpegService.getPegawaiDetail(Number(val.value));
+                          if (res?.data) {
+                            const p = res.data;
+                            if (p.nama_bank || p.bank_nama) {
+                              setValue('nama_bank', p.nama_bank || p.bank_nama || '');
+                            }
+                            if (p.nomor_rekening) {
+                              setValue('nomor_rekening', p.nomor_rekening || '');
+                            }
+                            setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '');
+                          }
+                        } catch (e) {
+                          console.error('Gagal mengambil data rekening pegawai penanggung jawab', e);
+                        }
+                      }
                     }}
                     placeholder="Ketik nama atau NIP pegawai..."
                     error={errors.pegawai_id?.message}
@@ -504,12 +530,32 @@ export default function CreateSuratTugasPage() {
               />
             </div>
 
+            <Input
+              label="Bank Penerima Panjar"
+              placeholder="Contoh: BNI / BRI / Mandiri"
+              error={errors.nama_bank?.message}
+              {...register('nama_bank')}
+            />
+
+            <Input
+              label="Nomor Rekening Penerima"
+              placeholder="Contoh: 1234567890"
+              error={errors.nomor_rekening?.message}
+              {...register('nomor_rekening')}
+            />
+
+            <Input
+              label="Nama Pemilik Rekening (Atas Nama)"
+              placeholder="Nama pemilik rekening bank..."
+              error={errors.nama_rekening?.message}
+              {...register('nama_rekening')}
+            />
+
             <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Keterangan Tambahan / Catatan Logistik
-              </label>
               <Input
+                label="Keterangan Tambahan / Catatan Logistik"
                 placeholder="Catatan tambahan mengenai akomodasi, penjemputan, dll..."
+                error={errors.keterangan?.message}
                 {...register('keterangan')}
               />
             </div>

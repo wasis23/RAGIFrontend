@@ -54,6 +54,9 @@ export interface SuratTugas {
   estimasi_biaya?: number | string | null;
   nominal_disetujui?: number | string | null;
   biaya_realisasi?: number | string | null;
+  nama_bank?: string | null;
+  nomor_rekening?: string | null;
+  nama_rekening?: string | null;
   sisa_nominal?: number | string | null;
   sikeu_pencairan_id?: number | null;
   status_pencairan?: string | null;

@@ -23,6 +23,9 @@ export interface PengajuanOperasional {
   total_realisasi: number;
   sisa_nominal: number;
   status: string;
+  nama_bank_penerima?: string | null;
+  nomor_rekening_penerima?: string | null;
+  nama_rekening_penerima?: string | null;
   fakultas?: { id: number; nama: string; kode: string };
   ruangan?: { id: number; nama: string; kode: string };
   unit_kas?: { id: number; nama_kas: string };
@@ -38,6 +41,9 @@ export interface PengajuanOperasional {
     nominal_disetujui?: number;
     biaya_realisasi?: number;
     sisa_nominal?: number;
+    nama_bank?: string | null;
+    nomor_rekening?: string | null;
+    nama_rekening?: string | null;
     status_pencairan?: string;
     file_surat_tugas?: string;
     file_lpj?: string;
@@ -45,6 +51,10 @@ export interface PengajuanOperasional {
       id: number;
       nama_lengkap: string;
       nip?: string;
+      nama_bank?: string | null;
+      bank_nama?: string | null;
+      nomor_rekening?: string | null;
+      nama_rekening?: string | null;
       unit_kerja?: { id: number; nama: string };
     };
   };

@@ -40,6 +40,9 @@ const pegawaiSchema = z.object({
     message: 'Jenis Kelamin wajib dipilih',
   }),
   telepon: z.string().optional().nullable(),
+  nama_bank: z.string().optional().nullable(),
+  nomor_rekening: z.string().optional().nullable(),
+  nama_rekening: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
   shift_template_id: z.string().min(1, 'Shift Kerja (Jadwal Presensi) wajib dipilih'),
 });
@@ -75,6 +78,9 @@ export default function CreatePegawaiPage() {
       tanggal_lahir: '',
       jenis_kelamin: 'L',
       telepon: '',
+      nama_bank: '',
+      nomor_rekening: '',
+      nama_rekening: '',
       alamat: '',
       shift_template_id: '',
     },
@@ -444,6 +450,34 @@ export default function CreatePegawaiPage() {
                   error={errors.alamat?.message}
                   {...register('alamat')}
                 />
+              </div>
+
+              <div className="lg:col-span-3 pt-4 border-t border-gray-100">
+                <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  Informasi Rekening Bank (Payroll & Panjar Keuangan)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Nama Bank"
+                    placeholder="Contoh: BNI / BRI / Mandiri / BCA"
+                    error={errors.nama_bank?.message}
+                    {...register('nama_bank')}
+                  />
+                  <Input
+                    label="Nomor Rekening"
+                    placeholder="Contoh: 1234567890"
+                    error={errors.nomor_rekening?.message}
+                    {...register('nomor_rekening')}
+                  />
+                  <div className="md:col-span-2">
+                    <Input
+                      label="Nama Pemilik Rekening (Atas Nama)"
+                      placeholder="Contoh: Dr. Ir. Budi Santoso, M.Kom"
+                      error={errors.nama_rekening?.message}
+                      {...register('nama_rekening')}
+                    />
+                  </div>
+                </div>
               </div>
 
             </div>

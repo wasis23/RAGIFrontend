@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Briefcase, Plus, Filter, Award, Edit2, Trash2, ShieldAlert, RefreshCw } from 'lucide-react';
+import { Briefcase, Plus, Filter, Award, Layers, Edit2, Trash2, ShieldAlert } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,7 +19,13 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
-import type { Jabatan, JabatanFungsionalAkademik, UnitKerja, TipeJabatan, GolonganJafung } from '@/types/simpeg.types';
+import type {
+  Jabatan,
+  JabatanFungsionalAkademik,
+  MasterGolonganPangkat,
+  UnitKerja,
+  TipeJabatan,
+} from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -42,14 +48,23 @@ type JabatanFormValues = z.infer<typeof jabatanSchema>;
 
 const jafungSchema = z.object({
   nama: z.string().min(1, 'Nama Jabatan Fungsional wajib diisi'),
-  golongan: z.enum(['tenaga_pengajar', 'asisten_ahli', 'lektor', 'lektor_kepala', 'guru_besar'], {
-    message: 'Jenjang Golongan wajib dipilih',
-  }),
+  golongan: z.string().min(1, 'Jenjang Golongan wajib dipilih'),
   angka_kredit_min: z.number().min(0, 'Min KUM minimal 0'),
   angka_kredit_max: z.number().min(0, 'Max KUM minimal 0'),
 });
 
 type JafungFormValues = z.infer<typeof jafungSchema>;
+
+const golonganSchema = z.object({
+  kode: z.string().min(1, 'Kode Golongan (misal: III/a) wajib diisi'),
+  nama: z.string().min(1, 'Nama Jenjang / Golongan wajib diisi'),
+  pangkat: z.string().optional().nullable(),
+  ruang: z.string().optional().nullable(),
+  urutan: z.number().min(0, 'Urutan minimal 0'),
+  is_active: z.boolean(),
+});
+
+type GolonganFormValues = z.infer<typeof golonganSchema>;
 
 export default function JabatanPage() {
   const { hasPermission } = useAuth();
@@ -58,15 +73,23 @@ export default function JabatanPage() {
   const canUpdate = hasPermission('simpeg.jabatan.update') || hasPermission('simpeg.jabatan.manage');
   const canDelete = hasPermission('simpeg.jabatan.delete') || hasPermission('simpeg.jabatan.manage');
 
-  const [activeTab, setActiveTab] = useState<'jabatan' | 'jafung'>('jabatan');
+  const [activeTab, setActiveTab] = useState<'jabatan' | 'jafung' | 'golongan'>('jabatan');
   const [loading, setLoading] = useState(true);
   const [jabatanList, setJabatanList] = useState<Jabatan[]>([]);
   const [jafungList, setJafungList] = useState<JabatanFungsionalAkademik[]>([]);
+  const [golonganList, setGolonganList] = useState<MasterGolonganPangkat[]>([]);
+  // Filter & Pagination state for Jafung
   const [searchJafung, setSearchJafung] = useState('');
+  const [filterJafungGolongan, setFilterJafungGolongan] = useState('');
+  const [filterJafungSortBy, setFilterJafungSortBy] = useState('nama');
+  const [filterJafungSortDir, setFilterJafungSortDir] = useState<'asc' | 'desc'>('asc');
+  const [pageJafung, setPageJafung] = useState(1);
+  const [limitJafung, setLimitJafung] = useState(15);
 
   // Pagination & Metadata
   const [metaJabatan, setMetaJabatan] = useState<PaginationMeta | undefined>();
   const [metaJafung, setMetaJafung] = useState<PaginationMeta | undefined>();
+  const [metaGolongan, setMetaGolongan] = useState<PaginationMeta | undefined>();
 
   // Filter & Pagination state for Jabatan
   const [search, setSearch] = useState('');
@@ -77,6 +100,22 @@ export default function JabatanPage() {
   const [limit, setLimit] = useState(15);
   const [showFilter, setShowFilter] = useState(false);
 
+  // Filter & Pagination state for Golongan
+  const [searchGolongan, setSearchGolongan] = useState('');
+  const [filterGolonganKode, setFilterGolonganKode] = useState('');
+  const [filterGolonganNama, setFilterGolonganNama] = useState('');
+  const [filterGolonganPangkat, setFilterGolonganPangkat] = useState('');
+  const [filterGolonganRuang, setFilterGolonganRuang] = useState('');
+  const [filterGolonganUrutan, setFilterGolonganUrutan] = useState('');
+  const [filterGolonganActive, setFilterGolonganActive] = useState('');
+  const [filterGolonganSortBy, setFilterGolonganSortBy] = useState('urutan');
+  const [filterGolonganSortDir, setFilterGolonganSortDir] = useState<'asc' | 'desc'>('asc');
+  const [pageGolongan, setPageGolongan] = useState(1);
+  const [limitGolongan, setLimitGolongan] = useState(15);
+
+  // Dynamic Golongan Options for Jafung dropdown
+  const [golonganOptions, setGolonganOptions] = useState<{ value: string; label: string }[]>([]);
+
   // Modal State for Jabatan
   const [showModalJabatan, setShowModalJabatan] = useState(false);
   const [editingJabatan, setEditingJabatan] = useState<Jabatan | null>(null);
@@ -86,6 +125,11 @@ export default function JabatanPage() {
   // Modal State for Jafung
   const [showModalJafung, setShowModalJafung] = useState(false);
   const [isSubmittingJafung, setIsSubmittingJafung] = useState(false);
+
+  // Modal State for Golongan
+  const [showModalGolongan, setShowModalGolongan] = useState(false);
+  const [editingGolongan, setEditingGolongan] = useState<MasterGolonganPangkat | null>(null);
+  const [isSubmittingGolongan, setIsSubmittingGolongan] = useState(false);
 
   // Dialog Konfirmasi Hapus
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -131,27 +175,118 @@ export default function JabatanPage() {
     resolver: zodResolver(jafungSchema),
     defaultValues: {
       nama: '',
-      golongan: 'asisten_ahli',
+      golongan: '',
       angka_kredit_min: 100,
       angka_kredit_max: 150,
     },
   });
 
+  // Form Golongan
+  const {
+    register: registerGolongan,
+    handleSubmit: handleSubmitGolonganForm,
+    control: controlGolongan,
+    reset: resetGolongan,
+    formState: { errors: errorsGolongan },
+  } = useForm<GolonganFormValues>({
+    resolver: zodResolver(golonganSchema),
+    defaultValues: {
+      kode: '',
+      nama: '',
+      pangkat: '',
+      ruang: '',
+      urutan: 1,
+      is_active: true,
+    },
+  });
+
+  // Fetch dynamic master golongan options for JAFUNG modal
+  const fetchGolonganOptions = useCallback(async () => {
+    try {
+      const res = await simpegService.getGolonganPangkatOptions();
+      const raw = res?.data || [];
+      const opts = raw.map((item: any) => ({
+        value: item.value || item.kode,
+        label: `${item.label || item.nama} (${item.value || item.kode})`,
+      }));
+      setGolonganOptions(opts);
+      if (opts.length > 0 && !controlJafung._formValues.golongan) {
+        resetJafung((prev) => ({ ...prev, golongan: opts[0].value }));
+      }
+    } catch (err) {
+      console.error('Gagal memuat opsi golongan jafung', err);
+    }
+  }, [controlJafung._formValues.golongan, resetJafung]);
+
+  // Load Data Golongan Server-Side
+  const loadGolonganData = useCallback(async () => {
+    if (!canRead) return;
+    try {
+      const combinedSearch = [
+        searchGolongan,
+        filterGolonganKode,
+        filterGolonganNama,
+        filterGolonganPangkat,
+        filterGolonganUrutan,
+      ].filter(Boolean).join(' ') || undefined;
+
+      const res = await simpegService.getMasterGolonganPangkatList({
+        page: pageGolongan,
+        per_page: limitGolongan,
+        search: combinedSearch,
+        ruang: filterGolonganRuang || undefined,
+        is_active: filterGolonganActive !== '' ? filterGolonganActive : undefined,
+        sort_by: filterGolonganSortBy,
+        sort_order: filterGolonganSortDir,
+      });
+
+      if (res?.data) {
+        setGolonganList(res.data);
+        if (res.meta) {
+          setMetaGolongan(res.meta);
+        }
+      }
+    } catch (err) {
+      console.error('Gagal memuat master golongan pangkat', err);
+    }
+  }, [canRead, pageGolongan, limitGolongan, searchGolongan, filterGolonganKode, filterGolonganNama, filterGolonganPangkat, filterGolonganUrutan, filterGolonganRuang, filterGolonganActive, filterGolonganSortBy, filterGolonganSortDir]);
+
+  // Load Data Jafung Server-Side
+  const loadJafungData = useCallback(async () => {
+    if (!canRead) return;
+    try {
+      const res = await simpegService.getJabatanFungsionalList({
+        page: pageJafung,
+        limit: limitJafung,
+        search: searchJafung || undefined,
+        golongan: filterJafungGolongan || undefined,
+        sort_by: filterJafungSortBy,
+        sort_dir: filterJafungSortDir,
+      });
+
+      if (res?.data) {
+        setJafungList(res.data);
+        if (res.meta) {
+          setMetaJafung(res.meta);
+        }
+      }
+    } catch (err) {
+      console.error('Gagal memuat master JAFUNG', err);
+    }
+  }, [canRead, pageJafung, limitJafung, searchJafung, filterJafungGolongan, filterJafungSortBy, filterJafungSortDir]);
+
   const loadData = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
     try {
-      const [resJab, resJaf]: [any, any] = await Promise.all([
-        simpegService.getJabatanList({
-          page,
-          limit,
-          search: search || undefined,
-          tipe: filterTipe || undefined,
-          sort_by: filterOrderBy,
-          sort_dir: filterOrderDir,
-        }),
-        simpegService.getJabatanFungsionalList(),
-      ]);
+      const resJab: any = await simpegService.getJabatanList({
+        page,
+        limit,
+        search: search || undefined,
+        tipe: filterTipe || undefined,
+        sort_by: filterOrderBy,
+        sort_dir: filterOrderDir,
+      });
 
       // Handle Jabatan Data
       if (resJab?.meta) {
@@ -194,42 +329,34 @@ export default function JabatanPage() {
         });
       }
 
-      // Handle Jafung Data
-      const itemsJaf: JabatanFungsionalAkademik[] = Array.isArray(resJaf?.data)
-        ? resJaf.data
-        : Array.isArray(resJaf)
-        ? resJaf
-        : [];
-      setJafungList(itemsJaf);
-      setMetaJafung({
-        current_page: 1,
-        last_page: 1,
-        per_page: itemsJaf.length || 15,
-        total: itemsJaf.length,
-        from: itemsJaf.length > 0 ? 1 : 0,
-        to: itemsJaf.length,
-      });
+      // Load Jafung & Golongan Server-Side
+      await loadJafungData();
+      await loadGolonganData();
+      await fetchGolonganOptions();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat data Jabatan');
     } finally {
       setLoading(false);
     }
-  }, [canRead, page, limit, search, filterTipe, filterOrderBy, filterOrderDir]);
+  }, [canRead, page, limit, search, filterTipe, filterOrderBy, filterOrderDir, loadJafungData, loadGolonganData, fetchGolonganOptions]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Filtered Jafung based on local search input
-  const filteredJafung = useMemo(() => {
-    if (!searchJafung) return jafungList;
-    const q = searchJafung.toLowerCase();
-    return jafungList.filter(
-      (j) =>
-        j.nama?.toLowerCase().includes(q) ||
-        j.golongan?.toLowerCase().includes(q)
-    );
-  }, [jafungList, searchJafung]);
+  // Refetch golongan when its filters change
+  useEffect(() => {
+    if (activeTab === 'golongan') {
+      loadGolonganData();
+    }
+  }, [activeTab, loadGolonganData]);
+
+  // Refetch jafung when its filters change
+  useEffect(() => {
+    if (activeTab === 'jafung') {
+      loadJafungData();
+    }
+  }, [activeTab, loadJafungData]);
 
   // Async loader for Unit Kerja AsyncSelect
   const loadUnitKerjaOptions = useCallback(async (inputValue: string) => {
@@ -351,7 +478,7 @@ export default function JabatanPage() {
           setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
           await simpegService.deleteJabatan(id);
           toast.success('Jabatan berhasil dihapus!');
-          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
           loadData();
         } catch (err: any) {
           toast.error(err?.response?.data?.message || 'Gagal menghapus Jabatan');
@@ -363,7 +490,7 @@ export default function JabatanPage() {
 
   const onSubmitJafung = async (values: JafungFormValues) => {
     if (!canCreate) {
-      toast.error('Akses Ditolak: Anda tidak memiliki permission mengelola Jafung.');
+      toast.error('Akses Ditolak: Anda tidak memiliki permission menambah JAFUNG.');
       return;
     }
 
@@ -371,7 +498,7 @@ export default function JabatanPage() {
     try {
       await simpegService.createJabatanFungsional({
         nama: values.nama,
-        golongan: values.golongan as GolonganJafung,
+        golongan: values.golongan,
         angka_kredit_min: values.angka_kredit_min,
         angka_kredit_max: values.angka_kredit_max,
       });
@@ -384,6 +511,97 @@ export default function JabatanPage() {
     } finally {
       setIsSubmittingJafung(false);
     }
+  };
+
+  // ── GOLONGAN CRUD HANDLERS ──
+  const handleOpenCreateGolongan = () => {
+    if (!canCreate) {
+      toast.error('Anda tidak memiliki permission untuk menambah Master Golongan.');
+      return;
+    }
+    setEditingGolongan(null);
+    resetGolongan({
+      kode: '',
+      nama: '',
+      pangkat: '',
+      ruang: '',
+      urutan: (metaGolongan?.total ?? golonganList.length) + 1,
+      is_active: true,
+    });
+    setShowModalGolongan(true);
+  };
+
+  const handleOpenEditGolongan = (g: MasterGolonganPangkat) => {
+    if (!canUpdate) {
+      toast.error('Anda tidak memiliki permission untuk mengedit Master Golongan.');
+      return;
+    }
+    setEditingGolongan(g);
+    resetGolongan({
+      kode: g.kode,
+      nama: g.nama,
+      pangkat: g.pangkat || '',
+      ruang: g.ruang || '',
+      urutan: g.urutan,
+      is_active: g.is_active,
+    });
+    setShowModalGolongan(true);
+  };
+
+  const onSubmitGolongan = async (values: GolonganFormValues) => {
+    setIsSubmittingGolongan(true);
+    try {
+      const payload: Partial<MasterGolonganPangkat> = {
+        kode: values.kode,
+        nama: values.nama,
+        pangkat: values.pangkat || null,
+        ruang: values.ruang || null,
+        urutan: values.urutan,
+        is_active: values.is_active,
+      };
+
+      if (editingGolongan) {
+        await simpegService.updateMasterGolonganPangkat(editingGolongan.id, payload);
+        toast.success('Master Jenjang Golongan berhasil diperbarui!');
+      } else {
+        await simpegService.createMasterGolonganPangkat(payload);
+        toast.success('Master Jenjang Golongan berhasil ditambahkan!');
+      }
+
+      setShowModalGolongan(false);
+      loadGolonganData();
+      fetchGolonganOptions();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menyimpan Master Golongan');
+    } finally {
+      setIsSubmittingGolongan(false);
+    }
+  };
+
+  const handleDeleteGolongan = (id: number, nama: string) => {
+    if (!canDelete) {
+      toast.error('Akses Ditolak: Anda tidak memiliki permission menghapus Master Golongan.');
+      return;
+    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Hapus Jenjang Golongan & Pangkat',
+      message: `Apakah Anda yakin ingin menghapus data golongan "${nama}"? Data akan disembunyikan secara aman (soft delete).`,
+      isLoading: false,
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.deleteMasterGolonganPangkat(id);
+          toast.success('Master Golongan berhasil dihapus!');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
+          loadGolonganData();
+          fetchGolonganOptions();
+        } catch (err: any) {
+          toast.error(err?.response?.data?.message || 'Gagal menghapus Master Golongan');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   // Columns for Jabatan DataTable
@@ -490,6 +708,75 @@ export default function JabatanPage() {
     },
   ];
 
+  // Columns for Golongan DataTable
+  const columnsGolongan: ColumnDef<MasterGolonganPangkat>[] = [
+    {
+      key: 'urutan',
+      label: 'No. Urut',
+      render: (row) => <span className="font-mono text-slate-600">{row.urutan}</span>,
+    },
+    {
+      key: 'kode',
+      label: 'Kode Golongan',
+      render: (row) => <span className="font-bold font-mono text-slate-900">{row.kode}</span>,
+    },
+    {
+      key: 'nama',
+      label: 'Nama Jenjang / Pangkat',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-900">{row.nama}</div>
+          {row.pangkat && <div className="text-2xs text-slate-500">{row.pangkat}</div>}
+        </div>
+      ),
+    },
+    {
+      key: 'ruang',
+      label: 'Ruang',
+      render: (row) => <span className="font-medium text-slate-700">{row.ruang || '-'}</span>,
+    },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (row) => (
+        <Badge variant={row.is_active ? 'green' : 'gray'}>
+          {row.is_active ? 'Aktif' : 'Non-Aktif'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => {
+        const menuItems = [];
+        if (canUpdate) {
+          menuItems.push({
+            label: 'Ubah Golongan',
+            icon: <Edit2 size={14} />,
+            onClick: () => handleOpenEditGolongan(row),
+          });
+        }
+        if (canDelete) {
+          menuItems.push({
+            label: 'Hapus Golongan',
+            icon: <Trash2 size={14} />,
+            variant: 'danger' as const,
+            onClick: () => handleDeleteGolongan(row.id, row.nama),
+          });
+        }
+
+        if (menuItems.length === 0) return '-';
+
+        return (
+          <div className="flex justify-end">
+            <DropdownMenu items={menuItems} />
+          </div>
+        );
+      },
+    },
+  ];
+
   if (!canRead) {
     return (
       <div className="animate-fade-in space-y-6">
@@ -498,12 +785,10 @@ export default function JabatanPage() {
           description="Pengelolaan struktur jabatan struktural, fungsional, teknis, serta jenjang jabatan fungsional akademik dosen (KUM)"
         />
         <div className="card p-6 text-center">
-          <ShieldAlert size={56} color="var(--danger)" className="mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2 text-slate-800">
-            Akses Ditolak / Dibatasi
-          </h2>
-          <p className="text-slate-400 max-w-[500px] mx-auto">
-            Peran Anda saat ini tidak memiliki hak akses (*permission*) untuk melihat Jabatan & Jafung.
+          <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
+          <h2 className="text-xl font-bold mb-2">Akses Ditolak</h2>
+          <p className="max-w-[500px] mx-auto opacity-70">
+            Anda tidak memiliki permission untuk melihat data Master Jabatan.
           </p>
         </div>
       </div>
@@ -511,10 +796,10 @@ export default function JabatanPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">      {/* Page Header */}
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Master Jabatan & Jenjang Fungsional (JAFUNG)"
-        description="Kelola struktur jabatan struktural, fungsional, teknis, serta jenjang Jabatan Fungsional Akademik (JAFUNG Dosen) terintegrasi SIAKAD"
+        description="Kelola struktur jabatan struktural, fungsional, teknis, jenjang Jabatan Fungsional Akademik (JAFUNG Dosen), dan Master Jenjang Golongan/Pangkat"
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -527,9 +812,17 @@ export default function JabatanPage() {
             {canCreate && (
               <Button
                 icon={<Plus size={16} />}
-                onClick={activeTab === 'jabatan' ? handleOpenCreateJabatan : () => setShowModalJafung(true)}
+                onClick={() => {
+                  if (activeTab === 'jabatan') handleOpenCreateJabatan();
+                  else if (activeTab === 'jafung') setShowModalJafung(true);
+                  else handleOpenCreateGolongan();
+                }}
               >
-                {activeTab === 'jabatan' ? 'Tambah Jabatan' : 'Tambah Jenjang Jafung'}
+                {activeTab === 'jabatan'
+                  ? 'Tambah Jabatan'
+                  : activeTab === 'jafung'
+                  ? 'Tambah Jenjang Jafung'
+                  : 'Tambah Golongan'}
               </Button>
             )}
           </div>
@@ -541,7 +834,7 @@ export default function JabatanPage() {
         <button
           type="button"
           onClick={() => setActiveTab('jabatan')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'jabatan'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
@@ -552,13 +845,24 @@ export default function JabatanPage() {
         <button
           type="button"
           onClick={() => setActiveTab('jafung')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'jafung'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <Award size={16} /> Jabatan Fungsional Akademik (JAFUNG) ({filteredJafung.length})
+          <Award size={16} /> Jabatan Fungsional Akademik (JAFUNG) ({metaJafung?.total ?? jafungList.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('golongan')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'golongan'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Layers size={16} /> Jenjang Golongan &amp; Pangkat ({metaGolongan?.total ?? golonganList.length})
         </button>
       </div>
 
@@ -588,12 +892,16 @@ export default function JabatanPage() {
       {/* ── TAB 2: JAFUNG DOSEN ── */}
       {activeTab === 'jafung' && (
         <div className="space-y-4">
-
           <DataTable
             columns={columnsJafung}
-            data={filteredJafung}
+            data={jafungList}
             isLoading={loading}
             meta={metaJafung}
+            onPageChange={(newPage) => setPageJafung(newPage)}
+            onLimitChange={(newLimit) => {
+              setLimitJafung(newLimit);
+              setPageJafung(1);
+            }}
             emptyMessage={
               <div className="py-8 text-center text-slate-400">
                 <Award size={48} className="mx-auto mb-4 opacity-40" />
@@ -604,21 +912,69 @@ export default function JabatanPage() {
         </div>
       )}
 
+      {/* ── TAB 3: JENJANG GOLONGAN & PANGKAT ── */}
+      {activeTab === 'golongan' && (
+        <div className="space-y-4">
+          <DataTable
+            columns={columnsGolongan}
+            data={golonganList}
+            isLoading={loading}
+            meta={metaGolongan}
+            onPageChange={(newPage) => setPageGolongan(newPage)}
+            onLimitChange={(newLimit) => {
+              setLimitGolongan(newLimit);
+              setPageGolongan(1);
+            }}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <Layers size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Belum ada data master jenjang golongan &amp; pangkat.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
       {/* Filter Drawer Slide Right-to-Left */}
       <Drawer
         open={showFilter}
         onClose={() => setShowFilter(false)}
-        title="Filter & Urutkan Jabatan"
+        title={
+          activeTab === 'golongan'
+            ? 'Filter & Urutkan Jenjang Golongan'
+            : activeTab === 'jafung'
+            ? 'Filter & Urutkan Jenjang JAFUNG'
+            : 'Filter & Urutkan Jabatan'
+        }
         footer={
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"
               onClick={() => {
-                setSearch('');
-                setFilterTipe('');
-                setFilterOrderBy('nama');
-                setFilterOrderDir('asc');
-                setPage(1);
+                if (activeTab === 'golongan') {
+                  setSearchGolongan('');
+                  setFilterGolonganKode('');
+                  setFilterGolonganNama('');
+                  setFilterGolonganPangkat('');
+                  setFilterGolonganRuang('');
+                  setFilterGolonganUrutan('');
+                  setFilterGolonganActive('');
+                  setFilterGolonganSortBy('urutan');
+                  setFilterGolonganSortDir('asc');
+                  setPageGolongan(1);
+                } else if (activeTab === 'jafung') {
+                  setSearchJafung('');
+                  setFilterJafungGolongan('');
+                  setFilterJafungSortBy('nama');
+                  setFilterJafungSortDir('asc');
+                  setPageJafung(1);
+                } else {
+                  setSearch('');
+                  setFilterTipe('');
+                  setFilterOrderBy('nama');
+                  setFilterOrderDir('asc');
+                  setPage(1);
+                }
               }}
             >
               Reset
@@ -629,58 +985,221 @@ export default function JabatanPage() {
           </div>
         }
       >
-        <div className="space-y-4">
-          <Input
-            label="Pencarian Nama Jabatan"
-            placeholder="Cari Dekan, Kaprodi..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+        {activeTab === 'golongan' ? (
+          <div className="space-y-4">
+            <Input
+              label="Pencarian Bebas Golongan"
+              placeholder="Cari III/a, Lektor, Pembina..."
+              value={searchGolongan}
+              onChange={(e) => {
+                setSearchGolongan(e.target.value);
+                setPageGolongan(1);
+              }}
+            />
 
-          <Select
-            label="Tipe Jabatan"
-            value={filterTipe}
-            onChange={(val) => {
-              setFilterTipe(val);
-              setPage(1);
-            }}
-            options={[
-              { value: '', label: 'Semua Tipe Jabatan' },
-              { value: 'struktural', label: 'Struktural' },
-              { value: 'fungsional', label: 'Fungsional' },
-              { value: 'teknis', label: 'Teknis Operasional' },
-            ]}
-          />
+            <Input
+              label="Kode Golongan"
+              placeholder="Contoh: III/a atau IV/b"
+              value={filterGolonganKode}
+              onChange={(e) => {
+                setFilterGolonganKode(e.target.value);
+                setPageGolongan(1);
+              }}
+            />
 
-          <hr className="border-t border-slate-200 my-2" />
+            <Input
+              label="Nama Jenjang / Golongan"
+              placeholder="Contoh: Lektor, Pembina..."
+              value={filterGolonganNama}
+              onChange={(e) => {
+                setFilterGolonganNama(e.target.value);
+                setPageGolongan(1);
+              }}
+            />
 
-          {/* Grid 2 Kolom Sorting */}
-          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Pangkat"
+              placeholder="Contoh: Penata Muda..."
+              value={filterGolonganPangkat}
+              onChange={(e) => {
+                setFilterGolonganPangkat(e.target.value);
+                setPageGolongan(1);
+              }}
+            />
+
             <Select
-              label="Urut Berdasarkan"
-              value={filterOrderBy}
-              onChange={(val) => setFilterOrderBy(val)}
+              label="Ruang Golongan"
+              value={filterGolonganRuang}
+              onChange={(val) => {
+                setFilterGolonganRuang(val);
+                setPageGolongan(1);
+              }}
               options={[
-                { value: 'nama', label: 'Nama Jabatan' },
-                { value: 'tipe', label: 'Tipe' },
-                { value: 'level_jabatan', label: 'Level' },
-                { value: 'id', label: 'ID' },
+                { value: '', label: 'Semua Ruang' },
+                { value: 'a', label: 'Ruang a' },
+                { value: 'b', label: 'Ruang b' },
+                { value: 'c', label: 'Ruang c' },
+                { value: 'd', label: 'Ruang d' },
+                { value: 'e', label: 'Ruang e' },
               ]}
             />
+
+            <Input
+              label="No. Urut"
+              type="number"
+              placeholder="Contoh: 1"
+              value={filterGolonganUrutan}
+              onChange={(e) => {
+                setFilterGolonganUrutan(e.target.value);
+                setPageGolongan(1);
+              }}
+            />
+
             <Select
-              label="Arah"
-              value={filterOrderDir}
-              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+              label="Status Keaktifan"
+              value={filterGolonganActive}
+              onChange={(val) => {
+                setFilterGolonganActive(val);
+                setPageGolongan(1);
+              }}
               options={[
-                { value: 'asc', label: 'A - Z (Naik)' },
-                { value: 'desc', label: 'Z - A (Turun)' },
+                { value: '', label: 'Semua Status' },
+                { value: 'true', label: 'Hanya Aktif' },
+                { value: 'false', label: 'Hanya Non-Aktif' },
               ]}
             />
+
+            <hr className="border-t border-slate-200 my-2" />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Urut Berdasarkan"
+                value={filterGolonganSortBy}
+                onChange={(val) => setFilterGolonganSortBy(val)}
+                options={[
+                  { value: 'urutan', label: 'Nomor Urut' },
+                  { value: 'kode', label: 'Kode Golongan' },
+                  { value: 'nama', label: 'Nama Jenjang / Golongan' },
+                  { value: 'pangkat', label: 'Pangkat' },
+                  { value: 'ruang', label: 'Ruang' },
+                  { value: 'is_active', label: 'Status Keaktifan' },
+                  { value: 'created_at', label: 'Waktu Input' },
+                ]}
+              />
+              <Select
+                label="Arah"
+                value={filterGolonganSortDir}
+                onChange={(val) => setFilterGolonganSortDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'A - Z (Naik)' },
+                  { value: 'desc', label: 'Z - A (Turun)' },
+                ]}
+              />
+            </div>
           </div>
-        </div>
+        ) : activeTab === 'jafung' ? (
+          <div className="space-y-4">
+            <Input
+              label="Pencarian Nama JAFUNG"
+              placeholder="Cari Asisten Ahli, Lektor..."
+              value={searchJafung}
+              onChange={(e) => {
+                setSearchJafung(e.target.value);
+                setPageJafung(1);
+              }}
+            />
+
+            <Input
+              label="Jenjang / Golongan"
+              placeholder="Cari Golongan..."
+              value={filterJafungGolongan}
+              onChange={(e) => {
+                setFilterJafungGolongan(e.target.value);
+                setPageJafung(1);
+              }}
+            />
+
+            <hr className="border-t border-slate-200 my-2" />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Urut Berdasarkan"
+                value={filterJafungSortBy}
+                onChange={(val) => setFilterJafungSortBy(val)}
+                options={[
+                  { value: 'nama', label: 'Nama Jenjang JAFUNG' },
+                  { value: 'golongan', label: 'Golongan / Pangkat' },
+                  { value: 'angka_kredit_min', label: 'Min Angka Kredit' },
+                  { value: 'angka_kredit_max', label: 'Max Angka Kredit' },
+                  { value: 'id', label: 'ID' },
+                  { value: 'created_at', label: 'Waktu Input' },
+                ]}
+              />
+              <Select
+                label="Arah"
+                value={filterJafungSortDir}
+                onChange={(val) => setFilterJafungSortDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'A - Z (Naik)' },
+                  { value: 'desc', label: 'Z - A (Turun)' },
+                ]}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <Input
+              label="Pencarian Nama Jabatan"
+              placeholder="Cari Dekan, Kaprodi..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+
+            <Select
+              label="Tipe Jabatan"
+              value={filterTipe}
+              onChange={(val) => {
+                setFilterTipe(val);
+                setPage(1);
+              }}
+              options={[
+                { value: '', label: 'Semua Tipe Jabatan' },
+                { value: 'struktural', label: 'Struktural' },
+                { value: 'fungsional', label: 'Fungsional' },
+                { value: 'teknis', label: 'Teknis Operasional' },
+              ]}
+            />
+
+            <hr className="border-t border-slate-200 my-2" />
+
+            {/* Grid 2 Kolom Sorting */}
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Urut Berdasarkan"
+                value={filterOrderBy}
+                onChange={(val) => setFilterOrderBy(val)}
+                options={[
+                  { value: 'nama', label: 'Nama Jabatan' },
+                  { value: 'tipe', label: 'Tipe' },
+                  { value: 'level_jabatan', label: 'Level' },
+                  { value: 'id', label: 'ID' },
+                ]}
+              />
+              <Select
+                label="Arah"
+                value={filterOrderDir}
+                onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
+                options={[
+                  { value: 'asc', label: 'A - Z (Naik)' },
+                  { value: 'desc', label: 'Z - A (Turun)' },
+                ]}
+              />
+            </div>
+          </div>
+        )}
       </Drawer>
 
       {/* Modal Form Jabatan */}
@@ -777,7 +1296,7 @@ export default function JabatanPage() {
         </Modal>
       )}
 
-      {/* Modal Form Jafung */}
+      {/* Modal Form Jafung (Dinamis dari Master Golongan) */}
       {canCreate && (
         <Modal
           open={showModalJafung}
@@ -818,13 +1337,7 @@ export default function JabatanPage() {
                   value={field.value}
                   onChange={field.onChange}
                   error={errorsJafung.golongan?.message}
-                  options={[
-                    { value: 'tenaga_pengajar', label: 'Tenaga Pengajar' },
-                    { value: 'asisten_ahli', label: 'Asisten Ahli (III/a - III/b)' },
-                    { value: 'lektor', label: 'Lektor (III/c - III/d)' },
-                    { value: 'lektor_kepala', label: 'Lektor Kepala (IV/a - IV/c)' },
-                    { value: 'guru_besar', label: 'Guru Besar / Profesor (IV/d - IV/e)' },
-                  ]}
+                  options={golonganOptions}
                 />
               )}
             />
@@ -845,6 +1358,84 @@ export default function JabatanPage() {
                 {...registerJafung('angka_kredit_max', { valueAsNumber: true })}
               />
             </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal Form Master Golongan & Pangkat (Tab 3) */}
+      {(canCreate || canUpdate) && (
+        <Modal
+          open={showModalGolongan}
+          onClose={() => setShowModalGolongan(false)}
+          title={editingGolongan ? 'Edit Jenjang Golongan & Pangkat' : 'Tambah Jenjang Golongan & Pangkat'}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowModalGolongan(false)}>
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                loading={isSubmittingGolongan}
+                disabled={isSubmittingGolongan}
+                form="golongan-modal-form"
+              >
+                Simpan Golongan
+              </Button>
+            </>
+          }
+        >
+          <form id="golongan-modal-form" onSubmit={handleSubmitGolonganForm(onSubmitGolongan)} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Kode Golongan"
+                required
+                placeholder="Contoh: III/a atau IV/b"
+                error={errorsGolongan.kode?.message}
+                {...registerGolongan('kode')}
+              />
+              <Input
+                label="Urutan Tampilan"
+                type="number"
+                required
+                error={errorsGolongan.urutan?.message}
+                {...registerGolongan('urutan', { valueAsNumber: true })}
+              />
+            </div>
+
+            <Input
+              label="Nama Jenjang / Pangkat"
+              required
+              placeholder="Contoh: Penata Muda (III/a) atau Pembina"
+              error={errorsGolongan.nama?.message}
+              {...registerGolongan('nama')}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Pangkat (Opsional)"
+                placeholder="Contoh: Penata Muda Tingkat I"
+                error={errorsGolongan.pangkat?.message}
+                {...registerGolongan('pangkat')}
+              />
+              <Input
+                label="Ruang (Opsional)"
+                placeholder="Contoh: a / b / c"
+                error={errorsGolongan.ruang?.message}
+                {...registerGolongan('ruang')}
+              />
+            </div>
+
+            <Controller
+              name="is_active"
+              control={controlGolongan}
+              render={({ field }) => (
+                <Checkbox
+                  label="Golongan Aktif Digunakan"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              )}
+            />
           </form>
         </Modal>
       )}
