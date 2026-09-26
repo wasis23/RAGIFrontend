@@ -440,12 +440,18 @@ export const spmbService = {
     return response.data;
   },
 
-  getKomponenBiayaRoleOptions: async (): Promise<{
+  getKomponenBiayaRoleOptions: async (params?: {
+    search?: string;
+    per_page?: number;
+    page?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }): Promise<{
     status: string;
     message: string;
     data: { id: number; slug: string; name: string }[];
   }> => {
-    const response = await api.get('/spmb/master/komponen-biaya-role-options');
+    const response = await api.get('/spmb/master/komponen-biaya-role-options', { params });
     return response.data;
   },
 

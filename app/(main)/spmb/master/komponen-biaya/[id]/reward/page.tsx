@@ -64,8 +64,8 @@ export default function KelolaRewardReferralPage() {
   const { fields, append, remove } = useFieldArray({ control, name: 'role_rewards' });
   const isReward = watch('is_referral_reward');
 
-  const loadRoleOptions = useCallback(async () => {
-    const res = await spmbService.getKomponenBiayaRoleOptions();
+  const loadRoleOptions = useCallback(async (input: string) => {
+    const res = await spmbService.getKomponenBiayaRoleOptions({ search: input || undefined, per_page: 100 });
     const items = res?.data || [];
     return items.map((r) => ({ value: String(r.id), label: r.name }));
   }, []);
