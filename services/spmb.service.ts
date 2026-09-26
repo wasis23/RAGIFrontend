@@ -408,6 +408,8 @@ export const spmbService = {
     nama: string;
     kategori?: string;
     tipe_potongan?: boolean;
+    is_referral_reward?: boolean;
+    role_rewards?: { role_id: number; nominal: number }[];
     urutan?: number;
     position_type?: string;
     reference_id?: number;
@@ -425,6 +427,8 @@ export const spmbService = {
       nama: string;
       kategori?: string;
       tipe_potongan?: boolean;
+      is_referral_reward?: boolean;
+      role_rewards?: { role_id: number; nominal: number }[];
       urutan?: number;
       position_type?: string;
       reference_id?: number;
@@ -433,6 +437,15 @@ export const spmbService = {
     }
   ) => {
     const response = await api.put(`/spmb/master/komponen-biaya/${id}`, data);
+    return response.data;
+  },
+
+  getKomponenBiayaRoleOptions: async (): Promise<{
+    status: string;
+    message: string;
+    data: { id: number; slug: string; name: string }[];
+  }> => {
+    const response = await api.get('/spmb/master/komponen-biaya-role-options');
     return response.data;
   },
 

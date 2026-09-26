@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Plus, Edit, Trash2, Filter, Save, Info } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Save, Info, Gift } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -343,6 +343,11 @@ export default function MasterKomponenBiayaPage() {
                 label: 'Edit Data',
                 icon: <Edit size={16} />,
                 onClick: () => openEdit(row),
+              },
+              {
+                label: 'Reward Referral',
+                icon: <Gift size={16} />,
+                onClick: () => router.push(`/spmb/master/komponen-biaya/${row.id}/reward`),
               },
               {
                 label: 'Hapus',
