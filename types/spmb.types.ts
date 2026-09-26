@@ -375,16 +375,58 @@ export interface ReferralUsageItem {
   status: ReferralUsageStatus;
   qualified_at?: string | null;
   rewarded_at?: string | null;
+  payout_id?: number | null;
+  reward_nominal?: number;
   referee_name?: string | null;
   no_pendaftaran?: string | null;
   nama_pendaftar?: string | null;
   status_pendaftaran?: string | null;
+  status_pembayaran?: string | null;
+  gelombang?: string | null;
   created_at?: string;
+}
+
+export interface ReferralWithdrawable {
+  referral_code: string | null;
+  count: number;
+  reward_per_referral: number;
+  total_nominal: number;
 }
 
 export interface MyReferralData {
   summary: ReferralSummary;
+  withdrawable?: ReferralWithdrawable;
   usages?: ReferralUsageItem[];
+}
+
+export interface ReferralPayoutResult {
+  id: number;
+  nomor_bukti: string;
+  referral_count: number;
+  total_nominal: number;
+  generated_at: string;
+}
+
+export interface ReferralUsagesResponse {
+  status: string;
+  message: string;
+  data: ReferralUsageItem[];
+  meta: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+    from: number | null;
+    to: number | null;
+  };
+  filters: {
+    search: string | null;
+    status: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    sort_by: string;
+    sort_order: string;
+  };
 }
 
 export interface ReferralReportItem extends ReferralUsageItem {

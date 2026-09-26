@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import type { ReferralValidationResult, MyReferralData } from '@/types/spmb.types';
+import type { ReferralValidationResult, MyReferralData, ReferralUsagesResponse, ReferralPayoutResult } from '@/types/spmb.types';
 
 export interface JalurMasuk {
   id: number;
@@ -565,5 +565,33 @@ export const spmbService = {
   }> => {
     const response = await api.get('/spmb/laporan/referral-summary');
     return response.data;
+  },
+
+  getMyReferralUsages: async (params?: {
+    search?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<ReferralUsagesResponse> => {
+    const response = await api.get('/spmb/referral/saya/usages', { params });
+    return response.data;
+  },
+
+  createReferralPayout: async (data?: { keterangan?: string }): Promise<{
+    status: string;
+    message: string;
+    data: ReferralPayoutResult;
+  }> => {
+    const response = await api.post('/spmb/referral/payout', data ?? {});
+    return response.data;
+  },
+
+  downloadReferralPayout: async (id: number): Promise<Blob> => {
+    const response = await api.get(`/spmb/referral/payout/${id}/download`, { responseType: 'blob' });
+    return response.data as Blob;
   },
 };
