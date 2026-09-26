@@ -34,6 +34,20 @@ function isPublicRoute(pathname: string): boolean {
   return false;
 }
 
+// Halaman autentikasi yang WAJIB tampil di portal SSO (bukan di subdomain modul).
+const AUTH_ENTRY_PATHS = [
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+  '/mfa',
+];
+
+function isAuthEntryPath(pathname: string): boolean {
+  return AUTH_ENTRY_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 // Cegah OPEN REDIRECT (vektor phishing/abuse): hanya izinkan path relatif,
 // atau URL absolut yang host-nya masih di domain kita sendiri.
 function isSafeRedirect(target: string, host: string, baseDomain: string): boolean {
@@ -161,6 +175,15 @@ export async function proxy(request: NextRequest) {
     // langsung lanjutkan tanpa rewrite/redirect agar tidak terjadi redirect loop
     if (pathname === modPath || pathname.startsWith(`${modPath}/`)) {
       return NextResponse.next({ request: { headers: tenantHeaders } });
+    }
+
+    // 2a-2. Halaman autentikasi (login/register/...) pada subdomain modul
+    // diarahkan ke portal SSO, agar tidak pernah tampil di subdomain modul
+    // (mis. 'spmb.ragispace.com/login' -> 'sso.ragispace.com/login').
+    if (isAuthEntryPath(pathname) && ctx.baseDomain) {
+      const ssoUrl = new URL(pathname, `https://${envPrefix}sso.${ctx.baseDomain}`);
+      ssoUrl.search = request.nextUrl.search;
+      return NextResponse.redirect(ssoUrl);
     }
 
     // 2b. Abaikan rute auth & system global (login, profile, api, dll.)
