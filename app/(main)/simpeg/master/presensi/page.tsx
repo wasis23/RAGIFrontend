@@ -43,8 +43,10 @@ const shiftFormSchema = z.object({
   description: z.string().max(500, 'Deskripsi maksimal 500 karakter').optional().nullable(),
   late_tolerance_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
   early_leave_tolerance_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
-  max_early_clock_in_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
+  max_early_clock_in_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(720, 'Maksimal 720 menit'),
   max_late_clock_in_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
+  max_early_clock_out_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit').max(720, 'Maksimal 720 menit').optional().nullable(),
+  max_late_clock_out_minutes: z.number().int('Harus bilangan bulat').min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
   applies_national_holidays: z.boolean(),
   is_active: z.boolean(),
 });
@@ -88,8 +90,10 @@ const systemSettingsSchema = z.object({
   gps_accuracy_threshold_meters: z.number().min(5, 'Minimal 5 meter').max(500, 'Maksimal 500 meter'),
   late_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
   early_leave_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
-  max_early_clock_in_minutes: z.number().min(0, 'Minimal 0 menit').max(240, 'Maksimal 240 menit'),
+  max_early_clock_in_minutes: z.number().min(0, 'Minimal 0 menit').max(720, 'Maksimal 720 menit'),
   max_late_clock_in_minutes: z.number().min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
+  max_early_clock_out_minutes: z.number().min(0, 'Minimal 0 menit').max(720, 'Maksimal 720 menit').optional().nullable(),
+  max_late_clock_out_minutes: z.number().min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
   applies_national_holidays: z.boolean(),
 });
 type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
@@ -168,6 +172,8 @@ export default function MasterPresensiPage() {
       early_leave_tolerance_minutes: 15,
       max_early_clock_in_minutes: 60,
       max_late_clock_in_minutes: 240,
+      max_early_clock_out_minutes: 0,
+      max_late_clock_out_minutes: 240,
       applies_national_holidays: true,
       is_active: true,
     },
@@ -213,6 +219,8 @@ export default function MasterPresensiPage() {
       early_leave_tolerance_minutes: 15,
       max_early_clock_in_minutes: 60,
       max_late_clock_in_minutes: 240,
+      max_early_clock_out_minutes: 0,
+      max_late_clock_out_minutes: 240,
       applies_national_holidays: true,
     },
   });
@@ -283,6 +291,8 @@ export default function MasterPresensiPage() {
           early_leave_tolerance_minutes: res.data.early_leave_tolerance_minutes ?? 15,
           max_early_clock_in_minutes: res.data.max_early_clock_in_minutes ?? 60,
           max_late_clock_in_minutes: res.data.max_late_clock_in_minutes ?? 240,
+          max_early_clock_out_minutes: res.data.max_early_clock_out_minutes ?? 0,
+          max_late_clock_out_minutes: res.data.max_late_clock_out_minutes ?? 240,
           applies_national_holidays: !!res.data.applies_national_holidays,
         });
       }
@@ -311,6 +321,8 @@ export default function MasterPresensiPage() {
       early_leave_tolerance_minutes: 15,
       max_early_clock_in_minutes: 60,
       max_late_clock_in_minutes: 240,
+      max_early_clock_out_minutes: 0,
+      max_late_clock_out_minutes: 240,
       applies_national_holidays: true,
       is_active: true,
     });
@@ -326,6 +338,8 @@ export default function MasterPresensiPage() {
       early_leave_tolerance_minutes: s.early_leave_tolerance_minutes ?? 15,
       max_early_clock_in_minutes: s.max_early_clock_in_minutes ?? 60,
       max_late_clock_in_minutes: s.max_late_clock_in_minutes ?? 240,
+      max_early_clock_out_minutes: s.max_early_clock_out_minutes ?? 0,
+      max_late_clock_out_minutes: s.max_late_clock_out_minutes ?? 240,
       applies_national_holidays: s.applies_national_holidays ?? true,
       is_active: !!s.is_active,
     });
@@ -382,6 +396,8 @@ export default function MasterPresensiPage() {
         early_leave_tolerance_minutes: s.early_leave_tolerance_minutes,
         max_early_clock_in_minutes: s.max_early_clock_in_minutes,
         max_late_clock_in_minutes: s.max_late_clock_in_minutes ?? 240,
+        max_early_clock_out_minutes: s.max_early_clock_out_minutes ?? 0,
+        max_late_clock_out_minutes: s.max_late_clock_out_minutes ?? 240,
         applies_national_holidays: s.applies_national_holidays ?? true,
         is_active: true,
         days: (s.days || []).map((d: any) => ({
@@ -414,6 +430,8 @@ export default function MasterPresensiPage() {
         early_leave_tolerance_minutes: selectedShiftForSchedule.early_leave_tolerance_minutes,
         max_early_clock_in_minutes: selectedShiftForSchedule.max_early_clock_in_minutes,
         max_late_clock_in_minutes: selectedShiftForSchedule.max_late_clock_in_minutes ?? 240,
+        max_early_clock_out_minutes: selectedShiftForSchedule.max_early_clock_out_minutes ?? 0,
+        max_late_clock_out_minutes: selectedShiftForSchedule.max_late_clock_out_minutes ?? 240,
         applies_national_holidays: selectedShiftForSchedule.applies_national_holidays ?? true,
         is_active: selectedShiftForSchedule.is_active,
         days: selectedShiftForSchedule.days,
@@ -706,9 +724,10 @@ export default function MasterPresensiPage() {
       render: (row) => (
         <div className="text-xs text-slate-700 space-y-0.5 font-medium">
           <div>Terlambat: <span className="font-bold text-slate-900">{row.late_tolerance_minutes ?? 0} mnt</span></div>
-          <div>Pulang cepat: <span className="font-bold text-slate-900">{row.early_leave_tolerance_minutes ?? 0} mnt</span></div>
-          <div>Buka absen: <span className="font-bold text-slate-900">{row.max_early_clock_in_minutes ?? 0} mnt</span></div>
-          <div>Tutup absen: <span className="font-bold text-slate-900">{row.max_late_clock_in_minutes ?? 240} mnt{row.max_late_clock_in_minutes === 0 ? ' (tanpa batas)' : ''}</span></div>
+          <div>Buka masuk: <span className="font-bold text-slate-900">{row.max_early_clock_in_minutes ?? 0} mnt</span></div>
+          <div>Tutup masuk: <span className="font-bold text-slate-900">{row.max_late_clock_in_minutes ?? 240} mnt{row.max_late_clock_in_minutes === 0 ? ' (tanpa batas)' : ''}</span></div>
+          <div>Buka pulang: <span className="font-bold text-slate-900">{row.max_early_clock_out_minutes ? `${row.max_early_clock_out_minutes} mnt` : 'Otomatis'}</span></div>
+          <div>Tutup pulang: <span className="font-bold text-slate-900">{row.max_late_clock_out_minutes ?? 240} mnt{row.max_late_clock_out_minutes === 0 ? ' (tanpa batas)' : ''}</span></div>
         </div>
       ),
     },
@@ -1267,25 +1286,49 @@ export default function MasterPresensiPage() {
                   />
                 </div>
 
-                <Input
-                  label="Batas Tutup Absen Telat (Menit Setelah Shift)"
-                  type="number"
-                  min="0"
-                  max="720"
-                  hint="Contoh: 240 menit berarti shift jam 08:00 masih bisa absen (terlambat) sampai 12:00. Isi 0 = tanpa batas."
-                  error={formSettings.formState.errors.max_late_clock_in_minutes?.message}
-                  {...formSettings.register('max_late_clock_in_minutes', { valueAsNumber: true })}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Batas Buka Absen Masuk Lebih Awal (Menit Sebelum Shift)"
+                    type="number"
+                    min="0"
+                    max="720"
+                    hint="Contoh: 240 menit berarti shift jam 08:00 sudah bisa absen sejak 04:00 (4 jam sebelum)."
+                    error={formSettings.formState.errors.max_early_clock_in_minutes?.message}
+                    {...formSettings.register('max_early_clock_in_minutes', { valueAsNumber: true })}
+                  />
 
-                <Input
-                  label="Batas Buka Absen Lebih Awal (Menit Sebelum Shift)"
-                  type="number"
-                  min="0"
-                  max="240"
-                  hint="Contoh: 60 menit berarti shift jam 08:00 sudah bisa absen sejak 07:00."
-                  error={formSettings.formState.errors.max_early_clock_in_minutes?.message}
-                  {...formSettings.register('max_early_clock_in_minutes', { valueAsNumber: true })}
-                />
+                  <Input
+                    label="Batas Tutup Absen Masuk (Menit Setelah Shift Dimulai)"
+                    type="number"
+                    min="0"
+                    max="720"
+                    hint="Contoh: 240 menit berarti shift jam 08:00 batas masuk sampai 12:00. Lewat dari ini dialihkan ke presensi pulang."
+                    error={formSettings.formState.errors.max_late_clock_in_minutes?.message}
+                    {...formSettings.register('max_late_clock_in_minutes', { valueAsNumber: true })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Batas Buka Absen Pulang Lebih Awal (Menit Sebelum Jam Pulang)"
+                    type="number"
+                    min="0"
+                    max="720"
+                    hint="Isi 0 / kosongkan untuk otomatis (mengikuti batas tutup masuk atau toleransi pulang cepat)."
+                    error={formSettings.formState.errors.max_early_clock_out_minutes?.message}
+                    {...formSettings.register('max_early_clock_out_minutes', { valueAsNumber: true })}
+                  />
+
+                  <Input
+                    label="Batas Tutup Absen Pulang (Menit Setelah Jam Pulang)"
+                    type="number"
+                    min="0"
+                    max="720"
+                    hint="Contoh: 240 menit berarti shift jam 17:00 masih bisa absen pulang sampai 21:00. Isi 0 = tanpa batas."
+                    error={formSettings.formState.errors.max_late_clock_out_minutes?.message}
+                    {...formSettings.register('max_late_clock_out_minutes', { valueAsNumber: true })}
+                  />
+                </div>
 
                 <div className="pt-2">
                   <Controller
@@ -1370,24 +1413,43 @@ export default function MasterPresensiPage() {
               {...formShift.register('early_leave_tolerance_minutes', { valueAsNumber: true })}
             />
             <Input
-              label="Batas Buka Absen Lebih Awal (menit)"
-              type="number"
-              min={0}
-              max={240}
-              required
-              hint="Contoh: 60 berarti shift jam 08:00 sudah bisa absen sejak 07:00."
-              error={formShift.formState.errors.max_early_clock_in_minutes?.message}
-              {...formShift.register('max_early_clock_in_minutes', { valueAsNumber: true })}
-            />
-            <Input
-              label="Batas Tutup Absen Telat (menit)"
+              label="Batas Buka Absen Masuk (menit)"
               type="number"
               min={0}
               max={720}
               required
-              hint="0 = tanpa batas. Contoh: 240 berarti masih bisa absen sampai 4 jam setelah jam masuk."
+              hint="Contoh: 240 berarti shift jam 08:00 sudah bisa absen sejak 04:00 (4 jam sebelum)."
+              error={formShift.formState.errors.max_early_clock_in_minutes?.message}
+              {...formShift.register('max_early_clock_in_minutes', { valueAsNumber: true })}
+            />
+            <Input
+              label="Batas Tutup Absen Masuk (menit)"
+              type="number"
+              min={0}
+              max={720}
+              required
+              hint="Contoh: 240 berarti batas masuk jam 12:00. Lewat dari ini dialihkan ke presensi pulang."
               error={formShift.formState.errors.max_late_clock_in_minutes?.message}
               {...formShift.register('max_late_clock_in_minutes', { valueAsNumber: true })}
+            />
+            <Input
+              label="Batas Buka Absen Pulang (menit)"
+              type="number"
+              min={0}
+              max={720}
+              hint="Isi 0 / kosongkan untuk otomatis (mengikuti batas tutup masuk atau toleransi pulang cepat)."
+              error={formShift.formState.errors.max_early_clock_out_minutes?.message}
+              {...formShift.register('max_early_clock_out_minutes', { valueAsNumber: true })}
+            />
+            <Input
+              label="Batas Tutup Absen Pulang (menit)"
+              type="number"
+              min={0}
+              max={720}
+              required
+              hint="0 = tanpa batas. Contoh: 240 berarti masih bisa absen pulang sampai 4 jam setelah jam shift."
+              error={formShift.formState.errors.max_late_clock_out_minutes?.message}
+              {...formShift.register('max_late_clock_out_minutes', { valueAsNumber: true })}
             />
           </div>
           <Controller
