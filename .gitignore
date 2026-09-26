@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# screenshot audit (identik, hanya bloat)
+.agents/laporan/assets/
