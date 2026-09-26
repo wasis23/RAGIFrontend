@@ -16,17 +16,27 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { spmbService } from '@/services/spmb.service';
 import type { MasterKomponenBiaya } from '@/types/spmb.types';
 
-const schema = z.object({
-  is_referral_reward: z.boolean(),
-  role_rewards: z
-    .array(
-      z.object({
-        role_id: z.number().int().positive('Role wajib dipilih'),
-        nominal: z.number().min(0, 'Nominal minimal 0'),
-      })
-    )
-    .optional(),
-});
+const schema = z
+  .object({
+    is_referral_reward: z.boolean(),
+    role_rewards: z
+      .array(
+        z.object({
+          role_id: z.number().int().positive('Role wajib dipilih'),
+          nominal: z.number().min(0, 'Nominal minimal 0'),
+        })
+      )
+      .optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.is_referral_reward && (!val.role_rewards || val.role_rewards.length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['role_rewards'],
+        message: 'Tambahkan minimal satu pemetaan role reward.',
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -87,10 +97,6 @@ export default function KelolaRewardReferralPage() {
 
   const onSubmit = async (values: FormValues) => {
     if (!komponen) return;
-    if (values.is_referral_reward && (values.role_rewards || []).length === 0) {
-      toast.error('Tambahkan minimal satu pemetaan role reward.');
-      return;
-    }
 
     try {
       setSubmitting(true);
@@ -178,6 +184,10 @@ export default function KelolaRewardReferralPage() {
                     </Button>
                   </div>
 
+                  {errors.role_rewards?.root?.message && (
+                    <p className="form-error">{errors.role_rewards.root.message}</p>
+                  )}
+
                   {fields.length === 0 && (
                     <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
                       <Info size={16} className="shrink-0" style={{ color: 'var(--module-primary)' }} />
@@ -198,6 +208,7 @@ export default function KelolaRewardReferralPage() {
                             defaultOptions
                             loadOptions={loadRoleOptions}
                             value={roleField.value ? String(roleField.value) : null}
+                            error={errors.role_rewards?.[index]?.role_id?.message}
                             onChange={(sel: { value?: string } | null) =>
                               roleField.onChange(sel?.value ? Number(sel.value) : undefined)
                             }
@@ -236,7 +247,7 @@ export default function KelolaRewardReferralPage() {
                 >
                   Batal
                 </Button>
-                <Button type="submit" variant="primary" loading={submitting} icon={<Save size={16} />}>
+                <Button type="submit" variant="primary" loading={submitting} disabled={submitting} icon={<Save size={16} />}>
                   Simpan Pemetaan
                 </Button>
               </div>
