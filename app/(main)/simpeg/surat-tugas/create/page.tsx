@@ -160,6 +160,35 @@ export default function CreateSuratTugasPage() {
     fetchMasters();
   }, [setValue]);
 
+  // Inisialisasi default penanggung jawab / ketua rombongan dari profil user aktif
+  useEffect(() => {
+    const initDefaultKetua = async () => {
+      try {
+        const res = await simpegService.getPegawaiMe();
+        if (res?.data) {
+          const p = res.data;
+          const opt = {
+            value: p.id.toString(),
+            label: `${p.nama_lengkap}${p.nip ? ` (NIP: ${p.nip})` : ''} - ${p.unit_kerja?.nama || 'SDM'}`,
+            pegawai: p,
+          };
+          setSelectedKetuaOption(opt);
+          setValue('pegawai_id', p.id.toString(), { shouldValidate: true });
+          if (p.nama_bank || p.bank_nama) {
+            setValue('nama_bank', p.nama_bank || p.bank_nama || '', { shouldValidate: true, shouldDirty: true });
+          }
+          if (p.nomor_rekening) {
+            setValue('nomor_rekening', p.nomor_rekening || '', { shouldValidate: true, shouldDirty: true });
+          }
+          setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '', { shouldValidate: true, shouldDirty: true });
+        }
+      } catch (err) {
+        // User mungkin bukan akun pegawai atau belum terafiliasi, abaikan
+      }
+    };
+    initDefaultKetua();
+  }, [setValue]);
+
   // Load Pegawai Options for AsyncSelect
   const loadPegawaiOptions = useCallback(async (inputValue: string) => {
     try {
@@ -172,6 +201,7 @@ export default function CreateSuratTugasPage() {
       return list.map((p) => ({
         value: p.id.toString(),
         label: `${p.nama_lengkap}${p.nip ? ` (NIP: ${p.nip})` : ''} - ${p.unit_kerja?.nama || 'SDM'}`,
+        pegawai: p,
       }));
     } catch (err) {
       console.error('Gagal mencari pegawai', err);
@@ -297,22 +327,25 @@ export default function CreateSuratTugasPage() {
                     onChange={async (val: any) => {
                       setSelectedKetuaOption(val);
                       field.onChange(val ? val.value : '');
-                      if (val?.value) {
-                        try {
-                          const res = await simpegService.getPegawaiDetail(Number(val.value));
-                          if (res?.data) {
-                            const p = res.data;
-                            if (p.nama_bank || p.bank_nama) {
-                              setValue('nama_bank', p.nama_bank || p.bank_nama || '');
-                            }
-                            if (p.nomor_rekening) {
-                              setValue('nomor_rekening', p.nomor_rekening || '');
-                            }
-                            setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '');
+                      if (val) {
+                        let p = val.pegawai;
+                        if (!p && val.value) {
+                          try {
+                            const res = await simpegService.getPegawaiDetail(Number(val.value));
+                            p = (res as any)?.data?.data || res?.data;
+                          } catch (e) {
+                            console.error('Gagal mengambil data rekening pegawai penanggung jawab', e);
                           }
-                        } catch (e) {
-                          console.error('Gagal mengambil data rekening pegawai penanggung jawab', e);
                         }
+                        if (p) {
+                          setValue('nama_bank', p.nama_bank || p.bank_nama || '', { shouldValidate: true, shouldDirty: true });
+                          setValue('nomor_rekening', p.nomor_rekening || '', { shouldValidate: true, shouldDirty: true });
+                          setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '', { shouldValidate: true, shouldDirty: true });
+                        }
+                      } else {
+                        setValue('nama_bank', '', { shouldValidate: true, shouldDirty: true });
+                        setValue('nomor_rekening', '', { shouldValidate: true, shouldDirty: true });
+                        setValue('nama_rekening', '', { shouldValidate: true, shouldDirty: true });
                       }
                     }}
                     placeholder="Ketik nama atau NIP pegawai..."
