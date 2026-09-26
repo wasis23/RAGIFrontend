@@ -26,6 +26,7 @@ export const authService = {
       identifier: payload.identifier,
       password: payload.password,
       remember_me: payload.remember_me,
+      captcha_token: payload.captcha_token,
     };
     const { data } = await apiClient.post('/auth/login', body);
     return data;

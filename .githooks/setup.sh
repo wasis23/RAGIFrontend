@@ -8,8 +8,9 @@ echo "🔧 [AGY Git Hooks Setup] Mengonfigurasi git core.hooksPath ke folder .gi
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
 
 if [ -z "$REPO_ROOT" ]; then
-    echo "❌ Error: Direktori saat ini bukan merupakan repository Git."
-    exit 1
+    # Bukan repo Git (mis. saat `npm install` di build Vercel/CI). Lewati tanpa gagal.
+    echo "ℹ️ [AGY Git Hooks Setup] Bukan repository Git — dilewati."
+    exit 0
 fi
 
 cd "$REPO_ROOT" || exit 1

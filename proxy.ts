@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveDomainContext, MODULE_LABELS, RESERVED_SUBDOMAINS, getAuthTokenKey } from '@/lib/domain';
+import {
+  resolveDomainContextWithConfig,
+  MODULE_LABELS,
+  RESERVED_SUBDOMAINS,
+  getAuthTokenKey,
+} from '@/lib/domain';
+import { getTenantConfig } from '@/lib/tenant-config.server';
 import { TOKEN_KEY } from '@/lib/constants';
 
 // Rute publik yang dapat diakses tanpa autentikasi
@@ -28,6 +34,27 @@ function isPublicRoute(pathname: string): boolean {
   return false;
 }
 
+// Cegah OPEN REDIRECT (vektor phishing/abuse): hanya izinkan path relatif,
+// atau URL absolut yang host-nya masih di domain kita sendiri.
+function isSafeRedirect(target: string, host: string, baseDomain: string): boolean {
+  if (!target) return false;
+  // Path relatif (tolak protocol-relative '//evil.com').
+  if (target.startsWith('/') && !target.startsWith('//')) return true;
+  try {
+    const url = new URL(target);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    const targetHost = url.hostname.toLowerCase();
+    const currentHost = host.toLowerCase().split(':')[0];
+    if (targetHost === currentHost) return true;
+    if (baseDomain && (targetHost === baseDomain || targetHost.endsWith(`.${baseDomain}`))) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // ============================================================
 // PROXY — Multi-Tenant Subdomain Routing (Next.js 16)
 //
@@ -48,7 +75,7 @@ function isPublicRoute(pathname: string): boolean {
 //    - Header marker 'x-proxy-rewritten' dipasang untuk mencegah re-processing loop.
 // ============================================================
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // 0. Cegah re-processing jika request sudah pernah di-rewrite secara internal
   if (request.headers.get('x-proxy-rewritten') === '1') {
     return NextResponse.next();
@@ -59,12 +86,29 @@ export function proxy(request: NextRequest) {
     request.headers.get('host') ||
     '';
 
-  const ctx = resolveDomainContext(host);
+  // Baca pemetaan domain dari Vercel Edge Config (fail-open ke konfigurasi statis).
+  const config = await getTenantConfig();
+  const ctx = resolveDomainContextWithConfig(host, config);
   const { pathname } = request.nextUrl;
+
+  // Header tenant yang diteruskan ke Server Components (headers().get('x-tenant-*')).
+  const tenantHeaders = new Headers(request.headers);
+  tenantHeaders.set('x-tenant-host', ctx.hostname);
+  tenantHeaders.set('x-tenant-module', ctx.moduleSlug ?? 'default');
+  tenantHeaders.set('x-tenant-custom', ctx.isCustomDomain ? '1' : '0');
 
   // 1. Abaikan API routes (dikelola oleh Sanctum / backend API langsung)
   if (pathname.startsWith('/api/')) {
     return NextResponse.next();
+  }
+
+  // 1b. Domain tak dikenal (bukan base domain, bukan dev/preview, tidak
+  //     dipetakan) -> arahkan ke portal utama agar tidak menyajikan portal
+  //     di domain pihak ketiga.
+  if (ctx.isUnknownDomain && config.baseDomains.length > 0) {
+    const portalUrl = new URL(pathname || '/', `https://sso.${config.baseDomains[0]}`);
+    portalUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(portalUrl);
   }
 
   const tokenKey = getAuthTokenKey(ctx.isDemo, host);
@@ -91,12 +135,7 @@ export function proxy(request: NextRequest) {
   // 3. Jika sudah login dan mengakses /login, alihkan ke dashboard / redirect URL
   if (token && pathname === '/login') {
     const redirectParam = request.nextUrl.searchParams.get('redirect');
-    if (
-      redirectParam &&
-      (redirectParam.startsWith('http://') ||
-        redirectParam.startsWith('https://') ||
-        redirectParam.startsWith('/'))
-    ) {
+    if (redirectParam && isSafeRedirect(redirectParam, host, ctx.baseDomain)) {
       return NextResponse.redirect(new URL(redirectParam, request.url));
     }
     return NextResponse.redirect(new URL('/dashboard', request.url));
@@ -121,7 +160,7 @@ export function proxy(request: NextRequest) {
     // 2a. Jika pathname sudah memiliki prefix modul (misal '/siakad' atau '/siakad/krs'),
     // langsung lanjutkan tanpa rewrite/redirect agar tidak terjadi redirect loop
     if (pathname === modPath || pathname.startsWith(`${modPath}/`)) {
-      return NextResponse.next();
+      return NextResponse.next({ request: { headers: tenantHeaders } });
     }
 
     // 2b. Abaikan rute auth & system global (login, profile, api, dll.)
@@ -138,11 +177,11 @@ export function proxy(request: NextRequest) {
     ].some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
     if (isExcluded || pathname.startsWith('/api/')) {
-      return NextResponse.next();
+      return NextResponse.next({ request: { headers: tenantHeaders } });
     }
 
     // Pasang penanda request header pada rewrite internal
-    const requestHeaders = new Headers(request.headers);
+    const requestHeaders = new Headers(tenantHeaders);
     requestHeaders.set('x-proxy-rewritten', '1');
 
     // 2c. Root path '/' -> rewrite internal ke modPath (misal '/siakad')
@@ -168,12 +207,12 @@ export function proxy(request: NextRequest) {
     });
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: tenantHeaders } });
 }
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.well-known).*)',
   ],
 };
 
