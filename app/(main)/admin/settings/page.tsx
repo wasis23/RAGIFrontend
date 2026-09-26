@@ -27,6 +27,7 @@ import {
   EyeOff,
   Database,
   Cloud,
+  BookOpen,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/axios';
@@ -41,6 +42,11 @@ const SCHEME_OPTIONS: SelectOption[] = [
 const DISK_OPTIONS: SelectOption[] = [
   { value: 'local', label: 'Local (Server Storage Lokal)' },
   { value: 'r2', label: 'Cloudflare R2 (Cloud Object Storage)' },
+];
+
+const TOKEN_ABSENSI_OPTIONS: SelectOption[] = [
+  { value: 'true', label: 'Diizinkan (Dosen dapat membuat Token 6-Digit)' },
+  { value: 'false', label: 'Dinonaktifkan (Hanya Input Absensi Manual Dosen)' },
 ];
 
 const PUBLIC_DISK_OPTIONS: SelectOption[] = [
@@ -103,6 +109,14 @@ const settingsSchema = z.object({
   r2_private_url: z.string().optional(),
   r2_default_region: z.string().optional(),
   r2_use_path_style_endpoint: z.string().min(1),
+
+  // LMS & Absensi Perkuliahan
+  lms_storage_disk: z.string().min(1, 'Pilihan storage disk LMS wajib ditentukan'),
+  lms_max_file_materi_mb: z.string().min(1, 'Batas ukuran file materi minimal 1 MB'),
+  lms_max_video_mb: z.string().min(1, 'Batas ukuran video minimal 1 MB'),
+  lms_max_file_tugas_mb: z.string().min(1, 'Batas ukuran file tugas minimal 1 MB'),
+  lms_allow_token_absensi: z.string().min(1),
+  lms_token_ttl_minutes: z.string().min(1, 'Masa berlaku token minimal 1 menit'),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -142,6 +156,12 @@ const defaultValues: SettingsFormValues = {
   r2_private_url: '',
   r2_default_region: 'auto',
   r2_use_path_style_endpoint: 'true',
+  lms_storage_disk: 'r2',
+  lms_max_file_materi_mb: '50',
+  lms_max_video_mb: '500',
+  lms_max_file_tugas_mb: '50',
+  lms_allow_token_absensi: 'true',
+  lms_token_ttl_minutes: '15',
 };
 
 export default function SystemSettingsPage() {
@@ -269,6 +289,13 @@ export default function SystemSettingsPage() {
         r2_private_url: settingsData?.r2_private_url?.value ?? defaultValues.r2_private_url,
         r2_default_region: settingsData?.r2_default_region?.value ?? defaultValues.r2_default_region,
         r2_use_path_style_endpoint: settingsData?.r2_use_path_style_endpoint?.value ?? defaultValues.r2_use_path_style_endpoint,
+
+        lms_storage_disk: settingsData?.lms_storage_disk?.value ?? defaultValues.lms_storage_disk,
+        lms_max_file_materi_mb: String(settingsData?.lms_max_file_materi_mb?.value ?? defaultValues.lms_max_file_materi_mb),
+        lms_max_video_mb: String(settingsData?.lms_max_video_mb?.value ?? defaultValues.lms_max_video_mb),
+        lms_max_file_tugas_mb: String(settingsData?.lms_max_file_tugas_mb?.value ?? defaultValues.lms_max_file_tugas_mb),
+        lms_allow_token_absensi: settingsData?.lms_allow_token_absensi?.value ?? defaultValues.lms_allow_token_absensi,
+        lms_token_ttl_minutes: String(settingsData?.lms_token_ttl_minutes?.value ?? defaultValues.lms_token_ttl_minutes),
       };
 
       setInitialValues(loadedValues);
@@ -311,6 +338,15 @@ export default function SystemSettingsPage() {
           currentValues.r2_private_url !== initialValues.r2_private_url ||
           currentValues.r2_default_region !== initialValues.r2_default_region ||
           currentValues.r2_use_path_style_endpoint !== initialValues.r2_use_path_style_endpoint
+        );
+      case 'lms':
+        return (
+          currentValues.lms_storage_disk !== initialValues.lms_storage_disk ||
+          currentValues.lms_max_file_materi_mb !== initialValues.lms_max_file_materi_mb ||
+          currentValues.lms_max_video_mb !== initialValues.lms_max_video_mb ||
+          currentValues.lms_max_file_tugas_mb !== initialValues.lms_max_file_tugas_mb ||
+          currentValues.lms_allow_token_absensi !== initialValues.lms_allow_token_absensi ||
+          currentValues.lms_token_ttl_minutes !== initialValues.lms_token_ttl_minutes
         );
       case 'feeder':
         return (
@@ -360,6 +396,14 @@ export default function SystemSettingsPage() {
         setValue('r2_private_url', initialValues.r2_private_url);
         setValue('r2_default_region', initialValues.r2_default_region);
         setValue('r2_use_path_style_endpoint', initialValues.r2_use_path_style_endpoint);
+        break;
+      case 'lms':
+        setValue('lms_storage_disk', initialValues.lms_storage_disk);
+        setValue('lms_max_file_materi_mb', initialValues.lms_max_file_materi_mb);
+        setValue('lms_max_video_mb', initialValues.lms_max_video_mb);
+        setValue('lms_max_file_tugas_mb', initialValues.lms_max_file_tugas_mb);
+        setValue('lms_allow_token_absensi', initialValues.lms_allow_token_absensi);
+        setValue('lms_token_ttl_minutes', initialValues.lms_token_ttl_minutes);
         break;
       case 'feeder':
         setValue('feeder_url', initialValues.feeder_url);
@@ -418,6 +462,17 @@ export default function SystemSettingsPage() {
         { key: 'r2_use_path_style_endpoint', value: vals.r2_use_path_style_endpoint || 'true' },
       ];
       successMessage = 'Pengaturan Cloudflare R2 / Storage berhasil disimpan.';
+    } else if (section === 'lms') {
+      fieldsToValidate = ['lms_storage_disk', 'lms_max_file_materi_mb', 'lms_max_video_mb', 'lms_max_file_tugas_mb', 'lms_token_ttl_minutes'];
+      settingsToSave = [
+        { key: 'lms_storage_disk', value: vals.lms_storage_disk },
+        { key: 'lms_max_file_materi_mb', value: String(vals.lms_max_file_materi_mb) },
+        { key: 'lms_max_video_mb', value: String(vals.lms_max_video_mb) },
+        { key: 'lms_max_file_tugas_mb', value: String(vals.lms_max_file_tugas_mb) },
+        { key: 'lms_allow_token_absensi', value: vals.lms_allow_token_absensi },
+        { key: 'lms_token_ttl_minutes', value: String(vals.lms_token_ttl_minutes) },
+      ];
+      successMessage = 'Pengaturan LMS & Absensi Perkuliahan berhasil disimpan.';
     } else if (section === 'feeder') {
       fieldsToValidate = ['feeder_url', 'feeder_username'];
       settingsToSave = [
@@ -982,6 +1037,106 @@ export default function SystemSettingsPage() {
             </div>
 
             {renderSectionFooter('r2', 'Simpan Pengaturan Storage R2')}
+          </div>
+
+          {/* ════════ Section 2b: LMS & Absensi Perkuliahan ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-slate-100 text-slate-700">
+                <BookOpen size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">LMS & Absensi Perkuliahan</h2>
+                <p className="settings-section-desc">
+                  Konfigurasi penyimpanan berkas materi perkuliahan, batas unggahan tugas mahasiswa, dan parameter absensi berbasis token.
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body space-y-4">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan LMS...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Controller
+                      name="lms_storage_disk"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Penyimpanan Berkas LMS (Storage Disk)"
+                          value={field.value}
+                          onChange={field.onChange}
+                          options={DISK_OPTIONS}
+                          error={errors.lms_storage_disk?.message}
+                          placeholder="Pilih disk storage LMS..."
+                          isClearable={false}
+                          hint="Disk target default untuk materi dosen & pengumpulan tugas mahasiswa."
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="lms_allow_token_absensi"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Izin Token Absensi Mahasiswa"
+                          value={field.value}
+                          onChange={field.onChange}
+                          options={TOKEN_ABSENSI_OPTIONS}
+                          error={errors.lms_allow_token_absensi?.message}
+                          placeholder="Pilih status izin token..."
+                          isClearable={false}
+                          hint="Jika aktif, dosen dapat merilis 6-digit token absensi realtime."
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Maksimal Materi (MB)"
+                      type="number"
+                      placeholder="50"
+                      error={errors.lms_max_file_materi_mb?.message}
+                      hint="Batas upload berkas non-video dosen."
+                      {...register('lms_max_file_materi_mb')}
+                    />
+                    <Input
+                      label="Maksimal Video (MB)"
+                      type="number"
+                      placeholder="500"
+                      error={errors.lms_max_video_mb?.message}
+                      hint="Batas berkas video materi dosen."
+                      {...register('lms_max_video_mb')}
+                    />
+                    <Input
+                      label="Maksimal Tugas Mhs (MB)"
+                      type="number"
+                      placeholder="50"
+                      error={errors.lms_max_file_tugas_mb?.message}
+                      hint="Batas berkas tugas mahasiswa."
+                      {...register('lms_max_file_tugas_mb')}
+                    />
+                    <Input
+                      label="Masa Berlaku Token (Menit)"
+                      type="number"
+                      placeholder="15"
+                      error={errors.lms_token_ttl_minutes?.message}
+                      hint="Durasi aktif token absensi sebelum kedaluwarsa."
+                      {...register('lms_token_ttl_minutes')}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {renderSectionFooter('lms', 'Simpan Pengaturan LMS')}
           </div>
 
           {/* ════════ Section 3: Koneksi Neo Feeder PDDikti ════════ */}
