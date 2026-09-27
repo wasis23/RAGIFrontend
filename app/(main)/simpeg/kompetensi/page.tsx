@@ -859,7 +859,7 @@ export default function KompetensiPage() {
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
                 value={formSertifikasi.watch('pegawai_id')}
-                onChange={(e) => formSertifikasi.setValue('pegawai_id', e.target.value)}
+                onChange={(val) => formSertifikasi.setValue('pegawai_id', val, { shouldValidate: true })}
                 error={formSertifikasi.formState.errors.pegawai_id?.message}
               />
             )}
@@ -874,7 +874,7 @@ export default function KompetensiPage() {
                   }))}
                   placeholder={(masters?.jenis_sertifikasi || []).length === 0 ? '-- Belum ada data jenis sertifikasi --' : '-- Pilih Jenis Sertifikasi --'}
                   value={formSertifikasi.watch('jenis_sertifikasi_id')}
-                  onChange={(e) => formSertifikasi.setValue('jenis_sertifikasi_id', e.target.value)}
+                  onChange={(val) => formSertifikasi.setValue('jenis_sertifikasi_id', val, { shouldValidate: true })}
                   error={formSertifikasi.formState.errors.jenis_sertifikasi_id?.message}
                 />
                 {(masters?.jenis_sertifikasi || []).length === 0 && (
@@ -973,7 +973,7 @@ export default function KompetensiPage() {
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
                 value={formTes.watch('pegawai_id')}
-                onChange={(e) => formTes.setValue('pegawai_id', e.target.value)}
+                onChange={(val) => formTes.setValue('pegawai_id', val, { shouldValidate: true })}
                 error={formTes.formState.errors.pegawai_id?.message}
               />
             )}
@@ -988,7 +988,7 @@ export default function KompetensiPage() {
                   }))}
                   placeholder={(masters?.jenis_tes || []).length === 0 ? '-- Belum ada data jenis tes --' : '-- Pilih Jenis Tes --'}
                   value={formTes.watch('jenis_tes_id')}
-                  onChange={(e) => formTes.setValue('jenis_tes_id', e.target.value)}
+                  onChange={(val) => formTes.setValue('jenis_tes_id', val, { shouldValidate: true })}
                   error={formTes.formState.errors.jenis_tes_id?.message}
                 />
                 {(masters?.jenis_tes || []).length === 0 && (
@@ -1081,7 +1081,7 @@ export default function KompetensiPage() {
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
                 value={formPelatihan.watch('pegawai_id')}
-                onChange={(e) => formPelatihan.setValue('pegawai_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('pegawai_id', val, { shouldValidate: true })}
                 error={formPelatihan.formState.errors.pegawai_id?.message}
               />
             )}
@@ -1104,7 +1104,7 @@ export default function KompetensiPage() {
                   })),
                 ]}
                 value={formPelatihan.watch('jenis_pelatihan_id')}
-                onChange={(e) => formPelatihan.setValue('jenis_pelatihan_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('jenis_pelatihan_id', val, { shouldValidate: true })}
               />
 
               <Select
@@ -1114,7 +1114,7 @@ export default function KompetensiPage() {
                   label: p.nama,
                 }))}
                 value={formPelatihan.watch('peran_id')}
-                onChange={(e) => formPelatihan.setValue('peran_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('peran_id', val, { shouldValidate: true })}
                 error={formPelatihan.formState.errors.peran_id?.message}
               />
 
@@ -1128,7 +1128,7 @@ export default function KompetensiPage() {
                   })),
                 ]}
                 value={formPelatihan.watch('tingkat_id')}
-                onChange={(e) => formPelatihan.setValue('tingkat_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('tingkat_id', val, { shouldValidate: true })}
               />
             </div>
 
