@@ -33,7 +33,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
-import { getApiErrorMessage } from '@/lib/utils';
+import { getApiErrorMessage, getStorageFileUrl } from '@/lib/utils';
 import type { PenilaianKinerja, SkpItem, StatusSkp, PredikatKinerja } from '@/types/simpeg.types';
 
 const realisasiSchema = z.object({
@@ -354,12 +354,12 @@ export default function SkpDetailPage() {
         <div>
           {row.berkas_bukti ? (
             <a
-              href={`/${row.berkas_bukti}`}
+              href={getStorageFileUrl(row.berkas_bukti)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 bg-primary-50 px-2 py-1 rounded transition"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--module-primary)] hover:underline bg-[var(--module-primary-subtle)] p-2 rounded-lg transition"
             >
-              <Download size={12} />
+              <Download size={16} />
               Bukti Luaran
             </a>
           ) : (
@@ -656,8 +656,16 @@ export default function SkpDetailPage() {
                 className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
               />
               {selectedItem?.berkas_bukti && (
-                <div className="mt-1 text-xs text-slate-500">
-                  File saat ini: <a href={`/${selectedItem.berkas_bukti}`} target="_blank" rel="noreferrer" className="text-primary-600 underline">Lihat Bukti</a>
+                <div className="mt-4 text-xs text-slate-500">
+                  File saat ini:{' '}
+                  <a
+                    href={getStorageFileUrl(selectedItem.berkas_bukti)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--module-primary)] underline font-medium"
+                  >
+                    Lihat Bukti
+                  </a>
                 </div>
               )}
             </div>
