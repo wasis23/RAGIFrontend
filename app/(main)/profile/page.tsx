@@ -584,16 +584,33 @@ export default function ProfilePage() {
               }}
               columns={[
                 {
-                  key: 'referral_code',
-                  label: 'Kode Referral',
+                  key: 'pendaftar',
+                  label: 'Pendaftar',
                   render: (row) => (
-                    <span className="font-mono font-bold text-slate-900 text-xs">{row.referral_code}</span>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900 text-xs">{row.nama_pendaftar || '-'}</span>
+                      <span className="text-2xs text-slate-500 font-mono">{row.no_pendaftaran || '-'}</span>
+                    </div>
                   ),
+                },
+                {
+                  key: 'gelombang',
+                  label: 'Gelombang',
+                  render: (row) => <span className="text-xs text-slate-700">{row.gelombang || '-'}</span>,
                 },
                 {
                   key: 'status',
                   label: 'Status',
-                  render: (row) => <ReferralStatusBadge status={row.status} />,
+                  render: (row) => (
+                    <div className="flex flex-col gap-2">
+                      <ReferralStatusBadge status={row.status} />
+                      {(row.reward_nominal ?? 0) > 0 && (
+                        <span className="text-2xs font-bold text-[var(--module-primary)]">
+                          {formatCurrency(row.reward_nominal ?? 0)}
+                        </span>
+                      )}
+                    </div>
+                  ),
                 },
                 {
                   key: 'created_at',
@@ -764,8 +781,9 @@ export default function ProfilePage() {
               onChange={(val) => setFilterSortBy(val)}
               options={[
                 { value: 'created_at', label: 'Tanggal' },
+                { value: 'nama_pendaftar', label: 'Nama Pendaftar' },
+                { value: 'gelombang', label: 'Gelombang' },
                 { value: 'status', label: 'Status' },
-                { value: 'referral_code', label: 'Kode Referral' },
               ]}
             />
             <Select
