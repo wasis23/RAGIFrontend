@@ -27,12 +27,13 @@ import { Textarea } from '@/components/ui/Textarea';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { Pegawai } from '@/types/simpeg.types';
 
 // ── ZOD SCHEMA ────────────────────────────────────────────────
 const skpFormSchema = z.object({
   pegawai_id: z.string().min(1, 'Pegawai bersangkutan wajib dipilih'),
-  tahun: z.string().min(4, 'Tahun minimal 4 digit'),
+  tahun: z.string().min(1, 'Tahun penilaian wajib diisi').regex(/^\d{4}$/, 'Tahun harus berupa 4 digit angka (contoh: 2026)'),
   semester: z.enum(['ganjil', 'genap', 'tahunan']),
   pejabat_penilai_id: z.string().min(1, 'Pejabat penilai wajib dipilih'),
   items: z
@@ -43,7 +44,7 @@ const skpFormSchema = z.object({
         target_output: z.string().min(2, 'Target output wajib diisi'),
         target_mutu: z.string().min(1, 'Target mutu wajib diisi'),
         target_waktu: z.string().min(1, 'Target waktu wajib diisi'),
-        target_biaya: z.string().optional(),
+        target_biaya: z.string().optional().refine((val) => !val || /^\d+$/.test(val), 'Target biaya harus berupa angka nominal tanpa titik atau koma'),
       })
     )
     .min(1, 'Minimal harus menyusun 1 butir sasaran kinerja'),
@@ -178,7 +179,7 @@ export default function CreateSkpPage() {
         router.push('/simpeg/kinerja');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan sasaran kinerja');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan sasaran kinerja'));
     } finally {
       setIsSubmitting(false);
     }

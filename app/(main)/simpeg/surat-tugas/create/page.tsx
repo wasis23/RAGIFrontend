@@ -45,14 +45,14 @@ const suratTugasFormSchema = z
     tanggal_selesai: z.string().min(1, 'Tanggal selesai kegiatan wajib diisi'),
     maksud_tujuan: z.string().min(5, 'Maksud dan tujuan minimal 5 karakter'),
     beban_anggaran: z.string().optional(),
-    estimasi_biaya: z.string().optional(),
+    estimasi_biaya: z.string().optional().refine((val) => !val || /^\d+$/.test(val), 'Estimasi biaya harus berupa angka nominal tanpa titik atau koma'),
     nama_bank: z.string().optional(),
-    nomor_rekening: z.string().optional(),
+    nomor_rekening: z.string().optional().refine((val) => !val || /^[0-9\-\s]+$/.test(val), 'Nomor rekening hanya boleh memuat angka'),
     nama_rekening: z.string().optional(),
     keterangan: z.string().optional(),
     kendaraan_dinas: z.string().optional(),
     nama_driver: z.string().optional(),
-    kontak_driver: z.string().optional(),
+    kontak_driver: z.string().optional().refine((val) => !val || /^[0-9+\-\s()]+$/.test(val), 'Kontak driver hanya boleh memuat nomor telepon yang valid'),
     anggota: z
       .array(
         z.object({

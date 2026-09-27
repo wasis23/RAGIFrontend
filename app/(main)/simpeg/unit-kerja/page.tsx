@@ -19,6 +19,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { UnitKerja, TipeUnitKerja } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
@@ -151,7 +152,7 @@ export default function UnitKerjaPage() {
         });
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat data Unit Kerja');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat data Unit Kerja'));
     } finally {
       setLoading(false);
     }
@@ -261,8 +262,7 @@ export default function UnitKerjaPage() {
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Gagal menyimpan data Unit Kerja';
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan data Unit Kerja'));
     } finally {
       setIsSubmitting(false);
     }
@@ -277,7 +277,7 @@ export default function UnitKerjaPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Unit Kerja',
-      message: `Apakah Anda yakin ingin menghapus unit kerja "${nama}"? Data yang terikat pada unit kerja ini mungkin akan terpengaruh.`,
+      message: `Apakah Anda yakin ingin menghapus unit kerja "${nama}"? Data akan dihapus dari sistem jika tidak sedang digunakan oleh pegawai atau sub-unit.`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -287,8 +287,7 @@ export default function UnitKerjaPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           loadData();
         } catch (err: any) {
-          const msg = err?.response?.data?.message || 'Gagal menghapus Unit Kerja';
-          toast.error(msg);
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus Unit Kerja'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },

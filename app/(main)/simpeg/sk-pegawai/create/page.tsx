@@ -18,6 +18,7 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { simpegSkPegawaiService } from '@/services/simpeg.izin-sk.service';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { SkPegawaiMasters } from '@/types/simpeg.izin-sk.types';
 import type { Pegawai } from '@/types/simpeg.types';
 
@@ -159,7 +160,7 @@ export default function CreateSkPegawaiPage() {
       toast.success('Laporan SK pegawai berhasil disimpan dan diajukan ke tim SDM!');
       router.push('/simpeg/sk-pegawai');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan arsip SK pegawai.');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan arsip SK pegawai.'));
     } finally {
       setIsSubmitting(false);
     }

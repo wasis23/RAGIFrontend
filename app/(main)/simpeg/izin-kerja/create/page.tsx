@@ -18,6 +18,7 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { simpegIzinKerjaService } from '@/services/simpeg.izin-sk.service';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { IzinJamKerjaMasters } from '@/types/simpeg.izin-sk.types';
 import type { Pegawai } from '@/types/simpeg.types';
 
@@ -148,7 +149,7 @@ export default function CreateIzinKerjaPage() {
       toast.success('Pengajuan izin jam kerja berhasil dikirim!');
       router.push('/simpeg/cuti?tab=izin-kerja');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal mengirim pengajuan izin.');
+      toast.error(getApiErrorMessage(err, 'Gagal mengirim pengajuan izin.'));
     } finally {
       setIsSubmitting(false);
     }

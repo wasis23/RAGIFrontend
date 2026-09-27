@@ -203,3 +203,39 @@ export function getStorageFileUrl(path: string | null | undefined): string {
   const cleanPath = path.replace(/^\/?(storage\/)?/, '');
   return `${backendOrigin}/storage/${cleanPath}`;
 }
+
+// ============================================================
+// getApiErrorMessage — Ekstrak pesan error spesifik dari response API
+// ============================================================
+export function getApiErrorMessage(err: any, fallbackMessage = 'Terjadi kesalahan pada server'): string {
+  if (!err) return fallbackMessage;
+
+  // Jika response memiliki errors object dari validasi Laravel (HTTP 422)
+  const validationErrors = err.response?.data?.errors;
+  if (validationErrors && typeof validationErrors === 'object') {
+    const firstKey = Object.keys(validationErrors)[0];
+    if (firstKey) {
+      const messages = validationErrors[firstKey];
+      if (Array.isArray(messages) && messages.length > 0) {
+        return messages[0];
+      }
+      if (typeof messages === 'string') {
+        return messages;
+      }
+    }
+  }
+
+  // Jika ada detail message (mis. dari microservice / exception handler)
+  const detail = err.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (detail && typeof detail === 'object' && detail.message) return detail.message;
+
+  // Pesan utama
+  const message = err.response?.data?.message;
+  if (message && typeof message === 'string' && message.trim() !== '' && message !== 'Data yang diberikan tidak valid.') {
+    return message;
+  }
+
+  return message || err.message || fallbackMessage;
+}
+

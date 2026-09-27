@@ -35,6 +35,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegKompetensiService } from '@/services/simpeg.kompetensi.service';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type {
   KompetensiMasters,
   SertifikasiDosen,
@@ -52,7 +53,7 @@ const sertifikasiSchema = z.object({
   bidang_studi: z.string().min(2, 'Bidang studi wajib diisi'),
   nomor_registrasi: z.string().optional(),
   nomor_sk: z.string().optional(),
-  tahun_sertifikasi: z.string().min(4, 'Tahun sertifikasi wajib diisi'),
+  tahun_sertifikasi: z.string().min(1, 'Tahun sertifikasi wajib diisi').regex(/^\d{4}$/, 'Tahun sertifikasi harus berupa 4 digit angka (contoh: 2024)'),
   penyelenggara: z.string().min(2, 'Penyelenggara wajib diisi'),
   tautan: z.string().url('URL tidak valid').optional().or(z.literal('')),
 });
@@ -62,8 +63,8 @@ const tesSchema = z.object({
   jenis_tes_id: z.string().min(1, 'Jenis tes wajib dipilih'),
   nama_tes: z.string().min(2, 'Nama tes wajib diisi'),
   penyelenggara: z.string().min(2, 'Penyelenggara tes wajib diisi'),
-  tahun: z.string().min(4, 'Tahun tes wajib diisi'),
-  skor: z.string().min(1, 'Skor wajib diisi'),
+  tahun: z.string().min(1, 'Tahun tes wajib diisi').regex(/^\d{4}$/, 'Tahun tes harus berupa 4 digit angka (contoh: 2024)'),
+  skor: z.string().min(1, 'Skor wajib diisi').regex(/^\d+(\.\d+)?$/, 'Skor harus berupa angka (contoh: 550 atau 85.5)'),
   masa_berlaku: z.string().optional(),
   tautan: z.string().url('URL tidak valid').optional().or(z.literal('')),
 });
@@ -76,7 +77,7 @@ const pelatihanSchema = z.object({
   tingkat_id: z.string().optional(),
   tanggal_mulai: z.string().min(1, 'Tanggal mulai wajib diisi'),
   tanggal_selesai: z.string().optional(),
-  jumlah_jam: z.string().optional(),
+  jumlah_jam: z.string().optional().refine((val) => !val || /^\d+$/.test(val), 'Jumlah jam harus berupa angka bulat positif (contoh: 32)'),
   penyelenggara: z.string().min(2, 'Penyelenggara wajib diisi'),
   tempat: z.string().optional(),
   nomor_sertifikat: z.string().optional(),
@@ -365,7 +366,7 @@ export default function KompetensiPage() {
       setIsModalOpen(false);
       fetchData(meta.current_page, meta.per_page);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan data');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan data'));
     } finally {
       setIsSubmitting(false);
     }
@@ -387,7 +388,7 @@ export default function KompetensiPage() {
       setDeleteId(null);
       fetchData(meta.current_page, meta.per_page);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus data');
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus data'));
     } finally {
       setIsDeleting(false);
     }

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, MasterJenisCuti } from '@/types/simpeg.types';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 
 interface OptionType {
   value: string;
@@ -199,7 +200,7 @@ export default function PengajuanCutiPage() {
       toast.success('Formulir Pengajuan Cuti berhasil dikirim dan tersimpan!');
       router.push('/simpeg/cuti');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengirim pengajuan Cuti');
+      toast.error(getApiErrorMessage(err, 'Gagal mengirim pengajuan Cuti'));
     } finally {
       setIsSubmitting(false);
     }

@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   FileText,
   UserCheck,
@@ -30,7 +33,51 @@ import { Textarea } from '@/components/ui/Textarea';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { PenilaianKinerja, SkpItem, StatusSkp, PredikatKinerja } from '@/types/simpeg.types';
+
+const realisasiSchema = z.object({
+  realisasi_output: z.string().min(1, 'Realisasi output wajib diisi'),
+  realisasi_mutu: z
+    .string()
+    .min(1, 'Realisasi mutu wajib diisi')
+    .refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100, {
+      message: 'Realisasi mutu harus di antara 0 sampai 100',
+    }),
+  realisasi_waktu: z.string().min(1, 'Realisasi waktu wajib diisi'),
+  realisasi_biaya: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((val) => !val || /^\d+$/.test(val.trim()), {
+      message: 'Realisasi biaya harus berupa angka nominal bulat',
+    }),
+  keterangan: z.string().optional().nullable(),
+});
+
+type RealisasiFormValues = z.infer<typeof realisasiSchema>;
+
+const evaluasiSchema = z.object({
+  nilai_skp: z
+    .string()
+    .min(1, 'Nilai SKP wajib diisi')
+    .refine((val) => !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 100, {
+      message: 'Nilai SKP akhir harus di antara 0 sampai 100',
+    }),
+  nilai_bkd: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((val) => !val || (!isNaN(Number(val)) && Number(val) >= 0), {
+      message: 'Nilai BKD harus berupa angka non-negatif',
+    }),
+  predikat: z.enum(['sangat_baik', 'baik', 'cukup', 'kurang', 'sangat_kurang'], {
+    message: 'Predikat kinerja wajib dipilih',
+  }),
+  catatan_evaluator: z.string().optional().nullable(),
+});
+
+type EvaluasiFormValues = z.infer<typeof evaluasiSchema>;
 
 export default function SkpDetailPage() {
   const router = useRouter();
@@ -47,24 +94,47 @@ export default function SkpDetailPage() {
   const [submittingTarget, setSubmittingTarget] = useState(false);
   const [approvingTarget, setApprovingTarget] = useState(false);
 
-  // Modal Realisasi State
+  // Modal Realisasi State & Form
   const [realisasiModalOpen, setRealisasiModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<SkpItem | null>(null);
-  const [realisasiOutput, setRealisasiOutput] = useState('');
-  const [realisasiMutu, setRealisasiMutu] = useState<number | string>(100);
-  const [realisasiWaktu, setRealisasiWaktu] = useState('');
-  const [realisasiBiaya, setRealisasiBiaya] = useState<string>('');
-  const [keterangan, setKeterangan] = useState('');
   const [fileBukti, setFileBukti] = useState<File | null>(null);
   const [submittingRealisasi, setSubmittingRealisasi] = useState(false);
 
-  // Modal Evaluasi State
+  const {
+    register: registerRealisasi,
+    handleSubmit: handleSubmitRealisasi,
+    reset: resetRealisasi,
+    formState: { errors: errorsRealisasi },
+  } = useForm<RealisasiFormValues>({
+    resolver: zodResolver(realisasiSchema),
+    defaultValues: {
+      realisasi_output: '',
+      realisasi_mutu: '100',
+      realisasi_waktu: '',
+      realisasi_biaya: '',
+      keterangan: '',
+    },
+  });
+
+  // Modal Evaluasi State & Form
   const [evaluasiModalOpen, setEvaluasiModalOpen] = useState(false);
-  const [nilaiSkp, setNilaiSkp] = useState<number | string>(85);
-  const [nilaiBkd, setNilaiBkd] = useState<number | string>('');
-  const [predikat, setPredikat] = useState<PredikatKinerja>('baik');
-  const [catatanEvaluator, setCatatanEvaluator] = useState('');
   const [submittingEvaluasi, setSubmittingEvaluasi] = useState(false);
+
+  const {
+    register: registerEvaluasi,
+    handleSubmit: handleSubmitEvaluasi,
+    control: controlEvaluasi,
+    reset: resetEvaluasi,
+    formState: { errors: errorsEvaluasi },
+  } = useForm<EvaluasiFormValues>({
+    resolver: zodResolver(evaluasiSchema),
+    defaultValues: {
+      nilai_skp: '85',
+      nilai_bkd: '',
+      predikat: 'baik',
+      catatan_evaluator: '',
+    },
+  });
 
   const loadDetail = useCallback(async () => {
     if (!id) return;
@@ -73,13 +143,9 @@ export default function SkpDetailPage() {
       const res = await simpegService.getKinerjaDetail(id);
       if (res?.data) {
         setSkp(res.data);
-        if (res.data.nilai_skp) setNilaiSkp(res.data.nilai_skp);
-        if (res.data.nilai_bkd) setNilaiBkd(res.data.nilai_bkd);
-        if (res.data.predikat) setPredikat(res.data.predikat);
-        if (res.data.catatan_evaluator) setCatatanEvaluator(res.data.catatan_evaluator);
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat detail SKP');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat detail SKP'));
     } finally {
       setLoading(false);
     }
@@ -97,7 +163,7 @@ export default function SkpDetailPage() {
       toast.success('Sasaran kinerja berhasil diajukan kepada Pejabat Penilai');
       loadDetail();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengajukan sasaran kinerja');
+      toast.error(getApiErrorMessage(err, 'Gagal mengajukan sasaran kinerja'));
     } finally {
       setSubmittingTarget(false);
     }
@@ -111,7 +177,7 @@ export default function SkpDetailPage() {
       toast.success('Target sasaran kinerja telah disetujui');
       loadDetail();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyetujui target SKP');
+      toast.error(getApiErrorMessage(err, 'Gagal menyetujui target SKP'));
     } finally {
       setApprovingTarget(false);
     }
@@ -119,31 +185,42 @@ export default function SkpDetailPage() {
 
   const handleOpenRealisasi = (item: SkpItem) => {
     setSelectedItem(item);
-    setRealisasiOutput(item.realisasi_output || item.target_output || '');
-    setRealisasiMutu(item.realisasi_mutu ?? item.target_mutu ?? 100);
-    setRealisasiWaktu(item.realisasi_waktu || item.target_waktu || '');
-    setRealisasiBiaya(item.realisasi_biaya !== null && item.realisasi_biaya !== undefined ? String(item.realisasi_biaya) : '');
-    setKeterangan(item.keterangan || '');
+    resetRealisasi({
+      realisasi_output: item.realisasi_output || item.target_output || '',
+      realisasi_mutu: String(item.realisasi_mutu ?? item.target_mutu ?? 100),
+      realisasi_waktu: item.realisasi_waktu || item.target_waktu || '',
+      realisasi_biaya: item.realisasi_biaya !== null && item.realisasi_biaya !== undefined ? String(item.realisasi_biaya) : '',
+      keterangan: item.keterangan || '',
+    });
     setFileBukti(null);
     setRealisasiModalOpen(true);
   };
 
-  const handleSaveRealisasi = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleOpenEvaluasi = () => {
+    resetEvaluasi({
+      nilai_skp: skp?.nilai_skp !== null && skp?.nilai_skp !== undefined ? String(skp.nilai_skp) : '85',
+      nilai_bkd: skp?.nilai_bkd !== null && skp?.nilai_bkd !== undefined ? String(skp.nilai_bkd) : '',
+      predikat: (skp?.predikat as any) || 'baik',
+      catatan_evaluator: skp?.catatan_evaluator || '',
+    });
+    setEvaluasiModalOpen(true);
+  };
+
+  const onSaveRealisasi = async (values: RealisasiFormValues) => {
     if (!skp || !selectedItem) return;
 
     setSubmittingRealisasi(true);
     try {
       const formData = new FormData();
       formData.append('items[0][id]', String(selectedItem.id));
-      formData.append('items[0][realisasi_output]', realisasiOutput);
-      formData.append('items[0][realisasi_mutu]', String(realisasiMutu));
-      formData.append('items[0][realisasi_waktu]', realisasiWaktu);
-      if (realisasiBiaya) {
-        formData.append('items[0][realisasi_biaya]', realisasiBiaya);
+      formData.append('items[0][realisasi_output]', values.realisasi_output);
+      formData.append('items[0][realisasi_mutu]', values.realisasi_mutu);
+      formData.append('items[0][realisasi_waktu]', values.realisasi_waktu);
+      if (values.realisasi_biaya) {
+        formData.append('items[0][realisasi_biaya]', values.realisasi_biaya);
       }
-      if (keterangan) {
-        formData.append('items[0][keterangan]', keterangan);
+      if (values.keterangan) {
+        formData.append('items[0][keterangan]', values.keterangan);
       }
       if (fileBukti) {
         formData.append('items[0][berkas_bukti]', fileBukti);
@@ -154,23 +231,22 @@ export default function SkpDetailPage() {
       setRealisasiModalOpen(false);
       loadDetail();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan realisasi');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan realisasi'));
     } finally {
       setSubmittingRealisasi(false);
     }
   };
 
-  const handleSaveEvaluasi = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSaveEvaluasi = async (values: EvaluasiFormValues) => {
     if (!skp) return;
 
     setSubmittingEvaluasi(true);
     try {
       const payload = {
-        nilai_skp: Number(nilaiSkp),
-        nilai_bkd: nilaiBkd ? Number(nilaiBkd) : null,
-        predikat,
-        catatan_evaluator: catatanEvaluator || null,
+        nilai_skp: Number(values.nilai_skp),
+        nilai_bkd: values.nilai_bkd ? Number(values.nilai_bkd) : null,
+        predikat: values.predikat as PredikatKinerja,
+        catatan_evaluator: values.catatan_evaluator || null,
       };
 
       await simpegService.evaluateKinerja(skp.id, payload);
@@ -178,7 +254,7 @@ export default function SkpDetailPage() {
       setEvaluasiModalOpen(false);
       loadDetail();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan evaluasi');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan evaluasi'));
     } finally {
       setSubmittingEvaluasi(false);
     }
@@ -391,7 +467,7 @@ export default function SkpDetailPage() {
               <Button
                 variant="primary"
                 icon={<Award size={16} />}
-                onClick={() => setEvaluasiModalOpen(true)}
+                onClick={handleOpenEvaluasi}
               >
                 {skp.status === 'dinilai' ? 'Ubah Evaluasi Nilai' : 'Evaluasi & Beri Nilai'}
               </Button>
@@ -511,7 +587,7 @@ export default function SkpDetailPage() {
         onClose={() => setRealisasiModalOpen(false)}
         title="Input Realisasi Capaian Butir Kinerja"
       >
-        <form onSubmit={handleSaveRealisasi} className="space-y-4">
+        <form onSubmit={handleSubmitRealisasi(onSaveRealisasi)} className="space-y-4">
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs space-y-1">
             <span className="font-semibold text-slate-700 block">Tugas:</span>
             <p className="text-slate-600">{selectedItem?.uraian_tugas}</p>
@@ -522,8 +598,8 @@ export default function SkpDetailPage() {
               <Input
                 label="Realisasi Output / Luaran"
                 placeholder="Contoh: 1 Berkas Laporan Tuntas"
-                value={realisasiOutput}
-                onChange={(e) => setRealisasiOutput(e.target.value)}
+                {...registerRealisasi('realisasi_output')}
+                error={errorsRealisasi.realisasi_output?.message}
                 required
               />
             </div>
@@ -533,8 +609,8 @@ export default function SkpDetailPage() {
                 label="Realisasi Mutu Kualitas (%)"
                 type="number"
                 placeholder="100"
-                value={realisasiMutu}
-                onChange={(e) => setRealisasiMutu(e.target.value)}
+                {...registerRealisasi('realisasi_mutu')}
+                error={errorsRealisasi.realisasi_mutu?.message}
                 required
               />
             </div>
@@ -543,8 +619,8 @@ export default function SkpDetailPage() {
               <Input
                 label="Realisasi Waktu"
                 placeholder="Contoh: 6 Bulan"
-                value={realisasiWaktu}
-                onChange={(e) => setRealisasiWaktu(e.target.value)}
+                {...registerRealisasi('realisasi_waktu')}
+                error={errorsRealisasi.realisasi_waktu?.message}
                 required
               />
             </div>
@@ -554,8 +630,8 @@ export default function SkpDetailPage() {
                 label="Realisasi Biaya / Anggaran (Rp) - Opsional"
                 type="number"
                 placeholder="0"
-                value={realisasiBiaya}
-                onChange={(e) => setRealisasiBiaya(e.target.value)}
+                {...registerRealisasi('realisasi_biaya')}
+                error={errorsRealisasi.realisasi_biaya?.message}
               />
             </div>
 
@@ -564,8 +640,8 @@ export default function SkpDetailPage() {
                 label="Keterangan Capaian"
                 rows={2}
                 placeholder="Catatan kendala, luaran tambahan, atau capaian khusus..."
-                value={keterangan}
-                onChange={(e) => setKeterangan(e.target.value)}
+                {...registerRealisasi('keterangan')}
+                error={errorsRealisasi.keterangan?.message}
               />
             </div>
 
@@ -613,7 +689,7 @@ export default function SkpDetailPage() {
         onClose={() => setEvaluasiModalOpen(false)}
         title="Evaluasi & Penetapan Nilai Kinerja"
       >
-        <form onSubmit={handleSaveEvaluasi} className="space-y-4">
+        <form onSubmit={handleSubmitEvaluasi(onSaveEvaluasi)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Input
@@ -621,8 +697,8 @@ export default function SkpDetailPage() {
                 type="number"
                 step="0.01"
                 placeholder="85.50"
-                value={nilaiSkp}
-                onChange={(e) => setNilaiSkp(e.target.value)}
+                {...registerEvaluasi('nilai_skp')}
+                error={errorsEvaluasi.nilai_skp?.message}
                 required
               />
             </div>
@@ -633,23 +709,30 @@ export default function SkpDetailPage() {
                 type="number"
                 step="0.01"
                 placeholder="14.00"
-                value={nilaiBkd}
-                onChange={(e) => setNilaiBkd(e.target.value)}
+                {...registerEvaluasi('nilai_bkd')}
+                error={errorsEvaluasi.nilai_bkd?.message}
               />
             </div>
 
             <div className="md:col-span-2">
-              <Select
-                label="Predikat Kinerja"
-                value={predikat}
-                onChange={(val) => setPredikat(val as PredikatKinerja)}
-                options={[
-                  { value: 'sangat_baik', label: 'Sangat Baik (>= 90)' },
-                  { value: 'baik', label: 'Baik (75 - 89.99)' },
-                  { value: 'cukup', label: 'Cukup (60 - 74.99)' },
-                  { value: 'kurang', label: 'Kurang (50 - 59.99)' },
-                  { value: 'sangat_kurang', label: 'Sangat Kurang (< 50)' },
-                ]}
+              <Controller
+                name="predikat"
+                control={controlEvaluasi}
+                render={({ field }) => (
+                  <Select
+                    label="Predikat Kinerja"
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errorsEvaluasi.predikat?.message}
+                    options={[
+                      { value: 'sangat_baik', label: 'Sangat Baik (>= 90)' },
+                      { value: 'baik', label: 'Baik (75 - 89.99)' },
+                      { value: 'cukup', label: 'Cukup (60 - 74.99)' },
+                      { value: 'kurang', label: 'Kurang (50 - 59.99)' },
+                      { value: 'sangat_kurang', label: 'Sangat Kurang (< 50)' },
+                    ]}
+                  />
+                )}
               />
             </div>
 
@@ -658,8 +741,8 @@ export default function SkpDetailPage() {
                 label="Catatan Evaluator / Asesor"
                 rows={3}
                 placeholder="Umpan balik pembinaan, saran perbaikan mutu, atau apresiasi capaian kerja..."
-                value={catatanEvaluator}
-                onChange={(e) => setCatatanEvaluator(e.target.value)}
+                {...registerEvaluasi('catatan_evaluator')}
+                error={errorsEvaluasi.catatan_evaluator?.message}
               />
             </div>
           </div>

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
+import { getApiErrorMessage } from '@/lib/utils';
 import { simpegService } from '@/services/simpeg.service';
 import type { UnitKerja } from '@/types/simpeg.types';
 
@@ -24,7 +25,13 @@ const pegawaiSchema = z.object({
   nidn: z.string().min(1, 'NIDN wajib diisi'),
   nuptk: z.string().min(1, 'NUPTK wajib diisi'),
   nip: z.string().min(1, 'NIP wajib diisi'),
-  nik: z.string().optional().nullable(),
+  nik: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((val) => !val || /^\d{16}$/.test(val), {
+      message: 'NIK harus berupa 16 digit angka',
+    }),
   tanggal_masuk: z.string().min(1, 'Tanggal Masuk wajib diisi'),
   unit_kerja_id: z.string().optional().nullable(),
   role_ids: z.array(z.string().or(z.number())).min(1, 'Pilih minimal satu jenis pegawai / peran SSO'),
@@ -39,9 +46,21 @@ const pegawaiSchema = z.object({
   jenis_kelamin: z.enum(['L', 'P'], {
     message: 'Jenis Kelamin wajib dipilih',
   }),
-  telepon: z.string().optional().nullable(),
+  telepon: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((val) => !val || /^[0-9+\-\s()]+$/.test(val), {
+      message: 'Nomor telepon hanya boleh berisi angka dan simbol (+, -, spasi)',
+    }),
   nama_bank: z.string().optional().nullable(),
-  nomor_rekening: z.string().optional().nullable(),
+  nomor_rekening: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((val) => !val || /^[0-9\-\s]+$/.test(val), {
+      message: 'Nomor rekening hanya boleh berisi angka',
+    }),
   nama_rekening: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
   shift_template_id: z.string().min(1, 'Shift Kerja (Jadwal Presensi) wajib dipilih'),
@@ -175,7 +194,7 @@ export default function CreatePegawaiPage() {
       toast.success('Data Pegawai berhasil ditambahkan! Akun SSO telah dibuat.');
       router.push('/simpeg/pegawai');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan data pegawai');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan data pegawai'));
     } finally {
       setIsSubmitting(false);
     }
