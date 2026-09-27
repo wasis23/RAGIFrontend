@@ -60,6 +60,7 @@ export default function CreateSkpPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [kategoriList, setKategoriList] = useState<{ value: string; label: string }[]>([]);
   const [penilaiList, setPenilaiList] = useState<{ value: string; label: string }[]>([]);
+  const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<{ value: string; label: string } | null>(null);
 
   const defaultTahun = new Date().getFullYear();
 
@@ -132,7 +133,12 @@ export default function CreateSkpPage() {
   useEffect(() => {
     const userPegawai = (user as any)?.pegawai;
     if (userPegawai?.id) {
-      setValue('pegawai_id', String(userPegawai.id));
+      const idStr = String(userPegawai.id);
+      setValue('pegawai_id', idStr, { shouldValidate: true });
+      setSelectedPegawaiOption({
+        value: idStr,
+        label: `${userPegawai.nama_lengkap || user?.name || 'Pegawai'} ${userPegawai.nip ? `[NIP: ${userPegawai.nip}]` : ''}`,
+      });
     }
   }, [user, setValue]);
 
@@ -254,8 +260,18 @@ export default function CreateSkpPage() {
                 render={({ field }) => (
                   <AsyncSelect
                     loadOptions={loadPegawaiOptions}
-                    value={field.value}
-                    onChange={(val) => field.onChange(val)}
+                    value={selectedPegawaiOption || field.value}
+                    onChange={(val) => {
+                      setSelectedPegawaiOption(val || null);
+                      const idStr =
+                        val && typeof val === 'object' && val.value !== undefined
+                          ? String(val.value)
+                          : val
+                          ? String(val)
+                          : '';
+                      field.onChange(idStr);
+                    }}
+                    isClearable
                     placeholder="Ketik nama atau NIP pegawai..."
                     error={errors.pegawai_id?.message}
                   />
