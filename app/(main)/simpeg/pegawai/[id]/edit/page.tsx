@@ -65,6 +65,7 @@ const pegawaiSchema = z.object({
       message: 'Nomor rekening hanya boleh berisi angka',
     }),
   nama_rekening: z.string().optional().nullable(),
+  jabatan_fungsional_id: z.string().optional().nullable(),
   shift_template_id: z.string().optional().nullable(),
 });
 
@@ -81,6 +82,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [selectedUnitOption, setSelectedUnitOption] = useState<{ value: string; label: string } | null>(null);
+  const [selectedJafungOption, setSelectedJafungOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedShiftOption, setSelectedShiftOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedRoleOptions, setSelectedRoleOptions] = useState<{ value: string; label: string }[]>([]);
 
@@ -116,6 +118,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       nik: '',
       tanggal_masuk: '',
       unit_kerja_id: '',
+      jabatan_fungsional_id: '',
       role_ids: [],
       status_kepegawaian: 'tetap_yayasan',
       status: 'aktif',
@@ -131,6 +134,20 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
       shift_template_id: '',
     },
   });
+
+  const loadJafungOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getJabatanFungsionalList({ search: inputValue || undefined });
+      const items = res.data || [];
+      return items.map((jf) => ({
+        value: jf.id.toString(),
+        label: `${jf.nama} (${jf.angka_kredit_min ?? 0} KUM)`,
+      }));
+    } catch (err) {
+      console.error('Gagal memuat opsi jabatan fungsional', err);
+      return [];
+    }
+  }, []);
 
   const loadRoleOptions = useCallback(async (inputValue: string) => {
     try {
@@ -220,6 +237,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             jenis_kelamin: peg.jenis_kelamin || 'L',
             status_kepegawaian: peg.status_kepegawaian || 'tetap_yayasan',
             status: peg.status || 'aktif',
+            jabatan_fungsional_id: peg.jabatan_fungsional_id ? String(peg.jabatan_fungsional_id) : '',
             telepon: peg.telepon || '',
             alamat: peg.alamat || '',
             nama_bank: peg.nama_bank || peg.bank_nama || '',
@@ -234,6 +252,12 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
             setSelectedUnitOption({
               value: String(peg.unit_kerja.id),
               label: `[${peg.unit_kerja.kode}] ${peg.unit_kerja.nama}`,
+            });
+          }
+          if (peg.jabatan_fungsional) {
+            setSelectedJafungOption({
+              value: String(peg.jabatan_fungsional.id),
+              label: `${peg.jabatan_fungsional.nama} (${peg.jabatan_fungsional.angka_kredit_min ?? 0} KUM)`,
             });
           }
           if (peg.shift_template) {
@@ -271,6 +295,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
         jenis_kelamin: values.jenis_kelamin,
         status_kepegawaian: values.status_kepegawaian,
         status: values.status,
+        jabatan_fungsional_id: values.jabatan_fungsional_id ? Number(values.jabatan_fungsional_id) : null,
         telepon: values.telepon || null,
         alamat: values.alamat || null,
         nama_bank: values.nama_bank || values.bank_nama || null,
@@ -452,6 +477,26 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                       { value: 'non_aktif', label: 'Non-Aktif' },
                       { value: 'pensiun', label: 'Pensiun' },
                     ]}
+                  />
+                )}
+              />
+
+              <Controller
+                name="jabatan_fungsional_id"
+                control={control}
+                render={({ field }) => (
+                  <AsyncSelect
+                    label="Jabatan Fungsional Akademik (Jafung)"
+                    placeholder="Pilih Jafung (khusus Dosen)..."
+                    hint="Pilih tingkatan jafung awal jika pegawai merupakan Dosen."
+                    loadOptions={loadJafungOptions}
+                    value={selectedJafungOption || (field.value ? { value: field.value, label: field.value } : null)}
+                    onChange={(opt) => {
+                      setSelectedJafungOption(opt);
+                      field.onChange(opt ? opt.value : '');
+                    }}
+                    isClearable
+                    error={errors.jabatan_fungsional_id?.message}
                   />
                 )}
               />

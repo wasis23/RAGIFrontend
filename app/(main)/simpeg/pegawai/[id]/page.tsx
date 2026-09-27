@@ -546,6 +546,25 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                     <span className="text-xs text-slate-400 block font-medium">Jabatan Terakhir</span>
                     <span className="font-semibold text-slate-800">{pegawai.jabatan_terakhir || '-'}</span>
                   </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block font-medium">Jabatan Fungsional (Jafung)</span>
+                    <span className="font-semibold text-slate-800">
+                      {pegawai.jabatan_fungsional?.nama ? (
+                        <Badge
+                          style={{
+                            backgroundColor: 'var(--module-primary-subtle)',
+                            color: 'var(--module-primary)',
+                            borderColor: 'var(--module-primary)',
+                          }}
+                          className="font-semibold"
+                        >
+                          {pegawai.jabatan_fungsional.nama}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400 italic">Belum diatur</span>
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

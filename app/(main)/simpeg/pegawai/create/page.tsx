@@ -63,6 +63,7 @@ const pegawaiSchema = z.object({
     }),
   nama_rekening: z.string().optional().nullable(),
   alamat: z.string().optional().nullable(),
+  jabatan_fungsional_id: z.string().optional().nullable(),
   shift_template_id: z.string().min(1, 'Shift Kerja (Jadwal Presensi) wajib dipilih'),
 });
 
@@ -71,6 +72,7 @@ type PegawaiFormValues = z.infer<typeof pegawaiSchema>;
 export default function CreatePegawaiPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedJafungOption, setSelectedJafungOption] = useState<{ value: string; label: string } | null>(null);
 
   const {
     register,
@@ -90,6 +92,7 @@ export default function CreatePegawaiPage() {
       nik: '',
       tanggal_masuk: '',
       unit_kerja_id: '',
+      jabatan_fungsional_id: '',
       role_ids: [],
       status_kepegawaian: 'tetap_yayasan',
       status: 'aktif',
@@ -104,6 +107,21 @@ export default function CreatePegawaiPage() {
       shift_template_id: '',
     },
   });
+
+  // Server-side async loader for Jabatan Fungsional Akademik (Jafung)
+  const loadJafungOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await simpegService.getJabatanFungsionalList({ search: inputValue || undefined });
+      const items = res.data || [];
+      return items.map((jf) => ({
+        value: jf.id.toString(),
+        label: `${jf.nama} (${jf.angka_kredit_min ?? 0} KUM)`,
+      }));
+    } catch (err) {
+      console.error('Gagal memuat opsi jabatan fungsional', err);
+      return [];
+    }
+  }, []);
 
   // Server-side async loader for SSO Roles
   const loadRoleOptions = useCallback(async (inputValue: string) => {
@@ -181,6 +199,7 @@ export default function CreatePegawaiPage() {
         role_ids: values.role_ids.map(Number),
         status_kepegawaian: values.status_kepegawaian,
         status: values.status,
+        jabatan_fungsional_id: values.jabatan_fungsional_id ? Number(values.jabatan_fungsional_id) : null,
         telepon: values.telepon || null,
         alamat: values.alamat || null,
         nama_bank: values.nama_bank || null,
@@ -372,6 +391,26 @@ export default function CreatePegawaiPage() {
                       { value: 'non_aktif', label: 'Non-Aktif' },
                       { value: 'pensiun', label: 'Pensiun' },
                     ]}
+                  />
+                )}
+              />
+
+              <Controller
+                name="jabatan_fungsional_id"
+                control={control}
+                render={({ field }) => (
+                  <AsyncSelect
+                    label="Jabatan Fungsional Akademik (Jafung)"
+                    placeholder="Pilih Jafung (khusus Dosen)..."
+                    hint="Pilih tingkatan jafung awal jika pegawai merupakan Dosen."
+                    loadOptions={loadJafungOptions}
+                    value={selectedJafungOption || (field.value ? { value: field.value, label: field.value } : null)}
+                    onChange={(opt) => {
+                      setSelectedJafungOption(opt);
+                      field.onChange(opt ? opt.value : '');
+                    }}
+                    isClearable
+                    error={errors.jabatan_fungsional_id?.message}
                   />
                 )}
               />
