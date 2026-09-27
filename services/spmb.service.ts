@@ -600,7 +600,12 @@ export const spmbService = {
     return response.data;
   },
 
-  createReferralPayout: async (data?: { keterangan?: string }): Promise<{
+  createReferralPayout: async (data: {
+    keterangan?: string;
+    nama_bank: string;
+    nomor_rekening: string;
+    nama_pemilik_rekening: string;
+  }): Promise<{
     status: string;
     message: string;
     data: ReferralPayoutResult;

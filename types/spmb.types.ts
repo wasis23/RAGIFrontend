@@ -411,6 +411,7 @@ export interface MyReferralData {
 export interface ReferralPayoutResult {
   id: number;
   nomor_bukti: string;
+  status?: string;
   referral_count: number;
   total_nominal: number;
   generated_at: string;

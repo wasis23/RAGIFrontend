@@ -343,3 +343,38 @@ export interface KasKecilPengajuan {
   approver?: PetugasRingkas;
   unitKas?: KasKecilUnit;
 }
+
+export type ReferralPayoutStatus = 'menunggu_verifikasi' | 'terverifikasi' | 'dibayar' | 'ditolak';
+
+export interface ReferralInvoiceReferrer {
+  id: number;
+  name?: string;
+  username?: string;
+  email?: string;
+}
+
+export interface ReferralInvoice {
+  id: number;
+  referrer_user_id: number;
+  referral_count: number;
+  total_nominal: number | string;
+  nomor_bukti: string;
+  generated_at?: string | null;
+  keterangan?: string | null;
+  status: ReferralPayoutStatus;
+  verified_by?: number | null;
+  verified_at?: string | null;
+  paid_by?: number | null;
+  paid_at?: string | null;
+  sikeu_reference?: string | null;
+  nomor_referensi_transfer?: string | null;
+  bukti_transfer_path?: string | null;
+  catatan_penolakan?: string | null;
+  nama_bank?: string | null;
+  nomor_rekening?: string | null;
+  nama_pemilik_rekening?: string | null;
+  created_at?: string;
+  referrer?: ReferralInvoiceReferrer | null;
+  usages?: { id: number; referral_code: string; status: string }[];
+  usages_count?: number;
+}

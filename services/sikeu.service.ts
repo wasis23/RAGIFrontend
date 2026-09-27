@@ -840,6 +840,46 @@ export const sikeuService = {
     });
   },
 
+  // Pencairan Reward Referral SPMB (invoice masuk dari SPMB)
+  getReferralInvoiceList: async (params?: { search?: string; status?: string; page?: number; per_page?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.status) query.append('status', params.status);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.per_page) query.append('per_page', params.per_page.toString());
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan?${query.toString()}`);
+  },
+
+  getReferralInvoiceById: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}`);
+  },
+
+  verifyReferralInvoice: async (id: number) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/verify`, {
+      method: 'POST',
+    });
+  },
+
+  payReferralInvoice: async (id: number, payload: {
+    unit_kas_id: number;
+    akun_beban_id?: number;
+    tanggal_bayar?: string;
+    nomor_referensi_transfer?: string;
+    catatan?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  rejectReferralInvoice: async (id: number, payload: { catatan: string }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   // Pajak Kampus & Setor NTPN
   getPajakList: async (params?: { search?: string; jenis?: string; status?: string; page?: number; per_page?: number }) => {
     const query = new URLSearchParams();
