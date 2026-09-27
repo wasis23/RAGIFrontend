@@ -112,7 +112,7 @@ export default function CreateSkpPage() {
           setPenilaiList(
             res.data.pejabat_penilai.map((p: any) => ({
               value: String(p.id),
-              label: `${p.nama_lengkap} ${p.nip ? `[NIP: ${p.nip}]` : ''} - ${p.jabatan_terakhir || 'Pimpinan/Dosen'}`,
+              label: `${p.nama_lengkap} ${p.nip ? `[NIP: ${p.nip}]` : ''} - ${p.jabatan_fungsional?.nama || p.unit_kerja?.nama || 'Pimpinan / Dosen'}`,
             }))
           );
         }
