@@ -16,6 +16,7 @@ import {
   ListChecks,
   AlertCircle,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -54,13 +55,15 @@ type SkpFormValues = z.infer<typeof skpFormSchema>;
 
 export default function CreateSkpPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.kinerja.manage');
 
   const [loadingMasters, setLoadingMasters] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [kategoriList, setKategoriList] = useState<{ value: string; label: string }[]>([]);
   const [penilaiList, setPenilaiList] = useState<{ value: string; label: string }[]>([]);
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<{ value: string; label: string } | null>(null);
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
 
   const defaultTahun = new Date().getFullYear();
 
@@ -129,18 +132,29 @@ export default function CreateSkpPage() {
     fetchMasters();
   }, [fetchMasters]);
 
-  // Set default pegawai_id jika pegawai biasa login
+  // Fetch myPegawai profile and pre-fill / auto-lock
   useEffect(() => {
-    const userPegawai = (user as any)?.pegawai;
-    if (userPegawai?.id) {
-      const idStr = String(userPegawai.id);
-      setValue('pegawai_id', idStr, { shouldValidate: true });
-      setSelectedPegawaiOption({
-        value: idStr,
-        label: `${userPegawai.nama_lengkap || user?.name || 'Pegawai'} ${userPegawai.nip ? `[NIP: ${userPegawai.nip}]` : ''}`,
-      });
-    }
-  }, [user, setValue]);
+    const fetchPegawai = async () => {
+      try {
+        const res: any = await simpegService.getMyPegawai();
+        const peg = res?.data || res;
+        if (peg && peg.id) {
+          setMyPegawai(peg);
+          if (!isManager) {
+            const idStr = String(peg.id);
+            setValue('pegawai_id', idStr, { shouldValidate: true });
+            setSelectedPegawaiOption({
+              value: idStr,
+              label: `${peg.nama_lengkap} ${peg.nip ? `[NIP: ${peg.nip}]` : ''}`,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Gagal mengambil data pegawai login:', e);
+      }
+    };
+    fetchPegawai();
+  }, [isManager, setValue]);
 
   // Async load pegawai untuk pemilihan admin
   const loadPegawaiOptions = async (query: string) => {
@@ -162,8 +176,9 @@ export default function CreateSkpPage() {
   const onSubmit = async (values: SkpFormValues) => {
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? myPegawai.id : Number(values.pegawai_id);
       const payload = {
-        pegawai_id: Number(values.pegawai_id),
+        pegawai_id: finalPegawaiId,
         tahun: Number(values.tahun),
         semester: values.semester,
         pejabat_penilai_id: Number(values.pejabat_penilai_id),
@@ -251,32 +266,41 @@ export default function CreateSkpPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Pegawai */}
             <div className="lg:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Pegawai Bersangkutan <span className="text-rose-500">*</span>
-              </label>
-              <Controller
-                control={control}
-                name="pegawai_id"
-                render={({ field }) => (
-                  <AsyncSelect
-                    loadOptions={loadPegawaiOptions}
-                    value={selectedPegawaiOption || field.value}
-                    onChange={(val) => {
-                      setSelectedPegawaiOption(val || null);
-                      const idStr =
-                        val && typeof val === 'object' && val.value !== undefined
-                          ? String(val.value)
-                          : val
-                          ? String(val)
-                          : '';
-                      field.onChange(idStr);
-                    }}
-                    isClearable
-                    placeholder="Ketik nama atau NIP pegawai..."
-                    error={errors.pegawai_id?.message}
-                  />
-                )}
-              />
+              {isManager ? (
+                <Controller
+                  control={control}
+                  name="pegawai_id"
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Pegawai Bersangkutan"
+                      required
+                      loadOptions={loadPegawaiOptions}
+                      value={selectedPegawaiOption || field.value}
+                      onChange={(val) => {
+                        setSelectedPegawaiOption(val || null);
+                        const idStr =
+                          val && typeof val === 'object' && val.value !== undefined
+                            ? String(val.value)
+                            : val
+                            ? String(val)
+                            : '';
+                        field.onChange(idStr);
+                      }}
+                      isClearable
+                      placeholder="Ketik nama atau NIP pegawai..."
+                      error={errors.pegawai_id?.message}
+                    />
+                  )}
+                />
+              ) : (
+                <Input
+                  label="Pegawai Bersangkutan"
+                  value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                  disabled
+                  hint="Terkunci otomatis sesuai akun login Anda"
+                  suffixIcon={<Lock size={16} />}
+                />
+              )}
             </div>
 
             {/* Tahun */}

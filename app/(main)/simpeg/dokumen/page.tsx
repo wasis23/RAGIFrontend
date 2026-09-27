@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { FileText, Upload, Trash2, Eye, ShieldCheck, Filter, ShieldAlert, Download, ExternalLink } from 'lucide-react';
+import { FileText, Upload, Trash2, Eye, ShieldCheck, Filter, ShieldAlert, Download, ExternalLink, Lock } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -39,14 +39,16 @@ const dokumenSchema = z.object({
 type DokumenFormValues = z.infer<typeof dokumenSchema>;
 
 export default function DokumenPage() {
-  const { hasPermission } = useAuth();
-  const canRead = hasPermission('simpeg.dokumen.read') || hasPermission('simpeg.dokumen.manage');
-  const canCreate = hasPermission('simpeg.dokumen.create') || hasPermission('simpeg.dokumen.upload') || hasPermission('simpeg.dokumen.manage');
-  const canDelete = hasPermission('simpeg.dokumen.delete') || hasPermission('simpeg.dokumen.manage');
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.dokumen.manage');
+  const canRead = hasPermission('simpeg.dokumen.read') || isManager;
+  const canCreate = hasPermission('simpeg.dokumen.create') || hasPermission('simpeg.dokumen.upload') || isManager;
+  const canDelete = hasPermission('simpeg.dokumen.delete') || isManager;
 
   const [loading, setLoading] = useState(true);
   const [dokumenList, setDokumenList] = useState<DokumenPegawai[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | undefined>();
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
 
   // Filter & Pagination state
   const [search, setSearch] = useState('');
@@ -62,6 +64,22 @@ export default function DokumenPage() {
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<OptionType | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch myPegawai profile
+  useEffect(() => {
+    const fetchPegawai = async () => {
+      try {
+        const res: any = await simpegService.getMyPegawai();
+        const peg = res?.data || res;
+        if (peg && peg.id) {
+          setMyPegawai(peg);
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data pegawai login:', err);
+      }
+    };
+    fetchPegawai();
+  }, []);
 
   // Modal Preview Watermark State
   const [showModalPreview, setShowModalPreview] = useState(false);
@@ -196,13 +214,25 @@ export default function DokumenPage() {
       toast.error('Anda tidak memiliki permission untuk mengunggah dokumen.');
       return;
     }
-    setSelectedPegawaiOption(null);
     setSelectedFile(null);
-    reset({
-      pegawai_id: '',
-      nama_dokumen: '',
-      jenis_dokumen: 'ijazah',
-    });
+    if (!isManager && myPegawai) {
+      setSelectedPegawaiOption({
+        value: String(myPegawai.id),
+        label: `${myPegawai.nama_lengkap} ${myPegawai.nip ? `(NIP: ${myPegawai.nip})` : ''}`,
+      });
+      reset({
+        pegawai_id: String(myPegawai.id),
+        nama_dokumen: '',
+        jenis_dokumen: 'ijazah',
+      });
+    } else {
+      setSelectedPegawaiOption(null);
+      reset({
+        pegawai_id: '',
+        nama_dokumen: '',
+        jenis_dokumen: 'ijazah',
+      });
+    }
     setShowModalUpload(true);
   };
 
@@ -219,8 +249,9 @@ export default function DokumenPage() {
 
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? String(myPegawai.id) : values.pegawai_id;
       const formData = new FormData();
-      formData.append('pegawai_id', values.pegawai_id);
+      formData.append('pegawai_id', finalPegawaiId);
       formData.append('nama_dokumen', values.nama_dokumen);
       formData.append('jenis_dokumen', values.jenis_dokumen);
       formData.append('file', selectedFile);
@@ -531,25 +562,35 @@ export default function DokumenPage() {
           }
         >
           <form id="dokumen-upload-modal-form" onSubmit={handleSubmit(onSubmitUpload)} className="space-y-4">
-            <Controller
-              name="pegawai_id"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Pilih Pegawai Pemilik Dokumen"
-                  required
-                  placeholder="Ketik untuk mencari dari seluruh pegawai..."
-                  loadOptions={loadPegawaiOptions}
-                  value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
-                  onChange={(opt) => {
-                    setSelectedPegawaiOption(opt);
-                    field.onChange(opt ? opt.value : '');
-                  }}
-                  isClearable
-                  error={errors.pegawai_id?.message}
-                />
-              )}
-            />
+            {isManager ? (
+              <Controller
+                name="pegawai_id"
+                control={control}
+                render={({ field }) => (
+                  <AsyncSelect
+                    label="Pilih Pegawai Pemilik Dokumen"
+                    required
+                    placeholder="Ketik untuk mencari dari seluruh pegawai..."
+                    loadOptions={loadPegawaiOptions}
+                    value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
+                    onChange={(opt) => {
+                      setSelectedPegawaiOption(opt);
+                      field.onChange(opt ? opt.value : '');
+                    }}
+                    isClearable
+                    error={errors.pegawai_id?.message}
+                  />
+                )}
+              />
+            ) : (
+              <Input
+                label="Pegawai Pemilik Dokumen"
+                value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                disabled
+                hint="Terkunci otomatis sesuai akun login Anda"
+                suffixIcon={<Lock size={16} />}
+              />
+            )}
 
             <Input
               label="Judul / Nama Dokumen"

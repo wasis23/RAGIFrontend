@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, RefreshCw, ScanFace, RotateCcw, CheckCircle2, MapPin } from 'lucide-react';
+import { ArrowLeft, Save, RefreshCw, ScanFace, RotateCcw, CheckCircle2, MapPin, Lock } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,9 +18,10 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { getApiErrorMessage } from '@/lib/utils';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, UnitKerja } from '@/types/simpeg.types';
+import { useAuth } from '@/hooks/useAuth';
 
 const pegawaiSchema = z.object({
-  nama_lengkap: z.string().min(1, 'Nama Lengkap wajib diisi'),
+  nama_lengkap: z.string().optional(),
   gelar_depan: z.string().optional().nullable(),
   gelar_belakang: z.string().optional().nullable(),
   nidn: z.string().optional().nullable(),
@@ -35,13 +36,9 @@ const pegawaiSchema = z.object({
     }),
   tanggal_masuk: z.string().optional().nullable(),
   unit_kerja_id: z.string().optional().nullable(),
-  role_ids: z.array(z.string().or(z.number())).min(1, 'Pilih minimal satu jenis pegawai / peran SSO'),
-  status_kepegawaian: z.enum(['pns', 'non_pns', 'kontrak', 'tetap_yayasan'], {
-    message: 'Status Kepegawaian wajib dipilih',
-  }),
-  status: z.enum(['aktif', 'non_aktif', 'pensiun', 'meninggal'], {
-    message: 'Status Keaktifan wajib dipilih',
-  }),
+  role_ids: z.array(z.string().or(z.number())).optional(),
+  status_kepegawaian: z.string().optional(),
+  status: z.string().optional(),
   tempat_lahir: z.string().optional().nullable(),
   tanggal_lahir: z.string().optional().nullable(),
   jenis_kelamin: z.enum(['L', 'P'], {
@@ -75,6 +72,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const resolvedParams = use(params);
   const pegawaiId = Number(resolvedParams.id);
   const router = useRouter();
+  const { isAdmin, hasPermission } = useAuth();
+  const canManage = isAdmin || hasPermission('simpeg.pegawai.manage');
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -279,35 +278,57 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   const onSubmit = async (values: PegawaiFormValues) => {
     setIsSubmitting(true);
     try {
-      const payload = {
-        unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : null,
-        nidn: values.nidn || null,
-        nuptk: values.nuptk || null,
-        nip: values.nip || null,
-        nik: values.nik || null,
-        nama_lengkap: values.nama_lengkap,
-        gelar_depan: values.gelar_depan || null,
-        gelar_belakang: values.gelar_belakang || null,
-        tanggal_masuk: values.tanggal_masuk || null,
-        role_ids: values.role_ids.map(Number),
-        tempat_lahir: values.tempat_lahir || null,
-        tanggal_lahir: values.tanggal_lahir || null,
-        jenis_kelamin: values.jenis_kelamin,
-        status_kepegawaian: values.status_kepegawaian,
-        status: values.status,
-        jabatan_fungsional_id: values.jabatan_fungsional_id ? Number(values.jabatan_fungsional_id) : null,
-        telepon: values.telepon || null,
-        alamat: values.alamat || null,
-        nama_bank: values.nama_bank || values.bank_nama || null,
-        bank_nama: values.bank_nama || values.nama_bank || null,
-        nomor_rekening: values.nomor_rekening || null,
-        nama_rekening: values.nama_rekening || null,
-        shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
-      };
+      let payload: Record<string, unknown>;
+
+      if (!canManage) {
+        // Pegawai Mandiri: HANYA perbarui data kontak, rekening bank, dan data personal dasar
+        payload = {
+          tempat_lahir: values.tempat_lahir || null,
+          tanggal_lahir: values.tanggal_lahir || null,
+          jenis_kelamin: values.jenis_kelamin,
+          telepon: values.telepon || null,
+          alamat: values.alamat || null,
+          nama_bank: values.nama_bank || values.bank_nama || null,
+          bank_nama: values.bank_nama || values.nama_bank || null,
+          nomor_rekening: values.nomor_rekening || null,
+          nama_rekening: values.nama_rekening || null,
+        };
+      } else {
+        // Administrator Kepegawaian / SDM: Akses penuh
+        payload = {
+          unit_kerja_id: values.unit_kerja_id ? Number(values.unit_kerja_id) : null,
+          nidn: values.nidn || null,
+          nuptk: values.nuptk || null,
+          nip: values.nip || null,
+          nik: values.nik || null,
+          nama_lengkap: values.nama_lengkap,
+          gelar_depan: values.gelar_depan || null,
+          gelar_belakang: values.gelar_belakang || null,
+          tanggal_masuk: values.tanggal_masuk || null,
+          role_ids: (values.role_ids || []).map(Number),
+          tempat_lahir: values.tempat_lahir || null,
+          tanggal_lahir: values.tanggal_lahir || null,
+          jenis_kelamin: values.jenis_kelamin,
+          status_kepegawaian: values.status_kepegawaian,
+          status: values.status,
+          jabatan_fungsional_id: values.jabatan_fungsional_id ? Number(values.jabatan_fungsional_id) : null,
+          telepon: values.telepon || null,
+          alamat: values.alamat || null,
+          nama_bank: values.nama_bank || values.bank_nama || null,
+          bank_nama: values.bank_nama || values.nama_bank || null,
+          nomor_rekening: values.nomor_rekening || null,
+          nama_rekening: values.nama_rekening || null,
+          shift_template_id: values.shift_template_id ? Number(values.shift_template_id) : null,
+        };
+      }
 
       await simpegService.updatePegawai(pegawaiId, payload);
-      toast.success('Data Pegawai berhasil diperbarui!');
-      router.push('/simpeg/pegawai');
+      toast.success(canManage ? 'Data Pegawai berhasil diperbarui!' : 'Profil mandiri berhasil diperbarui!');
+      if (canManage) {
+        router.push('/simpeg/pegawai');
+      } else {
+        router.push('/simpeg');
+      }
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, 'Gagal memperbarui data pegawai'));
     } finally {
@@ -319,8 +340,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="space-y-6 animate-fade-in">
         <PageHeader
-          title="Edit Kontak & Biodata Pegawai"
-          description="Perbarui biodata pribadi, alamat, nomor rekening, atau status kepegawaian"
+          title={canManage ? "Edit Kontak & Biodata Pegawai" : "Edit Biodata & Kontak Mandiri"}
+          description={canManage ? "Perbarui biodata pribadi, alamat, nomor rekening, atau status kepegawaian" : "Perbarui informasi kontak pribadi, rekening penerimaan gaji, dan alamat domisili Anda"}
           action={
             <Button
               onClick={() => router.back()}
@@ -342,8 +363,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Edit Kontak & Biodata Pegawai"
-        description="Perbarui biodata pribadi, alamat, nomor rekening, atau status kepegawaian"
+        title={canManage ? "Edit Kontak & Biodata Pegawai" : "Edit Biodata & Kontak Mandiri"}
+        description={canManage ? "Perbarui biodata pribadi, alamat, nomor rekening, atau status kepegawaian" : "Perbarui informasi kontak pribadi, rekening penerimaan gaji, dan alamat domisili Anda"}
         action={
           <Button
             onClick={() => router.back()}
@@ -357,19 +378,33 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
 
       <div className="card">
         <div className="card-body p-6">
+          {!canManage && (
+            <div className="p-4 mb-6 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                <Lock size={16} />
+              </div>
+              <div className="text-xs text-amber-900 leading-relaxed">
+                <p className="font-bold text-sm">Mode Pembaruan Mandiri Pegawai</p>
+                <p>Data identitas institusional resmi (NIP, NIDN, Unit Kerja, Jabatan Fungsional, Status Kepegawaian, Peran SSO, dan Jadwal Shift) dikunci dan dikelola terpusat oleh <strong>Bagian Kepegawaian / SDM</strong>. Anda dapat memperbarui data kontak pribadi, rekening bank penerimaan gaji, dan alamat domisili di bawah ini.</p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               <Input
                 label="Gelar Depan (Opsional)"
                 placeholder="Contoh: Dr., Prof."
+                disabled={!canManage}
                 error={errors.gelar_depan?.message}
                 {...register('gelar_depan')}
               />
 
               <Input
                 label="Nama Lengkap"
-                required
+                required={canManage}
+                disabled={!canManage}
                 placeholder="Contoh: Wasis Utama"
                 error={errors.nama_lengkap?.message}
                 {...register('nama_lengkap')}
@@ -378,6 +413,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               <Input
                 label="Gelar Belakang (Opsional)"
                 placeholder="Contoh: M.Kom., Ph.D."
+                disabled={!canManage}
                 error={errors.gelar_belakang?.message}
                 {...register('gelar_belakang')}
               />
@@ -385,6 +421,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               <Input
                 label="NIP (Nomor Induk Pegawai)"
                 placeholder="Ketik NIP pegawai..."
+                disabled={!canManage}
                 error={errors.nip?.message}
                 {...register('nip')}
               />
@@ -392,6 +429,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               <Input
                 label="NIDN (Nomor Induk Dosen Nasional)"
                 placeholder="Ketik NIDN dosen..."
+                disabled={!canManage}
                 error={errors.nidn?.message}
                 {...register('nidn')}
               />
@@ -399,6 +437,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               <Input
                 label="NUPTK (Nomor Pendidik & Tenaga Kependidikan)"
                 placeholder="Ketik NUPTK..."
+                disabled={!canManage}
                 error={errors.nuptk?.message}
                 {...register('nuptk')}
               />
@@ -406,6 +445,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               <Input
                 type="date"
                 label="Tanggal Masuk"
+                disabled={!canManage}
                 error={errors.tanggal_masuk?.message}
                 {...register('tanggal_masuk')}
               />
@@ -413,6 +453,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
               <Input
                 label="NIK (KTP)"
                 placeholder="Ketik NIK 16 digit..."
+                disabled={!canManage}
                 error={errors.nik?.message}
                 {...register('nik')}
               />
@@ -424,7 +465,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                   render={({ field }) => (
                     <AsyncSelect
                       label="Jenis Pegawai / Peran SSO (Dapat Memilih Lebih Dari 1)"
-                      required
+                      required={canManage}
+                      isDisabled={!canManage}
                       isMulti
                       placeholder="Cari dan pilih jenis pegawai / role..."
                       value={selectedRoleOptions}
@@ -448,7 +490,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 render={({ field }) => (
                   <Select
                     label="Status Kepegawaian"
-                    required
+                    required={canManage}
+                    isDisabled={!canManage}
                     value={field.value}
                     onChange={field.onChange}
                     error={errors.status_kepegawaian?.message}
@@ -468,7 +511,8 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 render={({ field }) => (
                   <Select
                     label="Status Keaktifan"
-                    required
+                    required={canManage}
+                    isDisabled={!canManage}
                     value={field.value}
                     onChange={field.onChange}
                     error={errors.status?.message}
@@ -489,6 +533,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                     label="Jabatan Fungsional Akademik (Jafung)"
                     placeholder="Pilih Jafung (khusus Dosen)..."
                     hint="Pilih tingkatan jafung awal jika pegawai merupakan Dosen."
+                    isDisabled={!canManage}
                     loadOptions={loadJafungOptions}
                     value={selectedJafungOption || (field.value ? { value: field.value, label: field.value } : null)}
                     onChange={(opt) => {
@@ -509,6 +554,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                     <AsyncSelect
                       label="Unit Kerja Tempat Bertugas"
                       placeholder="Cari Unit Kerja (contoh: Fakultas / Biro / Prodi)..."
+                      isDisabled={!canManage}
                       loadOptions={loadUnitKerjaOptions}
                       value={selectedUnitOption || (field.value ? { value: field.value, label: field.value } : null)}
                       onChange={(opt) => {
@@ -531,6 +577,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                       label="Shift Kerja (Jadwal Presensi)"
                       placeholder="Cari tipe shift (contoh: Reguler / Pagi / Malam)..."
                       hint="Menentukan jam masuk-pulang & hari libur mingguan pegawai."
+                      isDisabled={!canManage}
                       loadOptions={loadShiftOptions}
                       value={selectedShiftOption || (field.value ? { value: field.value, label: field.value } : null)}
                       onChange={(opt) => {
@@ -587,7 +634,7 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                   </div>
                 </div>
 
-                {pegawaiData?.is_face_enrolled && (
+                {canManage && pegawaiData?.is_face_enrolled && (
                   <Button
                     type="button"
                     variant="outline"

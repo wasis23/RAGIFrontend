@@ -38,6 +38,7 @@ import type {
   SuratTugasStatus,
 } from '@/types/simpeg.surat-tugas.types';
 import type { PaginationMeta } from '@/types/api.types';
+import { formatDate } from '@/lib/utils';
 
 export default function SuratTugasListPage() {
   const router = useRouter();
@@ -343,7 +344,7 @@ export default function SuratTugasListPage() {
           <div className="flex items-center gap-1.5 text-slate-400 text-2xs font-mono">
             <Calendar size={13} className="text-slate-400 shrink-0" />
             <span>
-              {row.tanggal_berangkat} s/d {row.tanggal_kembali}
+              {formatDate(row.tanggal_berangkat)} s/d {formatDate(row.tanggal_kembali)}
             </span>
           </div>
         </div>
@@ -637,8 +638,8 @@ export default function SuratTugasListPage() {
               Pemohon / Ketua: {selectedForApproval?.pegawai?.nama_lengkap}
             </p>
             <p className="text-slate-600">
-              Tujuan: {selectedForApproval?.lokasi_tujuan} ({selectedForApproval?.tanggal_berangkat} s/d{' '}
-              {selectedForApproval?.tanggal_kembali})
+              Tujuan: {selectedForApproval?.lokasi_tujuan} ({formatDate(selectedForApproval?.tanggal_berangkat)} s/d{' '}
+              {formatDate(selectedForApproval?.tanggal_kembali)})
             </p>
           </div>
 

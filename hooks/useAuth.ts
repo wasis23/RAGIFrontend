@@ -167,9 +167,15 @@ export function useAuth() {
 
   // Cek apakah user memiliki role tertentu
   const hasRole = useCallback(
-    (roleSlug: string) => {
+    (roleSlug: string | string[]) => {
       if (!user) return false;
-      return user.roles?.some((r: any) => r.slug === roleSlug || r.role?.slug === roleSlug) ?? false;
+      const slugs = Array.isArray(roleSlug) ? roleSlug : [roleSlug];
+      return (
+        user.roles?.some((r: any) => {
+          const s = (r.slug || r.role?.slug || (typeof r === 'string' ? r : r.name || '')).toLowerCase();
+          return slugs.some((target) => s === target.toLowerCase());
+        }) ?? false
+      );
     },
     [user]
   );

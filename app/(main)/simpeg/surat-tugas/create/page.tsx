@@ -15,6 +15,7 @@ import {
   Upload,
   AlertCircle,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -92,7 +93,8 @@ type SuratTugasFormValues = z.infer<typeof suratTugasFormSchema>;
 
 export default function CreateSuratTugasPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.surat_tugas.manage');
 
   const [masters, setMasters] = useState<SuratTugasMasters | null>(null);
   const [fileSuratTugas, setFileSuratTugas] = useState<File | null>(null);
@@ -100,6 +102,7 @@ export default function CreateSuratTugasPage() {
 
   // Selected ketua option state for AsyncSelect display
   const [selectedKetuaOption, setSelectedKetuaOption] = useState<{ value: string; label: string } | null>(null);
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
 
   const {
     register,
@@ -188,9 +191,10 @@ export default function CreateSuratTugasPage() {
   useEffect(() => {
     const initDefaultKetua = async () => {
       try {
-        const res = await simpegService.getPegawaiMe();
-        if (res?.data) {
-          const p = res.data;
+        const res: any = await simpegService.getMyPegawai();
+        const p = res?.data || res;
+        if (p && p.id) {
+          setMyPegawai(p);
           const opt = {
             value: p.id.toString(),
             label: `${p.nama_lengkap}${p.nip ? ` (NIP: ${p.nip})` : ''} - ${p.unit_kerja?.nama || 'SDM'}`,
@@ -262,8 +266,9 @@ export default function CreateSuratTugasPage() {
   const onSubmit = async (values: SuratTugasFormValues, status: 'draft' | 'diajukan' = 'diajukan') => {
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? String(myPegawai.id) : values.pegawai_id;
       const formData = new FormData();
-      formData.append('pegawai_id', values.pegawai_id);
+      formData.append('pegawai_id', finalPegawaiId);
       formData.append('kategori_kegiatan_id', values.kategori_kegiatan_id);
       formData.append('jenis_transportasi_id', values.jenis_transportasi_id);
       formData.append('nama_kegiatan', values.nama_kegiatan);
@@ -373,43 +378,53 @@ export default function CreateSuratTugasPage() {
               <label className="block text-xs font-medium text-slate-700 mb-1">
                 Penanggung Jawab / Ketua Rombongan <span className="text-rose-500">*</span>
               </label>
-              <Controller
-                control={control}
-                name="pegawai_id"
-                render={({ field }) => (
-                  <AsyncSelect
-                    loadOptions={loadPegawaiOptions}
-                    value={selectedKetuaOption}
-                    onChange={async (val: any) => {
-                      setSelectedKetuaOption(val);
-                      field.onChange(val ? val.value : '');
-                      if (val) {
-                        let p = val.pegawai;
-                        if (!p && val.value) {
-                          try {
-                            const res = await simpegService.getPegawaiDetail(Number(val.value));
-                            p = (res as any)?.data?.data || res?.data;
-                          } catch (e) {
-                            console.error('Gagal mengambil data rekening pegawai penanggung jawab', e);
+              {isManager ? (
+                <Controller
+                  control={control}
+                  name="pegawai_id"
+                  render={({ field }) => (
+                    <AsyncSelect
+                      loadOptions={loadPegawaiOptions}
+                      value={selectedKetuaOption}
+                      onChange={async (val: any) => {
+                        setSelectedKetuaOption(val);
+                        field.onChange(val ? val.value : '');
+                        if (val) {
+                          let p = val.pegawai;
+                          if (!p && val.value) {
+                            try {
+                              const res = await simpegService.getPegawaiDetail(Number(val.value));
+                              p = (res as any)?.data?.data || res?.data;
+                            } catch (e) {
+                              console.error('Gagal mengambil data rekening pegawai penanggung jawab', e);
+                            }
                           }
+                          if (p) {
+                            setValue('nama_bank', p.nama_bank || p.bank_nama || '', { shouldValidate: true, shouldDirty: true });
+                            setValue('nomor_rekening', p.nomor_rekening || '', { shouldValidate: true, shouldDirty: true });
+                            setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '', { shouldValidate: true, shouldDirty: true });
+                          }
+                        } else {
+                          setValue('nama_bank', '', { shouldValidate: true, shouldDirty: true });
+                          setValue('nomor_rekening', '', { shouldValidate: true, shouldDirty: true });
+                          setValue('nama_rekening', '', { shouldValidate: true, shouldDirty: true });
                         }
-                        if (p) {
-                          setValue('nama_bank', p.nama_bank || p.bank_nama || '', { shouldValidate: true, shouldDirty: true });
-                          setValue('nomor_rekening', p.nomor_rekening || '', { shouldValidate: true, shouldDirty: true });
-                          setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '', { shouldValidate: true, shouldDirty: true });
-                        }
-                      } else {
-                        setValue('nama_bank', '', { shouldValidate: true, shouldDirty: true });
-                        setValue('nomor_rekening', '', { shouldValidate: true, shouldDirty: true });
-                        setValue('nama_rekening', '', { shouldValidate: true, shouldDirty: true });
-                      }
-                    }}
-                    placeholder="Ketik nama atau NIP pegawai..."
-                    error={errors.pegawai_id?.message}
-                    isClearable
-                  />
-                )}
-              />
+                      }}
+                      placeholder="Ketik nama atau NIP pegawai..."
+                      error={errors.pegawai_id?.message}
+                      isClearable
+                    />
+                  )}
+                />
+              ) : (
+                <Input
+                  label="Ketua Rombongan / Pegawai Pemohon"
+                  value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                  disabled
+                  hint="Terkunci otomatis sesuai akun login Anda"
+                  suffixIcon={<Lock size={16} />}
+                />
+              )}
             </div>
 
             <div>

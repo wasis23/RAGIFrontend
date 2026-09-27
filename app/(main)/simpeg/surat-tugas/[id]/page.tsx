@@ -33,7 +33,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { simpegSuratTugasService } from '@/services/simpeg.surat-tugas.service';
 import { useAuth } from '@/hooks/useAuth';
-import { getStorageFileUrl, formatCurrency } from '@/lib/utils';
+import { getStorageFileUrl, formatCurrency, formatDate } from '@/lib/utils';
 import type { SuratTugas, SuratTugasStatus } from '@/types/simpeg.surat-tugas.types';
 
 const approvalFormSchema = z.object({
@@ -421,7 +421,7 @@ export default function SuratTugasDetailPage() {
               <p>
                 Dana sebesar <strong className="tabular-nums">{formatRupiah(item.nominal_disetujui)}</strong> telah dicairkan
                 {item.pencairan_kas?.unit_kas?.nama_kas ? ` dari ${item.pencairan_kas.unit_kas.nama_kas}` : ''}
-                {item.pencairan_kas?.tanggal_pencairan ? ` pada tanggal ${item.pencairan_kas.tanggal_pencairan}` : ''}.
+                {item.pencairan_kas?.tanggal_pencairan ? ` pada tanggal ${formatDate(item.pencairan_kas.tanggal_pencairan)}` : ''}.
                 Setelah tugas selesai dilaksanakan, silakan unggah berkas LPJ serta rincian biaya riil yang terpakai.
               </p>
             </div>
@@ -449,7 +449,7 @@ export default function SuratTugasDetailPage() {
             <p className="font-semibold text-slate-900">Surat Tugas Resmi Telah Disetujui Pimpinan</p>
             <p>
               Presensi kepegawaian otomatis terisi sebagai <strong>DINAS LUAR</strong> untuk seluruh anggota
-              tim pada rentang tanggal dinas ({item.tanggal_berangkat} s/d {item.tanggal_kembali}).
+              tim pada rentang tanggal dinas ({formatDate(item.tanggal_berangkat)} s/d {formatDate(item.tanggal_kembali)}).
             </p>
             {item.catatan_approval && (
               <p className="text-slate-600 italic pt-2">&quot;{item.catatan_approval}&quot;</p>
@@ -504,13 +504,13 @@ export default function SuratTugasDetailPage() {
               <div>
                 <p className="text-slate-500 font-medium">Jadwal Perjalanan</p>
                 <p className="font-semibold text-slate-900 mt-0.5">
-                  {item.tanggal_berangkat} s/d {item.tanggal_kembali}
+                  {formatDate(item.tanggal_berangkat)} s/d {formatDate(item.tanggal_kembali)}
                 </p>
               </div>
               <div>
                 <p className="text-slate-500 font-medium">Waktu Pelaksanaan Kegiatan</p>
                 <p className="font-semibold text-slate-900 mt-0.5">
-                  {item.tanggal_mulai} s/d {item.tanggal_selesai}
+                  {formatDate(item.tanggal_mulai)} s/d {formatDate(item.tanggal_selesai)}
                 </p>
               </div>
             </div>

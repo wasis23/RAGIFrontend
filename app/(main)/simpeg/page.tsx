@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   Building2,
@@ -22,19 +23,19 @@ import {
   MapPin,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Hero } from '@/components/ui/Hero';
 import { StatCard } from '@/components/ui/StatCard';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, UnitKerja, DokumenPegawai, PengajuanCuti, PresensiPegawai, GajiPegawai, UsulanJafung } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDate } from '@/lib/utils';
 
 export default function SimpegDashboardPage() {
-  const { user, isAdmin, hasPermission } = useAuth();
+  const router = useRouter();
+  const { user, isAdmin, hasRole, hasPermission } = useAuth();
   const canAccess = isAdmin || hasPermission('simpeg.pegawai.manage') || hasPermission('simpeg.unit_kerja.manage');
+  const canJafung = hasRole('dosen') || hasPermission('simpeg.usulan_jafung.read');
 
   const [loading, setLoading] = useState(true);
 
@@ -54,31 +55,6 @@ export default function SimpegDashboardPage() {
   const [myPresensi, setMyPresensi] = useState<PresensiPegawai[]>([]);
   const [myPayroll, setMyPayroll] = useState<GajiPegawai[]>([]);
   const [myUsulanJafung, setMyUsulanJafung] = useState<UsulanJafung[]>([]);
-
-  // Modal Personal Profil Edit
-  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
-  const [formProfile, setFormProfile] = useState({
-    nama_lengkap: '',
-    telepon: '',
-    alamat: '',
-  });
-
-  // Modal Personal Upload Dokumen
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [formUpload, setFormUpload] = useState({
-    nama_dokumen: '',
-    jenis_dokumen: 'ijazah' as any,
-  });
-
-  // Modal Personal Request Cuti
-  const [showCutiModal, setShowCutiModal] = useState(false);
-  const [formCuti, setFormCuti] = useState({
-    jenis_cuti: 'tahunan' as any,
-    tanggal_mulai: '',
-    tanggal_selesai: '',
-    jumlah_hari: 1,
-    alasan: '',
-  });
 
   const fetchData = async () => {
     setLoading(true);
@@ -106,12 +82,6 @@ export default function SimpegDashboardPage() {
         setMyPegawai(peg || null);
 
         if (peg) {
-          setFormProfile({
-            nama_lengkap: peg.nama_lengkap || '',
-            telepon: peg.telepon || '',
-            alamat: peg.alamat || '',
-          });
-
           // Fetch Personal Data for this Pegawai
           const [resDok, resCut, resPres, resPay, resJaf] = await Promise.allSettled([
             simpegService.getDokumenList(peg.id),
@@ -146,83 +116,11 @@ export default function SimpegDashboardPage() {
     return () => clearInterval(interval);
   }, [canAccess]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!myPegawai) return;
-    try {
-      await simpegService.updatePegawai(myPegawai.id, formProfile);
-      toast.success('Profil diri berhasil diperbarui!');
-      setShowEditProfileModal(false);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memperbarui profil');
-    }
-  };
-
-  const handleUploadDokumen = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!myPegawai) return;
-    try {
-      await simpegService.createDokumen({
-        pegawai_id: myPegawai.id,
-        nama_dokumen: formUpload.nama_dokumen,
-        jenis_dokumen: formUpload.jenis_dokumen,
-        file_path: '/uploads/documents/doc_' + Date.now() + '.pdf',
-        file_size: '1.8 MB',
-      });
-      toast.success('Dokumen E-File pribadi berhasil diunggah!');
-      setShowUploadModal(false);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengunggah dokumen');
-    }
-  };
-
-  const handleRequestCuti = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!myPegawai) return;
-    try {
-      await simpegService.createCuti({
-        pegawai_id: myPegawai.id,
-        jenis_cuti: formCuti.jenis_cuti,
-        tanggal_mulai: formCuti.tanggal_mulai,
-        tanggal_selesai: formCuti.tanggal_selesai,
-        jumlah_hari: formCuti.jumlah_hari,
-        alasan: formCuti.alasan,
-      });
-      toast.success('Pengajuan Cuti mandiri berhasil dikirim!');
-      setShowCutiModal(false);
-      fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengajukan cuti');
-    }
-  };
-
-  const handleQuickClockIn = async () => {
-    if (!myPegawai) return;
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const nowTime = new Date().toTimeString().split(' ')[0];
-      await simpegService.createPresensi({
-        pegawai_id: myPegawai.id,
-        tanggal: today,
-        jam_masuk: nowTime,
-        status_kehadiran: 'hadir',
-        lat_long: '-6.2088,106.8456',
-        catatan: 'Presensi mandiri web dashboard',
-      });
-      toast.success('Presensi Masuk Berhasil Dicatat!');
-      fetchData();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal merekam presensi');
-    }
-  };
-
   // -------------------------------------------------------------
   // RENDER VIEW FOR REGULAR DOSEN / TENDIK (PERSONAL PORTAL)
   // -------------------------------------------------------------
   if (!canAccess) {
-    const namaDosen = myPegawai?.nama_lengkap || user?.username || 'Dosen';
+    const namaDosen = myPegawai?.nama_lengkap || user?.name || user?.username || 'Pegawai';
 
     return (
       <div className="animate-fade-in space-y-7">
@@ -236,25 +134,31 @@ export default function SimpegDashboardPage() {
           title={namaDosen}
           description={
             <>
-              NIP: <strong>{myPegawai?.nip || '199208152022011002'}</strong> &bull; Unit Kerja: <strong>{myPegawai?.unit_kerja?.nama || 'Fakultas Teknik'}</strong> &bull; Status: <span className="badge badge-simpeg">Aktif</span>
+              NIP: <strong>{myPegawai?.nip || '-'}</strong> &bull; Unit Kerja: <strong>{myPegawai?.unit_kerja?.nama || '-'}</strong> &bull; Status: <span className="badge badge-simpeg">{myPegawai?.status || 'Aktif'}</span>
             </>
           }
           actions={
             <div className="flex gap-3 flex-wrap">
-              <button onClick={handleQuickClockIn} className="btn hero-btn-white">
-                <Clock size={18} /> Presensi Masuk Hari Ini
-              </button>
-              <button onClick={() => setShowEditProfileModal(true)} className="btn hero-btn-glass">
+              <button
+                onClick={() => {
+                  if (myPegawai?.id) {
+                    router.push(`/simpeg/pegawai/${myPegawai.id}/edit`);
+                  } else {
+                    toast.error('Data profil pegawai sedang dimuat...');
+                  }
+                }}
+                className="btn hero-btn-glass"
+              >
                 <Edit3 size={18} /> Edit Profil Saya
               </button>
             </div>
           }
         />
 
-        {/* Layout Grid 2 Kolom: Kiri (Biodata Dosen Ybs) & Kanan (Layanan Mandiri / Data Terkait Anisa) */}
+        {/* Layout Grid 2 Kolom: Kiri (Biodata Dosen/Tendik) & Kanan (Layanan Mandiri) */}
         <div className="simpeg-grid-2col">
           
-          {/* Panel Kiri: Biodata Lengkap Dosen Ybs */}
+          {/* Panel Kiri: Biodata Lengkap Pegawai */}
           <div className="flex flex-col gap-6">
             <div className="card p-6">
               <div className="simpeg-bio-header">
@@ -264,7 +168,7 @@ export default function SimpegDashboardPage() {
                 <div>
                   <h3 className="text-lg font-bold">Biodata Pegawai</h3>
                   <span className="badge badge-purple uppercase text-xs">
-                    {myPegawai?.jenis_pegawai || 'DOSEN'}
+                    {myPegawai?.jenis_pegawai || (hasRole('dosen') ? 'DOSEN' : 'TENDIK')}
                   </span>
                 </div>
               </div>
@@ -276,43 +180,45 @@ export default function SimpegDashboardPage() {
                 </div>
                 <div>
                   <span className="simpeg-bio-label">NIK (KTP)</span>
-                  <strong>{myPegawai?.nik || '327101...'}</strong>
+                  <strong>{myPegawai?.nik || '-'}</strong>
                 </div>
                 <div>
                   <span className="simpeg-bio-label">Unit Kerja Bertugas</span>
-                  <strong>{myPegawai?.unit_kerja?.nama || 'Fakultas Teknik'}</strong>
+                  <strong>{myPegawai?.unit_kerja?.nama || '-'}</strong>
                 </div>
                 <div>
                   <span className="simpeg-bio-label">Status Kepegawaian</span>
-                  <strong className="capitalize">{(myPegawai?.status_kepegawaian || 'tetap_yayasan').replace('_', ' ')}</strong>
+                  <strong className="capitalize">{myPegawai?.status_kepegawaian ? myPegawai.status_kepegawaian.replace('_', ' ') : '-'}</strong>
                 </div>
                 <div>
                   <span className="simpeg-bio-label">Nomor HP / WhatsApp</span>
-                  <strong>{myPegawai?.telepon || '081234567890'}</strong>
+                  <strong>{myPegawai?.telepon || '-'}</strong>
                 </div>
                 <div>
                   <span className="simpeg-bio-label">Alamat Tempat Tinggal</span>
-                  <strong>{myPegawai?.alamat || 'Jl. Merdeka No. 45, Bandung'}</strong>
+                  <strong>{myPegawai?.alamat || '-'}</strong>
                 </div>
               </div>
             </div>
 
-            {/* Quick Action Navigation for Dosen */}
+            {/* Quick Action Navigation for Dosen / Tendik */}
             <div className="card p-5 flex flex-col gap-3">
               <h4 className="text-[0.9375rem] font-bold mb-1">Pintas Layanan Saya</h4>
-              <button onClick={() => setShowUploadModal(true)} className="btn btn-outline btn-sm justify-start">
+              <Link href="/simpeg/dokumen" className="btn btn-outline btn-sm justify-start no-underline">
                 <Upload size={16} /> Unggah Dokumen E-File
-              </button>
-              <button onClick={() => setShowCutiModal(true)} className="btn btn-outline btn-sm justify-start">
-                <Calendar size={16} /> Ajukan Permohonan Cuti
-              </button>
-              <Link href="/simpeg/usulan-jafung" className="btn btn-outline btn-sm justify-start no-underline">
-                <Award size={16} /> Ajukan Usulan Jafung (KUM)
               </Link>
+              <Link href="/simpeg/cuti" className="btn btn-outline btn-sm justify-start no-underline">
+                <Calendar size={16} /> Ajukan Permohonan Cuti
+              </Link>
+              {canJafung && (
+                <Link href="/simpeg/usulan-jafung" className="btn btn-outline btn-sm justify-start no-underline">
+                  <Award size={16} /> Ajukan Usulan Jafung (KUM)
+                </Link>
+              )}
             </div>
           </div>
 
-          {/* Panel Kanan: Data Terkait Dosen Ybs (Anisa Only) */}
+          {/* Panel Kanan: Data Terkait Pegawai */}
           <div className="flex flex-col gap-6">
 
             {/* 1. Dokumen E-File Pribadi */}
@@ -321,9 +227,9 @@ export default function SimpegDashboardPage() {
                 <h3 className="text-base font-bold flex items-center gap-2">
                   <FileText size={18} className="text-primary-600" /> Dokumen E-File Pribadi ({myDokumen.length})
                 </h3>
-                <button onClick={() => setShowUploadModal(true)} className="btn btn-primary btn-sm">
-                  <Plus size={14} /> Unggah Berkas
-                </button>
+                <Link href="/simpeg/dokumen" className="btn btn-primary btn-sm no-underline">
+                  <Plus size={16} /> Kelola Berkas
+                </Link>
               </div>
 
               {myDokumen.length === 0 ? (
@@ -358,9 +264,9 @@ export default function SimpegDashboardPage() {
                 <h3 className="text-base font-bold flex items-center gap-2">
                   <Calendar size={18} className="text-emerald-600" /> Pengajuan Cuti Saya ({myCuti.length})
                 </h3>
-                <button onClick={() => setShowCutiModal(true)} className="btn btn-outline btn-sm">
-                  <Plus size={14} /> Ajukan Cuti
-                </button>
+                <Link href="/simpeg/cuti" className="btn btn-outline btn-sm no-underline">
+                  <Plus size={16} /> Ajukan Cuti
+                </Link>
               </div>
 
               {myCuti.length === 0 ? (
@@ -380,7 +286,7 @@ export default function SimpegDashboardPage() {
                       {myCuti.slice(0, 3).map((c) => (
                         <tr key={c.id}>
                           <td className="font-semibold">{(c.jenis_cuti || 'tahunan').toUpperCase()}</td>
-                          <td className="text-[0.8125rem]">{c.tanggal_mulai} s/d {c.tanggal_selesai}</td>
+                          <td className="text-[0.8125rem]">{formatDate(c.tanggal_mulai)} s/d {formatDate(c.tanggal_selesai)}</td>
                           <td className="font-bold text-primary-600">{c.jumlah_hari} Hari</td>
                           <td>
                             <span className={`badge ${c.status_approval === 'approved' ? 'badge-green' : c.status_approval === 'rejected' ? 'badge-red' : 'badge-yellow'}`}>
@@ -432,130 +338,6 @@ export default function SimpegDashboardPage() {
 
         </div>
 
-        {/* Modal Edit Profil Mandiri */}
-        <Modal
-          open={showEditProfileModal}
-          onClose={() => setShowEditProfileModal(false)}
-          title="Edit Profil Biodata Dosen Mandiri"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowEditProfileModal(false)}>Batal</Button>
-              <Button variant="primary" onClick={handleUpdateProfile}>Simpan Profil</Button>
-            </>
-          }
-        >
-          <form onSubmit={handleUpdateProfile} className="flex flex-col gap-4">
-            <Input
-              label="Nama Lengkap & Gelar"
-              value={formProfile.nama_lengkap}
-              onChange={(e) => setFormProfile({ ...formProfile, nama_lengkap: e.target.value })}
-              required
-            />
-            <Input
-              label="Nomor HP / WhatsApp"
-              value={formProfile.telepon}
-              onChange={(e) => setFormProfile({ ...formProfile, telepon: e.target.value })}
-              required
-            />
-            <div className="form-group">
-              <label className="form-label">Alamat Lengkap Tempat Tinggal</label>
-              <textarea
-                className="input"
-                rows={3}
-                value={formProfile.alamat}
-                onChange={(e) => setFormProfile({ ...formProfile, alamat: e.target.value })}
-              />
-            </div>
-          </form>
-        </Modal>
-
-        {/* Modal Upload Dokumen Mandiri */}
-        <Modal
-          open={showUploadModal}
-          onClose={() => setShowUploadModal(false)}
-          title="Unggah Dokumen E-File Pribadi"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowUploadModal(false)}>Batal</Button>
-              <Button variant="primary" onClick={handleUploadDokumen}>Unggah Berkas</Button>
-            </>
-          }
-        >
-          <form onSubmit={handleUploadDokumen} className="flex flex-col gap-4">
-            <Input
-              label="Nama / Judul Dokumen"
-              value={formUpload.nama_dokumen}
-              onChange={(e) => setFormUpload({ ...formUpload, nama_dokumen: e.target.value })}
-              placeholder="Contoh: SK Pengangkatan Dosen 2024"
-              required
-            />
-            <div className="form-group">
-              <label className="form-label">Jenis Berkas</label>
-              <select
-                className="input"
-                value={formUpload.jenis_dokumen}
-                onChange={(e) => setFormUpload({ ...formUpload, jenis_dokumen: e.target.value as any })}
-              >
-                <option value="ijazah">Ijazah & Transkrip</option>
-                <option value="sk">Surat Keputusan (SK)</option>
-                <option value="serdos">Sertifikat Dosen (Serdos)</option>
-                <option value="sertifikat">Sertifikat Keahlian</option>
-                <option value="ktp">KTP / NIK</option>
-                <option value="kk">Kartu Keluarga (KK)</option>
-              </select>
-            </div>
-          </form>
-        </Modal>
-
-        {/* Modal Request Cuti Mandiri */}
-        <Modal
-          open={showCutiModal}
-          onClose={() => setShowCutiModal(false)}
-          title="Formulir Pengajuan Cuti Mandiri"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowCutiModal(false)}>Batal</Button>
-              <Button variant="primary" onClick={handleRequestCuti}>Kirim Pengajuan</Button>
-            </>
-          }
-        >
-          <form onSubmit={handleRequestCuti} className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Tanggal Mulai"
-                type="date"
-                value={formCuti.tanggal_mulai}
-                onChange={(e) => setFormCuti({ ...formCuti, tanggal_mulai: e.target.value })}
-                required
-              />
-              <Input
-                label="Tanggal Selesai"
-                type="date"
-                value={formCuti.tanggal_selesai}
-                onChange={(e) => setFormCuti({ ...formCuti, tanggal_selesai: e.target.value })}
-                required
-              />
-            </div>
-            <Input
-              label="Jumlah Hari Cuti"
-              type="number"
-              value={formCuti.jumlah_hari}
-              onChange={(e) => setFormCuti({ ...formCuti, jumlah_hari: Number(e.target.value) })}
-              required
-            />
-            <div className="form-group">
-              <label className="form-label">Alasan Pengajuan Cuti</label>
-              <textarea
-                className="input"
-                rows={3}
-                value={formCuti.alasan}
-                onChange={(e) => setFormCuti({ ...formCuti, alasan: e.target.value })}
-                placeholder="Berikan alasan detail..."
-                required
-              />
-            </div>
-          </form>
-        </Modal>
       </div>
     );
   }

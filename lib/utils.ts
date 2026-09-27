@@ -16,12 +16,17 @@ export function formatDate(
   options?: Intl.DateTimeFormatOptions
 ): string {
   if (!dateString) return '-';
+  const cleanStr = String(dateString).trim();
+  const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(cleanStr)
+    ? new Date(`${cleanStr}T00:00:00`)
+    : new Date(cleanStr);
+  if (isNaN(parsedDate.getTime())) return cleanStr;
   return new Intl.DateTimeFormat('id-ID', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
     ...options,
-  }).format(new Date(dateString));
+  }).format(parsedDate);
 }
 
 // ============================================================
