@@ -70,12 +70,16 @@ export const simpegSuratTugasService = {
   },
 
   create: async (formData: FormData): Promise<ApiResponse<SuratTugas>> => {
-    const { data } = await apiClient.post<ApiResponse<SuratTugas>>('/simpeg/surat-tugas', formData);
+    const { data } = await apiClient.post<ApiResponse<SuratTugas>>('/simpeg/surat-tugas', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 
   update: async (id: number, formData: FormData): Promise<ApiResponse<SuratTugas>> => {
-    const { data } = await apiClient.post<ApiResponse<SuratTugas>>(`/simpeg/surat-tugas/${id}`, formData);
+    const { data } = await apiClient.post<ApiResponse<SuratTugas>>(`/simpeg/surat-tugas/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 
@@ -95,7 +99,9 @@ export const simpegSuratTugasService = {
     if (payload.catatan_approval) formData.append('catatan_approval', payload.catatan_approval);
     if (payload.file_surat_tugas) formData.append('file_surat_tugas', payload.file_surat_tugas);
 
-    const { data } = await apiClient.post<ApiResponse<SuratTugas>>(`/simpeg/surat-tugas/${id}/approve`, formData);
+    const { data } = await apiClient.post<ApiResponse<SuratTugas>>(`/simpeg/surat-tugas/${id}/approve`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 
@@ -109,7 +115,9 @@ export const simpegSuratTugasService = {
     if (payload.laporan_kegiatan) formData.append('laporan_kegiatan', payload.laporan_kegiatan);
     if (payload.biaya_realisasi !== undefined) formData.append('biaya_realisasi', payload.biaya_realisasi.toString());
 
-    const { data } = await apiClient.post<ApiResponse<SuratTugas>>(`/simpeg/surat-tugas/${id}/lpj`, formData);
+    const { data } = await apiClient.post<ApiResponse<SuratTugas>>(`/simpeg/surat-tugas/${id}/lpj`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data;
   },
 
