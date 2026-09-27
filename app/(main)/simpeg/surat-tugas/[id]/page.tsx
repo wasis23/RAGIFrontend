@@ -33,7 +33,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { simpegSuratTugasService } from '@/services/simpeg.surat-tugas.service';
 import { useAuth } from '@/hooks/useAuth';
-import { getStorageFileUrl } from '@/lib/utils';
+import { getStorageFileUrl, formatCurrency } from '@/lib/utils';
 import type { SuratTugas, SuratTugasStatus } from '@/types/simpeg.surat-tugas.types';
 
 const approvalFormSchema = z.object({
@@ -41,7 +41,6 @@ const approvalFormSchema = z.object({
     error: 'Keputusan persetujuan wajib ditentukan',
   }),
   nomor_surat: z.string().optional(),
-  nominal_disetujui: z.coerce.number().min(0, 'Nominal tidak boleh bernilai negatif').default(0),
   catatan_approval: z.string().max(500, 'Catatan maksimal 500 karakter').optional(),
 });
 
@@ -83,7 +82,6 @@ export default function SuratTugasDetailPage() {
     defaultValues: {
       status: 'disetujui',
       nomor_surat: '',
-      nominal_disetujui: 0,
       catatan_approval: '',
     },
   });
@@ -179,7 +177,6 @@ export default function SuratTugasDetailPage() {
       await simpegSuratTugasService.approve(item.id, {
         status: values.status,
         nomor_surat: values.nomor_surat || '',
-        nominal_disetujui: values.status === 'disetujui' ? Number(values.nominal_disetujui || 0) : 0,
         catatan_approval: values.catatan_approval || '',
         file_surat_tugas: fileSuratTugas,
       });
@@ -295,7 +292,6 @@ export default function SuratTugasDetailPage() {
                   resetApproval({
                     status: 'disetujui',
                     nomor_surat: item.nomor_surat || '',
-                    nominal_disetujui: Number(item.nominal_disetujui ?? item.estimasi_biaya ?? 0),
                     catatan_approval: '',
                   });
                   setFileSuratTugas(null);
@@ -968,16 +964,16 @@ export default function SuratTugasDetailPage() {
             )}
           </div>
 
-          {approvalStatus === 'disetujui' && (
-            <Input
-              label="Nominal Panjar Disetujui (Rp)"
-              type="number"
-              placeholder="Contoh: 500000"
-              min="0"
-              hint="* Isi Rp 0 jika non-anggaran (kegiatan daring/Zoom). Jika > 0, otomatis diteruskan ke antrean pencairan kas operasional di modul Keuangan (SIKEU)."
-              error={errorsApproval.nominal_disetujui?.message}
-              {...registerApproval('nominal_disetujui')}
-            />
+          {approvalStatus === 'disetujui' && Number(item?.estimasi_biaya || 0) > 0 && (
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs flex flex-col gap-2">
+              <span className="font-semibold text-slate-700 block">Informasi Anggaran & Panjar:</span>
+              <p className="text-slate-600">
+                Estimasi biaya usulan pemohon: <strong className="text-slate-900">{formatCurrency(Number(item?.estimasi_biaya || 0))}</strong>.
+              </p>
+              <p className="text-slate-500 leading-relaxed">
+                Penetapan nominal dana panjar yang disetujui serta pemilihan unit kas pembayar akan diproses langsung oleh <strong>Bagian Keuangan (SIKEU)</strong>.
+              </p>
+            </div>
           )}
 
           <Input
