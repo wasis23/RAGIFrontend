@@ -19,6 +19,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { simpegService } from '@/services/simpeg.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { MasterKategoriSk } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
@@ -106,7 +107,7 @@ export default function MasterKategoriSkPage() {
       setDataList(res.data || []);
       if (res.meta) setMeta(res.meta);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat master kategori SK');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat master kategori SK'));
     } finally {
       setLoading(false);
     }
@@ -155,7 +156,7 @@ export default function MasterKategoriSkPage() {
       setModalOpen(false);
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan kategori SK');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan kategori SK'));
     }
   };
 
@@ -175,7 +176,7 @@ export default function MasterKategoriSkPage() {
       setItemToDelete(null);
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus kategori SK');
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus kategori SK'));
     } finally {
       setIsDeleting(false);
     }

@@ -137,8 +137,8 @@ export default function CreateIzinKerjaPage() {
       formData.append('pegawai_id', values.pegawai_id);
       formData.append('master_jenis_izin_id', values.master_jenis_izin_id);
       formData.append('tanggal', values.tanggal);
-      formData.append('jam_mulai', values.jam_mulai);
-      formData.append('jam_selesai', values.jam_selesai);
+      formData.append('jam_mulai', values.jam_mulai.substring(0, 5));
+      formData.append('jam_selesai', values.jam_selesai.substring(0, 5));
       formData.append('alasan', values.alasan);
 
       if (fileBukti) {

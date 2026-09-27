@@ -183,6 +183,9 @@ export default function CreatePegawaiPage() {
         status: values.status,
         telepon: values.telepon || null,
         alamat: values.alamat || null,
+        nama_bank: values.nama_bank || null,
+        nomor_rekening: values.nomor_rekening || null,
+        nama_rekening: values.nama_rekening || null,
         shift_template_id: Number(values.shift_template_id),
       };
 

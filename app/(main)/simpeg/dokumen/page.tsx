@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { DokumenPegawai, JenisDokumenPegawai, Pegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
@@ -153,7 +154,7 @@ export default function DokumenPage() {
         });
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat Dokumen E-File');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat Dokumen E-File'));
     } finally {
       setLoading(false);
     }
@@ -229,7 +230,7 @@ export default function DokumenPage() {
       setShowModalUpload(false);
       loadDokumen();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengunggah dokumen');
+      toast.error(getApiErrorMessage(err, 'Gagal mengunggah dokumen'));
     } finally {
       setIsSubmitting(false);
     }
@@ -245,7 +246,7 @@ export default function DokumenPage() {
       setPreviewData(res.data);
       setShowModalPreview(true);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Akses Ditolak: Dokumen ini rahasia dan hanya dapat dibuka oleh Admin SIMPEG, Superadmin, atau pemilik dokumen.');
+      toast.error(getApiErrorMessage(err, 'Akses Ditolak: Dokumen ini rahasia dan hanya dapat dibuka oleh Admin SIMPEG, Superadmin, atau pemilik dokumen.'));
     }
   };
 
@@ -263,7 +264,7 @@ export default function DokumenPage() {
       window.URL.revokeObjectURL(url);
       toast.success('File dokumen fisik berhasil diunduh.');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengunduh file dokumen atau Akses Ditolak.');
+      toast.error(getApiErrorMessage(err, 'Gagal mengunduh file dokumen atau Akses Ditolak.'));
     } finally {
       setIsDownloading(false);
     }
@@ -287,7 +288,7 @@ export default function DokumenPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           loadDokumen();
         } catch (err: any) {
-          toast.error(err?.response?.data?.message || 'Gagal menghapus dokumen');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus dokumen'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },

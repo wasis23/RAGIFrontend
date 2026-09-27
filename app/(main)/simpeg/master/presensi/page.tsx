@@ -35,6 +35,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 
 // ── ZOD SCHEMAS ─────────────────────────────────────────────
 
@@ -361,7 +362,7 @@ export default function MasterPresensiPage() {
       setShowShiftModal(false);
       fetchShifts();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan tipe shift');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan tipe shift'));
     }
   };
 
@@ -379,7 +380,7 @@ export default function MasterPresensiPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           fetchShifts();
         } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Gagal menghapus tipe shift');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus tipe shift'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },
@@ -410,7 +411,7 @@ export default function MasterPresensiPage() {
       toast.success(`Tipe shift diduplikat menjadi "${copyName}"`);
       fetchShifts();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menduplikat tipe shift');
+      toast.error(getApiErrorMessage(err, 'Gagal menduplikat tipe shift'));
     }
   };
 
@@ -440,7 +441,7 @@ export default function MasterPresensiPage() {
       setShowScheduleModal(false);
       fetchShifts();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan jadwal shift');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan jadwal shift'));
     } finally {
       setSavingSchedule(false);
     }
@@ -478,7 +479,7 @@ export default function MasterPresensiPage() {
       setShowBulkShiftModal(false);
       fetchShifts();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menugaskan shift massal');
+      toast.error(getApiErrorMessage(err, 'Gagal menugaskan shift massal'));
     }
   };
 
@@ -518,7 +519,7 @@ export default function MasterPresensiPage() {
       setShowBulkOfficeModal(false);
       fetchOffices();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menugaskan lokasi massal');
+      toast.error(getApiErrorMessage(err, 'Gagal menugaskan lokasi massal'));
     }
   };
 
@@ -560,7 +561,7 @@ export default function MasterPresensiPage() {
       setShowOfficeModal(false);
       fetchOffices();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan lokasi kantor');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan lokasi kantor'));
     }
   };
 
@@ -578,7 +579,7 @@ export default function MasterPresensiPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           fetchOffices();
         } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Gagal menghapus lokasi kantor');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus lokasi kantor'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },
@@ -621,7 +622,7 @@ export default function MasterPresensiPage() {
       setShowHolidayModal(false);
       fetchHolidays(holidayYear);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan tanggal libur');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan tanggal libur'));
     }
   };
 
@@ -639,7 +640,7 @@ export default function MasterPresensiPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           fetchHolidays(holidayYear);
         } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Gagal menghapus tanggal libur');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus tanggal libur'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },
@@ -655,7 +656,7 @@ export default function MasterPresensiPage() {
         fetchHolidays(holidayYear);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal sinkronisasi libur nasional');
+      toast.error(getApiErrorMessage(err, 'Gagal sinkronisasi libur nasional'));
     } finally {
       setSyncingHolidays(false);
     }
@@ -669,7 +670,7 @@ export default function MasterPresensiPage() {
       await simpegService.updatePresensiSettings(values);
       toast.success('Parameter presensi sistem berhasil diperbarui');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan parameter');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan parameter'));
     } finally {
       setSavingSettings(false);
     }
