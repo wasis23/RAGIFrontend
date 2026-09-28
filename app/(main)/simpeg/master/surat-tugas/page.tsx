@@ -28,6 +28,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegSuratTugasService } from '@/services/simpeg.surat-tugas.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import type {
   MasterKategoriKegiatanTugas,
   MasterJenisTransportasi,
@@ -279,7 +280,7 @@ export default function MasterSuratTugasPage() {
       setShowModalKategori(false);
       fetchKategori();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan kategori kegiatan');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan kategori kegiatan'));
     } finally {
       setIsSubmittingKategori(false);
     }
@@ -289,7 +290,7 @@ export default function MasterSuratTugasPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Kategori Kegiatan',
-      message: `Apakah Anda yakin ingin menghapus kategori "${item.nama}" (${item.kode})? Surat tugas yang telah merujuk kategori ini mungkin terpengaruh.`,
+      message: `Apakah Anda yakin ingin menghapus kategori "${item.nama}" (${item.kode})? Data akan dihapus dari sistem jika tidak sedang digunakan.`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -299,7 +300,7 @@ export default function MasterSuratTugasPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           fetchKategori();
         } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Gagal menghapus kategori kegiatan');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus kategori kegiatan'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },
@@ -344,7 +345,7 @@ export default function MasterSuratTugasPage() {
       setShowModalTransportasi(false);
       fetchTransportasi();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan moda transportasi');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan moda transportasi'));
     } finally {
       setIsSubmittingTransportasi(false);
     }
@@ -354,7 +355,7 @@ export default function MasterSuratTugasPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Moda Transportasi',
-      message: `Apakah Anda yakin ingin menghapus moda transportasi "${item.nama}" (${item.kode})? Data surat tugas terkait mungkin terpengaruh.`,
+      message: `Apakah Anda yakin ingin menghapus moda transportasi "${item.nama}" (${item.kode})? Data akan dihapus dari sistem jika tidak sedang digunakan.`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -364,7 +365,7 @@ export default function MasterSuratTugasPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           fetchTransportasi();
         } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Gagal menghapus moda transportasi');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus moda transportasi'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },

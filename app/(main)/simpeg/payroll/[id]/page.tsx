@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { GajiPegawai } from '@/types/simpeg.types';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDateTime } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function DetailSlipGajiPage({ params }: { params: Promise<{ id: string }> }) {
@@ -175,7 +175,7 @@ export default function DetailSlipGajiPage({ params }: { params: Promise<{ id: s
             )}
           </div>
           <span className="text-[11px] text-slate-400 mt-2">
-            {gaji.tanggal_transfer ? `Ditransfer: ${gaji.tanggal_transfer}` : 'Belum diproses transfer'}
+            {gaji.tanggal_transfer ? `Ditransfer: ${formatDateTime(gaji.tanggal_transfer)}` : 'Belum diproses transfer'}
           </span>
         </div>
 

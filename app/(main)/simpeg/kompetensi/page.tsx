@@ -35,6 +35,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegKompetensiService } from '@/services/simpeg.kompetensi.service';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type {
   KompetensiMasters,
   SertifikasiDosen,
@@ -52,7 +53,7 @@ const sertifikasiSchema = z.object({
   bidang_studi: z.string().min(2, 'Bidang studi wajib diisi'),
   nomor_registrasi: z.string().optional(),
   nomor_sk: z.string().optional(),
-  tahun_sertifikasi: z.string().min(4, 'Tahun sertifikasi wajib diisi'),
+  tahun_sertifikasi: z.string().min(1, 'Tahun sertifikasi wajib diisi').regex(/^\d{4}$/, 'Tahun sertifikasi harus berupa 4 digit angka (contoh: 2024)'),
   penyelenggara: z.string().min(2, 'Penyelenggara wajib diisi'),
   tautan: z.string().url('URL tidak valid').optional().or(z.literal('')),
 });
@@ -62,8 +63,8 @@ const tesSchema = z.object({
   jenis_tes_id: z.string().min(1, 'Jenis tes wajib dipilih'),
   nama_tes: z.string().min(2, 'Nama tes wajib diisi'),
   penyelenggara: z.string().min(2, 'Penyelenggara tes wajib diisi'),
-  tahun: z.string().min(4, 'Tahun tes wajib diisi'),
-  skor: z.string().min(1, 'Skor wajib diisi'),
+  tahun: z.string().min(1, 'Tahun tes wajib diisi').regex(/^\d{4}$/, 'Tahun tes harus berupa 4 digit angka (contoh: 2024)'),
+  skor: z.string().min(1, 'Skor wajib diisi').regex(/^\d+(\.\d+)?$/, 'Skor harus berupa angka (contoh: 550 atau 85.5)'),
   masa_berlaku: z.string().optional(),
   tautan: z.string().url('URL tidak valid').optional().or(z.literal('')),
 });
@@ -76,7 +77,7 @@ const pelatihanSchema = z.object({
   tingkat_id: z.string().optional(),
   tanggal_mulai: z.string().min(1, 'Tanggal mulai wajib diisi'),
   tanggal_selesai: z.string().optional(),
-  jumlah_jam: z.string().optional(),
+  jumlah_jam: z.string().optional().refine((val) => !val || /^\d+$/.test(val), 'Jumlah jam harus berupa angka bulat positif (contoh: 32)'),
   penyelenggara: z.string().min(2, 'Penyelenggara wajib diisi'),
   tempat: z.string().optional(),
   nomor_sertifikat: z.string().optional(),
@@ -365,7 +366,7 @@ export default function KompetensiPage() {
       setIsModalOpen(false);
       fetchData(meta.current_page, meta.per_page);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan data');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan data'));
     } finally {
       setIsSubmitting(false);
     }
@@ -387,7 +388,7 @@ export default function KompetensiPage() {
       setDeleteId(null);
       fetchData(meta.current_page, meta.per_page);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus data');
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus data'));
     } finally {
       setIsDeleting(false);
     }
@@ -858,7 +859,7 @@ export default function KompetensiPage() {
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
                 value={formSertifikasi.watch('pegawai_id')}
-                onChange={(e) => formSertifikasi.setValue('pegawai_id', e.target.value)}
+                onChange={(val) => formSertifikasi.setValue('pegawai_id', val, { shouldValidate: true })}
                 error={formSertifikasi.formState.errors.pegawai_id?.message}
               />
             )}
@@ -873,7 +874,7 @@ export default function KompetensiPage() {
                   }))}
                   placeholder={(masters?.jenis_sertifikasi || []).length === 0 ? '-- Belum ada data jenis sertifikasi --' : '-- Pilih Jenis Sertifikasi --'}
                   value={formSertifikasi.watch('jenis_sertifikasi_id')}
-                  onChange={(e) => formSertifikasi.setValue('jenis_sertifikasi_id', e.target.value)}
+                  onChange={(val) => formSertifikasi.setValue('jenis_sertifikasi_id', val, { shouldValidate: true })}
                   error={formSertifikasi.formState.errors.jenis_sertifikasi_id?.message}
                 />
                 {(masters?.jenis_sertifikasi || []).length === 0 && (
@@ -972,7 +973,7 @@ export default function KompetensiPage() {
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
                 value={formTes.watch('pegawai_id')}
-                onChange={(e) => formTes.setValue('pegawai_id', e.target.value)}
+                onChange={(val) => formTes.setValue('pegawai_id', val, { shouldValidate: true })}
                 error={formTes.formState.errors.pegawai_id?.message}
               />
             )}
@@ -987,7 +988,7 @@ export default function KompetensiPage() {
                   }))}
                   placeholder={(masters?.jenis_tes || []).length === 0 ? '-- Belum ada data jenis tes --' : '-- Pilih Jenis Tes --'}
                   value={formTes.watch('jenis_tes_id')}
-                  onChange={(e) => formTes.setValue('jenis_tes_id', e.target.value)}
+                  onChange={(val) => formTes.setValue('jenis_tes_id', val, { shouldValidate: true })}
                   error={formTes.formState.errors.jenis_tes_id?.message}
                 />
                 {(masters?.jenis_tes || []).length === 0 && (
@@ -1080,7 +1081,7 @@ export default function KompetensiPage() {
                   label: `${p.nama_lengkap} (${p.nidn || p.nip || '-'})`,
                 }))}
                 value={formPelatihan.watch('pegawai_id')}
-                onChange={(e) => formPelatihan.setValue('pegawai_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('pegawai_id', val, { shouldValidate: true })}
                 error={formPelatihan.formState.errors.pegawai_id?.message}
               />
             )}
@@ -1103,7 +1104,7 @@ export default function KompetensiPage() {
                   })),
                 ]}
                 value={formPelatihan.watch('jenis_pelatihan_id')}
-                onChange={(e) => formPelatihan.setValue('jenis_pelatihan_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('jenis_pelatihan_id', val, { shouldValidate: true })}
               />
 
               <Select
@@ -1113,7 +1114,7 @@ export default function KompetensiPage() {
                   label: p.nama,
                 }))}
                 value={formPelatihan.watch('peran_id')}
-                onChange={(e) => formPelatihan.setValue('peran_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('peran_id', val, { shouldValidate: true })}
                 error={formPelatihan.formState.errors.peran_id?.message}
               />
 
@@ -1127,7 +1128,7 @@ export default function KompetensiPage() {
                   })),
                 ]}
                 value={formPelatihan.watch('tingkat_id')}
-                onChange={(e) => formPelatihan.setValue('tingkat_id', e.target.value)}
+                onChange={(val) => formPelatihan.setValue('tingkat_id', val, { shouldValidate: true })}
               />
             </div>
 

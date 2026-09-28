@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -18,6 +18,7 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { simpegIzinKerjaService } from '@/services/simpeg.izin-sk.service';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { IzinJamKerjaMasters } from '@/types/simpeg.izin-sk.types';
 import type { Pegawai } from '@/types/simpeg.types';
 
@@ -48,12 +49,14 @@ type IzinKerjaFormValues = z.infer<typeof izinKerjaFormSchema>;
 
 export default function CreateIzinKerjaPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.cuti.manage');
 
   const [masters, setMasters] = useState<IzinJamKerjaMasters | null>(null);
   const [fileBukti, setFileBukti] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<{ value: string; label: string } | null>(null);
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
 
   const {
     register,
@@ -91,17 +94,28 @@ export default function CreateIzinKerjaPage() {
     fetchMasters();
   }, [setValue]);
 
-  // Pre-fill if user has pegawai linked
+  // Fetch myPegawai profile and pre-fill / auto-lock
   useEffect(() => {
-    const currentPegawai = (user as any)?.pegawai;
-    if (currentPegawai) {
-      setValue('pegawai_id', currentPegawai.id.toString());
-      setSelectedPegawaiOption({
-        value: currentPegawai.id.toString(),
-        label: `${currentPegawai.nama_lengkap} ${currentPegawai.nip ? `(NIP: ${currentPegawai.nip})` : ''}`,
-      });
-    }
-  }, [user, setValue]);
+    const fetchPegawai = async () => {
+      try {
+        const res: any = await simpegService.getMyPegawai();
+        const peg = res?.data || res;
+        if (peg && peg.id) {
+          setMyPegawai(peg);
+          if (!isManager) {
+            setValue('pegawai_id', peg.id.toString(), { shouldValidate: true });
+            setSelectedPegawaiOption({
+              value: peg.id.toString(),
+              label: `${peg.nama_lengkap} ${peg.nip ? `(NIP: ${peg.nip})` : ''}`,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Gagal mengambil data pegawai login:', e);
+      }
+    };
+    fetchPegawai();
+  }, [isManager, setValue]);
 
   // Load Pegawai Options for AsyncSelect
   const loadPegawaiOptions = useCallback(async (inputValue: string) => {
@@ -132,12 +146,13 @@ export default function CreateIzinKerjaPage() {
   const onSubmit = async (values: IzinKerjaFormValues) => {
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? String(myPegawai.id) : values.pegawai_id;
       const formData = new FormData();
-      formData.append('pegawai_id', values.pegawai_id);
+      formData.append('pegawai_id', finalPegawaiId);
       formData.append('master_jenis_izin_id', values.master_jenis_izin_id);
       formData.append('tanggal', values.tanggal);
-      formData.append('jam_mulai', values.jam_mulai);
-      formData.append('jam_selesai', values.jam_selesai);
+      formData.append('jam_mulai', values.jam_mulai.substring(0, 5));
+      formData.append('jam_selesai', values.jam_selesai.substring(0, 5));
       formData.append('alasan', values.alasan);
 
       if (fileBukti) {
@@ -148,7 +163,7 @@ export default function CreateIzinKerjaPage() {
       toast.success('Pengajuan izin jam kerja berhasil dikirim!');
       router.push('/simpeg/cuti?tab=izin-kerja');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal mengirim pengajuan izin.');
+      toast.error(getApiErrorMessage(err, 'Gagal mengirim pengajuan izin.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -184,30 +199,36 @@ export default function CreateIzinKerjaPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Pegawai AsyncSelect */}
+            {/* Pegawai Field */}
             <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Pegawai Pemohon <span className="text-rose-500">*</span>
-              </label>
-              <Controller
-                name="pegawai_id"
-                control={control}
-                render={({ field }) => (
-                  <AsyncSelect
-                    placeholder="Ketik nama atau NIP pegawai..."
-                    loadOptions={loadPegawaiOptions}
-                    value={selectedPegawaiOption}
-                    onChange={(val) => {
-                      setSelectedPegawaiOption(val);
-                      field.onChange(val ? val.value : '');
-                    }}
-                    isClearable
-                    className="mt-1"
-                  />
-                )}
-              />
-              {errors.pegawai_id && (
-                <p className="mt-1 text-xs text-rose-500">{errors.pegawai_id.message}</p>
+              {isManager ? (
+                <Controller
+                  name="pegawai_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Pegawai Pemohon"
+                      required
+                      placeholder="Ketik nama atau NIP pegawai..."
+                      loadOptions={loadPegawaiOptions}
+                      value={selectedPegawaiOption}
+                      onChange={(val) => {
+                        setSelectedPegawaiOption(val);
+                        field.onChange(val ? val.value : '');
+                      }}
+                      isClearable
+                      error={errors.pegawai_id?.message}
+                    />
+                  )}
+                />
+              ) : (
+                <Input
+                  label="Pegawai Pemohon"
+                  value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                  disabled
+                  hint="Terkunci otomatis sesuai akun login Anda"
+                  suffixIcon={<Lock size={16} />}
+                />
               )}
             </div>
 

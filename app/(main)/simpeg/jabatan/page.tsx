@@ -19,6 +19,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import type {
   Jabatan,
   JabatanFungsionalAkademik,
@@ -334,7 +335,7 @@ export default function JabatanPage() {
       await loadGolonganData();
       await fetchGolonganOptions();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat data Jabatan');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat data Jabatan'));
     } finally {
       setLoading(false);
     }
@@ -457,7 +458,7 @@ export default function JabatanPage() {
       setShowModalJabatan(false);
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan Jabatan');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan Jabatan'));
     } finally {
       setIsSubmittingJabatan(false);
     }
@@ -471,7 +472,7 @@ export default function JabatanPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Jabatan Organisasi',
-      message: `Apakah Anda yakin ingin menghapus jabatan "${nama}"? Tindakan ini tidak dapat dibatalkan.`,
+      message: `Apakah Anda yakin ingin menghapus jabatan "${nama}"? Data akan dihapus dari sistem jika tidak sedang digunakan oleh pegawai.`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -481,7 +482,7 @@ export default function JabatanPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false }));
           loadData();
         } catch (err: any) {
-          toast.error(err?.response?.data?.message || 'Gagal menghapus Jabatan');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus Jabatan'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },
@@ -507,7 +508,7 @@ export default function JabatanPage() {
       resetJafung();
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menambahkan Jafung');
+      toast.error(getApiErrorMessage(err, 'Gagal menambahkan Jafung'));
     } finally {
       setIsSubmittingJafung(false);
     }
@@ -572,7 +573,7 @@ export default function JabatanPage() {
       loadGolonganData();
       fetchGolonganOptions();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan Master Golongan');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan Master Golongan'));
     } finally {
       setIsSubmittingGolongan(false);
     }
@@ -586,7 +587,7 @@ export default function JabatanPage() {
     setDeleteConfirm({
       isOpen: true,
       title: 'Hapus Jenjang Golongan & Pangkat',
-      message: `Apakah Anda yakin ingin menghapus data golongan "${nama}"? Data akan disembunyikan secara aman (soft delete).`,
+      message: `Apakah Anda yakin ingin menghapus data golongan "${nama}"? Data akan dihapus dari sistem jika tidak sedang digunakan oleh riwayat kepegawaian.`,
       isLoading: false,
       onConfirm: async () => {
         try {
@@ -597,7 +598,7 @@ export default function JabatanPage() {
           loadGolonganData();
           fetchGolonganOptions();
         } catch (err: any) {
-          toast.error(err?.response?.data?.message || 'Gagal menghapus Master Golongan');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus Master Golongan'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },

@@ -108,6 +108,8 @@ export interface Pegawai {
   nama_rekening?: string | null;
   user?: User | null;
   unit_kerja?: UnitKerja | null;
+  jabatan_fungsional_id?: number | null;
+  jabatan_fungsional?: JabatanFungsionalAkademik | null;
   shift_template_id?: number | null;
   office_location_id?: number | null;
   shift_template?: { id: number; name: string; start_time?: string; end_time?: string } | null;
