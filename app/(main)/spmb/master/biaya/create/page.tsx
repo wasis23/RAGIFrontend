@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, Plus, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Plus, AlertCircle, Trash2 } from 'lucide-react';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,6 +44,7 @@ export default function CreateMasterBiayaPage() {
   const searchParams = useSearchParams();
 
   const [gelombangList, setGelombangList] = useState<GelombangPenerimaan[]>([]);
+  const [komponenMaster, setKomponenMaster] = useState<MasterKomponenBiaya[]>([]);
   const [prodiList, setProdiList] = useState<any[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
@@ -70,7 +71,7 @@ export default function CreateMasterBiayaPage() {
     },
   });
 
-  const { fields, replace } = useFieldArray({
+  const { fields, replace, remove, append } = useFieldArray({
     control,
     name: 'items',
   });
@@ -105,16 +106,8 @@ export default function CreateMasterBiayaPage() {
         }
 
         const komps = Array.isArray(kompRes?.data) ? kompRes.data : [];
-        const initialItems = komps.map((k: MasterKomponenBiaya) => ({
-          komponen_biaya_id: k.id,
-          nominal: 0,
-          dibebankan_saat_pendaftaran: false,
-          nama: k.nama,
-          kode: k.kode,
-          kategori: k.kategori,
-          keterangan: k.keterangan,
-        }));
-        replace(initialItems);
+        setKomponenMaster(komps);
+        replace([]);
 
       } catch (error) {
         console.error('Failed to load initial data:', error);
@@ -260,15 +253,41 @@ export default function CreateMasterBiayaPage() {
                     Masukkan nominal rupiah untuk masing-masing pos komponen pembiayaan prodi.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  icon={<Plus size={16} />}
-                  onClick={() => router.push('/spmb/master/komponen-biaya')}
-                >
-                  Kelola Komponen
-                </Button>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="w-full sm:w-64">
+                    <Select
+                      label="Tambah Komponen"
+                      placeholder="Pilih komponen biaya..."
+                      value=""
+                      onChange={(val) => {
+                        const komp = komponenMaster.find((k) => String(k.id) === val);
+                        if (komp) {
+                          append({
+                            komponen_biaya_id: komp.id,
+                            nominal: 0,
+                            dibebankan_saat_pendaftaran: false,
+                            nama: komp.nama,
+                            kode: komp.kode,
+                            kategori: komp.kategori,
+                            keterangan: komp.keterangan,
+                          });
+                        }
+                      }}
+                      options={komponenMaster
+                        .filter((k) => !(watchItems || []).some((it) => it?.komponen_biaya_id === k.id))
+                        .map((k) => ({ value: String(k.id), label: `${k.nama}${k.kode ? ` (${k.kode})` : ''}` }))}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    icon={<Plus size={16} />}
+                    onClick={() => router.push('/spmb/master/komponen-biaya')}
+                  >
+                    Kelola Komponen
+                  </Button>
+                </div>
               </div>
 
               {loadingInitial ? (
@@ -279,10 +298,14 @@ export default function CreateMasterBiayaPage() {
                 <div className="py-6 px-4 text-center border-2 border-dashed border-slate-300 rounded-xl bg-slate-50">
                   <AlertCircle size={20} className="mx-auto text-slate-400 mb-2" />
                   <p className="text-sm font-medium text-slate-700">
-                    Belum ada data komponen biaya aktif di sistem
+                    {komponenMaster.length === 0
+                      ? 'Belum ada data komponen biaya aktif di sistem'
+                      : 'Belum ada komponen biaya dipilih'}
                   </p>
                   <p className="text-xs text-slate-500 max-w-md mx-auto mt-2 mb-4">
-                    Tambahkan komponen pembiayaan (seperti UKT, DPI, Seragam) di Master Komponen Biaya sebelum mengatur rincian biaya per program studi.
+                    {komponenMaster.length === 0
+                      ? 'Tambahkan komponen pembiayaan (seperti UKT, DPI, Seragam) di Master Komponen Biaya sebelum mengatur rincian biaya per program studi.'
+                      : 'Pilih komponen biaya pada dropdown "Tambah Komponen" di atas untuk memasukkannya ke rincian master biaya ini.'}
                   </p>
                   <Button
                     type="button"
@@ -298,10 +321,11 @@ export default function CreateMasterBiayaPage() {
                 <div className="border border-slate-200 rounded-lg bg-white overflow-hidden">
                   <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-3 bg-white border-b border-slate-200 text-2xs font-bold uppercase text-slate-500">
                     <div className="col-span-1 text-center">No</div>
-                    <div className="col-span-4">Komponen Biaya</div>
+                    <div className="col-span-3">Komponen Biaya</div>
                     <div className="col-span-2 text-center">Kode</div>
                     <div className="col-span-3 text-right">Nominal (Rp)</div>
                     <div className="col-span-2 text-center">Beban Pendaftaran</div>
+                    <div className="col-span-1 text-center">Aksi</div>
                   </div>
                   <div className="divide-y divide-slate-100">
                     {fields.map((field, index) => {
@@ -315,7 +339,7 @@ export default function CreateMasterBiayaPage() {
                           <div className="hidden md:block col-span-1 text-center text-slate-400 font-mono text-xs">
                             {index + 1}
                           </div>
-                          <div className="md:col-span-4">
+                          <div className="md:col-span-3">
                             <div className="font-medium text-slate-800">{field.nama}</div>
                             {field.keterangan && (
                               <div className="text-xs text-slate-400 mt-2">{field.keterangan}</div>
@@ -352,6 +376,17 @@ export default function CreateMasterBiayaPage() {
                                 </div>
                               )}
                             />
+                          </div>
+                          <div className="md:col-span-1 flex md:justify-center">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              title="Hapus komponen dari rincian"
+                              onClick={() => remove(index)}
+                            >
+                              <Trash2 size={16} className="text-red-500" />
+                            </Button>
                           </div>
                         </div>
                       );
