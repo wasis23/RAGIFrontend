@@ -844,3 +844,106 @@ export interface KalenderRuanganMeta {
   total_events: number;
 }
 
+// ------------------------------------------------------------
+// 7. Dashboard Eksekutif SINAPRA Types
+// ------------------------------------------------------------
+export interface SinapraDashboardMetrics {
+  total_gedung: number;
+  total_ruangan: number;
+  ruangan_tersedia: number;
+  total_kapasitas_ruangan: number;
+  total_aset: number;
+  total_harga_perolehan: number;
+  total_nilai_buku: number;
+  total_akumulasi_penyusutan: number;
+  total_aset_ada_pic: number;
+  peminjaman_ruangan_aktif: number;
+  peminjaman_aset_aktif: number;
+  peminjaman_pending: number;
+  maintenance_aktif: number;
+  pengadaan_pending: number;
+  pengadaan_disetujui: number;
+}
+
+export interface SinapraDashboardBreakdown {
+  status: {
+    tersedia: number;
+    dipinjam: number;
+    maintenance: number;
+    rusak: number;
+    dihapus: number;
+  };
+  kondisi: {
+    baik: number;
+    rusak_ringan: number;
+    rusak_berat: number;
+  };
+}
+
+export interface SinapraDashboardEarlyWarnings {
+  bhp_kritis_count: number;
+  bhp_kritis_list: {
+    id: number;
+    ruangan_id: number;
+    kode_bhp: string;
+    nama_bhp: string;
+    stok_saat_ini: number;
+    stok_minimum: number;
+    satuan?: string;
+    ruangan?: { id: number; nama: string; kode: string };
+  }[];
+  kalibrasi_urgent_count: number;
+  kalibrasi_urgent_list: {
+    id: number;
+    aset_id: number;
+    nomor_sertifikat?: string;
+    tanggal_kadaluarsa?: string;
+    status_kelayakan?: string;
+    aset?: { id: number; nama: string; kode_aset: string };
+  }[];
+}
+
+export interface SinapraDashboardRecentActivities {
+  peminjaman_ruangan: {
+    id: number;
+    ruangan_id: number;
+    user_id: number;
+    keperluan: string;
+    tanggal: string;
+    jam_mulai: string;
+    jam_selesai: string;
+    status: string;
+    ruangan?: { id: number; nama: string; kode: string };
+    user?: { id: number; name: string };
+  }[];
+  peminjaman_aset: {
+    id: number;
+    aset_id: number;
+    user_id: number;
+    keperluan: string;
+    tanggal_pinjam: string;
+    tanggal_kembali_rencana: string;
+    status: string;
+    aset?: { id: number; nama: string; kode_aset: string };
+    user?: { id: number; name: string };
+  }[];
+  aset_terbaru: {
+    id: number;
+    kode_aset: string;
+    nama: string;
+    penanggung_jawab_pegawai_id?: number | null;
+    harga_perolehan: number;
+    nilai_buku: number;
+    kondisi: string;
+    status: string;
+    penanggung_jawab?: { id: number; nama_lengkap: string; nip?: string } | null;
+  }[];
+}
+
+export interface SinapraDashboardSummary {
+  metrics: SinapraDashboardMetrics;
+  breakdown_aset: SinapraDashboardBreakdown;
+  early_warnings: SinapraDashboardEarlyWarnings;
+  recent_activities: SinapraDashboardRecentActivities;
+}
+
