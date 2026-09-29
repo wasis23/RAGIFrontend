@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Plus,
   Calendar,
+  GraduationCap,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -172,6 +173,83 @@ export default function SinapraDashboardPage() {
           </Badge>
         );
       },
+    },
+  ];
+
+  // Data dan Kolom Distribusi Fasilitas & Aset per Program Studi
+  const distribusiData = [
+    ...(data?.distribusi_prodi?.prodi_list || []),
+    ...(data?.distribusi_prodi?.fasilitas_umum
+      ? [
+          {
+            id: 0,
+            kode_prodi: 'UMUM',
+            nama: data.distribusi_prodi.fasilitas_umum.nama,
+            jenjang: 'Fasilitas Terpusat',
+            total_aset: data.distribusi_prodi.fasilitas_umum.total_aset,
+            total_ruangan: data.distribusi_prodi.fasilitas_umum.total_ruangan,
+            total_nilai_aset: data.distribusi_prodi.fasilitas_umum.total_nilai_aset,
+          },
+        ]
+      : []),
+  ];
+
+  const prodiColumns: ColumnDef<any>[] = [
+    {
+      key: 'nama',
+      label: 'PROGRAM STUDI / UNIT KAMPUS',
+      render: (row) => (
+        <div>
+          <span className="font-bold text-slate-800 text-xs block">
+            {row.nama}
+          </span>
+          <span className="text-2xs text-slate-500 font-mono">
+            {row.kode_prodi} {row.jenjang ? `• ${row.jenjang}` : ''}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'total_ruangan',
+      label: 'RUANGAN TERKAIT',
+      render: (row) => (
+        <span className="font-medium text-slate-800 text-xs">
+          {row.total_ruangan} Ruangan
+        </span>
+      ),
+    },
+    {
+      key: 'total_aset',
+      label: 'JUMLAH INVENTARIS',
+      render: (row) => (
+        <span className="font-bold text-slate-800 text-xs">
+          {row.total_aset} Unit
+        </span>
+      ),
+    },
+    {
+      key: 'total_nilai_aset',
+      label: 'ESTIMASI NILAI ASET',
+      align: 'right',
+      render: (row) => (
+        <span className="font-mono font-bold text-xs" style={{ color: 'var(--module-primary)' }}>
+          {formatCurrency(row.total_nilai_aset)}
+        </span>
+      ),
+    },
+    {
+      key: 'action',
+      label: 'NAVIGASI',
+      align: 'center',
+      render: (row) => (
+        <Link
+          href={row.id > 0 ? `/sinapra/aset?program_studi_id=${row.id}` : '/sinapra/aset'}
+          className="text-2xs font-semibold hover:underline flex items-center justify-center gap-2"
+          style={{ color: 'var(--module-primary)' }}
+        >
+          Lihat Aset <ArrowRight size={12} />
+        </Link>
+      ),
     },
   ];
 
@@ -619,6 +697,39 @@ export default function SinapraDashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* PROGRAM STUDI ASSET DISTRIBUTION SECTION */}
+      <div className="card p-4 md:p-6 bg-white border border-slate-200 rounded-xl shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <GraduationCap size={18} style={{ color: 'var(--module-primary)' }} />
+              Distribusi Fasilitas &amp; Aset per Program Studi
+            </h3>
+            <p className="text-2xs text-slate-400">
+              Pemetaan inventaris, ruangan khusus prodi, dan fasilitas umum kampus terintegrasi SIAKAD
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/sinapra/aset">
+              <Button variant="outline" size="sm" className="text-2xs">
+                Semua Inventaris
+              </Button>
+            </Link>
+            <Link href="/sinapra/gedung-ruangan">
+              <Button variant="outline" size="sm" className="text-2xs">
+                Semua Ruangan
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        <DataTable
+          columns={prodiColumns}
+          data={distribusiData}
+          emptyMessage="Belum ada data distribusi fasilitas program studi."
+        />
       </div>
 
       {/* THIRD ROW: TABEL AKTIVITAS PEMINJAMAN TERKINI */}

@@ -424,6 +424,28 @@ export default function DetailAsetPage() {
             </div>
 
             <div>
+              <p className="text-2xs font-medium text-slate-500 uppercase">Kepemilikan / Program Studi</p>
+              {aset.program_studi ? (
+                <div className="flex items-center gap-2">
+                  <Badge
+                    style={{
+                      backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+                      color: 'var(--module-primary)',
+                      borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+                    }}
+                    className="text-2xs font-semibold"
+                  >
+                    {aset.program_studi.nama} ({aset.program_studi.kode_prodi})
+                  </Badge>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600">
+                  Fasilitas Umum Kampus / Rektorat
+                </p>
+              )}
+            </div>
+
+            <div>
               <p className="text-2xs font-medium text-slate-500 uppercase">Peminjaman Aset</p>
               <p className="text-xs text-slate-700">
                 {aset.is_borrowable ? 'Dapat Dipinjam Civitas Akademika' : 'Khusus Operasional Internal'}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Boxes,
   Plus,
@@ -32,6 +32,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { AsetLabelPrintModal } from '@/components/sinapra/AsetLabelPrintModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
+import { siakadService } from '@/services/siakad.service';
 import type {
   Aset,
   KategoriAset,
@@ -43,6 +44,8 @@ import type { PaginationMeta } from '@/types/api.types';
 
 export default function AsetPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialProdiId = searchParams.get('program_studi_id');
 
   // ------------------------------------------------------------
   // ASET LISTING STATES
@@ -57,9 +60,29 @@ export default function AsetPage() {
   const [kondisiFilter, setKondisiFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [kategoriFilterObj, setKategoriFilterObj] = useState<{ value: string; label: string } | null>(null);
+  const [prodiFilterObj, setProdiFilterObj] = useState<{ value: string; label: string } | null>(null);
   const [sortBy, setSortBy] = useState('nama');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+
+  useEffect(() => {
+    if (initialProdiId) {
+      siakadService
+        .getProdi({ id: Number(initialProdiId) })
+        .then((res: any) => {
+          const list = res?.data || res || [];
+          const found = Array.isArray(list) ? list.find((p: any) => p.id === Number(initialProdiId)) : null;
+          if (found) {
+            setProdiFilterObj({ value: found.id.toString(), label: `${found.nama} (${found.kode_prodi})` });
+          } else {
+            setProdiFilterObj({ value: initialProdiId, label: `Prodi #${initialProdiId}` });
+          }
+        })
+        .catch(() => {
+          setProdiFilterObj({ value: initialProdiId, label: `Prodi #${initialProdiId}` });
+        });
+    }
+  }, [initialProdiId]);
 
   // Modal Deleting Aset
   const [deletingAset, setDeletingAset] = useState<Aset | null>(null);
@@ -192,6 +215,7 @@ export default function AsetPage() {
         kondisi: kondisiFilter || undefined,
         status: statusFilter || undefined,
         kategori_id: kategoriFilterObj ? parseInt(kategoriFilterObj.value) : undefined,
+        program_studi_id: prodiFilterObj ? parseInt(prodiFilterObj.value) : undefined,
         sort_by: sortBy || undefined,
         sort_dir: sortDir || undefined,
       });
@@ -240,7 +264,7 @@ export default function AsetPage() {
 
   useEffect(() => {
     fetchAset();
-  }, [page, search, kondisiFilter, statusFilter, kategoriFilterObj, sortBy, sortDir]);
+  }, [page, search, kondisiFilter, statusFilter, kategoriFilterObj, prodiFilterObj, sortBy, sortDir]);
 
   const loadKategoriOptions = async (inputValue: string) => {
     try {
@@ -248,6 +272,22 @@ export default function AsetPage() {
       let list = res?.data?.items || res?.data || res || [];
       if (Array.isArray(list)) {
         return list.map((k: KategoriAset) => ({ value: k.id.toString(), label: `${k.kode} - ${k.nama}` }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const loadProdiOptions = async (inputValue: string) => {
+    try {
+      const res: any = await siakadService.getProdi({ search: inputValue });
+      const list = res?.data || res || [];
+      if (Array.isArray(list)) {
+        return list.map((p: any) => ({
+          value: p.id.toString(),
+          label: `${p.nama} (${p.kode_prodi})`,
+        }));
       }
       return [];
     } catch {
@@ -412,12 +452,30 @@ export default function AsetPage() {
     },
     {
       key: 'lokasi',
-      label: 'LOKASI & PIC PEGAWAI',
+      label: 'LOKASI & PROGRAM STUDI / PIC',
       render: (row) => (
         <div>
-          <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs block">
-            {row.ruangan?.nama || 'Gudang Utama'}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+              {row.ruangan?.nama || 'Gudang Utama'}
+            </span>
+            {row.program_studi ? (
+              <Badge
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+                  color: 'var(--module-primary)',
+                  borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+                }}
+                className="text-2xs font-semibold"
+              >
+                {row.program_studi.nama}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-2xs font-medium">
+                Umum Kampus
+              </Badge>
+            )}
+          </div>
           <span className="text-2xs text-slate-400 block">
             {row.penanggung_jawab ? `PIC: ${row.penanggung_jawab.nama_lengkap}` : (row.ruangan?.gedung?.nama || 'Sentral Kampus')}
           </span>
@@ -628,6 +686,7 @@ export default function AsetPage() {
                 setKondisiFilter('');
                 setStatusFilter('');
                 setKategoriFilterObj(null);
+                setProdiFilterObj(null);
                 setSortBy('nama');
                 setSortDir('asc');
                 setPage(1);
@@ -648,6 +707,15 @@ export default function AsetPage() {
             placeholder="Cari kode aset, nama, merk..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <AsyncSelect
+            label="Program Studi"
+            placeholder="Semua Program Studi..."
+            value={prodiFilterObj}
+            onChange={(sel: any) => setProdiFilterObj(sel)}
+            loadOptions={loadProdiOptions}
+            isClearable
           />
 
           <AsyncSelect

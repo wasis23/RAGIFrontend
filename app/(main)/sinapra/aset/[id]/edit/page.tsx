@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { sinapraService } from '@/services/sinapra.service';
 import { simpegService } from '@/services/simpeg.service';
+import { siakadService } from '@/services/siakad.service';
 import type { AsetFormPayload, KategoriAset, Ruangan } from '@/types/sinapra.types';
 
 export default function EditAsetPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,11 +25,13 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
 
   const [selectedKategoriObj, setSelectedKategoriObj] = useState<{ value: string; label: string } | null>(null);
   const [selectedRuanganObj, setSelectedRuanganObj] = useState<{ value: string; label: string } | null>(null);
+  const [selectedProdiObj, setSelectedProdiObj] = useState<{ value: string; label: string } | null>(null);
   const [selectedPegawaiObj, setSelectedPegawaiObj] = useState<{ value: string; label: string } | null>(null);
 
   const [formData, setFormData] = useState<AsetFormPayload>({
     kategori_id: 0,
     ruangan_id: undefined,
+    program_studi_id: null,
     penanggung_jawab_pegawai_id: undefined,
     kode_aset: '',
     nama: '',
@@ -55,6 +58,12 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
           if (data.ruangan) {
             setSelectedRuanganObj({ value: data.ruangan.id.toString(), label: `${data.ruangan.kode} - ${data.ruangan.nama}` });
           }
+          if (data.program_studi) {
+            setSelectedProdiObj({
+              value: data.program_studi.id.toString(),
+              label: `${data.program_studi.nama} (${data.program_studi.kode_prodi})`,
+            });
+          }
           if (data.penanggung_jawab) {
             setSelectedPegawaiObj({
               value: data.penanggung_jawab.id.toString(),
@@ -65,6 +74,7 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
           setFormData({
             kategori_id: data.kategori_id,
             ruangan_id: data.ruangan_id || undefined,
+            program_studi_id: data.program_studi_id || null,
             penanggung_jawab_pegawai_id: data.penanggung_jawab_pegawai_id || undefined,
             kode_aset: data.kode_aset,
             nama: data.nama,
@@ -108,6 +118,22 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
       let list = res?.data?.items || res?.data || res || [];
       if (Array.isArray(list)) {
         return list.map((r: Ruangan) => ({ value: r.id.toString(), label: `${r.kode} - ${r.nama}` }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const loadProdiOptions = async (inputValue: string) => {
+    try {
+      const res: any = await siakadService.getProdi({ search: inputValue });
+      const list = res?.data || res || [];
+      if (Array.isArray(list)) {
+        return list.map((p: any) => ({
+          value: p.id.toString(),
+          label: `${p.nama} (${p.kode_prodi})`,
+        }));
       }
       return [];
     } catch {
@@ -250,6 +276,18 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
                 setFormData({ ...formData, ruangan_id: sel ? parseInt(sel.value) : undefined });
               }}
               loadOptions={loadRuanganOptions}
+            />
+
+            <AsyncSelect
+              label="Program Studi (Kepemilikan Aset Prodi)"
+              placeholder="Pilih Prodi (Kosongkan jika Fasilitas Umum Kampus)..."
+              value={selectedProdiObj}
+              onChange={(sel: any) => {
+                setSelectedProdiObj(sel);
+                setFormData({ ...formData, program_studi_id: sel ? parseInt(sel.value) : null });
+              }}
+              loadOptions={loadProdiOptions}
+              isClearable
             />
 
             <AsyncSelect

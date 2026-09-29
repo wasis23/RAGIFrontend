@@ -29,6 +29,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { sinapraService } from '@/services/sinapra.service';
+import { siakadService } from '@/services/siakad.service';
 import type {
   Gedung,
   GedungFormPayload,
@@ -80,6 +81,7 @@ export default function GedungRuanganPage() {
   const [ruanganSearch, setRuanganSearch] = useState('');
   const [ruanganTipeFilter, setRuanganTipeFilter] = useState('');
   const [ruanganTipeRuanganFilterObj, setRuanganTipeRuanganFilterObj] = useState<{ value: string; label: string } | null>(null);
+  const [ruanganProdiFilterObj, setRuanganProdiFilterObj] = useState<{ value: string; label: string } | null>(null);
   const [ruanganStatusFilter, setRuanganStatusFilter] = useState('');
   const [ruanganGedungFilterObj, setRuanganGedungFilterObj] = useState<{ value: string; label: string } | null>(null);
   const [ruanganSortBy, setRuanganSortBy] = useState('nama');
@@ -92,10 +94,12 @@ export default function GedungRuanganPage() {
   const [isDeletingRuangan, setIsDeletingRuangan] = useState(false);
   const [selectedGedungObj, setSelectedGedungObj] = useState<{ value: string; label: string } | null>(null);
   const [selectedTipeRuanganObj, setSelectedTipeRuanganObj] = useState<{ value: string; label: string } | null>(null);
+  const [selectedProdiObj, setSelectedProdiObj] = useState<{ value: string; label: string } | null>(null);
 
   const [ruanganForm, setRuanganForm] = useState<RuanganFormPayload>({
     gedung_id: 0,
     tipe_ruangan_id: null,
+    program_studi_id: null,
     kode: '',
     nama: '',
     lantai: 1,
@@ -172,6 +176,7 @@ export default function GedungRuanganPage() {
         search: ruanganSearch,
         tipe: ruanganTipeFilter || undefined,
         tipe_ruangan_id: ruanganTipeRuanganFilterObj ? parseInt(ruanganTipeRuanganFilterObj.value) : undefined,
+        program_studi_id: ruanganProdiFilterObj ? parseInt(ruanganProdiFilterObj.value) : undefined,
         status: ruanganStatusFilter || undefined,
         gedung_id: ruanganGedungFilterObj ? parseInt(ruanganGedungFilterObj.value) : undefined,
         sort_by: ruanganSortBy || undefined,
@@ -213,7 +218,23 @@ export default function GedungRuanganPage() {
 
   useEffect(() => {
     if (activeTab === 'ruangan') fetchRuangan();
-  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganTipeFilter, ruanganTipeRuanganFilterObj, ruanganGedungFilterObj, ruanganSortBy, ruanganSortDir]);
+  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganTipeFilter, ruanganTipeRuanganFilterObj, ruanganProdiFilterObj, ruanganGedungFilterObj, ruanganSortBy, ruanganSortDir]);
+
+  const loadProdiOptions = async (inputValue: string) => {
+    try {
+      const res: any = await siakadService.getProdi({ search: inputValue });
+      const list = res?.data || res || [];
+      if (Array.isArray(list)) {
+        return list.map((p: any) => ({
+          value: p.id.toString(),
+          label: `${p.nama} (${p.kode_prodi})`,
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
 
   const loadGedungOptions = async (inputValue: string) => {
     try {
@@ -319,9 +340,11 @@ export default function GedungRuanganPage() {
     setEditingRuangan(null);
     setSelectedGedungObj(null);
     setSelectedTipeRuanganObj(null);
+    setSelectedProdiObj(null);
     setRuanganForm({
       gedung_id: 0,
       tipe_ruangan_id: null,
+      program_studi_id: null,
       kode: '',
       nama: '',
       lantai: 1,
@@ -349,9 +372,15 @@ export default function GedungRuanganPage() {
     } else {
       setSelectedTipeRuanganObj(null);
     }
+    if (r.program_studi) {
+      setSelectedProdiObj({ value: r.program_studi.id.toString(), label: `${r.program_studi.nama} (${r.program_studi.kode_prodi})` });
+    } else {
+      setSelectedProdiObj(null);
+    }
     setRuanganForm({
       gedung_id: r.gedung_id,
       tipe_ruangan_id: r.tipe_ruangan_id || (r.tipe_ruangan?.id ?? null),
+      program_studi_id: r.program_studi_id || (r.program_studi?.id ?? null),
       kode: r.kode,
       nama: r.nama,
       lantai: r.lantai,
@@ -553,11 +582,29 @@ export default function GedungRuanganPage() {
     },
     {
       key: 'nama',
-      label: 'NAMA RUANGAN & GEDUNG',
+      label: 'NAMA RUANGAN & PROGRAM STUDI',
       render: (row) => (
         <div>
-          <div className="font-bold text-slate-800 dark:text-slate-100 text-xs">
-            {row.nama}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-slate-800 dark:text-slate-100 text-xs">
+              {row.nama}
+            </span>
+            {row.program_studi ? (
+              <Badge
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
+                  color: 'var(--module-primary)',
+                  borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
+                }}
+                className="text-2xs font-semibold"
+              >
+                {row.program_studi.nama}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-2xs font-medium">
+                Umum Kampus
+              </Badge>
+            )}
           </div>
           <div className="text-2xs text-slate-400 line-clamp-1">
             {row.gedung?.nama || `Gedung #${row.gedung_id}`} • Lantai {row.lantai}
@@ -918,6 +965,21 @@ export default function GedungRuanganPage() {
             loadOptions={loadTipeRuanganOptions}
           />
 
+          <AsyncSelect
+            label="Program Studi (Lab/Ruangan Khusus Prodi)"
+            placeholder="Pilih Prodi (Kosongkan jika Umum Kampus)..."
+            value={selectedProdiObj}
+            onChange={(selected: any) => {
+              setSelectedProdiObj(selected);
+              setRuanganForm({
+                ...ruanganForm,
+                program_studi_id: selected ? parseInt(selected.value) : null,
+              });
+            }}
+            loadOptions={loadProdiOptions}
+            isClearable
+          />
+
           <Select
             label="Status Ruangan"
             value={ruanganForm.status || 'aktif'}
@@ -1055,6 +1117,7 @@ export default function GedungRuanganPage() {
                   setRuanganSearch('');
                   setRuanganTipeFilter('');
                   setRuanganTipeRuanganFilterObj(null);
+                  setRuanganProdiFilterObj(null);
                   setRuanganStatusFilter('');
                   setRuanganGedungFilterObj(null);
                   setRuanganSortBy('nama');
@@ -1124,6 +1187,15 @@ export default function GedungRuanganPage() {
               placeholder="Cari kode atau nama ruangan..."
               value={ruanganSearch}
               onChange={(e) => setRuanganSearch(e.target.value)}
+            />
+
+            <AsyncSelect
+              label="Program Studi"
+              placeholder="Semua Program Studi..."
+              value={ruanganProdiFilterObj}
+              onChange={(sel: any) => setRuanganProdiFilterObj(sel)}
+              loadOptions={loadProdiOptions}
+              isClearable
             />
 
             <AsyncSelect

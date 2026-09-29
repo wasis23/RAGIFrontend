@@ -110,6 +110,7 @@ export interface Ruangan {
   id: number;
   gedung_id: number;
   tipe_ruangan_id?: number | null;
+  program_studi_id?: number | null;
   kode: string;
   nama: string;
   lantai: number;
@@ -123,6 +124,12 @@ export interface Ruangan {
   status: 'aktif' | 'maintenance' | 'nonaktif';
   gedung?: Gedung;
   tipe_ruangan?: MasterTipeRuangan | null;
+  program_studi?: {
+    id: number;
+    nama: string;
+    kode_prodi: string;
+    jenjang?: string;
+  } | null;
   laboran?: { id: number; name: string; username?: string; email: string; pivot?: { ruangan_id: number; user_id: number; is_primary: boolean } }[];
   created_at?: string;
   updated_at?: string;
@@ -139,14 +146,44 @@ export interface LaboranRuangan {
   updated_at?: string;
 }
 
+export interface LaboranProdi {
+  id: number;
+  user_id: number;
+  program_studi_id: number;
+  is_primary: boolean;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    username?: string;
+    pegawai?: { id: number; nama_lengkap: string; nip?: string };
+  };
+  program_studi?: {
+    id: number;
+    nama: string;
+    kode_prodi: string;
+    jenjang?: string;
+    fakultas?: { id: number; nama: string };
+  };
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface AssignLaboranPayload {
   user_id: number;
+  is_primary?: boolean;
+}
+
+export interface AssignLaboranProdiPayload {
+  user_id: number;
+  program_studi_id: number;
   is_primary?: boolean;
 }
 
 export interface RuanganFormPayload {
   gedung_id: number;
   tipe_ruangan_id?: number | null;
+  program_studi_id?: number | null;
   kode: string;
   nama: string;
   lantai: number;
@@ -202,6 +239,7 @@ export interface Aset {
   id: number;
   kategori_id: number;
   ruangan_id?: number;
+  program_studi_id?: number | null;
   kode_aset: string;
   nama: string;
   merk?: string;
@@ -221,6 +259,12 @@ export interface Aset {
     nama_lengkap: string;
     nip?: string;
     unit_kerja?: { nama: string };
+  } | null;
+  program_studi?: {
+    id: number;
+    nama: string;
+    kode_prodi: string;
+    jenjang?: string;
   } | null;
   kategori?: KategoriAset;
   ruangan?: Ruangan;
@@ -274,6 +318,7 @@ export interface RiwayatPenyusutanAset {
 export interface AsetFormPayload {
   kategori_id: number;
   ruangan_id?: number | null;
+  program_studi_id?: number | null;
   penanggung_jawab_pegawai_id?: number | null;
   kode_aset: string;
   nama: string;
@@ -515,6 +560,7 @@ export interface SinapraFilterParams extends PaginationParams {
   tipe_ruangan_id?: number;
   gedung_id?: number;
   kategori_id?: number;
+  program_studi_id?: number;
   kondisi?: string;
   prioritas?: string;
   unit_kerja_id?: number;
@@ -940,9 +986,30 @@ export interface SinapraDashboardRecentActivities {
   }[];
 }
 
+export interface SinapraDistribusiProdiItem {
+  id: number;
+  kode_prodi: string;
+  nama: string;
+  jenjang?: string;
+  total_aset: number;
+  total_ruangan: number;
+  total_nilai_aset: number;
+}
+
+export interface SinapraDistribusiProdi {
+  prodi_list: SinapraDistribusiProdiItem[];
+  fasilitas_umum: {
+    nama: string;
+    total_aset: number;
+    total_ruangan: number;
+    total_nilai_aset: number;
+  };
+}
+
 export interface SinapraDashboardSummary {
   metrics: SinapraDashboardMetrics;
   breakdown_aset: SinapraDashboardBreakdown;
+  distribusi_prodi?: SinapraDistribusiProdi;
   early_warnings: SinapraDashboardEarlyWarnings;
   recent_activities: SinapraDashboardRecentActivities;
 }

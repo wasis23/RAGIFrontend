@@ -5,6 +5,8 @@ import type {
   GedungFormPayload,
   Ruangan,
   RuanganFormPayload,
+  LaboranProdi,
+  AssignLaboranProdiPayload,
   CheckKetersediaanPayload,
   CheckKetersediaanResponse,
   KategoriAset,
@@ -140,6 +142,22 @@ export const sinapraService = {
 
   unassignLaboran: async (ruanganId: number, userId: number): Promise<ApiResponse<null>> => {
     const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/ruangan/${ruanganId}/laboran/${userId}`);
+    return data;
+  },
+
+  // ── LABORAN PROGRAM STUDI ─────────────────────────────────────
+  getLaboranProdiList: async (params?: any): Promise<PaginatedResponse<LaboranProdi>> => {
+    const { data } = await apiClient.get<PaginatedResponse<LaboranProdi>>('/sinapra/laboran-prodi', { params });
+    return data;
+  },
+
+  assignLaboranProdi: async (payload: AssignLaboranProdiPayload): Promise<ApiResponse<LaboranProdi>> => {
+    const { data } = await apiClient.post<ApiResponse<LaboranProdi>>('/sinapra/laboran-prodi', payload);
+    return data;
+  },
+
+  unassignLaboranProdi: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/laboran-prodi/${id}`);
     return data;
   },
 
