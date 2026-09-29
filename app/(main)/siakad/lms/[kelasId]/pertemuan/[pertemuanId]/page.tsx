@@ -43,9 +43,13 @@ import {
   Save,
   X,
   Check,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle2,
+  UploadCloud,
+  FileCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 // ── ZOD SCHEMAS DI LUAR KOMPONEN ──
 const materiSchema = z.object({
@@ -74,6 +78,25 @@ const nilaiSchema = z.object({
 
 type NilaiFormValues = z.infer<typeof nilaiSchema>;
 
+const inputTokenSchema = z.object({
+  token: z.string().length(6, 'Token absensi harus berupa 6 karakter').regex(/^[A-Za-z0-9]+$/, 'Format token tidak valid'),
+});
+
+type InputTokenFormValues = z.infer<typeof inputTokenSchema>;
+
+const kumpulTugasSchema = z.object({
+  catatan_mahasiswa: z.string().optional().default(''),
+});
+
+type KumpulTugasFormValues = z.infer<typeof kumpulTugasSchema>;
+
+const ajukanIzinSchema = z.object({
+  tipe_izin_id: z.coerce.number().min(1, 'Tipe izin wajib dipilih'),
+  alasan: z.string().min(5, 'Alasan permohonan minimal 5 karakter'),
+});
+
+type AjukanIzinFormValues = z.infer<typeof ajukanIzinSchema>;
+
 interface PageProps {
   params: Promise<{
     kelasId: string;
@@ -86,6 +109,8 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   const kelasId = Number(resolvedParams.kelasId);
   const pertemuanId = Number(resolvedParams.pertemuanId);
   const router = useRouter();
+  const { hasRole } = useAuth();
+  const isMahasiswa = hasRole('mahasiswa');
 
   // State Utama
   const [detail, setDetail] = useState<LmsPertemuanDetail | null>(null);
@@ -103,6 +128,7 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   const [tipeKontenOptions, setTipeKontenOptions] = useState<Array<{ value: number; label: string }>>([]);
   const [statusAbsensiOptions, setStatusAbsensiOptions] = useState<Array<{ value: number; label: string }>>([]);
   const [statusPersetujuanMap, setStatusPersetujuanMap] = useState<Record<string, number>>({});
+  const [tipeIzinOptions, setTipeIzinOptions] = useState<Array<{ value: number; label: string }>>([]);
 
   // Token Absensi State
   const [tokenInfo, setTokenInfo] = useState<{ token: string; expired_at: string } | null>(null);
@@ -111,10 +137,18 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   // File Upload State untuk Materi
   const [materiFile, setMateriFile] = useState<File | null>(null);
 
-  // Modal State
+  // Modal State Dosen
   const [showMateriModal, setShowMateriModal] = useState<boolean>(false);
   const [showTugasModal, setShowTugasModal] = useState<boolean>(false);
   const [selectedPengumpulan, setSelectedPengumpulan] = useState<LmsPengumpulanTugas | null>(null);
+
+  // Modal State Mahasiswa
+  const [showTokenModal, setShowTokenModal] = useState<boolean>(false);
+  const [showKumpulModal, setShowKumpulModal] = useState<boolean>(false);
+  const [selectedTugasForKumpul, setSelectedTugasForKumpul] = useState<LmsTugasItem | null>(null);
+  const [berkasTugasFile, setBerkasTugasFile] = useState<File | null>(null);
+  const [showIzinModal, setShowIzinModal] = useState<boolean>(false);
+  const [suratIzinFile, setSuratIzinFile] = useState<File | null>(null);
 
   // Modal Konfirmasi Hapus
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -164,6 +198,28 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
     },
   });
 
+  const tokenFormHook = useForm<InputTokenFormValues>({
+    resolver: zodResolver(inputTokenSchema) as any,
+    defaultValues: {
+      token: '',
+    },
+  });
+
+  const kumpulFormHook = useForm<KumpulTugasFormValues>({
+    resolver: zodResolver(kumpulTugasSchema) as any,
+    defaultValues: {
+      catatan_mahasiswa: '',
+    },
+  });
+
+  const izinFormHook = useForm<AjukanIzinFormValues>({
+    resolver: zodResolver(ajukanIzinSchema) as any,
+    defaultValues: {
+      tipe_izin_id: undefined as any,
+      alasan: '',
+    },
+  });
+
   // Fetch Data Master Referensi
   const fetchMasterReferensi = useCallback(async () => {
     try {
@@ -178,6 +234,11 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           .filter((r: MasterReferensiItem) => r.tipe === 'status_absensi')
           .map((r: MasterReferensiItem) => ({ value: r.id, label: r.nama }));
         setStatusAbsensiOptions(absensiList);
+
+        const izinList = res.data
+          .filter((r: MasterReferensiItem) => r.tipe === 'tipe_izin_absensi')
+          .map((r: MasterReferensiItem) => ({ value: r.id, label: r.nama }));
+        setTipeIzinOptions(izinList);
 
         const persetujuanObj: Record<string, number> = {};
         res.data
@@ -350,6 +411,71 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
       }
     } catch (err: any) {
       toast.error(err.message || 'Gagal menyimpan nilai');
+    }
+  };
+
+  // Submit Token Absensi Realtime oleh Mahasiswa
+  const onInputToken = async (values: InputTokenFormValues) => {
+    try {
+      const res = await lmsService.inputTokenAbsensi(pertemuanId, values.token);
+      if (res.status === 'success') {
+        toast.success('Kehadiran berhasil dicatat via token!');
+        setShowTokenModal(false);
+        tokenFormHook.reset();
+        fetchDetail();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal memproses token absensi');
+    }
+  };
+
+  // Submit Pengumpulan Tugas oleh Mahasiswa
+  const onKumpulTugas = async (values: KumpulTugasFormValues) => {
+    if (!selectedTugasForKumpul) return;
+
+    const formData = new FormData();
+    if (values.catatan_mahasiswa) {
+      formData.append('catatan_mahasiswa', values.catatan_mahasiswa);
+    }
+    if (berkasTugasFile) {
+      formData.append('file', berkasTugasFile);
+    }
+
+    try {
+      const res = await lmsService.kumpulkanTugas(selectedTugasForKumpul.id, formData);
+      if (res.status === 'success') {
+        toast.success('Tugas perkuliahan berhasil dikumpulkan');
+        setShowKumpulModal(false);
+        setSelectedTugasForKumpul(null);
+        setBerkasTugasFile(null);
+        kumpulFormHook.reset();
+        fetchDetail();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal mengumpulkan tugas');
+    }
+  };
+
+  // Submit Permohonan Izin / Sakit oleh Mahasiswa
+  const onAjukanIzin = async (values: AjukanIzinFormValues) => {
+    const formData = new FormData();
+    formData.append('tipe_izin_id', String(values.tipe_izin_id));
+    formData.append('alasan', values.alasan);
+    if (suratIzinFile) {
+      formData.append('file_surat', suratIzinFile);
+    }
+
+    try {
+      const res = await lmsService.ajukanIzin(pertemuanId, formData);
+      if (res.status === 'success') {
+        toast.success('Permohonan izin berhasil diajukan ke dosen');
+        setShowIzinModal(false);
+        setSuratIzinFile(null);
+        izinFormHook.reset();
+        fetchDetail();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal mengajukan izin');
     }
   };
 
@@ -537,10 +663,27 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           </div>
           <div className="flex flex-col gap-2">
             <div className="text-2xs text-slate-300 uppercase tracking-wider font-semibold">
-              Presensi Realtime Mahasiswa
+              {isMahasiswa ? 'Presensi Mandiri Sesi Pertemuan' : 'Presensi Realtime Mahasiswa'}
             </div>
-            <div className="flex items-center gap-2">
-              {tokenInfo?.token ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              {isMahasiswa ? (
+                detail?.my_absensi ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-emerald-400 bg-emerald-950/60 p-2 rounded-lg border border-emerald-500/30">
+                      Kehadiran Tercatat: {String(detail.my_absensi.status).toUpperCase()}
+                    </span>
+                    {detail.my_absensi.waktu_absen && (
+                      <span className="text-2xs text-slate-300">
+                        (Pukul {new Date(detail.my_absensi.waktu_absen).toLocaleTimeString('id-ID')})
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-300">
+                    Masukkan 6-digit token yang diberikan dosen untuk mencatat kehadiran Anda.
+                  </span>
+                )
+              ) : tokenInfo?.token ? (
                 <>
                   <span className="text-2xl font-mono font-bold tracking-widest text-emerald-400 bg-emerald-950/60 p-2 rounded-lg border border-emerald-500/30">
                     {tokenInfo.token}
@@ -559,15 +702,27 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            loading={isGeneratingToken}
-            disabled={isGeneratingToken}
-            icon={<QrCode size={16} />}
-            onClick={handleGenerateToken}
-          >
-            {tokenInfo?.token ? 'Regenerate Token Baru' : 'Buka Token Presensi (15 Mnt)'}
-          </Button>
+          {isMahasiswa ? (
+            !detail?.my_absensi && (
+              <Button
+                size="sm"
+                icon={<QrCode size={16} />}
+                onClick={() => setShowTokenModal(true)}
+              >
+                Input Token Presensi
+              </Button>
+            )
+          ) : (
+            <Button
+              size="sm"
+              loading={isGeneratingToken}
+              disabled={isGeneratingToken}
+              icon={<QrCode size={16} />}
+              onClick={handleGenerateToken}
+            >
+              {tokenInfo?.token ? 'Regenerate Token Baru' : 'Buka Token Presensi (15 Mnt)'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -584,7 +739,11 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           }`}
         >
           <Users size={16} />
-          <span>Presensi Mahasiswa ({detail?.absensi_list?.length || 0})</span>
+          <span>
+            {isMahasiswa
+              ? 'Status Kehadiran Saya'
+              : `Presensi Mahasiswa (${detail?.absensi_list?.length || 0})`}
+          </span>
         </Button>
 
         <Button
@@ -619,111 +778,218 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
       {/* Tab 1: Presensi Mahasiswa & Verifikasi Izin */}
       {activeTab === 'presensi' && (
         <div className="space-y-6">
-          {/* Permohonan Izin / Sakit yang Masuk */}
-          {detail?.izin_list && detail.izin_list.length > 0 && (
-            <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/80 space-y-4">
-              <h4 className="text-xs font-bold text-amber-900 flex items-center gap-2">
-                <AlertTriangle size={16} className="text-amber-600" />
-                Permohonan Izin / Sakit Mahasiswa ({detail.izin_list.length})
-              </h4>
+          {isMahasiswa ? (
+            /* Tampilan Presensi & Izin Khusus Mahasiswa */
+            <div className="space-y-4">
+              <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                    <CheckCircle2 size={24} className={detail?.my_absensi ? 'text-emerald-600' : 'text-slate-400'} />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <div className="text-2xs text-slate-400 uppercase tracking-wider font-semibold">
+                      Status Kehadiran Anda
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          detail?.my_absensi?.status === 'hadir'
+                            ? 'green'
+                            : detail?.my_absensi?.status === 'alfa'
+                            ? 'red'
+                            : 'gray'
+                        }
+                        style={
+                          detail?.my_absensi?.status === 'sakit'
+                            ? { borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }
+                            : undefined
+                        }
+                      >
+                        {detail?.my_absensi?.status ? String(detail.my_absensi.status).toUpperCase() : 'BELUM PRESENSI'}
+                      </Badge>
+                      {detail?.my_absensi?.waktu_absen && (
+                        <span className="text-2xs text-slate-500">
+                          Dicatat pada {new Date(detail.my_absensi.waktu_absen).toLocaleString('id-ID')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-              <div className="flex flex-col gap-2">
-                {detail.izin_list.map((iz: LmsIzinAbsensiItem) => (
-                  <div
-                    key={iz.id}
-                    className="p-4 bg-white rounded-lg border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
-                  >
+                <div className="flex items-center gap-2">
+                  {!detail?.my_absensi && !detail?.my_izin && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<AlertTriangle size={16} />}
+                      onClick={() => setShowIzinModal(true)}
+                    >
+                      Ajukan Izin / Sakit
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Permohonan Izin Mahasiswa */}
+              {detail?.my_izin && (
+                <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/80 space-y-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <h4 className="text-xs font-bold text-amber-900 flex items-center gap-2">
+                      <AlertTriangle size={16} className="text-amber-600" />
+                      Status Pengajuan Izin / Sakit Anda
+                    </h4>
+                    <Badge variant={detail.my_izin.status === 'disetujui' ? 'green' : detail.my_izin.status === 'ditolak' ? 'red' : 'yellow'}>
+                      {detail.my_izin.status.toUpperCase()}
+                    </Badge>
+                  </div>
+
+                  <div className="p-4 bg-white rounded-lg border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{iz.mahasiswa?.nama_lengkap}</span>
-                        <span className="font-mono text-2xs text-slate-500">({iz.mahasiswa?.nim})</span>
-                        <Badge
-                          variant="gray"
-                          style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
-                        >
-                          {iz.tipe_izin.toUpperCase()}
-                        </Badge>
-                        <Badge variant={iz.status === 'disetujui' ? 'green' : iz.status === 'ditolak' ? 'red' : 'gray'}>
-                          {iz.status}
-                        </Badge>
+                        <span className="font-bold text-slate-800">
+                          Tipe: {detail.my_izin.tipe_izin.toUpperCase()}
+                        </span>
+                        <span className="text-2xs text-slate-500">
+                          (Diajukan untuk sesi pertemuan ini)
+                        </span>
                       </div>
-                      <p className="text-slate-600 text-2xs">Alasan: {iz.alasan}</p>
+                      <p className="text-slate-600 text-2xs">
+                        <strong>Alasan:</strong> {detail.my_izin.alasan}
+                      </p>
+                      {detail.my_izin.catatan_dosen && (
+                        <p className="text-slate-700 text-2xs bg-slate-50 p-2 rounded border border-slate-200">
+                          <strong>Catatan Dosen:</strong> {detail.my_izin.catatan_dosen}
+                        </p>
+                      )}
                     </div>
 
-                    <DropdownMenu
-                      items={[
-                        ...(iz.surat_path
-                          ? [
-                              {
-                                label: 'Lihat Surat Keterangan',
-                                icon: <Download size={16} />,
-                                onClick: () => {
-                                  window.open(iz.surat_path || '#', '_blank');
-                                },
-                              },
-                            ]
-                          : []),
-                        ...(iz.status === 'pending'
-                          ? [
-                              {
-                                label: 'Setujui Permohonan',
-                                icon: <Check size={16} />,
-                                onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['disetujui'] || 2),
-                              },
-                              {
-                                label: 'Tolak Permohonan',
-                                icon: <X size={16} />,
-                                variant: 'danger' as const,
-                                onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['ditolak'] || 3),
-                              },
-                            ]
-                          : []),
-                      ]}
-                    />
+                    {detail.my_izin.surat_path && (
+                      <DropdownMenu
+                        items={[
+                          {
+                            label: 'Lihat Surat Keterangan',
+                            icon: <Download size={16} />,
+                            onClick: () => {
+                              window.open(detail.my_izin?.surat_path || '#', '_blank');
+                            },
+                          },
+                        ]}
+                      />
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tabel Presensi Mahasiswa Kelas via Mandatory DataTable */}
-          <div className="space-y-4">
-            <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <h4 className="text-xs font-bold text-slate-800">Daftar Kehadiran Sesi Pertemuan</h4>
-                <p className="text-2xs text-slate-500">
-                  Dosen dapat mengubah status presensi mahasiswa secara langsung lalu menekan Simpan Presensi.
-                </p>
-              </div>
-
-              {Object.keys(attendanceChanges).length > 0 && (
-                <Button
-                  size="sm"
-                  loading={isSavingBulkAbsensi}
-                  disabled={isSavingBulkAbsensi}
-                  icon={<Send size={16} />}
-                  onClick={handleSaveBulkAbsensi}
-                >
-                  Simpan Perubahan Presensi ({Object.keys(attendanceChanges).length})
-                </Button>
+                </div>
               )}
             </div>
+          ) : (
+            /* Tampilan Presensi & Izin Khusus Dosen */
+            <>
+              {/* Permohonan Izin / Sakit yang Masuk */}
+              {detail?.izin_list && detail.izin_list.length > 0 && (
+                <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/80 space-y-4">
+                  <h4 className="text-xs font-bold text-amber-900 flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-amber-600" />
+                    Permohonan Izin / Sakit Mahasiswa ({detail.izin_list.length})
+                  </h4>
 
-            <DataTable
-              columns={absensiColumns}
-              data={detail?.absensi_list || []}
-              meta={absensiMeta}
-              onPageChange={(page) => {
-                setAbsensiMeta((prev) => ({ ...prev, current_page: page }));
-                fetchDetail();
-              }}
-              onLimitChange={(limit) => {
-                setAbsensiMeta((prev) => ({ ...prev, per_page: limit, current_page: 1 }));
-                fetchDetail();
-              }}
-              emptyMessage="Belum ada data mahasiswa terdaftar untuk sesi pertemuan ini."
-            />
-          </div>
+                  <div className="flex flex-col gap-2">
+                    {detail.izin_list.map((iz: LmsIzinAbsensiItem) => (
+                      <div
+                        key={iz.id}
+                        className="p-4 bg-white rounded-lg border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs"
+                      >
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900">{iz.mahasiswa?.nama_lengkap}</span>
+                            <span className="font-mono text-2xs text-slate-500">({iz.mahasiswa?.nim})</span>
+                            <Badge
+                              variant="gray"
+                              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                            >
+                              {iz.tipe_izin.toUpperCase()}
+                            </Badge>
+                            <Badge variant={iz.status === 'disetujui' ? 'green' : iz.status === 'ditolak' ? 'red' : 'gray'}>
+                              {iz.status}
+                            </Badge>
+                          </div>
+                          <p className="text-slate-600 text-2xs">Alasan: {iz.alasan}</p>
+                        </div>
+
+                        <DropdownMenu
+                          items={[
+                            ...(iz.surat_path
+                              ? [
+                                  {
+                                    label: 'Lihat Surat Keterangan',
+                                    icon: <Download size={16} />,
+                                    onClick: () => {
+                                      window.open(iz.surat_path || '#', '_blank');
+                                    },
+                                  },
+                                ]
+                              : []),
+                            ...(iz.status === 'pending'
+                              ? [
+                                  {
+                                    label: 'Setujui Permohonan',
+                                    icon: <Check size={16} />,
+                                    onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['disetujui'] || 2),
+                                  },
+                                  {
+                                    label: 'Tolak Permohonan',
+                                    icon: <X size={16} />,
+                                    variant: 'danger' as const,
+                                    onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['ditolak'] || 3),
+                                  },
+                                ]
+                              : []),
+                          ]}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tabel Presensi Mahasiswa Kelas via Mandatory DataTable */}
+              <div className="space-y-4">
+                <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800">Daftar Kehadiran Sesi Pertemuan</h4>
+                    <p className="text-2xs text-slate-500">
+                      Dosen dapat mengubah status presensi mahasiswa secara langsung lalu menekan Simpan Presensi.
+                    </p>
+                  </div>
+
+                  {Object.keys(attendanceChanges).length > 0 && (
+                    <Button
+                      size="sm"
+                      loading={isSavingBulkAbsensi}
+                      disabled={isSavingBulkAbsensi}
+                      icon={<Send size={16} />}
+                      onClick={handleSaveBulkAbsensi}
+                    >
+                      Simpan Perubahan Presensi ({Object.keys(attendanceChanges).length})
+                    </Button>
+                  )}
+                </div>
+
+                <DataTable
+                  columns={absensiColumns}
+                  data={detail?.absensi_list || []}
+                  meta={absensiMeta}
+                  onPageChange={(page) => {
+                    setAbsensiMeta((prev) => ({ ...prev, current_page: page }));
+                    fetchDetail();
+                  }}
+                  onLimitChange={(limit) => {
+                    setAbsensiMeta((prev) => ({ ...prev, per_page: limit, current_page: 1 }));
+                    fetchDetail();
+                  }}
+                  emptyMessage="Belum ada data mahasiswa terdaftar untuk sesi pertemuan ini."
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -732,13 +998,15 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-slate-800">Materi & Bahan Perkuliahan</h4>
-            <Button
-              size="sm"
-              icon={<Plus size={16} />}
-              onClick={() => setShowMateriModal(true)}
-            >
-              Tambah Materi
-            </Button>
+            {!isMahasiswa && (
+              <Button
+                size="sm"
+                icon={<Plus size={16} />}
+                onClick={() => setShowMateriModal(true)}
+              >
+                Tambah Materi
+              </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -762,16 +1030,18 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                       >
                         {m.tipe_konten}
                       </Badge>
-                      <DropdownMenu
-                        items={[
-                          {
-                            label: 'Hapus Materi',
-                            icon: <Trash2 size={16} />,
-                            variant: 'danger',
-                            onClick: () => setDeleteConfirm({ isOpen: true, type: 'materi', id: m.id, name: m.judul }),
-                          },
-                        ]}
-                      />
+                      {!isMahasiswa && (
+                        <DropdownMenu
+                          items={[
+                            {
+                              label: 'Hapus Materi',
+                              icon: <Trash2 size={16} />,
+                              variant: 'danger',
+                              onClick: () => setDeleteConfirm({ isOpen: true, type: 'materi', id: m.id, name: m.judul }),
+                            },
+                          ]}
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -836,80 +1106,160 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
             <div>
               <h4 className="text-xs font-bold text-slate-800">Penugasan Mahasiswa & Nilai OBE</h4>
               <p className="text-2xs text-slate-500">
-                Nilai yang diinputkan dosen akan otomatis tersinkronisasi ke sistem OBE (siakad_nilai_komponen_mhs).
+                {isMahasiswa
+                  ? 'Kumpulkan tugas sesuai instruksi dan deadline untuk memperoleh penilaian terintegrasi OBE.'
+                  : 'Nilai yang diinputkan dosen akan otomatis tersinkronisasi ke sistem OBE (siakad_nilai_komponen_mhs).'}
               </p>
             </div>
-            <Button
-              size="sm"
-              icon={<Plus size={16} />}
-              onClick={() => setShowTugasModal(true)}
-            >
-              Buat Tugas Baru
-            </Button>
+            {!isMahasiswa && (
+              <Button
+                size="sm"
+                icon={<Plus size={16} />}
+                onClick={() => setShowTugasModal(true)}
+              >
+                Buat Tugas Baru
+              </Button>
+            )}
           </div>
 
           <div className="space-y-4">
-            {detail?.tugas_list?.map((t: LmsTugasItem) => (
-              <div key={t.id} className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-4">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <h5 className="font-bold text-slate-900 text-xs">{t.judul}</h5>
-                      {t.komponen_penilaian && (
-                        <Badge variant="green">
-                          OBE: {t.komponen_penilaian.nama_komponen} ({t.komponen_penilaian.bobot}%)
-                        </Badge>
-                      )}
+            {detail?.tugas_list?.map((t: LmsTugasItem) => {
+              const mySubmisi = detail.my_pengumpulan?.[t.id];
+
+              return (
+                <div key={t.id} className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-4">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <h5 className="font-bold text-slate-900 text-xs">{t.judul}</h5>
+                        {t.komponen_penilaian && (
+                          <Badge variant="green">
+                            OBE: {t.komponen_penilaian.nama_komponen} ({t.komponen_penilaian.bobot}%)
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-2xs text-slate-600">{t.deskripsi}</p>
+                      <div className="flex items-center gap-4 text-2xs text-slate-500 flex-wrap">
+                        <span className="flex items-center gap-2">
+                          <Clock size={16} /> Deadline: {t.deadline_at ? new Date(t.deadline_at).toLocaleString('id-ID') : 'Tidak ditentukan'}
+                        </span>
+                        <span>Maks Nilai: {t.maks_nilai}</span>
+                        {!isMahasiswa && <span>Terkumpul: {t.pengumpulan?.length || 0} Mahasiswa</span>}
+                      </div>
                     </div>
-                    <p className="text-2xs text-slate-600">{t.deskripsi}</p>
-                    <div className="flex items-center gap-4 text-2xs text-slate-500 flex-wrap">
-                      <span className="flex items-center gap-2">
-                        <Clock size={16} /> Deadline: {t.deadline_at ? new Date(t.deadline_at).toLocaleString('id-ID') : 'Tidak ditentukan'}
-                      </span>
-                      <span>Maks Nilai: {t.maks_nilai}</span>
-                      <span>Terkumpul: {t.pengumpulan?.length || 0} Mahasiswa</span>
-                    </div>
+
+                    {!isMahasiswa && (
+                      <DropdownMenu
+                        items={[
+                          {
+                            label: 'Hapus Tugas',
+                            icon: <Trash2 size={16} />,
+                            variant: 'danger',
+                            onClick: () => setDeleteConfirm({ isOpen: true, type: 'tugas', id: t.id, name: t.judul }),
+                          },
+                        ]}
+                      />
+                    )}
                   </div>
 
-                  <DropdownMenu
-                    items={[
-                      {
-                        label: 'Hapus Tugas',
-                        icon: <Trash2 size={16} />,
-                        variant: 'danger',
-                        onClick: () => setDeleteConfirm({ isOpen: true, type: 'tugas', id: t.id, name: t.judul }),
-                      },
-                    ]}
-                  />
-                </div>
+                  {isMahasiswa ? (
+                    /* Sisi Mahasiswa: Status Pengumpulan Saya & Tombol Kumpul */
+                    <div className="flex flex-col gap-2">
+                      <hr className="border-t border-slate-100 my-4" />
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <h6 className="text-2xs font-bold text-slate-700 uppercase tracking-wider">
+                          Status Pengumpulan Tugas Anda
+                        </h6>
+                        <Button
+                          size="sm"
+                          icon={<UploadCloud size={16} />}
+                          onClick={() => {
+                            setSelectedTugasForKumpul(t);
+                            kumpulFormHook.setValue('catatan_mahasiswa', mySubmisi?.catatan_mahasiswa || '');
+                            setShowKumpulModal(true);
+                          }}
+                        >
+                          {mySubmisi ? 'Kumpulkan Ulang' : 'Kumpulkan Tugas'}
+                        </Button>
+                      </div>
 
-                {/* Submisi Mahasiswa via Mandatory DataTable */}
-                <div className="flex flex-col gap-2">
-                  <hr className="border-t border-slate-100 my-4" />
-                  <h6 className="text-2xs font-bold text-slate-700 uppercase tracking-wider">
-                    Pengumpulan Tugas Mahasiswa
-                  </h6>
+                      {mySubmisi ? (
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-4">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={mySubmisi.is_late ? 'yellow' : 'green'}>
+                                {mySubmisi.is_late ? 'Terkumpul (Terlambat)' : 'Terkumpul Tepat Waktu'}
+                              </Badge>
+                              {mySubmisi.nilai !== null && mySubmisi.nilai !== undefined && (
+                                <Badge variant="green">
+                                  Nilai OBE: {mySubmisi.nilai} / {t.maks_nilai}
+                                </Badge>
+                              )}
+                            </div>
 
-                  <DataTable
-                    columns={getSubmisiColumns(t)}
-                    data={t.pengumpulan || []}
-                    meta={{
-                      current_page: 1,
-                      last_page: 1,
-                      per_page: t.pengumpulan?.length || 50,
-                      total: t.pengumpulan?.length || 0,
-                    }}
-                    onPageChange={() => {
-                      fetchDetail();
-                    }}
-                    onLimitChange={() => {
-                      fetchDetail();
-                    }}
-                    emptyMessage="Belum ada mahasiswa yang mengumpulkan tugas ini."
-                  />
+                            {mySubmisi.file_path && (
+                              <DropdownMenu
+                                items={[
+                                  {
+                                    label: 'Unduh Berkas Saya',
+                                    icon: <Download size={16} />,
+                                    onClick: () => {
+                                      window.open(mySubmisi.file_path || '#', '_blank');
+                                    },
+                                  },
+                                ]}
+                              />
+                            )}
+                          </div>
+
+                          {mySubmisi.catatan_mahasiswa && (
+                            <p className="text-2xs text-slate-600">
+                              <strong>Catatan Pengumpulan:</strong> {mySubmisi.catatan_mahasiswa}
+                            </p>
+                          )}
+
+                          {mySubmisi.feedback_dosen && (
+                            <div className="p-2 bg-emerald-50 rounded border border-emerald-200 text-2xs text-emerald-900">
+                              <strong>Feedback Dosen:</strong> {mySubmisi.feedback_dosen}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-center text-xs text-slate-500">
+                          Anda belum mengumpulkan tugas ini. Silakan klik tombol <strong>Kumpulkan Tugas</strong> di atas sebelum batas deadline.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Sisi Dosen: Submisi Seluruh Mahasiswa via Mandatory DataTable */
+                    <div className="flex flex-col gap-2">
+                      <hr className="border-t border-slate-100 my-4" />
+                      <h6 className="text-2xs font-bold text-slate-700 uppercase tracking-wider">
+                        Pengumpulan Tugas Mahasiswa
+                      </h6>
+
+                      <DataTable
+                        columns={getSubmisiColumns(t)}
+                        data={t.pengumpulan || []}
+                        meta={{
+                          current_page: 1,
+                          last_page: 1,
+                          per_page: t.pengumpulan?.length || 50,
+                          total: t.pengumpulan?.length || 0,
+                        }}
+                        onPageChange={() => {
+                          fetchDetail();
+                        }}
+                        onLimitChange={() => {
+                          fetchDetail();
+                        }}
+                        emptyMessage="Belum ada mahasiswa yang mengumpulkan tugas ini."
+                      />
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -1114,6 +1464,134 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
             placeholder="Berikan saran konstruktif untuk mahasiswa..."
             error={nilaiFormHook.formState.errors.feedback_dosen?.message}
             {...nilaiFormHook.register('feedback_dosen')}
+          />
+        </form>
+      </Modal>
+
+      {/* Modal Input Token Absensi Mahasiswa */}
+      <Modal
+        open={showTokenModal}
+        onClose={() => setShowTokenModal(false)}
+        title="Input Token Presensi Realtime"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" icon={<X size={16} />} onClick={() => setShowTokenModal(false)}>
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="form-input-token"
+              loading={tokenFormHook.formState.isSubmitting}
+              disabled={tokenFormHook.formState.isSubmitting}
+              icon={<Check size={16} />}
+            >
+              Kirim Token
+            </Button>
+          </div>
+        }
+      >
+        <form id="form-input-token" onSubmit={tokenFormHook.handleSubmit(onInputToken)} className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Masukkan 6-digit kode token presensi yang diaktifkan oleh dosen pengampu sesi perkuliahan ini.
+          </p>
+
+          <Input
+            label="6-Digit Token Presensi"
+            placeholder="Contoh: 849201"
+            className="text-center font-mono text-base tracking-widest uppercase"
+            maxLength={6}
+            error={tokenFormHook.formState.errors.token?.message}
+            {...tokenFormHook.register('token')}
+          />
+        </form>
+      </Modal>
+
+      {/* Modal Kumpulkan Tugas Mahasiswa */}
+      <Modal
+        open={showKumpulModal}
+        onClose={() => setShowKumpulModal(false)}
+        title={`Kumpulkan Tugas: ${selectedTugasForKumpul?.judul || ''}`}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" icon={<X size={16} />} onClick={() => setShowKumpulModal(false)}>
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="form-kumpul-tugas"
+              loading={kumpulFormHook.formState.isSubmitting}
+              disabled={kumpulFormHook.formState.isSubmitting}
+              icon={<UploadCloud size={16} />}
+            >
+              Simpan & Kumpulkan
+            </Button>
+          </div>
+        }
+      >
+        <form id="form-kumpul-tugas" onSubmit={kumpulFormHook.handleSubmit(onKumpulTugas)} className="space-y-4">
+          <Textarea
+            label="Catatan Pengumpulan / Komentar (Opsional)"
+            placeholder="Tuliskan catatan atau link alternatif pengerjaan tugas..."
+            error={kumpulFormHook.formState.errors.catatan_mahasiswa?.message}
+            {...kumpulFormHook.register('catatan_mahasiswa')}
+          />
+
+          <Input
+            type="file"
+            label="Berkas Dokumen / Hasil Tugas (PDF, ZIP, DOCX, dll.)"
+            onChange={(e) => setBerkasTugasFile(e.target.files?.[0] || null)}
+          />
+        </form>
+      </Modal>
+
+      {/* Modal Ajukan Izin / Sakit Mahasiswa */}
+      <Modal
+        open={showIzinModal}
+        onClose={() => setShowIzinModal(false)}
+        title="Formulir Permohonan Izin / Sakit"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" icon={<X size={16} />} onClick={() => setShowIzinModal(false)}>
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="form-ajukan-izin"
+              loading={izinFormHook.formState.isSubmitting}
+              disabled={izinFormHook.formState.isSubmitting}
+              icon={<Send size={16} />}
+            >
+              Kirim Permohonan
+            </Button>
+          </div>
+        }
+      >
+        <form id="form-ajukan-izin" onSubmit={izinFormHook.handleSubmit(onAjukanIzin)} className="space-y-4">
+          <Controller
+            name="tipe_izin_id"
+            control={izinFormHook.control}
+            render={({ field }) => (
+              <Select
+                label="Jenis Permohonan Izin"
+                options={tipeIzinOptions}
+                value={field.value}
+                onChange={(val) => field.onChange(Number(val))}
+                error={izinFormHook.formState.errors.tipe_izin_id?.message}
+              />
+            )}
+          />
+
+          <Textarea
+            label="Alasan Permohonan Izin / Sakit"
+            placeholder="Jelaskan alasan ketidakhadiran Anda secara jelas..."
+            error={izinFormHook.formState.errors.alasan?.message}
+            {...izinFormHook.register('alasan')}
+          />
+
+          <Input
+            type="file"
+            label="Lampiran Surat Dokter / Keterangan (PDF / Gambar)"
+            onChange={(e) => setSuratIzinFile(e.target.files?.[0] || null)}
           />
         </form>
       </Modal>

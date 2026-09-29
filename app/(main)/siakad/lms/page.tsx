@@ -17,9 +17,12 @@ import { LmsKelasItem } from '@/types/lms.types';
 import { PaginationMeta } from '@/types/api.types';
 import { Filter, Eye, BookOpen, Users, Calendar, ArrowRight, RotateCcw, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LmsKelasListPage() {
   const router = useRouter();
+  const { hasRole } = useAuth();
+  const isMahasiswa = hasRole('mahasiswa');
 
   // State Data & Loading
   const [kelasList, setKelasList] = useState<LmsKelasItem[]>([]);
@@ -231,7 +234,9 @@ export default function LmsKelasListPage() {
             <BookOpen size={20} />
           </div>
           <div>
-            <div className="text-xs text-slate-500">Total Kelas Diampu</div>
+            <div className="text-xs text-slate-500">
+              {isMahasiswa ? 'Total Kelas Diikuti' : 'Total Kelas Diampu'}
+            </div>
             <div className="text-base font-bold text-slate-800">{meta.total} Kelas Aktif</div>
           </div>
         </div>

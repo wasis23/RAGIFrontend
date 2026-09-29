@@ -9,6 +9,7 @@ import {
   LmsTugasItem,
   LmsKelasSetting,
   LmsIzinAbsensiItem,
+  LmsPengumpulanTugas,
 } from '@/types/lms.types';
 
 export const lmsService = {
@@ -125,7 +126,47 @@ export const lmsService = {
     return response.data;
   },
 
-  // 6. Download / Berkas Aman
+  // 6. Mahasiswa Actions
+  getMyAllTugas: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }): Promise<ApiResponse<LmsTugasItem[]>> => {
+    const response = await apiClient.get('/v1/siakad/lms/tugas/my', { params });
+    return response.data;
+  },
+
+  inputTokenAbsensi: async (
+    pertemuanId: number,
+    token: string
+  ): Promise<ApiResponse<{ pertemuan_id: number; is_present: boolean }>> => {
+    const response = await apiClient.post(`/v1/siakad/lms/pertemuan/${pertemuanId}/input-token`, { token });
+    return response.data;
+  },
+
+  kumpulkanTugas: async (
+    tugasId: number,
+    formData: FormData
+  ): Promise<ApiResponse<LmsPengumpulanTugas>> => {
+    const response = await apiClient.post(`/v1/siakad/lms/tugas/${tugasId}/kumpul`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  ajukanIzin: async (
+    pertemuanId: number,
+    formData: FormData
+  ): Promise<ApiResponse<LmsIzinAbsensiItem>> => {
+    const response = await apiClient.post(`/v1/siakad/lms/pertemuan/${pertemuanId}/izin`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // 7. Download / Berkas Aman
   getDownloadUrl: async (type: 'materi' | 'tugas' | 'izin', id: number): Promise<ApiResponse<{ url: string; file_name: string }>> => {
     const response = await apiClient.get(`/v1/siakad/lms/download/${type}/${id}`);
     return response.data;

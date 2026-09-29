@@ -29,9 +29,10 @@ import {
   QrCode,
   BookOpen,
   Save,
-  ArrowLeft
+  ArrowLeft,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 // Zod Validation Schema di luar komponen sesuai Aturan Form Validation Reviewer
 const settingSchema = z.object({
@@ -54,6 +55,8 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const kelasId = Number(resolvedParams.kelasId);
   const router = useRouter();
+  const { hasRole } = useAuth();
+  const isMahasiswa = hasRole('mahasiswa');
 
   // State
   const [activeTab, setActiveTab] = useState<'pertemuan' | 'rekap' | 'setting'>('pertemuan');
@@ -345,19 +348,21 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
           <span>Rekapitulasi Presensi</span>
         </Button>
 
-        <Button
-          type="button"
-          variant="tab"
-          onClick={() => setActiveTab('setting')}
-          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'setting'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Settings size={16} />
-          <span>Pengaturan Kelas LMS</span>
-        </Button>
+        {!isMahasiswa && (
+          <Button
+            type="button"
+            variant="tab"
+            onClick={() => setActiveTab('setting')}
+            className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'setting'
+                ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Settings size={16} />
+            <span>Pengaturan Kelas LMS</span>
+          </Button>
+        )}
       </div>
 
       {/* Tab Content: Pertemuan List */}

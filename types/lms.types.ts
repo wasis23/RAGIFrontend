@@ -194,6 +194,16 @@ export interface LmsPertemuanDetail {
     nama_komponen: string;
     bobot: number;
   }>;
+  token_aktif?: boolean;
+  token_sisa_detik?: number;
+  my_absensi?: {
+    id: number;
+    status: string;
+    catatan?: string | null;
+    waktu_absen?: string | null;
+  } | null;
+  my_pengumpulan?: Record<number, LmsPengumpulanTugas>;
+  my_izin?: LmsIzinAbsensiItem | null;
 }
 
 export interface LmsRekapAbsensi {
