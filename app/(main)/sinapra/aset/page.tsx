@@ -412,14 +412,14 @@ export default function AsetPage() {
     },
     {
       key: 'lokasi',
-      label: 'LOKASI RUANGAN',
+      label: 'LOKASI & PIC PEGAWAI',
       render: (row) => (
         <div>
           <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs block">
             {row.ruangan?.nama || 'Gudang Utama'}
           </span>
           <span className="text-2xs text-slate-400 block">
-            {row.ruangan?.gedung?.nama || 'Sentral Kampus'}
+            {row.penanggung_jawab ? `PIC: ${row.penanggung_jawab.nama_lengkap}` : (row.ruangan?.gedung?.nama || 'Sentral Kampus')}
           </span>
         </div>
       ),

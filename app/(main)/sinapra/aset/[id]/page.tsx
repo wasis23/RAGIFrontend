@@ -15,15 +15,35 @@ import {
   ShieldCheck,
   Tag,
   Sparkles,
+  UserCheck,
+  History,
+  BookOpen,
+  CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { AsetLabelPrintModal } from '@/components/sinapra/AsetLabelPrintModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
-import type { Aset, AsetLabelData, PenyusutanAsetResult } from '@/types/sinapra.types';
+import type { Aset, AsetLabelData, PenyusutanAsetResult, RiwayatPenyusutanAset } from '@/types/sinapra.types';
+
+const postingJurnalSchema = z.object({
+  tahun: z
+    .number({ message: 'Tahun harus berupa angka' })
+    .min(2000, 'Tahun periode buku minimal 2000')
+    .max(new Date().getFullYear() + 1, 'Tahun periode buku tidak boleh melampaui tahun depan'),
+  catatan: z.string().max(500, 'Catatan maksimal 500 karakter').optional(),
+});
+type PostingJurnalFormValues = z.infer<typeof postingJurnalSchema>;
 
 // Code 39 Barcode renderer helper for label preview
 const CODE39_PATTERNS: Record<string, string> = {
@@ -94,18 +114,111 @@ export default function DetailAsetPage() {
   const [aset, setAset] = useState<Aset | null>(null);
   const [labelData, setLabelData] = useState<AsetLabelData | null>(null);
   const [penyusutan, setPenyusutan] = useState<PenyusutanAsetResult | null>(null);
+  const [riwayatList, setRiwayatList] = useState<RiwayatPenyusutanAset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isPostingModalOpen, setIsPostingModalOpen] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors: formErrors, isSubmitting: isSubmittingPosting },
+  } = useForm<PostingJurnalFormValues>({
+    resolver: zodResolver(postingJurnalSchema) as any,
+    defaultValues: {
+      tahun: new Date().getFullYear(),
+      catatan: '',
+    },
+  });
+
+  const riwayatColumns: ColumnDef<RiwayatPenyusutanAset>[] = [
+    {
+      key: 'tahun',
+      label: 'TAHUN BUKU',
+      render: (row) => (
+        <span className="font-bold text-slate-800 text-xs">
+          {row.tahun ?? row.periode_tahun ?? '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'tanggal',
+      label: 'TANGGAL POSTING',
+      render: (row) => (
+        <span className="text-xs text-slate-600">
+          {row.tanggal_posting ? formatDate(row.tanggal_posting) : (row.created_at ? formatDate(row.created_at) : '-')}
+        </span>
+      ),
+    },
+    {
+      key: 'nominal',
+      label: 'NOMINAL BEBAN',
+      align: 'right',
+      render: (row) => (
+        <span className="font-mono font-bold text-rose-600 text-xs">
+          {formatCurrency(row.nominal_penyusutan ?? row.beban_penyusutan ?? 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'nilai_buku',
+      label: 'NILAI BUKU AKHIR',
+      align: 'right',
+      render: (row) => (
+        <span className="font-mono font-bold text-emerald-600 text-xs">
+          {formatCurrency(row.nilai_buku_sesudah ?? row.nilai_buku_setelah ?? 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'jurnal',
+      label: 'NO. JURNAL SIKEU',
+      render: (row) => (
+        <span className="font-mono font-bold text-slate-800 text-2xs">
+          {row.jurnal?.nomor_jurnal || row.jurnal_umum?.nomor_jurnal || (row.jurnal_umum_id || row.sikeu_jurnal_id ? `JRN-${row.jurnal_umum_id || row.sikeu_jurnal_id}` : '-')}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => (
+        <Badge variant="success" className="text-2xs uppercase">
+          {row.jurnal?.status_posting || row.jurnal_umum?.status_posting || 'POSTED'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'petugas',
+      label: 'PETUGAS',
+      render: (row) => (
+        <span className="text-xs text-slate-700">
+          {row.poster?.name || 'Administrator'}
+        </span>
+      ),
+    },
+    {
+      key: 'catatan',
+      label: 'CATATAN',
+      render: (row) => (
+        <span className="text-2xs text-slate-500 max-w-[200px] truncate block">
+          {row.catatan || '-'}
+        </span>
+      ),
+    },
+  ];
 
   useEffect(() => {
     if (!id) return;
     const fetchDetail = async () => {
       setIsLoading(true);
       try {
-        const [asetRes, labelRes, penyusutanRes] = await Promise.allSettled([
+        const [asetRes, labelRes, penyusutanRes, riwayatRes] = await Promise.allSettled([
           sinapraService.getAsetDetail(id),
           sinapraService.getAsetLabel(id),
           sinapraService.hitungPenyusutanAset(id),
+          sinapraService.getRiwayatPenyusutan(id),
         ]);
 
         if (asetRes.status === 'fulfilled' && asetRes.value?.data) {
@@ -117,6 +230,9 @@ export default function DetailAsetPage() {
         if (penyusutanRes.status === 'fulfilled' && penyusutanRes.value?.data) {
           setPenyusutan(penyusutanRes.value.data);
         }
+        if (riwayatRes.status === 'fulfilled' && riwayatRes.value?.data) {
+          setRiwayatList(riwayatRes.value.data);
+        }
       } catch {
         toast.error('Gagal memuat rincian inventaris aset');
         router.push('/sinapra/aset');
@@ -126,6 +242,31 @@ export default function DetailAsetPage() {
     };
     fetchDetail();
   }, [id, router]);
+
+  const handlePostJurnal = async (values: PostingJurnalFormValues) => {
+    if (!id) return;
+    try {
+      const res = await sinapraService.postJurnalPenyusutan(id, {
+        tahun: values.tahun,
+        catatan: values.catatan?.trim() || undefined,
+      });
+      toast.success(res.message || 'Jurnal penyusutan berhasil diposting ke SIKEU');
+      setIsPostingModalOpen(false);
+      reset({ tahun: new Date().getFullYear(), catatan: '' });
+
+      // Refresh detail, kalkulasi penyusutan, dan riwayat jurnal
+      const [asetRes, penyusutanRes, riwayatRes] = await Promise.allSettled([
+        sinapraService.getAsetDetail(id),
+        sinapraService.hitungPenyusutanAset(id),
+        sinapraService.getRiwayatPenyusutan(id),
+      ]);
+      if (asetRes.status === 'fulfilled' && asetRes.value?.data) setAset(asetRes.value.data);
+      if (penyusutanRes.status === 'fulfilled' && penyusutanRes.value?.data) setPenyusutan(penyusutanRes.value.data);
+      if (riwayatRes.status === 'fulfilled' && riwayatRes.value?.data) setRiwayatList(riwayatRes.value.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal memposting jurnal penyusutan ke SIKEU');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -163,6 +304,17 @@ export default function DetailAsetPage() {
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Kembali
+            </Button>
+            <Button
+              variant="outline"
+              icon={<Sparkles size={16} />}
+              onClick={() => {
+                reset({ tahun: new Date().getFullYear(), catatan: '' });
+                setIsPostingModalOpen(true);
+              }}
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            >
+              Posting Jurnal SIKEU
             </Button>
             <Button
               variant="outline"
@@ -285,6 +437,25 @@ export default function DetailAsetPage() {
               </p>
             </div>
 
+            <div>
+              <p className="text-2xs font-medium text-slate-500 uppercase">Penanggung Jawab (PIC Pegawai)</p>
+              {aset.penanggung_jawab ? (
+                <div className="flex items-center gap-2">
+                  <UserCheck size={16} className="text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-800">
+                      {aset.penanggung_jawab.nama_lengkap}
+                    </p>
+                    <p className="text-2xs text-slate-500">
+                      NIP: {aset.penanggung_jawab.nip || '-'} • {aset.penanggung_jawab.unit_kerja?.nama || 'Tanpa Unit'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 italic">Belum dialokasikan ke pegawai spesifik</p>
+              )}
+            </div>
+
             {aset.spesifikasi && (
               <div>
                 <p className="text-2xs font-medium text-slate-500 uppercase">Spesifikasi Tambahan</p>
@@ -399,6 +570,137 @@ export default function DetailAsetPage() {
           </div>
         </div>
       </div>
+
+      {/* SECTION: INTEGRASI JURNAL PENYUSUTAN (SINAPRA → SIKEU) */}
+      <div className="rounded-lg border border-slate-200 bg-white p-4 md:p-6 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <BookOpen size={16} className="text-slate-600" /> Riwayat Posting Jurnal Penyusutan (SINAPRA → SIKEU)
+            </h3>
+            <p className="text-2xs text-slate-500">
+              Pencatatan beban penyusutan dan penyesuaian nilai buku aset langsung ke buku besar akuntansi SIKEU.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            icon={<Sparkles size={14} />}
+            onClick={() => {
+              reset({ tahun: new Date().getFullYear(), catatan: '' });
+              setIsPostingModalOpen(true);
+            }}
+            style={{ background: 'var(--module-primary)' }}
+          >
+            Posting Jurnal ke SIKEU
+          </Button>
+        </div>
+
+        {/* Info box double entry */}
+        <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-2xs text-slate-600 flex items-start gap-2">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+          <div>
+            <span className="font-semibold text-slate-700">Mekanisme Jurnal Penyesuaian Akrual SIKEU:</span>
+            <p>
+              Setiap posting penyusutan otomatis membentuk jurnal penyesuaian: <strong>Debet 505.01 (Beban Penyusutan Aset Tetap)</strong> dan <strong>Kredit 105.01 (Akumulasi Penyusutan Aset Tetap)</strong>. Periode tahun yang sudah diposting dikunci untuk mencegah duplikasi.
+            </p>
+          </div>
+        </div>
+
+        {/* Tabel Riwayat Posting */}
+        <DataTable
+          columns={riwayatColumns}
+          data={riwayatList}
+          emptyMessage="Belum ada riwayat posting jurnal penyusutan ke SIKEU untuk aset ini."
+        />
+      </div>
+
+      {/* MODAL: POSTING JURNAL KE SIKEU */}
+      <Modal
+        open={isPostingModalOpen}
+        onClose={() => setIsPostingModalOpen(false)}
+        title="Posting Jurnal Penyusutan ke SIKEU"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setIsPostingModalOpen(false)}
+              disabled={isSubmittingPosting}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="form-posting-jurnal"
+              variant="primary"
+              loading={isSubmittingPosting}
+              disabled={isSubmittingPosting}
+              style={{ background: 'var(--module-primary)' }}
+            >
+              Posting ke SIKEU
+            </Button>
+          </div>
+        }
+      >
+        <form
+          id="form-posting-jurnal"
+          onSubmit={handleSubmit(handlePostJurnal)}
+          className="space-y-4"
+        >
+          <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-4 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Nama Aset:</span>
+              <span className="font-bold text-slate-800">{aset.nama}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Harga Perolehan:</span>
+              <span className="font-mono font-semibold text-slate-800">{formatCurrency(aset.harga_perolehan)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Nilai Buku Saat Ini:</span>
+              <span className="font-mono font-semibold text-emerald-600">{formatCurrency(aset.nilai_buku)}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-2">
+              <span className="text-slate-500">Estimasi Beban Penyusutan / Tahun:</span>
+              <span className="font-mono font-bold text-rose-600">
+                {formatCurrency(aset.harga_perolehan * ((aset.kategori?.tarif_penyusutan_persen || 25) / 100))}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-2xs text-emerald-800 space-y-4">
+            <p className="font-bold flex items-center gap-2">
+              <BookOpen size={14} className="text-emerald-700" />
+              Entri Jurnal Akuntansi SIKEU yang Diterbitkan:
+            </p>
+            <p>• <strong>[Dr] 505.01</strong> — Beban Penyusutan Aset Tetap</p>
+            <p>• <strong>[Cr] 105.01</strong> — Akumulasi Penyusutan Aset Tetap</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Tahun Periode Buku"
+                type="number"
+                min={2000}
+                max={new Date().getFullYear() + 1}
+                required
+                error={formErrors.tahun?.message}
+                {...register('tahun', { valueAsNumber: true })}
+              />
+            </div>
+
+            <div>
+              <Textarea
+                label="Catatan / Keterangan (Opsional)"
+                rows={3}
+                placeholder="Contoh: Penyusutan inventaris tahunan akhir periode buku"
+                error={formErrors.catatan?.message}
+                {...register('catatan')}
+              />
+            </div>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal Cetak Label */}
       <AsetLabelPrintModal

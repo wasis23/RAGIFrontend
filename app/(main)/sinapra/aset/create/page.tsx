@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { sinapraService } from '@/services/sinapra.service';
+import { simpegService } from '@/services/simpeg.service';
 import type { AsetFormPayload, KategoriAset, Ruangan } from '@/types/sinapra.types';
 
 export default function CreateAsetPage() {
@@ -19,10 +20,12 @@ export default function CreateAsetPage() {
 
   const [selectedKategoriObj, setSelectedKategoriObj] = useState<{ value: string; label: string } | null>(null);
   const [selectedRuanganObj, setSelectedRuanganObj] = useState<{ value: string; label: string } | null>(null);
+  const [selectedPegawaiObj, setSelectedPegawaiObj] = useState<{ value: string; label: string } | null>(null);
 
   const [formData, setFormData] = useState<AsetFormPayload>({
     kategori_id: 0,
     ruangan_id: undefined,
+    penanggung_jawab_pegawai_id: undefined,
     kode_aset: '',
     nama: '',
     merk: '',
@@ -54,6 +57,22 @@ export default function CreateAsetPage() {
       let list = res?.data?.items || res?.data || res || [];
       if (Array.isArray(list)) {
         return list.map((r: Ruangan) => ({ value: r.id.toString(), label: `${r.kode} - ${r.nama}` }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const loadPegawaiOptions = async (inputValue: string) => {
+    try {
+      const res: any = await simpegService.getPegawaiList({ search: inputValue, per_page: 20 });
+      let list = res?.data?.data || res?.data?.items || res?.data || [];
+      if (Array.isArray(list)) {
+        return list.map((p: any) => ({
+          value: p.id.toString(),
+          label: `${p.nama_lengkap}${p.nip ? ` (${p.nip})` : ''} - ${p.unit_kerja?.nama || 'Tanpa Unit'}`,
+        }));
       }
       return [];
     } catch {
@@ -176,6 +195,18 @@ export default function CreateAsetPage() {
                 setFormData({ ...formData, ruangan_id: sel ? parseInt(sel.value) : undefined });
               }}
               loadOptions={loadRuanganOptions}
+            />
+
+            <AsyncSelect
+              label="PIC Pegawai (Penanggung Jawab Aset)"
+              placeholder="Pilih pegawai pemegang laptop/kendaraan dinas..."
+              value={selectedPegawaiObj}
+              onChange={(sel: any) => {
+                setSelectedPegawaiObj(sel);
+                setFormData({ ...formData, penanggung_jawab_pegawai_id: sel ? parseInt(sel.value) : undefined });
+              }}
+              loadOptions={loadPegawaiOptions}
+              isClearable
             />
 
             <Select

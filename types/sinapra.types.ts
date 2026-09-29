@@ -215,15 +215,66 @@ export interface Aset {
   is_borrowable?: boolean;
   is_lab_asset?: boolean;
   keterangan?: string;
+  penanggung_jawab_pegawai_id?: number | null;
+  penanggung_jawab?: {
+    id: number;
+    nama_lengkap: string;
+    nip?: string;
+    unit_kerja?: { nama: string };
+  } | null;
   kategori?: KategoriAset;
   ruangan?: Ruangan;
+  riwayat_penyusutan?: RiwayatPenyusutanAset[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface RiwayatPenyusutanAset {
+  id: number;
+  aset_id: number;
+  periode_tahun?: number;
+  tahun?: number;
+  nilai_perolehan?: number;
+  persentase_penyusutan?: number;
+  beban_penyusutan?: number;
+  nominal_penyusutan?: number;
+  nilai_buku_setelah?: number;
+  nilai_buku_sesudah?: number;
+  tanggal_posting?: string;
+  jurnal_umum_id?: number | null;
+  sikeu_jurnal_id?: number | null;
+  diposting_oleh?: number | null;
+  posted_by?: number | null;
+  catatan?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  poster?: {
+    id: number;
+    name: string;
+    username?: string;
+  };
+  jurnal_umum?: {
+    id: number;
+    nomor_jurnal: string;
+    tanggal_jurnal: string;
+    total_debet: number;
+    total_kredit: number;
+    status_posting: string;
+  };
+  jurnal?: {
+    id: number;
+    nomor_jurnal: string;
+    tanggal_jurnal: string;
+    total_debet: number;
+    total_kredit: number;
+    status_posting: string;
+  };
 }
 
 export interface AsetFormPayload {
   kategori_id: number;
   ruangan_id?: number | null;
+  penanggung_jawab_pegawai_id?: number | null;
   kode_aset: string;
   nama: string;
   merk?: string;
@@ -416,8 +467,15 @@ export interface PengajuanPengadaan {
   alasan_kebutuhan: string;
   tanggal_pengajuan: string;
   estimasi_anggaran: number;
-  status: 'draft' | 'diajukan' | 'disetujui' | 'ditolak' | 'proses_beli' | 'selesai';
+  status: 'draft' | 'diajukan' | 'disetujui' | 'ditolak' | 'proses_beli' | 'proses_pengadaan' | 'selesai';
   disetujui_oleh?: number;
+  sikeu_pencairan_id?: number | null;
+  pencairan_kas?: {
+    id: number;
+    nomor_pengajuan: string;
+    status: string;
+    nominal_diajukan: number;
+  } | null;
   details?: DetailPengadaan[];
   unit_kerja?: { id: number; nama: string; kode: string };
   pengaju?: { id: number; name: string; email: string };
@@ -463,6 +521,7 @@ export interface SinapraFilterParams extends PaginationParams {
   tanggal?: string;
   is_borrowable?: boolean;
   is_lab_asset?: boolean;
+  penanggung_jawab_pegawai_id?: number;
   ruangan_id?: number;
   kategori_bhp_id?: number;
   satuan_id?: number;

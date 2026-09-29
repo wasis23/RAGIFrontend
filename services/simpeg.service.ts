@@ -203,6 +203,25 @@ export const simpegService = {
     return data;
   },
 
+  getClearanceStatus: async (id: number): Promise<ApiResponse<{
+    is_cleared: boolean;
+    aset_dipegang_count: number;
+    peminjaman_aktif_count: number;
+    aset_dipegang: Array<{
+      id: number;
+      kode_aset: string;
+      nama_aset?: string;
+      nama?: string;
+      nomor_seri?: string;
+      status: string;
+      kondisi: string;
+    }>;
+    peminjaman_aktif: Array<any>;
+  }>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/pegawai/${id}/clearance`);
+    return data;
+  },
+
   downloadPegawaiTemplate: async (): Promise<Blob> => {
     const response = await apiClient.get('/simpeg/pegawai/template', {
       responseType: 'blob',

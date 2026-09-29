@@ -12,6 +12,7 @@ import type {
   Aset,
   AsetFormPayload,
   PenyusutanAsetResult,
+  RiwayatPenyusutanAset,
   PeminjamanRuangan,
   ApplyPeminjamanRuanganPayload,
   ApprovePeminjamanRuanganPayload,
@@ -189,6 +190,16 @@ export const sinapraService = {
 
   hitungPenyusutanAset: async (id: number): Promise<ApiResponse<PenyusutanAsetResult>> => {
     const { data } = await apiClient.get<ApiResponse<PenyusutanAsetResult>>(`/sinapra/aset/${id}/hitung-penyusutan`);
+    return data;
+  },
+
+  postJurnalPenyusutan: async (id: number, payload?: { tahun?: number; catatan?: string }): Promise<ApiResponse<RiwayatPenyusutanAset>> => {
+    const { data } = await apiClient.post<ApiResponse<RiwayatPenyusutanAset>>(`/sinapra/aset/${id}/post-jurnal-penyusutan`, payload);
+    return data;
+  },
+
+  getRiwayatPenyusutan: async (id: number): Promise<ApiResponse<RiwayatPenyusutanAset[]>> => {
+    const { data } = await apiClient.get<ApiResponse<RiwayatPenyusutanAset[]>>(`/sinapra/aset/${id}/riwayat-penyusutan`);
     return data;
   },
 
