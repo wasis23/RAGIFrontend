@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Award,
   BookOpen,
@@ -36,7 +37,7 @@ import { Select } from '@/components/ui/Select';
 import { SIAKAD_OPTION_TYPES, useSiakadOptions } from '@/lib/siakad-options';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { siakadService } from '@/services/siakad.service';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export type ObeTabKey =
@@ -79,7 +80,8 @@ export function ObeWorkspace({
   breadcrumbLabel = 'Kurikulum OBE',
   allowedRoles,
 }: ObeWorkspaceProps) {
-  const { user } = useAuthStore();
+  const router = useRouter();
+  const { user, hasRole } = useAuth();
   const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
   // Superadmin bypass semua batasan peran di workspace ini
   const isAllowed =
@@ -115,6 +117,8 @@ export function ObeWorkspace({
 
   // Dosen murni: hanya MK yang diajarnya (mendukung lintas prodi)
   const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
+  // Verifikator RPS: hanya Kaprodi/Wakil/Admin yang boleh Setujui/Minta Revisi (backend approveRps juga 403 selain peran ini)
+  const isRpsVerifier = hasRole(['superadmin', 'admin', 'kaprodi', 'wakil_prodi']);
   const [taughtMkIds, setTaughtMkIds] = useState<number[]>([]);
   const [taughtLoaded, setTaughtLoaded] = useState(false);
 
@@ -197,6 +201,7 @@ export function ObeWorkspace({
   const [isRpsDetailOpen, setIsRpsDetailOpen] = useState(false);
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [revisionNotes, setRevisionNotes] = useState('');
+  const [savingVerif, setSavingVerif] = useState(false);
   const [isPrintRpsOpen, setIsPrintRpsOpen] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -635,12 +640,14 @@ export function ObeWorkspace({
         per_page: 200,
       });
       if (res.data) {
-        setMatakuliahList(Array.isArray(res.data) ? res.data : []);
-        if (res.data[0]) {
-          setSelectedMkId(res.data[0].id);
-        } else {
-          setSelectedMkId('');
-        }
+        const list = Array.isArray(res.data) ? res.data : [];
+        setMatakuliahList(list);
+        // Pertahankan MK terpilih (mis. dari tombol "Petakan CPMK" di tab audit)
+        // bila masih ada di daftar; hanya default ke pertama bila kosong/tak ada.
+        setSelectedMkId((prev) => {
+          if (prev && list.some((m: { id: number | string }) => m.id === prev)) return prev;
+          return list[0] ? list[0].id : '';
+        });
       }
     } catch (err) {}
   };
@@ -846,6 +853,7 @@ export function ObeWorkspace({
 
   const handleApproveRps = async (id: number, status: 'disetujui' | 'revisi', notes?: string) => {
     try {
+      setSavingVerif(true);
       await siakadService.approveRps(id, {
         status,
         catatan_revisi: notes,
@@ -859,6 +867,8 @@ export function ObeWorkspace({
       }
     } catch (err: any) {
       toast.error('Gagal memproses approval RPS');
+    } finally {
+      setSavingVerif(false);
     }
   };
 
@@ -1442,6 +1452,7 @@ export function ObeWorkspace({
                             onClick={() => {
                               setSelectedMkId(item.id);
                               setActiveTab('cpmk');
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
                           >
                             Petakan CPMK →
@@ -2174,10 +2185,10 @@ export function ObeWorkspace({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {selectedRpsDetail.status !== 'disetujui' && selectedRpsDetail.status !== 'diajukan' && (
+                {selectedRpsDetail.status !== 'disetujui' && selectedRpsDetail.status !== 'diajukan' && !isRpsVerifier && (
                   <Button
                     variant="primary"
-                    icon={<Send size={13} />}
+                    icon={<Send size={16} />}
                     className="text-xs font-bold"
                     onClick={() => handleSubmitRpsToKaprodi(selectedRpsDetail.id)}
                   >
@@ -2185,23 +2196,30 @@ export function ObeWorkspace({
                   </Button>
                 )}
 
-                <Button
-                  variant="primary"
-                  icon={<Check size={13} />}
-                  className="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-xs"
-                  onClick={() => handleApproveRps(selectedRpsDetail.id, 'disetujui')}
-                >
-                  ✓ Setujui RPS (Kaprodi)
-                </Button>
+                {isRpsVerifier && (
+                  <>
+                    <Button
+                      variant="primary"
+                      icon={<Check size={16} />}
+                      className="text-xs font-bold"
+                      onClick={() => handleApproveRps(selectedRpsDetail.id, 'disetujui')}
+                      loading={savingVerif}
+                      disabled={savingVerif}
+                    >
+                      Setujui RPS (Kaprodi)
+                    </Button>
 
-                <Button
-                  variant="outline"
-                  icon={<X size={13} className="text-rose-600" />}
-                  className="text-xs font-bold border-rose-200 text-rose-700 hover:bg-rose-50"
-                  onClick={() => setIsRevisionModalOpen(true)}
-                >
-                  Minta Revisi
-                </Button>
+                    <Button
+                      variant="outline"
+                      icon={<X size={16} className="text-rose-600" />}
+                      className="text-xs font-bold border-rose-200 text-rose-700 hover:bg-rose-50"
+                      onClick={() => setIsRevisionModalOpen(true)}
+                      disabled={savingVerif}
+                    >
+                      Minta Revisi
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -2384,9 +2402,12 @@ export function ObeWorkspace({
             <div className="flex justify-end gap-2">
               <Button variant="outline" className="text-xs" onClick={() => setIsRevisionModalOpen(false)}>Batal</Button>
               <Button
-                variant="primary"
-                className="text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white border-none"
+                variant="danger"
+                className="text-xs font-bold"
+                icon={<Send size={16} />}
                 onClick={() => handleApproveRps(selectedRpsDetail.id, 'revisi', revisionNotes)}
+                loading={savingVerif}
+                disabled={savingVerif || !revisionNotes.trim()}
               >
                 Kirim Revisi ke Dosen
               </Button>

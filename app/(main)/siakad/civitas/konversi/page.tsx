@@ -41,11 +41,6 @@ export default function KonversiTransferPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingKonversi, setDeletingKonversi] = useState<any | null>(null);
 
-  // Edit Usulan MK State (Dosen PA / Admin)
-  const [selectedEditKonversi, setSelectedEditKonversi] = useState<any | null>(null);
-  const [editKonversiDetails, setEditKonversiDetails] = useState<any[]>([]);
-  const [savingEditKonversi, setSavingEditKonversi] = useState(false);
-
   // Verifikasi per-MK (setujui sebagian / tolak)
   const [verifTarget, setVerifTarget] = useState<any | null>(null);
   const [verifDetails, setVerifDetails] = useState<{ id: number; status: string; catatan_penolakan: string }[]>([]);
@@ -196,86 +191,6 @@ export default function KonversiTransferPage() {
   useEffect(() => {
     fetchKonversi();
   }, [appliedFilters, isDosen, isAdmin]);
-
-  const startEditKonversi = (row: any) => {
-    setSelectedEditKonversi(row);
-    setEditKonversiDetails(
-      (row.details || []).map((d: any) => ({
-        mata_kuliah_diakui_id: d.mata_kuliah_diakui_id,
-        kode_mk_asal: d.kode_mk_asal || '',
-        nama_mk_asal: d.nama_mk_asal || '',
-        sks_asal: d.sks_asal || 3,
-        nilai_huruf_asal: d.nilai_huruf_asal || 'A',
-      }))
-    );
-  };
-
-  const handleAddEditRow = () => {
-    const defaultMkId = matakuliahs[0]?.id || 1;
-    setEditKonversiDetails((prev) => [
-      ...prev,
-      {
-        mata_kuliah_diakui_id: defaultMkId,
-        kode_mk_asal: '',
-        nama_mk_asal: '',
-        sks_asal: 3,
-        nilai_huruf_asal: 'A',
-      },
-    ]);
-  };
-
-  const handleRemoveEditRow = (idx: number) => {
-    setEditKonversiDetails((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleEditRowField = (idx: number, field: string, val: any) => {
-    setEditKonversiDetails((prev) => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: val };
-      return copy;
-    });
-  };
-
-  const handleSaveEditedKonversi = async () => {
-    if (!selectedEditKonversi) return;
-    if (editKonversiDetails.length === 0) {
-      toast.error('Minimal harus ada 1 baris mata kuliah konversi');
-      return;
-    }
-    for (const d of editKonversiDetails) {
-      if (!d.kode_mk_asal || !d.nama_mk_asal) {
-        toast.error('Kode MK asal dan Nama MK asal tidak boleh kosong');
-        return;
-      }
-    }
-
-    try {
-      setSavingEditKonversi(true);
-      const payload = {
-        mahasiswa_id: selectedEditKonversi.mahasiswa_id,
-        kampus_asal: selectedEditKonversi.kampus_asal,
-        prodi_asal: selectedEditKonversi.prodi_asal,
-        catatan: selectedEditKonversi.catatan,
-        status: selectedEditKonversi.status || 'diajukan',
-        details: editKonversiDetails.map((d: any) => ({
-          mata_kuliah_diakui_id: Number(d.mata_kuliah_diakui_id),
-          kode_mk_asal: d.kode_mk_asal,
-          nama_mk_asal: d.nama_mk_asal,
-          sks_asal: Number(d.sks_asal),
-          nilai_huruf_asal: d.nilai_huruf_asal,
-        })),
-      };
-
-      await siakadService.createKonversi(payload);
-      toast.success('Perubahan mata kuliah konversi berhasil disimpan');
-      setSelectedEditKonversi(null);
-      fetchKonversi();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan perubahan konversi');
-    } finally {
-      setSavingEditKonversi(false);
-    }
-  };
 
   const handleAddDetail = () => {
     setForm({
@@ -433,7 +348,7 @@ export default function KonversiTransferPage() {
               {
                 label: 'Edit Usulan MK',
                 icon: <Edit size={14} />,
-                onClick: () => startEditKonversi(row),
+                onClick: () => router.push(`/siakad/civitas/konversi/${row.id}/edit`),
               },
               ...(row.status !== 'disetujui'
                 ? [
@@ -906,145 +821,6 @@ export default function KonversiTransferPage() {
         </div>
       </Modal>
 
-      {/* Modal Edit Usulan Penyetaraan MK (Dosen PA / Admin) */}
-      <Modal
-        open={Boolean(selectedEditKonversi)}
-        onClose={() => setSelectedEditKonversi(null)}
-        title={`Edit Usulan Penyetaraan MK — ${selectedEditKonversi?.mahasiswa?.nama_lengkap || ''}`}
-        size="xl"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setSelectedEditKonversi(null)}>
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleSaveEditedKonversi}
-              disabled={savingEditKonversi}
-            >
-              {savingEditKonversi ? 'Menyimpan...' : 'Simpan Perubahan MK'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div>
-              <span className="text-2xs text-slate-400 block uppercase font-bold">Mahasiswa</span>
-              <strong className="text-slate-900">{selectedEditKonversi?.mahasiswa?.nama_lengkap}</strong>
-              <span className="font-mono text-2xs text-slate-500 block">NIM: {selectedEditKonversi?.mahasiswa?.nim || '-'}</span>
-            </div>
-            <div>
-              <span className="text-2xs text-slate-400 block uppercase font-bold">Kampus Asal</span>
-              <strong className="text-slate-900 block text-xs">{selectedEditKonversi?.kampus_asal}</strong>
-              <span className="text-2xs text-slate-500">{selectedEditKonversi?.prodi_asal}</span>
-            </div>
-            <div>
-              <span className="text-2xs text-slate-400 block uppercase font-bold">Status Saat Ini</span>
-              <Badge variant={selectedEditKonversi?.status === 'disetujui' ? 'green' : 'amber'} className="capitalize">
-                {selectedEditKonversi?.status || 'diajukan'}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900 uppercase">
-                  Daftar Mata Kuliah Penyetaraan ({editKonversiDetails.length} MK)
-                </h4>
-                <p className="text-2xs text-slate-500">
-                  Dosen PA dapat menyesuaikan kode/nama MK asal, bobot SKS, nilai huruf, atau memilih MK lokal yang tepat.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                icon={<Plus size={13} />}
-                className="text-2xs py-1 px-2.5 h-auto font-bold"
-                onClick={handleAddEditRow}
-              >
-                Tambah Baris MK
-              </Button>
-            </div>
-
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {editKonversiDetails.map((det, idx) => (
-                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-700 text-2xs uppercase">Baris #{idx + 1}</span>
-                    {editKonversiDetails.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveEditRow(idx)}
-                        className="text-rose-500 hover:text-rose-700 text-2xs flex items-center gap-1 font-bold cursor-pointer"
-                      >
-                        <Trash2 size={13} /> Hapus
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-2 bg-white p-2.5 rounded-lg border border-slate-200">
-                      <span className="text-2xs font-bold text-slate-500 block uppercase">Mata Kuliah Asal</span>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Input
-                          label="Kode MK Asal"
-                          placeholder="CS101"
-                          value={det.kode_mk_asal}
-                          onChange={(e) => handleEditRowField(idx, 'kode_mk_asal', e.target.value)}
-                          required
-                        />
-                        <div className="col-span-2">
-                          <Input
-                            label="Nama MK Asal"
-                            placeholder="Dasar Pemrograman"
-                            value={det.nama_mk_asal}
-                            onChange={(e) => handleEditRowField(idx, 'nama_mk_asal', e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input
-                          label="SKS Asal"
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={det.sks_asal}
-                          onChange={(e) => handleEditRowField(idx, 'sks_asal', Number(e.target.value) || 3)}
-                          required
-                        />
-                        <div>
-                          <label className="label">Nilai Huruf Asal</label>
-                          <select
-                            value={det.nilai_huruf_asal}
-                            onChange={(e) => handleEditRowField(idx, 'nilai_huruf_asal', e.target.value)}
-                            className="select text-xs font-bold py-1 px-2 w-full"
-                          >
-                            {['A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'D', 'E'].map((g) => (
-                              <option key={g} value={g}>{g}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 bg-white p-2.5 rounded-lg border border-slate-200">
-                      <span className="text-2xs font-bold text-slate-500 block uppercase">Disetarakan Ke MK Lokal</span>
-                      <MkProdiSelect
-                        value={det.mata_kuliah_diakui_id}
-                        onChange={(val) => handleEditRowField(idx, 'mata_kuliah_diakui_id', val)}
-                        matakuliahs={matakuliahs}
-                        label="Pilih MK Kurikulum Lokal"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, FileText, BookOpen, AlertCircle, Copy, Eye } from 'lucide-react';
+import { ArrowLeft, Save, FileText, BookOpen, AlertCircle, Copy, Eye, Send, Check, X } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { siakadService } from '@/services/siakad.service';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const defaultBobot = (mingguKe: number) => (mingguKe === 8 ? 25 : mingguKe === 16 ? 30 : 3);
@@ -19,11 +19,11 @@ export default function KelasRpsPage() {
   const params = useParams();
   const router = useRouter();
   const kelasId = Number(params.id);
-  const { user } = useAuthStore();
-  const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
+  const { hasRole, isMahasiswa } = useAuth();
   // Mahasiswa hanya boleh MELIHAT RPS, tidak mengedit
-  const readOnly = userRoles.includes('mahasiswa');
-
+  const readOnly = isMahasiswa;
+  // Verifikator RPS: hanya Kaprodi/Wakil/Admin yang boleh Setujui/Minta Revisi
+  const isRpsVerifier = hasRole(['superadmin', 'admin', 'kaprodi', 'wakil_prodi']);
   const [kelas, setKelas] = useState<any | null>(null);
   const [rpsDetail, setRpsDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,11 +35,88 @@ export default function KelasRpsPage() {
     mingguan: [] as any[],
   });
 
+  const rpsStatus = String(rpsDetail?.status || 'draft');
+  // RPS yang sudah disetujui terkunci untuk semua peran
+  const formLocked = readOnly || rpsStatus === 'disetujui';
+
+  // Langkah alur: 0 Susun → 1 Diajukan → 2 Verifikasi → 3 Disetujui
+  const workflowStep = rpsStatus === 'disetujui' ? 3 : rpsStatus === 'diajukan' ? 1 : 0;
+  const workflowLabels = ['Susun RPS', 'Diajukan', 'Verifikasi', 'Disetujui'];
+
+  // Modal catatan revisi Kaprodi
+  const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
+  const [revisionNotes, setRevisionNotes] = useState('');
+  const [savingVerif, setSavingVerif] = useState(false);
+
+  const refreshRpsDetail = async () => {
+    if (!rpsDetail?.id) return;
+    try {
+      const dRes = await siakadService.showRps(rpsDetail.id);
+      if (dRes.data) {
+        setRpsDetail(dRes.data);
+        setForm({
+          deskripsi_singkat: dRes.data.deskripsi_singkat || '',
+          pustaka_utama: dRes.data.pustaka_utama || '',
+          pustaka_pendukung: dRes.data.pustaka_pendukung || '',
+          mingguan: dRes.data.mingguan || [],
+        });
+      }
+    } catch {}
+  };
+
+  const handleSubmitRps = async () => {
+    if (!rpsDetail?.id) return;
+    try {
+      setSavingVerif(true);
+      await siakadService.submitRps(rpsDetail.id);
+      toast.success('RPS berhasil diajukan ke Kaprodi untuk verifikasi');
+      refreshRpsDetail();
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Gagal mengajukan RPS');
+    } finally {
+      setSavingVerif(false);
+    }
+  };
+
+  const handleApproveRps = async (status: 'disetujui' | 'revisi') => {
+    if (!rpsDetail?.id) return;
+    if (status === 'revisi' && !revisionNotes.trim()) {
+      toast.error('Isi catatan revisi untuk dosen terlebih dahulu');
+      return;
+    }
+    try {
+      setSavingVerif(true);
+      await siakadService.approveRps(rpsDetail.id, {
+        status,
+        catatan_revisi: status === 'revisi' ? revisionNotes.trim() : undefined,
+      });
+      toast.success(status === 'disetujui' ? 'RPS disetujui dan dikunci' : 'Catatan revisi dikirim ke dosen');
+      setIsRevisionModalOpen(false);
+      setRevisionNotes('');
+      refreshRpsDetail();
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Gagal memverifikasi RPS');
+    } finally {
+      setSavingVerif(false);
+    }
+  };
+
   // Impor dari RPS MK sama periode lain
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [rpsSources, setRpsSources] = useState<any[]>([]);
   const [sourceRpsId, setSourceRpsId] = useState('');
   const [importing, setImporting] = useState(false);
+
+  const fetchSoal = async (rpsId: number) => {
+    try {
+      const res = await siakadService.getSoalList({ rps_id: rpsId });
+      if (res.data) setSoalList(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setSoalList([]);
+    }
+  };
 
   useEffect(() => {
     if (!kelasId) return;
@@ -85,14 +162,6 @@ export default function KelasRpsPage() {
   const [soalForm, setSoalForm] = useState({ sub_cpmk_id: '', pertanyaan: '', bobot: 10, kunci_jawaban: '' });
   const [savingSoal, setSavingSoal] = useState(false);
 
-  const fetchSoal = async (rpsId: number) => {
-    try {
-      const res = await siakadService.getSoalList({ rps_id: rpsId });
-      if (res.data) setSoalList(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      setSoalList([]);
-    }
-  };
 
   const handleSaveSoal = async (e: React.FormEvent, mingguKe: number, mingguanId?: number) => {
     e.preventDefault();
@@ -194,8 +263,17 @@ export default function KelasRpsPage() {
     }
   };
 
+  const handleBack = () => {
+    // Kembali ke asal (Jadwal atau workspace OBE); fallback ke Jadwal bila dibuka langsung
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/siakad/perkuliahan/kelas');
+    }
+  };
+
   const handleSave = async () => {
-    if (readOnly) return;    if (!kelas) return;
+    if (formLocked) return;    if (!kelas) return;
     try {
       setSaving(true);
       await siakadService.storeRps({
@@ -234,47 +312,122 @@ export default function KelasRpsPage() {
         ]}
         action={
           <div className="flex items-center gap-2">
-            <Button variant="outline" icon={<ArrowLeft size={16} />} onClick={() => router.push('/siakad/perkuliahan/kelas')}>
+            <Button
+              variant="outline"
+              icon={<ArrowLeft size={16} />}
+              onClick={handleBack}
+              title="Kembali ke halaman sebelumnya"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+            >
               Kembali
             </Button>
             {readOnly ? (
               <Badge variant="blue" className="inline-flex items-center gap-1.5 px-3 py-2">
-                <Eye size={13} /> Mode Lihat Saja
+                <Eye size={16} /> Mode Lihat Saja
+              </Badge>
+            ) : rpsStatus === 'disetujui' ? (
+              <Badge variant="green" className="inline-flex items-center gap-1.5 px-3 py-2">
+                <Check size={16} /> Terkunci — Disetujui Kaprodi
               </Badge>
             ) : (
               <>
-                <Button variant="outline" icon={<Copy size={14} />} onClick={handleOpenImport} className="font-bold text-xs">
+                <Button variant="outline" icon={<Copy size={16} />} onClick={handleOpenImport} className="font-bold text-xs">
                   Impor Periode Lain
                 </Button>
-                <Button variant="primary" icon={<Save size={14} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
+                <Button variant="primary" icon={<Save size={16} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
                   {saving ? 'Menyimpan...' : 'Simpan RPS'}
                 </Button>
+                {!isRpsVerifier && rpsDetail?.id && (rpsStatus === 'draft' || rpsStatus === 'revisi') && (
+                  <Button variant="primary" icon={<Send size={16} />} onClick={handleSubmitRps} loading={savingVerif} disabled={savingVerif || !isBobot100} className="font-bold text-xs">
+                    {savingVerif ? 'Mengajukan...' : 'Ajukan ke Kaprodi'}
+                  </Button>
+                )}
+                {isRpsVerifier && rpsStatus === 'diajukan' && (
+                  <>
+                    <Button variant="primary" icon={<Check size={16} />} onClick={() => handleApproveRps('disetujui')} loading={savingVerif} disabled={savingVerif} className="font-bold text-xs">
+                      Setujui RPS
+                    </Button>
+                    <Button variant="outline" icon={<X size={16} className="text-rose-600" />} onClick={() => setIsRevisionModalOpen(true)} className="font-bold text-xs border-rose-200 text-rose-700 hover:bg-rose-50">
+                      Minta Revisi
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
         }
       />
 
-      <div className="flex items-center gap-2">
+      {/* Stepper alur RPS satu halaman: Susun → Diajukan → Verifikasi → Disetujui */}
+      <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-xs flex items-center gap-1 overflow-x-auto">
+        {workflowLabels.map((label, idx) => {
+          const done = idx < workflowStep || rpsStatus === 'disetujui';
+          const current = idx === workflowStep && rpsStatus !== 'disetujui';
+          return (
+            <div key={label} className="flex items-center gap-1 flex-1 min-w-[110px]">
+              <span
+                className="w-6 h-6 rounded-full font-bold text-2xs flex items-center justify-center flex-shrink-0"
+                style={
+                  done
+                    ? { background: 'var(--module-primary)', color: '#fff' }
+                    : current
+                    ? { background: 'var(--module-primary-subtle)', color: 'var(--module-primary)' }
+                    : undefined
+                }
+              >
+                {done ? <Check size={16} /> : idx + 1}
+              </span>
+              <span className={`text-2xs font-bold whitespace-nowrap ${done || current ? 'text-slate-900' : 'text-slate-400'}`}>
+                {label}
+              </span>
+              {idx < workflowLabels.length - 1 && <span className="flex-1 h-px bg-slate-200 mx-1" />}
+            </div>
+          );
+        })}
+      </div>
+
+      {rpsStatus === 'revisi' && rpsDetail?.catatan_revisi && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-xs text-rose-950">
+          <AlertCircle size={18} className="text-rose-600 shrink-0" />
+          <p><strong>Catatan Revisi Kaprodi:</strong> {rpsDetail.catatan_revisi}</p>
+        </div>
+      )}
+
+      {/* Bilah total bobot mengambang: selalu terlihat saat mengisi 16 minggu */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-3 md:p-4 shadow-xs flex items-center gap-2 flex-wrap">
         <span className="badge badge-purple text-2xs font-extrabold uppercase">RPS Standar OBE (SN-DIKTI)</span>
         <Badge variant={rpsDetail?.status === 'disetujui' ? 'green' : rpsDetail?.status === 'diajukan' ? 'amber' : 'gray'}>
           Status: {String(rpsDetail?.status || 'draft').toUpperCase()}
         </Badge>
-        <Badge variant={isBobot100 ? 'green' : 'amber'} className="font-mono font-bold">
-          Total Bobot 16 Minggu: {totalBobot}%
+        <div className="flex-1" />
+        <div className="w-28 h-2 bg-slate-100 rounded-full overflow-hidden hidden sm:block" title={`Total bobot ${totalBobot}%`}>
+          <div
+            className={`h-full rounded-full transition-all ${isBobot100 ? 'bg-emerald-500' : totalBobot > 100 ? 'bg-rose-500' : 'bg-amber-500'}`}
+            style={{ width: `${Math.max(0, Math.min(100, totalBobot))}%` }}
+          />
+        </div>
+        <Badge variant={isBobot100 ? 'green' : totalBobot > 100 ? 'red' : 'amber'} className="font-mono font-bold">
+          Total Bobot: {totalBobot}%
         </Badge>
+        {!isBobot100 && (
+          <span className={`text-2xs font-bold ${totalBobot > 100 ? 'text-rose-700' : 'text-amber-700'}`}>
+            {totalBobot > 100
+              ? `Kelebihan ${Math.round((totalBobot - 100) * 100) / 100}% — kurangi bobot minggu`
+              : `Kurang ${Math.round((100 - totalBobot) * 100) / 100}% lagi menuju 100%`}
+          </span>
+        )}
       </div>
 
       {!isBobot100 && (
         <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl flex items-start gap-3 text-xs text-amber-950">
-          <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <AlertCircle size={18} className="text-amber-600 shrink-0" />
           <p><strong>Total bobot harus 100%</strong> (saat ini {totalBobot}%). Sesuaikan kolom Bobot % per minggu sebelum menyimpan.</p>
         </div>
       )}
 
       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
         <span className="text-2xs font-bold text-slate-500 uppercase block">Tim Pengembang Kurikulum</span>
-        <p className="text-slate-800 mt-0.5">
+        <p className="text-slate-800">
           Dosen Pengembang: <strong>{rpsDetail?.dosen_pengembang?.nama_lengkap || kelas?.dosen_pengampu?.[0]?.dosen?.nama_lengkap || 'Dosen Pengampu'}</strong> • Kaprodi: <strong>{rpsDetail?.kaprodi?.nama_lengkap || '-'}</strong>
         </p>
       </div>
@@ -286,7 +439,7 @@ export default function KelasRpsPage() {
             rows={4}
             placeholder="Tuliskan deskripsi ringkas mengenai mata kuliah ini..."
             value={form.deskripsi_singkat}
-            disabled={readOnly}
+            disabled={formLocked}
             onChange={(e) => setForm({ ...form, deskripsi_singkat: e.target.value })}
             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-primary-500 font-medium"
           />
@@ -308,7 +461,7 @@ export default function KelasRpsPage() {
           <textarea
             rows={3}
             value={form.pustaka_utama}
-            disabled={readOnly}
+            disabled={formLocked}
             onChange={(e) => setForm({ ...form, pustaka_utama: e.target.value })}
             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-primary-500 font-medium"
           />
@@ -318,7 +471,7 @@ export default function KelasRpsPage() {
           <textarea
             rows={3}
             value={form.pustaka_pendukung}
-            disabled={readOnly}
+            disabled={formLocked}
             onChange={(e) => setForm({ ...form, pustaka_pendukung: e.target.value })}
             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-primary-500 font-medium"
           />
@@ -343,29 +496,29 @@ export default function KelasRpsPage() {
             });
             return (
               <div key={mingguKe}>
-              <div className={`p-3 grid grid-cols-1 md:grid-cols-12 gap-2 items-center ${isMidOrFinal ? 'bg-primary-50/50' : ''}`}>
+              <div className={`p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center ${isMidOrFinal ? 'bg-primary-50/50' : ''}`}>
                 <div className="md:col-span-1 text-center font-mono font-black text-xs text-primary-700">Mg {mingguKe}</div>
                 <div className="md:col-span-4">
-                  <Input label="Sub-CPMK" placeholder={`Sub-CPMK Minggu ${mingguKe}`} value={existing.kemampuan_akhir || ''} disabled={readOnly}
+                  <Input label="Sub-CPMK" placeholder={`Sub-CPMK Minggu ${mingguKe}`} value={existing.kemampuan_akhir || ''} disabled={formLocked}
                   onChange={(e) => updateMinggu(mingguKe, 'kemampuan_akhir', e.target.value)} />
                 </div>
                 <div className="md:col-span-4">
-                  <Input label="Bahan Kajian / Topik" placeholder={mingguKe === 8 ? 'Ujian Tengah Semester (UTS)' : mingguKe === 16 ? 'Evaluasi Akhir (UAS/Proyek)' : `Materi pekan ${mingguKe}`} value={existing.bahan_kajian || ''} disabled={readOnly}
+                  <Input label="Bahan Kajian / Topik" placeholder={mingguKe === 8 ? 'Ujian Tengah Semester (UTS)' : mingguKe === 16 ? 'Evaluasi Akhir (UAS/Proyek)' : `Materi pekan ${mingguKe}`} value={existing.bahan_kajian || ''} disabled={formLocked}
                   onChange={(e) => updateMinggu(mingguKe, 'bahan_kajian', e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
-                  <Input label="Metode" placeholder="Kuliah & PBL" value={existing.bentuk_metode || ''} disabled={readOnly}
+                  <Input label="Metode" placeholder="Kuliah & PBL" value={existing.bentuk_metode || ''} disabled={formLocked}
                   onChange={(e) => updateMinggu(mingguKe, 'bentuk_metode', e.target.value)} />
                 </div>
                 <div className="md:col-span-1">
-                  <Input label="Bobot %" type="number" min={0} max={100} value={existing.bobot_penilaian ?? defaultBobot(mingguKe)} disabled={readOnly}
+                  <Input label="Bobot %" type="number" min={0} max={100} value={existing.bobot_penilaian ?? defaultBobot(mingguKe)} disabled={formLocked}
                   onChange={(e) => updateMinggu(mingguKe, 'bobot_penilaian', Number(e.target.value))} className="text-center font-mono font-bold" />
                 </div>
                 <div className="md:col-span-12 text-center">
                   <Button
                     type="button"
                     variant="outline"
-                    className="text-2xs py-1 px-2.5 h-auto font-bold"
+                    className="text-2xs p-2 h-auto font-bold"
                     onClick={() => setOpenSoalMinggu(openSoalMinggu === mingguKe ? null : mingguKe)}
                   >
                     Bank Soal ({soalMinggu.length}) {openSoalMinggu === mingguKe ? '▲' : '▼'}
@@ -373,26 +526,26 @@ export default function KelasRpsPage() {
                 </div>
               </div>
               {openSoalMinggu === mingguKe && (
-                <div className="mx-3 mb-3 p-3 bg-slate-50/70 border border-dashed border-slate-200 rounded-xl space-y-2">
+                <div className="mx-4 mb-4 p-4 bg-slate-50/70 border border-dashed border-slate-200 rounded-xl space-y-4">
                   {soalMinggu.length === 0 && <p className="text-2xs text-slate-400 italic">Belum ada soal minggu ini.</p>}
                   {soalMinggu.map((s: any) => (
-                    <div key={s.id} className="flex items-start justify-between gap-2 text-xs bg-white border border-slate-200 rounded-lg p-2.5">
+                    <div key={s.id} className="flex items-start justify-between gap-4 text-xs bg-white border border-slate-200 rounded-lg p-3">
                       <div className="min-w-0">
                         <p className="font-medium text-slate-800">{s.pertanyaan}</p>
-                        <p className="text-2xs text-slate-500 mt-0.5">
+                        <p className="text-2xs text-slate-500">
                           {s.sub_cpmk_id ? `SubCPMK #${s.sub_cpmk_id} • ` : ''}Bobot {s.bobot}
                           {s.kunci_jawaban ? ` • Kunci: ${String(s.kunci_jawaban).substring(0, 60)}` : ''}
                         </p>
                       </div>
-                      {!readOnly && (
+                      {!formLocked && (
                         <button type="button" onClick={() => handleDeleteSoal(s.id)} className="text-rose-600 text-2xs font-bold shrink-0 hover:underline">
                           Hapus
                         </button>
                       )}
                     </div>
                   ))}
-                  {!readOnly && (
-                    <form onSubmit={(e) => handleSaveSoal(e, mingguKe, existing.id)} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end bg-white border border-slate-200 rounded-lg p-2.5">
+                  {!formLocked && (
+                    <form onSubmit={(e) => handleSaveSoal(e, mingguKe, existing.id)} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-white border border-slate-200 rounded-xl p-4">
                       <div className="md:col-span-3">
                         <Select
                           label="SubCPMK (opsional)"
@@ -423,12 +576,16 @@ export default function KelasRpsPage() {
           })}
         </div>
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-          {readOnly ? (
-            <p className="text-2xs text-slate-400 italic">Dokumen RPS ini hanya dapat dilihat. Perubahan dilakukan oleh dosen pengampu.</p>
+          {formLocked ? (
+            <p className="text-2xs text-slate-400 italic">
+              {rpsStatus === 'disetujui'
+                ? 'RPS disetujui Kaprodi dan dikunci. Hubungi Kaprodi untuk membuka revisi.'
+                : 'Dokumen RPS ini hanya dapat dilihat. Perubahan dilakukan oleh dosen pengampu.'}
+            </p>
           ) : (
             <>
-              <Button type="button" variant="secondary" onClick={() => router.push('/siakad/perkuliahan/kelas')}>Batal</Button>
-              <Button variant="primary" icon={<Save size={14} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
+              <Button type="button" variant="secondary" onClick={handleBack}>Batal</Button>
+              <Button variant="primary" icon={<Save size={16} />} onClick={handleSave} loading={saving} disabled={saving || !isBobot100}>
                 {saving ? 'Menyimpan...' : 'Simpan RPS & 16 Pertemuan'}
               </Button>
             </>
@@ -443,7 +600,7 @@ export default function KelasRpsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setIsImportOpen(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleImport} disabled={importing || !sourceRpsId} icon={<Copy size={14} />}>
+            <Button variant="primary" onClick={handleImport} disabled={importing || !sourceRpsId} icon={<Copy size={16} />}>
               {importing ? 'Mengimpor...' : 'Impor sebagai Draft'}
             </Button>
           </>
@@ -468,6 +625,37 @@ export default function KelasRpsPage() {
             />
           )}
         </form>
+      </Modal>
+
+      {/* Modal catatan revisi Kaprodi */}
+      <Modal
+        open={isRevisionModalOpen}
+        onClose={() => setIsRevisionModalOpen(false)}
+        title="Kembalikan RPS untuk Revisi"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsRevisionModalOpen(false)}>Batal</Button>
+            <Button variant="danger" onClick={() => handleApproveRps('revisi')} loading={savingVerif} disabled={savingVerif || !revisionNotes.trim()}>
+              {savingVerif ? 'Mengirim...' : 'Kirim Revisi ke Dosen'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-slate-600">
+            Tulis bagian yang harus diperbaiki dosen pengembang. Status RPS kembali ke revisi dan form terbuka lagi untuk dosen.
+          </p>
+          <div>
+            <label className="label">Catatan Revisi *</label>
+            <textarea
+              rows={4}
+              placeholder="cth. Bobot minggu 5–7 belum selaras dengan CPMK-2; lengkapi pustaka pendukung..."
+              value={revisionNotes}
+              onChange={(e) => setRevisionNotes(e.target.value)}
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-primary-500 font-medium"
+            />
+          </div>
+        </div>
       </Modal>
     </div>
   );

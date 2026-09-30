@@ -34,7 +34,6 @@ export const MODULE_LABELS: Record<string, string> = {
   sikeu: 'SIKEU',
   simpeg: 'SIMPEG',
   sippm: 'SIPPM',
-  lms: 'LMS',
   sinapra: 'SINAPRA',
   kerjasama: 'Kerjasama',
   upm: 'UPM',

@@ -110,7 +110,6 @@ export const SYSTEM_MODULES = [
   { value: 'simpreskul', label: 'SIMPRESKUL' },
   { value: 'sikeu', label: 'SIKEU' },
   { value: 'simpeg', label: 'SIMPEG' },
-  { value: 'lms', label: 'LMS' },
   { value: 'sinapra', label: 'SINAPRA' },
   { value: 'kerjasama', label: 'Kerjasama' },
   { value: 'upm', label: 'UPM' },

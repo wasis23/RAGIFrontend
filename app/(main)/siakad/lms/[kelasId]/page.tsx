@@ -423,7 +423,9 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
       {activeTab === 'rekap' && (
         <div className="space-y-4">
           <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs">
-            <h3 className="text-xs font-bold text-slate-800">Rekapitulasi Kehadiran Mahasiswa</h3>
+            <h3 className="text-xs font-bold text-slate-800">
+              {isMahasiswa ? 'Rekapitulasi Kehadiran Saya' : 'Rekapitulasi Kehadiran Mahasiswa'}
+            </h3>
             <p className="text-2xs text-slate-500">
               Batas minimal kehadiran: {rekapData?.batas_min_hadir_persen || 75}% ({Math.ceil(((rekapData?.batas_min_hadir_persen || 75) / 100) * (rekapData?.total_pertemuan || 16))} dari {rekapData?.total_pertemuan || 16} sesi)
             </p>

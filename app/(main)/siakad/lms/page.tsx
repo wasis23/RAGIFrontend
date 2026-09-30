@@ -80,8 +80,7 @@ export default function LmsKelasListPage() {
   }, []);
 
   // Fetch Kelas
-  const fetchKelas = useCallback(async (page = 1, perPage = 10) => {
-    setIsLoading(true);
+  const fetchKelas = useCallback(async (page = 1, perPage = 10) => {    setIsLoading(true);
     try {
       const res = await lmsService.getMyKelas({
         page,
@@ -89,6 +88,7 @@ export default function LmsKelasListPage() {
         search: filterSearch || undefined,
         sort_by: filterOrderBy || 'nama_kelas',
         sort_order: (filterOrderDir as 'asc' | 'desc') || 'asc',
+        tahun_akademik_id: filterTahunAkademik ? Number(filterTahunAkademik) : undefined,
       });
 
       if (res.status === 'success' && res.data) {
@@ -105,7 +105,7 @@ export default function LmsKelasListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [filterSearch, filterOrderBy, filterOrderDir]);
+  }, [filterSearch, filterOrderBy, filterOrderDir, filterTahunAkademik]);
 
   useEffect(() => {
     fetchKelas(meta.current_page, meta.per_page);
@@ -308,11 +308,12 @@ export default function LmsKelasListPage() {
 
           <AsyncSelect
             label="Tahun Akademik"
-            placeholder="Cari atau pilih Tahun Akademik..."
+            placeholder="Periode aktif (default)..."
             value={filterTahunAkademik}
             onChange={(val) => setFilterTahunAkademik(val ? String(val) : '')}
             loadOptions={loadTahunAkademikOptions}
             isClearable
+            hint="Kosongkan untuk mengikuti periode akademik yang aktif."
           />
 
           <Input

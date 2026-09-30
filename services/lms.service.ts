@@ -20,6 +20,7 @@ export const lmsService = {
     search?: string;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
+    tahun_akademik_id?: number;
   }): Promise<ApiResponse<LmsKelasItem[]>> => {
     const response = await apiClient.get('/v1/siakad/lms/kelas/my', { params });
     return response.data;

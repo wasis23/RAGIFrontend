@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Users,
   ClipboardList,
@@ -73,6 +73,7 @@ export default function BimbinganPaPage() {
   const [filterAngkatan, setFilterAngkatan] = useState('');
   const [filterTglDari, setFilterTglDari] = useState('');
   const [filterTglSampai, setFilterTglSampai] = useState('');
+  const [filterNamaDosen, setFilterNamaDosen] = useState('');
 
   // Tab 2 States: Aktivitas Bimbingan PA per Kelas (Model SIMPA Indonusa)
   const [kelasList, setKelasList] = useState<string[]>([]);
@@ -250,24 +251,33 @@ export default function BimbinganPaPage() {
   }
 
   // Fetch Master Data Awal
-  const fetchAll = async () => {
+  const fetchRekap = async (dari?: string, sampai?: string) => {
     try {
       setLoadingRekap(true);
-      const [rRes, taRes] = await Promise.all([
-        siakadService.getPaRekap().catch(() => ({ data: [] })),
-        siakadService.getTahunAkademiks().catch(() => null),
-      ]);
+      const rRes = await siakadService
+        .getPaRekap({
+          dari_tanggal: dari || undefined,
+          sampai_tanggal: sampai || undefined,
+        })
+        .catch(() => ({ data: [] }));
       if (rRes.data) setRekap(Array.isArray(rRes.data) ? rRes.data : []);
-      if (taRes?.data?.length) {
-        setTahunList(taRes.data);
-        const aktif = taRes.data.find((t: any) => t.is_active) || taRes.data[0];
-        setSelectedTaId(aktif.id);
-      }
     } catch {
       toast.error('Gagal memuat rekap bimbingan');
     } finally {
       setLoadingRekap(false);
     }
+  };
+
+  const fetchAll = async () => {
+    try {
+      const taRes = await siakadService.getTahunAkademiks().catch(() => null);
+      if (taRes?.data?.length) {
+        setTahunList(taRes.data);
+        const aktif = taRes.data.find((t: any) => t.is_active) || taRes.data[0];
+        setSelectedTaId(aktif.id);
+      }
+    } catch {}
+    fetchRekap();
   };
 
   const fetchAdvisees = async () => {
@@ -345,6 +355,17 @@ export default function BimbinganPaPage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchAdv]);
+
+  // Rekap mengikuti filter tanggal (lewati render pertama — sudah dimuat fetchAll)
+  const firstRekapRender = useRef(true);
+  useEffect(() => {
+    if (firstRekapRender.current) {
+      firstRekapRender.current = false;
+      return;
+    }
+    fetchRekap(filterTglDari, filterTglSampai);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterTglDari, filterTglSampai]);
 
   useEffect(() => {
     if (activeMainTab === 'aktivitas') {
@@ -484,8 +505,19 @@ export default function BimbinganPaPage() {
     window.open(targetUrl, '_blank');
   };
 
+  // Rekap tersaring nama dosen (client-side); ringkasan mengikuti filter ini
+  const rekapTerfilter = rekap.filter((r: any) => {
+    if (filterNamaDosen) {
+      const q = filterNamaDosen.toLowerCase();
+      const nama = String(r.nama_lengkap || '').toLowerCase();
+      const nidn = String(r.nidn || '').toLowerCase();
+      if (!nama.includes(q) && !nidn.includes(q)) return false;
+    }
+    return true;
+  });
+
   // Ringkasan Totals
-  const totals = rekap.reduce(
+  const totals = rekapTerfilter.reduce(
     (a: any, r: any) => {
       (['aktif', 'cuti', 'mangkir', 'keluar', 'lulus', 'total'] as const).forEach((k) => {
         a[k] = (a[k] || 0) + Number(r.komposisi?.[k] || 0);
@@ -823,7 +855,7 @@ export default function BimbinganPaPage() {
               ['Butuh Khusus', totals.khusus || 0, 'text-purple-700'],
             ].map(([label, val, cls]) => (
               <div key={label as string} className="card p-4 text-center">
-                <span className="text-2xs font-bold text-slate-500 uppercase block">{label}</span>
+                <span className="text-2xs font-bold text-slate-500 uppercase block whitespace-nowrap">{label}</span>
                 <span className={`text-2xl font-black font-mono ${cls}`}>{val as number}</span>
               </div>
             ))}
@@ -831,12 +863,21 @@ export default function BimbinganPaPage() {
 
           {!isDosenOnly && (
             <div className="card p-5 space-y-3">
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Users size={16} className="text-primary-600" /> Rekap per Dosen PA
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <Users size={16} className="text-primary-600" /> Rekap per Dosen PA
+                </h3>
+                {(filterNamaDosen || filterTglDari || filterTglSampai) && (
+                  <span className="text-2xs text-slate-500">
+                    Filter rekap
+                    {filterNamaDosen ? ` • "${filterNamaDosen}"` : ''}
+                    {filterTglDari || filterTglSampai ? ` • ${filterTglDari || '…'} s/d ${filterTglSampai || '…'}` : ''}
+                  </span>
+                )}
+              </div>
               <DataTable
                 columns={rekapColumns}
-                data={rekap}
+                data={rekapTerfilter}
                 isLoading={loadingRekap}
                 emptyMessage="Belum ada data bimbingan."
               />
@@ -1019,6 +1060,7 @@ export default function BimbinganPaPage() {
                 setFilterAngkatan('');
                 setFilterTglDari('');
                 setFilterTglSampai('');
+                setFilterNamaDosen('');
                 setShowFilter(false);
               }}
             >
@@ -1037,6 +1079,14 @@ export default function BimbinganPaPage() {
             value={searchAdv}
             onChange={(e) => setSearchAdv(e.target.value)}
           />
+          {!isDosenOnly && (
+            <Input
+              label="Nama Dosen PA"
+              placeholder="Cari nama / NIDN dosen..."
+              value={filterNamaDosen}
+              onChange={(e) => setFilterNamaDosen(e.target.value)}
+            />
+          )}
           <div>
             <label className="label">Angkatan</label>
             <select

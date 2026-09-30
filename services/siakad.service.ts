@@ -143,7 +143,7 @@ export const siakadService = {
   },
 
   // Bimbingan PA
-  getPaRekap: async (params?: { dosen_id?: number; program_studi_id?: number }): Promise<ApiResponse<any>> => {
+  getPaRekap: async (params?: { dosen_id?: number; program_studi_id?: number; dari_tanggal?: string; sampai_tanggal?: string }): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/bimbingan/rekap', { params });
     return response.data;
   },
@@ -240,6 +240,16 @@ export const siakadService = {
 
   createKonversi: async (payload: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/mahasiswa/konversi', payload);
+    return response.data;
+  },
+
+  getKonversiDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/mahasiswa/konversi/${id}`);
+    return response.data;
+  },
+
+  updateKonversi: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/mahasiswa/konversi/${id}`, payload);
     return response.data;
   },
 
@@ -689,8 +699,8 @@ export const siakadService = {
     return response.data;
   },
 
-  getAbsensiList: async (pertemuanId: number): Promise<ApiResponse<any>> => {
-    const response = await apiClient.get(`/v1/siakad/perkuliahan/pertemuan/${pertemuanId}/absensi`);
+  getAbsensiList: async (pertemuanId: number, params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/perkuliahan/pertemuan/${pertemuanId}/absensi`, { params });
     return response.data;
   },
 

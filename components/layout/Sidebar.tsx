@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -39,6 +39,7 @@ import {
   RefreshCw,
   BookOpen,
   Sparkles,
+  Star,
   Database,
   Tags,
   Layers,
@@ -571,6 +572,53 @@ export function Sidebar() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Accordion grup + Favorit (persist localStorage per browser)
+  const FAVORITES_KEY = 'sidebar_favorites_v1';
+  const OPEN_GROUPS_KEY = 'sidebar_open_groups_v1';
+  const readStoredArray = (key: string): string[] => {
+    try {
+      if (typeof window === 'undefined') return [];
+      const parsed = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(parsed) ? parsed.filter((u) => typeof u === 'string') : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const readStoredRecord = (key: string): Record<string, boolean> => {
+    try {
+      if (typeof window === 'undefined') return {};
+      const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const [favorites, setFavorites] = useState<string[]>(() => readStoredArray(FAVORITES_KEY));
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => readStoredRecord(OPEN_GROUPS_KEY));
+
+  const persistFavorites = (next: string[]) => {
+    setFavorites(next);
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+    } catch {}
+  };
+
+  const toggleFavorite = (url: string) => {
+    persistFavorites(favorites.includes(url) ? favorites.filter((u) => u !== url) : [...favorites, url]);
+  };
+
+  const setGroupOpen = (key: string, open: boolean) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: open };
+      try {
+        localStorage.setItem(OPEN_GROUPS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   // Determine module based on pathname or hostname dynamically without hardcoding
   const getModule = () => {
     if (typeof window !== 'undefined') {
@@ -695,8 +743,75 @@ export function Sidebar() {
     return bestId;
   };
 
-  const activeMenuUrl = computeActiveUrl(dynamicMenus);
-  const activeMenuId = computeActiveId(dynamicMenus);
+  // Dedup + saring + urutkan (dipakai render & penanda aktif)
+  const processedMenus = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const seen = new Set<string>();
+    const unique: Menu[] = [];
+
+    for (const menu of dynamicMenus) {
+      const normalizedUrl = menu.url.replace(/\/$/, '');
+      const key = menu.url.startsWith('#')
+        ? `header|${menu.name.toLowerCase().trim()}`
+        : `link|${menu.name.toLowerCase().trim()}|${normalizedUrl.replace('/dashboard', '')}`;
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(menu);
+      }
+    }
+
+    const filtered = unique.filter((menu) => {
+      const kids = menu.children || [];
+      if (menu.url.startsWith('#')) {
+        return kids.some((c) => !q || c.name.toLowerCase().includes(q));
+      }
+      if (!q) return true;
+      return (
+        menu.name.toLowerCase().includes(q) ||
+        kids.some((c) => c.name.toLowerCase().includes(q))
+      );
+    });
+
+    return [...filtered].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  }, [dynamicMenus, searchQuery]);
+
+  const activeMenuUrl = computeActiveUrl(processedMenus);
+  const activeMenuId = computeActiveId(processedMenus);
+
+  // Grup yang memuat menu aktif ikut terbuka sebagai bawaan
+  // (nilai eksplisit pilihan user di openGroups tetap menang).
+  const activeGroupKey = useMemo(() => {
+    for (const m of processedMenus) {
+      if (m.children?.some((c) => c.id === activeMenuId)) return `g:${m.id}`;
+    }
+    return null;
+  }, [processedMenus, activeMenuId]);
+
+  const isGroupOpen = (key: string) => {
+    if (searchQuery.trim()) return true;
+    if (key in openGroups) return openGroups[key];
+    return key === activeGroupKey;
+  };
+
+  // Link daun untuk seksi Favorit (hanya yang ada di menu modul aktif)
+  const favoriteLinks = useMemo(() => {
+    const leaves: Menu[] = [];
+    for (const m of processedMenus) {
+      if (!m.url.startsWith('#')) leaves.push(m);
+      m.children?.forEach((c) => {
+        if (!c.url.startsWith('#')) leaves.push(c);
+      });
+    }
+    const seen = new Set<string>();
+    return favorites
+      .map((u) => leaves.find((l) => l.url === u))
+      .filter((l): l is Menu => {
+        if (!l || seen.has(l.url)) return false;
+        seen.add(l.url);
+        return true;
+      });
+  }, [favorites, processedMenus]);
 
   const isMainActive = (path: string, id?: string | number) => {
     if (!path || path.startsWith('#')) return false;
@@ -786,117 +901,110 @@ export function Sidebar() {
 
         {/* Dynamic Menus from Database / Fallback */}
         {(() => {
-          const filterMenuChildren = (children?: Menu[]) => {
+          const q = searchQuery.trim().toLowerCase();
+          const visibleChildren = (children?: Menu[]) => {
             if (!children) return [];
-            if (!searchQuery) return children;
-            return children.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+            if (!q) return children;
+            return children.filter((c) => c.name.toLowerCase().includes(q));
           };
 
-          // Deduplicate menus by normalized URL or Name
-          const uniqueDynamicMenus: Menu[] = [];
-          const seenKeys = new Set<string>();
+          const renderLeaf = (item: Menu, sub = false) => {
+            const isFav = favorites.includes(item.url);
+            return (
+              <div key={item.id} className="sidebar-link-row">
+                <Link
+                  href={item.url}
+                  className={`sidebar-item${sub ? ' sidebar-submenu-item' : ''} ${isMainActive(item.url, item.id) ? 'active' : ''}`}
+                  title={item.name}
+                >
+                  {getIcon(item.icon)}
+                  {sidebar_open && <span>{item.name}</span>}
+                </Link>
+                {sidebar_open && (
+                  <button
+                    type="button"
+                    onClick={() => toggleFavorite(item.url)}
+                    className={`sidebar-pin${isFav ? ' is-fav' : ''}`}
+                    title={isFav ? 'Lepas dari Favorit' : 'Sematkan ke Favorit'}
+                  >
+                    <Star size={13} fill={isFav ? 'currentColor' : 'none'} />
+                  </button>
+                )}
+              </div>
+            );
+          };
 
-          for (const menu of dynamicMenus) {
-            const normalizedUrl = menu.url.replace(/\/$/, '');
-            const key = menu.url.startsWith('#')
-              ? `header|${menu.name.toLowerCase().trim()}`
-              : `link|${menu.name.toLowerCase().trim()}|${normalizedUrl.replace('/dashboard', '')}`;
-            
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              uniqueDynamicMenus.push(menu);
-            }
-          }
-
-          const activeDynamicMenus = uniqueDynamicMenus.filter(menu => {
-            if (menu.url.startsWith('#')) {
-              return filterMenuChildren(menu.children).length > 0;
-            }
-            if (!searchQuery) return true;
-            return menu.name.toLowerCase().includes(searchQuery.toLowerCase()) || filterMenuChildren(menu.children).length > 0;
-          });
-
-          // Sort menus by order_index from database
-          const sortedDynamicMenus = [...activeDynamicMenus].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
-
-          if (!loading && sortedDynamicMenus.length === 0) {
+          if (!loading && processedMenus.length === 0 && favoriteLinks.length === 0) {
             return null;
           }
 
           return (
-            <div className="sidebar-section">
-              {sidebar_open && (
-                <div className="sidebar-section-label">
-                  {isMahasiswaRole
-                    ? 'Portal Akademik Mahasiswa'
-                    : isDosenRole
-                    ? 'Portal Layanan Dosen'
-                    : isTendikRole
-                    ? 'Portal Layanan Tendik'
-                    : 'Menu Utama'}
+            <>
+              {sidebar_open && favoriteLinks.length > 0 && (
+                <div className="sidebar-section">
+                  <div className="sidebar-section-label">Favorit</div>
+                  {loading ? (
+                    <div className="sidebar-loading">Loading menus...</div>
+                  ) : (
+                    favoriteLinks.map((fav) => renderLeaf(fav))
+                  )}
                 </div>
               )}
-              
-              {loading ? (
-                <div className="sidebar-loading">Loading menus...</div>
-              ) : (
-                sortedDynamicMenus.map((menu) => {
-                  if (menu.url.startsWith('#')) {
-                    const validChildren = filterMenuChildren(menu.children);
-                    if (validChildren.length === 0) return null;
+              <div className="sidebar-section">
+                {sidebar_open && (
+                  <div className="sidebar-section-label">
+                    {isMahasiswaRole
+                      ? 'Portal Akademik Mahasiswa'
+                      : isDosenRole
+                      ? 'Portal Layanan Dosen'
+                      : isTendikRole
+                      ? 'Portal Layanan Tendik'
+                      : 'Menu Utama'}
+                  </div>
+                )}
+
+                {loading ? (
+                  <div className="sidebar-loading">Loading menus...</div>
+                ) : (
+                  processedMenus.map((menu) => {
+                    if (menu.url.startsWith('#')) {
+                      const kids = visibleChildren(menu.children);
+                      if (kids.length === 0) return null;
+                      const gkey = `g:${menu.id}`;
+                      const open = !sidebar_open || isGroupOpen(gkey);
+
+                      return (
+                        <div key={menu.id}>
+                          <button
+                            type="button"
+                            onClick={() => setGroupOpen(gkey, !isGroupOpen(gkey))}
+                            className={`sidebar-group-title sidebar-group-toggle${isGroupOpen(gkey) ? ' open' : ''}`}
+                            title={menu.name}
+                          >
+                            {sidebar_open && <span>{menu.name}</span>}
+                            {sidebar_open && <ChevronDown size={13} className="toggle-chev" />}
+                          </button>
+                          {open && kids.map((child) => renderLeaf(child))}
+                        </div>
+                      );
+                    }
+
+                    const validSubChildren = visibleChildren(menu.children);
 
                     return (
                       <div key={menu.id}>
-                        <div className="sidebar-group-title">
-                          {sidebar_open && menu.name}
-                        </div>
-                        {validChildren.map(child => (
-                          <Link
-                            key={child.id}
-                            href={child.url}
-                            className={`sidebar-item ${isMainActive(child.url, child.id) ? 'active' : ''}`}
-                            title={child.name}
-                          >
-                            {getIcon(child.icon)}
-                            {sidebar_open && <span>{child.name}</span>}
-                          </Link>
-                        ))}
+                        {renderLeaf(menu)}
+                        {validSubChildren.length > 0 && sidebar_open && (
+                          <div className="sidebar-submenu">
+                            {validSubChildren.map((child) => renderLeaf(child, true))}
+                          </div>
+                        )}
                       </div>
                     );
-                  }
-
-                  const validSubChildren = filterMenuChildren(menu.children);
-
-                  return (
-                    <div key={menu.id}>
-                      <Link
-                        href={menu.url}
-                        className={`sidebar-item ${isMainActive(menu.url, menu.id) ? 'active' : ''}`}
-                        title={menu.name}
-                      >
-                        {getIcon(menu.icon)}
-                        {sidebar_open && <span>{menu.name}</span>}
-                      </Link>
-                      {validSubChildren.length > 0 && sidebar_open && (
-                        <div className="sidebar-submenu">
-                          {validSubChildren.map(child => (
-                            <Link
-                              key={child.id}
-                              href={child.url}
-                              className={`sidebar-item sidebar-submenu-item ${isMainActive(child.url, child.id) ? 'active' : ''}`}
-                              title={child.name}
-                            >
-                              {getIcon(child.icon)}
-                              <span>{child.name}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                  })
+                )}
+              </div>
+            </>
           );
         })()}
 
