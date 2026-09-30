@@ -23,6 +23,8 @@ export interface PengajuanOperasional {
   total_realisasi: number;
   sisa_nominal: number;
   status: string;
+  kanal?: string | null;
+  referensi_eksternal?: string | null;
   nama_bank_penerima?: string | null;
   nomor_rekening_penerima?: string | null;
   nama_rekening_penerima?: string | null;

@@ -5,6 +5,8 @@ import type {
   GedungFormPayload,
   Ruangan,
   RuanganFormPayload,
+  LaboranProdi,
+  AssignLaboranProdiPayload,
   CheckKetersediaanPayload,
   CheckKetersediaanResponse,
   KategoriAset,
@@ -12,6 +14,7 @@ import type {
   Aset,
   AsetFormPayload,
   PenyusutanAsetResult,
+  RiwayatPenyusutanAset,
   PeminjamanRuangan,
   ApplyPeminjamanRuanganPayload,
   ApprovePeminjamanRuanganPayload,
@@ -54,9 +57,16 @@ import type {
   MasterKategoriBhp,
   AsetLabelData,
   LabEarlyWarningsData,
+  SinapraDashboardSummary,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
+  // ── DASHBOARD EKSEKUTIF SARPRAS ─────────────────────────────
+  getDashboardSummary: async (): Promise<ApiResponse<SinapraDashboardSummary>> => {
+    const { data } = await apiClient.get<ApiResponse<SinapraDashboardSummary>>('/sinapra/dashboard-summary');
+    return data;
+  },
+
   // ── FASE 4: EARLY WARNING SYSTEM LABORATORIUM ──────────────
   getLabEarlyWarnings: async (): Promise<ApiResponse<LabEarlyWarningsData>> => {
     const { data } = await apiClient.get<ApiResponse<LabEarlyWarningsData>>('/sinapra/laboratorium/early-warnings');
@@ -135,6 +145,22 @@ export const sinapraService = {
     return data;
   },
 
+  // ── LABORAN PROGRAM STUDI ─────────────────────────────────────
+  getLaboranProdiList: async (params?: any): Promise<PaginatedResponse<LaboranProdi>> => {
+    const { data } = await apiClient.get<PaginatedResponse<LaboranProdi>>('/sinapra/laboran-prodi', { params });
+    return data;
+  },
+
+  assignLaboranProdi: async (payload: AssignLaboranProdiPayload): Promise<ApiResponse<LaboranProdi>> => {
+    const { data } = await apiClient.post<ApiResponse<LaboranProdi>>('/sinapra/laboran-prodi', payload);
+    return data;
+  },
+
+  unassignLaboranProdi: async (id: number): Promise<ApiResponse<null>> => {
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/sinapra/laboran-prodi/${id}`);
+    return data;
+  },
+
   // ── KATEGORI ASET ───────────────────────────────────────────
   getKategoriList: async (params?: SinapraFilterParams): Promise<PaginatedResponse<KategoriAset>> => {
     const { data } = await apiClient.get<PaginatedResponse<KategoriAset>>('/sinapra/kategori-aset', { params });
@@ -189,6 +215,16 @@ export const sinapraService = {
 
   hitungPenyusutanAset: async (id: number): Promise<ApiResponse<PenyusutanAsetResult>> => {
     const { data } = await apiClient.get<ApiResponse<PenyusutanAsetResult>>(`/sinapra/aset/${id}/hitung-penyusutan`);
+    return data;
+  },
+
+  postJurnalPenyusutan: async (id: number, payload?: { tahun?: number; catatan?: string }): Promise<ApiResponse<RiwayatPenyusutanAset>> => {
+    const { data } = await apiClient.post<ApiResponse<RiwayatPenyusutanAset>>(`/sinapra/aset/${id}/post-jurnal-penyusutan`, payload);
+    return data;
+  },
+
+  getRiwayatPenyusutan: async (id: number): Promise<ApiResponse<RiwayatPenyusutanAset[]>> => {
+    const { data } = await apiClient.get<ApiResponse<RiwayatPenyusutanAset[]>>(`/sinapra/aset/${id}/riwayat-penyusutan`);
     return data;
   },
 

@@ -64,6 +64,9 @@ type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 
 const payoutSchema = z.object({
   keterangan: z.string().max(255, 'Keterangan maksimal 255 karakter').optional(),
+  nama_bank: z.string().min(1, 'Nama bank wajib diisi').max(100, 'Nama bank maksimal 100 karakter'),
+  nomor_rekening: z.string().min(1, 'Nomor rekening wajib diisi').max(60, 'Nomor rekening maksimal 60 karakter'),
+  nama_pemilik_rekening: z.string().min(1, 'Nama pemilik rekening wajib diisi').max(150, 'Nama pemilik rekening maksimal 150 karakter'),
 });
 
 type PayoutValues = z.infer<typeof payoutSchema>;
@@ -123,7 +126,7 @@ export default function ProfilePage() {
     formState: { isSubmitting: isPayoutSubmitting, errors: payoutErrors },
   } = useForm<PayoutValues>({
     resolver: zodResolver(payoutSchema),
-    defaultValues: { keterangan: '' },
+    defaultValues: { keterangan: '', nama_bank: '', nomor_rekening: '', nama_pemilik_rekening: '' },
   });
 
   const loadMyReferral = () => {
@@ -200,9 +203,12 @@ export default function ProfilePage() {
   const handleGeneratePayout = async (values: PayoutValues) => {
     try {
       const keterangan = values.keterangan?.trim();
-      const res = await spmbService.createReferralPayout(
-        keterangan ? { keterangan } : {}
-      );
+      const res = await spmbService.createReferralPayout({
+        keterangan: keterangan || undefined,
+        nama_bank: values.nama_bank.trim(),
+        nomor_rekening: values.nomor_rekening.trim(),
+        nama_pemilik_rekening: values.nama_pemilik_rekening.trim(),
+      });
       const payout = res?.data;
       if (!payout) {
         throw new Error('Data payout tidak diterima.');
@@ -584,16 +590,33 @@ export default function ProfilePage() {
               }}
               columns={[
                 {
-                  key: 'referral_code',
-                  label: 'Kode Referral',
+                  key: 'pendaftar',
+                  label: 'Pendaftar',
                   render: (row) => (
-                    <span className="font-mono font-bold text-slate-900 text-xs">{row.referral_code}</span>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900 text-xs">{row.nama_pendaftar || '-'}</span>
+                      <span className="text-2xs text-slate-500 font-mono">{row.no_pendaftaran || '-'}</span>
+                    </div>
                   ),
+                },
+                {
+                  key: 'gelombang',
+                  label: 'Gelombang',
+                  render: (row) => <span className="text-xs text-slate-700">{row.gelombang || '-'}</span>,
                 },
                 {
                   key: 'status',
                   label: 'Status',
-                  render: (row) => <ReferralStatusBadge status={row.status} />,
+                  render: (row) => (
+                    <div className="flex flex-col gap-2">
+                      <ReferralStatusBadge status={row.status} />
+                      {(row.reward_nominal ?? 0) > 0 && (
+                        <span className="text-2xs font-bold text-[var(--module-primary)]">
+                          {formatCurrency(row.reward_nominal ?? 0)}
+                        </span>
+                      )}
+                    </div>
+                  ),
                 },
                 {
                   key: 'created_at',
@@ -764,8 +787,9 @@ export default function ProfilePage() {
               onChange={(val) => setFilterSortBy(val)}
               options={[
                 { value: 'created_at', label: 'Tanggal' },
+                { value: 'nama_pendaftar', label: 'Nama Pendaftar' },
+                { value: 'gelombang', label: 'Gelombang' },
                 { value: 'status', label: 'Status' },
-                { value: 'referral_code', label: 'Kode Referral' },
               ]}
             />
             <Select
@@ -817,6 +841,32 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between text-sm border-t border-slate-200">
               <span className="font-bold text-slate-700">Total Pencairan</span>
               <span className="font-black text-[var(--module-primary)]">{formatCurrency(withdrawable?.total_nominal ?? 0)}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Nama Bank Tujuan"
+              placeholder="Contoh: BCA, Mandiri, BRI"
+              required
+              error={payoutErrors.nama_bank?.message}
+              {...registerPayout('nama_bank')}
+            />
+            <Input
+              label="Nomor Rekening"
+              placeholder="Nomor rekening tujuan"
+              required
+              error={payoutErrors.nomor_rekening?.message}
+              {...registerPayout('nomor_rekening')}
+            />
+            <div className="md:col-span-2">
+              <Input
+                label="Nama Pemilik Rekening"
+                placeholder="Nama sesuai buku tabungan"
+                required
+                error={payoutErrors.nama_pemilik_rekening?.message}
+                {...registerPayout('nama_pemilik_rekening')}
+              />
             </div>
           </div>
 

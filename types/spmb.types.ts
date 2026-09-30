@@ -258,12 +258,21 @@ export interface Pengumuman {
   updated_at?: string;
 }
 
+export interface KomponenBiayaRoleReward {
+  id?: number;
+  role_id: number;
+  nominal: number;
+  role?: { id: number; slug: string; name: string } | null;
+}
+
 export interface MasterKomponenBiaya {
   id: number;
   kode: string;
   nama: string;
   kategori: string;
   tipe_potongan: boolean;
+  is_referral_reward?: boolean;
+  role_rewards?: KomponenBiayaRoleReward[];
   urutan: number;
   is_active: boolean;
   keterangan?: string | null;
@@ -402,6 +411,7 @@ export interface MyReferralData {
 export interface ReferralPayoutResult {
   id: number;
   nomor_bukti: string;
+  status?: string;
   referral_count: number;
   total_nominal: number;
   generated_at: string;

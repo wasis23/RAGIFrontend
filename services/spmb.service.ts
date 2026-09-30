@@ -408,6 +408,8 @@ export const spmbService = {
     nama: string;
     kategori?: string;
     tipe_potongan?: boolean;
+    is_referral_reward?: boolean;
+    role_rewards?: { role_id: number; nominal: number }[];
     urutan?: number;
     position_type?: string;
     reference_id?: number;
@@ -425,6 +427,8 @@ export const spmbService = {
       nama: string;
       kategori?: string;
       tipe_potongan?: boolean;
+      is_referral_reward?: boolean;
+      role_rewards?: { role_id: number; nominal: number }[];
       urutan?: number;
       position_type?: string;
       reference_id?: number;
@@ -433,6 +437,21 @@ export const spmbService = {
     }
   ) => {
     const response = await api.put(`/spmb/master/komponen-biaya/${id}`, data);
+    return response.data;
+  },
+
+  getKomponenBiayaRoleOptions: async (params?: {
+    search?: string;
+    per_page?: number;
+    page?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }): Promise<{
+    status: string;
+    message: string;
+    data: { id: number; slug: string; name: string }[];
+  }> => {
+    const response = await api.get('/spmb/master/komponen-biaya-role-options', { params });
     return response.data;
   },
 
@@ -581,7 +600,12 @@ export const spmbService = {
     return response.data;
   },
 
-  createReferralPayout: async (data?: { keterangan?: string }): Promise<{
+  createReferralPayout: async (data: {
+    keterangan?: string;
+    nama_bank: string;
+    nomor_rekening: string;
+    nama_pemilik_rekening: string;
+  }): Promise<{
     status: string;
     message: string;
     data: ReferralPayoutResult;

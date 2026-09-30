@@ -386,6 +386,32 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
   },
 ];
 
+const getSimpegMandiriMenus = (canJafung: boolean): Menu[] => {
+  const menus: Menu[] = [
+    { id: 501, parent_id: null, name: 'Dashboard SIMPEG', url: '/simpeg', icon: 'FaChartPie', module: 'simpeg', permission_id: null, order_index: 1, is_active: true },
+    { id: 502, parent_id: null, name: 'Presensi & Absensi', url: '/simpeg/presensi', icon: 'FaClock', module: 'simpeg', permission_id: null, order_index: 2, is_active: true },
+    { id: 503, parent_id: null, name: 'Cuti & Izin Kerja', url: '/simpeg/cuti', icon: 'FaCalendar', module: 'simpeg', permission_id: null, order_index: 3, is_active: true },
+    { id: 504, parent_id: null, name: 'Payroll & Slip Gaji', url: '/simpeg/payroll', icon: 'FaMoneyBillWave', module: 'simpeg', permission_id: null, order_index: 4, is_active: true },
+    { id: 505, parent_id: null, name: 'Evaluasi Kinerja SKP', url: '/simpeg/kinerja', icon: 'FaClipboardCheck', module: 'simpeg', permission_id: null, order_index: 5, is_active: true },
+  ];
+
+  let nextOrder = 6;
+  if (canJafung) {
+    menus.push({
+      id: 506, parent_id: null, name: 'Usulan Jafung (KUM)', url: '/simpeg/usulan-jafung', icon: 'FaAward', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true
+    });
+  }
+
+  menus.push(
+    { id: 507, parent_id: null, name: 'Kompetensi & Pelatihan', url: '/simpeg/kompetensi', icon: 'FaGraduationCap', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true },
+    { id: 508, parent_id: null, name: 'Surat Tugas & LPJ', url: '/simpeg/surat-tugas', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true },
+    { id: 509, parent_id: null, name: 'Arsip SK Pegawai', url: '/simpeg/sk-pegawai', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true },
+    { id: 510, parent_id: null, name: 'E-File & Dokumen', url: '/simpeg/dokumen', icon: 'FaFileAlt', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true }
+  );
+
+  return menus;
+};
+
 const SIKEU_FALLBACK_MENUS: Menu[] = [
   { id: 601, parent_id: null, name: 'Dashboard Keuangan', url: '/sikeu', icon: 'FaChartPie', module: 'sikeu', permission_id: null, order_index: 1, is_active: true },
   {
@@ -486,10 +512,13 @@ const SIPPM_FALLBACK_MENUS: Menu[] = [
   },
 ];
 
-const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }) => Menu[]> = {
+const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }) => Menu[]> = {
   sso: () => IAM_FALLBACK_MENUS,
   iam: () => IAM_FALLBACK_MENUS,
-  simpeg: () => SIMPEG_FALLBACK_MENUS,
+  simpeg: ({ isDosen, isTendik, canJafung }) => {
+    if (isDosen || isTendik) return getSimpegMandiriMenus(canJafung);
+    return SIMPEG_FALLBACK_MENUS;
+  },
   sippm: () => SIPPM_FALLBACK_MENUS,
   sikeu: ({ isMahasiswa, isPetugas }) => (isPetugas ? SIKEU_PETUGAS_KAS_KECIL_MENUS : isMahasiswa ? SIKEU_MAHASISWA_MENUS : SIKEU_FALLBACK_MENUS),
   sinapra: () => SINAPRA_FALLBACK_MENUS,
@@ -504,7 +533,7 @@ const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isD
 
 const getFallbackMenusForModule = (
   mod: string,
-  opts: { isMahasiswa: boolean; isDosen: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }
+  opts: { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }
 ): Menu[] => {
   const handler = FALLBACK_MENUS_REGISTRY[mod];
   return handler ? handler(opts) : [];
@@ -516,29 +545,25 @@ export function Sidebar() {
   const currentTab = searchParams.get('tab');
   
   const { sidebar_open, toggleSidebar } = useUiStore();
-  const { user, isSuperAdmin, isAdmin } = useAuth();
+  const { user, isSuperAdmin, isAdmin, hasPermission, hasRole } = useAuth();
 
-  const userRoleSlugs = (user?.roles || []).map((r: any) =>
-    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
-  );
-
-  const isMahasiswaRole = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
-  const isDosenRole = userRoleSlugs.includes('dosen') && !isSuperAdmin && !isAdmin;
-  const isKaprodiRole = (userRoleSlugs.includes('kaprodi') || userRoleSlugs.includes('wakil_prodi')) && !isSuperAdmin && !isAdmin;
+  const isMahasiswaRole = hasRole('mahasiswa') && !isSuperAdmin && !isAdmin;
+  const isDosenRole = hasRole('dosen') && !isSuperAdmin && !isAdmin;
+  const isTendikRole = hasRole('tendik') && !isSuperAdmin && !isAdmin;
+  const canJafung = isDosenRole || hasPermission('simpeg.usulan_jafung.read');
+  const isKaprodiRole = (hasRole('kaprodi') || hasRole('wakil_prodi')) && !isSuperAdmin && !isAdmin;
 
   const isPetugasKasKecilRole =
-    (userRoleSlugs.includes('petugas_kas_kecil') ||
-      userRoleSlugs.includes('petugas_kaskecil') ||
-      userRoleSlugs.includes('petugas kas kecil')) &&
+    (hasRole('petugas_kas_kecil') ||
+      hasRole('petugas_kaskecil') ||
+      hasRole('petugas kas kecil')) &&
     !isSuperAdmin &&
     !isAdmin;
 
   const isPanitiaAdmin =
     isSuperAdmin ||
     isAdmin ||
-    userRoleSlugs.some((slug) =>
-      ['admin', 'superadmin', 'super-admin', 'admin_spmb', 'panitia_spmb', 'operator_spmb', 'admin_iam'].includes(slug)
-    );
+    hasRole(['admin', 'superadmin', 'super-admin', 'admin_spmb', 'panitia_spmb', 'operator_spmb', 'admin_iam']);
 
   const [ssoPanelOpen, setSsoPanelOpen] = useState(pathname.startsWith('/admin'));
   
@@ -577,8 +602,11 @@ export function Sidebar() {
         try {
           const mod = getModule();
           let menus = await menuService.getMyMenus(mod);
-          // Pastikan menu tagihan portal mahasiswa (/sikeu/mahasiswa/tagihan) disembunyikan untuk non-mahasiswa
-          if (isMahasiswaRole && mod === 'sikeu') {
+
+          // Menu SIMPEG Mandiri Dosen & Tendik
+          if (mod === 'simpeg' && (isDosenRole || isTendikRole || (!isAdmin && !isSuperAdmin))) {
+            menus = getSimpegMandiriMenus(canJafung);
+          } else if (isMahasiswaRole && mod === 'sikeu') {
             menus = SIKEU_MAHASISWA_MENUS;
           } else if (!isMahasiswaRole) {
             menus = menus
@@ -594,7 +622,7 @@ export function Sidebar() {
         } catch (error) {
           console.error("Failed to load menus", error);
           const mod = getModule();
-          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
+          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isTendik: isTendikRole, canJafung, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
         } finally {
           setLoading(false);
         }
@@ -602,7 +630,7 @@ export function Sidebar() {
       fetchMenus();
     } else {
       const mod = getModule();
-      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
+      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isTendik: isTendikRole, canJafung, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
       setLoading(false);
     }
   }, [user, pathname]);
@@ -717,9 +745,13 @@ export function Sidebar() {
           {sidebar_open && (
             <div>
               <div className="sidebar-brand-text">SSO Campus</div>
-              <div className="sidebar-brand-sub">
-                {isMahasiswaRole ? 'Portal Mahasiswa' : isDosenRole ? 'Portal Dosen' : 'SIAKAD Utama'}
-              </div>
+                {isMahasiswaRole
+                  ? 'Portal Mahasiswa'
+                  : isDosenRole
+                  ? 'Portal Dosen'
+                  : isTendikRole
+                  ? 'Portal Tendik'
+                  : 'SIAKAD Utama'}
             </div>
           )}
         </div>
@@ -795,7 +827,13 @@ export function Sidebar() {
             <div className="sidebar-section">
               {sidebar_open && (
                 <div className="sidebar-section-label">
-                  {isMahasiswaRole ? 'Portal Akademik Mahasiswa' : isDosenRole ? 'Portal Akademik Dosen' : 'Menu Utama'}
+                  {isMahasiswaRole
+                    ? 'Portal Akademik Mahasiswa'
+                    : isDosenRole
+                    ? 'Portal Layanan Dosen'
+                    : isTendikRole
+                    ? 'Portal Layanan Tendik'
+                    : 'Menu Utama'}
                 </div>
               )}
               

@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDate } from '@/lib/utils';
 import type { PaginationMeta } from '@/types/api.types';
 import type { CutoffReport } from '@/types/simpeg.types';
 
@@ -591,7 +592,7 @@ export default function PresensiPage() {
       render: (row) => (
         <div className="flex items-center gap-1.5 text-xs text-slate-700">
           <Calendar size={13} className="text-[var(--module-primary)] shrink-0" />
-          <span>{row.tanggal_awal} s/d {row.tanggal_akhir}</span>
+          <span>{formatDate(row.tanggal_awal)} s/d {formatDate(row.tanggal_akhir)}</span>
         </div>
       ),
     },
@@ -660,13 +661,15 @@ export default function PresensiPage() {
         description="Monitoring log kehadiran biometrik realtime, pengelolaan rekap presensi bulanan, verifikasi persetujuan, dan otomasi cut-off presensi"
         action={
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              icon={<SlidersHorizontal size={16} />}
-              onClick={() => router.push('/simpeg/master/presensi')}
-            >
-              Pengaturan Presensi
-            </Button>
+            {canManage && (
+              <Button
+                variant="outline"
+                icon={<SlidersHorizontal size={16} />}
+                onClick={() => router.push('/simpeg/master/presensi')}
+              >
+                Pengaturan Presensi
+              </Button>
+            )}
             {activeTab === 'realtime' ? (
               <>
                 {canManage && (
@@ -712,17 +715,19 @@ export default function PresensiPage() {
         >
           <Clock size={16} /> Log Realtime Biometrik
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('bundle')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'bundle'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Layers size={16} /> Rekap Bundle Periode
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('bundle')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'bundle'
+                ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Layers size={16} /> Rekap Bundle Periode
+          </button>
+        )}
       </div>
 
       {/* ── TAB 1: LOG REALTIME BIOMETRIK ── */}
@@ -898,7 +903,7 @@ export default function PresensiPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Tanggal:</span>
-                <span className="font-semibold text-slate-800">{selectedLog.tanggal?.substring(0, 10)}</span>
+                <span className="font-semibold text-slate-800">{formatDate(selectedLog.tanggal)}</span>
               </div>
             </div>
 

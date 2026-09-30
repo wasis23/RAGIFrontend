@@ -41,7 +41,7 @@ import type {
 } from '@/types/simpeg.izin-sk.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
-import { getStorageFileUrl } from '@/lib/utils';
+import { getStorageFileUrl, getApiErrorMessage, formatDate } from '@/lib/utils';
 
 const approvalIzinSchema = z.object({
   status: z.enum(['disetujui', 'ditolak'], {
@@ -213,7 +213,7 @@ export default function CutiDanIzinKerjaPage() {
         if (res.meta) setMetaCuti(res.meta);
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat Pengajuan Cuti');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat Pengajuan Cuti'));
     } finally {
       setLoadingCuti(false);
     }
@@ -242,7 +242,7 @@ export default function CutiDanIzinKerjaPage() {
         if (res.meta) setMetaIzin(res.meta);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal memuat data izin jam kerja.');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat data izin jam kerja.'));
     } finally {
       setLoadingIzin(false);
     }
@@ -288,7 +288,7 @@ export default function CutiDanIzinKerjaPage() {
       setShowModalApprovalCuti(false);
       loadCuti();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memproses permohonan Cuti');
+      toast.error(getApiErrorMessage(err, 'Gagal memproses permohonan Cuti'));
     } finally {
       setIsSubmittingApprovalCuti(false);
     }
@@ -335,7 +335,7 @@ export default function CutiDanIzinKerjaPage() {
       resetApprovalIzin({ status: 'disetujui', catatan_approval: '' });
       loadIzinKerja();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal memproses approval izin.');
+      toast.error(getApiErrorMessage(err, 'Gagal memproses approval izin.'));
     } finally {
       setIsSubmittingApprovalIzin(false);
     }
@@ -351,7 +351,7 @@ export default function CutiDanIzinKerjaPage() {
       setItemToDeleteIzin(null);
       loadIzinKerja();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menghapus pengajuan izin.');
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus pengajuan izin.'));
     } finally {
       setIsDeletingIzin(false);
     }
@@ -438,7 +438,7 @@ export default function CutiDanIzinKerjaPage() {
       label: 'Tanggal Mulai - Selesai',
       render: (row) => (
         <span className="text-xs text-slate-700">
-          {row.tanggal_mulai} s/d {row.tanggal_selesai}
+          {formatDate(row.tanggal_mulai)} s/d {formatDate(row.tanggal_selesai)}
         </span>
       ),
     },
@@ -1014,7 +1014,7 @@ export default function CutiDanIzinKerjaPage() {
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm space-y-4">
                 <div><strong>Pegawai:</strong> {selectedCuti.pegawai?.nama_lengkap || selectedCuti.pegawai_id}</div>
                 <div><strong>Jenis:</strong> {(selectedCuti.jenis_cuti || 'TAHUNAN').toUpperCase()} ({selectedCuti.jumlah_hari} Hari)</div>
-                <div><strong>Periode:</strong> {selectedCuti.tanggal_mulai} s/d {selectedCuti.tanggal_selesai}</div>
+                <div><strong>Periode:</strong> {formatDate(selectedCuti.tanggal_mulai)} s/d {formatDate(selectedCuti.tanggal_selesai)}</div>
                 <div><strong>Alasan:</strong> {selectedCuti.alasan}</div>
                 {selectedCuti.file_pendukung && (
                   <div className="pt-4">
@@ -1079,7 +1079,7 @@ export default function CutiDanIzinKerjaPage() {
               {selectedForApprovalIzin?.pegawai?.nama_lengkap}
             </p>
             <p>
-              {selectedForApprovalIzin?.jenis_izin?.nama} • {selectedForApprovalIzin?.tanggal} (
+              {selectedForApprovalIzin?.jenis_izin?.nama} • {formatDate(selectedForApprovalIzin?.tanggal)} (
               {selectedForApprovalIzin?.jam_mulai} - {selectedForApprovalIzin?.jam_selesai})
             </p>
             <p className="italic">&ldquo;{selectedForApprovalIzin?.alasan}&rdquo;</p>
@@ -1133,7 +1133,7 @@ export default function CutiDanIzinKerjaPage() {
         onClose={() => setDeleteDialogOpenIzin(false)}
         onConfirm={handleDeleteIzin}
         title="Hapus Pengajuan Izin Jam Kerja"
-        message={`Apakah Anda yakin ingin menghapus pengajuan izin pada tanggal ${itemToDeleteIzin?.tanggal}? Tindakan ini tidak dapat dibatalkan.`}
+        message={`Apakah Anda yakin ingin menghapus pengajuan izin pada tanggal ${formatDate(itemToDeleteIzin?.tanggal)}? Tindakan ini tidak dapat dibatalkan.`}
         confirmText="Hapus Pengajuan"
         cancelText="Batal"
         variant="danger"

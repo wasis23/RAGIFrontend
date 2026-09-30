@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Calendar, Upload, Image as ImageIcon, Clock, CalendarDays, Info, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Calendar, Upload, Image as ImageIcon, Clock, CalendarDays, Info, AlertCircle, Lock } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { Pegawai, MasterJenisCuti } from '@/types/simpeg.types';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 
 interface OptionType {
   value: string;
@@ -35,13 +36,15 @@ const cutiSchema = z.object({
 type CutiFormValues = z.infer<typeof cutiSchema>;
 
 export default function PengajuanCutiPage() {
-  const { hasPermission } = useAuth();
-  const canCreate = hasPermission('simpeg.cuti.create') || hasPermission('simpeg.cuti.request') || hasPermission('simpeg.cuti.manage');
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.cuti.manage');
+  const canCreate = hasPermission('simpeg.cuti.create') || hasPermission('simpeg.cuti.request') || isManager;
   const router = useRouter();
 
   const [masterList, setMasterList] = useState<MasterJenisCuti[]>([]);
   const [selectedMaster, setSelectedMaster] = useState<MasterJenisCuti | null>(null);
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<OptionType | null>(null);
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingMaster, setLoadingMaster] = useState(true);
@@ -67,6 +70,25 @@ export default function PengajuanCutiPage() {
 
   const tglMulai = watch('tanggal_mulai');
   const tglSelesai = watch('tanggal_selesai');
+
+  // Fetch user pegawai profile for auto-lock
+  useEffect(() => {
+    const fetchPegawai = async () => {
+      try {
+        const res: any = await simpegService.getMyPegawai();
+        const peg = res?.data || res;
+        if (peg && peg.id) {
+          setMyPegawai(peg);
+          if (!isManager) {
+            setValue('pegawai_id', String(peg.id), { shouldValidate: true });
+          }
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data pegawai login:', err);
+      }
+    };
+    fetchPegawai();
+  }, [isManager, setValue]);
 
   // Load active master cuti types from backend API (Zero Hardcode Policy)
   useEffect(() => {
@@ -183,8 +205,9 @@ export default function PengajuanCutiPage() {
 
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? String(myPegawai.id) : values.pegawai_id;
       const formData = new FormData();
-      formData.append('pegawai_id', values.pegawai_id);
+      formData.append('pegawai_id', finalPegawaiId);
       formData.append('master_jenis_cuti_id', values.master_jenis_cuti_id);
       formData.append('tanggal_mulai', values.tanggal_mulai);
       formData.append('tanggal_selesai', values.tanggal_selesai);
@@ -199,7 +222,7 @@ export default function PengajuanCutiPage() {
       toast.success('Formulir Pengajuan Cuti berhasil dikirim dan tersimpan!');
       router.push('/simpeg/cuti');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengirim pengajuan Cuti');
+      toast.error(getApiErrorMessage(err, 'Gagal mengirim pengajuan Cuti'));
     } finally {
       setIsSubmitting(false);
     }
@@ -229,25 +252,35 @@ export default function PengajuanCutiPage() {
               
               {/* Pemohon Pegawai */}
               <div className="lg:col-span-3">
-                <Controller
-                  name="pegawai_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Pilih Pegawai Pemohon"
-                      required
-                      placeholder="Ketik nama pegawai / NIP untuk mencari dari database..."
-                      loadOptions={loadPegawaiOptions}
-                      value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
-                      onChange={(opt) => {
-                        setSelectedPegawaiOption(opt);
-                        field.onChange(opt ? opt.value : '');
-                      }}
-                      isClearable
-                      error={errors.pegawai_id?.message}
-                    />
-                  )}
-                />
+                {isManager ? (
+                  <Controller
+                    name="pegawai_id"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Pilih Pegawai Pemohon"
+                        required
+                        placeholder="Ketik nama pegawai / NIP untuk mencari dari database..."
+                        loadOptions={loadPegawaiOptions}
+                        value={selectedPegawaiOption || (field.value ? { value: field.value, label: field.value } : null)}
+                        onChange={(opt) => {
+                          setSelectedPegawaiOption(opt);
+                          field.onChange(opt ? opt.value : '');
+                        }}
+                        isClearable
+                        error={errors.pegawai_id?.message}
+                      />
+                    )}
+                  />
+                ) : (
+                  <Input
+                    label="Pegawai Pemohon"
+                    value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                    disabled
+                    hint="Terkunci otomatis sesuai akun login Anda"
+                    suffixIcon={<Lock size={16} />}
+                  />
+                )}
               </div>
 
               {/* Dynamic Jenis Cuti Dropdown from DB */}

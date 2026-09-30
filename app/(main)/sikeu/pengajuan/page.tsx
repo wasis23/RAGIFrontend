@@ -290,7 +290,14 @@ export default function PengajuanOperasionalPage() {
       label: 'PENGAJUAN',
       render: (row) => (
         <div>
-          <p className="font-bold text-slate-900 text-xs font-mono">{row.nomor_pengajuan}</p>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-900 text-xs font-mono">{row.nomor_pengajuan}</span>
+            {row.kanal === 'sinapra_pengadaan' && (
+              <Badge variant="info" className="text-3xs">
+                SINAPRA
+              </Badge>
+            )}
+          </div>
           <p className="text-xs text-slate-800 font-medium line-clamp-1">{row.judul_pengajuan}</p>
           <p className="text-2xs text-slate-500 line-clamp-1">{row.deskripsi}</p>
         </div>

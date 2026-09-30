@@ -26,6 +26,7 @@ interface DataTableProps<T> {
   rowClassName?: (row: T, index: number) => string;
   renderExpandedRow?: (row: T, index: number) => React.ReactNode;
   defaultExpandedAll?: boolean;
+  keyExtractor?: (row: T, index: number) => string | number;
 }
 
 export function DataTable<T extends object>({
@@ -39,12 +40,16 @@ export function DataTable<T extends object>({
   rowClassName,
   renderExpandedRow,
   defaultExpandedAll = false,
+  keyExtractor,
 }: DataTableProps<T>) {
   const [expandedAll, setExpandedAll] = useState(defaultExpandedAll);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
-  const rowKey = (row: T, index: number) =>
-    String((row as { id?: number | string }).id ?? index);
+  const rowKey = (row: T, index: number): string => {
+    if (keyExtractor) return String(keyExtractor(row, index));
+    const id = (row as { id?: number | string }).id;
+    return id !== undefined && id !== null ? String(id) : `row-${index}`;
+  };
 
   const isExpanded = (row: T, index: number) =>
     expandedAll || expandedKeys.has(rowKey(row, index));
@@ -119,7 +124,7 @@ export function DataTable<T extends object>({
               </tr>
             ) : (
               data.map((row, rowIndex) => (
-                <React.Fragment key={(row as { id?: number | string }).id || rowIndex}>
+                <React.Fragment key={rowKey(row, rowIndex)}>
                   <tr
                     className={`bg-white hover:bg-slate-50 transition-colors ${rowClassName ? rowClassName(row, rowIndex) : ''}`}
                   >

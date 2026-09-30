@@ -19,6 +19,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { simpegService } from '@/services/simpeg.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { MasterJenisCuti, MasterJenisIzinJamKerja } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
@@ -168,7 +169,7 @@ export default function MasterJenisCutiPage() {
       setDataCutiList(res.data || []);
       if (res.meta) setMetaCuti(res.meta);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat master jenis cuti');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat master jenis cuti'));
     } finally {
       setLoadingCuti(false);
     }
@@ -193,7 +194,7 @@ export default function MasterJenisCutiPage() {
       setDataIzinList(res.data || []);
       if (res.meta) setMetaIzin(res.meta);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat master jenis izin jam kerja');
+      toast.error(getApiErrorMessage(err, 'Gagal memuat master jenis izin jam kerja'));
     } finally {
       setLoadingIzin(false);
     }
@@ -254,7 +255,7 @@ export default function MasterJenisCutiPage() {
       setShowModalCuti(false);
       fetchCuti();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan jenis cuti');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan jenis cuti'));
     }
   };
 
@@ -268,7 +269,7 @@ export default function MasterJenisCutiPage() {
       setItemToDeleteCuti(null);
       fetchCuti();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus jenis cuti');
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus jenis cuti'));
     } finally {
       setIsDeletingCuti(false);
     }
@@ -313,7 +314,7 @@ export default function MasterJenisCutiPage() {
       setShowModalIzin(false);
       fetchIzin();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan jenis izin jam kerja');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan jenis izin jam kerja'));
     }
   };
 
@@ -327,7 +328,7 @@ export default function MasterJenisCutiPage() {
       setItemToDeleteIzin(null);
       fetchIzin();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus jenis izin jam kerja');
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus jenis izin jam kerja'));
     } finally {
       setIsDeletingIzin(false);
     }

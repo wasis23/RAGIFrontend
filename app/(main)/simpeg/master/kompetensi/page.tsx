@@ -27,6 +27,7 @@ import type {
 } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 
 // ── ZOD SCHEMAS ──────────────────────────────────────────
 const sertifikasiSchema = z.object({
@@ -268,7 +269,7 @@ export default function MasterKompetensiPage() {
       setModalOpen(false);
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan data master');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan data master'));
     }
   };
 
@@ -298,7 +299,7 @@ export default function MasterKompetensiPage() {
       setItemToDelete(null);
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus data master');
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus data master'));
     } finally {
       setIsDeleting(false);
     }

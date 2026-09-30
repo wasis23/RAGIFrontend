@@ -41,6 +41,7 @@ import type { Pegawai, UnitKerja, JenisPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDate } from '@/lib/utils';
 
 export default function PegawaiPage() {
   const router = useRouter();
@@ -685,7 +686,7 @@ export default function PegawaiPage() {
                           <div>
                             <div className="text-xs text-slate-400 uppercase font-semibold">Tempat, Tgl Lahir</div>
                             <div className="text-sm text-slate-600">
-                              {peg.tempat_lahir || '-'}, {peg.tanggal_lahir || '-'}
+                              {peg.tempat_lahir || '-'}, {formatDate(peg.tanggal_lahir)}
                             </div>
                           </div>
                           <div>

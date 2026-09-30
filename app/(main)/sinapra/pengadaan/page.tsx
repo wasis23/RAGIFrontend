@@ -12,7 +12,8 @@ import {
   Building2,
   FileText,
   DollarSign,
-  Layers
+  Layers,
+  CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -210,16 +211,24 @@ export default function PengadaanPage() {
       key: 'status',
       label: 'STATUS',
       render: (row) => (
-        <Badge
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
-            color: 'var(--module-primary)',
-            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
-          }}
-          className="text-2xs capitalize"
-        >
-          {row.status?.replace('_', ' ')}
-        </Badge>
+        <div className="flex flex-col gap-2">
+          <Badge
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+              color: 'var(--module-primary)',
+              borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+            }}
+            className="text-2xs capitalize w-fit"
+          >
+            {row.status?.replace('_', ' ')}
+          </Badge>
+          {row.sikeu_pencairan_id && (
+            <span className="text-3xs text-emerald-600 font-semibold flex items-center gap-2">
+              <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+              SIKEU Terhubung
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -431,6 +440,27 @@ export default function PengadaanPage() {
               </div>
             </div>
 
+            {/* KONEKSI SIKEU PENCAIRAN KAS */}
+            {viewingPengadaan.pencairan_kas && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-bold text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 size={15} className="text-emerald-600" />
+                    Terhubung ke SIKEU (Permohonan Pencairan Kas)
+                  </span>
+                  <p className="text-2xs text-emerald-700">
+                    No. Pengajuan: <strong className="font-mono">{viewingPengadaan.pencairan_kas.nomor_pengajuan}</strong> • Status Kas: <span className="font-semibold uppercase">{viewingPengadaan.pencairan_kas.status?.replace('_', ' ')}</span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xs text-slate-500 block">Nominal Pencairan</span>
+                  <span className="font-bold text-emerald-700 font-mono text-xs">
+                    {formatCurrency(viewingPengadaan.pencairan_kas.nominal_diajukan)}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div
               style={{
                 backgroundColor: 'color-mix(in srgb, var(--module-primary) 8%, transparent)',
@@ -479,6 +509,15 @@ export default function PengadaanPage() {
               { value: 'selesai', label: 'Selesai / Barang Diterima' },
             ]}
           />
+
+          {statusForm.status === 'disetujui' && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-2xs text-emerald-800 flex items-start gap-2">
+              <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+              <span>
+                <strong>Otomatisasi SIKEU:</strong> Menyetujui pengadaan ini akan secara otomatis membuat permohonan pencairan kas di modul SIKEU untuk diproses oleh bagian keuangan kampus.
+              </span>
+            </div>
+          )}
 
           <Textarea
             label="Catatan Verifikator / Approver"

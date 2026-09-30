@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { MasterKategoriSkp } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
@@ -183,7 +184,7 @@ export default function MasterKategoriSkpPage() {
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan kategori SKP');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan kategori SKP'));
     } finally {
       setIsSubmitting(false);
     }
@@ -203,7 +204,7 @@ export default function MasterKategoriSkpPage() {
           setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
           loadData();
         } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Gagal menghapus kategori SKP');
+          toast.error(getApiErrorMessage(err, 'Gagal menghapus kategori SKP'));
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
         }
       },

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -18,6 +18,7 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { simpegSkPegawaiService } from '@/services/simpeg.izin-sk.service';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { SkPegawaiMasters } from '@/types/simpeg.izin-sk.types';
 import type { Pegawai } from '@/types/simpeg.types';
 
@@ -51,12 +52,14 @@ type SkPegawaiFormValues = z.infer<typeof skPegawaiFormSchema>;
 
 export default function CreateSkPegawaiPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.sk_pegawai.verify') || hasPermission('simpeg.sk_pegawai.manage');
 
   const [masters, setMasters] = useState<SkPegawaiMasters | null>(null);
   const [fileSk, setFileSk] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<{ value: string; label: string } | null>(null);
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
 
   const {
     register,
@@ -97,17 +100,28 @@ export default function CreateSkPegawaiPage() {
     fetchMasters();
   }, [setValue]);
 
-  // Pre-fill if logged-in user is a Pegawai
+  // Fetch myPegawai profile and pre-fill / auto-lock
   useEffect(() => {
-    const currentPegawai = (user as any)?.pegawai;
-    if (currentPegawai) {
-      setValue('pegawai_id', currentPegawai.id.toString());
-      setSelectedPegawaiOption({
-        value: currentPegawai.id.toString(),
-        label: `${currentPegawai.nama_lengkap} ${currentPegawai.nip ? `(NIP: ${currentPegawai.nip})` : ''}`,
-      });
-    }
-  }, [user, setValue]);
+    const fetchPegawai = async () => {
+      try {
+        const res: any = await simpegService.getMyPegawai();
+        const peg = res?.data || res;
+        if (peg && peg.id) {
+          setMyPegawai(peg);
+          if (!isManager) {
+            setValue('pegawai_id', peg.id.toString(), { shouldValidate: true });
+            setSelectedPegawaiOption({
+              value: peg.id.toString(),
+              label: `${peg.nama_lengkap} ${peg.nip ? `(NIP: ${peg.nip})` : ''}`,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Gagal mengambil data pegawai login:', e);
+      }
+    };
+    fetchPegawai();
+  }, [isManager, setValue]);
 
   // Load Pegawai Options for AsyncSelect
   const loadPegawaiOptions = useCallback(async (inputValue: string) => {
@@ -143,8 +157,9 @@ export default function CreateSkPegawaiPage() {
 
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? String(myPegawai.id) : values.pegawai_id;
       const formData = new FormData();
-      formData.append('pegawai_id', values.pegawai_id);
+      formData.append('pegawai_id', finalPegawaiId);
       formData.append('kategori_sk_id', values.kategori_sk_id);
       formData.append('nomor_sk', values.nomor_sk);
       formData.append('judul_sk', values.judul_sk);
@@ -159,7 +174,7 @@ export default function CreateSkPegawaiPage() {
       toast.success('Laporan SK pegawai berhasil disimpan dan diajukan ke tim SDM!');
       router.push('/simpeg/sk-pegawai');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan arsip SK pegawai.');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan arsip SK pegawai.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -194,30 +209,36 @@ export default function CreateSkPegawaiPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Pegawai AsyncSelect */}
+            {/* Pegawai Field */}
             <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                Pegawai Pemilik SK <span className="text-rose-500">*</span>
-              </label>
-              <Controller
-                name="pegawai_id"
-                control={control}
-                render={({ field }) => (
-                  <AsyncSelect
-                    placeholder="Cari nama atau NIP pegawai..."
-                    loadOptions={loadPegawaiOptions}
-                    value={selectedPegawaiOption}
-                    onChange={(val) => {
-                      setSelectedPegawaiOption(val);
-                      field.onChange(val ? val.value : '');
-                    }}
-                    isClearable
-                    className="mt-1"
-                  />
-                )}
-              />
-              {errors.pegawai_id && (
-                <p className="mt-1 text-xs text-rose-500">{errors.pegawai_id.message}</p>
+              {isManager ? (
+                <Controller
+                  name="pegawai_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Pegawai Pemilik SK"
+                      required
+                      placeholder="Cari nama atau NIP pegawai..."
+                      loadOptions={loadPegawaiOptions}
+                      value={selectedPegawaiOption}
+                      onChange={(val) => {
+                        setSelectedPegawaiOption(val);
+                        field.onChange(val ? val.value : '');
+                      }}
+                      isClearable
+                      error={errors.pegawai_id?.message}
+                    />
+                  )}
+                />
+              ) : (
+                <Input
+                  label="Pegawai Pemilik SK"
+                  value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                  disabled
+                  hint="Terkunci otomatis sesuai akun login Anda"
+                  suffixIcon={<Lock size={16} />}
+                />
               )}
             </div>
 

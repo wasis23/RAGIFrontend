@@ -15,6 +15,7 @@ import {
   Upload,
   AlertCircle,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -45,19 +46,19 @@ const suratTugasFormSchema = z
     tanggal_selesai: z.string().min(1, 'Tanggal selesai kegiatan wajib diisi'),
     maksud_tujuan: z.string().min(5, 'Maksud dan tujuan minimal 5 karakter'),
     beban_anggaran: z.string().optional(),
-    estimasi_biaya: z.string().optional(),
+    estimasi_biaya: z.string().optional().refine((val) => !val || /^\d+$/.test(val), 'Estimasi biaya harus berupa angka nominal tanpa titik atau koma'),
     nama_bank: z.string().optional(),
-    nomor_rekening: z.string().optional(),
+    nomor_rekening: z.string().optional().refine((val) => !val || /^[0-9\-\s]+$/.test(val), 'Nomor rekening hanya boleh memuat angka'),
     nama_rekening: z.string().optional(),
     keterangan: z.string().optional(),
     kendaraan_dinas: z.string().optional(),
     nama_driver: z.string().optional(),
-    kontak_driver: z.string().optional(),
+    kontak_driver: z.string().optional().refine((val) => !val || /^[0-9+\-\s()]+$/.test(val), 'Kontak driver hanya boleh memuat nomor telepon yang valid'),
     anggota: z
       .array(
         z.object({
-          pegawai_id: z.string().min(1, 'Pegawai anggota tim wajib dipilih'),
-          peran: z.string().min(1, 'Peran wajib diisi'),
+          pegawai_id: z.string().optional(),
+          peran: z.string().optional(),
           keterangan: z.string().optional(),
         })
       )
@@ -92,7 +93,8 @@ type SuratTugasFormValues = z.infer<typeof suratTugasFormSchema>;
 
 export default function CreateSuratTugasPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.surat_tugas.manage');
 
   const [masters, setMasters] = useState<SuratTugasMasters | null>(null);
   const [fileSuratTugas, setFileSuratTugas] = useState<File | null>(null);
@@ -100,12 +102,15 @@ export default function CreateSuratTugasPage() {
 
   // Selected ketua option state for AsyncSelect display
   const [selectedKetuaOption, setSelectedKetuaOption] = useState<{ value: string; label: string } | null>(null);
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
 
   const {
     register,
     handleSubmit,
     control,
     setValue,
+    watch,
+    getValues,
     formState: { errors },
   } = useForm<SuratTugasFormValues>({
     resolver: zodResolver(suratTugasFormSchema),
@@ -139,6 +144,28 @@ export default function CreateSuratTugasPage() {
     name: 'anggota',
   });
 
+  // Auto-sync tanggal: saat tanggal berangkat diisi, defaultkan tanggal kegiatan mulai jika belum diisi
+  const watchedTanggalBerangkat = watch('tanggal_berangkat');
+  const watchedTanggalKembali = watch('tanggal_kembali');
+
+  useEffect(() => {
+    if (watchedTanggalBerangkat) {
+      const currentMulai = getValues('tanggal_mulai');
+      if (!currentMulai) {
+        setValue('tanggal_mulai', watchedTanggalBerangkat, { shouldValidate: true });
+      }
+    }
+  }, [watchedTanggalBerangkat, setValue, getValues]);
+
+  useEffect(() => {
+    if (watchedTanggalKembali) {
+      const currentSelesai = getValues('tanggal_selesai');
+      if (!currentSelesai) {
+        setValue('tanggal_selesai', watchedTanggalKembali, { shouldValidate: true });
+      }
+    }
+  }, [watchedTanggalKembali, setValue, getValues]);
+
   // Fetch masters
   useEffect(() => {
     const fetchMasters = async () => {
@@ -164,9 +191,10 @@ export default function CreateSuratTugasPage() {
   useEffect(() => {
     const initDefaultKetua = async () => {
       try {
-        const res = await simpegService.getPegawaiMe();
-        if (res?.data) {
-          const p = res.data;
+        const res: any = await simpegService.getMyPegawai();
+        const p = res?.data || res;
+        if (p && p.id) {
+          setMyPegawai(p);
           const opt = {
             value: p.id.toString(),
             label: `${p.nama_lengkap}${p.nip ? ` (NIP: ${p.nip})` : ''} - ${p.unit_kerja?.nama || 'SDM'}`,
@@ -219,11 +247,28 @@ export default function CreateSuratTugasPage() {
     label: t.nama,
   })) || [];
 
+  const onValidationError = (formErrors: any) => {
+    const errorEntries = Object.entries(formErrors);
+    if (errorEntries.length > 0) {
+      const [firstKey, firstVal]: [string, any] = errorEntries[0];
+      const message = firstVal?.message || firstVal?.root?.message || 'Mohon periksa kelengkapan kolom wajib bertanda bintang merah.';
+      toast.error(`Periksa isian: ${message}`);
+
+      const el = document.querySelector(`[name="${firstKey}"]`) || document.getElementById(firstKey);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      toast.error('Mohon periksa kembali isian formulir Anda.');
+    }
+  };
+
   const onSubmit = async (values: SuratTugasFormValues, status: 'draft' | 'diajukan' = 'diajukan') => {
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? String(myPegawai.id) : values.pegawai_id;
       const formData = new FormData();
-      formData.append('pegawai_id', values.pegawai_id);
+      formData.append('pegawai_id', finalPegawaiId);
       formData.append('kategori_kegiatan_id', values.kategori_kegiatan_id);
       formData.append('jenis_transportasi_id', values.jenis_transportasi_id);
       formData.append('nama_kegiatan', values.nama_kegiatan);
@@ -231,9 +276,16 @@ export default function CreateSuratTugasPage() {
       formData.append('lokasi_tujuan', values.lokasi_tujuan);
       formData.append('tanggal_berangkat', values.tanggal_berangkat);
       formData.append('tanggal_kembali', values.tanggal_kembali);
-      formData.append('tanggal_mulai', values.tanggal_mulai);
-      formData.append('tanggal_selesai', values.tanggal_selesai);
-      formData.append('maksud_tujuan', values.maksud_tujuan);
+      formData.append('tanggal_mulai', values.tanggal_mulai || values.tanggal_berangkat);
+      formData.append('tanggal_selesai', values.tanggal_selesai || values.tanggal_kembali);
+      formData.append(
+        'maksud_tujuan',
+        values.maksud_tujuan && values.maksud_tujuan.trim().length >= 5
+          ? values.maksud_tujuan
+          : status === 'draft'
+          ? 'Draf pengajuan surat tugas dinas luar kampus'
+          : values.maksud_tujuan
+      );
       formData.append('status', status);
 
       if (values.beban_anggaran) formData.append('beban_anggaran', values.beban_anggaran);
@@ -246,10 +298,12 @@ export default function CreateSuratTugasPage() {
       if (values.nama_driver) formData.append('nama_driver', values.nama_driver);
       if (values.kontak_driver) formData.append('kontak_driver', values.kontak_driver);
 
+      // Saring anggota rombongan: hanya kirim yang memiliki pegawai_id valid
       if (values.anggota && values.anggota.length > 0) {
-        values.anggota.forEach((item, index) => {
-          formData.append(`anggota[${index}][pegawai_id]`, item.pegawai_id);
-          formData.append(`anggota[${index}][peran]`, item.peran);
+        const validAnggota = values.anggota.filter((item) => item.pegawai_id && item.pegawai_id.trim() !== '');
+        validAnggota.forEach((item, index) => {
+          formData.append(`anggota[${index}][pegawai_id]`, item.pegawai_id!);
+          formData.append(`anggota[${index}][peran]`, item.peran || 'Anggota');
           if (item.keterangan) formData.append(`anggota[${index}][keterangan]`, item.keterangan);
         });
       }
@@ -266,7 +320,14 @@ export default function CreateSuratTugasPage() {
       );
       router.push('/simpeg/surat-tugas');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan surat tugas.');
+      const resp = err.response?.data;
+      if (resp?.errors && typeof resp.errors === 'object') {
+        const firstErrorKey = Object.keys(resp.errors)[0];
+        const errorMsg = resp.errors[firstErrorKey]?.[0] || resp.message;
+        toast.error(`Gagal menyimpan: ${errorMsg}`);
+      } else {
+        toast.error(resp?.message || 'Gagal menyimpan surat tugas.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -317,43 +378,53 @@ export default function CreateSuratTugasPage() {
               <label className="block text-xs font-medium text-slate-700 mb-1">
                 Penanggung Jawab / Ketua Rombongan <span className="text-rose-500">*</span>
               </label>
-              <Controller
-                control={control}
-                name="pegawai_id"
-                render={({ field }) => (
-                  <AsyncSelect
-                    loadOptions={loadPegawaiOptions}
-                    value={selectedKetuaOption}
-                    onChange={async (val: any) => {
-                      setSelectedKetuaOption(val);
-                      field.onChange(val ? val.value : '');
-                      if (val) {
-                        let p = val.pegawai;
-                        if (!p && val.value) {
-                          try {
-                            const res = await simpegService.getPegawaiDetail(Number(val.value));
-                            p = (res as any)?.data?.data || res?.data;
-                          } catch (e) {
-                            console.error('Gagal mengambil data rekening pegawai penanggung jawab', e);
+              {isManager ? (
+                <Controller
+                  control={control}
+                  name="pegawai_id"
+                  render={({ field }) => (
+                    <AsyncSelect
+                      loadOptions={loadPegawaiOptions}
+                      value={selectedKetuaOption}
+                      onChange={async (val: any) => {
+                        setSelectedKetuaOption(val);
+                        field.onChange(val ? val.value : '');
+                        if (val) {
+                          let p = val.pegawai;
+                          if (!p && val.value) {
+                            try {
+                              const res = await simpegService.getPegawaiDetail(Number(val.value));
+                              p = (res as any)?.data?.data || res?.data;
+                            } catch (e) {
+                              console.error('Gagal mengambil data rekening pegawai penanggung jawab', e);
+                            }
                           }
+                          if (p) {
+                            setValue('nama_bank', p.nama_bank || p.bank_nama || '', { shouldValidate: true, shouldDirty: true });
+                            setValue('nomor_rekening', p.nomor_rekening || '', { shouldValidate: true, shouldDirty: true });
+                            setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '', { shouldValidate: true, shouldDirty: true });
+                          }
+                        } else {
+                          setValue('nama_bank', '', { shouldValidate: true, shouldDirty: true });
+                          setValue('nomor_rekening', '', { shouldValidate: true, shouldDirty: true });
+                          setValue('nama_rekening', '', { shouldValidate: true, shouldDirty: true });
                         }
-                        if (p) {
-                          setValue('nama_bank', p.nama_bank || p.bank_nama || '', { shouldValidate: true, shouldDirty: true });
-                          setValue('nomor_rekening', p.nomor_rekening || '', { shouldValidate: true, shouldDirty: true });
-                          setValue('nama_rekening', p.nama_rekening || p.nama_lengkap || '', { shouldValidate: true, shouldDirty: true });
-                        }
-                      } else {
-                        setValue('nama_bank', '', { shouldValidate: true, shouldDirty: true });
-                        setValue('nomor_rekening', '', { shouldValidate: true, shouldDirty: true });
-                        setValue('nama_rekening', '', { shouldValidate: true, shouldDirty: true });
-                      }
-                    }}
-                    placeholder="Ketik nama atau NIP pegawai..."
-                    error={errors.pegawai_id?.message}
-                    isClearable
-                  />
-                )}
-              />
+                      }}
+                      placeholder="Ketik nama atau NIP pegawai..."
+                      error={errors.pegawai_id?.message}
+                      isClearable
+                    />
+                  )}
+                />
+              ) : (
+                <Input
+                  label="Ketua Rombongan / Pegawai Pemohon"
+                  value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                  disabled
+                  hint="Terkunci otomatis sesuai akun login Anda"
+                  suffixIcon={<Lock size={16} />}
+                />
+              )}
             </div>
 
             <div>
@@ -732,7 +803,7 @@ export default function CreateSuratTugasPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={handleSubmit((data) => onSubmit(data, 'draft'))}
+              onClick={handleSubmit((data) => onSubmit(data, 'draft'), onValidationError)}
               isLoading={isSubmitting}
             >
               Simpan sebagai Draf
@@ -740,7 +811,7 @@ export default function CreateSuratTugasPage() {
             <Button
               type="button"
               variant="primary"
-              onClick={handleSubmit((data) => onSubmit(data, 'diajukan'))}
+              onClick={handleSubmit((data) => onSubmit(data, 'diajukan'), onValidationError)}
               isLoading={isSubmitting}
             >
               Kirim Permohonan

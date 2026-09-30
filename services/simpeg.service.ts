@@ -152,6 +152,11 @@ export const simpegService = {
     return data;
   },
 
+  getMyPegawai: async (): Promise<ApiResponse<Pegawai>> => {
+    const { data } = await apiClient.get<ApiResponse<Pegawai>>('/simpeg/pegawai/me');
+    return data;
+  },
+
   getPegawaiList: async (params?: PegawaiFilterParams): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get('/simpeg/pegawai', { params });
     return data;
@@ -195,6 +200,25 @@ export const simpegService = {
 
   resetFaceBiometric: async (id: number): Promise<ApiResponse<Pegawai>> => {
     const { data } = await apiClient.post<ApiResponse<Pegawai>>(`/simpeg/pegawai/${id}/reset-face`);
+    return data;
+  },
+
+  getClearanceStatus: async (id: number): Promise<ApiResponse<{
+    is_cleared: boolean;
+    aset_dipegang_count: number;
+    peminjaman_aktif_count: number;
+    aset_dipegang: Array<{
+      id: number;
+      kode_aset: string;
+      nama_aset?: string;
+      nama?: string;
+      nomor_seri?: string;
+      status: string;
+      kondisi: string;
+    }>;
+    peminjaman_aktif: Array<any>;
+  }>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/pegawai/${id}/clearance`);
     return data;
   },
 

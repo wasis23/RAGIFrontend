@@ -16,6 +16,7 @@ import { simpegService } from '@/services/simpeg.service';
 import type { PresensiPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
+import { formatDate } from '@/lib/utils';
 
 export interface PresensiBundle {
   id: number;
@@ -241,7 +242,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
     <div className="space-y-6">
       <PageHeader
         title={bundle ? bundle.nama_periode : 'Rincian Bundle Presensi'}
-        description={`Detail log absensi pegawai periode ${bundle?.tanggal_awal || ''} s/d ${bundle?.tanggal_akhir || ''}`}
+        description={`Detail log absensi pegawai periode ${bundle?.tanggal_awal ? formatDate(bundle.tanggal_awal) : ''} s/d ${bundle?.tanggal_akhir ? formatDate(bundle.tanggal_akhir) : ''}`}
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIMPEG', href: '/simpeg' },
@@ -285,7 +286,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
             <div>
               <div className="text-xs font-medium text-slate-400">Rentang Tanggal</div>
               <div className="text-sm font-bold text-slate-800">
-                {bundle.tanggal_awal} s/d {bundle.tanggal_akhir}
+                {formatDate(bundle.tanggal_awal)} s/d {formatDate(bundle.tanggal_akhir)}
               </div>
             </div>
           </div>
@@ -431,7 +432,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
             <div className="text-sm space-y-1">
               <p className="font-semibold text-primary-900">Proses Perhitungan Gaji Payroll</p>
               <p className="text-primary-700 text-xs">
-                Perhitungan komponen gaji (gaji pokok, tunjangan kehadiran, dan potongan keterlambatan) akan dikalkulasi berdasarkan {bundle?.total_record} log presensi dalam bundle <strong>{bundle?.nama_periode}</strong> (Periode: {bundle?.tanggal_awal} s/d {bundle?.tanggal_akhir}).
+                Perhitungan komponen gaji (gaji pokok, tunjangan kehadiran, dan potongan keterlambatan) akan dikalkulasi berdasarkan {bundle?.total_record} log presensi dalam bundle <strong>{bundle?.nama_periode}</strong> (Periode: {formatDate(bundle?.tanggal_awal)} s/d {formatDate(bundle?.tanggal_akhir)}).
               </p>
             </div>
           </div>

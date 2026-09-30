@@ -26,6 +26,7 @@ import {
   ScanFace,
   RotateCcw,
   MapPin,
+  PackageCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -39,6 +40,7 @@ import { simpegDossierService } from '@/services/simpeg.dossier.service';
 import type { Pegawai } from '@/types/simpeg.types';
 import type { SertifikasiDosen, RiwayatTes, RiwayatPelatihan } from '@/types/simpeg.kompetensi.types';
 import type { TridharmaDossierData, TridharmaKelasAjar, TridharmaMahasiswaWali, TridharmaProposal, TridharmaPublikasi, TridharmaHki } from '@/types/simpeg.dossier.types';
+import { formatDate } from '@/lib/utils';
 
 export default function DetailPegawaiPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -50,6 +52,7 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
   const [tesList, setTesList] = useState<RiwayatTes[]>([]);
   const [pelatihanList, setPelatihanList] = useState<RiwayatPelatihan[]>([]);
   const [dossier, setDossier] = useState<TridharmaDossierData | null>(null);
+  const [clearance, setClearance] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'profil' | 'pengajaran' | 'penelitian' | 'pengabdian' | 'penunjang'>('profil');
   const [loading, setLoading] = useState(true);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -74,12 +77,13 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
     const fetchDetail = async () => {
       try {
         setLoading(true);
-        const [resPeg, resSer, resTes, resPel, resDos] = await Promise.all([
+        const [resPeg, resSer, resTes, resPel, resDos, resClearance] = await Promise.all([
           simpegService.getPegawaiDetail(pegawaiId),
           simpegKompetensiService.getSertifikasiList({ pegawai_id: pegawaiId, per_page: 50 }).catch(() => ({ data: [] })),
           simpegKompetensiService.getTesList({ pegawai_id: pegawaiId, per_page: 50 }).catch(() => ({ data: [] })),
           simpegKompetensiService.getPelatihanList({ pegawai_id: pegawaiId, per_page: 50 }).catch(() => ({ data: [] })),
           simpegDossierService.getTridharmaDossier(pegawaiId).catch(() => ({ data: null })),
+          simpegService.getClearanceStatus(pegawaiId).catch(() => ({ data: null })),
         ]);
 
         if (resPeg.data) {
@@ -90,6 +94,9 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
         setPelatihanList(resPel.data || []);
         if (resDos?.data) {
           setDossier(resDos.data);
+        }
+        if (resClearance?.data) {
+          setClearance(resClearance.data);
         }
       } catch (err: unknown) {
         const errorObj = err as { response?: { data?: { message?: string } } };
@@ -546,6 +553,25 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                     <span className="text-xs text-slate-400 block font-medium">Jabatan Terakhir</span>
                     <span className="font-semibold text-slate-800">{pegawai.jabatan_terakhir || '-'}</span>
                   </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block font-medium">Jabatan Fungsional (Jafung)</span>
+                    <span className="font-semibold text-slate-800">
+                      {pegawai.jabatan_fungsional?.nama ? (
+                        <Badge
+                          style={{
+                            backgroundColor: 'var(--module-primary-subtle)',
+                            color: 'var(--module-primary)',
+                            borderColor: 'var(--module-primary)',
+                          }}
+                          className="font-semibold"
+                        >
+                          {pegawai.jabatan_fungsional.nama}
+                        </Badge>
+                      ) : (
+                        <span className="text-slate-400 italic">Belum diatur</span>
+                      )}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -596,7 +622,7 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                   </div>
                   <div>
                     <span className="text-xs text-slate-400 block font-medium">Terdaftar Tanggal Masuk</span>
-                    <span className="font-semibold text-slate-800">{pegawai.tanggal_masuk || '-'}</span>
+                    <span className="font-semibold text-slate-800">{formatDate(pegawai.tanggal_masuk)}</span>
                   </div>
                 </div>
               </div>
@@ -738,6 +764,83 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Card: Aset Dinas & Clearance Inventaris (SINAPRA) */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100 flex-wrap">
+              <div className="flex items-center gap-3">
+                <PackageCheck size={22} className="text-primary-600" />
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-800">
+                    Aset Dinas &amp; Clearance Inventaris (SINAPRA)
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Pencatatan aset dinas resmi yang dipegang pegawai dan status clearance inventaris kampus
+                  </p>
+                </div>
+              </div>
+              {clearance?.is_cleared ? (
+                <Badge variant="green" className="text-xs">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 size={12} /> Bebas Tanggungan (Clear)
+                  </span>
+                </Badge>
+              ) : (
+                <Badge variant="warning" className="text-xs">
+                  <span className="flex items-center gap-2">
+                    <ShieldAlert size={12} /> Ada Tanggungan Aset
+                  </span>
+                </Badge>
+              )}
+            </div>
+
+            {clearance && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+                    <div className="text-xs text-slate-500 font-semibold">Aset Dinas Dipegang (PIC)</div>
+                    <div className="text-2xl font-bold text-slate-900">{clearance.aset_dipegang_count || 0}</div>
+                    <div className="text-2xs text-slate-400">Laptop, kendaraan dinas, atau inventaris portabel</div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+                    <div className="text-xs text-slate-500 font-semibold">Peminjaman Fasilitas Aktif</div>
+                    <div className="text-2xl font-bold text-slate-900">{clearance.peminjaman_aktif_count || 0}</div>
+                    <div className="text-2xs text-slate-400">Peminjaman alat/ruangan belum selesai</div>
+                  </div>
+                </div>
+
+                {clearance.aset_dipegang && clearance.aset_dipegang.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="text-xs font-bold text-slate-700 uppercase">Daftar Barang Inventaris Terdaftar:</div>
+                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 overflow-hidden bg-white">
+                      {clearance.aset_dipegang.map((a: any) => (
+                        <div key={a.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50">
+                          <div>
+                            <span className="font-mono font-bold text-primary-600 block">{a.kode_aset}</span>
+                            <span className="font-semibold text-slate-800">{a.nama_aset || a.nama}</span>
+                            {a.nomor_seri && <span className="text-slate-400 block text-2xs">SN: {a.nomor_seri}</span>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={a.status === 'tersedia' ? 'success' : 'info'} className="text-2xs">
+                              {a.status}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-2xs h-7 px-2"
+                              onClick={() => router.push(`/sinapra/aset/${a.id}`)}
+                            >
+                              Detail Aset
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -974,7 +1077,7 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                       <Badge variant={st.status === 'disetujui' ? 'green' : 'gray'} className="text-2xs capitalize">{st.status}</Badge>
                     </div>
                     <div className="font-bold text-xs text-slate-900">{st.nama_kegiatan}</div>
-                    <div className="text-xs text-slate-500">Tujuan: {st.lokasi_tujuan} • {st.tanggal_mulai ? st.tanggal_mulai.substring(0, 10) : '-'}</div>
+                    <div className="text-xs text-slate-500">Tujuan: {st.lokasi_tujuan} • {formatDate(st.tanggal_mulai)}</div>
                   </div>
                 ))}
               </div>
@@ -1003,7 +1106,7 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                   <div key={sk.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1">
                     <div className="flex items-center justify-between">
                       <Badge variant="simpeg" className="text-2xs">{sk.kategori_sk?.nama || (sk as any).kategori?.nama || 'SK Penugasan'}</Badge>
-                      <span className="text-2xs text-slate-400">{sk.tanggal_sk}</span>
+                      <span className="text-2xs text-slate-400">{formatDate(sk.tanggal_sk)}</span>
                     </div>
                     <div className="font-bold text-xs text-slate-900">{sk.judul_sk}</div>
                     <div className="text-xs text-slate-500 font-mono">No: {sk.nomor_sk}</div>

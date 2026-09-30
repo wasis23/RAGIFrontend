@@ -16,6 +16,7 @@ import {
   ListChecks,
   AlertCircle,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,12 +28,13 @@ import { Textarea } from '@/components/ui/Textarea';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { Pegawai } from '@/types/simpeg.types';
 
 // ── ZOD SCHEMA ────────────────────────────────────────────────
 const skpFormSchema = z.object({
   pegawai_id: z.string().min(1, 'Pegawai bersangkutan wajib dipilih'),
-  tahun: z.string().min(4, 'Tahun minimal 4 digit'),
+  tahun: z.string().min(1, 'Tahun penilaian wajib diisi').regex(/^\d{4}$/, 'Tahun harus berupa 4 digit angka (contoh: 2026)'),
   semester: z.enum(['ganjil', 'genap', 'tahunan']),
   pejabat_penilai_id: z.string().min(1, 'Pejabat penilai wajib dipilih'),
   items: z
@@ -43,7 +45,7 @@ const skpFormSchema = z.object({
         target_output: z.string().min(2, 'Target output wajib diisi'),
         target_mutu: z.string().min(1, 'Target mutu wajib diisi'),
         target_waktu: z.string().min(1, 'Target waktu wajib diisi'),
-        target_biaya: z.string().optional(),
+        target_biaya: z.string().optional().refine((val) => !val || /^\d+$/.test(val), 'Target biaya harus berupa angka nominal tanpa titik atau koma'),
       })
     )
     .min(1, 'Minimal harus menyusun 1 butir sasaran kinerja'),
@@ -53,12 +55,15 @@ type SkpFormValues = z.infer<typeof skpFormSchema>;
 
 export default function CreateSkpPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
+  const isManager = isAdmin || hasPermission('simpeg.kinerja.manage');
 
   const [loadingMasters, setLoadingMasters] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [kategoriList, setKategoriList] = useState<{ value: string; label: string }[]>([]);
   const [penilaiList, setPenilaiList] = useState<{ value: string; label: string }[]>([]);
+  const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<{ value: string; label: string } | null>(null);
+  const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
 
   const defaultTahun = new Date().getFullYear();
 
@@ -111,7 +116,7 @@ export default function CreateSkpPage() {
           setPenilaiList(
             res.data.pejabat_penilai.map((p: any) => ({
               value: String(p.id),
-              label: `${p.nama_lengkap} ${p.nip ? `[NIP: ${p.nip}]` : ''} - ${p.jabatan_terakhir || 'Pimpinan/Dosen'}`,
+              label: `${p.nama_lengkap} ${p.nip ? `[NIP: ${p.nip}]` : ''} - ${p.jabatan_fungsional?.nama || p.unit_kerja?.nama || 'Pimpinan / Dosen'}`,
             }))
           );
         }
@@ -127,13 +132,29 @@ export default function CreateSkpPage() {
     fetchMasters();
   }, [fetchMasters]);
 
-  // Set default pegawai_id jika pegawai biasa login
+  // Fetch myPegawai profile and pre-fill / auto-lock
   useEffect(() => {
-    const userPegawai = (user as any)?.pegawai;
-    if (userPegawai?.id) {
-      setValue('pegawai_id', String(userPegawai.id));
-    }
-  }, [user, setValue]);
+    const fetchPegawai = async () => {
+      try {
+        const res: any = await simpegService.getMyPegawai();
+        const peg = res?.data || res;
+        if (peg && peg.id) {
+          setMyPegawai(peg);
+          if (!isManager) {
+            const idStr = String(peg.id);
+            setValue('pegawai_id', idStr, { shouldValidate: true });
+            setSelectedPegawaiOption({
+              value: idStr,
+              label: `${peg.nama_lengkap} ${peg.nip ? `[NIP: ${peg.nip}]` : ''}`,
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Gagal mengambil data pegawai login:', e);
+      }
+    };
+    fetchPegawai();
+  }, [isManager, setValue]);
 
   // Async load pegawai untuk pemilihan admin
   const loadPegawaiOptions = async (query: string) => {
@@ -155,8 +176,9 @@ export default function CreateSkpPage() {
   const onSubmit = async (values: SkpFormValues) => {
     setIsSubmitting(true);
     try {
+      const finalPegawaiId = !isManager && myPegawai ? myPegawai.id : Number(values.pegawai_id);
       const payload = {
-        pegawai_id: Number(values.pegawai_id),
+        pegawai_id: finalPegawaiId,
         tahun: Number(values.tahun),
         semester: values.semester,
         pejabat_penilai_id: Number(values.pejabat_penilai_id),
@@ -178,7 +200,7 @@ export default function CreateSkpPage() {
         router.push('/simpeg/kinerja');
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan sasaran kinerja');
+      toast.error(getApiErrorMessage(err, 'Gagal menyimpan sasaran kinerja'));
     } finally {
       setIsSubmitting(false);
     }
@@ -244,22 +266,41 @@ export default function CreateSkpPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Pegawai */}
             <div className="lg:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Pegawai Bersangkutan <span className="text-rose-500">*</span>
-              </label>
-              <Controller
-                control={control}
-                name="pegawai_id"
-                render={({ field }) => (
-                  <AsyncSelect
-                    loadOptions={loadPegawaiOptions}
-                    value={field.value}
-                    onChange={(val) => field.onChange(val)}
-                    placeholder="Ketik nama atau NIP pegawai..."
-                    error={errors.pegawai_id?.message}
-                  />
-                )}
-              />
+              {isManager ? (
+                <Controller
+                  control={control}
+                  name="pegawai_id"
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Pegawai Bersangkutan"
+                      required
+                      loadOptions={loadPegawaiOptions}
+                      value={selectedPegawaiOption || field.value}
+                      onChange={(val) => {
+                        setSelectedPegawaiOption(val || null);
+                        const idStr =
+                          val && typeof val === 'object' && val.value !== undefined
+                            ? String(val.value)
+                            : val
+                            ? String(val)
+                            : '';
+                        field.onChange(idStr);
+                      }}
+                      isClearable
+                      placeholder="Ketik nama atau NIP pegawai..."
+                      error={errors.pegawai_id?.message}
+                    />
+                  )}
+                />
+              ) : (
+                <Input
+                  label="Pegawai Bersangkutan"
+                  value={myPegawai?.nama_lengkap ? `${myPegawai.nama_lengkap} (NIP: ${myPegawai.nip || '-'})` : (user?.name || user?.username || 'Memuat...')}
+                  disabled
+                  hint="Terkunci otomatis sesuai akun login Anda"
+                  suffixIcon={<Lock size={16} />}
+                />
+              )}
             </div>
 
             {/* Tahun */}

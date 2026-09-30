@@ -110,6 +110,7 @@ export interface Ruangan {
   id: number;
   gedung_id: number;
   tipe_ruangan_id?: number | null;
+  program_studi_id?: number | null;
   kode: string;
   nama: string;
   lantai: number;
@@ -123,6 +124,12 @@ export interface Ruangan {
   status: 'aktif' | 'maintenance' | 'nonaktif';
   gedung?: Gedung;
   tipe_ruangan?: MasterTipeRuangan | null;
+  program_studi?: {
+    id: number;
+    nama: string;
+    kode_prodi: string;
+    jenjang?: string;
+  } | null;
   laboran?: { id: number; name: string; username?: string; email: string; pivot?: { ruangan_id: number; user_id: number; is_primary: boolean } }[];
   created_at?: string;
   updated_at?: string;
@@ -139,14 +146,44 @@ export interface LaboranRuangan {
   updated_at?: string;
 }
 
+export interface LaboranProdi {
+  id: number;
+  user_id: number;
+  program_studi_id: number;
+  is_primary: boolean;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    username?: string;
+    pegawai?: { id: number; nama_lengkap: string; nip?: string };
+  };
+  program_studi?: {
+    id: number;
+    nama: string;
+    kode_prodi: string;
+    jenjang?: string;
+    fakultas?: { id: number; nama: string };
+  };
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface AssignLaboranPayload {
   user_id: number;
+  is_primary?: boolean;
+}
+
+export interface AssignLaboranProdiPayload {
+  user_id: number;
+  program_studi_id: number;
   is_primary?: boolean;
 }
 
 export interface RuanganFormPayload {
   gedung_id: number;
   tipe_ruangan_id?: number | null;
+  program_studi_id?: number | null;
   kode: string;
   nama: string;
   lantai: number;
@@ -202,6 +239,7 @@ export interface Aset {
   id: number;
   kategori_id: number;
   ruangan_id?: number;
+  program_studi_id?: number | null;
   kode_aset: string;
   nama: string;
   merk?: string;
@@ -215,15 +253,73 @@ export interface Aset {
   is_borrowable?: boolean;
   is_lab_asset?: boolean;
   keterangan?: string;
+  penanggung_jawab_pegawai_id?: number | null;
+  penanggung_jawab?: {
+    id: number;
+    nama_lengkap: string;
+    nip?: string;
+    unit_kerja?: { nama: string };
+  } | null;
+  program_studi?: {
+    id: number;
+    nama: string;
+    kode_prodi: string;
+    jenjang?: string;
+  } | null;
   kategori?: KategoriAset;
   ruangan?: Ruangan;
+  riwayat_penyusutan?: RiwayatPenyusutanAset[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface RiwayatPenyusutanAset {
+  id: number;
+  aset_id: number;
+  periode_tahun?: number;
+  tahun?: number;
+  nilai_perolehan?: number;
+  persentase_penyusutan?: number;
+  beban_penyusutan?: number;
+  nominal_penyusutan?: number;
+  nilai_buku_setelah?: number;
+  nilai_buku_sesudah?: number;
+  tanggal_posting?: string;
+  jurnal_umum_id?: number | null;
+  sikeu_jurnal_id?: number | null;
+  diposting_oleh?: number | null;
+  posted_by?: number | null;
+  catatan?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  poster?: {
+    id: number;
+    name: string;
+    username?: string;
+  };
+  jurnal_umum?: {
+    id: number;
+    nomor_jurnal: string;
+    tanggal_jurnal: string;
+    total_debet: number;
+    total_kredit: number;
+    status_posting: string;
+  };
+  jurnal?: {
+    id: number;
+    nomor_jurnal: string;
+    tanggal_jurnal: string;
+    total_debet: number;
+    total_kredit: number;
+    status_posting: string;
+  };
 }
 
 export interface AsetFormPayload {
   kategori_id: number;
   ruangan_id?: number | null;
+  program_studi_id?: number | null;
+  penanggung_jawab_pegawai_id?: number | null;
   kode_aset: string;
   nama: string;
   merk?: string;
@@ -416,8 +512,15 @@ export interface PengajuanPengadaan {
   alasan_kebutuhan: string;
   tanggal_pengajuan: string;
   estimasi_anggaran: number;
-  status: 'draft' | 'diajukan' | 'disetujui' | 'ditolak' | 'proses_beli' | 'selesai';
+  status: 'draft' | 'diajukan' | 'disetujui' | 'ditolak' | 'proses_beli' | 'proses_pengadaan' | 'selesai';
   disetujui_oleh?: number;
+  sikeu_pencairan_id?: number | null;
+  pencairan_kas?: {
+    id: number;
+    nomor_pengajuan: string;
+    status: string;
+    nominal_diajukan: number;
+  } | null;
   details?: DetailPengadaan[];
   unit_kerja?: { id: number; nama: string; kode: string };
   pengaju?: { id: number; name: string; email: string };
@@ -457,12 +560,14 @@ export interface SinapraFilterParams extends PaginationParams {
   tipe_ruangan_id?: number;
   gedung_id?: number;
   kategori_id?: number;
+  program_studi_id?: number;
   kondisi?: string;
   prioritas?: string;
   unit_kerja_id?: number;
   tanggal?: string;
   is_borrowable?: boolean;
   is_lab_asset?: boolean;
+  penanggung_jawab_pegawai_id?: number;
   ruangan_id?: number;
   kategori_bhp_id?: number;
   satuan_id?: number;
@@ -783,5 +888,129 @@ export interface KalenderRuanganMeta {
   start_date: string;
   end_date: string;
   total_events: number;
+}
+
+// ------------------------------------------------------------
+// 7. Dashboard Eksekutif SINAPRA Types
+// ------------------------------------------------------------
+export interface SinapraDashboardMetrics {
+  total_gedung: number;
+  total_ruangan: number;
+  ruangan_tersedia: number;
+  total_kapasitas_ruangan: number;
+  total_aset: number;
+  total_harga_perolehan: number;
+  total_nilai_buku: number;
+  total_akumulasi_penyusutan: number;
+  total_aset_ada_pic: number;
+  peminjaman_ruangan_aktif: number;
+  peminjaman_aset_aktif: number;
+  peminjaman_pending: number;
+  maintenance_aktif: number;
+  pengadaan_pending: number;
+  pengadaan_disetujui: number;
+}
+
+export interface SinapraDashboardBreakdown {
+  status: {
+    tersedia: number;
+    dipinjam: number;
+    maintenance: number;
+    rusak: number;
+    dihapus: number;
+  };
+  kondisi: {
+    baik: number;
+    rusak_ringan: number;
+    rusak_berat: number;
+  };
+}
+
+export interface SinapraDashboardEarlyWarnings {
+  bhp_kritis_count: number;
+  bhp_kritis_list: {
+    id: number;
+    ruangan_id: number;
+    kode_bhp: string;
+    nama_bhp: string;
+    stok_saat_ini: number;
+    stok_minimum: number;
+    satuan?: string;
+    ruangan?: { id: number; nama: string; kode: string };
+  }[];
+  kalibrasi_urgent_count: number;
+  kalibrasi_urgent_list: {
+    id: number;
+    aset_id: number;
+    nomor_sertifikat?: string;
+    tanggal_kadaluarsa?: string;
+    status_kelayakan?: string;
+    aset?: { id: number; nama: string; kode_aset: string };
+  }[];
+}
+
+export interface SinapraDashboardRecentActivities {
+  peminjaman_ruangan: {
+    id: number;
+    ruangan_id: number;
+    user_id: number;
+    keperluan: string;
+    tanggal: string;
+    jam_mulai: string;
+    jam_selesai: string;
+    status: string;
+    ruangan?: { id: number; nama: string; kode: string };
+    user?: { id: number; name: string };
+  }[];
+  peminjaman_aset: {
+    id: number;
+    aset_id: number;
+    user_id: number;
+    keperluan: string;
+    tanggal_pinjam: string;
+    tanggal_kembali_rencana: string;
+    status: string;
+    aset?: { id: number; nama: string; kode_aset: string };
+    user?: { id: number; name: string };
+  }[];
+  aset_terbaru: {
+    id: number;
+    kode_aset: string;
+    nama: string;
+    penanggung_jawab_pegawai_id?: number | null;
+    harga_perolehan: number;
+    nilai_buku: number;
+    kondisi: string;
+    status: string;
+    penanggung_jawab?: { id: number; nama_lengkap: string; nip?: string } | null;
+  }[];
+}
+
+export interface SinapraDistribusiProdiItem {
+  id: number;
+  kode_prodi: string;
+  nama: string;
+  jenjang?: string;
+  total_aset: number;
+  total_ruangan: number;
+  total_nilai_aset: number;
+}
+
+export interface SinapraDistribusiProdi {
+  prodi_list: SinapraDistribusiProdiItem[];
+  fasilitas_umum: {
+    nama: string;
+    total_aset: number;
+    total_ruangan: number;
+    total_nilai_aset: number;
+  };
+}
+
+export interface SinapraDashboardSummary {
+  metrics: SinapraDashboardMetrics;
+  breakdown_aset: SinapraDashboardBreakdown;
+  distribusi_prodi?: SinapraDistribusiProdi;
+  early_warnings: SinapraDashboardEarlyWarnings;
+  recent_activities: SinapraDashboardRecentActivities;
 }
 
