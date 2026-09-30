@@ -128,6 +128,58 @@ const STEPS = [
   { id: 7, title: 'Konfirmasi', short: 'Review', icon: CheckSquare },
 ];
 
+// Pilihan tetap (bukan entitas DB) — nilai harus selaras dengan enum/kolom backend.
+const ASAL_LULUSAN_OPTIONS: SelectOption[] = [
+  { value: 'sekolah', label: 'Sekolah (SMA / SMK / MA / Sederajat)' },
+  { value: 'pt', label: 'Perguruan Tinggi (Transfer / Alih Jenjang)' },
+];
+
+const STATUS_SIPIL_OPTIONS: SelectOption[] = [
+  { value: 'belum_menikah', label: 'Belum Menikah' },
+  { value: 'menikah', label: 'Menikah' },
+  { value: 'janda_duda', label: 'Janda / Duda' },
+];
+
+const AGAMA_OPTIONS: SelectOption[] = [
+  { value: 'islam', label: 'Islam' },
+  { value: 'kristen', label: 'Kristen' },
+  { value: 'katolik', label: 'Katolik' },
+  { value: 'hindu', label: 'Hindu' },
+  { value: 'buddha', label: 'Buddha' },
+  { value: 'konghucu', label: 'Konghucu' },
+];
+
+const JENIS_PT_OPTIONS: SelectOption[] = [
+  { value: 'negeri', label: 'Negeri' },
+  { value: 'swasta', label: 'Swasta' },
+  { value: 'kedinasan', label: 'Kedinasan' },
+];
+
+const JENJANG_PT_OPTIONS: SelectOption[] = [
+  { value: 'd3', label: 'Diploma 3 (D3)' },
+  { value: 'd4', label: 'Diploma 4 (D4)' },
+  { value: 's1', label: 'Sarjana (S1)' },
+  { value: 's2', label: 'Magister (S2)' },
+  { value: 's3', label: 'Doktor (S3)' },
+];
+
+const PENGHASILAN_ORTU_OPTIONS: SelectOption[] = [
+  { value: '<1jt', label: 'Kurang dari Rp 1.000.000' },
+  { value: '1-2jt', label: 'Rp 1.000.000 - Rp 2.000.000' },
+  { value: '2-5jt', label: 'Rp 2.000.000 - Rp 5.000.000' },
+  { value: '5-10jt', label: 'Rp 5.000.000 - Rp 10.000.000' },
+  { value: '>10jt', label: 'Lebih dari Rp 10.000.000' },
+];
+
+const INFO_DAFTAR_OPTIONS: SelectOption[] = [
+  { value: 'brosur', label: 'Brosur / Spanduk' },
+  { value: 'media_sosial', label: 'Media Sosial' },
+  { value: 'kerabat', label: 'Kerabat / Keluarga' },
+  { value: 'sekolah', label: 'Sekolah / Guru' },
+  { value: 'website', label: 'Website Kampus' },
+  { value: 'lainnya', label: 'Lainnya' },
+];
+
 interface DokumenItemConfig {
   id?: number;
   key: string;
@@ -364,7 +416,7 @@ export default function RegistrasiSpmbPage() {
       tahun_lulus: '',
       nilai_rata_rapor: '',
       asal_pt: '',
-      jenis_pt: 'non-komputer',
+      jenis_pt: '',
       alamat_pt: '',
       jenjang_pt: '',
       progdi_pt: '',
@@ -415,7 +467,6 @@ export default function RegistrasiSpmbPage() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [tipeJalurOptions, setTipeJalurOptions] = useState<{ value: string; label: string }[]>([]);
-  const [referensiMap, setReferensiMap] = useState<Record<string, { value: string; label: string }[]>>({});
   const [berkasRequirements, setBerkasRequirements] = useState<DokumenItemConfig[]>(DEFAULT_FALLBACK_DOCUMENTS);
   const [loadingBerkas, setLoadingBerkas] = useState(false);
   const [referralCheck, setReferralCheck] = useState<{
@@ -494,7 +545,6 @@ export default function RegistrasiSpmbPage() {
     fetchJalur();
     fetchProdi();
     loadTipeJalur('');
-    prefetchReferensi();
     checkExistingRegistration();
     const currentModuleCode = window.location.pathname.split('/')[1] || '';
     fetchModuleColor(currentModuleCode);
@@ -506,47 +556,6 @@ export default function RegistrasiSpmbPage() {
       fetchBerkasRequirements(selectedJalur);
     }
   }, [selectedJalur]);
-
-  const prefetchReferensi = async () => {
-    try {
-      const [sipilRes, agamaRes] = await Promise.all([
-        spmbService.getReferensi('status_sipil'),
-        spmbService.getReferensi('agama'),
-      ]);
-      const sipilData = (sipilRes.data || []).map((r: any) => ({ value: String(r.kode), label: r.nama }));
-      const agamaData = (agamaRes.data || []).map((r: any) => ({ value: String(r.kode), label: r.nama }));
-      setReferensiMap((prev) => ({
-        ...prev,
-        status_sipil: sipilData,
-        agama: agamaData,
-      }));
-    } catch (e) {
-      console.warn('Prefetch referensi warning:', e);
-    }
-  };
-
-  const createLoadOptions = (tipe: string) => async (inputValue: string) => {
-    try {
-      const res = await spmbService.getReferensi(tipe);
-      const data = res.data || [];
-      const mapped = data.map((r: any) => ({ value: String(r.kode), label: r.nama }));
-      setReferensiMap((prev) => ({ ...prev, [tipe]: mapped }));
-      if (inputValue) {
-        return mapped.filter((m: any) => m.label.toLowerCase().includes(inputValue.toLowerCase()));
-      }
-      return mapped;
-    } catch (e) {
-      return [];
-    }
-  };
-
-  const getReferensiOption = (tipe: string, val: any) => {
-    if (!val) return null;
-    const list = referensiMap[tipe] || [];
-    const found = list.find((item) => item.value === String(val));
-    if (found) return found;
-    return { value: String(val), label: String(val) };
-  };
 
   const loadTipeJalur = async (inputValue: string) => {
     try {
@@ -613,7 +622,7 @@ export default function RegistrasiSpmbPage() {
           tahun_lulus: p.tahun_lulus || '',
           nilai_rata_rapor: p.nilai_rata_rapor ? String(p.nilai_rata_rapor) : '',
           asal_pt: p.asal_pt || '',
-          jenis_pt: p.jenis_pt || 'non-komputer',
+          jenis_pt: p.jenis_pt || '',
           alamat_pt: p.alamat_pt || '',
           jenjang_pt: p.jenjang_pt || '',
           progdi_pt: p.progdi_pt || '',
@@ -765,7 +774,7 @@ export default function RegistrasiSpmbPage() {
       setValue('tahun_lulus', p.tahun_lulus || '');
       setValue('nilai_rata_rapor', p.nilai_rata_rapor ? String(p.nilai_rata_rapor) : '');
       setValue('asal_pt', p.asal_pt || '');
-      setValue('jenis_pt', p.jenis_pt || 'non-komputer');
+      setValue('jenis_pt', p.jenis_pt || '');
       setValue('alamat_pt', p.alamat_pt || '');
       setValue('jenjang_pt', p.jenjang_pt || '');
       setValue('progdi_pt', p.progdi_pt || '');
@@ -1651,14 +1660,13 @@ export default function RegistrasiSpmbPage() {
                   name="status_sipil"
                   control={control}
                   render={({ field }) => (
-                    <AsyncSelect
+                    <Select
                       label="Status Sipil *"
                       placeholder="-- Pilih Status Sipil --"
+                      options={STATUS_SIPIL_OPTIONS}
+                      value={field.value}
+                      onChange={field.onChange}
                       error={errors.status_sipil?.message}
-                      defaultOptions
-                      loadOptions={createLoadOptions('status_sipil')}
-                      value={getReferensiOption('status_sipil', field.value)}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
                     />
                   )}
                 />
@@ -1666,13 +1674,13 @@ export default function RegistrasiSpmbPage() {
                   name="agama"
                   control={control}
                   render={({ field }) => (
-                    <AsyncSelect
+                    <Select
                       label="Agama"
                       placeholder="-- Pilih Agama --"
-                      defaultOptions
-                      loadOptions={createLoadOptions('agama')}
-                      value={getReferensiOption('agama', field.value)}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+                      options={AGAMA_OPTIONS}
+                      value={field.value}
+                      onChange={field.onChange}
+                      error={errors.agama?.message}
                     />
                   )}
                 />
@@ -1768,14 +1776,13 @@ export default function RegistrasiSpmbPage() {
                   name="asal_lulusan"
                   control={control}
                   render={({ field }) => (
-                    <AsyncSelect
+                    <Select
                       label="Asal Lulusan *"
                       placeholder="-- Pilih Asal Lulusan --"
+                      options={ASAL_LULUSAN_OPTIONS}
+                      value={field.value}
+                      onChange={field.onChange}
                       error={errors.asal_lulusan?.message}
-                      defaultOptions
-                      loadOptions={createLoadOptions('asal_lulusan')}
-                      value={getReferensiOption('asal_lulusan', field.value)}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
                     />
                   )}
                 />
@@ -1836,21 +1843,20 @@ export default function RegistrasiSpmbPage() {
                       error={errors.asal_pt?.message}
                       {...register('asal_pt')}
                     />
-                    <Controller
-                      name="jenis_pt"
-                      control={control}
-                      render={({ field }) => (
-                        <AsyncSelect
-                          label="Jenis Perguruan Tinggi *"
-                          placeholder="-- Pilih Jenis PT --"
-                          error={errors.jenis_pt?.message}
-                          defaultOptions
-                          loadOptions={createLoadOptions('jenis_pt')}
-                          value={getReferensiOption('jenis_pt', field.value)}
-                          onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-                        />
-                      )}
-                    />
+                      <Controller
+                        name="jenis_pt"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            label="Jenis Perguruan Tinggi *"
+                            placeholder="-- Pilih Jenis PT --"
+                            options={JENIS_PT_OPTIONS}
+                            value={field.value}
+                            onChange={field.onChange}
+                            error={errors.jenis_pt?.message}
+                          />
+                        )}
+                      />
                   </div>
 
                   <Textarea
@@ -1862,21 +1868,20 @@ export default function RegistrasiSpmbPage() {
                   />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <Controller
-                      name="jenjang_pt"
-                      control={control}
-                      render={({ field }) => (
-                        <AsyncSelect
-                          label="Jenjang Program Studi *"
-                          placeholder="-- Pilih Jenjang --"
-                          error={errors.jenjang_pt?.message}
-                          defaultOptions
-                          loadOptions={createLoadOptions('jenjang_pt')}
-                          value={getReferensiOption('jenjang_pt', field.value)}
-                          onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
-                        />
-                      )}
-                    />
+                      <Controller
+                        name="jenjang_pt"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            label="Jenjang Program Studi *"
+                            placeholder="-- Pilih Jenjang --"
+                            options={JENJANG_PT_OPTIONS}
+                            value={field.value}
+                            onChange={field.onChange}
+                            error={errors.jenjang_pt?.message}
+                          />
+                        )}
+                      />
                     <Input
                       label="Program Studi *"
                       placeholder="Nama Program Studi Asal"
@@ -1994,13 +1999,13 @@ export default function RegistrasiSpmbPage() {
                   name="penghasilan_ortu"
                   control={control}
                   render={({ field }) => (
-                    <AsyncSelect
+                    <Select
                       label="Rata-rata Penghasilan Orang Tua per Bulan"
                       placeholder="-- Pilih Range Penghasilan --"
-                      defaultOptions
-                      loadOptions={createLoadOptions('penghasilan_ortu')}
-                      value={getReferensiOption('penghasilan_ortu', field.value)}
-                      onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
+                      options={PENGHASILAN_ORTU_OPTIONS}
+                      value={field.value}
+                      onChange={field.onChange}
+                      error={errors.penghasilan_ortu?.message}
                     />
                   )}
                 />
@@ -2015,14 +2020,13 @@ export default function RegistrasiSpmbPage() {
                     name="info_daftar"
                     control={control}
                     render={({ field }) => (
-                      <AsyncSelect
+                      <Select
                         label="Info Pendaftaran *"
                         placeholder="-- Pilih Sumber Info --"
+                        options={INFO_DAFTAR_OPTIONS}
+                        value={field.value}
+                        onChange={field.onChange}
                         error={errors.info_daftar?.message}
-                        defaultOptions
-                        loadOptions={createLoadOptions('info_daftar')}
-                        value={getReferensiOption('info_daftar', field.value)}
-                        onChange={(sel: any) => field.onChange(sel ? sel.value : '')}
                       />
                     )}
                   />

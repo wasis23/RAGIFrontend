@@ -37,9 +37,11 @@ Periksa Git Diff berikut secara SANGAT KETAT terhadap 5 aturan di bawah. Penilai
 Aturan Baku (STRICT):
 1. DILARANG array literal statis untuk options dropdown data master / referensi domain; WAJIB fetch master via API.
    - Konteks: props options pada <Select>/<Dropdown>/AsyncSelect untuk data domain / master / referensi kampus (tipe jalur, jalur masuk, prodi, fakultas, jenis biaya, dll).
-   - Pengecualian Sah: Opsi kontrol UI teknis murni seperti arah urutan ('asc'/'desc'), kolom sortir tabel ('nama'/'created_at'), filter boolean status umum ('semua'/'aktif'/'nonaktif'), serta meta-scope sistem ('global') DIPERBOLEHKAN karena merupakan parameter teknis UI/HTTP query, bukan entitas master domain.
-   - SALAH: options={[{ value: 'REGULER', label: 'Reguler' }]} atau hardcode opsi data master kampus.
-   - BENAR: fetch dari API master referensi, mis. const { data } = useMasterTipeJalur(); lalu options={data.map(d => ({ value: d.id, label: d.label }))} (master_tipe_jalur, master_jalur_kelas, dsb.).
+   - Pengecualian Sah (1) Kontrol UI teknis murni: arah urutan ('asc'/'desc'), kolom sortir tabel ('nama'/'created_at'), filter boolean status umum ('semua'/'aktif'/'nonaktif'), serta meta-scope sistem ('global') DIPERBOLEHKAN karena merupakan parameter teknis UI/HTTP query, bukan entitas master domain.
+   - Pengecualian Sah (2) Nilai Tetap Domain: opsi closed-set yang TIDAK memiliki tabel master/ID entitas dan bersifat tetap oleh domain/regulasi DIPERBOLEHKAN. Contoh sah: jenis kelamin ('L'/'P'), agama, status sipil, jenjang pendidikan, rentang penghasilan, asal lulusan ('sekolah'/'pt'), sumber informasi pendaftaran, status workflow internal. Syarat: dideklarasikan sebagai konstanta terpusat bertipe (mis. const X_OPTIONS: SelectOption[]), value stabil & selaras dengan kolom/enum backend, dan TIDAK diduplikasi inline di JSX.
+   - Tetap DILARANG: opsi untuk entitas yang punya tabel/ID (prodi, jalur, gelombang, modul, role, jenis biaya, unit kerja, dsb.) — itu WAJIB dinamis via API.
+   - SALAH: options={[{ value: 'REGULER', label: 'Reguler' }]} inline di JSX untuk data master kampus.
+   - BENAR: fetch dari API master referensi, mis. const { data } = useMasterTipeJalur(); lalu options={data.map(d => ({ value: d.id, label: d.label }))} (master_tipe_jalur, master_jalur_kelas, dsb.), ATAU konstanta nilai tetap domain (mis. const JENIS_KELAMIN_OPTIONS: SelectOption[] = [{ value: 'L', label: 'Laki-Laki' }]).
 2. DILARANG user_type di MANA PUN dalam kode baru.
    - Mencakup: perbandingan ==/===/!=/!==, switch/case, ternary, destructure (const { user_type } = user / user.user_type / sso_user_type), definisi interface User di types/auth.types.ts, komponen UserTypeBadge statis, penyimpanan/pembacaan sso_user_type di cookie/middleware.
    - SALAH: if (user.user_type === 'admin'), switch (user.type), interface User { user_type: string }, document.cookie = `sso_user_type=${...}`.

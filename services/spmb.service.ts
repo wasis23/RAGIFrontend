@@ -115,6 +115,47 @@ export interface PendaftaranCalonMhs {
   };
   dokumen_pendaftaran?: PendaftaranBerkas[];
   progress_alur?: any[];
+  daftar_ulang?: DaftarUlangSummary | null;
+}
+
+export interface RiwayatPembayaranDaftarUlang {
+  id: number;
+  kode_transaksi?: string;
+  jumlah_bayar: number;
+  channel_bayar?: string;
+  status?: string;
+  paid_at?: string;
+}
+
+export interface VirtualAccountDaftarUlang {
+  va_number?: string;
+  bank_kode?: string;
+  bank_nama?: string;
+  nominal: number;
+  status?: string;
+  expired_at?: string;
+}
+
+export interface TagihanDaftarUlang {
+  id: number;
+  nomor_tagihan?: string;
+  status?: string;
+  due_date?: string;
+  total_tagihan: number;
+  total_potongan: number;
+  total_denda: number;
+  total_bersih: number;
+  sudah_dibayar: number;
+  sisa_kurang: number;
+  persen_terbayar: number;
+  virtual_account?: VirtualAccountDaftarUlang | null;
+  riwayat_pembayaran: RiwayatPembayaranDaftarUlang[];
+}
+
+export interface DaftarUlangSummary {
+  has_tagihan: boolean;
+  status_daftar_ulang?: string | null;
+  tagihan?: TagihanDaftarUlang | null;
 }
 
 export interface PendaftaranBerkas {

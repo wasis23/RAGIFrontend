@@ -51,6 +51,15 @@ Termasuk juga membuat **array literal statis** untuk `options` pada komponen UI 
 1. **Minimal Hardcode**: Sistem yang baik harus meminimalkan hardcode hingga 0%.
 2. **Dilarang Keras Array Literal Statis**: DILARANG KERAS meng-hardcode opsi pilihan (misal: `options={[{ value: 'REGULER', label: 'Reguler' }]}`) di dalam komponen form. Seluruh pilihan/dropdown WAJIB mengambil data dari tabel master referensi via API (contoh: `master_tipe_jalur`, `master_jalur_kelas`).
 3. **Referensi ID Wajib**: Seluruh relasi, filter, dan query wajib menggunakan **referensi ID entitas** (seperti `module.id`, `tipe_jalur_id`, `jalur_kelas_id`, dsb.) yang diambil dari database, bukan berupa label string atau hardcode nama.
+
+## Pengecualian Sah — Nilai Tetap Domain (bukan entitas master)
+Statis **DIPERBOLEHKAN** bila nilai bersifat tetap/closed-set oleh domain atau regulasi dan **TIDAK memiliki tabel master/ID entitas**, dengan syarat:
+1. Nilai tidak dikelola lewat tabel master apa pun (contoh sah: jenis kelamin `L`/`P`, agama, status sipil, jenjang pendidikan, rentang penghasilan, asal lulusan `sekolah`/`pt`, sumber informasi pendaftaran, status workflow internal).
+2. Dideklarasikan sebagai **konstanta terpusat bertipe** (mis. `const X_OPTIONS: SelectOption[]`) di satu lokasi, bukan inline di dalam JSX/berulang di banyak komponen.
+3. `value` stabil (lowercase/snake_case) dan **selaras dengan kolom/enum backend**; `label` hanya untuk tampilan.
+4. DILARANG menduplikasi daftar yang sama di banyak file — impor dari satu sumber konstanta.
+
+Tetap **DILARANG**: opsi untuk entitas yang punya tabel/ID (prodi, jalur, gelombang, modul, role, jenis biaya, unit kerja, dsb.) — itu WAJIB dinamis via API.
 </RULE[no_hardcode_definition]>
 
 <RULE[admin_crud_reviewer]>

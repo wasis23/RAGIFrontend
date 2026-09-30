@@ -28,6 +28,29 @@ import type { PaginationMeta } from '@/types/api.types';
 
 type FlattenedMenu = Menu & { level: number };
 
+// Bandingkan nilai kolom menu secara aman (angka dibandingkan numerik, teks pakai locale).
+const compareMenuValue = (a: unknown, b: unknown): number => {
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a ?? '').localeCompare(String(b ?? ''), 'id', { numeric: true, sensitivity: 'base' });
+};
+
+// Urutkan menu per tingkat (sibling) agar hierarki tetap terjaga,
+// sehingga tampil sesuai urutan plotting (order_index) role-menu.
+const sortMenuTree = (list: Menu[], field: string, dir: 'asc' | 'desc'): Menu[] => {
+  const sorted = [...list].sort((a, b) => {
+    const cmp = compareMenuValue(
+      (a as unknown as Record<string, unknown>)[field],
+      (b as unknown as Record<string, unknown>)[field]
+    );
+    return dir === 'asc' ? cmp : -cmp;
+  });
+
+  return sorted.map((m) => ({
+    ...m,
+    children: m.children && m.children.length > 0 ? sortMenuTree(m.children, field, dir) : m.children,
+  }));
+};
+
 export default function AdminMenuPage() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [appModules, setAppModules] = useState<AppModule[]>([]);
@@ -46,12 +69,12 @@ export default function AdminMenuPage() {
   // Filter & Sort States
   const [showFilter, setShowFilter] = useState(false);
   const [filterName, setFilterName] = useState<string>('');
-  const [filterOrderBy, setFilterOrderBy] = useState<string>('id');
-  const [filterOrderDir, setFilterOrderDir] = useState<string>('desc');
+  const [filterOrderBy, setFilterOrderBy] = useState<string>('order_index');
+  const [filterOrderDir, setFilterOrderDir] = useState<string>('asc');
 
   const [appliedFilterName, setAppliedFilterName] = useState<string>('');
-  const [appliedOrderBy, setAppliedOrderBy] = useState<string>('id');
-  const [appliedOrderDir, setAppliedOrderDir] = useState<string>('desc');
+  const [appliedOrderBy, setAppliedOrderBy] = useState<string>('order_index');
+  const [appliedOrderDir, setAppliedOrderDir] = useState<string>('asc');
 
   const fetchMenus = async () => {
     if (!selectedModule) return;
@@ -143,22 +166,15 @@ export default function AdminMenuPage() {
     return result;
   };
 
-  const allFlattenedMenus = flattenMenus(menus);
+  // Urutkan per tingkat agar hierarki terjaga, lalu flatten (urut sesuai plotting role-menu).
+  const orderedMenus = sortMenuTree(menus, appliedOrderBy, appliedOrderDir as 'asc' | 'desc');
+  const allFlattenedMenus = flattenMenus(orderedMenus);
 
-  const filteredFlattenedMenus = allFlattenedMenus
-    .filter((m) => {
-      if (!appliedFilterName) return true;
-      const lowerQ = appliedFilterName.toLowerCase();
-      return m.name.toLowerCase().includes(lowerQ) || (m.url && m.url.toLowerCase().includes(lowerQ));
-    })
-    .sort((a: any, b: any) => {
-      const fieldA = a[appliedOrderBy] ?? '';
-      const fieldB = b[appliedOrderBy] ?? '';
-      if (appliedOrderDir === 'asc') {
-        return fieldA > fieldB ? 1 : -1;
-      }
-      return fieldA < fieldB ? 1 : -1;
-    });
+  const filteredFlattenedMenus = allFlattenedMenus.filter((m) => {
+    if (!appliedFilterName) return true;
+    const lowerQ = appliedFilterName.toLowerCase();
+    return m.name.toLowerCase().includes(lowerQ) || (m.url ? m.url.toLowerCase().includes(lowerQ) : false);
+  });
 
   const columns: ColumnDef<FlattenedMenu>[] = [
     {
@@ -287,11 +303,11 @@ export default function AdminMenuPage() {
               variant="secondary"
               onClick={() => {
                 setFilterName('');
-                setFilterOrderBy('id');
-                setFilterOrderDir('desc');
+                setFilterOrderBy('order_index');
+                setFilterOrderDir('asc');
                 setAppliedFilterName('');
-                setAppliedOrderBy('id');
-                setAppliedOrderDir('desc');
+                setAppliedOrderBy('order_index');
+                setAppliedOrderDir('asc');
                 setPage(1);
                 setShowFilter(false);
               }}
@@ -334,6 +350,7 @@ export default function AdminMenuPage() {
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
               options={[
+                { value: 'order_index', label: 'Urutan (Plotting)' },
                 { value: 'id', label: 'ID' },
                 { value: 'name', label: 'Nama Menu' },
                 { value: 'url', label: 'URL Menu' },

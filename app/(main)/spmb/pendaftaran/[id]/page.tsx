@@ -21,9 +21,14 @@ import {
   CreditCard,
   ChevronUp,
   ChevronDown,
-  Gift
+  Gift,
+  Wallet,
+  Landmark,
+  ReceiptText,
+  CalendarClock
 } from 'lucide-react';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
+import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -46,6 +51,21 @@ function MetadataItem({ label, value }: { label: string; value?: React.ReactNode
     </div>
   );
 }
+
+// ============================================================
+// DAFTAR ULANG STATUS LABEL
+// ============================================================
+const STATUS_DAFTAR_ULANG_LABEL: Record<string, string> = {
+  belum: 'Belum Daftar Ulang',
+  menunggu_pembayaran: 'Menunggu Pembayaran',
+  lunas: 'Lunas',
+};
+
+const STATUS_DAFTAR_ULANG_VARIANT: Record<string, 'green' | 'yellow' | 'blue' | 'gray'> = {
+  belum: 'gray',
+  menunggu_pembayaran: 'yellow',
+  lunas: 'green',
+};
 
 // ============================================================
 // SECTION WRAPPER
@@ -186,6 +206,11 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
     );
   }
 
+  const daftarUlang = pendaftar.daftar_ulang;
+  const tagihanDaftarUlang = daftarUlang?.tagihan ?? null;
+  const statusDaftarUlang = daftarUlang?.status_daftar_ulang || 'belum';
+  const daftarUlangLunas = (tagihanDaftarUlang?.sisa_kurang ?? 0) <= 0;
+
   return (
     <div className="animate-fade-in space-y-6 max-w-6xl mx-auto pb-16">
       {/* Page Header with Back Button (Orange styling as per CRUD standard) */}
@@ -298,6 +323,117 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                 value={pendaftar.referral_validated_at ? new Date(pendaftar.referral_validated_at).toLocaleString('id-ID') : '-'}
               />
             </div>
+          </DetailSection>
+
+          {/* SECTION C3: PEMBAYARAN DAFTAR ULANG */}
+          <DetailSection title="Pembayaran Daftar Ulang" icon={Wallet} defaultOpen={true}>
+            {!tagihanDaftarUlang ? (
+              <EmptyState
+                icon={<ReceiptText size={32} className="text-slate-400" />}
+                title="Belum ada tagihan daftar ulang"
+                description="Tagihan daftar ulang diterbitkan setelah calon mahasiswa dinyatakan lulus seleksi."
+                className="py-6 bg-slate-50 border border-dashed border-slate-200 rounded-xl"
+              />
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={STATUS_DAFTAR_ULANG_VARIANT[statusDaftarUlang] || 'gray'} className="text-2xs font-extrabold px-3 py-1">
+                      {STATUS_DAFTAR_ULANG_LABEL[statusDaftarUlang] || statusDaftarUlang}
+                    </Badge>
+                    <Badge variant={daftarUlangLunas ? 'green' : (tagihanDaftarUlang.sudah_dibayar > 0 ? 'yellow' : 'red')} className="text-2xs font-extrabold px-3 py-1">
+                      Tagihan: {(tagihanDaftarUlang.status || '-').replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
+                  <span className="text-2xs font-bold text-slate-500 font-mono">
+                    {tagihanDaftarUlang.nomor_tagihan || '-'}
+                  </span>
+                </div>
+
+                {/* Ringkasan nominal */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/60">
+                    <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-400 block">Total Tagihan</span>
+                    <span className="text-base font-black text-slate-900">{formatCurrency(tagihanDaftarUlang.total_bersih)}</span>
+                  </div>
+                  <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50/60">
+                    <span className="text-2xs font-extrabold uppercase tracking-wider text-emerald-600 block">Sudah Dibayar</span>
+                    <span className="text-base font-black text-emerald-700">{formatCurrency(tagihanDaftarUlang.sudah_dibayar)}</span>
+                  </div>
+                  <div className={`p-3 rounded-xl border ${daftarUlangLunas ? 'border-emerald-200 bg-emerald-50/60' : 'border-red-200 bg-red-50/60'}`}>
+                    <span className={`text-2xs font-extrabold uppercase tracking-wider block ${daftarUlangLunas ? 'text-emerald-600' : 'text-red-500'}`}>Sisa Kurang</span>
+                    <span className={`text-base font-black ${daftarUlangLunas ? 'text-emerald-700' : 'text-red-600'}`}>{formatCurrency(tagihanDaftarUlang.sisa_kurang)}</span>
+                  </div>
+                </div>
+
+                {/* Progress pembayaran */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-2xs font-bold text-slate-500">
+                    <span>Progres Pembayaran</span>
+                    <span>{tagihanDaftarUlang.persen_terbayar}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, Math.max(0, tagihanDaftarUlang.persen_terbayar))}%`, backgroundColor: 'var(--module-primary)' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Meta & VA */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <MetadataItem
+                    label="Jatuh Tempo"
+                    value={tagihanDaftarUlang.due_date ? new Date(tagihanDaftarUlang.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                  />
+                  <MetadataItem
+                    label="Potongan / Denda"
+                    value={`${formatCurrency(tagihanDaftarUlang.total_potongan)} / ${formatCurrency(tagihanDaftarUlang.total_denda)}`}
+                  />
+                  {tagihanDaftarUlang.virtual_account && (
+                    <>
+                      <MetadataItem
+                        label="Virtual Account"
+                        value={`${tagihanDaftarUlang.virtual_account.bank_nama || tagihanDaftarUlang.virtual_account.bank_kode || '-'} • ${tagihanDaftarUlang.virtual_account.va_number || '-'}`}
+                      />
+                      <MetadataItem
+                        label="VA Berlaku Hingga"
+                        value={tagihanDaftarUlang.virtual_account.expired_at ? new Date(tagihanDaftarUlang.virtual_account.expired_at).toLocaleString('id-ID') : '-'}
+                      />
+                    </>
+                  )}
+                </div>
+
+                {/* Riwayat pembayaran */}
+                <div>
+                  <span className="text-2xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2 mb-4">
+                    <CalendarClock size={16} /> Riwayat Pembayaran
+                  </span>
+                  {tagihanDaftarUlang.riwayat_pembayaran.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">Belum ada pembayaran tercatat.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {tagihanDaftarUlang.riwayat_pembayaran.map((bayar) => (
+                        <div key={bayar.id} className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border border-slate-200 bg-white">
+                          <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+                              <Landmark size={16} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-slate-800">{formatCurrency(bayar.jumlah_bayar)}</span>
+                              <span className="text-2xs text-slate-400 font-semibold">{bayar.kode_transaksi || '-'} • {bayar.channel_bayar || '-'}</span>
+                            </div>
+                          </div>
+                          <span className="text-2xs font-bold text-slate-500">
+                            {bayar.paid_at ? new Date(bayar.paid_at).toLocaleString('id-ID') : '-'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </DetailSection>
 
           {/* SECTION D: DOCUMENT VERIFICATION */}
