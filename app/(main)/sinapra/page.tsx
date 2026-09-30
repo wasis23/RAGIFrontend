@@ -182,7 +182,7 @@ export default function SinapraDashboardPage() {
     ...(data?.distribusi_prodi?.fasilitas_umum
       ? [
           {
-            id: 0,
+            id: 'fasilitas-umum',
             kode_prodi: 'UMUM',
             nama: data.distribusi_prodi.fasilitas_umum.nama,
             jenjang: 'Fasilitas Terpusat',
@@ -728,6 +728,7 @@ export default function SinapraDashboardPage() {
         <DataTable
           columns={prodiColumns}
           data={distribusiData}
+          keyExtractor={(row) => row.id ?? row.kode_prodi}
           emptyMessage="Belum ada data distribusi fasilitas program studi."
         />
       </div>
