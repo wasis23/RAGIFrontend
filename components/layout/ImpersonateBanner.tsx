@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
 import { useImpersonateStore } from '@/store/impersonateStore';
 import { adminService } from '@/services/admin.service';
-import { getCookieDomain, getAuthTokenKey } from '@/lib/domain';
+import { getCookieDomain, getAuthTokenKey, getModuleUrl } from '@/lib/domain';
+import { ROUTES } from '@/lib/constants';
 import type { User } from '@/types/auth.types';
 import { Sparkles, ArrowLeftCircle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -74,7 +75,9 @@ export function ImpersonateBanner() {
 
     setAuth(nextAdminUser, nextToken, nextRefreshToken);
     toast.success(`Kembali ke akun administrator (${nextAdminUser.name || nextAdminUser.username})`);
-    window.location.href = '/admin/users';
+    // /admin/users hanya ada di portal SSO; di subdomain modul path relatif
+    // akan di-rewrite ke /<modul>/admin/users (404). Arahkan lintas-domain.
+    window.location.href = getModuleUrl('sso', ROUTES.ADMIN_USERS);
     return true;
   };
 
@@ -107,7 +110,7 @@ export function ImpersonateBanner() {
       }
 
       stopImpersonating();
-      window.location.href = '/login';
+      window.location.href = getModuleUrl('sso', ROUTES.LOGIN);
     } catch {
       toast.error('Gagal keluar dari mode rasuki.');
     } finally {

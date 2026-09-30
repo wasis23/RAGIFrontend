@@ -9,7 +9,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useImpersonateStore } from '@/store/impersonateStore';
 import { useDomain } from '@/hooks/useDomain';
 import { adminService } from '@/services/admin.service';
-import { getCookieDomain, getAuthTokenKey } from '@/lib/domain';
+import { getCookieDomain, getAuthTokenKey, getModuleUrl } from '@/lib/domain';
+import { ROUTES } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 import { AppLauncher } from '@/components/layout/AppLauncher';
@@ -152,7 +153,7 @@ export function Navbar() {
                       document.cookie = `${roleKey}=${adminRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
                       setAuth(nextAdmin, leaveData.access_token, leaveData.access_token);
                       toast.success(`Kembali ke akun administrator (${nextAdmin.name || nextAdmin.username})`);
-                      window.location.href = '/admin/users';
+                      window.location.href = getModuleUrl('sso', ROUTES.ADMIN_USERS);
                     } else if (adminToken && adminUser) {
                       stopImpersonating();
                       const domainAttr = getCookieDomain();
@@ -163,10 +164,10 @@ export function Navbar() {
                       document.cookie = `${roleKey}=${adminRole}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
                       setAuth(adminUser, adminToken, adminRefreshToken || adminToken);
                       toast.success(`Kembali ke akun administrator (${adminUser.name || adminUser.username})`);
-                      window.location.href = '/admin/users';
+                      window.location.href = getModuleUrl('sso', ROUTES.ADMIN_USERS);
                     } else {
                       stopImpersonating();
-                      window.location.href = '/login';
+                      window.location.href = getModuleUrl('sso', ROUTES.LOGIN);
                     }
                   }}
                   className="dropdown-item text-amber-700 bg-amber-50 hover:bg-amber-100 font-bold"
