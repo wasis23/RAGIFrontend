@@ -9,6 +9,7 @@ import { ArrowLeft, Save, Loader2, Layers, BookOpen, CheckCircle2 } from 'lucide
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { moduleService, AppModule } from '@/services/module.service';
+import { getCurrentDomainContext } from '@/lib/domain';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -34,7 +35,8 @@ export default function CreateJenisBiayaPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [appModules, setAppModules] = useState<AppModule[]>([]);
-  const [selectedModuleCodes, setSelectedModuleCodes] = useState<string[]>(['sikeu']);
+  // Default modul mengikuti konteks domain/route saat ini (tanpa hardcode slug).
+  const [selectedModuleCodes, setSelectedModuleCodes] = useState<string[]>([]);
 
   const {
     register,
@@ -71,7 +73,18 @@ export default function CreateJenisBiayaPage() {
   useEffect(() => {
     moduleService.getAllModules()
       .then((mods) => {
-        setAppModules(Array.isArray(mods) ? mods : []);
+        const list = Array.isArray(mods) ? mods : [];
+        setAppModules(list);
+        if (list.length > 0) {
+          const ctx = getCurrentDomainContext();
+          const routeSeg = typeof window !== 'undefined'
+            ? window.location.pathname.split('/').filter(Boolean)[0]?.toLowerCase()
+            : '';
+          const current = ctx.moduleSlug
+            || list.find((m) => m.code?.toLowerCase() === routeSeg)?.code?.toLowerCase()
+            || list[0]?.code?.toLowerCase();
+          if (current) setSelectedModuleCodes((prev) => (prev.length === 0 ? [current] : prev));
+        }
       })
       .catch(() => {
         setAppModules([]);

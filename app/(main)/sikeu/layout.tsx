@@ -6,18 +6,32 @@ import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 export default function SikeuLayout({ children }: { children: React.ReactNode }) {
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, hasPermission } = useAuth();
 
   const canAccessSikeu = useMemo(() => {
     if (!user) return false;
-    if (hasRole('admin') || hasRole('superadmin') || hasRole('admin_simpeg')) return true;
+    if (hasRole(['admin', 'superadmin', 'admin_simpeg'])) return true;
 
-    const roles: any[] = user.roles || [];
-    return roles.some((r) => {
-      const perms: any[] = r.permissions || r.role?.permissions || [];
-      return perms.some((p) => (p.slug || '').startsWith('sikeu.'));
-    });
-  }, [user, hasRole]);
+    // Cek namespace izin via hasPermission (string di dalam argumen diperbolehkan audit 01 aturan no.5).
+    return (
+      hasPermission('sikeu.dashboard.read') ||
+      hasPermission('sikeu.tagihan.read') ||
+      hasPermission('sikeu.dispensasi.read') ||
+      hasPermission('sikeu.pengajuan.read') ||
+      hasPermission('sikeu.pengeluaran.read') ||
+      hasPermission('sikeu.pemasukan.read') ||
+      hasPermission('sikeu.kaskecil.read') ||
+      hasPermission('sikeu.pajak.read') ||
+      hasPermission('sikeu.master.manage') ||
+      hasPermission('sikeu.kas.manage') ||
+      hasPermission('sikeu.akuntansi.read') ||
+      hasPermission('sikeu.akuntansi.manage') ||
+      hasPermission('sikeu.laporan.read') ||
+      hasPermission('sikeu.unitkas.read') ||
+      hasPermission('sikeu.paymentgateway.manage') ||
+      hasPermission('sikeu.lpj.verify')
+    );
+  }, [user, hasRole, hasPermission]);
 
   if (!canAccessSikeu) {
     return (

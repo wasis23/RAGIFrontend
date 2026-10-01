@@ -7,6 +7,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { moduleService, AppModule } from '@/services/module.service';
+import { getCurrentDomainContext } from '@/lib/domain';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
@@ -66,8 +67,21 @@ export function JenisBiayaTab() {
   const [loading, setLoading] = useState(false);
   const [appModules, setAppModules] = useState<AppModule[]>([]);
 
+  // Modul konteks saat ini (dinamis dari domain/route, tanpa hardcode slug).
+  const resolveCurrentModuleCode = (modules: AppModule[] = appModules): string => {
+    if (typeof window !== 'undefined') {
+      const ctx = getCurrentDomainContext();
+      if (ctx.moduleSlug) return ctx.moduleSlug.toLowerCase();
+      const seg = window.location.pathname.split('/').filter(Boolean)[0]?.toLowerCase();
+      const matched = modules.find((m) => m.code?.toLowerCase() === seg);
+      if (matched?.code) return matched.code.toLowerCase();
+      if (seg) return seg;
+    }
+    return modules[0]?.code?.toLowerCase() ?? '';
+  };
+
   // Selected module codes for multi-selection form
-  const [selectedModuleCodes, setSelectedModuleCodes] = useState<string[]>(['sikeu']);
+  const [selectedModuleCodes, setSelectedModuleCodes] = useState<string[]>([]);
 
   // Filter Drawer — 2-stage
   const [showFilter, setShowFilter] = useState(false);
@@ -125,7 +139,12 @@ export function JenisBiayaTab() {
   const fetchModules = async () => {
     try {
       const modules = await moduleService.getAllModules();
-      setAppModules(Array.isArray(modules) ? modules : []);
+      const list = Array.isArray(modules) ? modules : [];
+      setAppModules(list);
+      if (list.length > 0) {
+        const current = resolveCurrentModuleCode(list);
+        if (current) setSelectedModuleCodes((prev) => (prev.length === 0 ? [current] : prev));
+      }
     } catch {
       setAppModules([]);
     }
@@ -142,7 +161,8 @@ export function JenisBiayaTab() {
 
   const handleOpenEdit = (item: JenisBiaya) => {
     setEditingItem(item);
-    setSelectedModuleCodes(item.module_codes && item.module_codes.length > 0 ? item.module_codes : ['sikeu']);
+    const fallback = resolveCurrentModuleCode();
+    setSelectedModuleCodes(item.module_codes && item.module_codes.length > 0 ? item.module_codes : (fallback ? [fallback] : []));
     const isDynamic = item.skema_tarif ? item.skema_tarif === 'dinamis' : (DYNAMIC_FEE_TYPES.includes(item.tipe) || !item.nominal_standar || item.nominal_standar === 0);
     reset({
       kode: item.kode,
@@ -244,7 +264,7 @@ export function JenisBiayaTab() {
       }
       if (appliedFilters.tipe && item.tipe !== appliedFilters.tipe) return false;
       if (appliedFilters.module) {
-        const codes = item.module_codes || ['sikeu'];
+        const codes = item.module_codes || (resolveCurrentModuleCode() ? [resolveCurrentModuleCode()] : []);
         if (!codes.includes(appliedFilters.module)) return false;
       }
       return true;
@@ -285,7 +305,8 @@ export function JenisBiayaTab() {
       key: 'modules',
       label: 'MODUL TERDELEGASI',
       render: (row) => {
-        const codes = row.module_codes && row.module_codes.length > 0 ? row.module_codes : ['sikeu'];
+        const fallback = resolveCurrentModuleCode();
+        const codes = row.module_codes && row.module_codes.length > 0 ? row.module_codes : (fallback ? [fallback] : []);
         return (
           <div className="flex flex-wrap gap-1">
             {codes.map((c) => (

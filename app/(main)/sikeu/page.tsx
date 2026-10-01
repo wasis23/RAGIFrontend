@@ -31,18 +31,13 @@ interface RecentJurnal {
 type DatePreset = 'all' | 'today' | 'last_7_days' | 'this_month' | 'this_year' | 'custom';
 
 export default function SikeuDashboardPage() {
-  const { user, isSuperAdmin, isAdmin } = useAuth();
-  const userRoleSlugs = (user?.roles || []).map((r: any) =>
-    (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
-  );
-  const isMahasiswa = userRoleSlugs.includes('mahasiswa') && !isSuperAdmin && !isAdmin;
+  const { isSuperAdmin, isAdmin, isMahasiswa: isMahasiswaRole, hasRole } = useAuth();
+  const isMahasiswa = isMahasiswaRole && !isSuperAdmin && !isAdmin;
   const isPetugasKasKecil =
-    (userRoleSlugs.includes('petugas_kas_kecil') ||
-      userRoleSlugs.includes('petugas_kaskecil') ||
-      userRoleSlugs.includes('petugas kas kecil')) &&
+    hasRole(['petugas_kas_kecil', 'petugas_kaskecil', 'petugas kas kecil']) &&
     !isSuperAdmin &&
     !isAdmin &&
-    !userRoleSlugs.some((s) => ['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_akuntansi'].includes(s));
+    !hasRole(['operator_sikeu', 'kabag_keuangan', 'admin_keuangan_akuntansi']);
 
   // Mahasiswa mendapat dashboard khusus (tanpa redirect + tanpa memuat ringkasan admin).
 

@@ -28,7 +28,7 @@ export const H2hConnectionSection: React.FC<H2hConnectionSectionProps> = ({
           label="URL API Bridge *"
           value={config.base_url || ''}
           onChange={(val) => onChange('base_url', val)}
-          placeholder="http://192.168.1.50:3002"
+          placeholder="https://h2h-bridge.kampus.ac.id"
           helperText="Alamat HTTP bridge Go, tanpa garis miring di akhir."
           isSecret={false}
         />
@@ -37,7 +37,7 @@ export const H2hConnectionSection: React.FC<H2hConnectionSectionProps> = ({
           label="Lokasi Server Bridge"
           value={config.server_location || ''}
           onChange={(val) => onChange('server_location', val)}
-          placeholder="Ruang Server Lt.2 / 192.168.1.50"
+          placeholder="Ruang Server Utama / Data Center Kampus"
           helperText="Keterangan lokasi fisik / hostname server bridge untuk dokumentasi operasional."
           isSecret={false}
         />
