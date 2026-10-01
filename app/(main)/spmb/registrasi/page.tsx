@@ -512,6 +512,7 @@ export default function RegistrasiSpmbPage() {
 
   const selectedJalur = watch('jalur_id');
   const selectedGelombang = watch('gelombang_id');
+  const selectedTipeJalur = watch('master_tipe_jalur_id');
   const selectedProdi = watch('program_studi_id');
   const { activeGelombang, fetchActiveGelombang } = useSpmbStore();
   const { module_color: moduleColor, fetchModuleColor } = useUiStore();
@@ -847,17 +848,17 @@ export default function RegistrasiSpmbPage() {
     }
   }, [selectedJalur, selectedGelombang]);
 
-  // Rincian beban awal pendaftaran berdasarkan Master Biaya gelombang + prodi
+  // Rincian beban awal pendaftaran berdasarkan Master Biaya tipe jalur + prodi
   useEffect(() => {
     const loadBeban = async () => {
-      if (!selectedGelombang || !selectedProdi) {
+      if (!selectedTipeJalur || !selectedProdi) {
         setBebanPendaftaran([]);
         setTotalBebanDaftarUlang(0);
         return;
       }
       try {
         const res = await spmbService.getBiayaPendaftaran({
-          gelombang_id: Number(selectedGelombang),
+          master_tipe_jalur_id: Number(selectedTipeJalur),
           program_studi_id: Number(selectedProdi),
         });
         const info = res?.data;
@@ -870,7 +871,7 @@ export default function RegistrasiSpmbPage() {
       }
     };
     loadBeban();
-  }, [selectedGelombang, selectedProdi]);
+  }, [selectedTipeJalur, selectedProdi]);
 
   const fetchJalur = async () => {
     try {

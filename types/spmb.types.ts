@@ -287,6 +287,7 @@ export interface MasterBiayaItem {
   komponen_biaya_id: number;
   nominal: number;
   dibebankan_saat_pendaftaran?: boolean;
+  berlaku_diskon?: boolean;
   keterangan?: string | null;
   komponen_biaya?: MasterKomponenBiaya;
 }
@@ -308,7 +309,7 @@ export interface BiayaPendaftaranInfo {
 
 export interface MasterBiayaSpmb {
   id: number;
-  gelombang_id: number;
+  master_tipe_jalur_id: number | null;
   program_studi_id: number;
   total_biaya: number;
   is_active: boolean;
@@ -322,32 +323,11 @@ export interface MasterBiayaSpmb {
     nama: string;
     jenjang?: string;
   };
-  gelombang?: {
+  master_tipe_jalur?: {
     id: number;
+    kode: string;
     nama: string;
-    status?: string;
-    jalur_masuk?: {
-      id: number;
-      kode: string;
-      nama: string;
-    };
   };
-}
-
-export interface MasterBiayaMatrixRow {
-  master_biaya_id: number | null;
-  program_studi_id: number;
-  program_studi: {
-    id: number;
-    kode_prodi?: string;
-    nama: string;
-    jenjang?: string;
-  };
-  gelombang_id: number | null;
-  components: Record<string, number>;
-  total_biaya: number;
-  is_active: boolean;
-  keterangan?: string | null;
 }
 
 // ============================================================

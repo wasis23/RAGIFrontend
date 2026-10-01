@@ -541,7 +541,7 @@ export const spmbService = {
   // MASTER BIAYA SPMB (HEADER & DETAIL MATRIX)
   // ====================================================
   getMasterBiayaList: async (params?: {
-    gelombang_id?: number | string;
+    master_tipe_jalur_id?: number | string;
     program_studi_id?: number | string;
     search?: string;
     is_active?: boolean | string;
@@ -569,11 +569,11 @@ export const spmbService = {
   },
 
   createMasterBiaya: async (data: {
-    gelombang_id: number;
+    master_tipe_jalur_id: number;
     program_studi_id: number;
     is_active?: boolean;
     keterangan?: string;
-    items: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; keterangan?: string }[];
+    items: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; berlaku_diskon?: boolean; keterangan?: string }[];
   }) => {
     const response = await api.post('/spmb/master/biaya', data);
     return response.data;
@@ -582,11 +582,11 @@ export const spmbService = {
   updateMasterBiaya: async (
     id: number,
     data: {
-      gelombang_id?: number;
+      master_tipe_jalur_id?: number;
       program_studi_id?: number;
       is_active?: boolean;
       keterangan?: string;
-      items?: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; keterangan?: string }[];
+      items?: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; berlaku_diskon?: boolean; keterangan?: string }[];
     }
   ) => {
     const response = await api.put(`/spmb/master/biaya/${id}`, data);
@@ -598,28 +598,8 @@ export const spmbService = {
     return response.data;
   },
 
-  batchUpdateMasterBiaya: async (data: {
-    gelombang_id: number;
-    rows: {
-      program_studi_id: number;
-      is_active?: boolean;
-      items: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean }[];
-    }[];
-  }) => {
-    const response = await api.post('/spmb/master/biaya/batch', data);
-    return response.data;
-  },
-
-  getBiayaPendaftaran: async (params: { gelombang_id: number; program_studi_id: number }) => {
+  getBiayaPendaftaran: async (params: { master_tipe_jalur_id: number; program_studi_id: number }) => {
     const response = await api.get('/spmb/biaya-pendaftaran', { params });
-    return response.data;
-  },
-
-  copyBiayaFromGelombang: async (data: {
-    from_gelombang_id: number;
-    to_gelombang_id: number;
-  }) => {
-    const response = await api.post('/spmb/master/biaya/copy-from-gelombang', data);
     return response.data;
   },
 

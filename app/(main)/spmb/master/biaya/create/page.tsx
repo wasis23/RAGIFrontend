@@ -15,12 +15,12 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Badge } from '@/components/ui/Badge';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { spmbService } from '@/services/spmb.service';
-import { formatRupiah, formatGelombangLabel } from '@/lib/utils';
-import type { MasterKomponenBiaya, GelombangPenerimaan } from '@/types/spmb.types';
+import { formatRupiah } from '@/lib/utils';
+import type { MasterKomponenBiaya, MasterTipeJalur } from '@/types/spmb.types';
 import toast from 'react-hot-toast';
 
 const masterBiayaFormSchema = z.object({
-  gelombang_id: z.string().min(1, 'Gelombang penerimaan wajib dipilih'),
+  master_tipe_jalur_id: z.string().min(1, 'Tipe jalur masuk wajib dipilih'),
   program_studi_id: z.string().min(1, 'Program studi wajib dipilih'),
   is_active: z.boolean(),
   keterangan: z.string().max(255, 'Keterangan maksimal 255 karakter').optional().or(z.literal('')),
@@ -29,6 +29,7 @@ const masterBiayaFormSchema = z.object({
       komponen_biaya_id: z.number(),
       nominal: z.number().min(0, 'Nominal tidak boleh negatif'),
       dibebankan_saat_pendaftaran: z.boolean().optional(),
+      berlaku_diskon: z.boolean().optional(),
       nama: z.string(),
       kode: z.string(),
       kategori: z.string().optional().nullable(),
@@ -43,7 +44,7 @@ export default function CreateMasterBiayaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [gelombangList, setGelombangList] = useState<GelombangPenerimaan[]>([]);
+  const [tipeJalurList, setTipeJalurList] = useState<MasterTipeJalur[]>([]);
   const [komponenMaster, setKomponenMaster] = useState<MasterKomponenBiaya[]>([]);
   const [prodiList, setProdiList] = useState<any[]>([]);
 
@@ -51,7 +52,7 @@ export default function CreateMasterBiayaPage() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const isLoadedRef = useRef(false);
 
-  const defaultGelombangId = searchParams.get('gelombang_id') || '';
+  const defaultTipeJalurId = searchParams.get('master_tipe_jalur_id') || '';
   const defaultProdiId = searchParams.get('program_studi_id') || '';
 
   const {
@@ -63,7 +64,7 @@ export default function CreateMasterBiayaPage() {
   } = useForm<MasterBiayaFormValues>({
     resolver: zodResolver(masterBiayaFormSchema),
     defaultValues: {
-      gelombang_id: defaultGelombangId,
+      master_tipe_jalur_id: defaultTipeJalurId,
       program_studi_id: defaultProdiId,
       is_active: true,
       keterangan: '',
@@ -85,18 +86,17 @@ export default function CreateMasterBiayaPage() {
     const loadPrerequisites = async () => {
       try {
         setLoadingInitial(true);
-        const [gelRes, prodiRes, kompRes] = await Promise.all([
-          spmbService.getGelombang({ per_page: 100 }),
+        const [tipeRes, prodiRes, kompRes] = await Promise.all([
+          spmbService.getMasterTipeJalur({ limit: 100 }),
           spmbService.getProgramStudi({ limit: 100 }),
           spmbService.getKomponenBiayaList({ is_active: true, limit: 100 }),
         ]);
 
-        const gelsRaw = gelRes?.data;
-        const gels: GelombangPenerimaan[] = Array.isArray(gelsRaw) ? gelsRaw : gelsRaw?.items || [];
-        setGelombangList(gels);
-        if (gels.length > 0 && !defaultGelombangId) {
-          const activeGel = gels.find((g) => g.status === 'aktif') || gels[0];
-          setValue('gelombang_id', String(activeGel.id));
+        const tipesRaw = tipeRes?.data;
+        const tipes: MasterTipeJalur[] = Array.isArray(tipesRaw) ? tipesRaw : tipesRaw?.items || [];
+        setTipeJalurList(tipes);
+        if (tipes.length > 0 && !defaultTipeJalurId) {
+          setValue('master_tipe_jalur_id', String(tipes[0].id));
         }
 
         const prodis = Array.isArray(prodiRes?.data) ? prodiRes.data : [];
@@ -118,7 +118,7 @@ export default function CreateMasterBiayaPage() {
     };
 
     loadPrerequisites();
-  }, [defaultGelombangId, defaultProdiId, replace, setValue]);
+  }, [defaultTipeJalurId, defaultProdiId, replace, setValue]);
 
   const handleNominalChange = (index: number, rawValue: string) => {
     const cleanNumber = Math.max(0, Number(rawValue.replace(/\D/g, '')) || 0);
@@ -147,7 +147,7 @@ export default function CreateMasterBiayaPage() {
     try {
       setSubmitting(true);
       await spmbService.createMasterBiaya({
-        gelombang_id: Number(values.gelombang_id),
+        master_tipe_jalur_id: Number(values.master_tipe_jalur_id),
         program_studi_id: Number(values.program_studi_id),
         is_active: values.is_active,
         keterangan: values.keterangan?.trim() || undefined,
@@ -155,6 +155,7 @@ export default function CreateMasterBiayaPage() {
           komponen_biaya_id: it.komponen_biaya_id,
           nominal: it.nominal || 0,
           dibebankan_saat_pendaftaran: it.dibebankan_saat_pendaftaran ?? false,
+          berlaku_diskon: it.berlaku_diskon ?? false,
         })),
       });
 
@@ -171,7 +172,7 @@ export default function CreateMasterBiayaPage() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Tambah Master Biaya"
-        description="Tetapkan paket biaya awal (DPI, UKT, Seragam, dll) untuk program studi pada gelombang pilihan"
+        description="Tetapkan paket biaya awal (DPI, UKT, Seragam, dll) untuk program studi pada tipe jalur masuk pilihan"
         action={
           <Button
             variant="outline"
@@ -187,28 +188,28 @@ export default function CreateMasterBiayaPage() {
       <div className="card">
         <div className="card-body">
           <form onSubmit={handleSubmit(onSubmit)}>
-            {/* 1. INFORMASI GELOMBANG & PRODI */}
+            {/* 1. INFORMASI TIPE JALUR & PRODI */}
             <div className="border-b border-slate-100 pb-4 mb-4">
               <h3 className="text-sm font-semibold text-slate-800 uppercase tracking-wider mb-4">
-                Informasi Gelombang & Program Studi
+                Informasi Tipe Jalur &amp; Program Studi
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Controller
                   control={control}
-                  name="gelombang_id"
+                  name="master_tipe_jalur_id"
                   render={({ field }) => (
                     <Select
-                      label="Gelombang Penerimaan"
+                      label="Tipe Jalur Masuk"
                       required
                       value={field.value}
                       onChange={field.onChange}
-                      options={gelombangList.map((g) => ({
-                        value: String(g.id),
-                        label: formatGelombangLabel(g),
+                      options={tipeJalurList.map((t) => ({
+                        value: String(t.id),
+                        label: `${t.nama}${t.kode ? ` (${t.kode})` : ''}`,
                       }))}
-                      error={errors.gelombang_id?.message}
-                      hint="Biaya berlaku untuk gelombang ini (jalur & tahun akademik mengikuti gelombang)."
+                      error={errors.master_tipe_jalur_id?.message}
+                      hint="Biaya berlaku untuk semua gelombang pada tipe jalur ini."
                     />
                   )}
                 />
@@ -266,6 +267,7 @@ export default function CreateMasterBiayaPage() {
                             komponen_biaya_id: komp.id,
                             nominal: 0,
                             dibebankan_saat_pendaftaran: false,
+                            berlaku_diskon: false,
                             nama: komp.nama,
                             kode: komp.kode,
                             kategori: komp.kategori,
@@ -322,9 +324,10 @@ export default function CreateMasterBiayaPage() {
                   <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-3 bg-white border-b border-slate-200 text-2xs font-bold uppercase text-slate-500">
                     <div className="col-span-1 text-center">No</div>
                     <div className="col-span-3">Komponen Biaya</div>
-                    <div className="col-span-2 text-center">Kode</div>
-                    <div className="col-span-3 text-right">Nominal (Rp)</div>
+                    <div className="col-span-1 text-center">Kode</div>
+                    <div className="col-span-2 text-right">Nominal (Rp)</div>
                     <div className="col-span-2 text-center">Beban Pendaftaran</div>
+                    <div className="col-span-2 text-center">Berlaku Diskon</div>
                     <div className="col-span-1 text-center">Aksi</div>
                   </div>
                   <div className="divide-y divide-slate-100">
@@ -345,12 +348,12 @@ export default function CreateMasterBiayaPage() {
                               <div className="text-xs text-slate-400 mt-2">{field.keterangan}</div>
                             )}
                           </div>
-                          <div className="md:col-span-2 md:text-center">
+                          <div className="md:col-span-1 md:text-center">
                             <Badge variant="secondary" className="font-mono text-xs bg-slate-100 text-slate-700 border border-slate-200">
                               {field.kode}
                             </Badge>
                           </div>
-                          <div className="md:col-span-3">
+                          <div className="md:col-span-2">
                             <Input
                               placeholder="0"
                               className="text-right font-mono"
@@ -372,6 +375,24 @@ export default function CreateMasterBiayaPage() {
                                   />
                                   <span className="text-2xs text-slate-400 font-medium">
                                     {field.value ? 'Beban awal' : 'Saat daftar ulang'}
+                                  </span>
+                                </div>
+                              )}
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <Controller
+                              control={control}
+                              name={`items.${index}.berlaku_diskon`}
+                              render={({ field }) => (
+                                <div className="flex flex-col items-center gap-2">
+                                  <ToggleSwitch
+                                    checked={!!field.value}
+                                    disabled={currentNom <= 0}
+                                    onChange={field.onChange}
+                                  />
+                                  <span className="text-2xs text-slate-400 font-medium">
+                                    {field.value ? 'Berhak diskon' : 'Tanpa diskon'}
                                   </span>
                                 </div>
                               )}

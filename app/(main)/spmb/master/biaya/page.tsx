@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Plus, Edit, Trash2, Filter, Tag, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Tag } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
-import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,8 +13,8 @@ import { Select } from '@/components/ui/Select';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { spmbService } from '@/services/spmb.service';
-import { formatRupiah, formatGelombangLabel } from '@/lib/utils';
-import type { MasterBiayaSpmb, GelombangPenerimaan } from '@/types/spmb.types';
+import { formatRupiah } from '@/lib/utils';
+import type { MasterBiayaSpmb, MasterTipeJalur } from '@/types/spmb.types';
 import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 
@@ -35,7 +34,7 @@ export default function MasterBiayaPage() {
   const [loading, setLoading] = useState(false);
 
   // References
-  const [gelombangList, setGelombangList] = useState<GelombangPenerimaan[]>([]);
+  const [tipeJalurList, setTipeJalurList] = useState<MasterTipeJalur[]>([]);
 
   // Search and Filter Params from URL
   const page = Number(searchParams.get('page')) || 1;
@@ -43,7 +42,7 @@ export default function MasterBiayaPage() {
   const searchQ = searchParams.get('search') || '';
   const orderByQ = searchParams.get('sort_by') || 'created_at';
   const orderDirQ = searchParams.get('sort_dir') || 'desc';
-  const gelombangQ = searchParams.get('gelombang_id') || '';
+  const tipeJalurQ = searchParams.get('master_tipe_jalur_id') || '';
   const statusQ = searchParams.get('is_active') || '';
   const jumlahQ = searchParams.get('jumlah_komponen') || '';
   const bebanPendaftaranQ = searchParams.get('beban_pendaftaran') || '';
@@ -53,7 +52,7 @@ export default function MasterBiayaPage() {
   // Local Filter Drawer State
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState(searchQ);
-  const [filterGelombangId, setFilterGelombangId] = useState(gelombangQ);
+  const [filterTipeJalurId, setFilterTipeJalurId] = useState(tipeJalurQ);
   const [filterStatus, setFilterStatus] = useState(statusQ);
   const [filterJumlahKomponen, setFilterJumlahKomponen] = useState(jumlahQ);
   const [filterBebanPendaftaran, setFilterBebanPendaftaran] = useState(bebanPendaftaranQ);
@@ -61,12 +60,6 @@ export default function MasterBiayaPage() {
   const [filterTotalBiaya, setFilterTotalBiaya] = useState(totalBiayaQ);
   const [filterOrderBy, setFilterOrderBy] = useState(orderByQ);
   const [filterOrderDir, setFilterOrderDir] = useState(orderDirQ);
-
-  // Copy Gelombang Modal State
-  const [copyModalOpen, setCopyModalOpen] = useState(false);
-  const [copyFromGelombangId, setCopyFromGelombangId] = useState('');
-  const [copyToGelombangId, setCopyToGelombangId] = useState('');
-  const [copying, setCopying] = useState(false);
 
   // Delete Confirm Dialog State
   const [deleteModal, setDeleteModal] = useState<{
@@ -83,9 +76,9 @@ export default function MasterBiayaPage() {
   useEffect(() => {
     const fetchDropdowns = async () => {
       try {
-        const gelRes = await spmbService.getGelombang({ per_page: 100 });
-        const gelsRaw = gelRes?.data;
-        setGelombangList(Array.isArray(gelsRaw) ? gelsRaw : gelsRaw?.items || []);
+        const tipeRes = await spmbService.getMasterTipeJalur({ limit: 100 });
+        const tipesRaw = tipeRes?.data;
+        setTipeJalurList(Array.isArray(tipesRaw) ? tipesRaw : tipesRaw?.items || []);
       } catch (error) {
         console.error('Failed to load filter options:', error);
       }
@@ -100,7 +93,7 @@ export default function MasterBiayaPage() {
         page,
         limit,
         search: searchQ,
-        gelombang_id: gelombangQ || undefined,
+        master_tipe_jalur_id: tipeJalurQ || undefined,
         is_active: statusQ || undefined,
         jumlah_komponen: jumlahQ || undefined,
         beban_pendaftaran: bebanPendaftaranQ || undefined,
@@ -116,7 +109,7 @@ export default function MasterBiayaPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, searchQ, gelombangQ, statusQ, jumlahQ, bebanPendaftaranQ, bebanDaftarUlangQ, totalBiayaQ, orderByQ, orderDirQ]);
+  }, [page, limit, searchQ, tipeJalurQ, statusQ, jumlahQ, bebanPendaftaranQ, bebanDaftarUlangQ, totalBiayaQ, orderByQ, orderDirQ]);
 
   useEffect(() => {
     fetchData();
@@ -140,7 +133,7 @@ export default function MasterBiayaPage() {
     updateURLParams({
       page: 1,
       search: filterSearch,
-      gelombang_id: filterGelombangId,
+      master_tipe_jalur_id: filterTipeJalurId,
       is_active: filterStatus,
       jumlah_komponen: filterJumlahKomponen,
       beban_pendaftaran: filterBebanPendaftaran,
@@ -154,7 +147,7 @@ export default function MasterBiayaPage() {
 
   const handleResetFilter = () => {
     setFilterSearch('');
-    setFilterGelombangId('');
+    setFilterTipeJalurId('');
     setFilterStatus('');
     setFilterJumlahKomponen('');
     setFilterBebanPendaftaran('');
@@ -165,7 +158,7 @@ export default function MasterBiayaPage() {
     updateURLParams({
       page: 1,
       search: '',
-      gelombang_id: '',
+      master_tipe_jalur_id: '',
       is_active: '',
       jumlah_komponen: '',
       beban_pendaftaran: '',
@@ -196,40 +189,12 @@ export default function MasterBiayaPage() {
     }
   };
 
-  // Copy Gelombang Action Handler
-  const handleConfirmCopy = async () => {
-    if (!copyFromGelombangId || !copyToGelombangId) {
-      toast.error('Silakan tentukan Gelombang Sumber dan Tujuan');
-      return;
-    }
-    if (copyFromGelombangId === copyToGelombangId) {
-      toast.error('Gelombang Tujuan harus berbeda dari Sumber');
-      return;
-    }
-
-    try {
-      setCopying(true);
-      await spmbService.copyBiayaFromGelombang({
-        from_gelombang_id: Number(copyFromGelombangId),
-        to_gelombang_id: Number(copyToGelombangId),
-      });
-      toast.success('Konfigurasi biaya berhasil disalin');
-      setCopyModalOpen(false);
-      setFilterGelombangId(copyToGelombangId);
-      updateURLParams({ page: 1, gelombang_id: copyToGelombangId });
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Gagal menyalin konfigurasi biaya');
-    } finally {
-      setCopying(false);
-    }
-  };
-
   return (
     <div className="animate-fade-in space-y-6">
       {/* Page Header standardized to match tipe-jalur */}
       <PageHeader
         title="Master Tarif Biaya"
-        description="Kelola konfigurasi biaya pendaftaran dan perkuliahan per Program Studi dan Gelombang"
+        description="Kelola konfigurasi biaya pendaftaran dan perkuliahan per Program Studi dan Tipe Jalur Masuk"
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -246,17 +211,6 @@ export default function MasterBiayaPage() {
               onClick={() => router.push('/spmb/master/komponen-biaya')}
             >
               Komponen Biaya
-            </Button>
-            <Button
-              variant="outline"
-              icon={<Copy size={16} />}
-              onClick={() => {
-                setCopyFromGelombangId(gelombangQ);
-                setCopyToGelombangId('');
-                setCopyModalOpen(true);
-              }}
-            >
-              Salin Gelombang
             </Button>
             <Button
               variant="primary"
@@ -295,16 +249,16 @@ export default function MasterBiayaPage() {
             ),
           },
           {
-            key: 'gelombang',
-            label: 'Gelombang',
+            key: 'master_tipe_jalur',
+            label: 'Tipe Jalur Masuk',
             render: (row) => (
               <div>
-                <div className="font-semibold text-gray-900">
-                  {row.gelombang?.nama || '-'}
+                <div className="font-semibold text-xs text-gray-900">
+                  {row.master_tipe_jalur?.nama || '-'}
                 </div>
-                {row.gelombang?.jalur_masuk?.nama && (
-                  <span className="text-xs text-slate-500">
-                    {row.gelombang?.jalur_masuk?.nama}
+                {row.master_tipe_jalur?.kode && (
+                  <span className="text-2xs text-slate-500">
+                    {row.master_tipe_jalur?.kode}
                   </span>
                 )}
               </div>
@@ -429,14 +383,14 @@ export default function MasterBiayaPage() {
           />
 
           <Select
-            label="Gelombang Penerimaan"
-            value={filterGelombangId}
-            onChange={(val) => setFilterGelombangId(val)}
+            label="Tipe Jalur Masuk"
+            value={filterTipeJalurId}
+            onChange={(val) => setFilterTipeJalurId(val)}
             options={[
-              { value: '', label: 'Semua Gelombang' },
-              ...gelombangList.map((g) => ({
-                value: String(g.id),
-                label: formatGelombangLabel(g),
+              { value: '', label: 'Semua Tipe Jalur' },
+              ...tipeJalurList.map((t) => ({
+                value: String(t.id),
+                label: `${t.nama}${t.kode ? ` (${t.kode})` : ''}`,
               })),
             ]}
           />
@@ -490,7 +444,7 @@ export default function MasterBiayaPage() {
               options={[
                 { value: 'created_at', label: 'Tanggal Dibuat' },
                 { value: 'program_studi', label: 'Program Studi' },
-                { value: 'gelombang', label: 'Gelombang' },
+                { value: 'master_tipe_jalur', label: 'Tipe Jalur Masuk' },
                 { value: 'items', label: 'Rincian Komponen' },
                 { value: 'beban_pendaftaran', label: 'Beban Registrasi' },
                 { value: 'beban_daftar_ulang', label: 'Beban Daftar Ulang' },
@@ -513,64 +467,6 @@ export default function MasterBiayaPage() {
         </div>
       </Drawer>
 
-      {/* Salin dari Gelombang Modal */}
-      <Modal
-        open={copyModalOpen}
-        onClose={() => setCopyModalOpen(false)}
-        title="Salin Biaya Dari Gelombang Lain"
-      >
-        <div className="space-y-4 pt-2">
-          <p className="text-xs text-slate-500">
-            Salin seluruh konfigurasi komponen biaya per prodi dari gelombang sebelumnya ke gelombang baru tanpa perlu menginput ulang dari awal.
-          </p>
-
-          <Select
-            label="Gelombang Sumber (Dari)"
-            value={copyFromGelombangId}
-            onChange={setCopyFromGelombangId}
-            options={[
-              { value: '', label: '-- Pilih Gelombang Sumber --' },
-              ...gelombangList.map((g) => ({
-                value: String(g.id),
-                label: formatGelombangLabel(g),
-              })),
-            ]}
-          />
-
-          <Select
-            label="Gelombang Target (Ke)"
-            value={copyToGelombangId}
-            onChange={setCopyToGelombangId}
-            options={[
-              { value: '', label: '-- Pilih Gelombang Target --' },
-              ...gelombangList.map((g) => ({
-                value: String(g.id),
-                label: formatGelombangLabel(g),
-              })),
-            ]}
-          />
-
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setCopyModalOpen(false)}
-              disabled={copying}
-            >
-              Batal
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={handleConfirmCopy}
-              loading={copying}
-            >
-              Salin Sekarang
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
       {/* Delete Confirm Dialog */}
       <ConfirmDialog
         isOpen={deleteModal.isOpen}
@@ -584,8 +480,8 @@ export default function MasterBiayaPage() {
             <strong>
               {deleteModal.item?.program_studi?.nama || 'Program Studi ini'}
             </strong>{' '}
-            pada Gelombang{' '}
-            <strong>{deleteModal.item?.gelombang?.nama || ''}</strong>? Tindakan ini tidak dapat dibatalkan.
+            pada Tipe Jalur{' '}
+            <strong>{deleteModal.item?.master_tipe_jalur?.nama || '-'}</strong>? Tindakan ini tidak dapat dibatalkan.
           </span>
         }
         confirmText="Hapus"
