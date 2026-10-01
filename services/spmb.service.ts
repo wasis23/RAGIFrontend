@@ -30,6 +30,7 @@ export interface GelombangPenerimaan {
   kuota_total: number;
   kuota_terisi: number;
   biaya_pendaftaran: number;
+  potongan_biaya_daftar_ulang: number;
   status: 'draft' | 'aktif' | 'ditutup' | 'selesai';
   jalur_masuk?: JalurMasuk;
 }

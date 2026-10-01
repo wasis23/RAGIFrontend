@@ -34,6 +34,7 @@ export interface GelombangPenerimaan {
   kuota_total: number;
   kuota_terisi: number;
   biaya_pendaftaran: string | number;
+  potongan_biaya_daftar_ulang: string | number;
   status: 'draft' | 'aktif' | 'ditutup' | 'selesai';
   created_at: string;
   updated_at: string;

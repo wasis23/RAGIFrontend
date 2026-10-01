@@ -22,6 +22,7 @@ const gelombangFormSchema = z.object({
   nama: z.string().min(1, 'Nama gelombang wajib diisi').max(255, 'Nama gelombang maksimal 255 karakter'),
   jalur_masuk_id: z.number().min(1, 'Jalur masuk wajib dipilih'),
   biaya_pendaftaran: z.number().min(0, 'Biaya pendaftaran minimal 0').optional(),
+  potongan_biaya_daftar_ulang: z.number().min(0, 'Potongan biaya daftar ulang minimal 0').max(100, 'Potongan biaya daftar ulang maksimal 100').optional(),
   kuota_total: z.number().min(1, 'Kuota pendaftar minimal 1'),
   tanggal_buka: z.string().min(1, 'Tanggal buka pendaftaran wajib diisi'),
   tanggal_tutup: z.string().min(1, 'Tanggal tutup pendaftaran wajib diisi'),
@@ -50,6 +51,7 @@ export default function CreateGelombangPage() {
       kuota_total: 100,
       status: 'draft',
       biaya_pendaftaran: 0,
+      potongan_biaya_daftar_ulang: 0,
       tanggal_buka: '',
       tanggal_tutup: '',
       tanggal_pengumuman: '',
@@ -87,6 +89,7 @@ export default function CreateGelombangPage() {
         ...data,
         jalur_masuk_id: Number(data.jalur_masuk_id),
         biaya_pendaftaran: data.biaya_pendaftaran !== undefined ? Number(data.biaya_pendaftaran) : undefined,
+        potongan_biaya_daftar_ulang: data.potongan_biaya_daftar_ulang !== undefined ? Number(data.potongan_biaya_daftar_ulang) : undefined,
       };
       await spmbService.createGelombang(payload as any);
       toast.success('Gelombang penerimaan baru berhasil ditambahkan');
@@ -172,6 +175,19 @@ export default function CreateGelombangPage() {
                   hint="Nominal biaya pendaftaran gelombang ini."
                   error={errors.biaya_pendaftaran?.message}
                   {...register('biaya_pendaftaran', { valueAsNumber: true })} 
+                />
+              </div>
+
+              <div>
+                <Input 
+                  type="number"
+                  label="Potongan Biaya Daftar Ulang (%)"
+                  placeholder="0"
+                  min={0}
+                  max={100}
+                  hint="Persentase potongan biaya daftar ulang (0-100%)."
+                  error={errors.potongan_biaya_daftar_ulang?.message}
+                  {...register('potongan_biaya_daftar_ulang', { valueAsNumber: true })} 
                 />
               </div>
 
