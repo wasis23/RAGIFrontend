@@ -724,4 +724,19 @@ export const spmbService = {
     const response = await api.get(`/spmb/template-surat/${id}/preview`, { responseType: 'blob' });
     return response.data as Blob;
   },
+
+  /**
+   * Konversi manual calon mahasiswa → mahasiswa resmi oleh Admin SPMB.
+   * Langsung menerbitkan NIM, assign role mahasiswa, dan buat email kampus.
+   * Hanya dapat dipanggil untuk pendaftaran berstatus `lulus_administrasi`.
+   */
+  konversiMahasiswa: async (id: number): Promise<{
+    status: string;
+    message: string;
+    data: { pendaftaran: PendaftaranCalonMhs; nim: string; mahasiswa_id: number };
+  }> => {
+    const response = await api.post(`/spmb/pendaftaran/${id}/konversi-mahasiswa`);
+    return response.data;
+  },
 };
+

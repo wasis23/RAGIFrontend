@@ -854,27 +854,22 @@ export const sikeuService = {
     return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}`);
   },
 
-  verifyReferralInvoice: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/verify`, {
-      method: 'POST',
-    });
-  },
-
-  payReferralInvoice: async (id: number, payload: {
-    unit_kas_id: number;
-    akun_beban_id?: number;
-    tanggal_bayar?: string;
-    nomor_referensi_transfer?: string;
-    catatan?: string;
-  }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/pay`, {
+  approveReferralInvoice: async (id: number, payload: { aksi: 'approve' | 'reject'; catatan?: string }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/approve`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
-  rejectReferralInvoice: async (id: number, payload: { catatan: string }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/reject`, {
+  cairkanReferralInvoice: async (id: number, payload: {
+    unit_kas_id: number;
+    nominal_cair: number;
+    akun_beban_id?: number;
+    tanggal_bayar?: string;
+    nomor_referensi_transfer?: string;
+    catatan?: string;
+  }) => {
+    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/cairkan`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Filter, Plus, Eye, Building2, Briefcase, CheckCircle2, Wallet, Check, Download } from 'lucide-react';
+import { Filter, Plus, Eye, Building2, Briefcase, CheckCircle2, Wallet, Check, Download, BadgeCheck, Ban, Banknote, CalendarDays, History } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { pengajuanOperasionalService, type PengajuanOperasional } from '@/services/pengajuan-operasional.service';
+import { sikeuService } from '@/services/sikeu.service';
+import { REFERRAL_STATUS_LABEL } from '@/lib/referral';
+import type { ReferralInvoice } from '@/types/sikeu.types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -16,6 +19,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
@@ -55,11 +59,38 @@ const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warnin
   selesai: { label: 'Selesai', variant: 'success' },
 };
 
+const approveReferralSchema = z
+  .object({
+    aksi: z.enum(['approve', 'reject']),
+    catatan: z.string().optional(),
+  })
+  .refine((v) => v.aksi !== 'reject' || (v.catatan && v.catatan.trim().length > 0), {
+    message: 'Catatan penolakan wajib diisi',
+    path: ['catatan'],
+  });
+type ApproveReferralFormValues = z.infer<typeof approveReferralSchema>;
+
+const cairkanReferralSchema = z.object({
+  unit_kas_id: z.string().min(1, 'Unit Kas wajib dipilih'),
+  nominal_cair: z.coerce.number().positive('Nominal pencairan harus lebih dari 0'),
+  tanggal_bayar: z.string().optional(),
+  nomor_referensi_transfer: z.string().optional(),
+  catatan: z.string().optional(),
+});
+type CairkanReferralFormValues = z.infer<typeof cairkanReferralSchema>;
+
 export default function PengajuanOperasionalPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'operasional' | 'simpeg'>('operasional');
+  const [activeTab, setActiveTab] = useState<'operasional' | 'simpeg' | 'spmb'>('operasional');
   const [data, setData] = useState<PengajuanOperasional[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Tab SPMB (Referral) — data & modal state
+  const [referralData, setReferralData] = useState<ReferralInvoice[]>([]);
+  const [referralMeta, setReferralMeta] = useState<any>(undefined);
+  const [approveReferralItem, setApproveReferralItem] = useState<ReferralInvoice | null>(null);
+  const [approveReferralAksi, setApproveReferralAksi] = useState<'approve' | 'reject'>('approve');
+  const [cairkanReferralItem, setCairkanReferralItem] = useState<ReferralInvoice | null>(null);
 
   // Pagination states (Audit 02)
   const [page, setPage] = useState(1);
@@ -151,6 +182,23 @@ export default function PengajuanOperasionalPage() {
     },
   });
 
+  // Form: Approval & Pencairan Referral SPMB (Tab SPMB)
+  const formApproveReferral = useForm<ApproveReferralFormValues>({
+    resolver: zodResolver(approveReferralSchema) as any,
+    defaultValues: { aksi: 'approve', catatan: '' },
+  });
+
+  const formCairkanReferral = useForm<CairkanReferralFormValues>({
+    resolver: zodResolver(cairkanReferralSchema) as any,
+    defaultValues: {
+      unit_kas_id: '',
+      nominal_cair: 0,
+      tanggal_bayar: new Date().toISOString().split('T')[0],
+      nomor_referensi_transfer: '',
+      catatan: '',
+    },
+  });
+
   // Load Unit Kas & Kategori options via API (Zero Hardcode)
   useEffect(() => {
     pengajuanOperasionalService.listUnitKas()
@@ -173,6 +221,17 @@ export default function PengajuanOperasionalPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      if (activeTab === 'spmb') {
+        const res = await sikeuService.getReferralInvoiceList({
+          page,
+          per_page: limit,
+          search: applied.search || undefined,
+          status: applied.status !== 'all' ? applied.status : undefined,
+        });
+        setReferralData(Array.isArray(res.data) ? res.data : []);
+        setReferralMeta((res as any).meta ?? undefined);
+        return;
+      }
       const res = await pengajuanOperasionalService.list({
         tab: activeTab,
         page,
@@ -282,6 +341,157 @@ export default function PengajuanOperasionalPage() {
       toast.error(err.response?.data?.message || 'Gagal menyelesaikan LPJ.');
     }
   };
+
+  // ── TAB 3 (SPMB / REFERRAL) HANDLERS ────────────────────────────────────────
+  const openApproveReferral = (row: ReferralInvoice, aksi: 'approve' | 'reject') => {
+    setApproveReferralItem(row);
+    setApproveReferralAksi(aksi);
+    formApproveReferral.reset({ aksi, catatan: '' });
+  };
+
+  const onSubmitApproveReferral = async (values: ApproveReferralFormValues) => {
+    if (!approveReferralItem) return;
+    try {
+      await sikeuService.approveReferralInvoice(approveReferralItem.id, {
+        aksi: values.aksi,
+        catatan: values.catatan || undefined,
+      });
+      toast.success(
+        values.aksi === 'approve'
+          ? 'Invoice referral disetujui ke tahap berikutnya.'
+          : 'Invoice referral ditolak.'
+      );
+      setApproveReferralItem(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal memproses approval referral.');
+    }
+  };
+
+  const openCairkanReferral = (row: ReferralInvoice) => {
+    setCairkanReferralItem(row);
+    formCairkanReferral.reset({
+      unit_kas_id: unitKasList[0]?.id ? String(unitKasList[0].id) : '',
+      nominal_cair: Number(row.total_nominal) || 0,
+      tanggal_bayar: new Date().toISOString().split('T')[0],
+      nomor_referensi_transfer: '',
+      catatan: '',
+    });
+  };
+
+  const onSubmitCairkanReferral = async (values: CairkanReferralFormValues) => {
+    if (!cairkanReferralItem) return;
+    const total = Number(cairkanReferralItem.total_nominal) || 0;
+    if (Number(values.nominal_cair) > total) {
+      toast.error(`Nominal tidak boleh melebihi total bukti (${formatRupiah(total)}).`);
+      return;
+    }
+    try {
+      await sikeuService.cairkanReferralInvoice(cairkanReferralItem.id, {
+        unit_kas_id: Number(values.unit_kas_id),
+        nominal_cair: Number(values.nominal_cair),
+        tanggal_bayar: values.tanggal_bayar || undefined,
+        nomor_referensi_transfer: values.nomor_referensi_transfer || undefined,
+        catatan: values.catatan || undefined,
+      });
+      toast.success('Payout referral berhasil dicairkan & tercatat sebagai pengeluaran.');
+      setCairkanReferralItem(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mencairkan payout referral.');
+    }
+  };
+
+  // TAB 3 (SPMB / REFERRAL) COLUMNS
+  const columnsReferral: ColumnDef<ReferralInvoice>[] = [
+    {
+      key: 'nomor_bukti',
+      label: 'INVOICE',
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="font-mono font-bold text-slate-900 text-xs">{row.nomor_bukti}</span>
+          <span className="text-2xs text-slate-500 flex items-center gap-2">
+            <CalendarDays size={16} /> {row.generated_at ? formatDate(row.generated_at) : '-'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'referrer',
+      label: 'REFERRER',
+      render: (row) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-900 text-xs">{row.referrer?.name || row.referrer?.username || '-'}</span>
+          <span className="text-2xs text-slate-500">{row.nama_bank || '-'} &bull; {row.nomor_rekening || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'referral_count',
+      label: 'JUMLAH REFERRAL',
+      render: (row) => (
+        <span className="text-xs font-semibold text-slate-700 tabular-nums">{row.referral_count ?? row.usages_count ?? 0}</span>
+      ),
+    },
+    {
+      key: 'total_nominal',
+      label: 'NOMINAL BUKTI',
+      render: (row) => (
+        <span className="text-xs font-bold text-slate-800 tabular-nums">{formatRupiah(Number(row.total_nominal) || 0)}</span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => {
+        const s = REFERRAL_STATUS_LABEL[row.status] || { label: row.status, variant: 'secondary' as const };
+        return <Badge variant={s.variant}>{s.label}</Badge>;
+      },
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => {
+        const items = [];
+        items.push({
+          label: 'Detail & Riwayat Referral',
+          icon: <Eye size={16} />,
+          onClick: () => router.push(`/sikeu/pengajuan/referral/${row.id}`),
+        });
+        if (row.status === 'pending_keuangan') {
+          items.push({
+            label: 'Setujui (Keuangan)',
+            icon: <BadgeCheck size={16} className="text-emerald-600" />,
+            onClick: () => openApproveReferral(row, 'approve'),
+          });
+        }
+        if (row.status === 'pending_direktur') {
+          items.push({
+            label: 'Setujui (Direktur)',
+            icon: <BadgeCheck size={16} className="text-emerald-600" />,
+            onClick: () => openApproveReferral(row, 'approve'),
+          });
+        }
+        if (row.status === 'disetujui') {
+          items.push({
+            label: 'Cairkan Dana',
+            icon: <Banknote size={16} style={{ color: 'var(--module-primary)' }} />,
+            onClick: () => openCairkanReferral(row),
+          });
+        }
+        if (row.status === 'pending_keuangan' || row.status === 'pending_direktur') {
+          items.push({
+            label: 'Tolak',
+            icon: <Ban size={16} />,
+            variant: 'danger' as const,
+            onClick: () => openApproveReferral(row, 'reject'),
+          });
+        }
+        return <DropdownMenu items={items} />;
+      },
+    },
+  ];
 
   // TAB 1 (OPERASIONAL / SINAPRA) COLUMNS
   const columnsOperasional: ColumnDef<PengajuanOperasional>[] = [
@@ -558,10 +768,26 @@ export default function PengajuanOperasionalPage() {
           <Briefcase size={16} />
           <span>Perjalanan Dinas (SIMPEG)</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('spmb');
+            setPage(1);
+          }}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'spmb'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Banknote size={16} />
+          <span>Referral SPMB</span>
+        </button>
       </div>
 
       {/* DATA TABLE DENGAN SERVER-SIDE PAGINATION & META (ATURAN 5 ADMIN CRUD) */}
-      {activeTab === 'operasional' ? (
+      {activeTab === 'operasional' && (
         <DataTable
           data={data}
           isLoading={loading}
@@ -574,7 +800,8 @@ export default function PengajuanOperasionalPage() {
           }}
           emptyMessage="Belum ada data pengajuan operasional & sarpras."
         />
-      ) : (
+      )}
+      {activeTab === 'simpeg' && (
         <DataTable
           data={data}
           isLoading={loading}
@@ -586,6 +813,20 @@ export default function PengajuanOperasionalPage() {
             setPage(1);
           }}
           emptyMessage="Belum ada antrean pencairan panjar perjalanan dinas SIMPEG."
+        />
+      )}
+      {activeTab === 'spmb' && (
+        <DataTable
+          data={referralData}
+          isLoading={loading}
+          columns={columnsReferral}
+          meta={referralMeta}
+          onPageChange={(newPage) => setPage(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+          emptyMessage="Belum ada bukti pencairan referral SPMB yang masuk."
         />
       )}
 
@@ -690,10 +931,17 @@ export default function PengajuanOperasionalPage() {
             label="Status Pengajuan"
             value={fStatus}
             onChange={(v) => setFStatus(v as string)}
-            options={[
-              { value: 'all', label: 'Semua Status' },
-              ...Object.entries(STATUS_LABEL).map(([v, s]) => ({ value: v, label: s.label })),
-            ]}
+            options={
+              activeTab === 'spmb'
+                ? [
+                    { value: 'all', label: 'Semua Status' },
+                    ...Object.entries(REFERRAL_STATUS_LABEL).map(([v, s]) => ({ value: v, label: s.label })),
+                  ]
+                : [
+                    { value: 'all', label: 'Semua Status' },
+                    ...Object.entries(STATUS_LABEL).map(([v, s]) => ({ value: v, label: s.label })),
+                  ]
+            }
           />
 
           {activeTab === 'operasional' && (
@@ -1047,6 +1295,160 @@ export default function PengajuanOperasionalPage() {
             >
               <Check size={16} />
               <span>Verifikasi & Selesaikan</span>
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: APPROVE / TOLAK INVOICE REFERRAL (TAB SPMB) */}
+      <Modal
+        isOpen={!!approveReferralItem}
+        onClose={() => !formApproveReferral.formState.isSubmitting && setApproveReferralItem(null)}
+        title={approveReferralAksi === 'reject' ? 'Tolak Invoice Referral' : 'Setujui Invoice Referral'}
+        size="md"
+      >
+        <form onSubmit={formApproveReferral.handleSubmit(onSubmitApproveReferral)} className="space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs flex flex-col gap-2">
+            <p className="font-semibold text-slate-800">
+              {approveReferralItem?.nomor_bukti} &bull; {approveReferralItem?.referrer?.name || approveReferralItem?.referrer?.username || '-'}
+            </p>
+            <p className="text-slate-600">
+              Total bukti: <span className="font-bold">{formatRupiah(Number(approveReferralItem?.total_nominal) || 0)}</span>
+            </p>
+            {approveReferralAksi === 'approve' && (
+              <p className="text-emerald-700 font-semibold">
+                {approveReferralItem?.status === 'pending_keuangan'
+                  ? 'Tahap ini: persetujuan Keuangan (lanjut ke Direktur).'
+                  : 'Tahap ini: persetujuan Direktur (lanjut ke pencairan).'}
+              </p>
+            )}
+          </div>
+
+          <Textarea
+            label={approveReferralAksi === 'reject' ? 'Catatan Penolakan' : 'Catatan (Opsional)'}
+            placeholder={approveReferralAksi === 'reject' ? 'Alasan penolakan untuk referrer...' : 'Catatan persetujuan...'}
+            required={approveReferralAksi === 'reject'}
+            maxLength={1000}
+            error={formApproveReferral.formState.errors.catatan?.message}
+            {...formApproveReferral.register('catatan')}
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setApproveReferralItem(null)}
+              disabled={formApproveReferral.formState.isSubmitting}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              loading={formApproveReferral.formState.isSubmitting}
+              disabled={formApproveReferral.formState.isSubmitting}
+              className="flex items-center gap-2"
+            >
+              {approveReferralAksi === 'reject' ? <Ban size={16} /> : <BadgeCheck size={16} />}
+              <span>{approveReferralAksi === 'reject' ? 'Tolak Invoice' : 'Setujui'}</span>
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL: CAIRKAN PAYOUT REFERRAL (TAB SPMB) */}
+      <Modal
+        isOpen={!!cairkanReferralItem}
+        onClose={() => !formCairkanReferral.formState.isSubmitting && setCairkanReferralItem(null)}
+        title="Pencairan Payout Referral SPMB"
+        size="md"
+      >
+        <form onSubmit={formCairkanReferral.handleSubmit(onSubmitCairkanReferral)} className="space-y-4">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs flex flex-col gap-2">
+            <p className="font-semibold text-emerald-950">
+              {cairkanReferralItem?.nomor_bukti} &bull; {cairkanReferralItem?.referrer?.name || cairkanReferralItem?.referrer?.username || '-'}
+            </p>
+            <p className="text-emerald-900">
+              Bank: <strong>{cairkanReferralItem?.nama_bank || '-'}</strong> &bull; No. Rek: <strong className="font-mono">{cairkanReferralItem?.nomor_rekening || '-'}</strong> &bull; A/N: <strong>{cairkanReferralItem?.nama_pemilik_rekening || '-'}</strong>
+            </p>
+            <p className="text-emerald-950 font-bold text-sm">
+              Total Bukti: {formatRupiah(Number(cairkanReferralItem?.total_nominal) || 0)}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Controller
+              control={formCairkanReferral.control}
+              name="unit_kas_id"
+              render={({ field }) => (
+                <AsyncSelect
+                  label="Unit Kas Sumber Dana"
+                  required
+                  placeholder="Pilih unit kas..."
+                  loadOptions={loadUnitKasOptions}
+                  value={field.value}
+                  onChange={(opt: any) => field.onChange(opt ? String(opt.value) : '')}
+                  error={formCairkanReferral.formState.errors.unit_kas_id?.message}
+                />
+              )}
+            />
+            <Input
+              label="Nominal Pencairan (Rp)"
+              type="number"
+              min="1"
+              max={Number(cairkanReferralItem?.total_nominal) || undefined}
+              required
+              hint={`Maksimal ${formatRupiah(Number(cairkanReferralItem?.total_nominal) || 0)} sesuai bukti.`}
+              error={formCairkanReferral.formState.errors.nominal_cair?.message}
+              {...formCairkanReferral.register('nominal_cair')}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Tanggal Pencairan"
+              type="date"
+              error={formCairkanReferral.formState.errors.tanggal_bayar?.message}
+              {...formCairkanReferral.register('tanggal_bayar')}
+            />
+            <Input
+              label="Ref. Transfer (Opsional)"
+              placeholder="No. referensi bank"
+              error={formCairkanReferral.formState.errors.nomor_referensi_transfer?.message}
+              {...formCairkanReferral.register('nomor_referensi_transfer')}
+            />
+          </div>
+
+          <Textarea
+            label="Catatan (Opsional)"
+            placeholder="Catatan pencairan..."
+            maxLength={500}
+            error={formCairkanReferral.formState.errors.catatan?.message}
+            {...formCairkanReferral.register('catatan')}
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCairkanReferralItem(null)}
+              disabled={formCairkanReferral.formState.isSubmitting}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              loading={formCairkanReferral.formState.isSubmitting}
+              disabled={formCairkanReferral.formState.isSubmitting}
+              className="flex items-center gap-2"
+            >
+              <Banknote size={16} />
+              <span>Cairkan Dana</span>
             </Button>
           </div>
         </form>

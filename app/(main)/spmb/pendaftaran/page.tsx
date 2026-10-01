@@ -29,7 +29,8 @@ import {
   AlertCircle,
   Hash,
   CreditCard,
-  Download
+  Download,
+  UserCheck,
 } from 'lucide-react';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
 import toast from 'react-hot-toast';
@@ -44,8 +45,11 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 import { SPMB_STATUS_CONFIG, SpmbStatusBadge, SpmbPaymentBadge } from '@/components/spmb/SpmbStatusBadge';
+
 
 // ============================================================
 // SKEMA VALIDASI KEPUTUSAN ADMINISTRASI
@@ -127,8 +131,12 @@ function DetailSection({
 // MAIN PAGE COMPONENT
 // ============================================================
 export default function DataPendaftarPage() {
+  const { hasPermission } = useAuth();
+  const canKonversiMahasiswa = hasPermission('spmb.manage');
+
   const [data, setData] = useState<PendaftaranCalonMhs[]>([]);
   const [loading, setLoading] = useState(false);
+
   
   // Pagination & Filtering state
   const [page, setPage] = useState(1);
@@ -204,6 +212,46 @@ export default function DataPendaftarPage() {
       toast.error(error?.response?.data?.message || 'Gagal mengunduh SK Tanda Lulus.');
     }
   };
+
+  // State & handler Konversi ke Mahasiswa
+  const [konversiTarget, setKonversiTarget] = useState<PendaftaranCalonMhs | null>(null);
+  const [showKonversiConfirm, setShowKonversiConfirm] = useState(false);
+  const [isKonversiLoading, setIsKonversiLoading] = useState(false);
+
+  const handleOpenKonversi = (row: PendaftaranCalonMhs) => {
+    if (row.status === 'mahasiswa_baru') {
+      toast.error(`Pendaftar ini sudah dikonversi menjadi mahasiswa${row.nim ? ` (NIM: ${row.nim})` : ''}.`);
+      return;
+    }
+    if (row.status !== 'lulus_administrasi') {
+      toast.error('Belum memenuhi syarat konversi. Hanya pendaftar berstatus "Lulus Administrasi" yang dapat dijadikan mahasiswa.');
+      return;
+    }
+    setKonversiTarget(row);
+    setShowKonversiConfirm(true);
+  };
+
+  const handleKonversiMahasiswa = async () => {
+    if (!konversiTarget) return;
+    setIsKonversiLoading(true);
+    try {
+      const res = await spmbService.konversiMahasiswa(konversiTarget.id);
+      toast.success(`✅ ${konversiTarget.nama_lengkap} berhasil dikonversi. NIM: ${res.data.nim}`);
+      setShowKonversiConfirm(false);
+      setKonversiTarget(null);
+      fetchData();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+      const msg = error?.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(' ')
+        : error?.response?.data?.message || 'Gagal mengonversi ke mahasiswa.';
+      toast.error(msg);
+    } finally {
+      setIsKonversiLoading(false);
+    }
+  };
+
+
 
   // Fetch Pendaftaran list with server-side pagination
   const fetchData = useCallback(async () => {
@@ -397,6 +445,7 @@ export default function DataPendaftarPage() {
               align: 'right', 
               render: (row) => {
                 const isLulus = row.status === 'lulus_administrasi' || row.status === 'mahasiswa_baru';
+                const canKonversi = canKonversiMahasiswa;
                 return (
                   <DropdownMenu
                     items={[
@@ -415,6 +464,13 @@ export default function DataPendaftarPage() {
                           label: 'Unduh SK Kelulusan',
                           icon: <Download size={15} />,
                           onClick: () => handleDownloadSkRow(row)
+                        }
+                      ] : []),
+                      ...(canKonversi ? [
+                        {
+                          label: 'Konversi ke Mahasiswa',
+                          icon: <UserCheck size={16} />,
+                          onClick: () => handleOpenKonversi(row)
                         }
                       ] : [])
                     ]}
@@ -693,6 +749,34 @@ export default function DataPendaftarPage() {
           </form>
         )}
       </Modal>
+
+      {/* ConfirmDialog: Konversi ke Mahasiswa */}
+      <ConfirmDialog
+        isOpen={showKonversiConfirm}
+        onClose={() => {
+          if (!isKonversiLoading) {
+            setShowKonversiConfirm(false);
+            setKonversiTarget(null);
+          }
+        }}
+        onConfirm={handleKonversiMahasiswa}
+        title="Konversi ke Mahasiswa?"
+        message={
+          <span>
+            Tindakan ini akan langsung menerbitkan <strong>NIM</strong>, mengaktifkan{' '}
+            <strong>akun mahasiswa</strong>, dan membuat <strong>email kampus</strong> untuk{' '}
+            <strong>{konversiTarget?.nama_lengkap}</strong>.
+            <br /><br />
+            <span className="text-amber-600 font-semibold">
+              ⚠️ Tindakan ini tidak dapat dibatalkan.
+            </span>
+          </span>
+        }
+        confirmText="Ya, Konversi Sekarang"
+        cancelText="Batal"
+        variant="warning"
+        isLoading={isKonversiLoading}
+      />
     </div>
   );
 }

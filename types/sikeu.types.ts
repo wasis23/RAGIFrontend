@@ -344,13 +344,27 @@ export interface KasKecilPengajuan {
   unitKas?: KasKecilUnit;
 }
 
-export type ReferralPayoutStatus = 'menunggu_verifikasi' | 'terverifikasi' | 'dibayar' | 'ditolak';
+export type ReferralPayoutStatus = 'pending_keuangan' | 'pending_direktur' | 'disetujui' | 'dicairkan' | 'ditolak';
 
 export interface ReferralInvoiceReferrer {
   id: number;
   name?: string;
   username?: string;
   email?: string;
+}
+
+export interface ReferralInvoiceUsage {
+  id: number;
+  referral_code: string;
+  status: string;
+  qualified_at?: string | null;
+  pendaftaran?: {
+    id: number;
+    no_pendaftaran: string;
+    nama_lengkap: string;
+    status?: string;
+    gelombang_penerimaan?: { id: number; nama: string } | null;
+  } | null;
 }
 
 export interface ReferralInvoice {
@@ -364,6 +378,10 @@ export interface ReferralInvoice {
   status: ReferralPayoutStatus;
   verified_by?: number | null;
   verified_at?: string | null;
+  approved_keuangan_by?: number | null;
+  approved_keuangan_at?: string | null;
+  approved_direktur_by?: number | null;
+  approved_direktur_at?: string | null;
   paid_by?: number | null;
   paid_at?: string | null;
   sikeu_reference?: string | null;
@@ -375,6 +393,8 @@ export interface ReferralInvoice {
   nama_pemilik_rekening?: string | null;
   created_at?: string;
   referrer?: ReferralInvoiceReferrer | null;
-  usages?: { id: number; referral_code: string; status: string }[];
+  approver_keuangan?: { id: number; name?: string; username?: string } | null;
+  approver_direktur?: { id: number; name?: string; username?: string } | null;
+  usages?: ReferralInvoiceUsage[];
   usages_count?: number;
 }
