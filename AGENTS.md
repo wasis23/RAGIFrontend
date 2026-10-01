@@ -40,6 +40,14 @@ Sebelum mengeksekusi tugas apapun, Anda WAJIB memeriksa daftar skill di bawah in
 Agent **DILARANG KERAS** melakukan eksekusi perintah `git push` secara otomatis setelah menyelesaikan tugas atau setelah melakukan commit. Perintah `git push` HANYA boleh dieksekusi jika User memintanya secara eksplisit (misalnya: "push ke github").
 </RULE[github_push]>
 
+<RULE[deploy_vercel]>
+# Vercel Deploy Policy (Frontend)
+Deploy ke Vercel **HANYA** dilakukan dengan **push ke branch `vercel`** (Vercel git integration otomatis build & deploy dari branch tersebut).
+- Rilis: pastikan `main` sudah final, lalu push ke branch `vercel`, mis. `git push origin main:vercel` (atau majukan branch lokal `vercel` ke `main` lalu `git push origin vercel`).
+- **DILARANG** memakai Vercel CLI untuk deploy (`vercel`, `npx vercel`, `vercel --prod`) atau memasang/menginstal CLI Vercel. Cukup push branch.
+- Backend (Laravel) **tidak** dideploy ke Vercel.
+</RULE[deploy_vercel]>
+
 <RULE[no_hardcode_definition]>
 # Zero Hardcode & Dynamic Entity Reference Policy
 
