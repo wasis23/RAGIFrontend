@@ -24,7 +24,7 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
-import { formatRupiah, formatDate } from '@/lib/utils';
+import { formatRupiah, formatDate, getStorageFileUrl } from '@/lib/utils';
 import type { PaginationMeta } from '@/types/api.types';
 import type { KasKecilUnit, KasKecilTransaksi, KasKecilPengajuan, PetugasRingkas, AkunKeuangan } from '@/types/sikeu.types';
 
@@ -38,8 +38,6 @@ const editKasKecilSchema = z.object({
 });
 
 type EditKasKecilForm = z.infer<typeof editKasKecilSchema>;
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 
 const STATUS_PENGAJUAN: Record<string, { label: string; variant: 'warning' | 'success' | 'danger' }> = {
   pending_keuangan: { label: 'Menunggu Approval', variant: 'warning' },
@@ -435,7 +433,7 @@ export default function KasKecilDetailPage() {
                   label: 'Lihat Bukti',
                   icon: <Eye size={14} />,
                   onClick: () => {
-                      window.open(`${API_BASE.replace(/\/api$/, '')}/storage/${row.file_bukti_path}`, '_blank');
+                      window.open(getStorageFileUrl(row.file_bukti_path), '_blank');
                     },
                 }]
               : []),

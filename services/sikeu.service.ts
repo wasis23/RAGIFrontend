@@ -8,37 +8,7 @@ import {
   DetailJurnalUmum
 } from '@/types/sikeu.types';
 
-import { getCookie } from '@/lib/domain';
 import apiClient from '@/lib/axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
-
-async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== 'undefined' ? (localStorage.getItem('sso_access_token') || getCookie('sso_access_token')) : null;
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...(options.headers as Record<string, string>),
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || 'Terjadi kesalahan pada request API SIKEU');
-  }
-
-  return data;
-}
 
 export interface PotonganMahasiswa {
   id: number;
@@ -79,10 +49,8 @@ export interface MasterBiaya {
 export const sikeuService = {
   // External Bill Generation
   createExternalBill: async (payload: any) => {
-    return fetchWithAuth<ApiResponse<{ tagihan: TagihanMahasiswa; virtual_account?: any }>>('/v1/sikeu/tagihan/external', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<{ tagihan: TagihanMahasiswa; virtual_account?: any }>>('/v1/sikeu/tagihan/external', payload);
+    return data;
   },
 
   // Piutang Mahasiswa & Rekapitulasi Tunggakan
@@ -107,11 +75,11 @@ export const sikeuService = {
       });
     }
     const query = new URLSearchParams(cleanParams).toString();
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/piutang?${query}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/piutang?${query}`);
+    return data;
   },
 
   downloadPiutangExcel: async (params?: any) => {
-    const token = typeof window !== 'undefined' ? (localStorage.getItem('sso_access_token') || getCookie('sso_access_token')) : null;
     const cleanParams: Record<string, string> = {};
     if (params) {
       Object.entries(params).forEach(([key, val]) => {
@@ -121,15 +89,10 @@ export const sikeuService = {
       });
     }
     const query = new URLSearchParams(cleanParams).toString();
-    const res = await fetch(`${API_BASE_URL}/v1/sikeu/piutang/export-excel?${query}`, {
-      headers: {
-        Authorization: token ? `Bearer ${token}` : '',
-      },
+    const res = await apiClient.get<Blob>(`/v1/sikeu/piutang/export-excel?${query}`, {
+      responseType: 'blob',
     });
-    if (!res.ok) {
-      throw new Error('Gagal mengunduh file Excel piutang');
-    }
-    const blob = await res.blob();
+    const blob = res.data;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -146,7 +109,8 @@ export const sikeuService = {
     if (params?.status && params.status !== 'all') query.append('status', params.status);
     if (params?.mahasiswa_id) query.append('mahasiswa_id', params.mahasiswa_id.toString());
     const qStr = query.toString();
-    return fetchWithAuth<ApiResponse<DispensasiTagihan[]>>(`/v1/sikeu/dispensasi${qStr ? `?${qStr}` : ''}`);
+    const { data } = await apiClient.get<ApiResponse<DispensasiTagihan[]>>(`/v1/sikeu/dispensasi${qStr ? `?${qStr}` : ''}`);
+    return data;
   },
 
   submitDispensasi: async (payload: {
@@ -159,53 +123,44 @@ export const sikeuService = {
     alasan: string;
     dokumen_pendukung?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<DispensasiTagihan>>('/v1/sikeu/dispensasi', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<DispensasiTagihan>>('/v1/sikeu/dispensasi', payload);
+    return data;
   },
 
   deleteDispensasi: async (id: number) => {
-    return fetchWithAuth<ApiResponse<null>>(`/v1/sikeu/dispensasi/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/v1/sikeu/dispensasi/${id}`);
+    return data;
   },
 
   validateDispensasiPublic: async (signatureHash: string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/dispensasi/validasi/${encodeURIComponent(signatureHash)}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/dispensasi/validasi/${encodeURIComponent(signatureHash)}`);
+    return data;
   },
 
   // Approval Pimpinan
   getPendingApprovals: async () => {
-    return fetchWithAuth<ApiResponse<{ tagihan_pending: TagihanMahasiswa[]; dispensasi_pending: DispensasiTagihan[] }>>('/v1/sikeu/approvals');
+    const { data } = await apiClient.get<ApiResponse<{ tagihan_pending: TagihanMahasiswa[]; dispensasi_pending: DispensasiTagihan[] }>>('/v1/sikeu/approvals');
+    return data;
   },
 
   approveTagihan: async (id: number, catatan?: string) => {
-    return fetchWithAuth<ApiResponse<TagihanMahasiswa>>(`/v1/sikeu/approvals/tagihan/${id}/approve`, {
-      method: 'POST',
-      body: JSON.stringify({ catatan }),
-    });
+    const { data } = await apiClient.post<ApiResponse<TagihanMahasiswa>>(`/v1/sikeu/approvals/tagihan/${id}/approve`, { catatan });
+    return data;
   },
 
   rejectTagihan: async (id: number, catatan?: string) => {
-    return fetchWithAuth<ApiResponse<TagihanMahasiswa>>(`/v1/sikeu/approvals/tagihan/${id}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ catatan }),
-    });
+    const { data } = await apiClient.post<ApiResponse<TagihanMahasiswa>>(`/v1/sikeu/approvals/tagihan/${id}/reject`, { catatan });
+    return data;
   },
 
   approveDispensasi: async (id: number, catatan?: string) => {
-    return fetchWithAuth<ApiResponse<DispensasiTagihan>>(`/v1/sikeu/approvals/dispensasi/${id}/approve`, {
-      method: 'POST',
-      body: JSON.stringify({ catatan }),
-    });
+    const { data } = await apiClient.post<ApiResponse<DispensasiTagihan>>(`/v1/sikeu/approvals/dispensasi/${id}/approve`, { catatan });
+    return data;
   },
 
   rejectDispensasi: async (id: number, catatan?: string) => {
-    return fetchWithAuth<ApiResponse<DispensasiTagihan>>(`/v1/sikeu/approvals/dispensasi/${id}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ catatan }),
-    });
+    const { data } = await apiClient.post<ApiResponse<DispensasiTagihan>>(`/v1/sikeu/approvals/dispensasi/${id}/reject`, { catatan });
+    return data;
   },
 
   // Pemasukan Kampus
@@ -215,7 +170,8 @@ export const sikeuService = {
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
     const queryString = query.toString() ? `?${query.toString()}` : '';
-    return fetchWithAuth<ApiResponse<PemasukanKampus[]>>(`/v1/sikeu/pemasukan${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<PemasukanKampus[]>>(`/v1/sikeu/pemasukan${queryString}`);
+    return data;
   },
 
   storeExternalIncome: async (payload: {
@@ -227,16 +183,15 @@ export const sikeuService = {
     nomor_kontrak_ref?: string;
     keterangan?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<PemasukanKampus>>('/v1/sikeu/pemasukan/external', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<PemasukanKampus>>('/v1/sikeu/pemasukan/external', payload);
+    return data;
   },
 
   // Akuntansi & COA
   getCoaList: async (kelompok?: string) => {
     const query = kelompok ? `?kelompok=${kelompok}` : '';
-    return fetchWithAuth<ApiResponse<AkunKeuangan[]>>(`/v1/sikeu/akuntansi/coa${query}`);
+    const { data } = await apiClient.get<ApiResponse<AkunKeuangan[]>>(`/v1/sikeu/akuntansi/coa${query}`);
+    return data;
   },
 
   storeCoa: async (payload: {
@@ -245,10 +200,8 @@ export const sikeuService = {
     kelompok: string;
     saldo_normal: string;
   }) => {
-    return fetchWithAuth<ApiResponse<AkunKeuangan>>('/v1/sikeu/akuntansi/coa', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<AkunKeuangan>>('/v1/sikeu/akuntansi/coa', payload);
+    return data;
   },
 
   getJurnalList: async (params?: {
@@ -269,7 +222,8 @@ export const sikeuService = {
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
     const queryString = query.toString() ? `?${query.toString()}` : '';
-    return fetchWithAuth<ApiResponse<JurnalUmum[]>>(`/v1/sikeu/akuntansi/jurnal${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<JurnalUmum[]>>(`/v1/sikeu/akuntansi/jurnal${queryString}`);
+    return data;
   },
 
   storeJurnal: async (payload: {
@@ -278,14 +232,13 @@ export const sikeuService = {
     keterangan: string;
     details: { akun_id: number; debet: number; kredit: number; keterangan?: string }[];
   }) => {
-    return fetchWithAuth<ApiResponse<JurnalUmum>>('/v1/sikeu/akuntansi/jurnal', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<JurnalUmum>>('/v1/sikeu/akuntansi/jurnal', payload);
+    return data;
   },
 
   getJurnalDetail: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<JurnalUmum>>(`/v1/sikeu/akuntansi/jurnal/${id}`);
+    const { data } = await apiClient.get<ApiResponse<JurnalUmum>>(`/v1/sikeu/akuntansi/jurnal/${id}`);
+    return data;
   },
 
   updateJurnal: async (
@@ -297,27 +250,23 @@ export const sikeuService = {
       details?: { akun_id: number; debet: number; kredit: number; keterangan?: string }[];
     }
   ) => {
-    return fetchWithAuth<ApiResponse<JurnalUmum>>(`/v1/sikeu/akuntansi/jurnal/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<JurnalUmum>>(`/v1/sikeu/akuntansi/jurnal/${id}`, payload);
+    return data;
   },
 
   deleteJurnal: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<null>>(`/v1/sikeu/akuntansi/jurnal/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<null>>(`/v1/sikeu/akuntansi/jurnal/${id}`);
+    return data;
   },
 
   getPengaturanJurnal: async () => {
-    return fetchWithAuth<ApiResponse<Record<string, { default: string; nilai: string }>>>('/v1/sikeu/pengaturan-jurnal');
+    const { data } = await apiClient.get<ApiResponse<Record<string, { default: string; nilai: string }>>>('/v1/sikeu/pengaturan-jurnal');
+    return data;
   },
 
   updatePengaturanJurnal: async (prefix: Record<string, string>) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pengaturan-jurnal', {
-      method: 'PUT',
-      body: JSON.stringify({ prefix }),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>('/v1/sikeu/pengaturan-jurnal', { prefix });
+    return data;
   },
 
   getBukuBesar: async (akun_id?: number, page?: number, per_page?: number) => {
@@ -326,7 +275,8 @@ export const sikeuService = {
     if (page) query.append('page', page.toString());
     if (per_page) query.append('per_page', per_page.toString());
     const queryString = query.toString() ? `?${query.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/akuntansi/buku-besar${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/akuntansi/buku-besar${queryString}`);
+    return data;
   },
 
   getLaporanKeuangan: async (params?: { dari?: string; sampai?: string }) => {
@@ -334,25 +284,24 @@ export const sikeuService = {
     if (params?.dari) query.append('dari', params.dari);
     if (params?.sampai) query.append('sampai', params.sampai);
     const queryString = query.toString() ? `?${query.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/akuntansi/laporan${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/akuntansi/laporan${queryString}`);
+    return data;
   },
 
   // Periode Akuntansi (Tutup Buku)
   getPeriodeList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/periode');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/periode');
+    return data;
   },
 
   createPeriode: async (payload: { nama_periode: string; tanggal_mulai: string; tanggal_selesai: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/periode', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/periode', payload);
+    return data;
   },
 
   tutupPeriode: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/periode/${id}/tutup`, {
-      method: 'POST',
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/periode/${id}/tutup`);
+    return data;
   },
 
   // Master Tarif Gaji Pegawai
@@ -365,7 +314,8 @@ export const sikeuService = {
     if (params?.sort_by) query.append('sort_by', params.sort_by);
     if (params?.sort_order) query.append('sort_order', params.sort_order);
     const queryString = query.toString() ? `?${query.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/master/gaji-pegawai${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/master/gaji-pegawai${queryString}`);
+    return data;
   },
 
   saveMasterGaji: async (payload: {
@@ -375,115 +325,98 @@ export const sikeuService = {
     potongan_tetap: number;
     tarif_transport_harian: number;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/gaji-pegawai', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/gaji-pegawai', payload);
+    return data;
   },
 
   // Master Tarif UKT per Angkatan & Jalur Kelas
   getTarifList: async (params?: { tahun_angkatan?: number; jalur_kelas?: string; program_studi_id?: number }) => {
     const query = new URLSearchParams(params as any).toString();
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/master/tarif-ukt?${query}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/master/tarif-ukt?${query}`);
+    return data;
   },
 
   storeTarif: async (payload: { jenis_biaya_id: number; tahun_angkatan: number; jalur_kelas?: string; kelompok_ukt: number; nama_kelompok?: string; program_studi_id?: number; nominal: number }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/tarif-ukt', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/tarif-ukt', payload);
+    return data;
   },
 
   updateTarif: async (id: number, payload: any) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/tarif-ukt/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/tarif-ukt/${id}`, payload);
+    return data;
   },
 
   deleteTarif: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/tarif-ukt/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/tarif-ukt/${id}`);
+    return data;
   },
 
   // Master Jalur Kelas
   getJalurKelasList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/jalur-kelas');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/jalur-kelas');
+    return data;
   },
 
   storeJalurKelas: async (payload: { nama_jalur: string; deskripsi?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/jalur-kelas', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/jalur-kelas', payload);
+    return data;
   },
 
   updateJalurKelas: async (id: number, payload: { nama_jalur?: string; deskripsi?: string; is_active?: boolean }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/jalur-kelas/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/jalur-kelas/${id}`, payload);
+    return data;
   },
 
   deleteJalurKelas: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/jalur-kelas/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/jalur-kelas/${id}`);
+    return data;
   },
 
   // Master Jenis Biaya Pendidikan
   getJenisBiayaList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/master-biaya');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/master-biaya');
+    return data;
   },
 
   getMasterBiayaList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/master-biaya');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/master-biaya');
+    return data;
   },
 
   storeJenisBiaya: async (payload: { kode: string; nama: string; tipe: string; nominal_standar?: number; deskripsi?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/master-biaya', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/master-biaya', payload);
+    return data;
   },
 
   updateJenisBiaya: async (id: number, payload: { nama?: string; tipe?: string; nominal_standar?: number; deskripsi?: string; is_active?: boolean }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/master-biaya/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/master-biaya/${id}`, payload);
+    return data;
   },
 
   deleteJenisBiaya: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/master-biaya/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/master-biaya/${id}`);
+    return data;
   },
 
   // Master & Mapping Beasiswa Mahasiswa
   getBeasiswaList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/beasiswa');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/beasiswa');
+    return data;
   },
 
   storeBeasiswa: async (payload: { kode: string; nama: string; sumber: string; tipe_potongan: string; nilai_potongan: number; jenis_biaya_ids?: number[]; berlaku_angkatan_mulai?: number; berlaku_angkatan_sampai?: number; deskripsi?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/beasiswa', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/beasiswa', payload);
+    return data;
   },
 
   updateBeasiswa: async (id: number, payload: any) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/beasiswa/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/beasiswa/${id}`, payload);
+    return data;
   },
 
   deleteBeasiswa: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/beasiswa/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/beasiswa/${id}`);
+    return data;
   },
 
   getMahasiswaBeasiswaList: async (params?: { page?: number; per_page?: number; q?: string }) => {
@@ -491,27 +424,23 @@ export const sikeuService = {
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
     if (params?.q) query.append('q', params.q);
-    return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/mahasiswa-beasiswa?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/mahasiswa-beasiswa?${query.toString()}`);
+    return data;
   },
 
   assignMahasiswaBeasiswa: async (payload: { mahasiswa_id: number; nim?: string; nama_mahasiswa?: string; beasiswa_id: number; berlaku_mulai?: string; berlaku_sampai?: string; status?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/mahasiswa-beasiswa', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/mahasiswa-beasiswa', payload);
+    return data;
   },
 
   updateMahasiswaBeasiswa: async (id: number, payload: { beasiswa_id?: number; berlaku_mulai?: string; berlaku_sampai?: string; status?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/mahasiswa-beasiswa/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/mahasiswa-beasiswa/${id}`, payload);
+    return data;
   },
 
   deleteMahasiswaBeasiswa: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/mahasiswa-beasiswa/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/mahasiswa-beasiswa/${id}`);
+    return data;
   },
 
   // Master Setting Potongan Khusus Mahasiswa (Di Luar Beasiswa)
@@ -522,7 +451,8 @@ export const sikeuService = {
     if (params?.search || params?.q) query.append('search', (params.search || params.q)!);
     if (params?.status) query.append('status', params.status);
     if (params?.mahasiswa_id) query.append('mahasiswa_id', params.mahasiswa_id.toString());
-    return fetchWithAuth<ApiResponse<PotonganMahasiswa[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/potongan-mahasiswa?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<PotonganMahasiswa[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/potongan-mahasiswa?${query.toString()}`);
+    return data;
   },
 
   createPotonganMahasiswa: async (payload: {
@@ -543,23 +473,18 @@ export const sikeuService = {
     tagihan_id?: number | null;
     sync_unpaid_bills?: boolean;
   }) => {
-    return fetchWithAuth<ApiResponse<PotonganMahasiswa>>('/v1/sikeu/master/potongan-mahasiswa', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<PotonganMahasiswa>>('/v1/sikeu/master/potongan-mahasiswa', payload);
+    return data;
   },
 
   updatePotonganMahasiswa: async (id: number, payload: Partial<PotonganMahasiswa>) => {
-    return fetchWithAuth<ApiResponse<PotonganMahasiswa>>(`/v1/sikeu/master/potongan-mahasiswa/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<PotonganMahasiswa>>(`/v1/sikeu/master/potongan-mahasiswa/${id}`, payload);
+    return data;
   },
 
   deletePotonganMahasiswa: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/potongan-mahasiswa/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/potongan-mahasiswa/${id}`);
+    return data;
   },
 
   // Penetapan Tipe Tagihan & Jalur Kelas Mahasiswa (SPMB / SIAKAD / Change Status)
@@ -583,78 +508,76 @@ export const sikeuService = {
         }
       });
     }
-    return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/student-billing-types?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/master/student-billing-types?${query.toString()}`);
+    return data;
   },
 
   assignStudentBillingType: async (payload: { mahasiswa_id: number; nim?: string; nama_mahasiswa?: string; tahun_angkatan: number; jalur_kelas: string; kelompok_ukt: number; beasiswa_id?: number; catatan_perubahan?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/assign-student-billing-type', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/assign-student-billing-type', payload);
+    return data;
   },
 
   updateStudentBillingType: async (id: number, payload: { jalur_kelas?: string; kelompok_ukt?: number; beasiswa_id?: number; catatan_perubahan: string }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/update-student-billing-type/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/update-student-billing-type/${id}`, payload);
+    return data;
   },
 
   syncStudentsFromSiakad: async (payload?: { tahun_angkatan?: number }) => {
-    return fetchWithAuth<ApiResponse<{ synced_count: number; target_angkatan?: string }>>('/v1/sikeu/master/sync-students', {
-      method: 'POST',
-      body: JSON.stringify(payload || {}),
-    });
+    const { data } = await apiClient.post<ApiResponse<{ synced_count: number; target_angkatan?: string }>>('/v1/sikeu/master/sync-students', payload || {});
+    return data;
   },
 
   // Pencarian Mahasiswa untuk Tagihan & Dispensasi
   searchMahasiswa: async (q: string) => {
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa-search?q=${encodeURIComponent(q)}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa-search?q=${encodeURIComponent(q)}`);
+    return data;
   },
 
   // Portal Tagihan & Invoice Mahasiswa Mandiri
   getMyBills: async (mahasiswaId?: number) => {
     const params = new URLSearchParams({ include_lunas: '1' });
     if (mahasiswaId) params.append('mahasiswa_id', mahasiswaId.toString());
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/tagihan?${params.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/tagihan?${params.toString()}`);
+    return data;
   },
 
   getMyPaymentHistory: async (mahasiswaId?: number) => {
     const q = mahasiswaId ? `?mahasiswa_id=${mahasiswaId}` : '';
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/riwayat-pembayaran${q}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa/riwayat-pembayaran${q}`);
+    return data;
   },
 
   getPaymentChannels: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/payment-channels');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/payment-channels');
+    return data;
   },
 
   // Rekening kampus tujuan transfer manual (aman untuk mahasiswa, tanpa saldo)
   getRekeningTujuan: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/rekening-tujuan');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/mahasiswa/rekening-tujuan');
+    return data;
   },
 
   getInvoice: async (id: number, bankKode?: string) => {
     const q = bankKode ? `?bank_kode=${encodeURIComponent(bankKode)}` : '';
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/mahasiswa/invoice/${id}${q}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/mahasiswa/invoice/${id}${q}`);
+    return data;
   },
 
   generateBatchInvoice: async (tagihanIds: number[], bankKode?: string) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/mahasiswa/invoice-batch', {
-      method: 'POST',
-      body: JSON.stringify({ tagihan_ids: tagihanIds, bank_kode: bankKode || 'BSN' }),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/mahasiswa/invoice-batch', { tagihan_ids: tagihanIds, bank_kode: bankKode || 'BSN' });
+    return data;
   },
 
   payStudentBills: async (payload: { tagihan_ids: number[]; channel_bayar?: string; bank_kode?: string; catatan?: string }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/mahasiswa/pay-bills', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/mahasiswa/pay-bills', payload);
+    return data;
   },
 
   // Cetak Bukti Dispensasi
   getCetakBuktiDispensasi: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/dispensasi/${id}/cetak-bukti`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/dispensasi/${id}/cetak-bukti`);
+    return data;
   },
 
   // Riwayat Pembayaran Mahasiswa (with filters)
@@ -680,31 +603,30 @@ export const sikeuService = {
       });
     }
     const query = new URLSearchParams(cleanParams).toString();
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran${query ? `?${query}` : ''}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pembayaran${query ? `?${query}` : ''}`);
+    return data;
   },
 
   // H2H BTN Syariah (bridge Go): terbitkan billing VA + sinkron terbayar
   terbitkanH2h: async (tagihanId: number | string, force?: boolean) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${tagihanId}/terbitkan-h2h`, {
-      method: 'POST',
-      body: JSON.stringify({ force: !!force }),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/tagihan/${tagihanId}/terbitkan-h2h`, { force: !!force });
+    return data;
   },
 
   syncH2h: async (limit?: number) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/h2h/sync', {
-      method: 'POST',
-      body: JSON.stringify({ limit: limit ?? 100 }),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/h2h/sync', { limit: limit ?? 100 });
+    return data;
   },
 
   getH2hStatus: async () => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/h2h/status');
+    const { data } = await apiClient.get<ApiResponse<any>>('/v1/sikeu/h2h/status');
+    return data;
   },
 
   // Validasi Pembayaran Publik Real-Time via QR Code
   validatePembayaranPublic: async (kodeTransaksi: string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/validasi/${encodeURIComponent(kodeTransaksi)}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pembayaran/validasi/${encodeURIComponent(kodeTransaksi)}`);
+    return data;
   },
 
   // Upload bukti transfer manual (mahasiswa) — multipart
@@ -717,88 +639,77 @@ export const sikeuService = {
 
   // Inisiasi transfer manual: kunci nominal + kode unik per tagihan
   manualInit: async (payload: { unit_kas_id: number; items: { tagihan_id: number; jumlah_bayar?: number }[] }) => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pembayaran/manual-init', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any[]>>('/v1/sikeu/pembayaran/manual-init', payload);
+    return data;
   },
 
   // Verifikasi bukti transfer manual (keuangan)
   approveManual: async (id: number | string, catatan?: string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/approve-manual`, {
-      method: 'POST',
-      body: JSON.stringify({ catatan }),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/approve-manual`, { catatan });
+    return data;
   },
 
   rejectManual: async (id: number | string, catatan: string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/reject-manual`, {
-      method: 'POST',
-      body: JSON.stringify({ catatan }),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/reject-manual`, { catatan });
+    return data;
   },
 
   // Payment Gateway Config
   getPaymentGateways: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/payment-gateway');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/payment-gateway');
+    return data;
   },
 
   getActivePaymentGateway: async () => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/payment-gateway/active');
+    const { data } = await apiClient.get<ApiResponse<any>>('/v1/sikeu/payment-gateway/active');
+    return data;
   },
 
   getPaymentGatewayBalance: async (gatewayName: string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/payment-gateway/${gatewayName}/balance`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/payment-gateway/${gatewayName}/balance`);
+    return data;
   },
 
   updatePaymentGateway: async (gatewayName: string, payload: any) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/payment-gateway/${gatewayName}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/payment-gateway/${gatewayName}`, payload);
+    return data;
   },
 
   // Master Unit Kas
   getUnitKasList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/unit-kas');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/unit-kas');
+    return data;
   },
 
   storeUnitKas: async (payload: any) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/unit-kas', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/unit-kas', payload);
+    return data;
   },
 
   updateUnitKas: async (id: number, payload: any) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/unit-kas/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/unit-kas/${id}`, payload);
+    return data;
   },
 
   deleteUnitKas: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/unit-kas/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/unit-kas/${id}`);
+    return data;
   },
 
   // Pengajuan Pencairan Kas
   getPengajuanKasList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pengajuan-kas');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/pengajuan-kas');
+    return data;
   },
 
   storePengajuanKas: async (payload: any) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pengajuan-kas', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pengajuan-kas', payload);
+    return data;
   },
 
   approvePengajuanKas: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pengajuan-kas/${id}/approve`, {
-      method: 'POST',
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/pengajuan-kas/${id}/approve`);
+    return data;
   },
 
   // Dashboard Executive Summary & Live Xendit
@@ -807,7 +718,8 @@ export const sikeuService = {
     if (params?.start_date) query.append('start_date', params.start_date);
     if (params?.end_date) query.append('end_date', params.end_date);
     const qs = query.toString() ? `?${query.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/dashboard-summary${qs}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/dashboard-summary${qs}`);
+    return data;
   },
 
   // Pengeluaran Kampus
@@ -819,7 +731,8 @@ export const sikeuService = {
     if (params?.status) query.append('status', params.status);
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pengeluaran?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pengeluaran?${query.toString()}`);
+    return data;
   },
 
   storePengeluaran: async (payload: {
@@ -834,10 +747,8 @@ export const sikeuService = {
     keterangan?: string;
     file_bukti_bayar?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pengeluaran', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pengeluaran', payload);
+    return data;
   },
 
   // Pencairan Reward Referral SPMB (invoice masuk dari SPMB)
@@ -847,17 +758,18 @@ export const sikeuService = {
     if (params?.status) query.append('status', params.status);
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/referral-pencairan?${query.toString()}`);
+    return data;
   },
 
   getReferralInvoiceById: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}`);
+    return data;
   },
 
   verifyReferralInvoice: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/verify`, {
-      method: 'POST',
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/verify`);
+    return data;
   },
 
   payReferralInvoice: async (id: number, payload: {
@@ -867,17 +779,13 @@ export const sikeuService = {
     nomor_referensi_transfer?: string;
     catatan?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/pay`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/pay`, payload);
+    return data;
   },
 
   rejectReferralInvoice: async (id: number, payload: { catatan: string }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/reject`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/referral-pencairan/${id}/reject`, payload);
+    return data;
   },
 
   // Pajak Kampus & Setor NTPN
@@ -888,14 +796,13 @@ export const sikeuService = {
     if (params?.status) query.append('status', params.status);
     if (params?.page) query.append('page', params.page.toString());
     if (params?.per_page) query.append('per_page', params.per_page.toString());
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pajak?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pajak?${query.toString()}`);
+    return data;
   },
 
   setorPajak: async (id: number, payload: { ntpn: string; tanggal_setor?: string; unit_kas_id?: number }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pajak/${id}/setor`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/pajak/${id}/setor`, payload);
+    return data;
   },
 
   // Setting Tarif per Angkatan/Prodi/Semester
@@ -920,7 +827,8 @@ export const sikeuService = {
         }
       });
     }
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/master/setting-tarif?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/master/setting-tarif?${query.toString()}`);
+    return data;
   },
 
   storeSettingTarif: async (payload: {
@@ -933,28 +841,24 @@ export const sikeuService = {
     is_active?: boolean;
     keterangan?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/setting-tarif', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/master/setting-tarif', payload);
+    return data;
   },
 
   updateSettingTarif: async (id: number, payload: any) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/setting-tarif/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/master/setting-tarif/${id}`, payload);
+    return data;
   },
 
   deleteSettingTarif: async (id: number) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/master/setting-tarif/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/master/setting-tarif/${id}`);
+    return data;
   },
 
   // Program Studi Reference for SIKEU
   getProgramStudiList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/program-studi');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/program-studi');
+    return data;
   },
 
   // Pembayaran Kasir (Offline / Loket Kampus)
@@ -967,17 +871,13 @@ export const sikeuService = {
     alasan_potongan?: string;
     catatan?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran/kasir', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran/kasir', payload);
+    return data;
   },
 
   koreksiPembayaran: async (id: number, payload: { alasan_koreksi: string }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/koreksi`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/pembayaran/${id}/koreksi`, payload);
+    return data;
   },
 
   // Daftar Tagihan Mahasiswa (Real Tagihan Index & Detail)
@@ -1000,11 +900,13 @@ export const sikeuService = {
     if (params?.program_studi_id) query.append('program_studi_id', params.program_studi_id.toString());
     if (params?.order_by) query.append('order_by', params.order_by);
     if (params?.order_direction) query.append('order_direction', params.order_direction);
-    return fetchWithAuth<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/tagihan?${query.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any[]> & { meta?: PaginationMeta }>(`/v1/sikeu/tagihan?${query.toString()}`);
+    return data;
   },
 
   getTagihanDetail: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${id}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/tagihan/${id}`);
+    return data;
   },
 
   // Ad-hoc Potongan Tambahan pada Tagihan Terbit
@@ -1015,16 +917,13 @@ export const sikeuService = {
     nilai_potongan: number;
     keterangan?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/${tagihanId}/potongan`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/tagihan/${tagihanId}/potongan`, payload);
+    return data;
   },
 
   deletePotonganTagihan: async (potonganId: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/tagihan/potongan/${potonganId}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/tagihan/potongan/${potonganId}`);
+    return data;
   },
 
   // Tagihan Belum Lunas Mahasiswa untuk Kasir / Loket (Support Siakad Mahasiswa & SPMB Calon Mahasiswa)
@@ -1034,20 +933,24 @@ export const sikeuService = {
     if (includeLunas) params.append('include_lunas', 'true');
     const queryString = params.toString() ? `?${params.toString()}` : '';
     const url = `/v1/sikeu/mahasiswa/${studentId}/unpaid-bills${queryString}`;
-    return fetchWithAuth<ApiResponse<any>>(url);
+    const { data } = await apiClient.get<ApiResponse<any>>(url);
+    return data;
   },
 
   // Master Data Helper (Dynamic Entity Reference - Zero Hardcode)
   getAngkatanList: async () => {
-    return fetchWithAuth<ApiResponse<number[]>>('/v1/sikeu/master/angkatan-list');
+    const { data } = await apiClient.get<ApiResponse<number[]>>('/v1/sikeu/master/angkatan-list');
+    return data;
   },
 
   getActiveTahunAkademik: async () => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/master/tahun-akademik/aktif');
+    const { data } = await apiClient.get<ApiResponse<any>>('/v1/sikeu/master/tahun-akademik/aktif');
+    return data;
   },
 
   getTahunAkademikList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/master/tahun-akademik');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/master/tahun-akademik');
+    return data;
   },
 
   // Preview Target Mahasiswa Tagihan Masal
@@ -1061,7 +964,8 @@ export const sikeuService = {
       jalur_kelas: params.jalur_kelas,
       ...(params.program_studi_id ? { program_studi_id: String(params.program_studi_id) } : {}),
     }).toString();
-    return fetchWithAuth<ApiResponse<{ total_mahasiswa: number; sample_mahasiswa: any[] }>>(`/v1/sikeu/tagihan/preview-mass-target?${query}`);
+    const { data } = await apiClient.get<ApiResponse<{ total_mahasiswa: number; sample_mahasiswa: any[] }>>(`/v1/sikeu/tagihan/preview-mass-target?${query}`);
+    return data;
   },
 
   // Generate Tagihan Semester Masal
@@ -1074,22 +978,19 @@ export const sikeuService = {
     jatuh_tempo: string;
     semester_label?: string;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/tagihan/generate-mass', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/tagihan/generate-mass', payload);
+    return data;
   },
 
   // Pengaturan On/Off Skema Golongan UKT
   getUktSetting: async () => {
-    return fetchWithAuth<ApiResponse<{ enabled: boolean; description?: string }>>('/v1/sikeu/settings/golongan-ukt');
+    const { data } = await apiClient.get<ApiResponse<{ enabled: boolean; description?: string }>>('/v1/sikeu/settings/golongan-ukt');
+    return data;
   },
 
   updateUktSetting: async (enabled: boolean) => {
-    return fetchWithAuth<ApiResponse<{ enabled: boolean }>>('/v1/sikeu/settings/golongan-ukt', {
-      method: 'POST',
-      body: JSON.stringify({ enabled }),
-    });
+    const { data } = await apiClient.post<ApiResponse<{ enabled: boolean }>>('/v1/sikeu/settings/golongan-ukt', { enabled });
+    return data;
   },
 
   // Pembayaran Langsung di Kasir Loket (Direct Billing & Payment)
@@ -1105,10 +1006,8 @@ export const sikeuService = {
     catatan?: string;
     tahun_akademik_id?: number;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran/direct-cashier', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran/direct-cashier', payload);
+    return data;
   },
 
   // ========================================================
@@ -1139,11 +1038,13 @@ export const sikeuService = {
     if (params?.sort_order) q.append('sort_order', params.sort_order);
 
     const queryString = q.toString() ? `?${q.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/pembayaran-mahasiswa/tarif${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/pembayaran-mahasiswa/tarif${queryString}`);
+    return data;
   },
 
   getPembayaranMahasiswaTarifDetail: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`);
+    return data;
   },
 
   createPembayaranMahasiswaTarif: async (payload: {
@@ -1155,10 +1056,8 @@ export const sikeuService = {
     keterangan?: string | null;
     is_active?: boolean;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tarif', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tarif', payload);
+    return data;
   },
 
   updatePembayaranMahasiswaTarif: async (
@@ -1173,33 +1072,33 @@ export const sikeuService = {
       is_active?: boolean;
     }
   ) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`, payload);
+    return data;
   },
 
   deletePembayaranMahasiswaTarif: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif/${id}`);
+    return data;
   },
 
   getPembayaranMahasiswaKatalogBiaya: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pembayaran-mahasiswa/katalog-biaya');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/pembayaran-mahasiswa/katalog-biaya');
+    return data;
   },
 
   getPembayaranMahasiswaProdiList: async () => {
-    return fetchWithAuth<ApiResponse<any[]>>('/v1/sikeu/pembayaran-mahasiswa/prodi-list');
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/v1/sikeu/pembayaran-mahasiswa/prodi-list');
+    return data;
   },
 
   getPembayaranMahasiswaSummary: async () => {
-    return fetchWithAuth<ApiResponse<{
+    const { data } = await apiClient.get<ApiResponse<{
       total_tarif: number;
       total_aktif: number;
       total_komponen_dikonfigurasi: number;
       total_katalog_biaya: number;
     }>>('/v1/sikeu/pembayaran-mahasiswa/summary');
+    return data;
   },
 
   getPembayaranMahasiswaTarifMahasiswa: async (params?: {
@@ -1219,7 +1118,8 @@ export const sikeuService = {
     if (params?.semester) q.append('semester', String(params.semester));
 
     const queryString = q.toString() ? `?${q.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif-mahasiswa${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tarif-mahasiswa${queryString}`);
+    return data;
   },
 
   getPembayaranMahasiswaTagihanList: async (params?: {
@@ -1239,7 +1139,8 @@ export const sikeuService = {
     if (params?.jatuh_tempo_sampai) q.append('jatuh_tempo_sampai', params.jatuh_tempo_sampai);
 
     const queryString = q.toString() ? `?${q.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any[]>>(`/v1/sikeu/pembayaran-mahasiswa/tagihan${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/pembayaran-mahasiswa/tagihan${queryString}`);
+    return data;
   },
 
   createPembayaranMahasiswaTagihan: async (payload: {
@@ -1257,10 +1158,8 @@ export const sikeuService = {
     mode_pembayaran: 'terbitkan_tagihan' | 'bayar_loket_tunai' | 'bayar_loket_transfer';
     jumlah_bayar?: number;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tagihan', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tagihan', payload);
+    return data;
   },
 
   previewPembayaranMahasiswaMassTagihan: async (params: {
@@ -1276,7 +1175,8 @@ export const sikeuService = {
     if (params.master_biaya_ids && params.master_biaya_ids.length > 0) {
       params.master_biaya_ids.forEach((id) => q.append('master_biaya_ids[]', String(id)));
     }
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/mass-tagihan/preview?${q.toString()}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/mass-tagihan/preview?${q.toString()}`);
+    return data;
   },
 
   createPembayaranMahasiswaMassTagihan: async (payload: {
@@ -1291,10 +1191,8 @@ export const sikeuService = {
       keterangan?: string;
     }>;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/mass-tagihan', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/mass-tagihan', payload);
+    return data;
   },
 
   // Potongan Mahasiswa (SIAKAD & SPMB)
@@ -1317,11 +1215,13 @@ export const sikeuService = {
     if (params?.sort_order) q.append('sort_order', params.sort_order);
 
     const queryString = q.toString() ? `?${q.toString()}` : '';
-    return fetchWithAuth<ApiResponse<any[]> & { summary?: any }>(`/v1/sikeu/pembayaran-mahasiswa/potongan${queryString}`);
+    const { data } = await apiClient.get<ApiResponse<any[]> & { summary?: any }>(`/v1/sikeu/pembayaran-mahasiswa/potongan${queryString}`);
+    return data;
   },
 
   getPembayaranMahasiswaPotonganDetail: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/potongan/${id}`);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/potongan/${id}`);
+    return data;
   },
 
   createPembayaranMahasiswaPotongan: async (payload: {
@@ -1339,29 +1239,23 @@ export const sikeuService = {
       mode_potongan?: 'seluruhnya' | 'nominal';
     }>;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/potongan', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/potongan', payload);
+    return data;
   },
 
   deletePembayaranMahasiswaPotongan: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/potongan/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/potongan/${id}`);
+    return data;
   },
 
   deletePembayaranMahasiswaTagihan: async (id: number | string) => {
-    return fetchWithAuth<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tagihan/${id}`, {
-      method: 'DELETE',
-    });
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/pembayaran-mahasiswa/tagihan/${id}`);
+    return data;
   },
 
   batchDeletePembayaranMahasiswaTagihan: async (tagihan_ids: number[]) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tagihan/batch-delete', {
-      method: 'POST',
-      body: JSON.stringify({ tagihan_ids }),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/tagihan/batch-delete', { tagihan_ids });
+    return data;
   },
 
   alihkanPembayaranMahasiswa: async (payload: {
@@ -1370,10 +1264,8 @@ export const sikeuService = {
     nominal: number;
     alasan: string;
   }) => {
-    return fetchWithAuth<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/alihkan-pembayaran', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/alihkan-pembayaran', payload);
+    return data;
   },
 };
 
