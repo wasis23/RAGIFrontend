@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, Clock, AlertCircle, GraduationCap, Mail, CreditCard } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, GraduationCap, Mail, CreditCard, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,7 @@ export default function DaftarUlangPage() {
   const [pendaftaran, setPendaftaran] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingSk, setDownloadingSk] = useState(false);
 
   const fetchStatus = async () => {
     try {
@@ -31,6 +32,20 @@ export default function DaftarUlangPage() {
   useEffect(() => {
     fetchStatus();
   }, []);
+
+  const handleDownloadSk = async () => {
+    if (!pendaftaran?.id) return;
+    try {
+      setDownloadingSk(true);
+      await spmbService.downloadSkLulusPdf(pendaftaran.id, pendaftaran.no_pendaftaran);
+      toast.success('SK Tanda Lulus berhasil diunduh.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Gagal mengunduh SK Tanda Lulus.');
+    } finally {
+      setDownloadingSk(false);
+    }
+  };
 
   const handleGenerateTagihan = async () => {
     if (!pendaftaran?.id) return;
@@ -51,7 +66,7 @@ export default function DaftarUlangPage() {
 
   const hasilSeleksi = pendaftaran?.hasil_seleksi ?? pendaftaran?.konversi ?? null;
   const statusDaftarUlang = pendaftaran?.hasil_seleksi?.status_daftar_ulang ?? 'belum';
-  const sudahLulus = pendaftaran?.hasil_seleksi?.status === 'lulus' || pendaftaran?.status === 'mahasiswa_baru';
+  const sudahLulus = pendaftaran?.hasil_seleksi?.status === 'lulus' || pendaftaran?.status === 'mahasiswa_baru' || pendaftaran?.status === 'lulus_administrasi';
   const sudahLunas = statusDaftarUlang === 'lunas' || pendaftaran?.status === 'mahasiswa_baru';
   const menungguPembayaran = statusDaftarUlang === 'menunggu_pembayaran';
 
@@ -171,14 +186,27 @@ export default function DaftarUlangPage() {
         </div>
 
         {/* Tombol Aksi */}
-        {!sudahLunas && (
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            {menungguPembayaran ? (
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          {sudahLulus && (
+            <Button
+              variant="outline"
+              icon={<Download size={16} />}
+              onClick={handleDownloadSk}
+              isLoading={downloadingSk}
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+              className="w-full sm:w-auto font-bold"
+            >
+              {downloadingSk ? 'Mengunduh...' : 'Unduh SK Tanda Lulus (PDF)'}
+            </Button>
+          )}
+          {!sudahLunas && (
+            menungguPembayaran ? (
               <Button
                 variant="primary"
                 icon={<CreditCard size={16} />}
                 onClick={() => router.push('/checkout')}
                 className="w-full sm:w-auto"
+                style={{ backgroundColor: 'var(--module-primary)' }}
               >
                 Lanjutkan Pembayaran
               </Button>
@@ -189,12 +217,13 @@ export default function DaftarUlangPage() {
                 loading={submitting}
                 onClick={handleGenerateTagihan}
                 className="w-full sm:w-auto"
+                style={{ backgroundColor: 'var(--module-primary)' }}
               >
                 {submitting ? 'Membuat Tagihan...' : 'Buat Tagihan Daftar Ulang'}
               </Button>
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
       </div>
     </div>
   );

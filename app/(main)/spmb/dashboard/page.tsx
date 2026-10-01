@@ -27,7 +27,8 @@ import {
   CreditCard,
   Users,
   Activity,
-  CheckCircle
+  CheckCircle,
+  Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUiStore } from '@/store/uiStore';
@@ -48,7 +49,22 @@ export default function SPMBDashboardPage() {
   const [adminPendaftarList, setAdminPendaftarList] = useState<PendaftaranCalonMhs[]>([]);
   const [berkasRequirements, setBerkasRequirements] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [downloadingSk, setDownloadingSk] = useState(false);
   const { module_color: moduleColor, fetchModuleColor } = useUiStore();
+
+  const handleDownloadSk = async () => {
+    if (!pendaftaran?.id) return;
+    try {
+      setDownloadingSk(true);
+      await spmbService.downloadSkLulusPdf(pendaftaran.id, pendaftaran.no_pendaftaran);
+      toast.success('SK Tanda Lulus berhasil diunduh.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Gagal mengunduh SK Tanda Lulus.');
+    } finally {
+      setDownloadingSk(false);
+    }
+  };
 
   const userRoleSlugs = (user?.roles || []).map((r: any) =>
     (typeof r === 'string' ? r : r.slug || r.name || '').toLowerCase()
@@ -343,6 +359,69 @@ export default function SPMBDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── SK Tanda Lulus Announcement Card (Saat Lulus) ── */}
+      {(status === 'lulus_administrasi' || status === 'mahasiswa_baru' || (pendaftaran as any)?.hasil_seleksi?.status === 'lulus') && (
+        <div 
+          className="card p-5 sm:p-6 border-2 rounded-2xl shadow-xs space-y-4"
+          style={{ borderColor: 'var(--module-primary)', backgroundColor: 'var(--module-primary-subtle, #f0fdf4)' }}
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div 
+                className="p-3 text-white rounded-xl shadow-xs shrink-0 mt-0.5"
+                style={{ backgroundColor: 'var(--module-primary)' }}
+              >
+                <Award size={24} />
+              </div>
+              <div>
+                <div 
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black mb-1.5"
+                  style={{ backgroundColor: 'var(--module-primary-subtle, #e0f2fe)', color: 'var(--module-primary)' }}
+                >
+                  <CheckCircle size={13} />
+                  PENGUMUMAN RESMI KELULUSAN
+                </div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 leading-tight">
+                  Selamat! Anda Dinyatakan LULUS Seleksi SPMB
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                  Anda resmi diterima pada Program Studi{' '}
+                  <strong style={{ color: 'var(--module-primary)' }}>
+                    {(pendaftaran as any)?.hasil_seleksi?.program_studi_diterima?.nama ||
+                      (pendaftaran as any)?.program_studi?.nama ||
+                      (pendaftaran as any)?.program_studi?.nama_prodi ||
+                      prodiList.find((p) => String(p.id) === String(pendaftaran?.program_studi_id))?.nama ||
+                      'Program Studi Terpilih'}
+                  </strong>
+                  . Anda dapat langsung mengunduh SK Tanda Lulus resmi secara mandiri di bawah ini.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <Button
+                variant="primary"
+                onClick={handleDownloadSk}
+                isLoading={downloadingSk}
+                icon={<Download size={16} />}
+                style={{ backgroundColor: 'var(--module-primary)' }}
+                className="font-black text-white shadow-xs"
+              >
+                {downloadingSk ? 'Mengunduh SK...' : 'Unduh SK Tanda Lulus (PDF)'}
+              </Button>
+              <Link href="/spmb/daftar-ulang">
+                <Button
+                  variant="secondary"
+                  icon={<ArrowRight size={15} />}
+                  className="font-bold"
+                >
+                  Lanjut Daftar Ulang
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Personal Applicant KPI Summary Cards ─────────────────────── */}
       <div className="spmb-kpi-grid">

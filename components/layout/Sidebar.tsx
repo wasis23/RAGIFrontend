@@ -138,6 +138,8 @@ const getIcon = (iconName: string) => {
     'Boxes': Boxes,
     'Layers': Layers,
     'Tag': Tag,
+    'FileSignature': FileText,
+    'FileText': FileText,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -338,6 +340,7 @@ const SPMB_FALLBACK_MENUS: Menu[] = [
       { id: 8037, parent_id: 803, name: 'Komponen Biaya', url: '/spmb/master/komponen-biaya', icon: 'FaTag', module: 'spmb', permission_id: null, order_index: 7, is_active: true },
       { id: 8038, parent_id: 803, name: 'Master Data Referensi', url: '/spmb/master/referensi', icon: 'FaDatabase', module: 'spmb', permission_id: null, order_index: 8, is_active: true },
       { id: 8039, parent_id: 803, name: 'Master Tipe Referensi', url: '/spmb/master/tipe-referensi', icon: 'FaLayers', module: 'spmb', permission_id: null, order_index: 9, is_active: true },
+      { id: 8040, parent_id: 803, name: 'Template SK & Surat', url: '/spmb/master/template-surat', icon: 'FileSignature', module: 'spmb', permission_id: null, order_index: 10, is_active: true },
     ]
   },
   {

@@ -1,5 +1,13 @@
 import api from '@/lib/axios';
-import type { ReferralValidationResult, MyReferralData, ReferralUsagesResponse, ReferralPayoutResult } from '@/types/spmb.types';
+import type {
+  ReferralValidationResult,
+  MyReferralData,
+  ReferralUsagesResponse,
+  ReferralPayoutResult,
+  TemplateSuratSpmb,
+  TemplateSuratSpmbPayload,
+  GetTemplateSuratParams,
+} from '@/types/spmb.types';
 
 export interface JalurMasuk {
   id: number;
@@ -116,6 +124,9 @@ export interface PendaftaranCalonMhs {
   dokumen_pendaftaran?: PendaftaranBerkas[];
   progress_alur?: any[];
   daftar_ulang?: DaftarUlangSummary | null;
+  hasil_seleksi?: any;
+  hasilSeleksi?: any;
+  konversi?: any;
 }
 
 export interface RiwayatPembayaranDaftarUlang {
@@ -268,6 +279,30 @@ export const spmbService = {
   finalizePendaftaran: async () => {
     const response = await api.post('/spmb/pendaftaran/finalize');
     return response.data;
+  },
+
+  downloadSkLulus: async (id: number | string) => {
+    const response = await api.get(`/spmb/pendaftaran/${id}/sk-lulus`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  downloadSkLulusPdf: async (id: number | string, noPendaftaran?: string) => {
+    const response = await api.get(`/spmb/pendaftaran/${id}/sk-lulus`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const filename = noPendaftaran ? `SK-Tanda-Lulus-${noPendaftaran}.pdf` : `SK-Tanda-Lulus-${id}.pdf`;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    return true;
   },
 
   // Kuota Prodi
@@ -657,6 +692,36 @@ export const spmbService = {
 
   downloadReferralPayout: async (id: number): Promise<Blob> => {
     const response = await api.get(`/spmb/referral/payout/${id}/download`, { responseType: 'blob' });
+    return response.data as Blob;
+  },
+
+  getTemplateSurat: async (params?: GetTemplateSuratParams) => {
+    const response = await api.get('/spmb/template-surat', { params });
+    return response.data;
+  },
+
+  getTemplateSuratDetail: async (id: number | string): Promise<{ status: string; message: string; data: TemplateSuratSpmb }> => {
+    const response = await api.get(`/spmb/template-surat/${id}`);
+    return response.data;
+  },
+
+  createTemplateSurat: async (payload: TemplateSuratSpmbPayload): Promise<{ status: string; message: string; data: TemplateSuratSpmb }> => {
+    const response = await api.post('/spmb/template-surat', payload);
+    return response.data;
+  },
+
+  updateTemplateSurat: async (id: number | string, payload: Partial<TemplateSuratSpmbPayload>): Promise<{ status: string; message: string; data: TemplateSuratSpmb }> => {
+    const response = await api.put(`/spmb/template-surat/${id}`, payload);
+    return response.data;
+  },
+
+  deleteTemplateSurat: async (id: number | string): Promise<{ status: string; message: string }> => {
+    const response = await api.delete(`/spmb/template-surat/${id}`);
+    return response.data;
+  },
+
+  previewTemplateSuratPdf: async (id: number | string): Promise<Blob> => {
+    const response = await api.get(`/spmb/template-surat/${id}/preview`, { responseType: 'blob' });
     return response.data as Blob;
   },
 };

@@ -28,7 +28,8 @@ import {
   Save, 
   AlertCircle,
   Hash,
-  CreditCard
+  CreditCard,
+  Download
 } from 'lucide-react';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
 import toast from 'react-hot-toast';
@@ -191,6 +192,16 @@ export default function DataPendaftarPage() {
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err?.response?.data?.message || 'Gagal menyimpan keputusan administrasi.');
+    }
+  };
+
+  const handleDownloadSkRow = async (row: PendaftaranCalonMhs) => {
+    try {
+      await spmbService.downloadSkLulusPdf(row.id, row.no_pendaftaran);
+      toast.success(`SK Tanda Lulus ${row.nama_lengkap} berhasil diunduh.`);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Gagal mengunduh SK Tanda Lulus.');
     }
   };
 
@@ -384,22 +395,32 @@ export default function DataPendaftarPage() {
               key: 'actions', 
               label: 'Aksi', 
               align: 'right', 
-              render: (row) => (
-                <DropdownMenu
-                  items={[
-                    {
-                      label: 'Verifikasi & Detail',
-                      icon: <Eye size={15} />,
-                      onClick: () => handleOpenDetail(row)
-                    },
-                    {
-                      label: 'Keputusan Administrasi',
-                      icon: <CheckCircle2 size={16} />,
-                      onClick: () => handleOpenDecision(row)
-                    }
-                  ]}
-                />
-              )
+              render: (row) => {
+                const isLulus = row.status === 'lulus_administrasi' || row.status === 'mahasiswa_baru';
+                return (
+                  <DropdownMenu
+                    items={[
+                      {
+                        label: 'Verifikasi & Detail',
+                        icon: <Eye size={15} />,
+                        onClick: () => handleOpenDetail(row)
+                      },
+                      {
+                        label: 'Keputusan Administrasi',
+                        icon: <CheckCircle2 size={16} />,
+                        onClick: () => handleOpenDecision(row)
+                      },
+                      ...(isLulus ? [
+                        {
+                          label: 'Unduh SK Kelulusan',
+                          icon: <Download size={15} />,
+                          onClick: () => handleDownloadSkRow(row)
+                        }
+                      ] : [])
+                    ]}
+                  />
+                );
+              }
             }
           ]}
         />

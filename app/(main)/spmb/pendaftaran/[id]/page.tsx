@@ -25,7 +25,8 @@ import {
   Wallet,
   Landmark,
   ReceiptText,
-  CalendarClock
+  CalendarClock,
+  Download
 } from 'lucide-react';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
 import { formatCurrency } from '@/lib/utils';
@@ -130,8 +131,23 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
 
   // Status update state
   const [updateStatusLoading, setUpdateStatusLoading] = useState(false);
+  const [downloadingSk, setDownloadingSk] = useState(false);
   const [newStatus, setNewStatus] = useState('');
   const [catatanVerifikasi, setCatatanVerifikasi] = useState('');
+
+  const handleDownloadSk = async () => {
+    if (!pendaftar?.id) return;
+    try {
+      setDownloadingSk(true);
+      await spmbService.downloadSkLulusPdf(pendaftar.id, pendaftar.no_pendaftaran);
+      toast.success('SK Tanda Lulus berhasil diunduh.');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Gagal mengunduh SK Tanda Lulus.');
+    } finally {
+      setDownloadingSk(false);
+    }
+  };
 
   // Fetch Detail Pendaftaran by ID
   const fetchDetail = async (pendaftarId: number) => {
@@ -213,17 +229,24 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
 
   return (
     <div className="animate-fade-in space-y-6 max-w-6xl mx-auto pb-16">
-      {/* Page Header with Back Button (Orange styling as per CRUD standard) */}
       <PageHeader 
         title="Detail & Verifikasi Pendaftaran"
         description="Kelola verifikasi berkas dan tentukan keputusan pendaftaran calon mahasiswa."
+        backUrl="/spmb/pendaftaran"
         action={
-          <button 
-            onClick={() => router.push('/spmb/pendaftaran')} 
-            className="btn bg-orange-500 text-white hover:bg-orange-600 border-none shadow-sm font-bold text-xs flex items-center gap-1.5 px-4 py-2 rounded-lg"
-          >
-            <ArrowLeft size={16} /> Kembali ke Daftar
-          </button>
+          (pendaftar.status === 'lulus_administrasi' || pendaftar.status === 'mahasiswa_baru' || pendaftar.hasil_seleksi?.status === 'lulus') ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadSk}
+              isLoading={downloadingSk}
+              icon={<Download size={15} />}
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+              className="font-bold text-xs"
+            >
+              {downloadingSk ? 'Mengunduh...' : 'Unduh SK Tanda Lulus'}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -562,6 +585,21 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
               >
                 {updateStatusLoading ? 'Menyimpan Keputusan...' : 'Simpan Keputusan'}
               </Button>
+
+              {(pendaftar.status === 'lulus_administrasi' || pendaftar.status === 'mahasiswa_baru' || pendaftar.hasil_seleksi?.status === 'lulus') && (
+                <div className="pt-2 border-t border-slate-100">
+                  <Button 
+                    onClick={handleDownloadSk} 
+                    isLoading={downloadingSk}
+                    variant="outline"
+                    icon={<Download size={16} />}
+                    style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                    className="w-full font-bold text-xs py-2.5"
+                  >
+                    {downloadingSk ? 'Mengunduh SK...' : 'Unduh SK Tanda Lulus (PDF)'}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

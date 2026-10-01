@@ -450,3 +450,91 @@ export interface ReferralReportItem extends ReferralUsageItem {
     gelombang_penerimaan?: { id: number; nama: string } | null;
   } | null;
 }
+
+export interface TemplateSuratSpmb {
+  id: number;
+  kode: string;
+  nama: string;
+  jenis_surat: string;
+  jalur_masuk_id?: number | null;
+  gelombang_id?: number | null;
+  is_active: boolean;
+  kop_nama_institusi?: string | null;
+  kop_nama_sub?: string | null;
+  kop_alamat_kontak?: string | null;
+  format_nomor_surat?: string | null;
+  judul_surat?: string | null;
+  teks_pembuka?: string | null;
+  teks_keputusan?: string | null;
+  petunjuk_daftar_ulang?: string | null;
+  kota_penetapan?: string | null;
+  nama_penandatangan?: string | null;
+  jabatan_penandatangan?: string | null;
+  nip_penandatangan?: string | null;
+  catatan_kaki?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
+  jalur_masuk?: JalurMasuk | null;
+  gelombang?: GelombangPenerimaan | null;
+}
+
+export interface TemplateSuratSpmbPayload {
+  kode: string;
+  nama: string;
+  jenis_surat: string;
+  jalur_masuk_id?: number | null;
+  gelombang_id?: number | null;
+  is_active?: boolean;
+  kop_nama_institusi?: string | null;
+  kop_nama_sub?: string | null;
+  kop_alamat_kontak?: string | null;
+  format_nomor_surat?: string | null;
+  judul_surat?: string | null;
+  teks_pembuka?: string | null;
+  teks_keputusan?: string | null;
+  petunjuk_daftar_ulang?: string | null;
+  kota_penetapan?: string | null;
+  nama_penandatangan?: string | null;
+  jabatan_penandatangan?: string | null;
+  nip_penandatangan?: string | null;
+  catatan_kaki?: string | null;
+}
+
+export interface GetTemplateSuratParams {
+  page?: number;
+  limit?: number;
+  per_page?: number;
+  search?: string;
+  jenis_surat?: string;
+  jalur_masuk_id?: number | string;
+  gelombang_id?: number | string;
+  is_active?: boolean | string;
+  sort_by?: string;
+  sort_dir?: string;
+  sort_order?: string;
+}
+
+export const JENIS_SURAT_OPTIONS = [
+  { value: 'sk_lulus', label: 'SK Tanda Lulus Seleksi' },
+  { value: 'surat_pemberitahuan', label: 'Surat Pemberitahuan' },
+] as const;
+
+export const FILTER_STATUS_TEMPLATE_OPTIONS = [
+  { value: '', label: 'Semua Status' },
+  { value: 'true', label: 'Aktif' },
+  { value: 'false', label: 'Tidak Aktif' },
+] as const;
+
+export const SORT_BY_TEMPLATE_OPTIONS = [
+  { value: 'kode', label: 'Kode Template' },
+  { value: 'nama', label: 'Nama Template' },
+  { value: 'is_active', label: 'Status Aktif' },
+  { value: 'created_at', label: 'Tanggal Dibuat' },
+] as const;
+
+export const SORT_DIR_OPTIONS = [
+  { value: 'asc', label: 'Menaik (Asc)' },
+  { value: 'desc', label: 'Menurun (Desc)' },
+] as const;
+

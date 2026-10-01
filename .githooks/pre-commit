@@ -16,29 +16,19 @@ if [ ! -d "$HOOKS_DIR" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# TAHAP 1: Fast Deterministic Pre-checks (Fail-Fast: TypeScript & Menu Seeder)
+# TAHAP 1: Fast Deterministic Pre-checks (Fail-Fast: TypeScript & Hygiene)
 # ------------------------------------------------------------------------------
-if [ -x "$HOOKS_DIR/08-fast-build-typecheck-reviewer.sh" ]; then
-    "$HOOKS_DIR/08-fast-build-typecheck-reviewer.sh"
+if [ -x "$HOOKS_DIR/01-typecheck-and-hygiene.sh" ]; then
+    "$HOOKS_DIR/01-typecheck-and-hygiene.sh"
     EXIT_CODE=$?
     if [ $EXIT_CODE -ne 0 ]; then
-        echo "❌ [Fast Check] 08-fast-build-typecheck-reviewer.sh gagal! Menghentikan proses audit."
-        exit $EXIT_CODE
-    fi
-fi
-
-if [ -x "$HOOKS_DIR/11-menu-seeder-reviewer.sh" ]; then
-    "$HOOKS_DIR/11-menu-seeder-reviewer.sh"
-    EXIT_CODE=$?
-    if [ $EXIT_CODE -ne 0 ]; then
-        echo "❌ [Fast Check] 11-menu-seeder-reviewer.sh gagal! Menghentikan proses audit."
+        echo "❌ [Fast Check] 01-typecheck-and-hygiene.sh gagal! Menghentikan proses audit."
         exit $EXIT_CODE
     fi
 fi
 
 # ------------------------------------------------------------------------------
-# TAHAP 2: Parallel Deep AI Audits
-# Menjalankan seluruh modul audit AI secara paralel untuk memangkas waktu ~75%
+# TAHAP 2: Parallel Deep AI Audits (02 & 03)
 # ------------------------------------------------------------------------------
 echo "⚡ [AGY Agent Audit Runner] Menjalankan modul audit AI secara paralel..."
 
@@ -49,7 +39,7 @@ LOG_FILES=()
 for script in "$HOOKS_DIR"/*.sh; do
     NAME=$(basename "$script")
     # Lewati script yang sudah dijalankan di Tahap 1
-    if [ "$NAME" = "08-fast-build-typecheck-reviewer.sh" ] || [ "$NAME" = "11-menu-seeder-reviewer.sh" ]; then
+    if [ "$NAME" = "01-typecheck-and-hygiene.sh" ]; then
         continue
     fi
 
