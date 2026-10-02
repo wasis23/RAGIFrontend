@@ -486,6 +486,7 @@ export const spmbService = {
     kategori?: string;
     tipe_potongan?: boolean;
     is_referral_reward?: boolean;
+    is_default_master_biaya?: boolean;
     role_rewards?: { role_id: number; nominal: number }[];
     urutan?: number;
     position_type?: string;
@@ -505,6 +506,7 @@ export const spmbService = {
       kategori?: string;
       tipe_potongan?: boolean;
       is_referral_reward?: boolean;
+      is_default_master_biaya?: boolean;
       role_rewards?: { role_id: number; nominal: number }[];
       urutan?: number;
       position_type?: string;
