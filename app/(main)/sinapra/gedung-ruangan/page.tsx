@@ -15,6 +15,7 @@ import {
   Tv,
   Wifi,
   Wind,
+  FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -29,6 +30,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { SinapraImportModal } from '@/components/sinapra/SinapraImportModal';
 import { sinapraService } from '@/services/sinapra.service';
 import { siakadService } from '@/services/siakad.service';
 import type {
@@ -44,6 +46,7 @@ export default function GedungRuanganPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'gedung' | 'ruangan'>('gedung');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // ------------------------------------------------------------
   // TAB 1: GEDUNG STATES
@@ -627,7 +630,14 @@ export default function GedungRuanganPage() {
         title="Gedung & Ruangan Kampus"
         description="Kelola sarana infrastruktur gedung, denah ruangan, ketersediaan jadwal, & fasilitas fisik (Modul SINAPRA)"
         action={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={() => setIsImportOpen(true)}
+            >
+              Import Excel
+            </Button>
             <Button
               variant="outline"
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
@@ -637,12 +647,20 @@ export default function GedungRuanganPage() {
               Filter
             </Button>
             {activeTab === 'gedung' ? (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateGedung}>
-                Tambah Gedung
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={handleOpenCreateGedung}
+              >
+                Tambah Data
               </Button>
             ) : (
-              <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/gedung-ruangan/ruangan/create')}>
-                Tambah Ruangan
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={() => router.push('/sinapra/gedung-ruangan/ruangan/create')}
+              >
+                Tambah Data
               </Button>
             )}
           </div>
@@ -1028,6 +1046,22 @@ export default function GedungRuanganPage() {
           </div>
         )}
       </Drawer>
+
+      {/* MODAL IMPORT EXCEL */}
+      <SinapraImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={() => {
+          if (activeTab === 'gedung') {
+            fetchGedung();
+          } else {
+            fetchRuangan();
+          }
+        }}
+        title={activeTab === 'gedung' ? 'Import Gedung Kampus' : 'Import Ruangan Kampus'}
+        entity={activeTab === 'gedung' ? 'gedung' : 'ruangan'}
+        templateFilename={activeTab === 'gedung' ? 'Template_Import_Gedung.xlsx' : 'Template_Import_Ruangan.xlsx'}
+      />
     </div>
   );
 }

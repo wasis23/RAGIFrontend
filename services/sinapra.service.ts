@@ -64,6 +64,16 @@ import type {
   PlottingProdiRolePayload,
 } from '@/types/sinapra.types';
 
+export interface SinapraImportResult {
+  status: string;
+  message: string;
+  created: number;
+  updated: number;
+  failed: number;
+  total_processed: number;
+  errors: Array<{ row: number; error: string }>;
+}
+
 export const sinapraService = {
   // ── DASHBOARD EKSEKUTIF SARPRAS ─────────────────────────────
   getDashboardSummary: async (): Promise<ApiResponse<SinapraDashboardSummary>> => {
@@ -610,4 +620,24 @@ export const sinapraService = {
     const { data } = await apiClient.post<ApiResponse<SinapraProdiRoleItem>>(`/sinapra/master/prodi-roles/${prodiId}`, payload);
     return data;
   },
+
+  // ── IMPORT EXCEL & UNDUH TEMPLATE ────────────────────────────
+  importExcel: async (entity: string, file: File): Promise<ApiResponse<SinapraImportResult>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await apiClient.post<ApiResponse<SinapraImportResult>>(`/sinapra/import/${entity}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return data;
+  },
+
+  downloadTemplate: async (entity: string): Promise<Blob> => {
+    const response = await apiClient.get(`/sinapra/import/template/${entity}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
+

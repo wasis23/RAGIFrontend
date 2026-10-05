@@ -18,6 +18,7 @@ import {
   Printer,
   CheckCircle,
   XCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -32,6 +33,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { AsetLabelPrintModal } from '@/components/sinapra/AsetLabelPrintModal';
+import { SinapraImportModal } from '@/components/sinapra/SinapraImportModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
 import { siakadService } from '@/services/siakad.service';
@@ -67,6 +69,7 @@ export default function AsetPage() {
   const [sortBy, setSortBy] = useState('nama');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   useEffect(() => {
     if (initialProdiId) {
@@ -576,7 +579,7 @@ export default function AsetPage() {
         title="Inventaris Aset & Sarana Kampus"
         description="Pencatatan barang inventaris, lokasi ruangan, kategori, & estimasi penyusutan nilai buku (Modul SINAPRA)"
         action={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               icon={<Printer size={16} />}
@@ -584,8 +587,19 @@ export default function AsetPage() {
             >
               Cetak Label
             </Button>
-            <Button variant="secondary" icon={<Layers size={16} />} onClick={handleOpenKategoriManager}>
+            <Button
+              variant="secondary"
+              icon={<Layers size={16} />}
+              onClick={handleOpenKategoriManager}
+            >
               Kelola Kategori
+            </Button>
+            <Button
+              variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={() => setIsImportOpen(true)}
+            >
+              Import Excel
             </Button>
             <Button
               variant="outline"
@@ -595,8 +609,12 @@ export default function AsetPage() {
             >
               Filter
             </Button>
-            <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/aset/create')}>
-              Tambah Aset Baru
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => router.push('/sinapra/aset/create')}
+            >
+              Tambah Data
             </Button>
           </div>
         }
@@ -891,6 +909,16 @@ export default function AsetPage() {
         onClose={() => setIsPrintModalOpen(false)}
         labels={printLabels}
         isLoading={isLoadingLabels}
+      />
+
+      {/* MODAL IMPORT EXCEL */}
+      <SinapraImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={fetchAset}
+        title="Import Inventaris Aset & Sarana Kampus"
+        entity="aset"
+        templateFilename="Template_Import_Inventaris_Aset.xlsx"
       />
     </div>
   );

@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Save,
   Layers,
+  FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -25,6 +26,7 @@ import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { SinapraImportModal } from '@/components/sinapra/SinapraImportModal';
 import { sinapraService } from '@/services/sinapra.service';
 import type { KategoriAset, KategoriAsetFormPayload } from '@/types/sinapra.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -60,6 +62,7 @@ export default function MasterKategoriAsetPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<KategoriAset | null>(null);
   const [selectedParent, setSelectedParent] = useState<{ value: string; label: string } | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Delete Confirm Dialog State
   const [deletingItem, setDeletingItem] = useState<KategoriAset | null>(null);
@@ -307,12 +310,16 @@ export default function MasterKategoriAsetPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={() => setIsImportOpen(true)}
+            >
+              Import Excel
+            </Button>
+            <Button
+              variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
-              style={{
-                borderColor: 'var(--module-primary)',
-                color: 'var(--module-primary)',
-              }}
             >
               Filter
             </Button>
@@ -321,7 +328,7 @@ export default function MasterKategoriAsetPage() {
               icon={<Plus size={16} />}
               onClick={handleOpenCreate}
             >
-              Tambah Kategori
+              Tambah Data
             </Button>
           </div>
         }
@@ -532,6 +539,16 @@ export default function MasterKategoriAsetPage() {
         confirmText="Hapus Kategori"
         variant="danger"
         isLoading={isDeleting}
+      />
+
+      {/* MODAL IMPORT EXCEL */}
+      <SinapraImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={fetchData}
+        title="Import Master Kategori Aset"
+        entity="kategori-aset"
+        templateFilename="Template_Import_Kategori_Aset.xlsx"
       />
     </div>
   );

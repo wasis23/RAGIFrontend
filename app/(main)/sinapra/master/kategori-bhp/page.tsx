@@ -9,6 +9,7 @@ import {
   Filter,
   Edit2,
   Trash2,
+  FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -22,6 +23,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { SinapraImportModal } from '@/components/sinapra/SinapraImportModal';
 import { sinapraService } from '@/services/sinapra.service';
 import type { MasterKategoriBhp } from '@/types/sinapra.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -56,6 +58,7 @@ export default function MasterKategoriBhpPage() {
   // Modal Form States (Form <= 5 inputs menggunakan Modal)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MasterKategoriBhp | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Delete Confirm Dialog State
   const [deletingItem, setDeletingItem] = useState<MasterKategoriBhp | null>(null);
@@ -249,6 +252,13 @@ export default function MasterKategoriBhpPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={() => setIsImportOpen(true)}
+            >
+              Import Excel
+            </Button>
+            <Button
+              variant="outline"
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
@@ -259,7 +269,6 @@ export default function MasterKategoriBhpPage() {
               variant="primary"
               icon={<Plus size={16} />}
               onClick={handleOpenAddModal}
-              style={{ background: 'var(--module-primary)' }}
             >
               Tambah Data
             </Button>
@@ -465,6 +474,16 @@ export default function MasterKategoriBhpPage() {
         variant="danger"
         isLoading={isDeleting}
         onConfirm={handleDelete}
+      />
+
+      {/* MODAL IMPORT EXCEL */}
+      <SinapraImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={fetchData}
+        title="Import Master Kategori BHP"
+        entity="kategori-bhp"
+        templateFilename="Template_Import_Kategori_BHP.xlsx"
       />
     </div>
   );
