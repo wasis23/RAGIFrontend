@@ -25,6 +25,10 @@ export interface PengajuanOperasional {
   status: string;
   kanal?: string | null;
   referensi_eksternal?: string | null;
+  jenis_pengajuan?: 'operasional' | 'kegiatan' | 'reimbursement' | 'sarpras' | 'lainnya';
+  parent_pengajuan_id?: number | null;
+  parent?: PengajuanOperasional | null;
+  reimbursements?: PengajuanOperasional[];
   nama_bank_penerima?: string | null;
   nomor_rekening_penerima?: string | null;
   nama_rekening_penerima?: string | null;
@@ -70,7 +74,7 @@ export interface PengajuanOperasional {
 }
 
 export const pengajuanOperasionalService = {
-  list: async (params?: { search?: string; status?: string; status_in?: string; kategori?: string; tab?: string; dari?: string; sampai?: string; page?: number; per_page?: number }) => {
+  list: async (params?: { search?: string; status?: string; status_in?: string; kategori?: string; jenis_pengajuan?: string; parent_pengajuan_id?: number | string; tab?: string; dari?: string; sampai?: string; belum_cair?: boolean; butuh_reimburse?: boolean; belum_diajukan_reimburse?: boolean; page?: number; per_page?: number }) => {
     const { data } = await apiClient.get<ApiResponse<PengajuanOperasional[]>>('/v1/sikeu/pengajuan-operasional', { params });
     return data;
   },
@@ -135,6 +139,15 @@ export const pengajuanOperasionalService = {
   simpanLpj: async (id: number | string, form: FormData) => {
     const { data } = await apiClient.post<ApiResponse<any>>(
       `/v1/sikeu/pengajuan-operasional/${id}/lpj`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return data;
+  },
+
+  ajukanReimburse: async (id: number | string, form: FormData) => {
+    const { data } = await apiClient.post<ApiResponse<PengajuanOperasional>>(
+      `/v1/sikeu/pengajuan-operasional/${id}/reimburse`,
       form,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );

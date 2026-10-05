@@ -21,6 +21,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
+import type { SelectOption } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 
@@ -46,8 +47,15 @@ const tutupLpjSchema = z.object({
 });
 type TutupLpjFormValues = z.infer<typeof tutupLpjSchema>;
 
-const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'secondary' }> = {
-  draft: { label: 'Draft', variant: 'secondary' },
+// Opsi filter Status Reimburse/Cair (closed-set workflow internal, terpusat di sini)
+const STATUS_REIMBURSE_FILTER_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'Semua' },
+  { value: 'butuh', label: 'Butuh Reimburse (kurang bayar)' },
+  { value: 'belum_diajukan', label: 'Belum Diajukan Reimburse' },
+  { value: 'belum_cair', label: 'Belum Dicairkan' },
+];
+
+const STATUS_LABEL: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'secondary' }> = {  draft: { label: 'Draft', variant: 'secondary' },
   diajukan: { label: 'Diajukan', variant: 'info' },
   pending_sarpras: { label: 'Menunggu Sarpras', variant: 'warning' },
   pending_keuangan: { label: 'Menunggu Keuangan', variant: 'warning' },
@@ -112,6 +120,7 @@ export default function PengajuanOperasionalPage() {
   const [fKategori, setFKategori] = useState('all');
   const [fKasId, setFKasId] = useState('all');
   const [fStatusLpj, setFStatusLpj] = useState('all');
+  const [fReimburse, setFReimburse] = useState('all');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -124,6 +133,7 @@ export default function PengajuanOperasionalPage() {
     kategori: 'all',
     kas_id: 'all',
     status_lpj: 'all',
+    reimburse: 'all',
     sort_by: 'created_at',
     sort_dir: 'desc' as 'asc' | 'desc',
   });
@@ -242,6 +252,9 @@ export default function PengajuanOperasionalPage() {
         search: applied.search || undefined,
         status: applied.status !== 'all' ? applied.status : undefined,
         kategori: activeTab === 'operasional' && applied.kategori !== 'all' ? applied.kategori : undefined,
+        butuh_reimburse: applied.reimburse === 'butuh' ? true : undefined,
+        belum_diajukan_reimburse: applied.reimburse === 'belum_diajukan' ? true : undefined,
+        belum_cair: applied.reimburse === 'belum_cair' ? true : undefined,
       });
       setData(Array.isArray(res.data) ? res.data : []);
       if ((res as any).meta) {
@@ -548,7 +561,19 @@ export default function PengajuanOperasionalPage() {
     {
       key: 'nominal_diajukan',
       label: 'NOMINAL',
-      render: (row) => <span className="font-bold tabular-nums text-xs">{formatRupiah(Number(row.nominal_diajukan) || 0)}</span>,
+      render: (row) => (
+        <div className="flex flex-col gap-1">
+          <span className="font-bold tabular-nums text-xs">{formatRupiah(Number(row.nominal_diajukan) || 0)}</span>
+          {row.jenis_pengajuan === 'reimbursement' && (
+            <Badge variant="warning" className="text-2xs">REIMBURSE</Badge>
+          )}
+          {Number(row.sisa_nominal) < 0 && (
+            <span className="text-2xs font-semibold text-rose-600">
+              Kurang: {formatRupiah(Math.abs(Number(row.sisa_nominal)))}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'created_at',
@@ -865,6 +890,7 @@ export default function PengajuanOperasionalPage() {
                 setFKategori('all');
                 setFKasId('all');
                 setFStatusLpj('all');
+                setFReimburse('all');
                 setSortBy('created_at');
                 setSortDir('desc');
                 setApplied({
@@ -876,6 +902,7 @@ export default function PengajuanOperasionalPage() {
                   kategori: 'all',
                   kas_id: 'all',
                   status_lpj: 'all',
+                  reimburse: 'all',
                   sort_by: 'created_at',
                   sort_dir: 'desc',
                 });
@@ -899,6 +926,7 @@ export default function PengajuanOperasionalPage() {
                   kategori: fKategori,
                   kas_id: fKasId,
                   status_lpj: fStatusLpj,
+                  reimburse: fReimburse,
                   sort_by: sortBy,
                   sort_dir: sortDir,
                 });
@@ -971,6 +999,15 @@ export default function PengajuanOperasionalPage() {
                   label: k.nama,
                 })),
               ]}
+            />
+          )}
+
+          {activeTab === 'operasional' && (
+            <Select
+              label="Status Reimburse / Cair"
+              value={fReimburse}
+              onChange={(v) => setFReimburse(v as string)}
+              options={STATUS_REIMBURSE_FILTER_OPTIONS}
             />
           )}
 
