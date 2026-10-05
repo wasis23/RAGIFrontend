@@ -111,6 +111,7 @@ export const SYSTEM_MODULES = [
   { value: 'sikeu', label: 'SIKEU' },
   { value: 'simpeg', label: 'SIMPEG' },
   { value: 'sinapra', label: 'SINAPRA' },
+  { value: 'arsip', label: 'ARSIP' },
   { value: 'kerjasama', label: 'Kerjasama' },
   { value: 'upm', label: 'UPM' },
 ] as const;
