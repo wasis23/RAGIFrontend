@@ -177,7 +177,7 @@ export interface PengajuanPencairanKas {
   deskripsi?: string;
   nominal_diajukan: number;
   nominal_disetujui: number;
-  jenis_pengajuan: 'operasional' | 'kegiatan' | 'reimbursement' | 'lainnya';
+  jenis_pengajuan: 'operasional' | 'kegiatan' | 'reimbursement' | 'sarpras' | 'lainnya';
   file_lampiran?: string;
   status: 'draft' | 'pending_pimpinan' | 'pending_keuangan' | 'disetujui' | 'ditolak' | 'dicairkan';
   unit_kas?: UnitKas;
@@ -188,7 +188,7 @@ export interface JurnalUmum {
   nomor_jurnal: string;
   tanggal_jurnal: string;
   periode_id?: number;
-  jenis_sumber: 'pembayaran_mahasiswa' | 'pemasukan_hibah' | 'pencairan_kas' | 'pengeluaran_manual' | 'penyesuaian' | 'penutupan';
+  jenis_sumber: 'pembayaran_mahasiswa' | 'pemasukan_hibah' | 'pencairan_kas' | 'pengeluaran_manual' | 'penyesuaian' | 'penutupan' | 'reimbursement';
   referensi_id?: number;
   keterangan?: string;
   status_posting: 'draft' | 'posted';

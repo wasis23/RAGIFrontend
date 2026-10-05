@@ -1,12 +1,15 @@
 'use client';
 
 import { formatRupiah, formatDate } from '@/lib/utils';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, XCircle, Loader2, Upload, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Loader2, Upload, Plus, Trash2, Banknote, FileText } from 'lucide-react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import toast from 'react-hot-toast';
-import { pengajuanOperasionalService } from '@/services/pengajuan-operasional.service';
+import { pengajuanOperasionalService, type PengajuanOperasional } from '@/services/pengajuan-operasional.service';
 import { sikeuService } from '@/services/sikeu.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -26,8 +29,14 @@ const TAHAP = [
   { key: 'selesai', label: 'Selesai' },
 ];
 
-const STATUS_STYLE: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'secondary' }> = {
-  draft: { label: 'Draft', variant: 'secondary' },
+interface JurnalRef {
+  id: number;
+  nomor_jurnal: string;
+  jenis_sumber: string;
+  total_debet: number | string;
+}
+
+const STATUS_STYLE: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' | 'secondary' }> = {  draft: { label: 'Draft', variant: 'secondary' },
   diajukan: { label: 'Diajukan', variant: 'info' },
   pending_sarpras: { label: 'Menunggu Sarpras', variant: 'warning' },
   pending_keuangan: { label: 'Menunggu Keuangan', variant: 'warning' },
@@ -67,11 +76,18 @@ export default function DetailPengajuanPage() {
   const [rekTujuan, setRekTujuan] = useState('');
   const [tambahan, setTambahan] = useState<{ keterangan: string; qty: number; satuan: string; harga_satuan: number }[]>([]);
 
+  // Reimburse (kurang bayar LPJ) & ref jurnal akuntansi
+  const [jurnal, setJurnal] = useState<JurnalRef[]>([]);
+  const [modalReimburseOpen, setModalReimburseOpen] = useState(false);
+  const [fileLampiranRmb, setFileLampiranRmb] = useState<File | null>(null);
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
       const res = await pengajuanOperasionalService.detail(id);
       setData(res.data);
+      const dataWithJurnal = res.data as unknown as { jurnal?: JurnalRef[] } | undefined;
+      setJurnal(Array.isArray(dataWithJurnal?.jurnal) ? dataWithJurnal.jurnal : []);
       setNominalCair(String(res.data?.nominal_disetujui || res.data?.nominal_diajukan || ''));
       if (res.data?.unit_kas_id) setSumberKasId(String(res.data.unit_kas_id));
     } catch {
@@ -138,6 +154,7 @@ export default function DetailPengajuanPage() {
   const cair = Number(data?.nominal_disetujui || 0);
   const pakai = (Number(realisasi) || 0) + tambahanTotal;
   const sisa = Math.max(0, cair - pakai);
+  const kurangRealtime = Math.max(0, pakai - cair);
 
   const submitLpj = async () => {
     setActing(true);
@@ -161,6 +178,61 @@ export default function DetailPengajuanPage() {
       load();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Gagal menyimpan LPJ');
+    } finally {
+      setActing(false);
+    }
+  };
+
+  // ── Reimburse: selisih kurang bayar LPJ (realisasi > pencairan) ──────────
+  const kurangBayar = Math.max(0, (Number(data?.total_realisasi) || 0) - (Number(data?.nominal_disetujui) || 0));
+  const reimbursements: PengajuanOperasional[] = Array.isArray(data?.reimbursements) ? data.reimbursements : [];
+  const rmbAktif = reimbursements.filter((r) => r.status !== 'ditolak');
+  const bisaAjukanReimburse = kurangBayar > 0 && rmbAktif.length === 0;
+
+  type ReimburseFormValues = { nominal_diajukan: number; unit_kas_id: string; deskripsi?: string };
+  const reimburseSchema = useMemo(
+    () =>
+      z.object({
+        nominal_diajukan: z
+          .coerce.number()
+          .positive('Nominal reimbursement harus lebih dari 0')
+          .max(kurangBayar || 0, `Maksimal selisih kurang ${formatRupiah(kurangBayar)}`),
+        unit_kas_id: z.string().min(1, 'Unit kas pembayar wajib dipilih'),
+        deskripsi: z.string().optional(),
+      }),
+    [kurangBayar]
+  );
+
+  const formReimburse = useForm<ReimburseFormValues>({
+    resolver: zodResolver(reimburseSchema) as any,
+    defaultValues: { nominal_diajukan: 0, unit_kas_id: '', deskripsi: '' },
+  });
+
+  const openReimburse = () => {
+    formReimburse.reset({
+      nominal_diajukan: kurangBayar,
+      unit_kas_id: data?.unit_kas_id ? String(data.unit_kas_id) : '',
+      deskripsi: '',
+    });
+    setFileLampiranRmb(null);
+    setModalReimburseOpen(true);
+  };
+
+  const onSubmitReimburse = async (values: ReimburseFormValues) => {
+    setActing(true);
+    try {
+      const form = new FormData();
+      form.append('nominal_diajukan', String(values.nominal_diajukan));
+      form.append('unit_kas_id', values.unit_kas_id);
+      if (values.deskripsi) form.append('deskripsi', values.deskripsi);
+      if (fileLampiranRmb) form.append('file_lampiran', fileLampiranRmb);
+      await pengajuanOperasionalService.ajukanReimburse(id, form);
+      toast.success('Pengajuan reimbursement dibuat, menunggu verifikasi keuangan');
+      setModalReimburseOpen(false);
+      setFileLampiranRmb(null);
+      load();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Gagal mengajukan reimbursement');
     } finally {
       setActing(false);
     }
@@ -210,6 +282,15 @@ export default function DetailPengajuanPage() {
             {(data as any).referensi_eksternal && (
               <span className="font-mono text-xs text-slate-600"> • Ref: {(data as any).referensi_eksternal}</span>
             )}
+          </p>
+        )}
+        {data?.jenis_pengajuan === 'reimbursement' && data?.parent && (
+          <p>
+            <b>Reimbursement atas:</b>{' '}
+            <Link href={`/sikeu/pengajuan/${data.parent.id}`} className="font-mono text-xs font-bold text-[var(--module-primary)] hover:underline">
+              {data.parent.nomor_pengajuan}
+            </Link>
+            <span className="text-xs text-slate-500"> — {data.parent.judul_pengajuan}</span>
           </p>
         )}
         <div className="flex gap-2 pt-1 flex-wrap">
@@ -357,6 +438,11 @@ export default function DetailPengajuanPage() {
             ))}
           </div>
           <Button variant="primary" icon={<Upload size={16} />} onClick={submitLpj} disabled={acting} className="font-bold">{acting ? 'Menyimpan...' : 'Kirim LPJ'}</Button>
+          {kurangRealtime > 0 && (
+            <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+              Realisasi melebihi pencairan (kurang bayar {formatRupiah(kurangRealtime)}). LPJ tetap bisa disimpan, lalu ajukan reimbursement dari kartu di bawah.
+            </p>
+          )}
         </div>
       )}
 
@@ -373,6 +459,56 @@ export default function DetailPengajuanPage() {
         </div>
       )}
 
+      {(kurangBayar > 0 || reimbursements.length > 0) && data?.jenis_pengajuan !== 'reimbursement' && (
+        <div className="p-4 bg-white border rounded-2xl text-sm space-y-3">
+          <h3 className="font-extrabold">Reimbursement Kurang Bayar LPJ</h3>
+          {kurangBayar > 0 ? (
+            <p>
+              Selisih kurang: <b className="text-rose-700">{formatRupiah(kurangBayar)}</b>
+              <span className="text-xs text-slate-500"> (realisasi {formatRupiah(Number(data.total_realisasi))} − cair {formatRupiah(Number(data.nominal_disetujui))})</span>
+            </p>
+          ) : (
+            <p className="text-xs text-slate-500">Tidak ada selisih kurang pada LPJ terakhir.</p>
+          )}
+          {reimbursements.length > 0 && (
+            <div className="space-y-1">
+              {reimbursements.map((r) => (
+                <div key={r.id} className="flex justify-between items-center border-b pb-1 text-xs">
+                  <Link href={`/sikeu/pengajuan/${r.id}`} className="font-mono font-bold text-[var(--module-primary)] hover:underline">
+                    {r.nomor_pengajuan}
+                  </Link>
+                  <span>{formatRupiah(Number(r.nominal_diajukan))} • {r.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {bisaAjukanReimburse && (
+            <Button variant="primary" icon={<Banknote size={14} />} onClick={openReimburse} className="text-xs font-bold">
+              Ajukan Reimburse {formatRupiah(kurangBayar)}
+            </Button>
+          )}
+          {!bisaAjukanReimburse && kurangBayar > 0 && rmbAktif.length > 0 && (
+            <p className="text-xs text-emerald-700 font-semibold">Sudah ada pengajuan reimbursement aktif di atas — pantau statusnya hingga dicairkan.</p>
+          )}
+        </div>
+      )}
+
+      {jurnal.length > 0 && (
+        <div className="p-4 bg-white border rounded-2xl text-sm space-y-2">
+          <h3 className="font-extrabold">Ref Jurnal Akuntansi</h3>
+          <div className="space-y-1">
+            {jurnal.map((j) => (
+              <div key={j.id} className="flex justify-between items-center border-b pb-1 text-xs">
+                <span className="font-mono font-bold">{j.nomor_jurnal}</span>
+                <span className="text-slate-500">{j.jenis_sumber === 'reimbursement' ? 'Reimbursement' : j.jenis_sumber === 'pencairan_kas' ? 'Pencairan/Realisasi' : j.jenis_sumber}</span>
+                <b className="tabular-nums">{formatRupiah(Number(j.total_debet))}</b>
+              </div>
+            ))}
+          </div>
+          <p className="text-2xs text-slate-400">Jurnal reimbursement (JRN-RMB) terpisah dari jurnal pencairan (JRN-EXP) — cek detail di menu Jurnal Umum.</p>
+        </div>
+      )}
+
       <Modal isOpen={!!modal} onClose={() => setModal(null)} title={modal?.aksi === 'approve' ? 'Konfirmasi Persetujuan' : 'Konfirmasi Penolakan'}>
         <div className="space-y-4">
           <Textarea label="Catatan (opsional)" value={catatan} onChange={(e) => setCatatan(e.target.value)} />
@@ -383,6 +519,57 @@ export default function DetailPengajuanPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal isOpen={modalReimburseOpen} onClose={() => { if (!acting) setModalReimburseOpen(false); }} title="Ajukan Reimbursement Kurang Bayar">
+        <form onSubmit={formReimburse.handleSubmit(onSubmitReimburse)} className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
+            <p className="font-semibold text-amber-900">Selisih kurang LPJ {data?.nomor_pengajuan}: {formatRupiah(kurangBayar)}</p>
+            <p className="text-amber-800">Pengajuan anak (RMB-*) berjenis reimbursement, mulai dari tahap Keuangan.</p>
+          </div>
+          <Input
+            label="Nominal Reimbursement (Rp)"
+            type="number"
+            min="1"
+            required
+            hint={`Maksimal ${formatRupiah(kurangBayar)} sesuai selisih kurang.`}
+            error={formReimburse.formState.errors.nominal_diajukan?.message}
+            {...formReimburse.register('nominal_diajukan')}
+          />
+          <Controller
+            control={formReimburse.control}
+            name="unit_kas_id"
+            render={({ field }) => (
+              <Select
+                label="Unit Kas Pembayar"
+                required
+                value={field.value}
+                onChange={(val: any) => field.onChange(String(val || ''))}
+                error={formReimburse.formState.errors.unit_kas_id?.message}
+                options={sumberKasList.map((u) => ({ value: String(u.id), label: u.nama_kas }))}
+              />
+            )}
+          />
+          <Textarea
+            label="Keterangan (opsional)"
+            placeholder="Keterangan klaim reimbursement..."
+            error={formReimburse.formState.errors.deskripsi?.message}
+            {...formReimburse.register('deskripsi')}
+          />
+          <Input
+            type="file"
+            label="Lampiran Nota (PDF / Gambar, opsional)"
+            accept=".pdf,image/*"
+            hint={fileLampiranRmb ? `Berkas terpilih: ${fileLampiranRmb.name}` : undefined}
+            onChange={(e) => setFileLampiranRmb(e.target.files?.[0] || null)}
+          />
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <Button type="button" variant="outline" size="sm" onClick={() => setModalReimburseOpen(false)} disabled={acting}>Batal</Button>
+            <Button type="submit" variant="primary" size="sm" loading={acting} disabled={acting} icon={<FileText size={14} />}>
+              <span>Buat Pengajuan RMB</span>
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
