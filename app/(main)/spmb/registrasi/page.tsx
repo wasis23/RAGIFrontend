@@ -458,6 +458,7 @@ export default function RegistrasiSpmbPage() {
   const [tarif, setTarif] = useState(0);
   const [loadingTarif, setLoadingTarif] = useState(false);
   const [bebanPendaftaran, setBebanPendaftaran] = useState<BiayaBebanItem[]>([]);
+  const [biayaSource, setBiayaSource] = useState<'master' | 'none'>('none');
   const [totalBebanDaftarUlang, setTotalBebanDaftarUlang] = useState(0);
   const [isEditingBiodata, setIsEditingBiodata] = useState(false);
   const [copiedVa, setCopiedVa] = useState(false);
@@ -863,6 +864,7 @@ export default function RegistrasiSpmbPage() {
         });
         const info = res?.data;
         setBebanPendaftaran(info?.beban_pendaftaran || []);
+        setBiayaSource(info?.source === 'master' ? 'master' : 'none');
         setTotalBebanDaftarUlang(Number(info?.total_daftar_ulang || 0));
         const totalPendaftaran = Number(info?.total_pendaftaran || 0);
         if (totalPendaftaran > 0) setTarif(totalPendaftaran);
@@ -1292,7 +1294,7 @@ export default function RegistrasiSpmbPage() {
 
   // ── Wizard View ──────────────────────────────────────────────────────────
   return (
-    <div className="animate-fade-in space-y-6 max-w-4xl mx-auto pb-16" style={dynamicStyles}>
+    <div className="animate-fade-in space-y-6 pb-16" style={dynamicStyles}>
       {/* ── Page Header ────────────────────────────────────────────── */}
       <PageHeader
         title="Form Registrasi SPMB"
@@ -1588,6 +1590,13 @@ export default function RegistrasiSpmbPage() {
                   {totalBebanDaftarUlang > 0 && (
                     <p className="mt-3 text-[11px] text-slate-500">
                       Komponen lain (Rp {totalBebanDaftarUlang.toLocaleString('id-ID')}) dibebankan saat daftar ulang.
+                    </p>
+                  )}
+
+                  {biayaSource !== 'master' && (
+                    <p className="mt-3 text-2xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Master Biaya SPMB belum dikonfigurasi untuk tipe jalur &amp; program studi ini. Nominal mengikuti
+                      tarif pendaftaran SIKEU/gelombang (potongan komponen tidak dapat diterapkan).
                     </p>
                   )}
                 </div>

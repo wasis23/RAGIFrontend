@@ -7,6 +7,7 @@ import type {
   TemplateSuratSpmb,
   TemplateSuratSpmbPayload,
   GetTemplateSuratParams,
+  SpmbPotonganCalon,
 } from '@/types/spmb.types';
 
 export interface JalurMasuk {
@@ -606,6 +607,79 @@ export const spmbService = {
   },
 
   // ====================================================
+  // POTONGAN BIAYA KUSTOM PER CALON MAHASISWA (SPMB)
+  // ====================================================
+  getPotonganCalon: async (
+    pendaftaranId: number,
+    params?: { search?: string; status?: string; tahap?: string; page?: number; per_page?: number; sort_by?: string; sort_order?: string }
+  ): Promise<{ status: string; message: string; data: SpmbPotonganCalon[]; meta?: any }> => {
+    const response = await api.get(`/spmb/pendaftaran/${pendaftaranId}/potongan`, {
+      params: { per_page: params?.per_page || 100, ...params },
+    });
+    return response.data;
+  },
+
+  createPotonganCalon: async (
+    pendaftaranId: number,
+    data: {
+      komponen_biaya_id: number;
+      nama_potongan: string;
+      tipe_potongan: 'nominal' | 'persen';
+      nilai_potongan: number;
+      tahap: 'pendaftaran' | 'daftar_ulang' | 'keduanya';
+      nomor_sk?: string;
+      keterangan?: string;
+      berlaku_mulai?: string | null;
+      berlaku_sampai?: string | null;
+      status?: 'draft' | 'aktif' | 'dibatalkan';
+    }
+  ) => {
+    const response = await api.post(`/spmb/pendaftaran/${pendaftaranId}/potongan`, data);
+    return response.data;
+  },
+
+  updatePotonganCalon: async (
+    id: number,
+    data: Partial<{
+      komponen_biaya_id: number;
+      nama_potongan: string;
+      tipe_potongan: 'nominal' | 'persen';
+      nilai_potongan: number;
+      tahap: 'pendaftaran' | 'daftar_ulang' | 'keduanya';
+      nomor_sk?: string | null;
+      keterangan?: string | null;
+      berlaku_mulai?: string | null;
+      berlaku_sampai?: string | null;
+      status?: 'draft' | 'aktif' | 'dibatalkan';
+    }>
+  ) => {
+    const response = await api.put(`/spmb/potongan-calon/${id}`, data);
+    return response.data;
+  },
+
+  deletePotonganCalon: async (id: number) => {
+    const response = await api.delete(`/spmb/potongan-calon/${id}`);
+    return response.data;
+  },
+
+  // ====================================================
+  // HASIL SELEKSI (PENETAPAN KELULUSAN) — ADMIN SPMB
+  // ====================================================
+  tetapkanHasilSeleksi: async (
+    pendaftaranId: number,
+    data: {
+      status: 'lulus' | 'tidak_lulus' | 'cadangan';
+      program_studi_diterima_id?: number;
+      nilai_total?: number;
+      peringkat?: number;
+      catatan?: string;
+    }
+  ) => {
+    const response = await api.post(`/spmb/pendaftaran/${pendaftaranId}/tetapkan-kelulusan`, data);
+    return response.data;
+  },
+
+  // ====================================================
   // REFERRAL — Kode Rujukan Mahasiswa Baru
   // ====================================================
   validateReferral: async (code: string): Promise<{ status: string; message: string; data: ReferralValidationResult }> => {
@@ -713,12 +787,15 @@ export const spmbService = {
    * Langsung menerbitkan NIM, assign role mahasiswa, dan buat email kampus.
    * Hanya dapat dipanggil untuk pendaftaran berstatus `lulus_administrasi`.
    */
-  konversiMahasiswa: async (id: number): Promise<{
+  konversiMahasiswa: async (
+    id: number,
+    options?: { force?: boolean }
+  ): Promise<{
     status: string;
     message: string;
     data: { pendaftaran: PendaftaranCalonMhs; nim: string; mahasiswa_id: number };
   }> => {
-    const response = await api.post(`/spmb/pendaftaran/${id}/konversi-mahasiswa`);
+    const response = await api.post(`/spmb/pendaftaran/${id}/konversi-mahasiswa`, options || {});
     return response.data;
   },
 };

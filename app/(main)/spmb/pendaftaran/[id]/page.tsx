@@ -28,16 +28,27 @@ import {
   CalendarClock,
   Download,
   UserCheck,
+  Plus,
+  Pencil,
+  Trash2,
+  Percent,
 } from 'lucide-react';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
+import type { SpmbPotonganCalon } from '@/types/spmb.types';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
+import { Select, SelectOption } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { SPMB_STATUS_CONFIG, SpmbStatusBadge, SpmbPaymentBadge } from '@/components/spmb/SpmbStatusBadge';
@@ -124,6 +135,66 @@ function DetailSection({
 }
 
 // ============================================================
+// SKEMA POTONGAN BIAYA KUSTOM PER CALON
+// ============================================================
+const potonganCalonSchema = z.object({
+  komponen_biaya_id: z.number().min(1, 'Pilih komponen biaya'),
+  nama_potongan: z.string().min(1, 'Nama potongan wajib diisi').max(150, 'Maksimal 150 karakter'),
+  tipe_potongan: z.enum(['nominal', 'persen']),
+  nilai_potongan: z.number().min(0, 'Nilai minimal 0'),
+  tahap: z.enum(['pendaftaran', 'daftar_ulang', 'keduanya']),
+  nomor_sk: z.string().max(100, 'Maksimal 100 karakter').optional().or(z.literal('')),
+  keterangan: z.string().optional().or(z.literal('')),
+  berlaku_mulai: z.string().optional().or(z.literal('')),
+  berlaku_sampai: z.string().optional().or(z.literal('')),
+  status: z.enum(['draft', 'aktif', 'dibatalkan']),
+});
+
+type PotonganCalonFormValues = z.infer<typeof potonganCalonSchema>;
+
+// ============================================================
+// SKEMA PENETAPAN HASIL SELEKSI
+// ============================================================
+const hasilSeleksiSchema = z
+  .object({
+    status: z.enum(['lulus', 'tidak_lulus', 'cadangan']),
+    program_studi_diterima_id: z.number().optional(),
+    nilai_total: z.number().min(0).optional(),
+    peringkat: z.number().min(1).optional(),
+    catatan: z.string().max(1000, 'Maksimal 1000 karakter').optional().or(z.literal('')),
+  })
+  .refine((d) => d.status !== 'lulus' || (d.program_studi_diterima_id && d.program_studi_diterima_id > 0), {
+    message: 'Program studi diterima wajib dipilih untuk status lulus.',
+    path: ['program_studi_diterima_id'],
+  });
+
+type HasilSeleksiFormValues = z.infer<typeof hasilSeleksiSchema>;
+
+// Nilai tetap domain (closed-set, bukan entitas master) — dipusatkan di satu lokasi.
+const TIPE_POTONGAN_OPTIONS: SelectOption[] = [
+  { value: 'persen', label: 'Persen (%)' },
+  { value: 'nominal', label: 'Nominal (Rp)' },
+];
+
+const TAHAP_POTONGAN_OPTIONS: SelectOption[] = [
+  { value: 'pendaftaran', label: 'Pendaftaran' },
+  { value: 'daftar_ulang', label: 'Daftar Ulang' },
+  { value: 'keduanya', label: 'Pendaftaran & Daftar Ulang' },
+];
+
+const STATUS_POTONGAN_OPTIONS: SelectOption[] = [
+  { value: 'aktif', label: 'Aktif' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'dibatalkan', label: 'Dibatalkan' },
+];
+
+const STATUS_KELULUSAN_OPTIONS: SelectOption[] = [
+  { value: 'lulus', label: 'Lulus' },
+  { value: 'tidak_lulus', label: 'Tidak Lulus' },
+  { value: 'cadangan', label: 'Cadangan' },
+];
+
+// ============================================================
 // SEPARATE DETAIL PAGE FOR PENDAFTARAN VERIFICATION
 // ============================================================
 export default function DetailPendaftaranPage({ params }: { params: Promise<{ id: string }> }) {
@@ -159,6 +230,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
 
   // Konversi manual ke Mahasiswa
   const [showKonversiConfirm, setShowKonversiConfirm] = useState(false);
+  const [showKonversiOverride, setShowKonversiOverride] = useState(false);
   const [isKonversiLoading, setIsKonversiLoading] = useState(false);
 
   const handleOpenKonversi = () => {
@@ -174,22 +246,280 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
     setShowKonversiConfirm(true);
   };
 
-  const handleKonversiMahasiswa = async () => {
+  const handleKonversiMahasiswa = async (force = false) => {
     if (!pendaftar?.id) return;
     setIsKonversiLoading(true);
     try {
-      const res = await spmbService.konversiMahasiswa(pendaftar.id);
+      const res = await spmbService.konversiMahasiswa(pendaftar.id, force ? { force: true } : undefined);
       toast.success(`✅ Berhasil dikonversi! NIM: ${res.data.nim}`);
       setShowKonversiConfirm(false);
+      setShowKonversiOverride(false);
+      fetchDetail(id);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+      const errors = error?.response?.data?.errors || {};
+      if (errors.daftar_ulang) {
+        setShowKonversiConfirm(false);
+        setShowKonversiOverride(true);
+        return;
+      }
+      const msg = Object.keys(errors).length
+        ? Object.values(errors).flat().join(' ')
+        : error?.response?.data?.message || 'Gagal mengonversi ke mahasiswa.';
+      toast.error(msg);
+    } finally {
+      setIsKonversiLoading(false);
+    }
+  };
+
+  // ---- Potongan Biaya Kustom per Calon ----
+  const [potonganList, setPotonganList] = useState<SpmbPotonganCalon[]>([]);
+  const [komponenList, setKomponenList] = useState<{ id: number; kode?: string; nama: string }[]>([]);
+  const [loadingPotongan, setLoadingPotongan] = useState(false);
+  const [showPotonganModal, setShowPotonganModal] = useState(false);
+  const [editingPotongan, setEditingPotongan] = useState<SpmbPotonganCalon | null>(null);
+  const [savingPotongan, setSavingPotongan] = useState(false);
+  const [deletePotonganState, setDeletePotonganState] = useState<{ open: boolean; item: SpmbPotonganCalon | null; loading: boolean }>({
+    open: false,
+    item: null,
+    loading: false,
+  });
+
+  const {
+    register: registerPotongan,
+    handleSubmit: handlePotonganSubmit,
+    control: controlPotongan,
+    reset: resetPotongan,
+    watch: watchPotongan,
+    formState: { errors: errorsPotongan },
+  } = useForm<PotonganCalonFormValues>({
+    resolver: zodResolver(potonganCalonSchema),
+    defaultValues: {
+      komponen_biaya_id: 0,
+      nama_potongan: '',
+      tipe_potongan: 'persen',
+      nilai_potongan: 0,
+      tahap: 'keduanya',
+      nomor_sk: '',
+      keterangan: '',
+      berlaku_mulai: '',
+      berlaku_sampai: '',
+      status: 'aktif',
+    },
+  });
+  const tipePotongan = watchPotongan('tipe_potongan');
+
+  const fetchPotongan = async (pendaftaranId: number) => {
+    try {
+      setLoadingPotongan(true);
+      const res = await spmbService.getPotonganCalon(pendaftaranId, { per_page: 100 });
+      setPotonganList(res.data || []);
+    } catch {
+      setPotonganList([]);
+    } finally {
+      setLoadingPotongan(false);
+    }
+  };
+
+  const fetchKomponen = async () => {
+    try {
+      const res = await spmbService.getKomponenBiayaList({ is_active: true, limit: 100 });
+      const list = Array.isArray(res?.data) ? res.data : res?.data?.items || [];
+      setKomponenList(list);
+    } catch {
+      setKomponenList([]);
+    }
+  };
+
+  const loadKomponenOptions = async (search: string) => {
+    try {
+      const res = await spmbService.getKomponenBiayaList({ is_active: true, search: search || undefined, limit: 20 });
+      const items = Array.isArray(res?.data) ? res.data : res?.data?.items || [];
+      return items.map((k: any) => ({
+        value: k.id,
+        label: `${k.nama}${k.kode ? ` (${k.kode})` : ''}`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const emptyPotonganForm = (): PotonganCalonFormValues => ({
+    komponen_biaya_id: 0,
+    nama_potongan: '',
+    tipe_potongan: 'persen',
+    nilai_potongan: 0,
+    tahap: 'keduanya',
+    nomor_sk: '',
+    keterangan: '',
+    berlaku_mulai: '',
+    berlaku_sampai: '',
+    status: 'aktif',
+  });
+
+  const handleOpenCreatePotongan = () => {
+    setEditingPotongan(null);
+    resetPotongan(emptyPotonganForm());
+    setShowPotonganModal(true);
+  };
+
+  const handleOpenEditPotongan = (item: SpmbPotonganCalon) => {
+    setEditingPotongan(item);
+    resetPotongan({
+      komponen_biaya_id: Number(item.komponen_biaya_id),
+      nama_potongan: item.nama_potongan,
+      tipe_potongan: item.tipe_potongan,
+      nilai_potongan: Number(item.nilai_potongan),
+      tahap: item.tahap,
+      nomor_sk: item.nomor_sk || '',
+      keterangan: item.keterangan || '',
+      berlaku_mulai: item.berlaku_mulai || '',
+      berlaku_sampai: item.berlaku_sampai || '',
+      status: item.status,
+    });
+    setShowPotonganModal(true);
+  };
+
+  const submitPotongan = async (values: PotonganCalonFormValues) => {
+    if (values.tipe_potongan === 'persen' && values.nilai_potongan > 100) {
+      toast.error('Potongan persen maksimal 100.');
+      return;
+    }
+    try {
+      setSavingPotongan(true);
+      const payload = {
+        komponen_biaya_id: Number(values.komponen_biaya_id),
+        nama_potongan: values.nama_potongan.trim(),
+        tipe_potongan: values.tipe_potongan,
+        nilai_potongan: Number(values.nilai_potongan),
+        tahap: values.tahap,
+        nomor_sk: values.nomor_sk?.trim() || undefined,
+        keterangan: values.keterangan?.trim() || undefined,
+        berlaku_mulai: values.berlaku_mulai || null,
+        berlaku_sampai: values.berlaku_sampai || null,
+        status: values.status,
+      };
+      if (editingPotongan) {
+        await spmbService.updatePotonganCalon(editingPotongan.id, payload);
+        toast.success('Potongan berhasil diperbarui.');
+      } else {
+        await spmbService.createPotonganCalon(id, payload);
+        toast.success('Potongan berhasil ditambahkan.');
+      }
+      setShowPotonganModal(false);
+      setEditingPotongan(null);
+      fetchPotongan(id);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+      const msg = error?.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(' ')
+        : error?.response?.data?.message || 'Gagal menyimpan potongan.';
+      toast.error(msg);
+    } finally {
+      setSavingPotongan(false);
+    }
+  };
+
+  const handleConfirmDeletePotongan = async () => {
+    if (!deletePotonganState.item) return;
+    try {
+      setDeletePotonganState((p) => ({ ...p, loading: true }));
+      await spmbService.deletePotonganCalon(deletePotonganState.item.id);
+      toast.success('Potongan berhasil dihapus.');
+      setDeletePotonganState({ open: false, item: null, loading: false });
+      fetchPotongan(id);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Gagal menghapus potongan.');
+      setDeletePotonganState((p) => ({ ...p, loading: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchPotongan(id);
+      fetchKomponen();
+      fetchProdi();
+    }
+  }, [id]);
+
+  // ---- Penetapan Hasil Seleksi ----
+  const [showHasilModal, setShowHasilModal] = useState(false);
+  const [savingHasil, setSavingHasil] = useState(false);
+  const [prodiList, setProdiList] = useState<{ id: number; nama: string; jenjang?: string }[]>([]);
+
+  const {
+    register: registerHasil,
+    handleSubmit: handleHasilSubmit,
+    control: controlHasil,
+    reset: resetHasil,
+    formState: { errors: errorsHasil },
+  } = useForm<HasilSeleksiFormValues>({
+    resolver: zodResolver(hasilSeleksiSchema),
+    defaultValues: { status: 'lulus', program_studi_diterima_id: undefined, nilai_total: 0, peringkat: undefined, catatan: '' },
+  });
+
+  const fetchProdi = async () => {
+    try {
+      const res = await spmbService.getProgramStudi({ limit: 100 });
+      setProdiList(Array.isArray(res?.data) ? res.data : res?.data?.items || []);
+    } catch {
+      setProdiList([]);
+    }
+  };
+
+  const loadProdiOptions = async (search: string) => {
+    try {
+      const res = await spmbService.getProgramStudi({ search: search || undefined, limit: 20 });
+      const items = Array.isArray(res?.data) ? res.data : res?.data?.items || [];
+      return items.map((p: any) => ({
+        value: p.id,
+        label: `${p.jenjang ? `[${p.jenjang}] ` : ''}${p.nama}`,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const handleOpenHasilSeleksi = () => {
+    const h = pendaftar?.hasil_seleksi;
+    resetHasil({
+      status: h?.status || 'lulus',
+      program_studi_diterima_id: h?.program_studi_diterima_id
+        ? Number(h.program_studi_diterima_id)
+        : pendaftar?.program_studi_id
+        ? Number(pendaftar.program_studi_id)
+        : undefined,
+      nilai_total: h?.nilai_total ? Number(h.nilai_total) : 0,
+      peringkat: h?.peringkat ? Number(h.peringkat) : undefined,
+      catatan: h?.catatan || '',
+    });
+    setShowHasilModal(true);
+  };
+
+  const submitHasilSeleksi = async (values: HasilSeleksiFormValues) => {
+    if (!pendaftar?.id) return;
+    try {
+      setSavingHasil(true);
+      await spmbService.tetapkanHasilSeleksi(pendaftar.id, {
+        status: values.status,
+        program_studi_diterima_id: values.program_studi_diterima_id ? Number(values.program_studi_diterima_id) : undefined,
+        nilai_total:
+          values.nilai_total !== undefined && !Number.isNaN(Number(values.nilai_total)) ? Number(values.nilai_total) : 0,
+        peringkat: values.peringkat ? Number(values.peringkat) : undefined,
+        catatan: values.catatan?.trim() || undefined,
+      });
+      toast.success('Hasil seleksi berhasil ditetapkan.');
+      setShowHasilModal(false);
       fetchDetail(id);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
       const msg = error?.response?.data?.errors
         ? Object.values(error.response.data.errors).flat().join(' ')
-        : error?.response?.data?.message || 'Gagal mengonversi ke mahasiswa.';
+        : error?.response?.data?.message || 'Gagal menetapkan hasil seleksi.';
       toast.error(msg);
     } finally {
-      setIsKonversiLoading(false);
+      setSavingHasil(false);
     }
   };
 
@@ -248,7 +578,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
 
   if (loading || !pendaftar) {
     return (
-      <div className="space-y-6 max-w-6xl mx-auto pb-12">
+      <div className="space-y-6 pb-12">
         <PageHeader 
           title="Detail & Verifikasi Pendaftaran"
           action={
@@ -274,7 +604,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
   const daftarUlangLunas = (tagihanDaftarUlang?.sisa_kurang ?? 0) <= 0;
 
   return (
-    <div className="animate-fade-in space-y-6 max-w-6xl mx-auto pb-16">
+    <div className="animate-fade-in space-y-6 pb-16">
       <PageHeader 
         title="Detail & Verifikasi Pendaftaran"
         description="Kelola verifikasi berkas dan tentukan keputusan pendaftaran calon mahasiswa."
@@ -322,10 +652,10 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
       </div>
 
       {/* 2. GRID DETAILS AREA */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         
         {/* LEFT & CENTER COLUMN: INFORMATION SECTIONS */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 xl:col-span-3 space-y-6">
           
           {/* SECTION A: BIODATA & IDENTITAS */}
           <DetailSection title="Identitas & Biodata Pendaftar" icon={User} defaultOpen={true}>
@@ -505,6 +835,56 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
             )}
           </DetailSection>
 
+          {/* SECTION: POTONGAN BIAYA KHUSUS PER CALON */}
+          <DetailSection title="Potongan Biaya Khusus" icon={Percent} defaultOpen={true} badgeCount={potonganList.length}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 pb-2">
+              <p className="text-2xs text-slate-500">
+                Potongan kustom per calon (menunjuk 1 komponen biaya). Diterapkan otomatis saat tagihan pendaftaran/daftar ulang dibuat.
+              </p>
+              {canKonversiMahasiswa && (
+                <Button variant="outline" size="sm" icon={<Plus size={16} />} onClick={handleOpenCreatePotongan} className="shrink-0">
+                  Tambah Potongan
+                </Button>
+              )}
+            </div>
+
+            {loadingPotongan ? (
+              <div className="py-4 text-center text-xs text-slate-400">Memuat potongan...</div>
+            ) : potonganList.length === 0 ? (
+              <div className="py-4 text-center text-xs text-slate-400">Belum ada potongan khusus untuk calon ini.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {potonganList.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800 truncate">{p.nama_potongan}</span>
+                        <Badge variant={p.status === 'aktif' ? 'success' : p.status === 'draft' ? 'secondary' : 'danger'}>{p.status}</Badge>
+                      </div>
+                      <div className="text-2xs text-slate-500 mt-0.5">
+                        {p.nama_komponen || p.komponen_biaya?.nama || '-'}
+                        {' • '}
+                        {p.tipe_potongan === 'persen' ? `${Number(p.nilai_potongan)}%` : formatCurrency(Number(p.nilai_potongan))}
+                        {' • '}Tahap: {String(p.tahap).replace('_', ' ')}
+                        {p.nomor_sk ? ` • SK: ${p.nomor_sk}` : ''}
+                      </div>
+                    </div>
+                    {canKonversiMahasiswa && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenEditPotongan(p)} title="Edit potongan">
+                          <Pencil size={15} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeletePotonganState({ open: true, item: p, loading: false })} title="Hapus potongan">
+                          <Trash2 size={15} className="text-red-500" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </DetailSection>
+
           {/* SECTION D: DOCUMENT VERIFICATION */}
           <DetailSection 
             title="Berkas Pendukung" 
@@ -632,6 +1012,35 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                 {updateStatusLoading ? 'Menyimpan Keputusan...' : 'Simpan Keputusan'}
               </Button>
 
+              {/* Penetapan Hasil Seleksi (lulus/tidak lulus/cadangan) */}
+              {canKonversiMahasiswa && (
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  {pendaftar.hasil_seleksi ? (
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                      <p className="text-2xs font-bold text-slate-500 uppercase tracking-wider">Hasil Seleksi</p>
+                      <p className="text-xs font-bold text-slate-800 capitalize">
+                        {String(pendaftar.hasil_seleksi.status).replace('_', ' ')}
+                      </p>
+                      {pendaftar.hasil_seleksi.program_studi_diterima?.nama && (
+                        <p className="text-2xs text-slate-500">{pendaftar.hasil_seleksi.program_studi_diterima.nama}</p>
+                      )}
+                    </div>
+                  ) : null}
+                  <Button
+                    onClick={handleOpenHasilSeleksi}
+                    variant="outline"
+                    icon={<GraduationCap size={16} />}
+                    className="w-full font-bold text-xs py-2.5"
+                    style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                  >
+                    {pendaftar.hasil_seleksi ? 'Perbarui Hasil Seleksi' : 'Tetapkan Hasil Seleksi'}
+                  </Button>
+                  <p className="text-2xs text-slate-400 text-center">
+                    Menetapkan status Lulus membuka tahap Daftar Ulang.
+                  </p>
+                </div>
+              )}
+
               {(pendaftar.status === 'lulus_administrasi' || pendaftar.status === 'mahasiswa_baru' || pendaftar.hasil_seleksi?.status === 'lulus') && (
                 <div className="pt-2 border-t border-slate-100">
                   <Button 
@@ -687,7 +1096,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
         onClose={() => {
           if (!isKonversiLoading) setShowKonversiConfirm(false);
         }}
-        onConfirm={handleKonversiMahasiswa}
+        onConfirm={() => handleKonversiMahasiswa()}
         title="Konversi ke Mahasiswa?"
         message={
           <span>
@@ -705,6 +1114,259 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
         variant="warning"
         isLoading={isKonversiLoading}
       />
+
+      {/* ConfirmDialog: Override konversi saat daftar ulang belum lunas */}
+      <ConfirmDialog
+        isOpen={showKonversiOverride}
+        onClose={() => {
+          if (!isKonversiLoading) setShowKonversiOverride(false);
+        }}
+        onConfirm={() => handleKonversiMahasiswa(true)}
+        title="Daftar Ulang Belum Lunas"
+        message={
+          <span>
+            Tagihan <strong>daftar ulang</strong> untuk <strong>{pendaftar?.nama_lengkap}</strong> belum lunas.
+            Konversi tetap dapat dilakukan dengan <strong>override</strong> (mis. kebijakan khusus/beasiswa).
+            <br /><br />
+            <span className="text-amber-600 font-semibold">
+              ⚠️ Override ini dicatat pada audit log.
+            </span>
+          </span>
+        }
+        confirmText="Tetap Konversi (Override)"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isKonversiLoading}
+      />
+
+      {/* Modal: Potongan Biaya Khusus per Calon */}
+      <Modal
+        open={showPotonganModal}
+        onClose={() => {
+          if (!savingPotongan) {
+            setShowPotonganModal(false);
+            setEditingPotongan(null);
+          }
+        }}
+        title={editingPotongan ? 'Edit Potongan Biaya' : 'Tambah Potongan Biaya'}
+      >
+        <form onSubmit={handlePotonganSubmit(submitPotongan)} className="space-y-4 pt-1">
+          <Controller
+            control={controlPotongan}
+            name="komponen_biaya_id"
+            render={({ field }) => (
+              <AsyncSelect
+                label="Komponen Biaya *"
+                required
+                placeholder="Cari komponen biaya..."
+                defaultOptions
+                value={field.value || null}
+                onChange={(opt: any) => field.onChange(opt ? Number(opt.value) : undefined)}
+                loadOptions={loadKomponenOptions}
+                error={errorsPotongan.komponen_biaya_id?.message}
+                hint="Potongan menunjuk tepat satu komponen biaya."
+              />
+            )}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Nama Potongan *"
+              placeholder="Contoh: Keringanan Rektorat"
+              error={errorsPotongan.nama_potongan?.message}
+              {...registerPotongan('nama_potongan')}
+            />
+            <Controller
+              control={controlPotongan}
+              name="tipe_potongan"
+              render={({ field }) => (
+                <Select
+                  label="Tipe Potongan *"
+                  required
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={TIPE_POTONGAN_OPTIONS}
+                  error={errorsPotongan.tipe_potongan?.message}
+                />
+              )}
+            />
+            <Input
+              type="number"
+              min={0}
+              max={tipePotongan === 'persen' ? 100 : undefined}
+              label={tipePotongan === 'persen' ? 'Nilai Potongan (%) *' : 'Nilai Potongan (Rp) *'}
+              error={errorsPotongan.nilai_potongan?.message}
+              {...registerPotongan('nilai_potongan', { valueAsNumber: true })}
+            />
+            <Controller
+              control={controlPotongan}
+              name="tahap"
+              render={({ field }) => (
+                <Select
+                  label="Berlaku Pada Tahap *"
+                  required
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={TAHAP_POTONGAN_OPTIONS}
+                  error={errorsPotongan.tahap?.message}
+                />
+              )}
+            />
+            <Input
+              label="Nomor SK (Opsional)"
+              placeholder="SK/012/2026"
+              error={errorsPotongan.nomor_sk?.message}
+              {...registerPotongan('nomor_sk')}
+            />
+            <Controller
+              control={controlPotongan}
+              name="status"
+              render={({ field }) => (
+                <Select
+                  label="Status *"
+                  required
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={STATUS_POTONGAN_OPTIONS}
+                  error={errorsPotongan.status?.message}
+                />
+              )}
+            />
+            <Input
+              type="date"
+              label="Berlaku Mulai (Opsional)"
+              error={errorsPotongan.berlaku_mulai?.message}
+              {...registerPotongan('berlaku_mulai')}
+            />
+            <Input
+              type="date"
+              label="Berlaku Sampai (Opsional)"
+              error={errorsPotongan.berlaku_sampai?.message}
+              {...registerPotongan('berlaku_sampai')}
+            />
+          </div>
+          <Textarea
+            label="Keterangan / Dasar (Opsional)"
+            placeholder="Alasan/dasar pemberian potongan..."
+            rows={2}
+            error={errorsPotongan.keterangan?.message}
+            {...registerPotongan('keterangan')}
+          />
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowPotonganModal(false);
+                setEditingPotongan(null);
+              }}
+              disabled={savingPotongan}
+            >
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" loading={savingPotongan} icon={<Save size={16} />}>
+              Simpan
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ConfirmDialog: Hapus Potongan Khusus */}
+      <ConfirmDialog
+        isOpen={deletePotonganState.open}
+        onClose={() => {
+          if (!deletePotonganState.loading) setDeletePotonganState({ open: false, item: null, loading: false });
+        }}
+        onConfirm={handleConfirmDeletePotongan}
+        title="Hapus Potongan?"
+        message={
+          <span>
+            Hapus potongan <strong>{deletePotonganState.item?.nama_potongan}</strong> untuk komponen{' '}
+            <strong>{deletePotonganState.item?.nama_komponen}</strong>? Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={deletePotonganState.loading}
+      />
+
+      {/* Modal: Penetapan Hasil Seleksi */}
+      <Modal
+        open={showHasilModal}
+        onClose={() => {
+          if (!savingHasil) setShowHasilModal(false);
+        }}
+        title="Penetapan Hasil Seleksi"
+      >
+        <form onSubmit={handleHasilSubmit(submitHasilSeleksi)} className="space-y-4 pt-1">
+          <Controller
+            control={controlHasil}
+            name="status"
+            render={({ field }) => (
+              <Select
+                label="Status Kelulusan *"
+                required
+                value={field.value}
+                onChange={field.onChange}
+                options={STATUS_KELULUSAN_OPTIONS}
+                error={errorsHasil.status?.message}
+              />
+            )}
+          />
+          <Controller
+            control={controlHasil}
+            name="program_studi_diterima_id"
+            render={({ field }) => (
+              <AsyncSelect
+                label="Program Studi Diterima *"
+                required
+                placeholder="Cari program studi..."
+                defaultOptions
+                value={field.value || null}
+                onChange={(opt: any) => field.onChange(opt ? Number(opt.value) : undefined)}
+                loadOptions={loadProdiOptions}
+                error={errorsHasil.program_studi_diterima_id?.message}
+                hint="Wajib untuk status Lulus."
+              />
+            )}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              type="number"
+              min={0}
+              label="Nilai Total (Opsional)"
+              error={errorsHasil.nilai_total?.message}
+              {...registerHasil('nilai_total', {
+                setValueAs: (v) => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? undefined : Number(v)),
+              })}
+            />
+            <Input
+              type="number"
+              min={1}
+              label="Peringkat (Opsional)"
+              error={errorsHasil.peringkat?.message}
+              {...registerHasil('peringkat', {
+                setValueAs: (v) => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? undefined : Number(v)),
+              })}
+            />
+          </div>
+          <Textarea
+            label="Catatan (Opsional)"
+            placeholder="Catatan hasil seleksi..."
+            rows={2}
+            error={errorsHasil.catatan?.message}
+            {...registerHasil('catatan')}
+          />
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button type="button" variant="secondary" onClick={() => setShowHasilModal(false)} disabled={savingHasil}>
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" loading={savingHasil} icon={<Save size={16} />}>
+              Simpan Hasil Seleksi
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -331,6 +331,28 @@ export interface MasterBiayaSpmb {
   };
 }
 
+export interface SpmbPotonganCalon {
+  id: number;
+  pendaftaran_id: number;
+  komponen_biaya_id: number;
+  nama_komponen?: string | null;
+  nama_potongan: string;
+  tipe_potongan: 'nominal' | 'persen';
+  nilai_potongan: number | string;
+  tahap: 'pendaftaran' | 'daftar_ulang' | 'keduanya';
+  nomor_sk?: string | null;
+  keterangan?: string | null;
+  berlaku_mulai?: string | null;
+  berlaku_sampai?: string | null;
+  status: 'draft' | 'aktif' | 'dibatalkan';
+  dibuat_oleh?: number | null;
+  disetujui_oleh?: number | null;
+  created_at?: string;
+  updated_at?: string;
+  komponen_biaya?: { id: number; kode?: string; nama: string };
+  pembuat?: { id: number; name?: string; username?: string };
+}
+
 // ============================================================
 // REFERRAL — Kode Rujukan Mahasiswa Baru
 // ============================================================

@@ -17,6 +17,9 @@ export interface GatewayConfigData {
   account_validation_enabled: boolean;
   max_disbursement_limit: number;
   is_active: boolean;
+  va_fee?: number;
+  vat_percent?: number;
+  charge_fee_to_payer?: boolean;
   // Koneksi bridge H2H BTN Syariah (hanya dipakai tab bsn_h2h)
   base_url?: string;
   server_location?: string;
@@ -109,7 +112,7 @@ export function GatewayConfigFormPanel({
                 onChange={(e) => onChange('max_disbursement_limit', Number(e.target.value))}
                 placeholder="50000000"
                 hint={`Batas maksimum: Rp ${new Intl.NumberFormat('id-ID').format(config.max_disbursement_limit || 0)}`}
-                className="font-mono font-bold text-slate-800 text-sm"
+                className="font-mono font-bold text-slate-800 text-xs"
               />
             </div>
           </div>
@@ -169,6 +172,51 @@ export function GatewayConfigFormPanel({
                 hint="Digunakan untuk memvalidasi keaslian signature HTTP POST."
               />
             </div>
+          </div>
+        </div>
+
+        {/* SECTION C: BIAYA GATEWAY (VA) */}
+        <div className="space-y-3 pt-2">
+          <SectionHeader
+            title="Biaya Gateway (Virtual Account)"
+            subtitle="Biaya tetap per transaksi VA + PPN. Dipakai untuk pencatatan jurnal & opsi pembebanan ke pendaftar."
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Input
+              label="Biaya VA per Transaksi (Rp)"
+              type="number"
+              min={0}
+              value={config.va_fee ?? 0}
+              onChange={(e) => onChange('va_fee', Number(e.target.value))}
+              placeholder="9000"
+              hint={`Biaya total (fee + PPN) = Rp ${new Intl.NumberFormat('id-ID').format(
+                Math.round((config.va_fee || 0) + (config.va_fee || 0) * ((config.vat_percent ?? 11) / 100))
+              )}`}
+              className="font-mono font-bold text-slate-800 text-xs"
+            />
+
+            <Input
+              label="PPN atas Biaya (%)"
+              type="number"
+              min={0}
+              max={100}
+              value={config.vat_percent ?? 11}
+              onChange={(e) => onChange('vat_percent', Number(e.target.value))}
+              placeholder="11"
+              hint="Persentase PPN yang dikenakan atas biaya gateway."
+              className="font-mono font-bold text-slate-800 text-xs"
+            />
+          </div>
+
+          <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+            <ToggleSwitch
+              id={`charge-fee-to-payer-${gatewayName}`}
+              checked={!!config.charge_fee_to_payer}
+              onChange={(val) => onChange('charge_fee_to_payer', val)}
+              label="Bebankan Biaya Gateway ke Pendaftar"
+              description="Jika aktif, biaya VA (fee + PPN) ditambahkan sebagai komponen tagihan sehingga ditanggung pendaftar. Jika nonaktif, biaya ditanggung kampus (tercatat sebagai beban)."
+            />
           </div>
         </div>
 

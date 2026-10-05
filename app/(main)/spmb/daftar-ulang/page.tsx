@@ -54,9 +54,8 @@ export default function DaftarUlangPage() {
       const res = await spmbService.generateTagihanDaftarUlang(pendaftaran.id);
       toast.success('Tagihan Daftar Ulang berhasil dibuat');
       await fetchStatus();
-      if (res.data?.va_number) {
-        router.push('/checkout');
-      }
+      const va = res.data?.virtual_account?.va_number || res.data?.va_number;
+      router.push(va ? `/checkout?va=${va}` : '/checkout');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal membuat tagihan daftar ulang');
     } finally {
@@ -204,7 +203,10 @@ export default function DaftarUlangPage() {
               <Button
                 variant="primary"
                 icon={<CreditCard size={16} />}
-                onClick={() => router.push('/checkout')}
+                onClick={() => {
+                  const va = pendaftaran?.daftar_ulang_tagihan?.virtual_account?.va_number;
+                  router.push(va ? `/checkout?va=${va}` : '/checkout');
+                }}
                 className="w-full sm:w-auto"
                 style={{ backgroundColor: 'var(--module-primary)' }}
               >

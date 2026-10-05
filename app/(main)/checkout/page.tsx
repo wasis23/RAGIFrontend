@@ -44,9 +44,10 @@ function UniversalCheckoutContent() {
       setLoading(true);
       const res = await spmbService.getMyPendaftaran();
       if (res.data) {
-        const vaObj = res.data?.tagihan?.virtual_account || res.data?.virtual_account;
+        const vaObj = res.data?.tagihan?.virtual_account || res.data?.virtual_account || res.data?.daftar_ulang_tagihan?.virtual_account;
         const initVa = searchParams.get('va') || vaObj?.va_number || '';
         if (initVa) {
+          setCustomVaNumber(initVa);
           lookupVaDetails(initVa);
         }
       }
@@ -78,8 +79,8 @@ function UniversalCheckoutContent() {
         setVaData({
           va_number: d.va_number,
           bank_kode: d.bank_kode || 'BNI',
-          nominal: Number(d.nominal || 250000),
-          total_bayar: Number(d.total_bayar || 250000),
+          nominal: Number(d.nominal ?? d.total_bayar ?? 0),
+          total_bayar: Number(d.total_bayar ?? d.nominal ?? 0),
           nama_pendaftar: d.nama_pendaftar || 'Calon Mahasiswa',
           no_pendaftaran: d.no_pendaftaran || 'REG-2026-SPMB',
           program_studi: d.program_studi || 'S1 Informatika',
