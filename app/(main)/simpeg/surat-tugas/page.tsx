@@ -166,23 +166,17 @@ export default function SuratTugasListPage() {
   const handleSubmitApproval = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedForApproval) return;
-    if (approvalStatus === 'disetujui' && !nomorSurat.trim()) {
-      toast.error('Nomor surat tugas resmi wajib diisi.');
-      return;
-    }
 
     setIsSubmittingApproval(true);
     try {
       await simpegSuratTugasService.approve(selectedForApproval.id, {
         status: approvalStatus,
-        nomor_surat: nomorSurat,
         catatan_approval: catatanApproval,
-        file_surat_tugas: fileSuratTugas,
       });
 
       toast.success(
         approvalStatus === 'disetujui'
-          ? 'Surat tugas disetujui! Presensi dinas luar tim telah diaktifkan otomatis.'
+          ? 'Surat tugas disetujui! Permohonan nomor resmi telah diteruskan otomatis ke modul ARSIP.'
           : 'Surat tugas ditolak.'
       );
       setApprovalModalOpen(false);
@@ -628,7 +622,7 @@ export default function SuratTugasListPage() {
             setSelectedForApproval(null);
           }
         }}
-        title="Persetujuan Surat Tugas & Penomoran Resmi"
+        title="Persetujuan Surat Tugas"
         size="md"
       >
         <form onSubmit={handleSubmitApproval} className="space-y-4">
@@ -643,34 +637,18 @@ export default function SuratTugasListPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Keputusan Approval <span className="text-rose-500">*</span>
-              </label>
-              <Select
-                options={[
-                  { value: 'disetujui', label: 'Setujui & Terbitkan Surat' },
-                  { value: 'ditolak', label: 'Tolak Permohonan' },
-                ]}
-                value={approvalStatus}
-                onChange={(val: any) => setApprovalStatus(val as 'disetujui' | 'ditolak')}
-              />
-            </div>
-
-            {approvalStatus === 'disetujui' && (
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Nomor Surat Tugas Resmi <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  placeholder="Contoh: ST/102/REK/IX/2026"
-                  value={nomorSurat}
-                  onChange={(e) => setNomorSurat(e.target.value)}
-                  required
-                />
-              </div>
-            )}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Keputusan Approval <span className="text-rose-500">*</span>
+            </label>
+            <Select
+              options={[
+                { value: 'disetujui', label: 'Setujui & Terbitkan Surat' },
+                { value: 'ditolak', label: 'Tolak Permohonan' },
+              ]}
+              value={approvalStatus}
+              onChange={(val: any) => setApprovalStatus(val as 'disetujui' | 'ditolak')}
+            />
           </div>
 
           <div>
@@ -683,26 +661,6 @@ export default function SuratTugasListPage() {
               onChange={(e) => setCatatanApproval(e.target.value)}
             />
           </div>
-
-          {approvalStatus === 'disetujui' && (
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Unggah Berkas Surat Tugas Resmi (PDF, Opsional)
-              </label>
-              <Input
-                type="file"
-                accept=".pdf"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setFileSuratTugas(e.target.files[0]);
-                  }
-                }}
-              />
-              <p className="text-[11px] text-slate-500 mt-1">
-                Format PDF, maksimal 10MB.
-              </p>
-            </div>
-          )}
 
           {approvalStatus === 'disetujui' && (
             <div className="p-3 bg-sky-50 rounded-lg border border-sky-200 text-xs text-sky-800 flex items-start gap-2">

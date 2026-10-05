@@ -28,6 +28,8 @@ import type {
   MasterTingkatKegiatan,
   MasterJenisIzinJamKerja,
   MasterKategoriSk,
+  TandaTanganPegawai,
+  TandaTanganFilterParams,
 } from '@/types/simpeg.types';
 
 export const simpegService = {
@@ -883,6 +885,46 @@ export const simpegService = {
   },
   deleteMasterKategoriSk: async (id: number): Promise<ApiResponse<void>> => {
     const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/master/kategori-sk/${id}`);
+    return data;
+  },
+
+  // ── MASTER TANDA TANGAN DIGITAL ────────────────────────────
+  getTandaTanganList: async (params?: TandaTanganFilterParams): Promise<ApiResponse<TandaTanganPegawai[]>> => {
+    const { data } = await apiClient.get<ApiResponse<TandaTanganPegawai[]>>('/simpeg/tanda-tangan', { params });
+    return data;
+  },
+
+  getTandaTanganDetail: async (id: number): Promise<ApiResponse<TandaTanganPegawai>> => {
+    const { data } = await apiClient.get<ApiResponse<TandaTanganPegawai>>(`/simpeg/tanda-tangan/${id}`);
+    return data;
+  },
+
+  storeTandaTangan: async (formData: FormData): Promise<ApiResponse<TandaTanganPegawai>> => {
+    const { data } = await apiClient.post<ApiResponse<TandaTanganPegawai>>('/simpeg/tanda-tangan', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  updateTandaTangan: async (id: number, formData: FormData): Promise<ApiResponse<TandaTanganPegawai>> => {
+    const { data } = await apiClient.post<ApiResponse<TandaTanganPegawai>>(`/simpeg/tanda-tangan/${id}?_method=PUT`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  toggleActiveTandaTangan: async (id: number): Promise<ApiResponse<TandaTanganPegawai>> => {
+    const { data } = await apiClient.patch<ApiResponse<TandaTanganPegawai>>(`/simpeg/tanda-tangan/${id}/toggle-active`);
+    return data;
+  },
+
+  deleteTandaTangan: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/tanda-tangan/${id}`);
+    return data;
+  },
+
+  getActiveTandaTanganByUser: async (userId: number): Promise<ApiResponse<TandaTanganPegawai>> => {
+    const { data } = await apiClient.get<ApiResponse<TandaTanganPegawai>>(`/simpeg/tanda-tangan/user/${userId}`);
     return data;
   },
 };

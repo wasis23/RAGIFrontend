@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   CalendarCheck,
   Home,
@@ -14,6 +15,8 @@ import {
   UserCheck,
   FileText,
   Info,
+  Eye,
+  Printer,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -23,7 +26,6 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Select } from '@/components/ui/Select';
-import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
@@ -31,18 +33,15 @@ import { formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
 import type {
   PeminjamanRuangan,
-  ApplyPeminjamanRuanganPayload,
   ApprovePeminjamanRuanganPayload,
   PeminjamanAset,
-  ApplyPeminjamanAsetPayload,
   ApprovePeminjamanAsetPayload,
   KembalikanAsetPayload,
-  Ruangan,
-  Aset
 } from '@/types/sinapra.types';
 import type { PaginationMeta } from '@/types/api.types';
 
 export default function PeminjamanPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'ruangan' | 'aset'>('ruangan');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
@@ -57,18 +56,6 @@ export default function PeminjamanPage() {
   const [ruanganStatusFilter, setRuanganStatusFilter] = useState('');
   const [ruanganSortBy, setRuanganSortBy] = useState('tanggal');
   const [ruanganSortDir, setRuanganSortDir] = useState<'asc' | 'desc'>('desc');
-
-  // Modal Pinjam Ruangan Form
-  const [showPinjamRuanganModal, setShowPinjamRuanganModal] = useState(false);
-  const [selectedRuanganObj, setSelectedRuanganObj] = useState<{ value: string; label: string } | null>(null);
-
-  const [ruanganForm, setRuanganForm] = useState<ApplyPeminjamanRuanganPayload>({
-    ruangan_id: 0,
-    tanggal: new Date().toISOString().split('T')[0],
-    jam_mulai: '08:00',
-    jam_selesai: '12:00',
-    keperluan: '',
-  });
 
   const [approvingRuangan, setApprovingRuangan] = useState<PeminjamanRuangan | null>(null);
   const [isApprovingRuangan, setIsApprovingRuangan] = useState(false);
@@ -88,17 +75,6 @@ export default function PeminjamanPage() {
   const [asetStatusFilter, setAsetStatusFilter] = useState('');
   const [asetSortBy, setAsetSortBy] = useState('tanggal_pinjam');
   const [asetSortDir, setAsetSortDir] = useState<'asc' | 'desc'>('desc');
-
-  // Modal Pinjam Aset Form
-  const [showPinjamAsetModal, setShowPinjamAsetModal] = useState(false);
-  const [selectedAsetObj, setSelectedAsetObj] = useState<{ value: string; label: string } | null>(null);
-
-  const [asetForm, setAsetForm] = useState<ApplyPeminjamanAsetPayload>({
-    aset_id: 0,
-    tanggal_pinjam: new Date().toISOString().split('T')[0],
-    tanggal_kembali_rencana: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
-    keperluan: '',
-  });
 
   // Modal Approval Aset
   const [approvingAset, setApprovingAset] = useState<PeminjamanAset | null>(null);
@@ -206,51 +182,7 @@ export default function PeminjamanPage() {
     if (activeTab === 'aset') fetchAsetList();
   }, [activeTab, asetPage, asetSearch, asetStatusFilter, asetSortBy, asetSortDir]);
 
-  const loadRuanganOptions = async (inputValue: string) => {
-    try {
-      const res: any = await sinapraService.getRuanganList({ search: inputValue });
-      let list = res?.data?.items || res?.data || res || [];
-      if (Array.isArray(list)) {
-        return list.map((r: Ruangan) => ({ value: r.id.toString(), label: `${r.kode} - ${r.nama}` }));
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  };
 
-  const loadAsetOptions = async (inputValue: string) => {
-    try {
-      const res: any = await sinapraService.getAsetList({ search: inputValue, is_borrowable: true });
-      let list = res?.data?.items || res?.data || res || [];
-      if (Array.isArray(list)) {
-        return list.map((a: Aset) => ({ value: a.id.toString(), label: `${a.kode_aset} - ${a.nama}` }));
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  };
-
-  // ------------------------------------------------------------
-  // HANDLERS PEMINJAMAN RUANGAN
-  // ------------------------------------------------------------
-  const handleSavePinjamRuangan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ruanganForm.ruangan_id || !ruanganForm.keperluan || !ruanganForm.tanggal) {
-      toast.error('Ruangan, Tanggal, dan Keperluan wajib diisi!');
-      return;
-    }
-
-    try {
-      await sinapraService.applyPeminjamanRuangan(ruanganForm);
-      toast.success('Permohonan peminjaman ruangan berhasil dikirim!');
-      fetchRuanganList();
-      setShowPinjamRuanganModal(false);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal mengajukan peminjaman ruangan.');
-    }
-  };
 
   const handleProcessApprovalRuangan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,25 +213,6 @@ export default function PeminjamanPage() {
     }
   };
 
-  // ------------------------------------------------------------
-  // HANDLERS PEMINJAMAN ASET
-  // ------------------------------------------------------------
-  const handleSavePinjamAset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!asetForm.aset_id || !asetForm.keperluan || !asetForm.tanggal_pinjam) {
-      toast.error('Barang Aset, Tanggal, dan Keperluan wajib diisi!');
-      return;
-    }
-
-    try {
-      await sinapraService.applyPeminjamanAset(asetForm);
-      toast.success('Permohonan peminjaman aset berhasil dikirim!');
-      fetchAsetList();
-      setShowPinjamAsetModal(false);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal mengajukan peminjaman aset.');
-    }
-  };
 
   const handleProcessApprovalAset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -440,10 +353,23 @@ export default function PeminjamanPage() {
           <div className="flex justify-end">
             <DropdownMenu
               items={[
-                ...(canApprove
+                {
+                  label: 'Lihat Detail Peminjaman',
+                  icon: <Eye size={16} className="text-[var(--module-primary)]" />,
+                  onClick: () => router.push(`/sinapra/peminjaman/ruangan/${row.id}`),
+                },
+                ...(isLaboran
                   ? [
                       {
-                        label: isLaboran ? 'Verifikasi Laboran' : 'Persetujuan Admin',
+                        label: 'Verifikasi Laboran',
+                        icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
+                        onClick: () => router.push(`/sinapra/peminjaman/ruangan/${row.id}/verifikasi-laboran`),
+                      },
+                    ]
+                  : canApprove
+                  ? [
+                      {
+                        label: 'Persetujuan Admin',
                         icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
                         onClick: () => {
                           setApprovingRuangan(row);
@@ -452,15 +378,6 @@ export default function PeminjamanPage() {
                       },
                     ]
                   : []),
-                {
-                  label: 'Detail Jadwal',
-                  icon: <Clock size={16} className="text-[var(--module-primary)]" />,
-                  onClick: () => {
-                    toast(`Jadwal: ${formatDate(row.tanggal)} (${row.jam_mulai} - ${row.jam_selesai} WIB)`, {
-                      icon: <Info size={16} className="text-[var(--module-primary)]" />,
-                    });
-                  },
-                },
               ]}
             />
           </div>
@@ -476,7 +393,7 @@ export default function PeminjamanPage() {
       render: (row) => (
         <div>
           <span className="font-mono font-bold text-[var(--module-primary)] block text-xs">
-            PA-{row.id}
+            {row.kode_peminjaman || `PA-${row.id}`}
           </span>
           <span className="text-2xs text-slate-400 block">
             {formatDate(row.tanggal_pinjam)}
@@ -501,16 +418,25 @@ export default function PeminjamanPage() {
     {
       key: 'pemohon',
       label: 'PEMOHON & KEPERLUAN',
-      render: (row) => (
-        <div>
-          <div className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
-            {row.user?.name || `User #${row.user_id}`}
+      render: (row) => {
+        const identitas =
+          row.nomor_identitas ||
+          (row.user as any)?.mahasiswa?.nim ||
+          (row.user as any)?.pegawai?.nidn ||
+          (row.user as any)?.pegawai?.nuptk ||
+          (row.user as any)?.pegawai?.nip;
+        return (
+          <div>
+            <div className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+              {row.user?.name || `User #${row.user_id}`}{' '}
+              {identitas ? <span className="font-mono text-2xs text-slate-400 font-normal">({identitas})</span> : null}
+            </div>
+            <div className="text-2xs text-slate-500 line-clamp-1">
+              {row.keperluan} {row.kontak_peminjam ? `• WA: ${row.kontak_peminjam}` : ''}
+            </div>
           </div>
-          <div className="text-2xs text-slate-500 line-clamp-1">
-            {row.keperluan}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'tgl_pinjam',
@@ -564,10 +490,32 @@ export default function PeminjamanPage() {
           <div className="flex justify-end">
             <DropdownMenu
               items={[
-                ...(canApprove
+                {
+                  label: 'Lihat Detail Peminjaman',
+                  icon: <Eye size={16} className="text-[var(--module-primary)]" />,
+                  onClick: () => router.push(`/sinapra/peminjaman/aset/${row.id}`),
+                },
+                ...(['disetujui', 'dipinjam', 'kembali'].includes(row.status)
                   ? [
                       {
-                        label: isLaboran ? 'Verifikasi Laboran' : 'Persetujuan Admin',
+                        label: 'Lihat Surat Peminjaman',
+                        icon: <Printer size={16} className="text-blue-600" />,
+                        onClick: () => router.push(`/sinapra/peminjaman/aset/${row.id}/surat`),
+                      },
+                    ]
+                  : []),
+                ...(isLaboran
+                  ? [
+                      {
+                        label: 'Verifikasi Laboran',
+                        icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
+                        onClick: () => router.push(`/sinapra/peminjaman/aset/${row.id}/verifikasi-laboran`),
+                      },
+                    ]
+                  : canApprove
+                  ? [
+                      {
+                        label: 'Persetujuan Admin',
                         icon: <UserCheck size={16} className="text-[var(--module-primary)]" />,
                         onClick: () => {
                           setApprovingAset(row);
@@ -576,30 +524,15 @@ export default function PeminjamanPage() {
                       },
                     ]
                   : []),
-                ...(row.status === 'dipinjam'
+                ...(['dipinjam', 'disetujui'].includes(row.status)
                   ? [
                       {
                         label: 'Kembalikan Aset',
-                        icon: <RotateCcw size={16} className="text-[var(--module-primary)]" />,
-                        onClick: () => {
-                          setReturningAset(row);
-                          setReturnAsetForm({
-                            kondisi_kembali: 'baik',
-                            catatan: '',
-                          });
-                        },
+                        icon: <RotateCcw size={16} className="text-emerald-600" />,
+                        onClick: () => router.push(`/sinapra/peminjaman/aset/${row.id}/kembalikan`),
                       },
                     ]
                   : []),
-                {
-                  label: 'Detail Peminjaman',
-                  icon: <FileText size={16} className="text-[var(--module-primary)]" />,
-                  onClick: () => {
-                    toast(`Keperluan: ${row.keperluan || '-'}`, {
-                      icon: <Info size={16} className="text-[var(--module-primary)]" />,
-                    });
-                  },
-                },
               ]}
             />
           </div>
@@ -624,11 +557,11 @@ export default function PeminjamanPage() {
               Filter
             </Button>
             {activeTab === 'ruangan' ? (
-              <Button icon={<Plus size={16} />} onClick={() => { setSelectedRuanganObj(null); setShowPinjamRuanganModal(true); }}>
+              <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/peminjaman/ruangan/create')}>
                 Permohonan Pinjam Ruangan
               </Button>
             ) : (
-              <Button icon={<Plus size={16} />} onClick={() => { setSelectedAsetObj(null); setShowPinjamAsetModal(true); }}>
+              <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/peminjaman/aset/create')}>
                 Permohonan Pinjam Aset
               </Button>
             )}
@@ -697,77 +630,12 @@ export default function PeminjamanPage() {
         />
       )}
 
-      {/* ------------------------------------------------------------ */}
-      {/* MODAL FORM PERMOHONAN PINJAM RUANGAN (FORM <= 5 INPUT) */}
-      {/* ------------------------------------------------------------ */}
-      <Modal
-        open={showPinjamRuanganModal}
-        onClose={() => setShowPinjamRuanganModal(false)}
-        title="Formulir Permohonan Pinjam Ruangan"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowPinjamRuanganModal(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSavePinjamRuangan}>Kirim Permohonan</Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSavePinjamRuangan} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="col-span-full">
-            <AsyncSelect
-              label="Pilih Ruangan Kampus"
-              required
-              placeholder="Cari ruangan..."
-              value={selectedRuanganObj}
-              onChange={(sel: any) => {
-                setSelectedRuanganObj(sel);
-                setRuanganForm({ ...ruanganForm, ruangan_id: sel ? parseInt(sel.value) : 0 });
-              }}
-              loadOptions={loadRuanganOptions}
-            />
-          </div>
-
-          <Input
-            label="Tanggal Pemakaian"
-            type="date"
-            required
-            value={ruanganForm.tanggal}
-            onChange={(e) => setRuanganForm({ ...ruanganForm, tanggal: e.target.value })}
-          />
-
-          <Input
-            label="Jam Mulai"
-            type="time"
-            required
-            value={ruanganForm.jam_mulai}
-            onChange={(e) => setRuanganForm({ ...ruanganForm, jam_mulai: e.target.value })}
-          />
-
-          <Input
-            label="Jam Selesai"
-            type="time"
-            required
-            value={ruanganForm.jam_selesai}
-            onChange={(e) => setRuanganForm({ ...ruanganForm, jam_selesai: e.target.value })}
-          />
-
-          <div className="col-span-full">
-            <Textarea
-              label="Keperluan / Acara"
-              required
-              rows={3}
-              placeholder="cth: Seminar Nasional Himatik Komputer..."
-              value={ruanganForm.keperluan}
-              onChange={(e) => setRuanganForm({ ...ruanganForm, keperluan: e.target.value })}
-            />
-          </div>
-        </form>
-      </Modal>
 
       {/* APPROVAL RUANGAN MODAL */}
       <Modal
         open={!!approvingRuangan}
         onClose={() => setApprovingRuangan(null)}
-        title={approvingRuangan?.status === 'pending_laboran' ? 'Verifikasi Laboran Peminjaman Ruangan' : 'Persetujuan Admin Peminjaman Ruangan'}
+        title="Persetujuan Admin Peminjaman Ruangan"
         footer={
           <>
             <Button variant="secondary" onClick={() => setApprovingRuangan(null)}>Batal</Button>
@@ -777,7 +645,7 @@ export default function PeminjamanPage() {
               isLoading={isApprovingRuangan}
               disabled={isApprovingRuangan}
             >
-              {approvingRuangan?.status === 'pending_laboran' ? 'Verifikasi Laboran' : 'Simpan Keputusan'}
+              Simpan Keputusan Admin
             </Button>
           </>
         }
@@ -815,69 +683,12 @@ export default function PeminjamanPage() {
         </form>
       </Modal>
 
-      {/* ------------------------------------------------------------ */}
-      {/* MODAL FORM PERMOHONAN PINJAM ASET (FORM <= 5 INPUT) */}
-      {/* ------------------------------------------------------------ */}
-      <Modal
-        open={showPinjamAsetModal}
-        onClose={() => setShowPinjamAsetModal(false)}
-        title="Formulir Permohonan Pinjam Barang Aset"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowPinjamAsetModal(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSavePinjamAset}>Kirim Permohonan</Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSavePinjamAset} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="col-span-full">
-            <AsyncSelect
-              label="Pilih Barang / Aset Inventaris"
-              required
-              placeholder="Cari nama aset / kode..."
-              value={selectedAsetObj}
-              onChange={(sel: any) => {
-                setSelectedAsetObj(sel);
-                setAsetForm({ ...asetForm, aset_id: sel ? parseInt(sel.value) : 0 });
-              }}
-              loadOptions={loadAsetOptions}
-            />
-          </div>
-
-          <Input
-            label="Tanggal Pinjam"
-            type="date"
-            required
-            value={asetForm.tanggal_pinjam}
-            onChange={(e) => setAsetForm({ ...asetForm, tanggal_pinjam: e.target.value })}
-          />
-
-          <Input
-            label="Tanggal Rencana Kembali"
-            type="date"
-            required
-            value={asetForm.tanggal_kembali_rencana}
-            onChange={(e) => setAsetForm({ ...asetForm, tanggal_kembali_rencana: e.target.value })}
-          />
-
-          <div className="col-span-full">
-            <Textarea
-              label="Keperluan Pinjam"
-              required
-              rows={3}
-              placeholder="cth: Penggunaan sound system untuk acara dies natalis..."
-              value={asetForm.keperluan}
-              onChange={(e) => setAsetForm({ ...asetForm, keperluan: e.target.value })}
-            />
-          </div>
-        </form>
-      </Modal>
 
       {/* APPROVAL ASET MODAL */}
       <Modal
         open={!!approvingAset}
         onClose={() => setApprovingAset(null)}
-        title={approvingAset?.status === 'pending_laboran' ? 'Verifikasi Laboran Peminjaman Aset' : 'Persetujuan Admin Peminjaman Aset'}
+        title="Persetujuan Admin Peminjaman Aset"
         footer={
           <>
             <Button variant="secondary" onClick={() => setApprovingAset(null)}>Batal</Button>
@@ -887,13 +698,16 @@ export default function PeminjamanPage() {
               isLoading={isApprovingAset}
               disabled={isApprovingAset}
             >
-              {approvingAset?.status === 'pending_laboran' ? 'Verifikasi Laboran' : 'Simpan Keputusan'}
+              Simpan Keputusan Admin
             </Button>
           </>
         }
       >
         <form onSubmit={handleProcessApprovalAset} className="space-y-4">
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm">
+            {approvingAset?.kode_peminjaman && (
+              <div><strong>Kode Peminjaman:</strong> <span className="font-mono text-[var(--module-primary)] font-bold">{approvingAset.kode_peminjaman}</span></div>
+            )}
             <div><strong>Barang Aset:</strong> {approvingAset?.aset?.nama} [{approvingAset?.aset?.kode_aset}]</div>
             <div><strong>Pemohon:</strong> {approvingAset?.user?.name}</div>
             <div><strong>Keperluan:</strong> {approvingAset?.keperluan}</div>

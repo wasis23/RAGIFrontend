@@ -16,6 +16,8 @@ import {
   Layers,
   Eye,
   Printer,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -59,6 +61,7 @@ export default function AsetPage() {
   const [search, setSearch] = useState('');
   const [kondisiFilter, setKondisiFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [isBorrowableFilter, setIsBorrowableFilter] = useState('');
   const [kategoriFilterObj, setKategoriFilterObj] = useState<{ value: string; label: string } | null>(null);
   const [prodiFilterObj, setProdiFilterObj] = useState<{ value: string; label: string } | null>(null);
   const [sortBy, setSortBy] = useState('nama');
@@ -214,6 +217,7 @@ export default function AsetPage() {
         search,
         kondisi: kondisiFilter || undefined,
         status: statusFilter || undefined,
+        is_borrowable: isBorrowableFilter === 'true' ? true : isBorrowableFilter === 'false' ? false : undefined,
         kategori_id: kategoriFilterObj ? parseInt(kategoriFilterObj.value) : undefined,
         program_studi_id: prodiFilterObj ? parseInt(prodiFilterObj.value) : undefined,
         sort_by: sortBy || undefined,
@@ -264,7 +268,7 @@ export default function AsetPage() {
 
   useEffect(() => {
     fetchAset();
-  }, [page, search, kondisiFilter, statusFilter, kategoriFilterObj, prodiFilterObj, sortBy, sortDir]);
+  }, [page, search, kondisiFilter, statusFilter, isBorrowableFilter, kategoriFilterObj, prodiFilterObj, sortBy, sortDir]);
 
   const loadKategoriOptions = async (inputValue: string) => {
     try {
@@ -435,22 +439,6 @@ export default function AsetPage() {
       ),
     },
     {
-      key: 'kategori',
-      label: 'KATEGORI ASET',
-      render: (row) => (
-        <Badge
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
-            color: 'var(--module-primary)',
-            borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
-          }}
-          className="text-2xs font-semibold"
-        >
-          {row.kategori?.nama || `Kategori #${row.kategori_id}`}
-        </Badge>
-      ),
-    },
-    {
       key: 'lokasi',
       label: 'LOKASI & PROGRAM STUDI / PIC',
       render: (row) => (
@@ -514,18 +502,31 @@ export default function AsetPage() {
     },
     {
       key: 'status',
-      label: 'STATUS',
+      label: 'STATUS & IZIN PINJAM',
       render: (row) => (
-        <Badge
-          style={{
-            backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
-            color: 'var(--module-primary)',
-            borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
-          }}
-          className="text-2xs capitalize"
-        >
-          {row.status?.replace('_', ' ')}
-        </Badge>
+        <div className="space-y-1">
+          <Badge
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--module-primary) 12%, transparent)',
+              color: 'var(--module-primary)',
+              borderColor: 'color-mix(in srgb, var(--module-primary) 25%, transparent)',
+            }}
+            className="text-2xs capitalize font-medium block w-fit"
+          >
+            {row.status?.replace('_', ' ')}
+          </Badge>
+          <div>
+            {row.is_borrowable !== false ? (
+              <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded px-1.5 py-0.5">
+                <CheckCircle size={10} /> Bisa Dipinjam
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-2xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5">
+                <XCircle size={10} /> Tidak Bisa Dipinjam
+              </span>
+            )}
+          </div>
+        </div>
       ),
     },
     {
@@ -685,6 +686,7 @@ export default function AsetPage() {
                 setSearch('');
                 setKondisiFilter('');
                 setStatusFilter('');
+                setIsBorrowableFilter('');
                 setKategoriFilterObj(null);
                 setProdiFilterObj(null);
                 setSortBy('nama');
@@ -748,6 +750,17 @@ export default function AsetPage() {
               { value: 'dipinjam', label: 'Dipinjam' },
               { value: 'maintenance', label: 'Maintenance' },
               { value: 'disetujui_diapkir', label: 'Diapkir' },
+            ]}
+          />
+
+          <Select
+            label="Izin Peminjaman"
+            value={isBorrowableFilter}
+            onChange={(val) => setIsBorrowableFilter(val)}
+            options={[
+              { value: '', label: 'Semua Status Peminjaman' },
+              { value: 'true', label: 'Bisa Dipinjam' },
+              { value: 'false', label: 'Tidak Bisa Dipinjam' },
             ]}
           />
 

@@ -37,6 +37,7 @@ export const MODULE_LABELS: Record<string, string> = {
   sinapra: 'SINAPRA',
   kerjasama: 'Kerjasama',
   upm: 'UPM',
+  arsip: 'ARSIP',
 };
 
 export interface DomainContext {

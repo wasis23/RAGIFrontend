@@ -19,6 +19,7 @@ export interface PaginatedResponse<T> {
     items: T[];
     meta: PaginationMeta;
   } | T[];
+  meta?: PaginationMeta;
 }
 
 export interface PaginationMeta {

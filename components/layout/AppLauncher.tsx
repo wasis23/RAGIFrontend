@@ -51,7 +51,7 @@ const MODULE_META: Record<string, any> = {
     badgeColor: 'bg-cyan-50 text-cyan-600',
   },
   sinapra: {
-    subpath: '/gedung-ruangan',
+    subpath: '',
     icon: Building2,
     badgeColor: 'bg-rose-50 text-rose-600',
   },

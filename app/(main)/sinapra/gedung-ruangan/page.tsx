@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   Filter,
@@ -40,6 +41,7 @@ import type {
 import type { PaginationMeta } from '@/types/api.types';
 
 export default function GedungRuanganPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'gedung' | 'ruangan'>('gedung');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
@@ -87,31 +89,9 @@ export default function GedungRuanganPage() {
   const [ruanganSortBy, setRuanganSortBy] = useState('nama');
   const [ruanganSortDir, setRuanganSortDir] = useState<'asc' | 'desc'>('asc');
 
-  // Modal Ruangan State
-  const [showRuanganModal, setShowRuanganModal] = useState(false);
-  const [editingRuangan, setEditingRuangan] = useState<Ruangan | null>(null);
+  // Ruangan Deletion State
   const [deletingRuangan, setDeletingRuangan] = useState<Ruangan | null>(null);
   const [isDeletingRuangan, setIsDeletingRuangan] = useState(false);
-  const [selectedGedungObj, setSelectedGedungObj] = useState<{ value: string; label: string } | null>(null);
-  const [selectedTipeRuanganObj, setSelectedTipeRuanganObj] = useState<{ value: string; label: string } | null>(null);
-  const [selectedProdiObj, setSelectedProdiObj] = useState<{ value: string; label: string } | null>(null);
-
-  const [ruanganForm, setRuanganForm] = useState<RuanganFormPayload>({
-    gedung_id: 0,
-    tipe_ruangan_id: null,
-    program_studi_id: null,
-    kode: '',
-    nama: '',
-    lantai: 1,
-    tipe: 'kelas',
-    kapasitas: 40,
-    luas_m2: undefined,
-    ada_ac: true,
-    ada_proyektor: true,
-    ada_wifi: true,
-    keterangan: '',
-    status: 'aktif',
-  });
 
   // Modal Check Ketersediaan State
   const [showCheckModal, setShowCheckModal] = useState(false);
@@ -336,88 +316,6 @@ export default function GedungRuanganPage() {
   // ------------------------------------------------------------
   // HANDLERS RUANGAN
   // ------------------------------------------------------------
-  const handleOpenCreateRuangan = () => {
-    setEditingRuangan(null);
-    setSelectedGedungObj(null);
-    setSelectedTipeRuanganObj(null);
-    setSelectedProdiObj(null);
-    setRuanganForm({
-      gedung_id: 0,
-      tipe_ruangan_id: null,
-      program_studi_id: null,
-      kode: '',
-      nama: '',
-      lantai: 1,
-      tipe: 'kelas',
-      kapasitas: 40,
-      luas_m2: undefined,
-      ada_ac: true,
-      ada_proyektor: true,
-      ada_wifi: true,
-      keterangan: '',
-      status: 'aktif',
-    });
-    setShowRuanganModal(true);
-  };
-
-  const handleOpenEditRuangan = (r: Ruangan) => {
-    setEditingRuangan(r);
-    if (r.gedung) {
-      setSelectedGedungObj({ value: r.gedung.id.toString(), label: `${r.gedung.kode} - ${r.gedung.nama}` });
-    } else {
-      setSelectedGedungObj(null);
-    }
-    if (r.tipe_ruangan) {
-      setSelectedTipeRuanganObj({ value: r.tipe_ruangan.id.toString(), label: `${r.tipe_ruangan.nama} (${r.tipe_ruangan.kode})` });
-    } else {
-      setSelectedTipeRuanganObj(null);
-    }
-    if (r.program_studi) {
-      setSelectedProdiObj({ value: r.program_studi.id.toString(), label: `${r.program_studi.nama} (${r.program_studi.kode_prodi})` });
-    } else {
-      setSelectedProdiObj(null);
-    }
-    setRuanganForm({
-      gedung_id: r.gedung_id,
-      tipe_ruangan_id: r.tipe_ruangan_id || (r.tipe_ruangan?.id ?? null),
-      program_studi_id: r.program_studi_id || (r.program_studi?.id ?? null),
-      kode: r.kode,
-      nama: r.nama,
-      lantai: r.lantai,
-      tipe: r.tipe,
-      kapasitas: r.kapasitas,
-      luas_m2: r.luas_m2,
-      ada_ac: Boolean(r.ada_ac),
-      ada_proyektor: Boolean(r.ada_proyektor),
-      ada_wifi: Boolean(r.ada_wifi),
-      keterangan: r.keterangan || '',
-      status: r.status,
-    });
-    setShowRuanganModal(true);
-  };
-
-  const handleSaveRuangan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!ruanganForm.gedung_id || !ruanganForm.kode || !ruanganForm.nama) {
-      toast.error('Gedung, Kode, dan Nama Ruangan wajib diisi!');
-      return;
-    }
-
-    try {
-      if (editingRuangan) {
-        await sinapraService.updateRuangan(editingRuangan.id, ruanganForm);
-        toast.success('Data ruangan berhasil diperbarui!');
-      } else {
-        await sinapraService.createRuangan(ruanganForm);
-        toast.success('Ruangan baru berhasil ditambahkan!');
-      }
-      fetchRuangan();
-      setShowRuanganModal(false);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyimpan data ruangan.');
-    }
-  };
-
   const handleDeleteRuangan = async () => {
     if (!deletingRuangan) return;
     setIsDeletingRuangan(true);
@@ -630,8 +528,8 @@ export default function GedungRuanganPage() {
       key: 'fasilitas',
       label: 'FASILITAS',
       render: (row) => (
-        <div className="flex gap-2">
-          {row.ada_ac && (
+        <div className="flex flex-wrap gap-1.5">
+          {(row.ada_ac || (row.jumlah_ac && row.jumlah_ac > 0)) ? (
             <Badge
               style={{
                 backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
@@ -639,12 +537,12 @@ export default function GedungRuanganPage() {
                 borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
               }}
               className="text-2xs"
-              title="AC"
+              title={`AC (${row.jumlah_ac || 1} Unit)`}
             >
-              AC
+              AC {row.jumlah_ac ? `(${row.jumlah_ac})` : ''}
             </Badge>
-          )}
-          {row.ada_proyektor && (
+          ) : null}
+          {(row.ada_proyektor || (row.jumlah_proyektor && row.jumlah_proyektor > 0)) ? (
             <Badge
               style={{
                 backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
@@ -652,12 +550,12 @@ export default function GedungRuanganPage() {
                 borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
               }}
               className="text-2xs"
-              title="Proyektor"
+              title={`Proyektor LCD (${row.jumlah_proyektor || 1} Unit)`}
             >
-              LCD
+              LCD {row.jumlah_proyektor ? `(${row.jumlah_proyektor})` : ''}
             </Badge>
-          )}
-          {row.ada_wifi && (
+          ) : null}
+          {(row.ada_wifi || (row.jumlah_wifi && row.jumlah_wifi > 0)) ? (
             <Badge
               style={{
                 backgroundColor: 'color-mix(in srgb, var(--module-primary) 15%, transparent)',
@@ -665,10 +563,13 @@ export default function GedungRuanganPage() {
                 borderColor: 'color-mix(in srgb, var(--module-primary) 30%, transparent)',
               }}
               className="text-2xs"
-              title="WiFi"
+              title={`WiFi (${row.jumlah_wifi || 1} Titik Akses)`}
             >
-              WiFi
+              WiFi {row.jumlah_wifi ? `(${row.jumlah_wifi})` : ''}
             </Badge>
+          ) : null}
+          {!row.ada_ac && !row.ada_proyektor && !row.ada_wifi && (!row.jumlah_ac) && (!row.jumlah_proyektor) && (!row.jumlah_wifi) && (
+            <span className="text-2xs text-slate-400 italic">-</span>
           )}
         </div>
       ),
@@ -705,7 +606,7 @@ export default function GedungRuanganPage() {
               {
                 label: 'Ubah Data Ruangan',
                 icon: <Edit2 size={16} className="text-[var(--module-primary)]" />,
-                onClick: () => handleOpenEditRuangan(row),
+                onClick: () => router.push(`/sinapra/gedung-ruangan/ruangan/${row.id}/edit`),
               },
               {
                 label: 'Hapus Ruangan',
@@ -740,7 +641,7 @@ export default function GedungRuanganPage() {
                 Tambah Gedung
               </Button>
             ) : (
-              <Button icon={<Plus size={16} />} onClick={handleOpenCreateRuangan}>
+              <Button icon={<Plus size={16} />} onClick={() => router.push('/sinapra/gedung-ruangan/ruangan/create')}>
                 Tambah Ruangan
               </Button>
             )}
@@ -885,133 +786,7 @@ export default function GedungRuanganPage() {
         isLoading={isDeletingGedung}
       />
 
-      {/* ------------------------------------------------------------ */}
-      {/* MODAL FORM RUANGAN (GRID 2 KOLOM MODAL) */}
-      {/* ------------------------------------------------------------ */}
-      <Modal
-        open={showRuanganModal}
-        onClose={() => setShowRuanganModal(false)}
-        title={editingRuangan ? 'Edit Ruangan' : 'Tambah Ruangan Baru'}
-        size="lg"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowRuanganModal(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSaveRuangan}>
-              {editingRuangan ? 'Simpan Perubahan' : 'Tambah Ruangan'}
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSaveRuangan} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AsyncSelect
-            label="Gedung Kampus"
-            required
-            placeholder="Cari gedung..."
-            value={selectedGedungObj}
-            onChange={(selected: any) => {
-              setSelectedGedungObj(selected);
-              setRuanganForm({ ...ruanganForm, gedung_id: selected ? parseInt(selected.value) : 0 });
-            }}
-            loadOptions={loadGedungOptions}
-          />
 
-          <Input
-            label="Kode Ruangan"
-            required
-            placeholder="cth: R-101"
-            value={ruanganForm.kode}
-            onChange={(e) => setRuanganForm({ ...ruanganForm, kode: e.target.value })}
-          />
-
-          <Input
-            label="Nama Ruangan"
-            required
-            placeholder="cth: Lab Komputer Lanjut"
-            value={ruanganForm.nama}
-            onChange={(e) => setRuanganForm({ ...ruanganForm, nama: e.target.value })}
-          />
-
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Posisi Lantai"
-              type="number"
-              required
-              min={1}
-              value={ruanganForm.lantai}
-              onChange={(e) => setRuanganForm({ ...ruanganForm, lantai: parseInt(e.target.value) || 1 })}
-            />
-            <Input
-              label="Kapasitas (Orang)"
-              type="number"
-              required
-              min={1}
-              value={ruanganForm.kapasitas}
-              onChange={(e) => setRuanganForm({ ...ruanganForm, kapasitas: parseInt(e.target.value) || 1 })}
-            />
-          </div>
-
-          <AsyncSelect
-            label="Tipe Ruangan"
-            required
-            placeholder="Pilih atau cari tipe ruangan..."
-            value={selectedTipeRuanganObj}
-            onChange={(selected: any) => {
-              setSelectedTipeRuanganObj(selected);
-              setRuanganForm({
-                ...ruanganForm,
-                tipe_ruangan_id: selected ? parseInt(selected.value) : null,
-              });
-            }}
-            loadOptions={loadTipeRuanganOptions}
-          />
-
-          <AsyncSelect
-            label="Program Studi (Lab/Ruangan Khusus Prodi)"
-            placeholder="Pilih Prodi (Kosongkan jika Umum Kampus)..."
-            value={selectedProdiObj}
-            onChange={(selected: any) => {
-              setSelectedProdiObj(selected);
-              setRuanganForm({
-                ...ruanganForm,
-                program_studi_id: selected ? parseInt(selected.value) : null,
-              });
-            }}
-            loadOptions={loadProdiOptions}
-            isClearable
-          />
-
-          <Select
-            label="Status Ruangan"
-            value={ruanganForm.status || 'aktif'}
-            onChange={(val) => setRuanganForm({ ...ruanganForm, status: val as any })}
-            options={[
-              { value: 'aktif', label: 'Aktif & Siap Pakai' },
-              { value: 'maintenance', label: 'Maintenance / Perawatan' },
-              { value: 'nonaktif', label: 'Non-aktif' },
-            ]}
-          />
-
-          {/* FASILITAS CHECKBOXES */}
-          <div className="col-span-full bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-wrap gap-6 items-center">
-            <span className="text-sm font-bold text-slate-700">Fasilitas Tersedia:</span>
-            <Checkbox
-              label="Air Conditioner (AC)"
-              checked={ruanganForm.ada_ac}
-              onChange={(e) => setRuanganForm({ ...ruanganForm, ada_ac: e.target.checked })}
-            />
-            <Checkbox
-              label="Proyektor LCD"
-              checked={ruanganForm.ada_proyektor}
-              onChange={(e) => setRuanganForm({ ...ruanganForm, ada_proyektor: e.target.checked })}
-            />
-            <Checkbox
-              label="Koneksi WiFi High-Speed"
-              checked={ruanganForm.ada_wifi}
-              onChange={(e) => setRuanganForm({ ...ruanganForm, ada_wifi: e.target.checked })}
-            />
-          </div>
-        </form>
-      </Modal>
 
       {/* DELETE RUANGAN CONFIRM DIALOG */}
       <ConfirmDialog

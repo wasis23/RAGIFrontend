@@ -25,6 +25,23 @@ export interface User {
   updated_at: string;
   // Relasi yang disertakan dari backend (eager load)
   roles?: UserRole[];
+  pegawai?: {
+    id: number;
+    nip?: string | null;
+    nidn?: string | null;
+    nuptk?: string | null;
+    nik?: string | null;
+    nama_lengkap: string;
+    telepon?: string | null;
+    unit_kerja?: { id: number; nama: string };
+  } | null;
+  mahasiswa?: {
+    id: number;
+    nim: string;
+    nama_lengkap: string;
+    telepon?: string | null;
+    program_studi?: { id: number; nama: string; kode_prodi?: string };
+  } | null;
 }
 
 /**

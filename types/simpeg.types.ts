@@ -560,4 +560,43 @@ export interface MasterKategoriSk {
   updated_at?: string;
 }
 
+export interface TandaTanganPegawai {
+  id: number;
+  user_id: number;
+  pegawai_id?: number | null;
+  file_path: string;
+  tipe: string;
+  judul: string;
+  qr_token?: string | null;
+  is_active: boolean;
+  file_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    username?: string;
+  };
+  pegawai?: {
+    id: number;
+    user_id: number;
+    nip?: string;
+    nidn?: string;
+    nama_lengkap: string;
+  };
+}
+
+export interface TandaTanganFilterParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  user_id?: number;
+  pegawai_id?: number;
+  is_active?: boolean | string;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+}
+
+
 

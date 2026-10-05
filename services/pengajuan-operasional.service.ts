@@ -88,10 +88,22 @@ export const pengajuanOperasionalService = {
     return data;
   },
 
-  tutupLpjSimpeg: async (id: number | string, payload?: { catatan?: string }) => {
+  tutupLpjSimpeg: async (
+    id: number | string,
+    payload?: FormData | { catatan?: string; nominal_pelunasan?: number; file_bukti_pelunasan?: File }
+  ) => {
+    let reqData: any = payload || {};
+    const headers: Record<string, string> = {};
+
+    if (payload instanceof FormData) {
+      reqData = payload;
+      headers['Content-Type'] = 'multipart/form-data';
+    }
+
     const { data } = await apiClient.post<ApiResponse<PengajuanOperasional>>(
       `/v1/sikeu/pengajuan-operasional/${id}/tutup-lpj-simpeg`,
-      payload || {}
+      reqData,
+      { headers }
     );
     return data;
   },

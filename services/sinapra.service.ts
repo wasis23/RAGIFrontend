@@ -23,6 +23,7 @@ import type {
   ApplyPeminjamanAsetPayload,
   ApprovePeminjamanAsetPayload,
   KembalikanAsetPayload,
+  SuratPeminjamanAsetData,
   MaintenanceLog,
   MaintenanceLogFormPayload,
   PengajuanPengadaan,
@@ -58,6 +59,9 @@ import type {
   AsetLabelData,
   LabEarlyWarningsData,
   SinapraDashboardSummary,
+  SinapraProdiRoleItem,
+  SinapraAvailableRole,
+  PlottingProdiRolePayload,
 } from '@/types/sinapra.types';
 
 export const sinapraService = {
@@ -277,6 +281,11 @@ export const sinapraService = {
 
   approvePeminjamanAset: async (id: number, payload: ApprovePeminjamanAsetPayload): Promise<ApiResponse<PeminjamanAset>> => {
     const { data } = await apiClient.post<ApiResponse<PeminjamanAset>>(`/sinapra/peminjaman-aset/${id}/approve`, payload);
+    return data;
+  },
+
+  getSuratPeminjamanAset: async (id: number): Promise<ApiResponse<SuratPeminjamanAsetData>> => {
+    const { data } = await apiClient.get<ApiResponse<SuratPeminjamanAsetData>>(`/sinapra/peminjaman-aset/${id}/surat`);
     return data;
   },
 
@@ -583,6 +592,22 @@ export const sinapraService = {
     const { data } = await apiClient.post<ApiResponse<AsetLabelData[]>>('/sinapra/aset/labels/batch', {
       aset_ids: asetIds,
     });
+    return data;
+  },
+
+  // ── MASTER: PLOTTING ROLE PROGRAM STUDI (SIAKAD) ──────────
+  getProdiRolesList: async (params?: any): Promise<PaginatedResponse<SinapraProdiRoleItem>> => {
+    const { data } = await apiClient.get<PaginatedResponse<SinapraProdiRoleItem>>('/sinapra/master/prodi-roles', { params });
+    return data;
+  },
+
+  getAvailableRolesOptions: async (): Promise<ApiResponse<SinapraAvailableRole[]>> => {
+    const { data } = await apiClient.get<ApiResponse<SinapraAvailableRole[]>>('/sinapra/master/prodi-roles/roles-options');
+    return data;
+  },
+
+  updateProdiRoles: async (prodiId: number, payload: PlottingProdiRolePayload): Promise<ApiResponse<SinapraProdiRoleItem>> => {
+    const { data } = await apiClient.post<ApiResponse<SinapraProdiRoleItem>>(`/sinapra/master/prodi-roles/${prodiId}`, payload);
     return data;
   },
 };

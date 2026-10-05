@@ -120,6 +120,9 @@ export interface Ruangan {
   ada_ac: boolean;
   ada_proyektor: boolean;
   ada_wifi: boolean;
+  jumlah_ac?: number;
+  jumlah_proyektor?: number;
+  jumlah_wifi?: number;
   keterangan?: string;
   status: 'aktif' | 'maintenance' | 'nonaktif';
   gedung?: Gedung;
@@ -193,6 +196,9 @@ export interface RuanganFormPayload {
   ada_ac?: boolean;
   ada_proyektor?: boolean;
   ada_wifi?: boolean;
+  jumlah_ac?: number;
+  jumlah_proyektor?: number;
+  jumlah_wifi?: number;
   keterangan?: string;
   status?: 'aktif' | 'maintenance' | 'nonaktif';
 }
@@ -409,16 +415,21 @@ export interface ApprovePeminjamanRuanganPayload {
 
 export interface PeminjamanAset {
   id: number;
+  kode_peminjaman?: string;
+  nomor_surat?: string | null;
+  surat_generated_at?: string | null;
   aset_id: number;
   user_id: number;
   disetujui_oleh?: number;
   keperluan: string;
   tanggal_pinjam: string;
   tanggal_kembali_rencana: string;
-  tanggal_kembali_realisasi?: string;
+  tanggal_kembali_aktual?: string | null;
+  tanggal_kembali_realisasi?: string | null;
   status: 'pending' | 'pending_laboran' | 'pending_admin_sinapra' | 'disetujui' | 'dipinjam' | 'ditolak' | 'ditolak_laboran' | 'ditolak_admin_sinapra' | 'kembali' | 'terlambat';
   kondisi_pinjam: 'baik' | 'rusak_ringan';
-  kondisi_kembali?: 'baik' | 'rusak_ringan' | 'rusak_berat';
+  kondisi_kembali?: 'baik' | 'rusak_ringan' | 'rusak_berat' | 'hilang' | null;
+  catatan_pengembalian?: string | null;
   laboran_approved_by?: number;
   laboran_approved_at?: string;
   catatan_laboran?: string;
@@ -426,7 +437,15 @@ export interface PeminjamanAset {
   admin_approved_at?: string;
   catatan_approver?: string;
   aset?: Aset;
-  user?: { id: number; name: string; email: string };
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    pegawai?: { nip?: string | null; nidn?: string | null; nuptk?: string | null; nama_lengkap: string };
+    mahasiswa?: { nim: string; nama_lengkap: string };
+  };
+  nomor_identitas?: string;
+  kontak_peminjam?: string;
   approver?: { id: number; name: string; email: string };
   laboran_approver?: { id: number; name: string; email: string };
   created_at?: string;
@@ -434,10 +453,13 @@ export interface PeminjamanAset {
 }
 
 export interface ApplyPeminjamanAsetPayload {
-  aset_id: number;
+  aset_id?: number;
+  aset_ids?: number[];
   keperluan: string;
   tanggal_pinjam: string;
   tanggal_kembali_rencana: string;
+  nomor_identitas?: string;
+  kontak_peminjam?: string;
 }
 
 export interface ApprovePeminjamanAsetPayload {
@@ -447,8 +469,66 @@ export interface ApprovePeminjamanAsetPayload {
 }
 
 export interface KembalikanAsetPayload {
-  kondisi_kembali: 'baik' | 'rusak_ringan' | 'rusak_berat';
+  kondisi_kembali: 'baik' | 'rusak_ringan' | 'rusak_berat' | 'hilang';
+  tanggal_kembali_aktual?: string;
   catatan?: string;
+  catatan_pengembalian?: string;
+  kembalikan_semua_dalam_batch?: boolean;
+}
+
+export interface SuratPeminjamanAsetBarang {
+  nomor: number;
+  peminjaman_id: number;
+  aset_id: number;
+  kode_aset: string;
+  nama_barang: string;
+  merk: string;
+  nomor_seri: string;
+  lokasi_ruangan: string;
+  gedung: string;
+  kondisi_pinjam: string;
+  status: string;
+}
+
+export interface SuratPeminjamanAsetData {
+  peminjaman_id: number;
+  kode_peminjaman?: string;
+  nomor_surat: string;
+  surat_generated_at: string;
+  tanggal_pinjam: string;
+  tanggal_kembali_rencana: string;
+  keperluan: string;
+  status: string;
+  peminjam: {
+    user_id: number;
+    nama: string;
+    nomor_identitas: string;
+    unit_kerja: string;
+    kontak?: string;
+    email?: string;
+    tanda_tangan_url?: string | null;
+    qr_token?: string | null;
+  };
+  laboran?: {
+    user_id: number;
+    nama: string;
+    nip?: string;
+    nidn?: string | null;
+    verified_at?: string;
+    tanda_tangan_url?: string | null;
+    qr_token?: string | null;
+  } | null;
+  approver?: {
+    user_id: number;
+    nama: string;
+    nip?: string;
+    nidn?: string | null;
+    approved_at?: string;
+    tanda_tangan_url?: string | null;
+    qr_token?: string | null;
+  } | null;
+  daftar_barang: SuratPeminjamanAsetBarang[];
+  verifikasi_token?: string;
 }
 
 // ------------------------------------------------------------
@@ -1013,4 +1093,43 @@ export interface SinapraDashboardSummary {
   early_warnings: SinapraDashboardEarlyWarnings;
   recent_activities: SinapraDashboardRecentActivities;
 }
+
+// ------------------------------------------------------------
+// 8. MASTER: Plotting Program Studi ke Role Laboran (SIAKAD)
+// ------------------------------------------------------------
+export interface SinapraProdiRoleItem {
+  id: number;
+  kode_prodi: string;
+  nama: string;
+  jenjang?: string;
+  fakultas_id?: number | null;
+  fakultas?: { id: number; kode: string; nama: string } | null;
+  sinapra_roles?: {
+    id: number;
+    name: string;
+    slug: string;
+    description?: string;
+    pivot?: {
+      program_studi_id: number;
+      role_id: number;
+      keterangan?: string | null;
+    };
+  }[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SinapraAvailableRole {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export interface PlottingProdiRolePayload {
+  role_id?: number | null;
+  role_ids?: number[];
+  keterangan?: string;
+}
+
 

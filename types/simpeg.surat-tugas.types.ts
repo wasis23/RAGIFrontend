@@ -43,6 +43,8 @@ export interface SuratTugas {
   kategori_kegiatan_id: number;
   jenis_transportasi_id: number;
   nama_kegiatan: string;
+  jam_pelaksanaan?: string | null;
+  penyelenggara?: string | null;
   tempat_berangkat: string;
   lokasi_tujuan: string;
   tanggal_berangkat: string;
@@ -70,6 +72,10 @@ export interface SuratTugas {
   file_lpj?: string | null;
   file_lpj_url?: string | null;
   tanggal_upload_lpj?: string | null;
+  tipe_pelunasan?: string | null;
+  nominal_pelunasan?: number | string | null;
+  bukti_pelunasan_path?: string | null;
+  bukti_pelunasan_url?: string | null;
   status: SuratTugasStatus;
   catatan_approval?: string | null;
   approved_by?: number | null;
@@ -85,6 +91,30 @@ export interface SuratTugas {
     name?: string;
     username?: string;
     email?: string;
+    pegawai?: Pegawai;
+    active_tanda_tangan?: {
+      id: number;
+      file_path: string;
+      file_url?: string;
+      tipe: string;
+      judul: string;
+      is_active: boolean;
+    };
+  };
+  direktur?: {
+    id: number;
+    name?: string;
+    username?: string;
+    email?: string;
+    pegawai?: Pegawai;
+    active_tanda_tangan?: {
+      id: number;
+      file_path: string;
+      file_url?: string;
+      tipe: string;
+      judul: string;
+      is_active: boolean;
+    };
   };
   pencairan_kas?: {
     id: number;
@@ -98,6 +128,10 @@ export interface SuratTugas {
     unit_kas?: { id: number; nama_kas: string };
     bukti_pencairan_path?: string;
     bukti_pencairan_url?: string;
+    bukti_pelunasan_path?: string;
+    bukti_pelunasan_url?: string;
+    tipe_pelunasan?: string;
+    nominal_pelunasan?: number;
     tanggal_pencairan?: string;
   };
 }

@@ -42,6 +42,7 @@ type CairkanPanjarFormValues = z.infer<typeof cairkanPanjarSchema>;
 
 const tutupLpjSchema = z.object({
   catatan: z.string().optional(),
+  nominal_pelunasan: z.coerce.number().min(0).optional(),
 });
 type TutupLpjFormValues = z.infer<typeof tutupLpjSchema>;
 
@@ -174,11 +175,13 @@ export default function PengajuanOperasionalPage() {
   // Modal: Tutup LPJ SIMPEG (Tahap 8)
   const [modalTutupLpjOpen, setModalTutupLpjOpen] = useState(false);
   const [selectedItemForTutupLpj, setSelectedItemForTutupLpj] = useState<PengajuanOperasional | null>(null);
+  const [fileBuktiPelunasan, setFileBuktiPelunasan] = useState<File | null>(null);
 
   const formTutupLpj = useForm<TutupLpjFormValues>({
     resolver: zodResolver(tutupLpjSchema) as any,
     defaultValues: {
       catatan: '',
+      nominal_pelunasan: 0,
     },
   });
 
@@ -320,9 +323,15 @@ export default function PengajuanOperasionalPage() {
   // Handler Open Modal Tutup LPJ (Tahap 8)
   const handleOpenTutupLpj = (row: PengajuanOperasional) => {
     setSelectedItemForTutupLpj(row);
+    const panjar = Number(row.nominal_disetujui || 0);
+    const realisasi = Number(row.total_realisasi || 0);
+    const selisih = Math.abs(panjar - realisasi);
+
     formTutupLpj.reset({
       catatan: '',
+      nominal_pelunasan: selisih,
     });
+    setFileBuktiPelunasan(null);
     setModalTutupLpjOpen(true);
   };
 
@@ -331,11 +340,17 @@ export default function PengajuanOperasionalPage() {
     if (!selectedItemForTutupLpj) return;
 
     try {
-      await pengajuanOperasionalService.tutupLpjSimpeg(selectedItemForTutupLpj.id, {
-        catatan: values.catatan || undefined,
-      });
+      const formData = new FormData();
+      if (values.catatan) formData.append('catatan', values.catatan);
+      if (values.nominal_pelunasan !== undefined) formData.append('nominal_pelunasan', String(values.nominal_pelunasan));
+      if (fileBuktiPelunasan) {
+        formData.append('file_bukti_pelunasan', fileBuktiPelunasan);
+      }
+
+      await pengajuanOperasionalService.tutupLpjSimpeg(selectedItemForTutupLpj.id, formData);
       toast.success('LPJ berhasil diverifikasi & kasbon dinas ditutup selesai!');
       setModalTutupLpjOpen(false);
+      setFileBuktiPelunasan(null);
       fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal menyelesaikan LPJ.');
@@ -1267,6 +1282,64 @@ export default function PengajuanOperasionalPage() {
               </div>
             )}
           </div>
+
+          {selectedItemForTutupLpj && (() => {
+            const sisa = Number(selectedItemForTutupLpj.sisa_nominal || 0);
+            const isReimburse = sisa < 0;
+            const isPengembalian = sisa > 0;
+
+            return (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    {isReimburse
+                      ? 'Nominal Reimbursement yang Dibayarkan SIKEU (Rp)'
+                      : isPengembalian
+                      ? 'Nominal Lebih Bayar yang Disetorkan Pegawai (Rp)'
+                      : 'Nominal Pelunasan (Rp)'}
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Nominal pelunasan..."
+                    error={formTutupLpj.formState.errors.nominal_pelunasan?.message}
+                    {...formTutupLpj.register('nominal_pelunasan')}
+                  />
+                  <p className="text-2xs text-slate-500 mt-1">
+                    {isReimburse
+                      ? 'Nominal dana reimbursement yang ditransfer/dibayarkan Admin SIKEU ke pegawai pemohon.'
+                      : isPengembalian
+                      ? 'Nominal sisa kasbon yang disetorkan kembali oleh pegawai ke bendahara kas kampus.'
+                      : 'Realisasi biaya dinas nihil (pas sesuai nominal panjar dicairkan).'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">
+                    Upload Foto / Bukti Pelunasan / Transfer {isReimburse ? '(Transfer Reimburse)' : isPengembalian ? '(Struk Setor Balik)' : ''}
+                  </label>
+                  <Input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setFileBuktiPelunasan(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  {fileBuktiPelunasan && (
+                    <p className="text-2xs text-emerald-700 font-medium mt-1">
+                      Berkas terpilih: {fileBuktiPelunasan.name}
+                    </p>
+                  )}
+                  <p className="text-2xs text-slate-500 mt-0.5">
+                    {isReimburse
+                      ? 'Lampirkan bukti resi transfer pengembalian/reimbursement dari SIKEU ke pegawai.'
+                      : 'Lampirkan struk ATM / resi transfer bank bukti pengembalian atau pelunasan dana.'}
+                  </p>
+                </div>
+              </>
+            );
+          })()}
 
           <Input
             label="Catatan Verifikasi Keuangan"

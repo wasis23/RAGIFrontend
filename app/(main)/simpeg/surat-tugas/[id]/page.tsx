@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,6 +19,7 @@ import {
   X,
   Trash2,
   DollarSign,
+  Printer,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -40,7 +41,6 @@ const approvalFormSchema = z.object({
   status: z.enum(['disetujui', 'ditolak'], {
     error: 'Keputusan persetujuan wajib ditentukan',
   }),
-  nomor_surat: z.string().optional(),
   catatan_approval: z.string().max(500, 'Catatan maksimal 500 karakter').optional(),
 });
 
@@ -68,7 +68,6 @@ export default function SuratTugasDetailPage() {
 
   // Approval modal state & form
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
-  const [fileSuratTugas, setFileSuratTugas] = useState<File | null>(null);
 
   const {
     register: registerApproval,
@@ -81,12 +80,20 @@ export default function SuratTugasDetailPage() {
     resolver: zodResolver(approvalFormSchema) as any,
     defaultValues: {
       status: 'disetujui',
-      nomor_surat: '',
       catatan_approval: '',
     },
   });
 
   const approvalStatus = watchApproval('status');
+
+  const isPanjarApprovedByPegawai = useMemo(() => {
+    if (!item) return false;
+    if (!['disetujui', 'selesai'].includes(item.status)) return false;
+    if (item.status_pencairan === 'tidak_perlu' || Number(item.estimasi_biaya || 0) === 0) {
+      return true;
+    }
+    return ['siap_cair', 'dicairkan', 'sudah_cair', 'lpj_diunggah', 'selesai'].includes(item.status_pencairan || '');
+  }, [item]);
 
   // LPJ modal state & form
   const [lpjModalOpen, setLpjModalOpen] = useState(false);
@@ -168,22 +175,16 @@ export default function SuratTugasDetailPage() {
   // Submit Approval
   const onSubmitApproval = async (values: any) => {
     if (!item) return;
-    if (values.status === 'disetujui' && (!values.nomor_surat || !values.nomor_surat.trim())) {
-      toast.error('Nomor surat tugas resmi wajib diisi.');
-      return;
-    }
 
     try {
       await simpegSuratTugasService.approve(item.id, {
         status: values.status,
-        nomor_surat: values.nomor_surat || '',
         catatan_approval: values.catatan_approval || '',
-        file_surat_tugas: fileSuratTugas,
       });
 
       toast.success(
         values.status === 'disetujui'
-          ? 'Surat tugas disetujui! Presensi dinas luar tim telah diaktifkan otomatis.'
+          ? 'Surat tugas disetujui! Permohonan nomor resmi telah diteruskan otomatis ke modul ARSIP.'
           : 'Surat tugas ditolak.'
       );
       setApprovalModalOpen(false);
@@ -291,16 +292,34 @@ export default function SuratTugasDetailPage() {
                 onClick={() => {
                   resetApproval({
                     status: 'disetujui',
-                    nomor_surat: item.nomor_surat || '',
                     catatan_approval: '',
                   });
-                  setFileSuratTugas(null);
                   setApprovalModalOpen(true);
                 }}
                 className="flex items-center gap-2"
               >
                 <Check size={16} />
                 <span>Persetujuan / Approval</span>
+              </Button>
+            )}
+
+            {['disetujui', 'selesai'].includes(item.status) && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!isPanjarApprovedByPegawai}
+                title={!isPanjarApprovedByPegawai ? 'Cetak Dokumen & SPPD hanya bisa diakses setelah pegawai menyetujui panjar' : undefined}
+                onClick={() => {
+                  if (!isPanjarApprovedByPegawai) {
+                    toast.error('Cetak dokumen & SPPD hanya bisa diakses setelah pegawai menyetujui panjar.');
+                    return;
+                  }
+                  router.push(`/simpeg/surat-tugas/${item.id}/surat`);
+                }}
+                className={`flex items-center gap-2 border-primary-300 text-primary-700 hover:bg-primary-50 ${!isPanjarApprovedByPegawai ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Printer size={16} />
+                <span>Cetak Dokumen & SPPD</span>
               </Button>
             )}
 
@@ -355,12 +374,22 @@ export default function SuratTugasDetailPage() {
         </div>
 
         {item.nomor_surat && (
-          <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-2 text-right">
-            <p className="text-[11px] font-semibold text-primary-700 uppercase tracking-wider">
-              Nomor Surat Resmi
-            </p>
-            <p className="text-sm font-mono font-bold text-primary-900 mt-0.5">{item.nomor_surat}</p>
-          </div>
+          item.nomor_surat.startsWith('MENUNGGU ARSIP') ? (
+            <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-2 text-right">
+              <p className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">
+                Status Penomoran
+              </p>
+              <p className="text-xs font-mono font-bold text-amber-900 mt-0.5">{item.nomor_surat}</p>
+              <span className="text-2xs text-amber-600 block">Menunggu verifikasi Admin Arsip</span>
+            </div>
+          ) : (
+            <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-2 text-right">
+              <p className="text-[11px] font-semibold text-primary-700 uppercase tracking-wider">
+                Nomor Surat Resmi (ARSIP)
+              </p>
+              <p className="text-sm font-mono font-bold text-primary-900 mt-0.5">{item.nomor_surat}</p>
+            </div>
+          )
         )}
       </div>
 
@@ -744,13 +773,15 @@ export default function SuratTugasDetailPage() {
           </div>
         </div>
 
-        {/* Banner Selisih Biaya Realisasi */}
+        {/* Banner Selisih Biaya Realisasi / Status Pelunasan Finansial */}
         {item.biaya_realisasi !== null && item.biaya_realisasi !== undefined && Number(item.nominal_disetujui) > 0 && (() => {
           const disetujui = Number(item.nominal_disetujui || 0);
           const terpakai = Number(item.biaya_realisasi || 0);
           const selisih = disetujui - terpakai;
+          const isSelesai = item.status === 'selesai';
 
           if (selisih > 0) {
+            // Panjar berlebih: Pengembalian uang dari pengguna ke kampus
             return (
               <div
                 className="p-4 rounded-xl border flex items-center justify-between flex-wrap gap-4"
@@ -759,25 +790,31 @@ export default function SuratTugasDetailPage() {
                   backgroundColor: 'var(--module-primary-subtle)',
                 }}
               >
-                <div className="space-y-4">
+                <div className="space-y-1">
                   <Badge style={{ backgroundColor: 'var(--module-primary)', color: 'white' }}>
-                    Kelebihan Dana Panjar Kedinasan
+                    {isSelesai ? 'Pelunasan: Pengembalian Lebih Bayar' : 'Kelebihan Dana Panjar Kedinasan'}
                   </Badge>
-                  <p className="text-xs">
-                    Disetujui {formatRupiah(disetujui)} • Terpakai {formatRupiah(terpakai)}. Wajib disetorkan kembali ke kas kampus / bendahara keuangan.
+                  <p className="text-xs text-slate-700">
+                    Disetujui: <strong className="font-semibold">{formatRupiah(disetujui)}</strong> • Realisasi Terpakai: <strong className="font-semibold">{formatRupiah(terpakai)}</strong>.
+                  </p>
+                  <p className="text-2xs text-slate-600">
+                    {isSelesai
+                      ? 'Pengguna telah menyetorkan sisa lebih bayar ke kas kampus & telah diverifikasi oleh Admin SIKEU.'
+                      : 'Wajib disetorkan kembali ke kas kampus / bendahara keuangan sebelum kasbon ditutup.'}
                   </p>
                 </div>
                 <div className="text-right">
                   <span className="text-2xs font-bold uppercase tracking-wider block" style={{ color: 'var(--module-primary)' }}>
-                    Dana yang Harus Dikembalikan
+                    {isSelesai ? 'Nominal Pengembalian ke Kampus' : 'Dana yang Harus Dikembalikan'}
                   </span>
                   <span className="text-lg font-extrabold" style={{ color: 'var(--module-primary)' }}>
-                    {formatRupiah(selisih)}
+                    {formatRupiah(item.nominal_pelunasan ?? selisih)}
                   </span>
                 </div>
               </div>
             );
           } else if (selisih < 0) {
+            // Biaya melebihi panjar: Reimbursement dari Admin SIKEU ke pengguna
             return (
               <div
                 className="p-4 rounded-xl border flex items-center justify-between flex-wrap gap-4"
@@ -786,20 +823,25 @@ export default function SuratTugasDetailPage() {
                   backgroundColor: 'var(--module-primary-subtle)',
                 }}
               >
-                <div className="space-y-4">
+                <div className="space-y-1">
                   <Badge style={{ backgroundColor: 'var(--module-primary)', color: 'white' }}>
-                    Biaya Terpakai Melebihi Panjar
+                    {isSelesai ? 'Pelunasan: Reimbursement Selesai' : 'Biaya Terpakai Melebihi Panjar'}
                   </Badge>
-                  <p className="text-xs">
-                    Disetujui {formatRupiah(disetujui)} • Terpakai {formatRupiah(terpakai)}. Pegawai berhak mengajukan reimbursement selisih biaya.
+                  <p className="text-xs text-slate-700">
+                    Disetujui: <strong className="font-semibold">{formatRupiah(disetujui)}</strong> • Realisasi Terpakai: <strong className="font-semibold">{formatRupiah(terpakai)}</strong>.
+                  </p>
+                  <p className="text-2xs text-slate-600">
+                    {isSelesai
+                      ? 'Admin SIKEU telah membayarkan/mentransfer uang penggantian (reimbursement) selisih biaya dinas kepada pegawai.'
+                      : 'Pegawai berhak menerima reimbursement atas kelebihan biaya yang telah dikeluarkan.'}
                   </p>
                 </div>
                 <div className="text-right">
                   <span className="text-2xs font-bold uppercase tracking-wider block" style={{ color: 'var(--module-primary)' }}>
-                    Klaim Kurang Bayar
+                    {isSelesai ? 'Nominal Ditransfer Admin SIKEU' : 'Klaim Kurang Bayar (Reimbursement)'}
                   </span>
                   <span className="text-lg font-extrabold" style={{ color: 'var(--module-primary)' }}>
-                    {formatRupiah(Math.abs(selisih))}
+                    {formatRupiah(item.nominal_pelunasan ?? Math.abs(selisih))}
                   </span>
                 </div>
               </div>
@@ -807,8 +849,8 @@ export default function SuratTugasDetailPage() {
           } else {
             return (
               <div className="p-4 border rounded-xl flex items-center justify-between text-xs">
-                <span className="font-semibold">Realisasi Biaya Tepat Sesuai Panjar</span>
-                <span className="font-bold">Nihil ({formatRupiah(disetujui)})</span>
+                <span className="font-semibold text-slate-700">Realisasi Biaya Tepat Sesuai Panjar (Nihil)</span>
+                <span className="font-bold text-slate-900">{formatRupiah(disetujui)}</span>
               </div>
             );
           }
@@ -822,85 +864,103 @@ export default function SuratTugasDetailPage() {
           <h3 className="text-sm font-bold text-slate-900">Dokumen Resmi & Pelaporan LPJ</h3>
         </div>
 
-        <div className={`grid grid-cols-1 ${item.pencairan_kas?.bukti_pencairan_path ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
-          {/* Berkas Surat Tugas */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-            <p className="text-xs font-semibold text-slate-800">Berkas Surat Tugas Resmi</p>
-            {item.file_surat_tugas ? (
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <span className="text-xs text-slate-600 truncate">Surat_Tugas_Resmi.pdf</span>
-                <a
-                  href={item.file_surat_tugas_url || getStorageFileUrl(item.file_surat_tugas)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 transition shrink-0"
-                >
-                  <Download size={16} />
-                  <span>Unduh PDF</span>
-                </a>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400 italic">
-                Belum ada berkas surat tugas resmi yang diunggah.
-              </p>
-            )}
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Bukti Pencairan Kasbon / Transfer Keuangan jika ada */}
           {item.pencairan_kas?.bukti_pencairan_path && (
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col gap-2">
-              <p className="text-xs font-semibold text-slate-800">Bukti Transfer Kasbon (SIKEU)</p>
-              <div className="flex items-center justify-between gap-2 pt-2">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between gap-2">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-slate-800">Bukti Transfer Kasbon (SIKEU)</p>
+                <p className="text-2xs text-slate-500">
+                  Dicairkan: {formatRupiah(item.pencairan_kas.nominal_disetujui)} {item.pencairan_kas.unit_kas ? `(${item.pencairan_kas.unit_kas.nama_kas})` : ''}
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
                 <span className="text-xs text-slate-600 truncate">Bukti_Pencairan_Kas.pdf</span>
                 <a
                   href={item.pencairan_kas.bukti_pencairan_url || getStorageFileUrl(item.pencairan_kas.bukti_pencairan_path)}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: 'var(--module-primary)' }}
-                  className="inline-flex items-center gap-2 text-xs font-semibold hover:underline transition shrink-0"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline transition shrink-0"
                 >
-                  <Download size={16} />
+                  <Download size={14} />
                   <span>Unduh Bukti</span>
                 </a>
               </div>
-              <p className="text-2xs text-slate-500">
-                Dicairkan: {formatRupiah(item.pencairan_kas.nominal_disetujui)} {item.pencairan_kas.unit_kas ? `(${item.pencairan_kas.unit_kas.nama_kas})` : ''}
-              </p>
+            </div>
+          )}
+
+          {/* Bukti Pelunasan / Pengembalian Kasbon (SIKEU) jika ada */}
+          {(item.bukti_pelunasan_url || item.bukti_pelunasan_path || item.pencairan_kas?.bukti_pelunasan_path) && (
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between gap-2">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-slate-800">Bukti Pelunasan / Kasbon (SIKEU)</p>
+                <p className="text-2xs text-slate-500">
+                  {item.tipe_pelunasan === 'reimbursement'
+                    ? `Reimbursement SIKEU: ${formatRupiah(item.nominal_pelunasan || 0)}`
+                    : item.tipe_pelunasan === 'pengembalian_lebih_bayar'
+                    ? `Setoran Pegawai: ${formatRupiah(item.nominal_pelunasan || 0)}`
+                    : 'Penyelesaian Kasbon Nihil'}
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                <span className="text-xs text-slate-600 truncate">Bukti_Pelunasan.pdf</span>
+                <a
+                  href={
+                    item.bukti_pelunasan_url ||
+                    (item.bukti_pelunasan_path ? getStorageFileUrl(item.bukti_pelunasan_path) : undefined) ||
+                    (item.pencairan_kas?.bukti_pelunasan_path ? getStorageFileUrl(item.pencairan_kas.bukti_pelunasan_path) : '#')
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--module-primary)' }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline transition shrink-0"
+                >
+                  <Download size={14} />
+                  <span>Unduh Bukti</span>
+                </a>
+              </div>
             </div>
           )}
 
           {/* Berkas LPJ */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-            <p className="text-xs font-semibold text-slate-800">Laporan Pertanggungjawaban (LPJ)</p>
-            {item.file_lpj ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-slate-800">Laporan Pertanggungjawaban (LPJ)</p>
+              {item.file_lpj ? (
+                <div className="space-y-1 mt-1">
+                  {item.biaya_realisasi && (
+                    <p className="text-xs text-slate-700">
+                      <strong>Realisasi:</strong> {formatRupiah(item.biaya_realisasi)}
+                    </p>
+                  )}
+                  {item.laporan_kegiatan && (
+                    <p className="text-xs text-slate-600 italic line-clamp-2">
+                      &quot;{item.laporan_kegiatan}&quot;
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-amber-600 font-medium mt-1">Belum ada laporan LPJ</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+              {item.file_lpj ? (
+                <>
                   <span className="text-xs text-slate-600 truncate">Laporan_LPJ_Dinas.pdf</span>
                   <a
                     href={item.file_lpj_url || getStorageFileUrl(item.file_lpj)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition shrink-0"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition shrink-0"
                   >
-                    <Download size={16} />
+                    <Download size={14} />
                     <span>Unduh LPJ</span>
                   </a>
-                </div>
-                {item.biaya_realisasi && (
-                  <p className="text-xs text-slate-700">
-                    <strong>Realisasi Biaya:</strong> {formatRupiah(item.biaya_realisasi)}
-                  </p>
-                )}
-                {item.laporan_kegiatan && (
-                  <p className="text-xs text-slate-600 italic line-clamp-2">
-                    &quot;{item.laporan_kegiatan}&quot;
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <span className="text-xs text-amber-600 font-medium">Belum ada laporan LPJ</span>
-                {['disetujui', 'selesai'].includes(item.status) && (
+                </>
+              ) : (
+                ['disetujui', 'selesai'].includes(item.status) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -912,14 +972,45 @@ export default function SuratTugasDetailPage() {
                       setFileLpj(null);
                       setLpjModalOpen(true);
                     }}
-                    className="text-xs flex items-center gap-2 border-slate-300"
+                    className="text-xs flex items-center gap-2 border-slate-300 w-full justify-center"
                   >
                     <Upload size={13} />
                     <span>Unggah LPJ</span>
                   </Button>
-                )}
-              </div>
-            )}
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Cetak Dokumen & SPPD Resmi */}
+          <div className="p-4 rounded-xl border border-primary-200 bg-primary-50/40 flex flex-col justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-slate-800">Cetak Dokumen & SPPD Resmi</p>
+              <p className="text-2xs text-slate-500 mt-1">
+                Kop surat resmi ARSIP, rincian biaya SPPD, dan tanda tangan digital pimpinan.
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-primary-200/60">
+              <span className="text-2xs text-slate-600">
+                {isPanjarApprovedByPegawai ? 'Siap Cetak' : 'Menunggu persetujuan panjar'}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!isPanjarApprovedByPegawai}
+                onClick={() => {
+                  if (!isPanjarApprovedByPegawai) {
+                    toast.error('Cetak dokumen & SPPD hanya bisa dilakukan setelah pegawai menyetujui panjar di SIKEU.');
+                    return;
+                  }
+                  router.push(`/simpeg/surat-tugas/${item.id}/surat`);
+                }}
+                className="text-xs flex items-center gap-1.5 border-primary-300 text-primary-700 hover:bg-primary-100/50 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Printer size={14} />
+                <span>Buka / Cetak</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -930,11 +1021,11 @@ export default function SuratTugasDetailPage() {
         onClose={() => {
           if (!isSubmittingApproval) setApprovalModalOpen(false);
         }}
-        title="Persetujuan Surat Tugas & Penomoran Resmi"
+        title="Persetujuan Surat Tugas"
         size="md"
       >
         <form onSubmit={handleSubmitApprovalForm(onSubmitApproval)} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
             <Controller
               control={controlApproval}
               name="status"
@@ -952,16 +1043,6 @@ export default function SuratTugasDetailPage() {
                 />
               )}
             />
-
-            {approvalStatus === 'disetujui' && (
-              <Input
-                label="Nomor Surat Tugas Resmi"
-                placeholder="Contoh: ST/102/REK/IX/2026"
-                required
-                error={errorsApproval.nomor_surat?.message}
-                {...registerApproval('nomor_surat')}
-              />
-            )}
           </div>
 
           {approvalStatus === 'disetujui' && Number(item?.estimasi_biaya || 0) > 0 && (
@@ -982,19 +1063,6 @@ export default function SuratTugasDetailPage() {
             error={errorsApproval.catatan_approval?.message}
             {...registerApproval('catatan_approval')}
           />
-
-          {approvalStatus === 'disetujui' && (
-            <Input
-              label="Unggah Berkas Surat Tugas Bertandatangan (PDF, Opsional)"
-              type="file"
-              accept=".pdf"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  setFileSuratTugas(e.target.files[0]);
-                }
-              }}
-            />
-          )}
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
             <Button

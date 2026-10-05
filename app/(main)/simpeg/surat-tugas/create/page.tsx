@@ -38,6 +38,8 @@ const suratTugasFormSchema = z
     kategori_kegiatan_id: z.string().min(1, 'Kategori kegiatan wajib dipilih'),
     jenis_transportasi_id: z.string().min(1, 'Moda transportasi wajib dipilih'),
     nama_kegiatan: z.string().min(3, 'Nama kegiatan minimal 3 karakter'),
+    jam_pelaksanaan: z.string().optional(),
+    penyelenggara: z.string().optional(),
     tempat_berangkat: z.string().min(2, 'Tempat berangkat wajib diisi'),
     lokasi_tujuan: z.string().min(2, 'Lokasi tujuan kedinasan wajib diisi'),
     tanggal_berangkat: z.string().min(1, 'Tanggal berangkat wajib diisi'),
@@ -119,6 +121,8 @@ export default function CreateSuratTugasPage() {
       kategori_kegiatan_id: '',
       jenis_transportasi_id: '',
       nama_kegiatan: '',
+      jam_pelaksanaan: '',
+      penyelenggara: '',
       tempat_berangkat: 'Kampus Utama',
       lokasi_tujuan: '',
       tanggal_berangkat: '',
@@ -272,6 +276,8 @@ export default function CreateSuratTugasPage() {
       formData.append('kategori_kegiatan_id', values.kategori_kegiatan_id);
       formData.append('jenis_transportasi_id', values.jenis_transportasi_id);
       formData.append('nama_kegiatan', values.nama_kegiatan);
+      if (values.jam_pelaksanaan) formData.append('jam_pelaksanaan', values.jam_pelaksanaan);
+      if (values.penyelenggara) formData.append('penyelenggara', values.penyelenggara);
       formData.append('tempat_berangkat', values.tempat_berangkat);
       formData.append('lokasi_tujuan', values.lokasi_tujuan);
       formData.append('tanggal_berangkat', values.tanggal_berangkat);
@@ -471,6 +477,28 @@ export default function CreateSuratTugasPage() {
                 placeholder="Contoh: Rapat Koordinasi Nasional APTIKOM Wilayah Jawa Barat"
                 {...register('nama_kegiatan')}
                 error={errors.nama_kegiatan?.message}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Penyelenggara Kegiatan
+              </label>
+              <Input
+                placeholder="Contoh: LLDIKTI Wilayah VI / Universitas Mitra"
+                {...register('penyelenggara')}
+                error={errors.penyelenggara?.message}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Jam / Waktu Pelaksanaan
+              </label>
+              <Input
+                placeholder="Contoh: 08.00 WIB - Selesai"
+                {...register('jam_pelaksanaan')}
+                error={errors.jam_pelaksanaan?.message}
               />
             </div>
 

@@ -41,6 +41,7 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
     harga_perolehan: 0,
     kondisi: 'baik',
     status: 'tersedia',
+    is_borrowable: true,
     spesifikasi: '',
     keterangan: '',
   });
@@ -84,6 +85,7 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
             harga_perolehan: data.harga_perolehan,
             kondisi: data.kondisi,
             status: data.status,
+            is_borrowable: data.is_borrowable !== false,
             spesifikasi: data.spesifikasi || '',
             keterangan: data.keterangan || '',
           });
@@ -323,6 +325,17 @@ export default function EditAsetPage({ params }: { params: Promise<{ id: string 
                 { value: 'maintenance', label: 'Maintenance' },
                 { value: 'disetujui_diapkir', label: 'Diapkir / Non-aktif' },
               ]}
+            />
+
+            <Select
+              label="Izin Peminjaman (Bisa Dipinjam?)"
+              value={formData.is_borrowable !== false ? 'true' : 'false'}
+              onChange={(val) => setFormData({ ...formData, is_borrowable: val === 'true' })}
+              options={[
+                { value: 'true', label: 'Bisa Dipinjam (Mahasiswa / Dosen / Civitas)' },
+                { value: 'false', label: 'Tidak Bisa Dipinjam (Khusus Operasional / Lab Internal)' },
+              ]}
+              hint="Tentukan apakah alat/barang inventaris ini dapat diajukan pinjam."
             />
           </div>
 

@@ -37,6 +37,7 @@ export default function CreateAsetPage() {
     harga_perolehan: 0,
     kondisi: 'baik',
     status: 'tersedia',
+    is_borrowable: true,
     spesifikasi: '',
     keterangan: '',
   });
@@ -261,6 +262,17 @@ export default function CreateAsetPage() {
                 { value: 'maintenance', label: 'Maintenance' },
                 { value: 'disetujui_diapkir', label: 'Diapkir / Non-aktif' },
               ]}
+            />
+
+            <Select
+              label="Izin Peminjaman (Bisa Dipinjam?)"
+              value={formData.is_borrowable !== false ? 'true' : 'false'}
+              onChange={(val) => setFormData({ ...formData, is_borrowable: val === 'true' })}
+              options={[
+                { value: 'true', label: 'Bisa Dipinjam (Mahasiswa / Dosen / Civitas)' },
+                { value: 'false', label: 'Tidak Bisa Dipinjam (Khusus Operasional / Lab Internal)' },
+              ]}
+              hint="Tentukan apakah alat/barang inventaris ini dapat diajukan pinjam."
             />
           </div>
 

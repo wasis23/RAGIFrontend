@@ -56,7 +56,8 @@ import {
   HeartHandshake,
   Ruler,
   Package,
-  Boxes
+  Boxes,
+  Stamp
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -140,6 +141,7 @@ const getIcon = (iconName: string) => {
     'Tag': Tag,
     'FileSignature': FileText,
     'FileText': FileText,
+    'FaStamp': Stamp,
   };
   const IconComponent = iconMap[iconName] || LayoutDashboard;
   return <IconComponent className="sidebar-item-icon" />;
@@ -282,6 +284,7 @@ const IAM_FALLBACK_MENUS: Menu[] = [
 ];
 
 const SINAPRA_FALLBACK_MENUS: Menu[] = [
+  { id: 900, parent_id: null, name: 'Dashboard SINAPRA', url: '/sinapra', icon: 'FaChartPie', module: 'sinapra', permission_id: null, order_index: 0, is_active: true },
   { id: 901, parent_id: null, name: 'Gedung & Ruangan', url: '/sinapra/gedung-ruangan', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
   { id: 902, parent_id: null, name: 'Inventaris Aset', url: '/sinapra/aset', icon: 'FaBoxes', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
   { id: 903, parent_id: null, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
@@ -307,6 +310,7 @@ const SINAPRA_FALLBACK_MENUS: Menu[] = [
       { id: 9104, parent_id: 910, name: 'Master Kategori BHP Lab', url: '/sinapra/master/kategori-bhp', icon: 'Package', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
       { id: 9105, parent_id: 910, name: 'Master Satuan Barang', url: '/sinapra/master/satuan', icon: 'Tag', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
       { id: 9106, parent_id: 910, name: 'Master Referensi Status & Kondisi', url: '/sinapra/master/referensi', icon: 'Database', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
+      { id: 9107, parent_id: 910, name: 'Plotting Role Prodi', url: '/sinapra/master/prodi-role', icon: 'GraduationCap', module: 'sinapra', permission_id: null, order_index: 7, is_active: true },
     ],
   },
 ];
@@ -386,6 +390,7 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
       { id: 5025, parent_id: 502, name: 'Pengaturan Presensi', url: '/simpeg/master/presensi', icon: 'FaClock', module: 'simpeg', permission_id: null, order_index: 7, is_active: true },
       { id: 5026, parent_id: 502, name: 'Master Referensi', url: '/simpeg/master/referensi', icon: 'FaDatabase', module: 'simpeg', permission_id: null, order_index: 8, is_active: true },
       { id: 5027, parent_id: 502, name: 'Master Tipe Referensi', url: '/simpeg/master/tipe-referensi', icon: 'FaTags', module: 'simpeg', permission_id: null, order_index: 9, is_active: true },
+      { id: 5030, parent_id: 502, name: 'Master Tanda Tangan', url: '/simpeg/master/tanda-tangan', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: 10, is_active: true },
     ]
   },
 ];
@@ -516,11 +521,30 @@ const SIPPM_FALLBACK_MENUS: Menu[] = [
   },
 ];
 
-const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }) => Menu[]> = {
+const ARSIP_FALLBACK_MENUS: Menu[] = [
+  { id: 1000, parent_id: null, name: 'Dashboard Arsip', url: '/arsip', icon: 'FaChartPie', module: 'arsip', permission_id: null, order_index: 1, is_active: true },
+  {
+    id: 1001, parent_id: null, name: 'PERSURATAN & ARSIP', url: '#persuratan_arsip', icon: 'FaFileAlt', module: 'arsip', permission_id: null, order_index: 2, is_active: true,
+    children: [
+      { id: 10011, parent_id: 1001, name: 'Daftar Nomor Surat', url: '/arsip/nomor-surat', icon: 'FaFileSignature', module: 'arsip', permission_id: null, order_index: 1, is_active: true },
+      { id: 10013, parent_id: 1001, name: 'Permohonan Masuk', url: '/arsip/request-nomor', icon: 'FaClipboardCheck', module: 'arsip', permission_id: null, order_index: 2, is_active: true },
+    ]
+  },
+  {
+    id: 1002, parent_id: null, name: 'MASTER DATA ARSIP', url: '#master_arsip', icon: 'FaDatabase', module: 'arsip', permission_id: null, order_index: 3, is_active: true,
+    children: [
+      { id: 10021, parent_id: 1002, name: 'Master Kop Surat', url: '/arsip/kop-surat', icon: 'FaFileSignature', module: 'arsip', permission_id: null, order_index: 1, is_active: true },
+      { id: 10022, parent_id: 1002, name: 'Klasifikasi & Kode Unit', url: '/arsip/master/klasifikasi', icon: 'FaTags', module: 'arsip', permission_id: null, order_index: 2, is_active: true },
+    ]
+  },
+];
+
+const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean; isAdminSimpeg?: boolean }) => Menu[]> = {
   sso: () => IAM_FALLBACK_MENUS,
   iam: () => IAM_FALLBACK_MENUS,
-  simpeg: ({ isDosen, isTendik, canJafung }) => {
-    if (isDosen || isTendik) return getSimpegMandiriMenus(canJafung);
+  arsip: () => ARSIP_FALLBACK_MENUS,
+  simpeg: ({ isDosen, isTendik, canJafung, isAdminSimpeg }) => {
+    if (!isAdminSimpeg && (isDosen || isTendik)) return getSimpegMandiriMenus(canJafung);
     return SIMPEG_FALLBACK_MENUS;
   },
   sippm: () => SIPPM_FALLBACK_MENUS,
@@ -537,7 +561,7 @@ const FALLBACK_MENUS_REGISTRY: Record<string, (opts: { isMahasiswa: boolean; isD
 
 const getFallbackMenusForModule = (
   mod: string,
-  opts: { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean }
+  opts: { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean; isAdminSimpeg?: boolean }
 ): Menu[] => {
   const handler = FALLBACK_MENUS_REGISTRY[mod];
   return handler ? handler(opts) : [];
@@ -568,6 +592,11 @@ export function Sidebar() {
     isSuperAdmin ||
     isAdmin ||
     hasRole(['admin', 'superadmin', 'super-admin', 'admin_spmb', 'panitia_spmb', 'operator_spmb', 'admin_iam']);
+
+  const isAdminSimpeg =
+    isSuperAdmin ||
+    isAdmin ||
+    hasRole(['admin_simpeg', 'operator_sdm', 'admin', 'superadmin']);
 
   const [ssoPanelOpen, setSsoPanelOpen] = useState(pathname.startsWith('/admin'));
   
@@ -635,6 +664,7 @@ export function Sidebar() {
     else if (pathname.startsWith('/spmb')) mod = 'spmb';
     else if (pathname.startsWith('/sinapra')) mod = 'sinapra';
     else if (pathname.startsWith('/siakad')) mod = 'siakad';
+    else if (pathname.startsWith('/arsip')) mod = 'arsip';
 
     if (typeof window !== 'undefined') {
       if (pathname.startsWith('/profile')) {
@@ -655,7 +685,7 @@ export function Sidebar() {
           let menus = await menuService.getMyMenus(mod);
 
           // Menu SIMPEG Mandiri Dosen & Tendik
-          if (mod === 'simpeg' && (isDosenRole || isTendikRole || (!isAdmin && !isSuperAdmin))) {
+          if (mod === 'simpeg' && !isAdminSimpeg && (isDosenRole || isTendikRole)) {
             menus = getSimpegMandiriMenus(canJafung);
           } else if (isMahasiswaRole && mod === 'sikeu') {
             menus = SIKEU_MAHASISWA_MENUS;
@@ -673,7 +703,7 @@ export function Sidebar() {
         } catch (error) {
           console.error("Failed to load menus", error);
           const mod = getModule();
-          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isTendik: isTendikRole, canJafung, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
+          setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isTendik: isTendikRole, canJafung, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole, isAdminSimpeg }));
         } finally {
           setLoading(false);
         }
@@ -681,7 +711,7 @@ export function Sidebar() {
       fetchMenus();
     } else {
       const mod = getModule();
-      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isTendik: isTendikRole, canJafung, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole }));
+      setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isTendik: isTendikRole, canJafung, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole, isAdminSimpeg }));
       setLoading(false);
     }
   }, [user, pathname]);
