@@ -28,6 +28,7 @@ export const Select = forwardRef<any, CustomSelectProps>(
   ({ label, error, hint, required, options, value, onChange, placeholder, className, id, isClearable = false, isMulti = false, isDisabled = false, disabled = false, ...props }, ref) => {
     const reactId = useId();
     const cleanLabel = label ? label.replace(/\s*\*+$/, '') : undefined;
+    const isRequired = required || /\*+\s*$/.test(label ?? '');
     const selectId = id || cleanLabel?.toLowerCase().replace(/\s+/g, '-') || reactId;
 
     let safeOptions: SelectOption[] = Array.isArray(options) ? options : [];
@@ -96,7 +97,7 @@ export const Select = forwardRef<any, CustomSelectProps>(
         {cleanLabel && (
           <label className="form-label" htmlFor={selectId}>
             {cleanLabel}
-            {required && <span className="required">*</span>}
+            {isRequired && <span className="required">*</span>}
           </label>
         )}
         <div className="input-wrapper" style={{ display: 'block' }}>

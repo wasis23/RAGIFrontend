@@ -26,6 +26,7 @@ const schema = z
     tipe_potongan: z.boolean(),
     is_active: z.boolean(),
     is_referral_reward: z.boolean(),
+    is_default_master_biaya: z.boolean(),
     role_rewards: z
       .array(
         z.object({
@@ -79,6 +80,7 @@ export function KomponenBiayaForm({ mode, komponenId, initial }: KomponenBiayaFo
       tipe_potongan: false,
       is_active: true,
       is_referral_reward: false,
+      is_default_master_biaya: false,
       role_rewards: [],
       keterangan: '',
     },
@@ -99,6 +101,7 @@ export function KomponenBiayaForm({ mode, komponenId, initial }: KomponenBiayaFo
         tipe_potongan: Boolean(initial.tipe_potongan),
         is_active: Boolean(initial.is_active),
         is_referral_reward: Boolean(initial.is_referral_reward),
+        is_default_master_biaya: Boolean(initial.is_default_master_biaya),
         role_rewards: (initial.role_rewards || []).map((r) => ({
           role_id: Number(r.role_id),
           nominal: Number(r.nominal),
@@ -138,6 +141,7 @@ export function KomponenBiayaForm({ mode, komponenId, initial }: KomponenBiayaFo
         tipe_potongan: values.tipe_potongan,
         is_active: values.is_active,
         is_referral_reward: values.is_referral_reward,
+        is_default_master_biaya: values.is_default_master_biaya,
         role_rewards: values.is_referral_reward
           ? (values.role_rewards || []).map((r) => ({ role_id: Number(r.role_id), nominal: Number(r.nominal) }))
           : [],
@@ -263,6 +267,12 @@ export function KomponenBiayaForm({ mode, komponenId, initial }: KomponenBiayaFo
                 label="Status Aktif (Komponen ini digunakan)"
                 hint="Komponen aktif dapat dipilih pada master biaya SPMB."
                 {...register('is_active')}
+              />
+
+              <Checkbox
+                label="Dipakai Default di Master Biaya SPMB"
+                hint="Jika aktif, komponen ini otomatis dimuat saat menambah Master Biaya SPMB (per tipe jalur masuk + prodi)."
+                {...register('is_default_master_biaya')}
               />
 
               <Checkbox

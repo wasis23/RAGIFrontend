@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, Plus, AlertCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, AlertCircle, Trash2, Info } from 'lucide-react';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -107,7 +107,21 @@ export default function CreateMasterBiayaPage() {
 
         const komps = Array.isArray(kompRes?.data) ? kompRes.data : [];
         setKomponenMaster(komps);
-        replace([]);
+
+        // Komponen bertanda default otomatis dimuat ke rincian.
+        const defaultItems = komps
+          .filter((k: MasterKomponenBiaya) => k.is_default_master_biaya)
+          .map((k: MasterKomponenBiaya) => ({
+            komponen_biaya_id: k.id,
+            nominal: 0,
+            dibebankan_saat_pendaftaran: false,
+            berlaku_diskon: false,
+            nama: k.nama,
+            kode: k.kode,
+            kategori: k.kategori,
+            keterangan: k.keterangan,
+          }));
+        replace(defaultItems);
 
       } catch (error) {
         console.error('Failed to load initial data:', error);
@@ -253,8 +267,15 @@ export default function CreateMasterBiayaPage() {
                   <p className="text-xs text-slate-500 mt-2">
                     Masukkan nominal rupiah untuk masing-masing pos komponen pembiayaan prodi.
                   </p>
+                  <div className="mt-2 flex items-start gap-1.5 text-2xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                    <Info size={13} className="shrink-0 mt-0.5 text-slate-400" />
+                    <span>
+                      Komponen dengan toggle <strong>Berlaku Diskon</strong> aktif akan mengikuti proses diskon
+                      menyesuaikan <strong>gelombang yang berlaku</strong> (potongan biaya daftar ulang pada gelombang).
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-2">
                   <div className="w-full sm:w-64">
                     <Select
                       label="Tambah Komponen"
@@ -284,6 +305,7 @@ export default function CreateMasterBiayaPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="min-h-11"
                     icon={<Plus size={16} />}
                     onClick={() => router.push('/spmb/master/komponen-biaya')}
                   >
@@ -380,7 +402,10 @@ export default function CreateMasterBiayaPage() {
                               )}
                             />
                           </div>
-                          <div className="md:col-span-2">
+                          <div
+                            className="md:col-span-2"
+                            title="Jika aktif, komponen ini mengikuti proses diskon menyesuaikan potongan biaya daftar ulang pada gelombang yang berlaku."
+                          >
                             <Controller
                               control={control}
                               name={`items.${index}.berlaku_diskon`}

@@ -273,6 +273,7 @@ export interface MasterKomponenBiaya {
   kategori: string;
   tipe_potongan: boolean;
   is_referral_reward?: boolean;
+  is_default_master_biaya?: boolean;
   role_rewards?: KomponenBiayaRoleReward[];
   urutan: number;
   is_active: boolean;

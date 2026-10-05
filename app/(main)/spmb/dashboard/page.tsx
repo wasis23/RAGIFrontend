@@ -624,22 +624,14 @@ export default function SPMBDashboardPage() {
               <div className="divide-y divide-slate-100">
                 {(() => {
                   // Ambil syarat berkas dari API master berkas-requirement
-                  const masterList = berkasRequirements.length > 0
-                    ? berkasRequirements
-                        .filter((b: any) => b.is_active !== false)
-                        .sort((a: any, b: any) => (a.urutan || 0) - (b.urutan || 0))
-                        .map((b: any) => ({
-                          key: b.jenis_dokumen,
-                          label: b.label,
-                          required: b.wajib,
-                        }))
-                    : [
-                        { key: 'pas_foto', label: 'Pas Foto Resmi (3x4)', required: true },
-                        { key: 'ktp', label: 'KTP / Kartu Pelajar', required: true },
-                        { key: 'kk', label: 'Kartu Keluarga (KK)', required: true },
-                        { key: 'ijazah', label: 'Ijazah / SKL', required: true },
-                        { key: 'rapor', label: 'Transkrip Nilai / Rapor', required: false },
-                      ];
+                  const masterList = berkasRequirements
+                    .filter((b: any) => b.is_active !== false)
+                    .sort((a: any, b: any) => (a.urutan || 0) - (b.urutan || 0))
+                    .map((b: any) => ({
+                      key: b.jenis_dokumen,
+                      label: b.label,
+                      required: b.wajib,
+                    }));
 
                   if (masterList.length === 0) {
                     return (

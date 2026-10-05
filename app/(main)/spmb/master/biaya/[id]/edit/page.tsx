@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Plus, AlertCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Plus, AlertCircle, Trash2, Info } from 'lucide-react';
 import { useForm, Controller, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -291,8 +291,15 @@ export default function EditMasterBiayaPage() {
                   <p className="text-xs text-slate-500 mt-2">
                     Sesuaikan nominal masing-masing pos komponen pembiayaan prodi.
                   </p>
+                  <div className="mt-2 flex items-start gap-1.5 text-2xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                    <Info size={13} className="shrink-0 mt-0.5 text-slate-400" />
+                    <span>
+                      Komponen dengan toggle <strong>Berlaku Diskon</strong> aktif akan mengikuti proses diskon
+                      menyesuaikan <strong>gelombang yang berlaku</strong> (potongan biaya daftar ulang pada gelombang).
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-2">
                   <div className="w-full sm:w-64">
                     <Select
                       label="Tambah Komponen"
@@ -322,6 +329,7 @@ export default function EditMasterBiayaPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="min-h-11"
                     icon={<Plus size={16} />}
                     onClick={() => router.push('/spmb/master/komponen-biaya')}
                   >
@@ -414,7 +422,10 @@ export default function EditMasterBiayaPage() {
                               )}
                             />
                           </div>
-                          <div className="md:col-span-2">
+                          <div
+                            className="md:col-span-2"
+                            title="Jika aktif, komponen ini mengikuti proses diskon menyesuaikan potongan biaya daftar ulang pada gelombang yang berlaku."
+                          >
                             <Controller
                               control={control}
                               name={`items.${index}.berlaku_diskon`}

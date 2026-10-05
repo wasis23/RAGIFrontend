@@ -172,6 +172,16 @@ export default function MasterKomponenBiayaPage() {
         ),
     },
     {
+      key: 'is_default_master_biaya',
+      label: 'Default Master Biaya',
+      render: (row) =>
+        row.is_default_master_biaya ? (
+          <Badge variant="success">Ya</Badge>
+        ) : (
+          <Badge variant="secondary">Tidak</Badge>
+        ),
+    },
+    {
       key: 'is_active',
       label: 'Status',
       render: (row) =>

@@ -14,6 +14,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, prefixIcon, suffixIcon, onSuffixClick, required, className, id, ...props }, ref) => {
     const cleanLabel = label ? label.replace(/\s*\*+$/, '') : undefined;
+    const isRequired = required || /\*+\s*$/.test(label ?? '');
     const inputId = id || cleanLabel?.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -21,7 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {cleanLabel && (
           <label className="form-label" htmlFor={inputId}>
             {cleanLabel}
-            {required && <span className="required">*</span>}
+            {isRequired && <span className="required">*</span>}
           </label>
         )}
         <div className="input-wrapper">

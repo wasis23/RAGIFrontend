@@ -166,6 +166,7 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
 
     const generatedId = React.useId();
     const cleanLabel = label ? label.replace(/\s*\*+$/, '') : undefined;
+    const isRequired = required || /\*+\s*$/.test(label ?? '');
     const selectId = id || `async-select-${generatedId}`;
 
     const customStyles = {
@@ -206,7 +207,7 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
           {cleanLabel && (
             <label className="form-label" htmlFor={selectId}>
               {cleanLabel}
-              {required && <span className="required">*</span>}
+              {isRequired && <span className="required">*</span>}
             </label>
           )}
           <div className="h-10 w-full bg-slate-100 rounded-lg animate-pulse" />
@@ -219,7 +220,7 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
         {cleanLabel && (
           <label className="form-label" htmlFor={selectId}>
             {cleanLabel}
-            {required && <span className="required">*</span>}
+            {isRequired && <span className="required">*</span>}
           </label>
         )}
         <div className="input-wrapper" style={{ display: 'block' }}>
