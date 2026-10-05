@@ -8,7 +8,6 @@ import {
   Eye,
   Edit2,
   Trash2,
-  RotateCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -148,26 +147,18 @@ export default function MasterVendorPage() {
       key: 'no',
       label: 'NO',
       render: (_item: MasterVendor, index?: number) => (
-        <span className="text-xs text-slate-500">{((page - 1) * limit) + (index ?? 0) + 1}</span>
+        <span className="text-slate-500 text-xs font-semibold">{((page - 1) * limit) + (index ?? 0) + 1}</span>
       ),
     },
     {
       key: 'kode',
-      label: 'KODE',
+      label: 'KODE & NAMA REKANAN',
       render: (item: MasterVendor) => (
-        <span className="font-mono text-xs font-semibold text-slate-800">
-          {item.kode}
-        </span>
-      ),
-    },
-    {
-      key: 'nama',
-      label: 'NAMA VENDOR',
-      render: (item: MasterVendor) => (
-        <div>
-          <p className="text-xs font-semibold text-slate-800">{item.nama}</p>
+        <div className="flex flex-col">
+          <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">{item.kode}</span>
+          <span className="text-xs text-slate-600 font-medium">{item.nama}</span>
           {item.alamat && (
-            <p className="text-2xs text-slate-500 line-clamp-1">{item.alamat}</p>
+            <span className="text-2xs text-slate-400 line-clamp-1">{item.alamat}</span>
           )}
         </div>
       ),
@@ -181,10 +172,10 @@ export default function MasterVendorPage() {
       key: 'pic',
       label: 'PIC / KONTAK',
       render: (item: MasterVendor) => (
-        <div>
-          <p className="text-xs font-medium text-slate-800">{item.pic_nama || '-'}</p>
+        <div className="flex flex-col">
+          <span className="text-xs font-semibold text-slate-800">{item.pic_nama || '-'}</span>
           {item.pic_kontak && (
-            <p className="text-2xs text-slate-500">{item.pic_kontak}</p>
+            <span className="text-2xs text-slate-500">{item.pic_kontak}</span>
           )}
         </div>
       ),
@@ -193,10 +184,10 @@ export default function MasterVendorPage() {
       key: 'telepon',
       label: 'TELEPON & EMAIL',
       render: (item: MasterVendor) => (
-        <div>
-          <p className="text-xs text-slate-700">{item.telepon || '-'}</p>
+        <div className="flex flex-col">
+          <span className="text-xs text-slate-700">{item.telepon || '-'}</span>
           {item.email && (
-            <p className="text-2xs text-slate-500">{item.email}</p>
+            <span className="text-2xs text-slate-500">{item.email}</span>
           )}
         </div>
       ),
@@ -205,9 +196,7 @@ export default function MasterVendorPage() {
       key: 'urutan',
       label: 'URUTAN',
       render: (item: MasterVendor) => (
-        <span className="text-xs font-medium text-slate-700">
-          {item.urutan}
-        </span>
+        <span className="text-xs font-bold text-slate-700">{item.urutan}</span>
       ),
     },
     {
@@ -215,7 +204,7 @@ export default function MasterVendorPage() {
       label: 'STATUS',
       render: (item: MasterVendor) => (
         <Badge variant={item.is_active ? 'success' : 'secondary'}>
-          {item.is_active ? 'Aktif' : 'Nonaktif'}
+          {item.is_active ? 'Aktif' : 'Non-aktif'}
         </Badge>
       ),
     },
@@ -228,17 +217,17 @@ export default function MasterVendorPage() {
           items={[
             {
               label: 'Lihat Detail',
-              icon: <Eye size={16} />,
+              icon: <Eye size={14} />,
               onClick: () => router.push(`/sinapra/master/vendor/${item.id}`),
             },
             {
               label: 'Edit Vendor',
-              icon: <Edit2 size={16} />,
+              icon: <Edit2 size={14} />,
               onClick: () => router.push(`/sinapra/master/vendor/${item.id}/edit`),
             },
             {
-              label: 'Hapus',
-              icon: <Trash2 size={16} className="text-rose-500" />,
+              label: 'Hapus Vendor',
+              icon: <Trash2 size={14} className="text-rose-500" />,
               variant: 'danger',
               onClick: () => setDeletingItem(item),
             },
@@ -249,21 +238,22 @@ export default function MasterVendorPage() {
   ];
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Master Vendor / Rekanan"
-        description="Pengelolaan mitra rekanan vendor pengadaan sarana, jasa pemeliharaan, dan laboratorium kalibrasi"
+        title="Master Vendor / Rekanan (SINAPRA)"
+        description="Pengelolaan mitra rekanan vendor pengadaan sarana, jasa pemeliharaan, dan laboratorium kalibrasi."
         action={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
-              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Filter
             </Button>
             <Button
+              variant="primary"
               icon={<Plus size={16} />}
               onClick={() => router.push('/sinapra/master/vendor/create')}
               style={{ background: 'var(--module-primary)' }}
@@ -274,18 +264,17 @@ export default function MasterVendorPage() {
         }
       />
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="card">
         <DataTable
           columns={columns}
           data={dataList}
           isLoading={isLoading}
           meta={meta}
-          onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
+          onPageChange={(p) => setPage(p)}
+          onLimitChange={(l) => {
+            setLimit(l);
             setPage(1);
           }}
-          emptyMessage="Belum ada data master vendor / rekanan"
         />
       </div>
 
@@ -293,10 +282,9 @@ export default function MasterVendorPage() {
       <Drawer
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
-        title="Filter Vendor / Rekanan"
-        position="right"
+        title="Filter Master Vendor / Rekanan"
       >
-        <div className="space-y-4 p-4">
+        <div className="space-y-4">
           <Input
             label="Kode Vendor"
             placeholder="Cari kode vendor..."
@@ -335,23 +323,23 @@ export default function MasterVendorPage() {
           <Input
             label="Urutan"
             type="number"
-            placeholder="Nomor urutan..."
+            placeholder="Filter nomor urutan..."
             value={urutanFilter}
             onChange={(e) => setUrutanFilter(e.target.value)}
           />
 
           <Select
-            label="Status"
+            label="Status Keaktifan"
             value={activeFilter}
             onChange={(val) => setActiveFilter(String(val))}
             options={[
               { value: '', label: 'Semua Status' },
-              { value: 'true', label: 'Aktif' },
-              { value: 'false', label: 'Nonaktif' },
+              { value: 'true', label: 'Aktif Saja' },
+              { value: 'false', label: 'Non-aktif Saja' },
             ]}
           />
 
-          <hr className="my-4 border-slate-200" />
+          <hr className="border-t border-slate-200 my-4" />
 
           {/* Grid 2 Kolom Sorting Komprehensif Seluruh Kolom */}
           <div className="grid grid-cols-2 gap-4">
@@ -361,7 +349,7 @@ export default function MasterVendorPage() {
               onChange={(val) => setSortBy(String(val))}
               options={[
                 { value: 'urutan', label: 'Urutan' },
-                { value: 'kode', label: 'Kode' },
+                { value: 'kode', label: 'Kode Vendor' },
                 { value: 'nama', label: 'Nama Vendor' },
                 { value: 'jenis_rekanan', label: 'Jenis Rekanan' },
                 { value: 'pic', label: 'Nama PIC' },
@@ -375,8 +363,8 @@ export default function MasterVendorPage() {
               value={sortDir}
               onChange={(val) => setSortDir(val as 'asc' | 'desc')}
               options={[
-                { value: 'asc', label: 'A - Z (Naik)' },
-                { value: 'desc', label: 'Z - A (Turun)' },
+                { value: 'asc', label: 'A-Z / Naik' },
+                { value: 'desc', label: 'Z-A / Turun' },
               ]}
             />
           </div>
@@ -385,18 +373,15 @@ export default function MasterVendorPage() {
             <Button
               variant="outline"
               className="flex-1"
-              icon={<RotateCcw size={16} />}
               onClick={handleResetFilter}
             >
               Reset
             </Button>
             <Button
+              variant="primary"
               className="flex-1"
-              icon={<Filter size={16} />}
-              style={{ background: 'var(--module-primary)' }}
               onClick={() => {
                 setPage(1);
-                fetchData();
                 setIsFilterOpen(false);
               }}
             >
@@ -410,7 +395,7 @@ export default function MasterVendorPage() {
       <ConfirmDialog
         isOpen={Boolean(deletingItem)}
         onClose={() => setDeletingItem(null)}
-        title="Hapus Vendor / Rekanan"
+        title="Hapus Master Vendor / Rekanan?"
         message={`Apakah Anda yakin ingin menghapus data rekanan "${deletingItem?.nama}"? Tindakan ini menggunakan mekanisme soft-delete.`}
         confirmText="Hapus"
         cancelText="Batal"
