@@ -143,6 +143,11 @@ export const siakadService = {
   },
 
   // Bimbingan PA
+  getMyPa: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/my-pa');
+    return response.data;
+  },
+
   getPaRekap: async (params?: { dosen_id?: number; program_studi_id?: number; dari_tanggal?: string; sampai_tanggal?: string }): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/bimbingan/rekap', { params });
     return response.data;

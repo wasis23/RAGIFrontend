@@ -13,7 +13,12 @@ import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { lmsService } from '@/services/lms.service';
 import { referensiService } from '@/services/referensi.service';
-import { LmsKelasItem } from '@/types/lms.types';
+import {
+  LmsKelasItem,
+  KELAS_SORT_BY_OPTIONS,
+  LMS_SETTING_DEFAULT,
+} from '@/types/lms.types';
+import { SORT_ORDER_OPTIONS } from '@/lib/constants';
 import { PaginationMeta } from '@/types/api.types';
 import { Filter, Eye, BookOpen, Users, Calendar, ArrowRight, RotateCcw, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -189,12 +194,12 @@ export default function LmsKelasListPage() {
               {
                 label: 'Buka Kelas LMS',
                 icon: <ArrowRight size={16} />,
-                onClick: () => router.push(`/siakad/lms/${row.id}`),
+                onClick: () => router.push(`/lms/${row.id}`),
               },
               {
                 label: 'Detail Ringkasan',
                 icon: <Eye size={16} />,
-                onClick: () => router.push(`/siakad/lms/${row.id}`),
+                onClick: () => router.push(`/lms/${row.id}`),
               },
             ]}
           />
@@ -209,9 +214,8 @@ export default function LmsKelasListPage() {
         title="LMS Perkuliahan"
         description="Pusat materi pembelajaran, tugas terintegrasi OBE, dan presensi realtime mahasiswa per pertemuan."
         breadcrumbs={[
-          { label: 'SIAKAD', href: '/siakad/dashboard' },
-          { label: 'Perkuliahan', href: '/siakad/perkuliahan' },
-          { label: 'LMS' },
+          { label: 'LMS', href: '/lms' },
+          { label: 'Kelas Saya' },
         ]}
         action={
           <div className="flex items-center gap-2">
@@ -237,7 +241,7 @@ export default function LmsKelasListPage() {
             <div className="text-xs text-slate-500">
               {isMahasiswa ? 'Total Kelas Diikuti' : 'Total Kelas Diampu'}
             </div>
-            <div className="text-base font-bold text-slate-800">{meta.total} Kelas Aktif</div>
+            <div className="text-lg font-bold text-slate-800">{meta.total} Kelas Aktif</div>
           </div>
         </div>
 
@@ -247,7 +251,9 @@ export default function LmsKelasListPage() {
           </div>
           <div>
             <div className="text-xs text-slate-500">Standar Pertemuan</div>
-            <div className="text-base font-bold text-slate-800">16 Pertemuan / Kelas</div>
+            <div className="text-lg font-bold text-slate-800">
+              {LMS_SETTING_DEFAULT.total_pertemuan} Pertemuan / Kelas
+            </div>
           </div>
         </div>
 
@@ -257,7 +263,7 @@ export default function LmsKelasListPage() {
           </div>
           <div>
             <div className="text-xs text-slate-500">Metode Presensi</div>
-            <div className="text-base font-bold text-slate-800">Token QR & Manual Dosen</div>
+            <div className="text-lg font-bold text-slate-800">Token QR & Manual Dosen</div>
           </div>
         </div>
       </div>
@@ -331,24 +337,13 @@ export default function LmsKelasListPage() {
               label="Urut Berdasarkan"
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
-              options={[
-                { value: 'nama_kelas', label: 'Nama Kelas' },
-                { value: 'kode_kelas', label: 'Kode Kelas' },
-                { value: 'program_studi', label: 'Program Studi' },
-                { value: 'tahun_akademik', label: 'Tahun Akademik' },
-                { value: 'kapasitas', label: 'Kapasitas Kelas' },
-                { value: 'id', label: 'ID Kelas' },
-                { value: 'created_at', label: 'Tanggal Dibuat' },
-              ]}
+              options={KELAS_SORT_BY_OPTIONS}
             />
             <Select
               label="Arah"
               value={filterOrderDir}
               onChange={(val) => setFilterOrderDir(val)}
-              options={[
-                { value: 'asc', label: 'A - Z (Naik)' },
-                { value: 'desc', label: 'Z - A (Turun)' },
-              ]}
+              options={SORT_ORDER_OPTIONS}
             />
           </div>
         </div>

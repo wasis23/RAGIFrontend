@@ -2,6 +2,8 @@
 // CONSTANTS — Konstanta global untuk SSO Campus
 // ============================================================
 
+import type { SelectOption } from '@/components/ui/Select';
+
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'SSO Campus';
 export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0';
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
@@ -104,6 +106,7 @@ export const SYSTEM_MODULES = [
   { value: 'iam', label: 'IAM & Auth Center' },
   { value: 'spmb', label: 'SPMB' },
   { value: 'siakad', label: 'SIAKAD' },
+  { value: 'lms', label: 'LMS' },
   { value: 'obe', label: 'OBE' },
   { value: 'simpi', label: 'SIMPI' },
   { value: 'simanta', label: 'SIMANTA' },
@@ -121,6 +124,33 @@ export const SYSTEM_MODULES = [
 // ============================================================
 export const DEFAULT_PAGE_SIZE = 10;
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+
+// ============================================================
+// SORTING
+// Arah pengurutan generik untuk seluruh DataTable/Drawer filter.
+// Dipakai lewat `<Select options={SORT_ORDER_OPTIONS} />` supaya teks
+// "naik/turun" konsisten dan tidak ditulis ulang di tiap halaman.
+// ============================================================
+export type SortOrder = 'asc' | 'desc';
+
+export const SORT_ORDER_OPTIONS: SelectOption[] = [
+  { value: 'asc', label: 'Naik / Terlama' },
+  { value: 'desc', label: 'Turun / Terbaru' },
+];
+
+// ============================================================
+// HARI — Nilai tetap domain kalender (tabel master tidak ada)
+// ============================================================
+export type HariKey = 'senin' | 'selasa' | 'rabu' | 'kamis' | 'jumat' | 'sabtu';
+
+export const HARI_OPTIONS: SelectOption[] = [
+  { value: 'senin', label: 'Senin' },
+  { value: 'selasa', label: 'Selasa' },
+  { value: 'rabu', label: 'Rabu' },
+  { value: 'kamis', label: 'Kamis' },
+  { value: 'jumat', label: 'Jumat' },
+  { value: 'sabtu', label: 'Sabtu' },
+];
 
 // ============================================================
 // PUBLIC ROUTES — Route yang tidak memerlukan autentikasi

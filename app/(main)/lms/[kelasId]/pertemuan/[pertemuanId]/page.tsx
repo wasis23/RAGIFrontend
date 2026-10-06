@@ -16,6 +16,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import PertemuanQuizTab from '@/components/lms/PertemuanQuizTab';
 import { lmsService } from '@/services/lms.service';
 import { referensiService, MasterReferensiItem } from '@/services/referensi.service';
 import {
@@ -46,7 +47,10 @@ import {
   ArrowLeft,
   CheckCircle2,
   UploadCloud,
-  FileCheck
+  FileCheck,
+  RotateCw,
+  Lock,
+  ListChecks
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -109,12 +113,15 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   const kelasId = Number(resolvedParams.kelasId);
   const pertemuanId = Number(resolvedParams.pertemuanId);
   const router = useRouter();
-  const { hasRole } = useAuth();
-  const isMahasiswa = hasRole('mahasiswa');
+  const { hasPermission } = useAuth();
+  const canManageKelas = hasPermission('lms.kelas.manage');
+  const canInputPresensi = hasPermission('lms.presensi.input');
+  const canProsesIzin = hasPermission('lms.izin.proses');
+  const isMahasiswa = !canManageKelas;
 
   // State Utama
   const [detail, setDetail] = useState<LmsPertemuanDetail | null>(null);
-  const [activeTab, setActiveTab] = useState<'presensi' | 'materi' | 'tugas'>('presensi');
+  const [activeTab, setActiveTab] = useState<'presensi' | 'materi' | 'tugas' | 'kuis'>('presensi');
 
   // Pagination Meta untuk DataTable Presensi & Submisi Tugas
   const [absensiMeta, setAbsensiMeta] = useState<PaginationMeta>({
@@ -133,6 +140,7 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   // Token Absensi State
   const [tokenInfo, setTokenInfo] = useState<{ token: string; expired_at: string } | null>(null);
   const [isGeneratingToken, setIsGeneratingToken] = useState<boolean>(false);
+  const [tutupConfirm, setTutupConfirm] = useState<boolean>(false);
 
   // File Upload State untuk Materi
   const [materiFile, setMateriFile] = useState<File | null>(null);
@@ -290,13 +298,50 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
       if (res.status === 'success' && res.data) {
         setTokenInfo({
           token: res.data.token,
-          expired_at: res.data.token_expired_at,
+          expired_at: res.data.expired_at,
         });
-        toast.success(`Token berhasil diaktifkan: ${res.data.token} (15 Menit)`);
+        toast.success(`Token berhasil diaktifkan: ${res.data.token} (${res.data.ttl_menit} Menit)`);
         fetchDetail();
       }
     } catch (err: any) {
       toast.error(err.message || 'Gagal generate token absensi');
+    } finally {
+      setIsGeneratingToken(false);
+    }
+  };
+
+  // Putar ulang token umur pendek (anti titip-hadir)
+  const handleRotateToken = async () => {
+    setIsGeneratingToken(true);
+    try {
+      const res = await lmsService.rotateTokenAbsensi(pertemuanId);
+      if (res.status === 'success' && res.data) {
+        setTokenInfo({
+          token: res.data.token,
+          expired_at: res.data.expired_at,
+        });
+        toast.success(`Token baru: ${res.data.token} (berlaku ${res.data.ttl_detik} detik)`);
+        fetchDetail();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal memutar ulang token absensi');
+    } finally {
+      setIsGeneratingToken(false);
+    }
+  };
+
+  // Tutup sesi presensi
+  const handleTutupPresensi = async () => {
+    setIsGeneratingToken(true);
+    try {
+      const res = await lmsService.tutupPresensi(pertemuanId);
+      if (res.status === 'success') {
+        setTokenInfo(null);
+        toast.success('Sesi presensi berhasil ditutup');
+        fetchDetail();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menutup sesi presensi');
     } finally {
       setIsGeneratingToken(false);
     }
@@ -639,16 +684,16 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         title={`Pertemuan Ke-${detail?.pertemuan.pertemuan_ke || ''}: ${detail?.pertemuan.materi || 'Sesi Perkuliahan'}`}
         description={`Sesi perkuliahan tanggal ${detail?.pertemuan.tanggal || ''} • ${detail?.pertemuan.jam_mulai || ''} - ${detail?.pertemuan.jam_selesai || 'Selesai'}`}
         breadcrumbs={[
-          { label: 'SIAKAD', href: '/siakad/dashboard' },
-          { label: 'LMS', href: '/siakad/lms' },
-          { label: 'Kelas', href: `/siakad/lms/${kelasId}` },
+          { label: 'LMS', href: '/lms' },
+          { label: 'Kelas', href: `/lms/${kelasId}` },
           { label: `P${detail?.pertemuan.pertemuan_ke}` },
         ]}
         action={
           <Button
-            onClick={() => router.push(`/siakad/lms/${kelasId}`)}
-            style={{ background: 'var(--module-primary)' }}
+            variant="outline"
+            onClick={() => router.push(`/lms/${kelasId}`)}
             icon={<ArrowLeft size={16} />}
+            style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
           >
             Kembali
           </Button>
@@ -692,6 +737,10 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                     (Aktif s/d {tokenInfo.expired_at ? new Date(tokenInfo.expired_at).toLocaleTimeString('id-ID') : '15 mnt'})
                   </span>
                 </>
+              ) : detail?.presensi_ditutup ? (
+                <span className="text-xs font-semibold text-slate-300 bg-slate-700/60 p-2 rounded-lg border border-slate-500/30">
+                  Sesi presensi sudah ditutup.
+                </span>
               ) : (
                 <span className="text-xs text-slate-300">
                   Token belum diaktifkan untuk sesi pertemuan ini.
@@ -712,16 +761,45 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                 Input Token Presensi
               </Button>
             )
+          ) : detail?.presensi_ditutup ? (
+            <span className="text-2xs font-semibold text-slate-400">
+              Sesi presensi ditutup — input manual tetap bisa via tabel di bawah.
+            </span>
           ) : (
-            <Button
-              size="sm"
-              loading={isGeneratingToken}
-              disabled={isGeneratingToken}
-              icon={<QrCode size={16} />}
-              onClick={handleGenerateToken}
-            >
-              {tokenInfo?.token ? 'Regenerate Token Baru' : 'Buka Token Presensi (15 Mnt)'}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                loading={isGeneratingToken}
+                disabled={isGeneratingToken}
+                icon={<QrCode size={16} />}
+                onClick={handleGenerateToken}
+              >
+                {tokenInfo?.token ? 'Regenerate Token Baru' : 'Buka Token Presensi (15 Mnt)'}
+              </Button>
+              {tokenInfo?.token && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={isGeneratingToken}
+                  disabled={isGeneratingToken}
+                  icon={<RotateCw size={16} />}
+                  onClick={handleRotateToken}
+                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                >
+                  Putar Token (2 Mnt)
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline-danger"
+                loading={isGeneratingToken}
+                disabled={isGeneratingToken}
+                icon={<Lock size={16} />}
+                onClick={() => setTutupConfirm(true)}
+              >
+                Tutup Sesi
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -734,7 +812,7 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           onClick={() => setActiveTab('presensi')}
           className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'presensi'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -752,7 +830,7 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           onClick={() => setActiveTab('materi')}
           className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'materi'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -766,12 +844,26 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           onClick={() => setActiveTab('tugas')}
           className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'tugas'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
           <FileText size={16} />
           <span>Penugasan & Nilai OBE ({detail?.tugas_list?.length || 0})</span>
+        </Button>
+
+        <Button
+          type="button"
+          variant="tab"
+          onClick={() => setActiveTab('kuis')}
+          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'kuis'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <ListChecks size={16} />
+          <span>Kuis & Tryout Mini ({detail?.quiz_list?.length || 0})</span>
         </Button>
       </div>
 
@@ -927,18 +1019,18 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                                   },
                                 ]
                               : []),
-                            ...(iz.status === 'pending'
+                            ...(iz.status === 'pending' && statusPersetujuanMap['disetujui'] && statusPersetujuanMap['ditolak']
                               ? [
                                   {
                                     label: 'Setujui Permohonan',
                                     icon: <Check size={16} />,
-                                    onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['disetujui'] || 2),
+                                    onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['disetujui']),
                                   },
                                   {
                                     label: 'Tolak Permohonan',
                                     icon: <X size={16} />,
                                     variant: 'danger' as const,
-                                    onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['ditolak'] || 3),
+                                    onClick: () => handleProsesIzin(iz.id, statusPersetujuanMap['ditolak']),
                                   },
                                 ]
                               : []),
@@ -1261,6 +1353,20 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Tab 4: Kuis (dosen kelola, mahasiswa kerjakan) */}
+      {activeTab === 'kuis' && (
+        <div className="space-y-4">
+          <PertemuanQuizTab
+            pertemuanId={pertemuanId}
+            kelasId={kelasId}
+            quizList={detail?.quiz_list || []}
+            komponenObeList={detail?.komponen_obe_list || []}
+            isMahasiswa={isMahasiswa}
+            onRefresh={fetchDetail}
+          />
         </div>
       )}
 
@@ -1609,6 +1715,26 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           </span>
         }
         confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+      />
+
+      {/* Modal Konfirmasi Tutup Sesi Presensi */}
+      <ConfirmDialog
+        isOpen={tutupConfirm}
+        onClose={() => setTutupConfirm(false)}
+        onConfirm={async () => {
+          setTutupConfirm(false);
+          await handleTutupPresensi();
+        }}
+        isLoading={isGeneratingToken}
+        title="Tutup Sesi Presensi"
+        message={
+          <span>
+            Setelah ditutup, mahasiswa tidak bisa lagi input token untuk pertemuan ini. Input manual dosen tetap bisa dilakukan. Lanjutkan?
+          </span>
+        }
+        confirmText="Tutup Sesi"
         cancelText="Batal"
         variant="danger"
       />

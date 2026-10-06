@@ -13,6 +13,8 @@ import { Select } from '@/components/ui/Select';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { lmsService } from '@/services/lms.service';
+import KelasTryoutTab from '@/components/lms/KelasTryoutTab';
+import KelasForumTab from '@/components/lms/KelasForumTab';
 import { referensiService, MasterReferensiItem } from '@/services/referensi.service';
 import { LmsKelasOverview, LmsPertemuanItem } from '@/types/lms.types';
 import { PaginationMeta } from '@/types/api.types';
@@ -30,6 +32,8 @@ import {
   BookOpen,
   Save,
   ArrowLeft,
+  ListChecks,
+  MessagesSquare,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -55,11 +59,12 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const kelasId = Number(resolvedParams.kelasId);
   const router = useRouter();
-  const { hasRole } = useAuth();
-  const isMahasiswa = hasRole('mahasiswa');
+  const { hasPermission } = useAuth();
+  const canManageKelas = hasPermission('lms.kelas.manage');
+  const isMahasiswa = !canManageKelas;
 
   // State
-  const [activeTab, setActiveTab] = useState<'pertemuan' | 'rekap' | 'setting'>('pertemuan');
+  const [activeTab, setActiveTab] = useState<'pertemuan' | 'rekap' | 'setting' | 'tryout' | 'forum'>('pertemuan');
   const [overview, setOverview] = useState<LmsKelasOverview | null>(null);
   const [rekapData, setRekapData] = useState<any | null>(null);
   const [rekapMeta, setRekapMeta] = useState<PaginationMeta>({
@@ -248,15 +253,15 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
         title={overview?.kelas.nama_kelas || 'Detail Kelas LMS'}
         description={`${overview?.kelas.kode_kelas || ''} • ${overview?.kelas.mata_kuliah?.nama || ''} (${overview?.kelas.mata_kuliah?.total_sks || 0} SKS) • Prodi ${overview?.kelas.program_studi?.nama || ''}`}
         breadcrumbs={[
-          { label: 'SIAKAD', href: '/siakad/dashboard' },
-          { label: 'LMS', href: '/siakad/lms' },
+          { label: 'LMS', href: '/lms' },
           { label: overview?.kelas.nama_kelas || 'Detail Kelas' },
         ]}
         action={
           <Button
-            onClick={() => router.push('/siakad/lms')}
-            style={{ background: 'var(--module-primary)' }}
+            variant="outline"
+            onClick={() => router.push('/lms')}
             icon={<ArrowLeft size={16} />}
+            style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
           >
             Kembali
           </Button>
@@ -326,7 +331,7 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
           onClick={() => setActiveTab('pertemuan')}
           className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'pertemuan'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -340,7 +345,7 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
           onClick={() => setActiveTab('rekap')}
           className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'rekap'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
           }`}
         >
@@ -355,7 +360,7 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
             onClick={() => setActiveTab('setting')}
             className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'setting'
-                ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle,#f8fafc)]'
+                ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
             }`}
           >
@@ -363,6 +368,34 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
             <span>Pengaturan Kelas LMS</span>
           </Button>
         )}
+
+        <Button
+          type="button"
+          variant="tab"
+          onClick={() => setActiveTab('tryout')}
+          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'tryout'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <ListChecks size={16} />
+          <span>Tryout</span>
+        </Button>
+
+        <Button
+          type="button"
+          variant="tab"
+          onClick={() => setActiveTab('forum')}
+          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'forum'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+          }`}
+        >
+          <MessagesSquare size={16} />
+          <span>Forum Diskusi</span>
+        </Button>
       </div>
 
       {/* Tab Content: Pertemuan List */}
@@ -371,7 +404,7 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
           {overview?.pertemuan_list?.map((p: LmsPertemuanItem) => (
             <div
               key={p.id}
-              onClick={() => router.push(`/siakad/lms/${kelasId}/pertemuan/${p.id}`)}
+              onClick={() => router.push(`/lms/${kelasId}/pertemuan/${p.id}`)}
               className="p-4 bg-white rounded-xl border border-slate-200/80 hover:border-slate-300 hover:shadow-xs transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
               <div className="flex items-start gap-4">
@@ -531,6 +564,16 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
             </Button>
           </div>
         </form>
+      )}
+
+      {/* Tab Content: Tryout level kelas */}
+      {activeTab === 'tryout' && (
+        <KelasTryoutTab kelasId={kelasId} isMahasiswa={isMahasiswa} />
+      )}
+
+      {/* Tab Content: Forum diskusi kelas */}
+      {activeTab === 'forum' && (
+        <KelasForumTab kelasId={kelasId} isMahasiswa={isMahasiswa} canManage={!isMahasiswa} />
       )}
     </div>
   );

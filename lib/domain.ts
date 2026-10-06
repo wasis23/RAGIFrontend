@@ -27,6 +27,7 @@ export const MODULE_LABELS: Record<string, string> = {
   iam: 'IAM & Auth Center',
   spmb: 'SPMB',
   siakad: 'SIAKAD',
+  lms: 'LMS',
   obe: 'OBE',
   simpi: 'SIMPI',
   simanta: 'SIMANTA',
