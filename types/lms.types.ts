@@ -109,6 +109,18 @@ export const PUBLISH_STATUS_OPTIONS: SelectOption[] = [
 ];
 
 /**
+ * Opsi Ya/Tidak generik untuk field boolean yang diwakili Select `1`/`0`
+ * (mis. acak_soal, acak_jawaban pada tryout).
+ *
+ * Closed-set domain (ya/tidak), bukan entitas master — dideklarasikan
+ * terpusat di sini, jangan menulis ulang di komponen.
+ */
+export const YA_TIDAK_OPTIONS: SelectOption[] = [
+  { value: '1', label: 'Ya' },
+  { value: '0', label: 'Tidak' },
+];
+
+/**
  * Whitelist kolom `sort_by` pada rekap absensi kelas
  * (backend: `LmsController::getRekapAbsensi`).
  */
@@ -475,6 +487,7 @@ export interface LmsQuizItem {
   ditutup_at?: string | null;
   is_published: boolean;
   is_archived: boolean;
+  kode_akses?: string | null;
   soal_count?: number;
   /** Hanya terisi pada endpoint agregat `/lms/tryout`. */
   kelas?: LmsKelasRingkas | null;
@@ -516,6 +529,7 @@ export interface LmsQuizAttempt {
   disubmit_at?: string | null;
   nilai_akhir?: number | null;
   butuh_penilaian_manual: boolean;
+  feedback_dosen?: string | null;
   mahasiswa?: { id: number; nim: string; nama_lengkap: string };
 }
 
@@ -524,6 +538,40 @@ export interface LmsTryoutPeserta {
   quiz_id: number;
   mahasiswa_id: number;
   mahasiswa?: { id: number; nim: string; nama_lengkap: string };
+}
+
+// ── Detail attempt & preview tryout (dosen kelola) ──
+
+/**
+ * Satu baris jawaban dalam detail attempt.
+ *
+ * Dibuat defensif (`any` untuk bentuk soal/kunci) karena endpoint
+ * `GET /v1/lms/attempt/{id}/detail` masih paralel dengan backend —
+ * field yang belum ada cukup diabaikan saat render.
+ */
+export interface LmsAttemptJawaban {
+  id: number;
+  quiz_soal_id: number;
+  bank_opsi_id?: number | null;
+  jawaban_teks?: string | null;
+  is_benar?: boolean | null;
+  poin_diperoleh?: number | null;
+  feedback_dosen?: string | null;
+  quiz_soal?: any;
+}
+
+export interface LmsAttemptDetail {
+  attempt: LmsQuizAttempt;
+  jawaban?: LmsAttemptJawaban[];
+  questions?: any[];
+  [key: string]: any;
+}
+
+/** Hasil `GET /v1/lms/quiz/{id}/preview` — tampilan read-only tanpa kunci. */
+export interface LmsQuizPreview {
+  quiz: LmsQuizItem;
+  soal?: LmsQuizBatchSoal[];
+  [key: string]: any;
 }
 
 // ── Forum (Fase C) ──
@@ -555,4 +603,85 @@ export interface LmsForumPost {
   isi: string;
   created_at: string;
   balasan?: LmsForumPost[];
+}
+
+// ── Rekap matrix mahasiswa x pertemuan (dosen) ──
+
+/** Satu sel kehadiran pada matriks rekap (H/S/I/A/belum). */
+export type RekapMatrixStatus = 'H' | 'S' | 'I' | 'A' | '-';
+
+export interface LmsRekapMatrixPertemuan {
+  id: number;
+  pertemuan_ke: number;
+  tanggal?: string | null;
+}
+
+export interface LmsRekapMatrixRow {
+  mahasiswa_id: number;
+  nim: string;
+  nama_lengkap: string;
+  /** Kunci: pertemuan_ke atau pertemuan id (string), nilai: H/S/I/A. */
+  kehadiran: Record<string, string>;
+  persentase_kehadiran: number;
+  is_memenuhi_syarat: boolean;
+}
+
+export interface LmsRekapMatrix {
+  kelas_id: number;
+  total_pertemuan: number;
+  batas_min_hadir_persen: number;
+  pertemuan_list: LmsRekapMatrixPertemuan[];
+  rows: LmsRekapMatrixRow[];
+  /** Kompatibilitas: backend lama memakai `rekapitulasi`. */
+  rekapitulasi?: LmsRekapMatrixRow[];
+}
+
+// ── Ketercapaian MK / OBE (mahasiswa) ──
+
+export interface LmsKetercapaianKomponen {
+  id: number;
+  nama_komponen: string;
+  bobot: number;
+  nilai?: number | null;
+  persentase?: number | null;
+}
+
+export interface LmsKetercapaian {
+  kelas_id: number;
+  komponen: LmsKetercapaianKomponen[];
+  nilai_akhir?: number | null;
+  progress_persen?: number | null;
+}
+
+// ── Kolaborator tryout (dosen) ──
+
+/** Peran kolaborator tryout (closed-set domain, tanpa tabel master). */
+export type TryoutPeran = 'pengawas' | 'pemantau' | 'penginput_soal';
+
+export const TRYOUT_PERAN_OPTIONS: SelectOption[] = [
+  { value: 'pengawas', label: 'Pengawas' },
+  { value: 'pemantau', label: 'Pemantau' },
+  { value: 'penginput_soal', label: 'Penginput Soal' },
+];
+
+export const TRYOUT_PERAN_VALUES = TRYOUT_PERAN_OPTIONS.map(
+  (option) => option.value
+) as [TryoutPeran, ...TryoutPeran[]];
+
+export const TRYOUT_PERAN_LABEL: Record<TryoutPeran, string> = {
+  pengawas: 'Pengawas',
+  pemantau: 'Pemantau',
+  penginput_soal: 'Penginput Soal',
+};
+
+export interface LmsQuizKolaborator {
+  id: number;
+  quiz_id: number;
+  dosen_id: number;
+  peran: TryoutPeran;
+  dosen?: {
+    id: number;
+    nidn?: string | null;
+    nama_lengkap: string;
+  } | null;
 }

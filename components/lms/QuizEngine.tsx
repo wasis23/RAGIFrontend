@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { lmsService } from '@/services/lms.service';
 import type { LmsQuizBatch, LmsQuizBatchSoal } from '@/types/lms.types';
-import { ChevronLeft, ChevronRight, Clock, Play, Send } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Play, Send, MessageSquareText, Hourglass } from 'lucide-react';
 
 const kodeSchema = z.object({
   kode_akses: z.string().optional().default(''),
@@ -211,13 +211,51 @@ export default function QuizEngine({ quizId }: QuizEngineProps) {
           {meta.quiz?.durasi_menit && <Badge><Clock size={12} /> {meta.quiz.durasi_menit} menit</Badge>}
           <Badge>Sisa attempt: {sisa}</Badge>
         </div>
+        {(meta.quiz?.dibuka_at || meta.quiz?.ditutup_at) && (
+          <div className="text-2xs text-slate-500">
+            {meta.quiz?.dibuka_at && <span className="block">Dibuka: {new Date(String(meta.quiz.dibuka_at).includes(' ') && !String(meta.quiz.dibuka_at).includes('T') ? String(meta.quiz.dibuka_at).replace(' ', 'T') : meta.quiz.dibuka_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+            {meta.quiz?.ditutup_at && <span className="block">Ditutup: {new Date(String(meta.quiz.ditutup_at).includes(' ') && !String(meta.quiz.ditutup_at).includes('T') ? String(meta.quiz.ditutup_at).replace(' ', 'T') : meta.quiz.ditutup_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+          </div>
+        )}
         {meta.my_attempts?.length > 0 && (
-          <div className="text-xs text-slate-600 space-y-1">
-            {meta.my_attempts.map((a: any) => (
-              <div key={a.id}>
-                Percobaan {a.attempt_ke}: {a.status === 'selesai' ? `nilai ${Number(a.nilai_akhir).toFixed(2)}` : 'berlangsung'}
-              </div>
-            ))}
+          <div className="text-xs text-slate-600 space-y-2">
+            {meta.my_attempts.map((a: any) => {
+              const feedbackList: Array<{ label: string; teks: string }> = [];
+              if (a?.feedback_dosen && String(a.feedback_dosen).trim() !== '') {
+                feedbackList.push({ label: 'Respon dosen', teks: String(a.feedback_dosen) });
+              }
+              const jawabanArr: any[] = Array.isArray(a?.jawaban) ? a.jawaban : [];
+              jawabanArr.forEach((j: any, idx: number) => {
+                if (j?.feedback_dosen && String(j.feedback_dosen).trim() !== '') {
+                  const no = j?.quiz_soal?.urutan ?? j?.urutan ?? idx + 1;
+                  feedbackList.push({ label: `Respon soal ${no}`, teks: String(j.feedback_dosen) });
+                }
+              });
+              return (
+                <div key={a.id} className="rounded-lg border border-slate-200 p-2 space-y-1">
+                  <div>
+                    Percobaan {a.attempt_ke}: {a.status === 'selesai' ? `nilai ${Number(a.nilai_akhir ?? 0).toFixed(2)}` : 'berlangsung'}
+                  </div>
+                  {a.status === 'selesai' && a.butuh_penilaian_manual && (
+                    <Badge variant="warning">
+                      <Hourglass size={12} /> Menunggu koreksi dosen
+                    </Badge>
+                  )}
+                  {feedbackList.map((f, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg bg-slate-50 p-2 border-l-2 text-2xs text-slate-700 whitespace-pre-wrap"
+                      style={{ borderColor: 'var(--module-primary)' }}
+                    >
+                      <span className="flex items-center gap-1 font-bold" style={{ color: 'var(--module-primary)' }}>
+                        <MessageSquareText size={12} /> {f.label}
+                      </span>
+                      {f.teks}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
         {sisa <= 0 && !meta.active_attempt ? (

@@ -1,55 +1,80 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
-import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Modal } from '@/components/ui/Modal';
+import { EmptyState } from '@/components/ui/EmptyState';
 import KelasSelect from '@/components/lms/KelasSelect';
+import PeriodeAkademikSelect from '@/components/lms/PeriodeAkademikSelect';
+import { toTahunAkademikId } from '@/lib/kelas';
 import { lmsService } from '@/services/lms.service';
-import { referensiService } from '@/services/referensi.service';
-import { LmsQuizItem, TRYOUT_SORT_BY_OPTIONS } from '@/types/lms.types';
+import { siakadService } from '@/services/siakad.service';
+import {
+  LmsQuizItem,
+  TRYOUT_SORT_BY_OPTIONS,
+  YA_TIDAK_OPTIONS,
+} from '@/types/lms.types';
+import {
+  formatJadwal,
+  getJendelaStatus,
+  isJendelaTerbuka,
+  jendelaTertutupPesan,
+  fromDateTimeLocalValue,
+  extractOptionValue,
+} from '@/components/lms/tryout/tryoutHelpers';
 import { SORT_ORDER_OPTIONS } from '@/lib/constants';
 import { PaginationMeta } from '@/types/api.types';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Filter, RotateCcw, Check, ArrowRight, ClipboardCheck, Clock, Plus } from 'lucide-react';
+import {
+  Filter,
+  RotateCcw,
+  Check,
+  ClipboardCheck,
+  Clock,
+  Plus,
+  Play,
+  CalendarDays,
+  Settings,
+  Eye,
+  Lock,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 /**
- * Formulir pembuatan tryout. Tryut berlingkup kelas, jadi kelas (dirujuk lewat
- * `kelas.id`) wajib dipilih lebih dulu; judul minimal agar tryout bisa dikenali.
+ * Formulir AWAL pembuatan tryout — disengaja ramping (3 input, standar form:
+ * ≤5 input dalam modal). Jadwal, durasi, soal, peserta, dan publikasi
+ * dilengkapi di halaman Kelola Tryout setelah dibuat.
  */
 const tryoutSchema = z.object({
   kelas_id: z.string().min(1, 'Kelas wajib dipilih.'),
   judul: z.string().min(1, 'Judul tryout wajib diisi.').max(255, 'Judul tryout maksimal 255 karakter.'),
-  durasi_menit: z
-    .number({ message: 'Durasi harus berupa angka.' })
-    .int('Durasi harus bilangan bulat.')
-    .min(1, 'Durasi minimal 1 menit.')
-    .max(1440, 'Durasi maksimal 1440 menit.'),
+  deskripsi: z.string().max(2000, 'Deskripsi maksimal 2000 karakter.').optional().default(''),
 });
 
 type TryoutFormValues = z.infer<typeof tryoutSchema>;
 
-function formatWaktu(value?: string | null): string {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+function jendelaBadge(dibuka?: string | null, ditutup?: string | null) {
+  const s = getJendelaStatus(dibuka, ditutup);
+  const variant = s.key === 'berlangsung' ? 'green' : s.key === 'belum' ? 'gray' : s.key === 'berakhir' ? 'red' : 'blue';
+  return <Badge variant={variant}>{s.label}</Badge>;
 }
 
 export default function LmsTryoutListPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [rows, setRows] = useState<LmsQuizItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -68,27 +93,45 @@ export default function LmsTryoutListPage() {
   const [filterOrderDir, setFilterOrderDir] = useState<string>('desc');
 
   const { hasPermission } = useAuth();
-  // Tryout dibuat oleh pengelola kelas (dosen/kaprodi/admin); mahasiswa hanya
-  // mengerjakan tryout yang sudah terbit.
   const canManageTryout = hasPermission('siakad.kelas.manage');
   const [isTambahOpen, setIsTambahOpen] = useState<boolean>(false);
   const tryoutForm = useForm<TryoutFormValues>({
-    resolver: zodResolver(tryoutSchema),
-    defaultValues: { kelas_id: '', judul: '', durasi_menit: 60 },
+    resolver: zodResolver(tryoutSchema) as any,
+    defaultValues: {
+      kelas_id: '',
+      judul: '',
+      deskripsi: '',
+    },
   });
 
-  const loadTahunAkademikOptions = useCallback(async (inputValue: string) => {
-    try {
-      const res = await referensiService.getPaginated({
-        modul: 'siakad',
-        tipe: 'tahun_akademik',
-        search: inputValue || undefined,
-        per_page: 20,
-      });
-      return (res.data || []).map((r) => ({ value: String(r.id), label: r.nama }));
-    } catch {
-      return [];
-    }
+  // Preset filter kelas dari query (?kelas_id=..) — link dari tab Tryout mahasiswa
+  useEffect(() => {
+    const q = searchParams.get('kelas_id');
+    if (q) setFilterKelas(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Default ke periode aktif SIAKAD (sama seperti halaman /lms).
+  const [periodeReady, setPeriodeReady] = useState<boolean>(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await siakadService.getTahunAkademiks();
+        const rows: any[] = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+        const aktif = rows.find((t: any) => t.is_aktif || t.is_active);
+        if (!cancelled && aktif) {
+          setFilterTahunAkademik((prev) => prev || String(aktif.id));
+        }
+      } catch {
+        // abaikan — user bisa pilih manual via PeriodeSwitcher
+      } finally {
+        if (!cancelled) setPeriodeReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const fetchData = useCallback(
@@ -101,7 +144,7 @@ export default function LmsTryoutListPage() {
           search: filterSearch || undefined,
           sort_by: filterOrderBy || 'id',
           sort_order: (filterOrderDir as 'asc' | 'desc') || 'desc',
-          tahun_akademik_id: filterTahunAkademik ? Number(filterTahunAkademik) : undefined,
+          tahun_akademik_id: toTahunAkademikId(filterTahunAkademik),
           kelas_id: filterKelas ? Number(filterKelas) : undefined,
         });
 
@@ -122,8 +165,9 @@ export default function LmsTryoutListPage() {
   );
 
   useEffect(() => {
+    if (!periodeReady) return;
     fetchData(meta.current_page, meta.per_page);
-  }, [fetchData, meta.current_page, meta.per_page]);
+  }, [fetchData, meta.current_page, meta.per_page, periodeReady]);
 
   const handleApplyFilter = () => {
     setShowFilter(false);
@@ -141,13 +185,22 @@ export default function LmsTryoutListPage() {
 
   const onSimpanTryout = async (values: TryoutFormValues) => {
     try {
-      await lmsService.createTryout(Number(values.kelas_id), {
+      const res = await lmsService.createTryout(Number(values.kelas_id), {
         judul: values.judul,
-        durasi_menit: values.durasi_menit,
-      });
-      toast.success('Tryout berhasil dibuat. Lengkapi soal dari bank soal.');
+        deskripsi: values.deskripsi || null,
+      } as any);
+      toast.success('Tryout dibuat sebagai Draft. Lengkapi jadwal, soal & peserta di halaman Kelola.');
       setIsTambahOpen(false);
-      tryoutForm.reset({ kelas_id: '', judul: '', durasi_menit: 60 });
+      tryoutForm.reset({
+        kelas_id: '',
+        judul: '',
+        deskripsi: '',
+      });
+      const newId = (res.data as any)?.id;
+      if (newId) {
+        router.push(`/lms/tryout/${newId}`);
+        return;
+      }
       fetchData(1, meta.per_page);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || err?.message || 'Gagal membuat tryout');
@@ -164,6 +217,11 @@ export default function LmsTryoutListPage() {
           <span className="text-2xs text-slate-500 block line-clamp-1">
             {row.deskripsi || '-'}
           </span>
+          {(row as any).kode_akses ? (
+            <span className="text-2xs text-amber-600 inline-flex items-center gap-1 mt-1">
+              <Lock size={12} /> Berkode
+            </span>
+          ) : null}
         </div>
       ),
     },
@@ -197,18 +255,24 @@ export default function LmsTryoutListPage() {
       ),
     },
     {
-      key: 'jendela',
-      label: 'JENDELA AKSES',
+      key: 'jadwal',
+      label: 'JADWAL',
       render: (row) => (
         <div>
           <span className="text-2xs text-slate-600 block">
-            Buka: {formatWaktu(row.dibuka_at)}
+            Buka: {formatJadwal(row.dibuka_at)}
           </span>
           <span className="text-2xs text-slate-500 block">
-            Tutup: {formatWaktu(row.ditutup_at)}
+            Tutup: {formatJadwal(row.ditutup_at)}
           </span>
         </div>
       ),
+    },
+    {
+      key: 'jendela',
+      label: 'STATUS JENDELA',
+      align: 'center',
+      render: (row) => jendelaBadge(row.dibuka_at, row.ditutup_at),
     },
     {
       key: 'status',
@@ -228,9 +292,15 @@ export default function LmsTryoutListPage() {
           <DropdownMenu
             items={[
               {
-                label: 'Kerjakan Tryout',
-                icon: <ArrowRight size={16} />,
-                onClick: () => router.push(`/lms/${row.kelas_id}/quiz/${row.id}`),
+                label: 'Kelola Tryout',
+                icon: <Settings size={16} />,
+                onClick: () => router.push(`/lms/tryout/${row.id}`),
+              },
+              {
+                // Dosen TIDAK mengerjakan — hanya preview tampilan mahasiswa.
+                label: 'Preview Soal',
+                icon: <Eye size={16} />,
+                onClick: () => router.push(`/lms/tryout/${row.id}?tab=preview`),
               },
             ]}
           />
@@ -240,14 +310,11 @@ export default function LmsTryoutListPage() {
   ];
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-4">
       <PageHeader
         title="Tryout"
         description="Kumpulan tryout latihan dari seluruh kelas yang Anda ikuti atau ampu."
-        breadcrumbs={[
-          { label: 'LMS', href: '/lms' },
-          { label: 'Tryout' },
-        ]}
+        breadcrumbs={[{ label: 'LMS', href: '/lms' }, { label: 'Tryout' }]}
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -279,15 +346,112 @@ export default function LmsTryoutListPage() {
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        isLoading={isLoading}
-        meta={meta}
-        onPageChange={(p) => fetchData(p, meta.per_page)}
-        onLimitChange={(lim) => fetchData(1, lim)}
-        emptyMessage="Belum ada tryout yang tersedia untuk kelas Anda."
-      />
+      {/* PeriodeSwitcher */}
+      <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex items-center gap-2 shrink-0">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)' }}
+          >
+            <CalendarDays size={16} />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-slate-800">Periode Akademik</div>
+            <div className="text-2xs text-slate-500">Kosongkan = semua periode</div>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <PeriodeAkademikSelect
+            label=""
+            placeholder="Semua periode SIAKAD..."
+            value={filterTahunAkademik}
+            onChange={(val) => setFilterTahunAkademik(val)}
+          />
+        </div>
+      </div>
+
+      {canManageTryout ? (
+        <DataTable
+          columns={columns}
+          data={rows}
+          isLoading={isLoading}
+          meta={meta}
+          onPageChange={(p) => fetchData(p, meta.per_page)}
+          onLimitChange={(lim) => fetchData(1, lim)}
+          emptyMessage="Belum ada tryout yang tersedia untuk kelas Anda."
+        />
+      ) : isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="p-4 bg-white rounded-xl border border-slate-200 animate-pulse space-y-2">
+              <div className="h-4 bg-slate-100 rounded w-2/3" />
+              <div className="h-3 bg-slate-100 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="p-4 bg-white rounded-xl border border-slate-200/80">
+          <EmptyState title="Belum ada tryout" description="Belum ada tryout yang tersedia untuk kelas Anda." />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rows.map((t) => {
+            const terbuka = t.is_published && isJendelaTerbuka(t.dibuka_at, t.ditutup_at);
+            const pesanTutup = !t.is_published
+              ? 'Tryout belum dipublish oleh dosen.'
+              : jendelaTertutupPesan(t.dibuka_at, t.ditutup_at);
+            return (
+              <div key={t.id} className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <h5 className="text-xs font-bold text-slate-900 line-clamp-2">{t.judul}</h5>
+                  <Badge variant={t.is_published ? 'green' : 'amber'}>
+                    {t.is_published ? 'Terbit' : 'Draft'}
+                  </Badge>
+                </div>
+                <p className="text-2xs text-slate-500">
+                  {t.kelas?.mata_kuliah?.nama || t.kelas?.nama_kelas || '-'}
+                </p>
+                <div className="flex items-center gap-4 text-2xs text-slate-500">
+                  <span className="flex items-center gap-2">
+                    <Clock size={14} /> {t.durasi_menit ?? '-'} mnt
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <ClipboardCheck size={14} /> {t.soal_count ?? 0} soal
+                  </span>
+                  {(t as any).kode_akses ? (
+                    <span className="flex items-center gap-1 text-amber-600">
+                      <Lock size={14} /> Berkode
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                  <div className="text-2xs text-slate-500">
+                    <span className="block">Buka: {formatJadwal(t.dibuka_at)}</span>
+                    <span className="block">Tutup: {formatJadwal(t.ditutup_at)}</span>
+                  </div>
+                  {jendelaBadge(t.dibuka_at, t.ditutup_at)}
+                </div>
+                {!terbuka ? (
+                  <p className="text-2xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    {pesanTutup}
+                  </p>
+                ) : null}
+                {terbuka ? (
+                  <Link href={`/lms/${t.kelas_id}/quiz/${t.id}`}>
+                    <Button size="sm" className="w-full" icon={<Play size={16} />}>
+                      Mulai
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button size="sm" className="w-full" icon={<Play size={16} />} disabled>
+                    Mulai
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Drawer
         open={showFilter}
@@ -312,16 +476,14 @@ export default function LmsTryoutListPage() {
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
-          <AsyncSelect
+          <PeriodeAkademikSelect
             label="Tahun Akademik"
             placeholder="Semua periode..."
             value={filterTahunAkademik}
-            onChange={(val) => setFilterTahunAkademik(val ? String(val) : '')}
-            loadOptions={loadTahunAkademikOptions}
-            isClearable
+            onChange={(val) => setFilterTahunAkademik(val)}
           />
 
-          <KelasSelect value={filterKelas} onChange={(val) => setFilterKelas(val ? String(val) : '')} />
+          <KelasSelect value={filterKelas} onChange={(val) => setFilterKelas(extractOptionValue(val))} />
 
           <hr className="border-t border-slate-200 my-4" />
 
@@ -346,7 +508,7 @@ export default function LmsTryoutListPage() {
         open={isTambahOpen}
         onClose={() => setIsTambahOpen(false)}
         title="Tambah Tryout"
-        size="md"
+        size="lg"
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setIsTambahOpen(false)}>
@@ -363,42 +525,40 @@ export default function LmsTryoutListPage() {
           </div>
         }
       >
-        <form onSubmit={tryoutForm.handleSubmit(onSimpanTryout)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <Controller
-              name="kelas_id"
-              control={tryoutForm.control}
-              render={({ field }) => (
-                <KelasSelect
-                  label="Kelas"
-                  placeholder="Pilih kelas..."
-                  required
-                  value={field.value}
-                  onChange={(val) => field.onChange(val ? String(val) : '')}
-                  error={tryoutForm.formState.errors.kelas_id?.message}
-                />
-              )}
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <Input
-              label="Judul Tryout"
-              required
-              placeholder="cth: Tryout UTS Genap"
-              error={tryoutForm.formState.errors.judul?.message}
-              {...tryoutForm.register('judul')}
-            />
-          </div>
+        <form onSubmit={tryoutForm.handleSubmit(onSimpanTryout)} className="grid grid-cols-1 gap-4">
+          <Controller
+            name="kelas_id"
+            control={tryoutForm.control}
+            render={({ field }) => (
+              <KelasSelect
+                label="Kelas"
+                placeholder="Pilih kelas..."
+                required
+                value={field.value}
+                onChange={(val) => field.onChange(extractOptionValue(val))}
+                error={tryoutForm.formState.errors.kelas_id?.message}
+              />
+            )}
+          />
 
           <Input
-            type="number"
-            label="Durasi (menit)"
-            min={1}
-            max={1440}
-            error={tryoutForm.formState.errors.durasi_menit?.message}
-            {...tryoutForm.register('durasi_menit', { valueAsNumber: true })}
+            label="Judul Tryout"
+            required
+            placeholder="cth: Tryout UTS Genap"
+            error={tryoutForm.formState.errors.judul?.message}
+            {...tryoutForm.register('judul')}
           />
+
+          <Textarea
+            label="Deskripsi"
+            placeholder="Petunjuk pengerjaan untuk mahasiswa..."
+            error={tryoutForm.formState.errors.deskripsi?.message}
+            {...tryoutForm.register('deskripsi')}
+          />
+
+          <p className="text-2xs text-slate-500">
+            Jadwal, durasi, soal, peserta, dan publikasi diatur di halaman Kelola setelah tryout dibuat.
+          </p>
         </form>
       </Modal>
     </div>

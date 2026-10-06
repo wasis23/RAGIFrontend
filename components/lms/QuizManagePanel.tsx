@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
@@ -19,6 +20,7 @@ import { Plus, X, Save, Trash2, Award } from 'lucide-react';
 
 const nilaiSchema = z.object({
   poin: z.coerce.number().min(0, 'Poin minimal 0'),
+  feedback_dosen: z.string().max(1000, 'Respon maksimal 1000 karakter.').optional().default(''),
 });
 
 type NilaiFormValues = z.infer<typeof nilaiSchema>;
@@ -38,8 +40,31 @@ export default function QuizManagePanel({ quizId, onChanged }: QuizManagePanelPr
 
   const nilaiForm = useForm<NilaiFormValues>({
     resolver: zodResolver(nilaiSchema) as any,
-    defaultValues: { poin: 0 },
+    defaultValues: { poin: 0, feedback_dosen: '' },
   });
+
+  const getKunciJawaban = (j: any): string | null => {
+    const k = j?.kunci_jawaban ?? j?.quiz_soal?.bank_soal?.kunci_jawaban ?? j?.quiz_soal?.bank_soal?.kunci ?? j?.jawaban_benar ?? null;
+    return k !== null && k !== undefined && String(k).trim() !== '' ? String(k) : null;
+  };
+
+  const getTipeSoal = (j: any): string =>
+    String(j?.tipe_soal || j?.quiz_soal?.bank_soal?.tipe_soal || j?.quiz_soal?.tipe_soal || '');
+
+  /** Daftar jawaban yang bisa dikoreksi: uraian pending + isian_singkat (koreksi hasil auto). */
+  const getKoreksiItems = (a: any): Array<{ label: string; jawaban: any }> => {
+    const list: any[] = Array.isArray(a?.jawaban) ? a.jawaban : [];
+    return list
+      .filter((j: any) => j?.is_benar === null || j?.is_benar === undefined || getTipeSoal(j) === 'isian_singkat')
+      .map((j: any) => {
+        const tipe = getTipeSoal(j);
+        const potongan = String(j?.quiz_soal?.bank_soal?.pertanyaan || j?.quiz_soal?.pertanyaan || '').slice(0, 30);
+        if (tipe === 'isian_singkat' && j?.is_benar !== null && j?.is_benar !== undefined) {
+          return { label: `Koreksi: ${potongan}... (${j.is_benar ? 'auto Benar' : 'auto Salah'})`, jawaban: j };
+        }
+        return { label: `Nilai: ${potongan}...`, jawaban: j };
+      });
+  };
 
   const loadManage = async () => {
     setLoadingManage(true);
@@ -89,7 +114,7 @@ export default function QuizManagePanel({ quizId, onChanged }: QuizManagePanelPr
   const onSubmitNilai = async (values: NilaiFormValues) => {
     if (!grading) return;
     try {
-      await lmsService.beriNilaiManual(grading.id, values.poin);
+      await lmsService.beriNilaiManual(grading.id, values.poin, values.feedback_dosen || undefined);
       toast.success('Nilai manual tersimpan & tersync OBE');
       setGrading(null);
       loadManage();
@@ -134,6 +159,7 @@ export default function QuizManagePanel({ quizId, onChanged }: QuizManagePanelPr
             }}
             isClearable
           />
+          <a href="/lms/bank-soal/create" className="text-2xs mt-1 inline-block" style={{ color: 'var(--module-primary)' }}>Buat soal baru →</a>
         </div>
         <div className="flex gap-2 items-end">
           <Input type="number" label="Poin" value={poinSoal} onChange={(e) => setPoinSoal(Number(e.target.value))} />
@@ -166,16 +192,16 @@ export default function QuizManagePanel({ quizId, onChanged }: QuizManagePanelPr
           { key: 'status', label: 'Status', render: (a: any) => <Badge variant={a.status === 'selesai' ? 'green' : 'yellow'}>{a.status}</Badge> },
           { key: 'nilai', label: 'Nilai', render: (a: any) => <span className="text-xs font-bold">{a.nilai_akhir !== null && a.nilai_akhir !== undefined ? Number(a.nilai_akhir).toFixed(2) : '-'}</span> },
           { key: 'aksi', label: 'Aksi', render: (a: any) =>
-              a.butuh_penilaian_manual ? (
+              a.butuh_penilaian_manual || getKoreksiItems(a).length > 0 ? (
                 <DropdownMenu
-                  items={a.jawaban?.filter((j: any) => j.is_benar === null).map((j: any) => ({
-                    label: `Nilai: ${(j.quiz_soal?.bank_soal?.pertanyaan || '').slice(0, 30)}...`,
+                  items={getKoreksiItems(a).map((item) => ({
+                    label: item.label,
                     icon: <Award size={16} />,
                     onClick: () => {
-                      setGrading(j);
-                      nilaiForm.reset({ poin: 0 });
+                      setGrading(item.jawaban);
+                      nilaiForm.reset({ poin: 0, feedback_dosen: item.jawaban?.feedback_dosen || '' });
                     },
-                  })) || []}
+                  }))}
                 />
               ) : (
                 <span className="text-2xs text-slate-400">-</span>
@@ -205,7 +231,32 @@ export default function QuizManagePanel({ quizId, onChanged }: QuizManagePanelPr
           {grading?.jawaban_teks && (
             <div className="p-2 bg-slate-50 rounded border text-xs whitespace-pre-wrap">{grading.jawaban_teks}</div>
           )}
+          {getTipeSoal(grading) === 'isian_singkat' && grading?.is_benar !== null && grading?.is_benar !== undefined && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant={grading.is_benar ? 'green' : 'red'}>
+                Hasil auto: {grading.is_benar ? 'Benar' : 'Salah'}
+              </Badge>
+              {getKunciJawaban(grading) && (
+                <span className="text-2xs text-emerald-700 bg-emerald-50 rounded-lg px-2 py-1">
+                  Kunci: {getKunciJawaban(grading)}
+                </span>
+              )}
+            </div>
+          )}
+          {!getKunciJawaban(grading) ? null : getTipeSoal(grading) !== 'isian_singkat' ? (
+            <div className="text-2xs text-emerald-700 bg-emerald-50 rounded-lg p-2 whitespace-pre-wrap">
+              <span className="text-2xs text-emerald-500 block">Kunci</span>
+              {getKunciJawaban(grading)}
+            </div>
+          ) : null}
           <Input type="number" label={`Poin (maks ${grading?.quiz_soal?.poin})`} error={nilaiForm.formState.errors.poin?.message} {...nilaiForm.register('poin')} />
+          <Textarea
+            label="Respon/Umpan balik untuk mahasiswa (opsional)"
+            placeholder="Tulis respon atau penjelasan koreksi untuk mahasiswa..."
+            rows={3}
+            error={nilaiForm.formState.errors.feedback_dosen?.message}
+            {...nilaiForm.register('feedback_dosen')}
+          />
         </form>
       </Modal>
     </Card>

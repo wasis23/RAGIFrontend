@@ -5,6 +5,9 @@ import {
   LmsKelasOverview,
   LmsPertemuanDetail,
   LmsRekapAbsensi,
+  LmsRekapMatrix,
+  LmsKetercapaian,
+  LmsQuizKolaborator,
   LmsMateriItem,
   LmsTugasItem,
   LmsKelasSetting,
@@ -15,6 +18,8 @@ import {
   LmsQuizItem,
   LmsQuizBatch,
   LmsQuizAttempt,
+  LmsAttemptDetail,
+  LmsQuizPreview,
   LmsTryoutPeserta,
   LmsForumTopik,
   LmsForumPost,
@@ -45,6 +50,36 @@ export const lmsService = {
 
   getRekapAbsensi: async (kelasId: number): Promise<ApiResponse<LmsRekapAbsensi>> => {
     const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/rekap-absensi`);
+    return response.data;
+  },
+
+  /**
+   * Matriks checklist mahasiswa x pertemuan (P1..Pn berisi H/S/I/A).
+   * Endpoint baru: GET /kelas/{id}/rekap-matrix.
+   */
+  rekapMatrix: async (kelasId: number): Promise<ApiResponse<LmsRekapMatrix>> => {
+    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/rekap-matrix`);
+    return response.data;
+  },
+
+  /**
+   * Import materi dari kelas sumber ke kelas tujuan.
+   * Endpoint baru: POST /kelas/{id}/import-materi.
+   */
+  importMateri: async (
+    kelasId: number,
+    payload: { sumber_kelas_id: number }
+  ): Promise<ApiResponse<{ imported_count: number }>> => {
+    const response = await apiClient.post(`/v1/lms/kelas/${kelasId}/import-materi`, payload);
+    return response.data;
+  },
+
+  /**
+   * Ketercapaian MK / OBE per mahasiswa.
+   * Endpoint baru: GET /kelas/{id}/ketercapaian.
+   */
+  getKetercapaian: async (kelasId: number): Promise<ApiResponse<LmsKetercapaian>> => {
+    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/ketercapaian`);
     return response.data;
   },
 
@@ -286,8 +321,12 @@ export const lmsService = {
     return response.data;
   },
 
-  beriNilaiManual: async (attemptJawabanId: number, poin: number): Promise<ApiResponse<any>> => {
-    const response = await apiClient.put(`/v1/lms/attempt-jawaban/${attemptJawabanId}/nilai`, { poin });
+  beriNilaiManual: async (attemptJawabanId: number, poin: number, feedback?: string): Promise<ApiResponse<any>> => {
+    const payload: { poin: number; feedback_dosen?: string } = { poin };
+    if (feedback !== undefined && feedback !== null && String(feedback).trim() !== '') {
+      payload.feedback_dosen = String(feedback).trim();
+    }
+    const response = await apiClient.put(`/v1/lms/attempt-jawaban/${attemptJawabanId}/nilai`, payload);
     return response.data;
   },
 
@@ -321,6 +360,14 @@ export const lmsService = {
 
   addTryoutPeserta: async (quizId: number, mahasiswaId: number): Promise<ApiResponse<LmsTryoutPeserta>> => {
     const response = await apiClient.post(`/v1/lms/quiz/${quizId}/peserta`, { mahasiswa_id: mahasiswaId });
+    return response.data;
+  },
+
+  addTryoutPesertaByKelas: async (
+    quizId: number,
+    payload: { kelas: string; program_studi_id?: number }
+  ): Promise<ApiResponse<{ added_count: number; skipped_count?: number }>> => {
+    const response = await apiClient.post(`/v1/lms/quiz/${quizId}/peserta-kelas`, payload);
     return response.data;
   },
 
@@ -358,9 +405,36 @@ export const lmsService = {
     return response.data;
   },
 
+  /**
+   * Defensif: endpoint paralel backend (`POST /v1/lms/attempt/{id}/reset`).
+   * Mereset pengerjaan agar mahasiswa dapat mengulang dari awal.
+   */
+  resetAttempt: async (attemptId: number): Promise<ApiResponse<LmsQuizAttempt>> => {
+    const response = await apiClient.post(`/v1/lms/attempt/${attemptId}/reset`);
+    return response.data;
+  },
+
+  /**
+   * Defensif: endpoint paralel backend (`GET /v1/lms/attempt/{id}/detail`).
+   * Detail soal + jawaban mahasiswa + kunci untuk grading dosen.
+   */
+  getAttemptDetail: async (attemptId: number): Promise<ApiResponse<LmsAttemptDetail>> => {
+    const response = await apiClient.get(`/v1/lms/attempt/${attemptId}/detail`);
+    return response.data;
+  },
+
+  /**
+   * Defensif: endpoint paralel backend (`GET /v1/lms/quiz/{id}/preview`).
+   * Simulasi tampilan mahasiswa (tanpa kunci jawaban), read-only.
+   */
+  previewQuiz: async (quizId: number): Promise<ApiResponse<LmsQuizPreview>> => {
+    const response = await apiClient.get(`/v1/lms/quiz/${quizId}/preview`);
+    return response.data;
+  },
+
   // 11. Forum diskusi kelas
-  listForumTopik: async (kelasId: number): Promise<ApiResponse<{ kelas: unknown; topik: LmsForumTopik[] }>> => {
-    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/forum`);
+  listForumTopik: async (kelasId: number, params?: { per_page?: number; pertemuan_id?: number }): Promise<ApiResponse<{ kelas: unknown; topik: LmsForumTopik[] }>> => {
+    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/forum`, { params });
     return response.data;
   },
 
@@ -406,6 +480,25 @@ export const lmsService = {
 
   deleteForumPost: async (postId: number): Promise<ApiResponse<{ id: number; is_deleted: boolean }>> => {
     const response = await apiClient.delete(`/v1/lms/forum-post/${postId}`);
+    return response.data;
+  },
+
+  // 12. Kolaborator tryout (dosen kelola tim per tryout)
+  listKolaborator: async (quizId: number): Promise<ApiResponse<LmsQuizKolaborator[]>> => {
+    const response = await apiClient.get(`/v1/lms/quiz/${quizId}/kolaborator`);
+    return response.data;
+  },
+
+  addKolaborator: async (
+    quizId: number,
+    payload: { dosen_id: number; peran: string }
+  ): Promise<ApiResponse<LmsQuizKolaborator>> => {
+    const response = await apiClient.post(`/v1/lms/quiz/${quizId}/kolaborator`, payload);
+    return response.data;
+  },
+
+  removeKolaborator: async (kolaboratorId: number): Promise<ApiResponse<{ id: number; is_deleted: boolean }>> => {
+    const response = await apiClient.delete(`/v1/lms/quiz-kolaborator/${kolaboratorId}`);
     return response.data;
   },
 };

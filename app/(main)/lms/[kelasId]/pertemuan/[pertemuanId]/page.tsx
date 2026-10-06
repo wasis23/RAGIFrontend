@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback, use, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import PertemuanQuizTab from '@/components/lms/PertemuanQuizTab';
+import PertemuanDiskusi from '@/components/lms/PertemuanDiskusi';
 import { lmsService } from '@/services/lms.service';
 import { referensiService, MasterReferensiItem } from '@/services/referensi.service';
 import {
@@ -25,6 +26,9 @@ import {
   LmsTugasItem,
   LmsPengumpulanTugas,
   LmsIzinAbsensiItem,
+  PERTEMUAN_STATUS_OPTIONS,
+  PERTEMUAN_STATUS_VALUES,
+  PERTEMUAN_STATUS_LABEL,
 } from '@/types/lms.types';
 import { PaginationMeta } from '@/types/api.types';
 import {
@@ -50,7 +54,11 @@ import {
   FileCheck,
   RotateCw,
   Lock,
-  ListChecks
+  ListChecks,
+  ClipboardList,
+  MessagesSquare,
+  GraduationCap,
+  Pencil
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -101,6 +109,17 @@ const ajukanIzinSchema = z.object({
 
 type AjukanIzinFormValues = z.infer<typeof ajukanIzinSchema>;
 
+const isianSchema = z.object({
+  materi: z.string().min(1, 'Judul/materi pertemuan wajib diisi').max(255, 'Materi maksimal 255 karakter'),
+  catatan_pertemuan: z.string().optional().default(''),
+  tanggal: z.string().min(1, 'Tanggal pertemuan wajib diisi'),
+  jam_mulai: z.string().optional().default(''),
+  jam_selesai: z.string().optional().default(''),
+  status_pertemuan: z.enum(PERTEMUAN_STATUS_VALUES).optional().nullable().default(null),
+});
+
+type IsianFormValues = z.infer<typeof isianSchema>;
+
 interface PageProps {
   params: Promise<{
     kelasId: string;
@@ -113,15 +132,43 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   const kelasId = Number(resolvedParams.kelasId);
   const pertemuanId = Number(resolvedParams.pertemuanId);
   const router = useRouter();
-  const { hasPermission } = useAuth();
-  const canManageKelas = hasPermission('lms.kelas.manage');
-  const canInputPresensi = hasPermission('lms.presensi.input');
-  const canProsesIzin = hasPermission('lms.izin.proses');
-  const isMahasiswa = !canManageKelas;
+  const { hasPermission, hasRole } = useAuth();
+  // Samakan dengan halaman detail kelas: dosen dikenali via role ATAU
+  // permission kelola (slug `lms.kelas.manage` tidak ada di DB — yang ada
+  // `siakad.kelas.manage`; cek itu saja agar dosen tak jatuh ke tampilan mhs).
+  const isDosen =
+    hasRole(['dosen', 'admin', 'superadmin', 'kaprodi', 'wakil_prodi']) ||
+    hasPermission('lms.kelas.manage') ||
+    hasPermission('siakad.kelas.manage');
+  const canManageKelas = isDosen;
+  const canInputPresensi = isDosen;
+  const canProsesIzin = isDosen;
+  const isMahasiswa = !isDosen;
 
   // State Utama
   const [detail, setDetail] = useState<LmsPertemuanDetail | null>(null);
-  const [activeTab, setActiveTab] = useState<'presensi' | 'materi' | 'tugas' | 'kuis'>('presensi');
+  type TabKey =
+    | 'isian'
+    | 'presensi'
+    | 'materi'
+    | 'tugas'
+    | 'kuis'
+    | 'diskusi'
+    | 'pembelajaran'
+    | 'tugas_kuis'
+    | 'kehadiran';
+  const [activeTab, setActiveTab] = useState<TabKey>('isian');
+
+  // Tab default & validasi per peran: dosen = isian, mahasiswa = pembelajaran.
+  useEffect(() => {
+    const dosenTabs: TabKey[] = ['isian', 'presensi', 'materi', 'tugas', 'kuis', 'diskusi'];
+    const mhsTabs: TabKey[] = ['pembelajaran', 'tugas_kuis', 'diskusi', 'kehadiran'];
+    if (isMahasiswa && !mhsTabs.includes(activeTab)) {
+      setActiveTab('pembelajaran');
+    } else if (!isMahasiswa && !dosenTabs.includes(activeTab)) {
+      setActiveTab('isian');
+    }
+  }, [isMahasiswa, activeTab]);
 
   // Pagination Meta untuk DataTable Presensi & Submisi Tugas
   const [absensiMeta, setAbsensiMeta] = useState<PaginationMeta>({
@@ -228,6 +275,19 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
     },
   });
 
+  const isianFormHook = useForm<IsianFormValues>({
+    resolver: zodResolver(isianSchema) as any,
+    defaultValues: {
+      materi: '',
+      catatan_pertemuan: '',
+      tanggal: '',
+      jam_mulai: '',
+      jam_selesai: '',
+      status_pertemuan: null,
+    },
+  });
+  const [isEditingIsian, setIsEditingIsian] = useState<boolean>(false);
+
   // Fetch Data Master Referensi
   const fetchMasterReferensi = useCallback(async () => {
     try {
@@ -289,6 +349,21 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
     fetchMasterReferensi();
     fetchDetail();
   }, [fetchMasterReferensi, fetchDetail]);
+
+  // Sinkronkan form Isian dari detail (dosen) — jangan timpa saat sedang mengedit.
+  useEffect(() => {
+    if (detail?.pertemuan && !isEditingIsian) {
+      isianFormHook.reset({
+        materi: detail.pertemuan.materi || '',
+        catatan_pertemuan: detail.pertemuan.catatan_pertemuan || '',
+        tanggal: detail.pertemuan.tanggal || '',
+        jam_mulai: detail.pertemuan.jam_mulai || '',
+        jam_selesai: detail.pertemuan.jam_selesai || '',
+        status_pertemuan: detail.pertemuan.status_pertemuan || null,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail, isEditingIsian]);
 
   // Generate Token Absensi Realtime
   const handleGenerateToken = async () => {
@@ -384,6 +459,31 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
       }
     } catch (err: any) {
       toast.error(err.message || 'Gagal memproses permohonan izin');
+    }
+  };
+
+  // Submit Isian Pertemuan oleh Dosen (inline edit via updatePertemuan)
+  const onSaveIsian = async (values: IsianFormValues) => {
+    if (!detail) return;
+
+    try {
+      const res = await lmsService.updatePertemuan(pertemuanId, {
+        pertemuan_ke: detail.pertemuan.pertemuan_ke,
+        tanggal: values.tanggal,
+        materi: values.materi || null,
+        catatan_pertemuan: values.catatan_pertemuan || null,
+        jam_mulai: values.jam_mulai || null,
+        jam_selesai: values.jam_selesai || null,
+        status_pertemuan: values.status_pertemuan || null,
+      });
+
+      if (res.status === 'success') {
+        toast.success('Isian pertemuan berhasil disimpan');
+        setIsEditingIsian(false);
+        fetchDetail();
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menyimpan isian pertemuan');
     }
   };
 
@@ -546,6 +646,25 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
     }
   };
 
+  // Sumber presensi murni tampilan dari data existing:
+  // "Otomatis" bila catatan mengandung kata token/mandiri atau hadir saat token aktif.
+  const isTokenActive = Boolean(detail?.token_aktif || detail?.pertemuan?.is_token_active || tokenInfo?.token);
+  const isAbsensiOtomatis = (row: any) =>
+    /token|mandiri/i.test(String(row?.catatan || '')) || (row?.status === 'hadir' && isTokenActive);
+  const isBelumAbsen = (row: any) => !row?.status || row?.status === 'belum_absen';
+  const presensiSummary = (() => {
+    const list = detail?.absensi_list || [];
+    let otomatis = 0;
+    let manual = 0;
+    let belum = 0;
+    list.forEach((row: any) => {
+      if (isBelumAbsen(row)) belum += 1;
+      else if (isAbsensiOtomatis(row)) otomatis += 1;
+      else manual += 1;
+    });
+    return { otomatis, manual, belum };
+  })();
+
   // Kolom Presensi Pertemuan DataTable
   const absensiColumns: ColumnDef<any>[] = [
     {
@@ -577,6 +696,15 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           }
         >
           {row.status ? String(row.status).toUpperCase() : 'BELUM ABSEN'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'sumber',
+      label: 'SUMBER',
+      render: (row) => (
+        <Badge variant={isAbsensiOtomatis(row) ? 'green' : 'gray'}>
+          {isAbsensiOtomatis(row) ? 'Otomatis' : 'Manual'}
         </Badge>
       ),
     },
@@ -677,6 +805,95 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
       ),
     },
   ];
+
+  // Pemetaan komponen OBE -> tugas/kuis yang terhubung (via komponen_penilaian_id)
+  const obeLinkMap = (() => {
+    const map: Record<number, { tugas: string[]; kuis: string[] }> = {};
+    (detail?.komponen_obe_list || []).forEach((k) => {
+      map[k.id] = { tugas: [], kuis: [] };
+    });
+    (detail?.tugas_list || []).forEach((t) => {
+      if (t.komponen_penilaian_id && map[t.komponen_penilaian_id]) {
+        map[t.komponen_penilaian_id].tugas.push(t.judul);
+      }
+    });
+    (detail?.quiz_list || []).forEach((q) => {
+      if (q.komponen_penilaian_id && map[q.komponen_penilaian_id]) {
+        map[q.komponen_penilaian_id].kuis.push(q.judul);
+      }
+    });
+    return map;
+  })();
+
+  // Panel Capaian OBE (modul OBE-SIAKAD) — dipakai dosen (Isian) & mahasiswa (Pembelajaran)
+  const renderObePanel = () => (
+    <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-4">
+      <div>
+        <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+          <Award size={16} style={{ color: 'var(--module-primary)' }} />
+          Capaian OBE (modul OBE-SIAKAD)
+        </h4>
+        <p className="text-2xs text-slate-500">
+          Komponen penilaian OBE sesi pertemuan ini beserta status keterhubungan tugas/kuis.
+        </p>
+      </div>
+
+      {(detail?.komponen_obe_list || []).length === 0 ? (
+        <p className="text-2xs text-slate-400">
+          Belum ada komponen OBE yang terhubung ke sesi pertemuan ini.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(detail?.komponen_obe_list || []).map((k) => {
+            const linked = obeLinkMap[k.id] || { tugas: [], kuis: [] };
+            const isLinked = linked.tugas.length > 0 || linked.kuis.length > 0;
+            return (
+              <div key={k.id} className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-slate-800 text-xs">{k.nama_komponen}</span>
+                  <Badge variant={isLinked ? 'green' : 'gray'}>
+                    {isLinked ? 'Terhubung' : 'Belum'}
+                  </Badge>
+                </div>
+                <span className="text-2xs text-slate-500">Bobot: {k.bobot}%</span>
+                {isLinked && (
+                  <div className="flex flex-col gap-2">
+                    {linked.tugas.map((nama) => (
+                      <span key={`t-${nama}`} className="text-2xs text-slate-600 flex items-center gap-2">
+                        <FileText size={16} className="text-slate-400" /> {nama}
+                      </span>
+                    ))}
+                    {linked.kuis.map((nama) => (
+                      <span key={`q-${nama}`} className="text-2xs text-slate-600 flex items-center gap-2">
+                        <ListChecks size={16} className="text-slate-400" /> {nama}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  // Konfigurasi tab per peran
+  const dosenTabs: Array<{ key: TabKey; label: string; icon: ReactNode }> = [
+    { key: 'isian', label: 'Isian', icon: <ClipboardList size={16} /> },
+    { key: 'presensi', label: `Presensi Mahasiswa (${detail?.absensi_list?.length || 0})`, icon: <Users size={16} /> },
+    { key: 'materi', label: `Materi Pembelajaran (${detail?.materi_list?.length || 0})`, icon: <BookOpen size={16} /> },
+    { key: 'tugas', label: `Penugasan & Nilai OBE (${detail?.tugas_list?.length || 0})`, icon: <FileText size={16} /> },
+    { key: 'kuis', label: `Kuis & Tryout Mini (${detail?.quiz_list?.length || 0})`, icon: <ListChecks size={16} /> },
+    { key: 'diskusi', label: 'Diskusi', icon: <MessagesSquare size={16} /> },
+  ];
+  const mahasiswaTabs: Array<{ key: TabKey; label: string; icon: ReactNode }> = [
+    { key: 'pembelajaran', label: 'Pembelajaran', icon: <GraduationCap size={16} /> },
+    { key: 'tugas_kuis', label: `Tugas & Kuis (${(detail?.tugas_list?.length || 0) + (detail?.quiz_list?.length || 0)})`, icon: <FileText size={16} /> },
+    { key: 'diskusi', label: 'Diskusi', icon: <MessagesSquare size={16} /> },
+    { key: 'kehadiran', label: 'Kehadiran', icon: <CheckCircle2 size={16} /> },
+  ];
+  const visibleTabs = isMahasiswa ? mahasiswaTabs : dosenTabs;
 
   return (
     <div className="w-full space-y-6">
@@ -804,71 +1021,156 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Tab Menu Underline Standard */}
+      {/* Tab Menu Underline Standard (berbasis peran) */}
       <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
-        <Button
-          type="button"
-          variant="tab"
-          onClick={() => setActiveTab('presensi')}
-          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'presensi'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <Users size={16} />
-          <span>
-            {isMahasiswa
-              ? 'Status Kehadiran Saya'
-              : `Presensi Mahasiswa (${detail?.absensi_list?.length || 0})`}
-          </span>
-        </Button>
-
-        <Button
-          type="button"
-          variant="tab"
-          onClick={() => setActiveTab('materi')}
-          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'materi'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <BookOpen size={16} />
-          <span>Materi Pembelajaran ({detail?.materi_list?.length || 0})</span>
-        </Button>
-
-        <Button
-          type="button"
-          variant="tab"
-          onClick={() => setActiveTab('tugas')}
-          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'tugas'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <FileText size={16} />
-          <span>Penugasan & Nilai OBE ({detail?.tugas_list?.length || 0})</span>
-        </Button>
-
-        <Button
-          type="button"
-          variant="tab"
-          onClick={() => setActiveTab('kuis')}
-          className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'kuis'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <ListChecks size={16} />
-          <span>Kuis & Tryout Mini ({detail?.quiz_list?.length || 0})</span>
-        </Button>
+        {visibleTabs.map((tab) => (
+          <Button
+            key={tab.key}
+            type="button"
+            variant="tab"
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 p-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+              activeTab === tab.key
+                ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </Button>
+        ))}
       </div>
 
-      {/* Tab 1: Presensi Mahasiswa & Verifikasi Izin */}
-      {activeTab === 'presensi' && (
+      {/* Tab Isian: kartu editable + capaian OBE (khusus dosen, default) */}
+      {activeTab === 'isian' && !isMahasiswa && (
+        <div className="space-y-4">
+          <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <ClipboardList size={16} style={{ color: 'var(--module-primary)' }} />
+                  Isian Pertemuan Ke-{detail?.pertemuan.pertemuan_ke || ''}
+                </h4>
+                <p className="text-2xs text-slate-500">
+                  Kelola judul materi, catatan, jadwal, dan status penyelesaian sesi pertemuan.
+                </p>
+              </div>
+              {!isEditingIsian && (
+                <Button size="sm" variant="outline" icon={<Pencil size={16} />} onClick={() => setIsEditingIsian(true)}>
+                  Ubah Isian
+                </Button>
+              )}
+            </div>
+
+            {isEditingIsian ? (
+              <form id="form-isian-pertemuan" onSubmit={isianFormHook.handleSubmit(onSaveIsian)} className="space-y-4">
+                <Input
+                  label="Judul / Materi Pertemuan"
+                  placeholder="Contoh: Pengantar Cloud Architecture"
+                  error={isianFormHook.formState.errors.materi?.message}
+                  {...isianFormHook.register('materi')}
+                />
+
+                <Textarea
+                  label="Catatan Pertemuan"
+                  placeholder="Tuliskan catatan atau agenda sesi pertemuan..."
+                  error={isianFormHook.formState.errors.catatan_pertemuan?.message}
+                  {...isianFormHook.register('catatan_pertemuan')}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    type="date"
+                    label="Tanggal Pertemuan"
+                    error={isianFormHook.formState.errors.tanggal?.message}
+                    {...isianFormHook.register('tanggal')}
+                  />
+                  <Input
+                    type="time"
+                    label="Jam Mulai"
+                    error={isianFormHook.formState.errors.jam_mulai?.message}
+                    {...isianFormHook.register('jam_mulai')}
+                  />
+                  <Input
+                    type="time"
+                    label="Jam Selesai"
+                    error={isianFormHook.formState.errors.jam_selesai?.message}
+                    {...isianFormHook.register('jam_selesai')}
+                  />
+                </div>
+
+                <Controller
+                  name="status_pertemuan"
+                  control={isianFormHook.control}
+                  render={({ field }) => (
+                    <Select
+                      label="Status Penyelesaian Pertemuan"
+                      placeholder="Pilih status..."
+                      options={PERTEMUAN_STATUS_OPTIONS}
+                      value={field.value ?? ''}
+                      onChange={(val) => field.onChange(val ? String(val) : null)}
+                      error={isianFormHook.formState.errors.status_pertemuan?.message}
+                    />
+                  )}
+                />
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" icon={<X size={16} />} onClick={() => setIsEditingIsian(false)}>
+                    Batal
+                  </Button>
+                  <Button
+                    type="submit"
+                    form="form-isian-pertemuan"
+                    loading={isianFormHook.formState.isSubmitting}
+                    disabled={isianFormHook.formState.isSubmitting}
+                    icon={<Save size={16} />}
+                  >
+                    Simpan Isian
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="flex flex-col gap-2">
+                  <span className="text-2xs text-slate-400 uppercase tracking-wider font-semibold">Judul / Materi</span>
+                  <span className="font-bold text-slate-900">{detail?.pertemuan.materi || '-'}</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-2xs text-slate-400 uppercase tracking-wider font-semibold">Status</span>
+                  <span>
+                    <Badge variant={detail?.pertemuan.status_pertemuan === 'selesai' ? 'green' : 'gray'}>
+                      {detail?.pertemuan.status_pertemuan
+                        ? PERTEMUAN_STATUS_LABEL[detail.pertemuan.status_pertemuan]
+                        : 'BELUM DIISI'}
+                    </Badge>
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-2xs text-slate-400 uppercase tracking-wider font-semibold">Tanggal</span>
+                  <span className="font-medium text-slate-800 flex items-center gap-2">
+                    <Calendar size={16} className="text-slate-400" /> {detail?.pertemuan.tanggal || '-'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-2xs text-slate-400 uppercase tracking-wider font-semibold">Jam Sesi</span>
+                  <span className="font-medium text-slate-800 flex items-center gap-2">
+                    <Clock size={16} className="text-slate-400" /> {detail?.pertemuan.jam_mulai || '-'} - {detail?.pertemuan.jam_selesai || 'Selesai'}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 md:col-span-2">
+                  <span className="text-2xs text-slate-400 uppercase tracking-wider font-semibold">Catatan Pertemuan</span>
+                  <span className="text-slate-600 text-2xs leading-relaxed">{detail?.pertemuan.catatan_pertemuan || '-'}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {renderObePanel()}
+        </div>
+      )}
+
+      {/* Tab 1: Presensi Mahasiswa & Verifikasi Izin (dosen) / Kehadiran (mahasiswa) */}
+      {(activeTab === 'presensi' || activeTab === 'kehadiran') && (
         <div className="space-y-6">
           {isMahasiswa ? (
             /* Tampilan Presensi & Izin Khusus Mahasiswa */
@@ -1050,6 +1352,9 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                     <p className="text-2xs text-slate-500">
                       Dosen dapat mengubah status presensi mahasiswa secara langsung lalu menekan Simpan Presensi.
                     </p>
+                    <p className="text-2xs text-slate-500">
+                      Otomatis: {presensiSummary.otomatis} • Manual: {presensiSummary.manual} • Belum absen: {presensiSummary.belum}
+                    </p>
                   </div>
 
                   {Object.keys(attendanceChanges).length > 0 && (
@@ -1085,9 +1390,67 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Tab 2: Materi Pembelajaran */}
-      {activeTab === 'materi' && (
+      {/* Tab 2: Materi Pembelajaran (dosen) / Pembelajaran (mahasiswa: status + OBE + materi) */}
+      {(activeTab === 'materi' || activeTab === 'pembelajaran') && (
         <div className="space-y-4">
+          {isMahasiswa && activeTab === 'pembelajaran' && (
+            <>
+              <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200">
+                    <CheckCircle2 size={24} className={detail?.my_absensi ? 'text-emerald-600' : 'text-slate-400'} />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <div className="text-2xs text-slate-400 uppercase tracking-wider font-semibold">
+                      Status Kehadiran Anda
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          detail?.my_absensi?.status === 'hadir'
+                            ? 'green'
+                            : detail?.my_absensi?.status === 'alfa'
+                            ? 'red'
+                            : 'gray'
+                        }
+                      >
+                        {detail?.my_absensi?.status ? String(detail.my_absensi.status).toUpperCase() : 'BELUM PRESENSI'}
+                      </Badge>
+                      {detail?.my_absensi?.waktu_absen && (
+                        <span className="text-2xs text-slate-500">
+                          Dicatat pada {new Date(detail.my_absensi.waktu_absen).toLocaleString('id-ID')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!detail?.my_absensi && (
+                    <Button
+                      size="sm"
+                      icon={<QrCode size={16} />}
+                      onClick={() => setShowTokenModal(true)}
+                    >
+                      Input Token
+                    </Button>
+                  )}
+                  {!detail?.my_absensi && !detail?.my_izin && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<AlertTriangle size={16} />}
+                      onClick={() => setShowIzinModal(true)}
+                    >
+                      Ajukan Izin
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {renderObePanel()}
+            </>
+          )}
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-slate-800">Materi & Bahan Perkuliahan</h4>
             {!isMahasiswa && (
@@ -1191,8 +1554,8 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Tab 3: Penugasan & Sync Nilai OBE */}
-      {activeTab === 'tugas' && (
+      {/* Tab 3: Penugasan & Sync Nilai OBE (dosen) / Tugas & Kuis (mahasiswa: tugas + kuis) */}
+      {(activeTab === 'tugas' || activeTab === 'tugas_kuis') && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1356,8 +1719,8 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Tab 4: Kuis (dosen kelola, mahasiswa kerjakan) */}
-      {activeTab === 'kuis' && (
+      {/* Tab 4: Kuis (dosen kelola, mahasiswa kerjakan) — dipakai juga pada tab Tugas & Kuis mahasiswa */}
+      {(activeTab === 'kuis' || activeTab === 'tugas_kuis') && (
         <div className="space-y-4">
           <PertemuanQuizTab
             pertemuanId={pertemuanId}
@@ -1368,6 +1731,16 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
             onRefresh={fetchDetail}
           />
         </div>
+      )}
+
+      {/* Tab Diskusi: scoped pertemuan ini — dosen & mahasiswa memakai komponen yang sama */}
+      {activeTab === 'diskusi' && (
+        <PertemuanDiskusi
+          kelasId={kelasId}
+          pertemuanId={pertemuanId}
+          pertemuanKe={detail?.pertemuan.pertemuan_ke}
+          canManage={canManageKelas}
+        />
       )}
 
       {/* Modal Tambah Materi dengan Zod & react-hook-form */}

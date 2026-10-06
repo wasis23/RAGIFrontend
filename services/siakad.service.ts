@@ -278,8 +278,13 @@ export const siakadService = {
     return response.data;
   },
 
-  autoDistributePa: async (payload: { dosen_ids: number[]; program_studi_id?: number; angkatan?: number }): Promise<ApiResponse<any>> => {
+  autoDistributePa: async (payload: { dosen_ids: number[]; program_studi_id?: number; angkatan?: number; kelas?: string }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/mahasiswa/auto-distribute-pa', payload);
+    return response.data;
+  },
+
+  assignPaKelas: async (payload: { kelas: string; program_studi_id?: number; dosen_wali_id: number; hanya_belum_punya_pa?: boolean }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/mahasiswa/assign-pa-kelas', payload);
     return response.data;
   },
 
@@ -576,8 +581,24 @@ export const siakadService = {
     return response.data;
   },
 
-  getSoalList: async (params?: { rps_id?: number; rps_mingguan_id?: number }): Promise<ApiResponse<any>> => {
+  getSoalList: async (params?: {
+    search?: string;
+    rps_id?: number;
+    rps_mingguan_id?: number;
+    kategori_id?: number;
+    tipe_soal?: string;
+    tingkat_kesulitan?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/soal', { params });
+    return response.data;
+  },
+
+  getSoalDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/obe/soal/${id}`);
     return response.data;
   },
 
@@ -588,6 +609,34 @@ export const siakadService = {
 
   deleteSoal: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.delete(`/v1/siakad/obe/soal/${id}`);
+    return response.data;
+  },
+
+  getSoalKategori: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/soal-kategori', { params });
+    return response.data;
+  },
+
+  saveKategori: async (payload: { nama: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/soal-kategori', payload);
+    return response.data;
+  },
+
+  deleteKategori: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/soal-kategori/${id}`);
+    return response.data;
+  },
+
+  saveOpsi: async (
+    soalId: number,
+    payload: { teks: string; is_benar: boolean; urutan?: number }
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/obe/soal/${soalId}/opsi`, payload);
+    return response.data;
+  },
+
+  deleteOpsi: async (soalId: number, opsiId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/soal/${soalId}/opsi/${opsiId}`);
     return response.data;
   },
 

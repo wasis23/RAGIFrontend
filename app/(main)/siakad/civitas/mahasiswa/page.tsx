@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   GraduationCap,
   Plus,
@@ -12,6 +15,7 @@ import {
   Sparkles,
   Shuffle,
   Users,
+  UserCheck,
   Download,
   Upload,
   FileSpreadsheet,
@@ -22,13 +26,32 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
+import { KELAS_PATTERN, suggestKelas, isKelasValid } from '@/lib/kelas';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
+
+const plotKelasSchema = z.object({
+  kelas: z
+    .string({ error: 'Kelas wajib diisi' })
+    .min(1, 'Kelas wajib diisi')
+    .max(10, 'Kelas maksimal 10 karakter')
+    .refine((v) => v.trim().length > 0, { message: 'Kelas wajib diisi' })
+    .refine((v) => KELAS_PATTERN.test(v.trim().toUpperCase()), {
+      message: 'Format kelas: 2 digit angkatan + huruf (cth: 25A)',
+    }),
+  program_studi_id: z.number().optional().nullable(),
+  dosen_wali_id: z.number({ error: 'Dosen PA wajib dipilih' }).min(1, 'Dosen PA wajib dipilih'),
+  hanya_belum_punya_pa: z.boolean().optional(),
+});
+
+type PlotKelasFormValues = z.infer<typeof plotKelasSchema>;
 
 export default function MahasiswaPage() {
   const router = useRouter();
@@ -49,6 +72,7 @@ export default function MahasiswaPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDosenPa, setFilterDosenPa] = useState('');
   const [filterNim, setFilterNim] = useState('');
+  const [filterKelas, setFilterKelas] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     prodi: '',
@@ -56,6 +80,7 @@ export default function MahasiswaPage() {
     status: '',
     dosenPa: '',
     nim: '',
+    kelas: '',
   });
 
   // Bulk PA Assignment State
@@ -69,7 +94,27 @@ export default function MahasiswaPage() {
   const [distributeDosenIds, setDistributeDosenIds] = useState<number[]>([]);
   const [distributeProdiId, setDistributeProdiId] = useState<string>('');
   const [distributeAngkatan, setDistributeAngkatan] = useState<string>('2025');
+  const [distributeKelas, setDistributeKelas] = useState<string>('');
   const [distributing, setDistributing] = useState(false);
+
+  // Plotting PA per Kelas State (Zod + RHF)
+  const [isPlotKelasModalOpen, setIsPlotKelasModalOpen] = useState(false);
+  const [plottingKelas, setPlottingKelas] = useState(false);
+  const {
+    register: registerPlotKelas,
+    control: plotKelasControl,
+    handleSubmit: handleSubmitPlotKelas,
+    reset: resetPlotKelas,
+    formState: { errors: plotKelasErrors },
+  } = useForm<PlotKelasFormValues>({
+    resolver: zodResolver(plotKelasSchema),
+    defaultValues: {
+      kelas: '',
+      program_studi_id: null,
+      dosen_wali_id: 0,
+      hanya_belum_punya_pa: true,
+    },
+  });
 
   // Sync & Generate NIM States
   const [syncingSpmb, setSyncingSpmb] = useState(false);
@@ -119,6 +164,7 @@ export default function MahasiswaPage() {
     nik: '',
     program_studi_id: 1,
     angkatan: 2025,
+    kelas: '',
     jenis_kelamin: 'L',
     status: 'aktif',
     dosen_wali_id: '',
@@ -149,6 +195,7 @@ export default function MahasiswaPage() {
         program_studi_id: appliedFilters.prodi,
         angkatan: appliedFilters.angkatan,
         status: appliedFilters.status,
+        kelas: appliedFilters.kelas ? appliedFilters.kelas.toUpperCase() : undefined,
         advisees_only: isDosenOnly ? true : undefined,
       });
       if (res.data) {
@@ -412,10 +459,17 @@ export default function MahasiswaPage() {
     }
     try {
       setDistributing(true);
+      const kelas = distributeKelas ? distributeKelas.trim().toUpperCase() : '';
+      if (kelas && !isKelasValid(kelas)) {
+        toast.error('Format kelas salah. Gunakan 2 digit angkatan + huruf, cth: 25A');
+        setDistributing(false);
+        return;
+      }
       const res = await siakadService.autoDistributePa({
         dosen_ids: distributeDosenIds,
         program_studi_id: distributeProdiId ? Number(distributeProdiId) : undefined,
         angkatan: distributeAngkatan ? Number(distributeAngkatan) : undefined,
+        kelas: kelas || undefined,
       });
       toast.success(res.message || 'Mahasiswa berhasil didistribusikan ke Dosen PA secara merata');
       setIsAutoDistributeModalOpen(false);
@@ -424,6 +478,71 @@ export default function MahasiswaPage() {
       toast.error(err.response?.data?.message || err.message || 'Gagal mendistribusikan Dosen PA');
     } finally {
       setDistributing(false);
+    }
+  };
+
+  const loadDosenOptions = useCallback(async (keyword: string) => {
+    try {
+      const res = await siakadService.getDosens({ per_page: 50, search: keyword || undefined });
+      const list: any[] = res.data || dosens;
+      const q = keyword.toLowerCase();
+      return list
+        .filter((d: any) =>
+          !keyword
+            ? true
+            : d.nama_lengkap?.toLowerCase().includes(q) || d.nidn?.includes(keyword)
+        )
+        .map((d: any) => ({
+          value: d.id,
+          label: `${d.nama_lengkap} — NIDN ${d.nidn || '-'}`,
+          raw: d,
+        }));
+    } catch {
+      return [];
+    }
+  }, [dosens]);
+
+  const loadProdiOptions = useCallback(async (keyword: string) => {
+    try {
+      const res = await siakadService.getProdi({ search: keyword || undefined });
+      const list: any[] = res.data || prodis;
+      const q = keyword.toLowerCase();
+      return list
+        .filter((p: any) => !keyword ? true : p.nama?.toLowerCase().includes(q))
+        .map((p: any) => ({
+          value: p.id,
+          label: `${p.jenjang ? `[${p.jenjang}] ` : ''}${p.nama}`,
+          raw: p,
+        }));
+    } catch {
+      return [];
+    }
+  }, [prodis]);
+
+  const handlePlotKelas = async (values: PlotKelasFormValues) => {
+    try {
+      setPlottingKelas(true);
+      const res = await siakadService.assignPaKelas({
+        kelas: values.kelas.trim().toUpperCase(),
+        program_studi_id: values.program_studi_id ? Number(values.program_studi_id) : undefined,
+        dosen_wali_id: Number(values.dosen_wali_id),
+        hanya_belum_punya_pa: values.hanya_belum_punya_pa ?? true,
+      });
+      const payload: any = res.data ?? res;
+      const updated = payload?.updated_count ?? 0;
+      const dosenName = payload?.dosen_wali?.nama_lengkap || '';
+      toast.success(
+        updated > 0
+          ? `Kelas ${values.kelas.trim().toUpperCase()} berhasil diplotting${dosenName ? ` ke ${dosenName}` : ''} (${updated} mahasiswa)`
+          : res.message || 'Tidak ada mahasiswa yang diperbarui'
+      );
+      setIsPlotKelasModalOpen(false);
+      resetPlotKelas();
+      fetchMahasiswa();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal plotting kelas ke Dosen PA');
+    } finally {
+      setPlottingKelas(false);
     }
   };
 
@@ -436,6 +555,7 @@ export default function MahasiswaPage() {
         nik: item.nik || '',
         program_studi_id: item.program_studi_id,
         angkatan: item.angkatan || 2025,
+        kelas: item.kelas ? String(item.kelas).toUpperCase() : '',
         jenis_kelamin: item.jenis_kelamin || 'L',
         status: item.status || 'aktif',
         dosen_wali_id: item.dosen_wali_id ? String(item.dosen_wali_id) : '',
@@ -450,6 +570,7 @@ export default function MahasiswaPage() {
         nik: '',
         program_studi_id: prodis[0]?.id || 1,
         angkatan: 2025,
+        kelas: '',
         jenis_kelamin: 'L',
         status: 'aktif',
         dosen_wali_id: '',
@@ -464,8 +585,18 @@ export default function MahasiswaPage() {
     e.preventDefault();
     try {
       setSaving(true);
+      const kelas = form.kelas ? form.kelas.trim().toUpperCase() : '';
+      if (kelas && !isKelasValid(kelas)) {
+        toast.error('Format kelas salah. Gunakan 2 digit angkatan + huruf, cth: 25A');
+        setSaving(false);
+        return;
+      }
+      const payload = {
+        ...form,
+        kelas,
+      };
       if (editingMhs) {
-        await siakadService.updateMahasiswa(editingMhs.id, form);
+        await siakadService.updateMahasiswa(editingMhs.id, payload);
         toast.success('Data mahasiswa berhasil diperbarui');
       } else {
         if (!form.nim) {
@@ -474,10 +605,11 @@ export default function MahasiswaPage() {
             program_studi_id: form.program_studi_id,
             angkatan: form.angkatan,
             jenis_kelamin: form.jenis_kelamin,
-          });
+            ...(payload.kelas ? { kelas: payload.kelas } : {}),
+          } as any);
           toast.success('Mahasiswa & NIM baru berhasil di-generate');
         } else {
-          await siakadService.createMahasiswa(form);
+          await siakadService.createMahasiswa(payload);
           toast.success('Mahasiswa berhasil ditambahkan');
         }
       }
@@ -575,6 +707,20 @@ export default function MahasiswaPage() {
         <span className="font-mono text-xs font-bold text-slate-900">
           {row.angkatan}
         </span>
+      ),
+    },
+    {
+      key: 'kelas',
+      label: 'KELAS',
+      align: 'center',
+      render: (row) => (
+        row.kelas ? (
+          <span className="font-mono text-xs font-bold uppercase text-slate-900 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 inline-block">
+            {String(row.kelas).toUpperCase()}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400">-</span>
+        )
       ),
     },
     {
@@ -772,6 +918,18 @@ export default function MahasiswaPage() {
               >
                 Bagi Rata DPA
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-2xs py-1 px-2.5 h-auto"
+                icon={<UserCheck size={13} />}
+                onClick={() => {
+                  resetPlotKelas();
+                  setIsPlotKelasModalOpen(true);
+                }}
+              >
+                Plot Kelas ke Dosen PA
+              </Button>
             </div>
           </div>
         </div>
@@ -855,7 +1013,8 @@ export default function MahasiswaPage() {
                 setFilterNim('');
                 setFilterDosenPa('');
                 setFilterStatus('');
-                setAppliedFilters({ search: '', prodi: '', angkatan: '', nim: '', dosenPa: '', status: '' });
+                setFilterKelas('');
+                setAppliedFilters({ search: '', prodi: '', angkatan: '', nim: '', dosenPa: '', status: '', kelas: '' });
                 setShowFilter(false);
               }}
             >
@@ -871,6 +1030,7 @@ export default function MahasiswaPage() {
                   nim: filterNim,
                   dosenPa: filterDosenPa,
                   status: filterStatus,
+                  kelas: filterKelas ? filterKelas.trim().toUpperCase() : '',
                 });
                 setShowFilter(false);
               }}
@@ -886,6 +1046,14 @@ export default function MahasiswaPage() {
             placeholder="Ketik kata kunci pencarian..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
+          />
+
+          <Input
+            label="Kelas"
+            placeholder="cth: 25A"
+            maxLength={10}
+            value={filterKelas}
+            onChange={(e) => setFilterKelas(e.target.value.toUpperCase())}
           />
 
           <div>
@@ -1061,6 +1229,14 @@ export default function MahasiswaPage() {
             </div>
           </div>
 
+          <Input
+            label="Target Kelas (opsional)"
+            placeholder="cth: 25A (kosongkan = semua kelas)"
+            maxLength={10}
+            value={distributeKelas}
+            onChange={(e) => setDistributeKelas(e.target.value.toUpperCase())}
+          />
+
           <div>
             <label className="label flex items-center justify-between">
               <span>Pilih Dosen PA Penerima Mahasiswa Bimbingan ({distributeDosenIds.length} Dosen) *</span>
@@ -1108,6 +1284,98 @@ export default function MahasiswaPage() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal Plotting PA per Kelas */}
+      <Modal
+        open={isPlotKelasModalOpen}
+        onClose={() => setIsPlotKelasModalOpen(false)}
+        title="Plot Kelas ke Dosen PA"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsPlotKelasModalOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSubmitPlotKelas(handlePlotKelas)}
+              disabled={plottingKelas}
+            >
+              {plottingKelas ? 'Menyimpan...' : 'Tetapkan Dosen PA'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmitPlotKelas(handlePlotKelas)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <Input
+              label="Kelas *"
+              placeholder="cth: 25A"
+              maxLength={10}
+              {...registerPlotKelas('kelas', {
+                onChange: (e) => {
+                  e.target.value = e.target.value.toUpperCase().slice(0, 10);
+                },
+              })}
+              error={plotKelasErrors.kelas?.message}
+              hint="Satu kelas per plotting (otomatis kapital)"
+            />
+          </div>
+
+          <Controller
+            name="program_studi_id"
+            control={plotKelasControl}
+            render={({ field }) => (
+              <AsyncSelect
+                label="Program Studi (opsional)"
+                placeholder="Semua prodi..."
+                loadOptions={loadProdiOptions}
+                value={field.value || null}
+                onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
+                error={plotKelasErrors.program_studi_id?.message}
+                isClearable
+              />
+            )}
+          />
+
+          <Controller
+            name="dosen_wali_id"
+            control={plotKelasControl}
+            render={({ field }) => (
+              <AsyncSelect
+                label="Dosen PA *"
+                placeholder="Cari nama / NIDN dosen..."
+                loadOptions={loadDosenOptions}
+                value={field.value || null}
+                onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : 0)}
+                error={plotKelasErrors.dosen_wali_id?.message}
+                formatOptionLabel={(opt: any) => (
+                  <div>
+                    <span className="block font-semibold">{opt.raw?.nama_lengkap || opt.label}</span>
+                    <span className="block text-xs text-slate-500">
+                      NIDN {opt.raw?.nidn || '-'} • {opt.raw?.program_studi?.nama || ''}
+                    </span>
+                  </div>
+                )}
+              />
+            )}
+          />
+
+          <div className="md:col-span-2">
+            <Controller
+              name="hanya_belum_punya_pa"
+              control={plotKelasControl}
+              render={({ field }) => (
+                <Checkbox
+                  label="Hanya yang belum punya PA"
+                  hint="Centang untuk melewati mahasiswa yang sudah memiliki Dosen PA"
+                  checked={field.value ?? true}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              )}
+            />
+          </div>
+        </form>
       </Modal>
 
       {/* Modal Form Mahasiswa */}
@@ -1164,7 +1432,19 @@ export default function MahasiswaPage() {
             type="number"
             required
             value={form.angkatan}
-            onChange={(e) => setForm({ ...form, angkatan: parseInt(e.target.value) || 2025 })}
+            onChange={(e) => {
+              const next = parseInt(e.target.value) || 2025;
+              setForm((prev) => ({ ...prev, angkatan: next, kelas: suggestKelas(prev.kelas, next) }));
+            }}
+          />
+
+          <Input
+            label="Kelas"
+            placeholder="cth: 25A"
+            maxLength={10}
+            value={form.kelas}
+            onChange={(e) => setForm({ ...form, kelas: e.target.value.toUpperCase().slice(0, 10) })}
+            hint="Opsional, format 2 digit angkatan + huruf (otomatis terisi dari angkatan)"
           />
 
           <div>

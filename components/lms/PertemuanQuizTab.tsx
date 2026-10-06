@@ -29,7 +29,12 @@ const quizSchema = z.object({
     z.number().min(1, 'Durasi minimal 1 menit').max(1440).optional()
   ),
   max_attempt: z.coerce.number().min(1).max(10).default(1),
-  komponen_penilaian_id: z.union([z.coerce.number(), z.literal('')]).optional().default(''),
+  // Boleh kosong (null = tanpa link OBE). Preprocess menormalkan ''/null/
+  // undefined dari Select-clearable menjadi null agar tidak gagal validasi.
+  komponen_penilaian_id: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? null : Number(v)),
+    z.number().nullable().optional()
+  ),
   is_published: z.coerce.boolean().default(false),
 });
 
@@ -64,12 +69,12 @@ export default function PertemuanQuizTab({
 
   const quizForm = useForm<QuizFormValues>({
     resolver: zodResolver(quizSchema) as any,
-    defaultValues: { judul: '', max_attempt: 1, komponen_penilaian_id: '', is_published: false },
+    defaultValues: { judul: '', max_attempt: 1, komponen_penilaian_id: null, is_published: false },
   });
 
   const openCreate = () => {
     setEditingQuiz(null);
-    quizForm.reset({ judul: '', max_attempt: 1, komponen_penilaian_id: '', is_published: false });
+    quizForm.reset({ judul: '', max_attempt: 1, komponen_penilaian_id: null, is_published: false });
     setShowQuizModal(true);
   };
 
@@ -79,7 +84,7 @@ export default function PertemuanQuizTab({
       judul: q.judul,
       durasi_menit: q.durasi_menit as any,
       max_attempt: q.max_attempt,
-      komponen_penilaian_id: (q.komponen_penilaian_id as any) || '',
+      komponen_penilaian_id: (q.komponen_penilaian_id as any) ?? null,
       is_published: q.is_published,
     });
     setShowQuizModal(true);
@@ -91,7 +96,7 @@ export default function PertemuanQuizTab({
         judul: values.judul,
         durasi_menit: values.durasi_menit || null,
         max_attempt: values.max_attempt,
-        komponen_penilaian_id: values.komponen_penilaian_id === '' ? null : Number(values.komponen_penilaian_id),
+        komponen_penilaian_id: values.komponen_penilaian_id ?? null,
         is_published: Boolean(values.is_published),
       };
       if (editingQuiz) {
@@ -217,11 +222,12 @@ export default function PertemuanQuizTab({
             render={({ field }) => (
               <Select
                 label="Link Komponen OBE (Auto-Sync)"
-                value={field.value}
-                onChange={(val) => field.onChange(val)}
+                value={field.value ?? ''}
+                onChange={(val) => field.onChange(val ?? '')}
                 placeholder="Tanpa link OBE"
                 options={komponenObeList.map((k) => ({ value: String(k.id), label: `${k.nama_komponen} (${k.bobot}%)` }))}
                 isClearable
+                error={quizForm.formState.errors.komponen_penilaian_id?.message}
               />
             )}
           />

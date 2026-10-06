@@ -8,13 +8,13 @@ import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Modal } from '@/components/ui/Modal';
 import KelasSelect from '@/components/lms/KelasSelect';
+import PeriodeAkademikSelect from '@/components/lms/PeriodeAkademikSelect';
+import { toTahunAkademikId } from '@/lib/kelas';
 import { lmsService } from '@/services/lms.service';
-import { referensiService } from '@/services/referensi.service';
 import {
   LmsKelasItem,
   METODE_ABSENSI_LABEL,
@@ -74,20 +74,6 @@ export default function LmsPengaturanListPage() {
     defaultValues: { kelas_id: '' },
   });
 
-  const loadTahunAkademikOptions = useCallback(async (inputValue: string) => {
-    try {
-      const res = await referensiService.getPaginated({
-        modul: 'siakad',
-        tipe: 'tahun_akademik',
-        search: inputValue || undefined,
-        per_page: 20,
-      });
-      return (res.data || []).map((r) => ({ value: String(r.id), label: r.nama }));
-    } catch {
-      return [];
-    }
-  }, []);
-
   const fetchData = useCallback(
     async (page = 1, perPage = 10) => {
       setIsLoading(true);
@@ -98,7 +84,7 @@ export default function LmsPengaturanListPage() {
           search: filterSearch || undefined,
           sort_by: filterOrderBy || 'kode_kelas',
           sort_order: (filterOrderDir as 'asc' | 'desc') || 'asc',
-          tahun_akademik_id: filterTahunAkademik ? Number(filterTahunAkademik) : undefined,
+          tahun_akademik_id: toTahunAkademikId(filterTahunAkademik),
           metode_absensi: (filterMetodeAbsensi || undefined) as MetodeAbsensi | undefined,
           status_konfigurasi: (filterStatus || undefined) as PengaturanStatus | undefined,
         });
@@ -325,13 +311,11 @@ export default function LmsPengaturanListPage() {
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
-          <AsyncSelect
+          <PeriodeAkademikSelect
             label="Tahun Akademik"
             placeholder="Semua periode..."
             value={filterTahunAkademik}
-            onChange={(val) => setFilterTahunAkademik(val ? String(val) : '')}
-            loadOptions={loadTahunAkademikOptions}
-            isClearable
+            onChange={(val) => setFilterTahunAkademik(val)}
           />
 
           <Select

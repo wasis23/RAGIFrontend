@@ -3,16 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Badge } from '@/components/ui/Badge';
-import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { lmsService } from '@/services/lms.service';
-import { referensiService } from '@/services/referensi.service';
+import { siakadService } from '@/services/siakad.service';
+import PeriodeAkademikSelect from '@/components/lms/PeriodeAkademikSelect';
+import { toTahunAkademikId } from '@/lib/kelas';
 import {
   LmsKelasItem,
   KELAS_SORT_BY_OPTIONS,
@@ -20,26 +21,49 @@ import {
 } from '@/types/lms.types';
 import { SORT_ORDER_OPTIONS } from '@/lib/constants';
 import { PaginationMeta } from '@/types/api.types';
-import { Filter, Eye, BookOpen, Users, Calendar, ArrowRight, RotateCcw, Check } from 'lucide-react';
+import {
+  Filter,
+  BookOpen,
+  Users,
+  Calendar,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Check,
+  Clock,
+  MapPin,
+  GraduationCap,
+  ArrowRight,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+
+function extractOptionValue(val: unknown): string {
+  if (val === null || val === undefined || val === '') return '';
+  if (typeof val === 'object' && val !== null && 'value' in (val as Record<string, unknown>)) {
+    const v = (val as { value: unknown }).value;
+    return v === null || v === undefined ? '' : String(v);
+  }
+  return String(val);
+}
 
 export default function LmsKelasListPage() {
   const router = useRouter();
   const { hasRole } = useAuth();
   const isMahasiswa = hasRole('mahasiswa');
 
-  // State Data & Loading
   const [kelasList, setKelasList] = useState<LmsKelasItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [page, setPage] = useState<number>(1);
+  const [perPage] = useState<number>(9);
   const [meta, setMeta] = useState<PaginationMeta>({
     current_page: 1,
     last_page: 1,
-    per_page: 10,
+    per_page: 9,
     total: 0,
   });
 
-  // State Filter & Drawer (Paritas 1:1 terhadap 4 kolom informasi tabel)
   const [showFilter, setShowFilter] = useState<boolean>(false);
   const [filterSearch, setFilterSearch] = useState<string>('');
   const [filterProdi, setFilterProdi] = useState<string>('');
@@ -47,17 +71,13 @@ export default function LmsKelasListPage() {
   const [filterKapasitas, setFilterKapasitas] = useState<string>('');
   const [filterOrderBy, setFilterOrderBy] = useState<string>('nama_kelas');
   const [filterOrderDir, setFilterOrderDir] = useState<string>('asc');
+  const [periodeReady, setPeriodeReady] = useState<boolean>(false);
 
-  // Server-side loader untuk Program Studi via AsyncSelect
   const loadProdiOptions = useCallback(async (inputValue: string) => {
     try {
-      const res = await referensiService.getPaginated({
-        modul: 'siakad',
-        tipe: 'program_studi',
-        search: inputValue || undefined,
-        per_page: 20,
-      });
-      return (res.data || []).map((r) => ({
+      const res = await siakadService.getProdi({ search: inputValue || undefined, per_page: 20 });
+      const rows: any[] = Array.isArray(res?.data) ? res.data : [];
+      return rows.map((r: any) => ({
         value: String(r.id),
         label: r.nama,
       }));
@@ -66,59 +86,67 @@ export default function LmsKelasListPage() {
     }
   }, []);
 
-  // Server-side loader untuk Tahun Akademik via AsyncSelect
-  const loadTahunAkademikOptions = useCallback(async (inputValue: string) => {
-    try {
-      const res = await referensiService.getPaginated({
-        modul: 'siakad',
-        tipe: 'tahun_akademik',
-        search: inputValue || undefined,
-        per_page: 20,
-      });
-      return (res.data || []).map((r) => ({
-        value: String(r.id),
-        label: r.nama,
-      }));
-    } catch {
-      return [];
-    }
-  }, []);
-
-  // Fetch Kelas
-  const fetchKelas = useCallback(async (page = 1, perPage = 10) => {    setIsLoading(true);
-    try {
-      const res = await lmsService.getMyKelas({
-        page,
-        per_page: perPage,
-        search: filterSearch || undefined,
-        sort_by: filterOrderBy || 'nama_kelas',
-        sort_order: (filterOrderDir as 'asc' | 'desc') || 'asc',
-        tahun_akademik_id: filterTahunAkademik ? Number(filterTahunAkademik) : undefined,
-      });
-
-      if (res.status === 'success' && res.data) {
-        setKelasList(res.data);
-        if (res.meta) {
-          setMeta(res.meta);
+  // Default ke periode aktif saat pertama kali dibuka.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await siakadService.getTahunAkademiks();
+        const rows: any[] = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+        const aktif = rows.find((t: any) => t.is_aktif || t.is_active);
+        if (!cancelled && aktif && !filterTahunAkademik) {
+          setFilterTahunAkademik(String(aktif.id));
         }
-      } else {
-        setKelasList([]);
+      } catch {
+        // abaikan — user bisa pilih manual via PeriodeSwitcher
+      } finally {
+        if (!cancelled) setPeriodeReady(true);
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal memuat daftar kelas LMS');
-      setKelasList([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filterSearch, filterOrderBy, filterOrderDir, filterTahunAkademik]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchKelas = useCallback(
+    async (targetPage = 1) => {
+      setIsLoading(true);
+      try {
+        const res = await lmsService.getMyKelas({
+          page: targetPage,
+          per_page: perPage,
+          search: filterSearch || undefined,
+          sort_by: filterOrderBy || 'nama_kelas',
+          sort_order: (filterOrderDir as 'asc' | 'desc') || 'asc',
+          tahun_akademik_id: toTahunAkademikId(filterTahunAkademik),
+        });
+
+        if (res.status === 'success' && res.data) {
+          setKelasList(res.data);
+          if (res.meta) setMeta(res.meta);
+          setPage(targetPage);
+        } else {
+          setKelasList([]);
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Gagal memuat daftar kelas LMS');
+        setKelasList([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [filterSearch, filterOrderBy, filterOrderDir, filterTahunAkademik, perPage]
+  );
 
   useEffect(() => {
-    fetchKelas(meta.current_page, meta.per_page);
-  }, [fetchKelas, meta.current_page, meta.per_page]);
+    if (!periodeReady) return;
+    fetchKelas(1);
+  }, [fetchKelas, periodeReady]);
 
   const handleApplyFilter = () => {
     setShowFilter(false);
-    fetchKelas(1, meta.per_page);
+    fetchKelas(1);
   };
 
   const handleResetFilter = () => {
@@ -131,92 +159,12 @@ export default function LmsKelasListPage() {
     setShowFilter(false);
   };
 
-  // Kolom DataTable (Max 12px Rule & Format Sel 2-Baris)
-  const columns: ColumnDef<LmsKelasItem>[] = [
-    {
-      key: 'kelas',
-      label: 'MATA KULIAH & KELAS',
-      render: (row) => (
-        <div>
-          <span className="font-bold text-slate-800 text-xs block">
-            {row.nama_kelas}
-          </span>
-          <span className="text-2xs text-slate-500 font-mono block">
-            {row.kode_kelas} • {row.mata_kuliah?.nama || '-'} ({row.mata_kuliah?.total_sks || 0} SKS)
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: 'prodi',
-      label: 'PROGRAM STUDI',
-      render: (row) => (
-        <div>
-          <span className="text-xs font-medium text-slate-800 block">
-            {row.program_studi?.nama || '-'}
-          </span>
-          <span className="text-2xs text-slate-500 block">
-            Jenjang: {row.program_studi?.jenjang || '-'}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: 'semester',
-      label: 'TAHUN AKADEMIK',
-      render: (row) => (
-        <div className="flex items-center gap-2">
-          <Badge variant={row.tahun_akademik?.is_aktif ? 'green' : 'gray'}>
-            {row.tahun_akademik?.nama || '-'}
-          </Badge>
-        </div>
-      ),
-    },
-    {
-      key: 'kapasitas',
-      label: 'KAPASITAS KELAS',
-      align: 'center',
-      render: (row) => (
-        <div className="inline-flex items-center gap-2 text-xs text-slate-700 bg-slate-50 p-2 rounded-md border border-slate-200">
-          <Users size={16} className="text-slate-500" />
-          <span>{row.kapasitas} Mahasiswa</span>
-        </div>
-      ),
-    },
-    {
-      key: 'aksi',
-      label: 'AKSI',
-      align: 'right',
-      render: (row) => (
-        <div className="flex justify-end">
-          <DropdownMenu
-            items={[
-              {
-                label: 'Buka Kelas LMS',
-                icon: <ArrowRight size={16} />,
-                onClick: () => router.push(`/lms/${row.id}`),
-              },
-              {
-                label: 'Detail Ringkasan',
-                icon: <Eye size={16} />,
-                onClick: () => router.push(`/lms/${row.id}`),
-              },
-            ]}
-          />
-        </div>
-      ),
-    },
-  ];
-
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-4">
       <PageHeader
         title="LMS Perkuliahan"
         description="Pusat materi pembelajaran, tugas terintegrasi OBE, dan presensi realtime mahasiswa per pertemuan."
-        breadcrumbs={[
-          { label: 'LMS', href: '/lms' },
-          { label: 'Kelas Saya' },
-        ]}
+        breadcrumbs={[{ label: 'LMS', href: '/lms' }, { label: 'Kelas Saya' }]}
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -231,7 +179,7 @@ export default function LmsKelasListPage() {
         }
       />
 
-      {/* Overview Metric Banner (Netral Slate/Emerald/Amber) */}
+      {/* Overview Metric Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
@@ -268,18 +216,158 @@ export default function LmsKelasListPage() {
         </div>
       </div>
 
-      {/* Tabel Kelas LMS */}
-      <DataTable
-        columns={columns}
-        data={kelasList}
-        isLoading={isLoading}
-        meta={meta}
-        onPageChange={(p) => fetchKelas(p, meta.per_page)}
-        onLimitChange={(lim) => fetchKelas(1, lim)}
-        emptyMessage="Belum ada kelas perkuliahan yang diampu pada semester ini."
-      />
+      {/* PeriodeSwitcher prominent */}
+      <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex items-center gap-2 shrink-0">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)' }}
+          >
+            <CalendarDays size={16} />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-slate-800">Periode Akademik</div>
+            <div className="text-2xs text-slate-500">Kosongkan = semua periode</div>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <PeriodeAkademikSelect
+            label=""
+            placeholder="Pilih periode akademik SIAKAD (default periode aktif)..."
+            value={filterTahunAkademik}
+            onChange={(val) => setFilterTahunAkademik(val)}
+          />
+        </div>
+      </div>
 
-      {/* Filter Drawer dengan AsyncSelect Server-Side & Paritas 100% */}
+      {/* Grid card kelas */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="p-4 bg-white rounded-xl border border-slate-200 animate-pulse space-y-2">
+              <div className="h-3 bg-slate-100 rounded w-1/3" />
+              <div className="h-4 bg-slate-100 rounded w-2/3" />
+              <div className="h-3 bg-slate-100 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : kelasList.length === 0 ? (
+        <div className="p-4 bg-white rounded-xl border border-slate-200/80">
+          <EmptyState
+            title="Belum ada kelas"
+            description="Belum ada kelas perkuliahan pada periode ini."
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {kelasList.map((row) => {
+            const mk = row.mata_kuliah;
+            const dosenNames =
+              row.dosen_pengampu && row.dosen_pengampu.length > 0
+                ? row.dosen_pengampu
+                    .map((d) => d.dosen?.nama_lengkap || d.peran)
+                    .filter(Boolean)
+                    .join(', ')
+                : '-';
+            const info = row as unknown as Record<string, any>;
+            const jadwal = info.jadwal || info.jadwal_kuliah || '-';
+            const ruang = info.ruang || info.ruang_kelas || '-';
+            const progress = info.progress_persen ?? info.progres ?? null;
+            const kehadiran = info.kehadiran_persen ?? info.persentase_hadir ?? null;
+            const tugas = info.tugas_info ?? info.ringkasan_tugas ?? null;
+            return (
+              <div
+                key={row.id}
+                className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex flex-col gap-2 hover:border-slate-300 hover:shadow-xs transition-all"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-2xs font-mono font-bold text-slate-500">
+                    {mk?.kode_mk || row.kode_kelas}
+                  </span>
+                  <Badge variant={row.tahun_akademik?.is_aktif ? 'green' : 'gray'}>
+                    {row.tahun_akademik?.nama || '-'}
+                  </Badge>
+                </div>
+                <h4 className="text-xs font-bold text-slate-900 line-clamp-2">
+                  {mk?.nama || row.nama_kelas}
+                </h4>
+                <div className="text-2xs text-slate-500">
+                  {row.nama_kelas} • {mk?.total_sks ?? 0} SKS
+                </div>
+                <div className="space-y-2 text-2xs text-slate-600 border-t border-slate-100 pt-2">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap size={14} className="shrink-0 text-slate-400" />
+                    <span className="truncate">{dosenNames}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock size={14} className="shrink-0 text-slate-400" />
+                    <span className="truncate">{jadwal}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} className="shrink-0 text-slate-400" />
+                    <span className="truncate">{ruang}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="shrink-0 text-slate-400" />
+                    <span>
+                      {row.program_studi?.nama || '-'} • Kapasitas {row.kapasitas}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2 text-2xs">
+                  <span className="text-slate-500">
+                    Progres: <strong className="text-slate-800">{progress ?? '-'}</strong>
+                  </span>
+                  <span className="text-slate-500">
+                    Hadir/Tugas:{' '}
+                    <strong className="text-slate-800">
+                      {kehadiran ?? tugas ?? '-'}
+                    </strong>
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full text-xs"
+                  icon={<ArrowRight size={16} />}
+                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                  onClick={() => router.push(`/lms/${row.id}`)}
+                >
+                  Buka Kelas
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Pagination sederhana */}
+      <div className="p-4 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between gap-4">
+        <span className="text-2xs text-slate-500">
+          Hal {meta.current_page} dari {meta.last_page} • Total {meta.total} kelas
+        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<ChevronLeft size={16} />}
+            disabled={meta.current_page <= 1 || isLoading}
+            onClick={() => fetchKelas(meta.current_page - 1)}
+          >
+            Prev
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            icon={<ChevronRight size={16} />}
+            disabled={meta.current_page >= meta.last_page || isLoading}
+            onClick={() => fetchKelas(meta.current_page + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
       <Drawer
         open={showFilter}
         onClose={() => setShowFilter(false)}
@@ -307,19 +395,17 @@ export default function LmsKelasListPage() {
             label="Program Studi"
             placeholder="Cari atau pilih Program Studi..."
             value={filterProdi}
-            onChange={(val) => setFilterProdi(val ? String(val) : '')}
+            onChange={(val) => setFilterProdi(extractOptionValue(val))}
             loadOptions={loadProdiOptions}
             isClearable
           />
 
-          <AsyncSelect
+          <PeriodeAkademikSelect
             label="Tahun Akademik"
             placeholder="Periode aktif (default)..."
             value={filterTahunAkademik}
-            onChange={(val) => setFilterTahunAkademik(val ? String(val) : '')}
-            loadOptions={loadTahunAkademikOptions}
-            isClearable
-            hint="Kosongkan untuk mengikuti periode akademik yang aktif."
+            onChange={(val) => setFilterTahunAkademik(val)}
+            hint="Kosongkan untuk semua periode."
           />
 
           <Input

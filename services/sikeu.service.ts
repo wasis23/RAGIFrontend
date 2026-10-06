@@ -954,11 +954,13 @@ export const sikeuService = {
     tahun_angkatan: number;
     jalur_kelas: string;
     program_studi_id?: number;
+    kelas?: string;
   }) => {
     const query = new URLSearchParams({
       tahun_angkatan: String(params.tahun_angkatan),
       jalur_kelas: params.jalur_kelas,
       ...(params.program_studi_id ? { program_studi_id: String(params.program_studi_id) } : {}),
+      ...(params.kelas ? { kelas: params.kelas } : {}),
     }).toString();
     const { data } = await apiClient.get<ApiResponse<{ total_mahasiswa: number; sample_mahasiswa: any[] }>>(`/v1/sikeu/tagihan/preview-mass-target?${query}`);
     return data;
@@ -970,6 +972,7 @@ export const sikeuService = {
     jalur_kelas: string;
     semester?: number;
     program_studi_id?: number;
+    kelas?: string;
     master_biaya_ids?: number[];
     jatuh_tempo: string;
     semester_label?: string;
@@ -1163,11 +1166,13 @@ export const sikeuService = {
     program_studi_id?: number | null;
     semester?: number | null;
     master_biaya_ids?: number[];
+    kelas?: string | null;
   }) => {
     const q = new URLSearchParams();
     q.append('tahun_angkatan', String(params.tahun_angkatan));
     if (params.program_studi_id) q.append('program_studi_id', String(params.program_studi_id));
     if (params.semester) q.append('semester', String(params.semester));
+    if (params.kelas) q.append('kelas', params.kelas);
     if (params.master_biaya_ids && params.master_biaya_ids.length > 0) {
       params.master_biaya_ids.forEach((id) => q.append('master_biaya_ids[]', String(id)));
     }
@@ -1181,6 +1186,7 @@ export const sikeuService = {
     semester: number;
     jatuh_tempo: string;
     catatan?: string;
+    kelas?: string | null;
     items: Array<{
       master_biaya_id: number;
       nominal?: number;
