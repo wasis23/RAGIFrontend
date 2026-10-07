@@ -12,6 +12,7 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -25,6 +26,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { SinapraImportModal } from '@/components/sinapra/SinapraImportModal';
 import { sinapraService } from '@/services/sinapra.service';
 import type { MasterTipeRuangan } from '@/types/sinapra.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -59,6 +61,7 @@ export default function MasterTipeRuanganPage() {
   // Modal Form States (Form <= 5 inputs menggunakan Modal)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MasterTipeRuangan | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Delete Confirm Dialog State
   const [deletingItem, setDeletingItem] = useState<MasterTipeRuangan | null>(null);
@@ -241,6 +244,13 @@ export default function MasterTipeRuanganPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={() => setIsImportOpen(true)}
+            >
+              Import Excel
+            </Button>
+            <Button
+              variant="outline"
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
@@ -252,7 +262,7 @@ export default function MasterTipeRuanganPage() {
               icon={<Plus size={16} />}
               onClick={handleOpenAddModal}
             >
-              Tambah Tipe Ruangan
+              Tambah Data
             </Button>
           </div>
         }
@@ -462,6 +472,16 @@ export default function MasterTipeRuanganPage() {
         confirmText="Hapus"
         variant="danger"
         isLoading={isDeleting}
+      />
+
+      {/* MODAL IMPORT EXCEL */}
+      <SinapraImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={fetchData}
+        title="Import Master Tipe Ruangan"
+        entity="tipe-ruangan"
+        templateFilename="Template_Import_Tipe_Ruangan.xlsx"
       />
     </div>
   );

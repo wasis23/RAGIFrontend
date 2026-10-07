@@ -1,3 +1,5 @@
+import type { SelectOption } from '@/components/ui/Select';
+
 export interface Mahasiswa {
     id: number;
     nim: string;
@@ -39,3 +41,18 @@ export interface Krs {
     status: 'draft' | 'diajukan' | 'disetujui' | 'dikunci' | 'dibatalkan';
     locked_by_keuangan: boolean;
 }
+
+/**
+ * Whitelist kolom `sort_by` pada daftar master mata kuliah.
+ *
+ * Nama kolom nyata pada tabel `siakad_mata_kuliah` (backend whitelist
+ * `MataKuliahController`), bukan entitas master, jadi closed-set yang stabil.
+ */
+export const MATAKULIAH_SORT_BY_OPTIONS: SelectOption[] = [
+  { value: 'nama', label: 'Nama Mata Kuliah' },
+  { value: 'kode_mk', label: 'Kode MK' },
+  { value: 'total_sks', label: 'Total SKS' },
+  { value: 'semester_anjuran', label: 'Semester' },
+  { value: 'tipe', label: 'Tipe MK' },
+  { value: 'created_at', label: 'Tanggal Dibuat' },
+];

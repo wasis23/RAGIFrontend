@@ -16,6 +16,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PrasyaratForm, type PrasyaratFormValues } from '@/components/siakad/MataKuliahForm';
 import { SIAKAD_OPTION_TYPES, useSiakadOptions } from '@/lib/siakad-options';
 import { siakadService } from '@/services/siakad.service';
+import { SORT_ORDER_OPTIONS } from '@/lib/constants';
+import { MATAKULIAH_SORT_BY_OPTIONS } from '@/types/siakad.types';
 import toast from 'react-hot-toast';
 
 export default function MataKuliahPage() {
@@ -31,11 +33,17 @@ export default function MataKuliahPage() {
   const [filterProdi, setFilterProdi] = useState('');
   const [filterKurikulum, setFilterKurikulum] = useState('');
   const [filterTipe, setFilterTipe] = useState('');
+  const [filterAngkatan, setFilterAngkatan] = useState('');
+  const [filterSortBy, setFilterSortBy] = useState('nama');
+  const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     prodi_id: '',
     kurikulum: '',
     tipe: '',
+    angkatan: '',
+    sort_by: 'nama',
+    sort_order: 'asc',
   });
 
   const [deletingMk, setDeletingMk] = useState<any | null>(null);
@@ -115,6 +123,9 @@ export default function MataKuliahPage() {
         program_studi_id: appliedFilters.prodi_id || undefined,
         kurikulum_id: appliedFilters.kurikulum || undefined,
         tipe: appliedFilters.tipe || undefined,
+        angkatan: appliedFilters.angkatan || undefined,
+        sort_by: appliedFilters.sort_by || undefined,
+        sort_order: appliedFilters.sort_order || undefined,
         per_page: 100,
       });
       if (res.data) setMatakuliahs(res.data);
@@ -245,6 +256,16 @@ export default function MataKuliahPage() {
     },
   ];
 
+  // Dynamic angkatan options based on kurikulum years and standard academic cohorts
+  const kurikulumYears = kurikulums.map((k) => k.tahun_berlaku).filter(Boolean);
+  const currentYear = new Date().getFullYear();
+  const baseYears = [currentYear + 1, currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4];
+  const distinctAngkatan = Array.from(new Set([...kurikulumYears, ...baseYears])).sort((a, b) => b - a);
+  const angkatanOptions = distinctAngkatan.map((yr) => ({
+    value: String(yr),
+    label: `Angkatan ${yr}`,
+  }));
+
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
@@ -295,7 +316,18 @@ export default function MataKuliahPage() {
                 setFilterProdi('');
                 setFilterKurikulum('');
                 setFilterTipe('');
-                setAppliedFilters({ search: '', prodi_id: '', kurikulum: '', tipe: '' });
+                setFilterAngkatan('');
+                setFilterSortBy('nama');
+                setFilterSortDir('asc');
+                setAppliedFilters({
+                  search: '',
+                  prodi_id: '',
+                  kurikulum: '',
+                  tipe: '',
+                  angkatan: '',
+                  sort_by: 'nama',
+                  sort_order: 'asc',
+                });
                 setShowFilter(false);
               }}
             >
@@ -309,6 +341,9 @@ export default function MataKuliahPage() {
                   prodi_id: filterProdi,
                   kurikulum: filterKurikulum,
                   tipe: filterTipe,
+                  angkatan: filterAngkatan,
+                  sort_by: filterSortBy,
+                  sort_order: filterSortDir,
                 });
                 setShowFilter(false);
               }}
@@ -324,6 +359,15 @@ export default function MataKuliahPage() {
             placeholder="Ketik kata kunci..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
+          />
+
+          <Select
+            label="Angkatan"
+            placeholder="Semua Angkatan"
+            options={angkatanOptions}
+            value={filterAngkatan || ''}
+            onChange={(val: any) => setFilterAngkatan(val ? String(val) : '')}
+            isClearable
           />
 
           <Select
@@ -363,6 +407,23 @@ export default function MataKuliahPage() {
             onChange={(val: any) => setFilterTipe(val ? String(val) : '')}
             isClearable
           />
+
+          <hr className="border-t border-slate-200 my-1" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterSortBy}
+              onChange={(val: any) => setFilterSortBy(val ? String(val) : 'nama')}
+              options={MATAKULIAH_SORT_BY_OPTIONS}
+            />
+            <Select
+              label="Arah"
+              value={filterSortDir}
+              onChange={(val: any) => setFilterSortDir(val === 'desc' ? 'desc' : 'asc')}
+              options={SORT_ORDER_OPTIONS}
+            />
+          </div>
         </div>
       </Drawer>
 

@@ -7,7 +7,6 @@ import {
   Users,
   BookOpen,
   CalendarCheck,
-  RefreshCw,
   Award,
   CheckCircle2,
   Clock,
@@ -573,6 +572,14 @@ export default function SiakadDashboardPage() {
       roles: ['superadmin', 'admin', 'dosen'],
     },
     {
+      title: 'Presensi & Absensi Kuliah',
+      desc: 'Pencatatan dan rekap kehadiran mahasiswa',
+      icon: <CalendarCheck size={20} className="text-cyan-600" />,
+      href: '/siakad/perkuliahan/absensi',
+      badge: 'Presensi',
+      roles: ['superadmin', 'admin', 'dosen'],
+    },
+    {
       title: 'Penilaian Kelas (OBE)',
       desc: 'Input nilai asesmen dan capaian CPMK per kelas',
       icon: <Award size={20} className="text-rose-600" />,
@@ -597,8 +604,8 @@ export default function SiakadDashboardPage() {
       roles: ['superadmin', 'admin', 'dosen', 'kaprodi'],
     },
     {
-      title: 'Sinkronisasi Neo Feeder',
-      desc: 'Integrasi dan push data ke PDDIKTI',
+      title: 'Integrasi Neo Feeder',
+      desc: 'Integrasi dan kelola data PDDIKTI',
       icon: <Database size={20} className="text-purple-600" />,
       href: '/siakad/feeder-sync',
       badge: 'WS Dikti',
@@ -615,18 +622,13 @@ export default function SiakadDashboardPage() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Sistem Informasi Akademik (SIAKAD)"
-        description="Pusat operasional akademik, kurikulum OBE, perkuliahan terpadu, dan sinkronisasi Neo Feeder PDDIKTI."
+        description="Pusat operasional akademik, kurikulum OBE, perkuliahan terpadu, dan integrasi Neo Feeder PDDIKTI."
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD' },
         ]}
         action={
           <div className="flex items-center gap-2.5 flex-wrap">
-            <Link href="/siakad/feeder-sync">
-              <Button variant="outline" icon={<RefreshCw size={15} />} className="font-bold">
-                Sync Feeder
-              </Button>
-            </Link>
             <Link href="/siakad/civitas/mahasiswa">
               <Button variant="primary" icon={<GraduationCap size={15} />} className="font-bold shadow-xs">
                 Kelola Mahasiswa

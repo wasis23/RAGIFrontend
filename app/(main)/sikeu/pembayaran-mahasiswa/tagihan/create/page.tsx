@@ -27,6 +27,7 @@ import {
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { formatRupiah, angkaTerbilang } from '@/lib/utils';
+import { kelasPrefix, suggestKelas, isKelasValid } from '@/lib/kelas';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -82,6 +83,7 @@ export default function CreateTagihanMahasiswaPage() {
   const currentYear = new Date().getFullYear();
   const [massAngkatan, setMassAngkatan] = useState<number>(currentYear);
   const [massProdiId, setMassProdiId] = useState<string>('');
+  const [massKelas, setMassKelas] = useState<string>('');
   const [massSemester, setMassSemester] = useState<string>('1');
   const [massJatuhTempo, setMassJatuhTempo] = useState<string>(() => {
     const d = new Date();
@@ -169,12 +171,15 @@ export default function CreateTagihanMahasiswaPage() {
   const massBiayaDirtyRef = useRef(false);
   const fetchMassPreview = useCallback(async () => {
     if (!massAngkatan) return;
+    const kelas = massKelas.trim().toUpperCase();
+    if (kelas && !isKelasValid(kelas)) return;
     setLoadingMassPreview(true);
     try {
       const res = await sikeuService.previewPembayaranMahasiswaMassTagihan({
         tahun_angkatan: massAngkatan,
         program_studi_id: massProdiId ? Number(massProdiId) : undefined,
         semester: massSemester ? Number(massSemester) : undefined,
+        ...(kelas ? { kelas } : {}),
       });
 
       if (res.data) {
@@ -189,7 +194,7 @@ export default function CreateTagihanMahasiswaPage() {
     } finally {
       setLoadingMassPreview(false);
     }
-  }, [massAngkatan, massProdiId, massSemester]);
+  }, [massAngkatan, massProdiId, massSemester, massKelas]);
 
   useEffect(() => {
     if (activeTab === 'massal' && !loadingRefs) {
@@ -238,6 +243,11 @@ export default function CreateTagihanMahasiswaPage() {
       toast.error('Pilih minimal satu komponen tarif biaya dinamis');
       return;
     }
+    const kelas = massKelas.trim().toUpperCase();
+    if (kelas && !isKelasValid(kelas)) {
+      toast.error('Format kelas salah. Gunakan 2 digit angkatan + huruf, cth: 25A');
+      return;
+    }
 
     setSubmittingMass(true);
     try {
@@ -247,6 +257,7 @@ export default function CreateTagihanMahasiswaPage() {
         semester: Number(massSemester),
         jatuh_tempo: massJatuhTempo,
         catatan: massCatatan || `Tagihan Massal Angkatan ${massAngkatan} Semester ${massSemester}`,
+        ...(kelas ? { kelas } : {}),
         items: selectedMassBiayaIds.map((id) => ({
           master_biaya_id: id,
         })),
@@ -463,11 +474,11 @@ export default function CreateTagihanMahasiswaPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Select
                 label="Tahun Angkatan *"
                 value={String(massAngkatan)}
-                onChange={(v) => { massBiayaDirtyRef.current = false; setMassAngkatan(Number(v)); }}
+                onChange={(v) => { massBiayaDirtyRef.current = false; setMassAngkatan(Number(v)); setMassKelas((prev) => suggestKelas(prev, Number(v))); }}
                 options={angkatanOptions.map((th) => ({
                   value: String(th),
                   label: `Angkatan ${th}`,
@@ -485,6 +496,15 @@ export default function CreateTagihanMahasiswaPage() {
                     label: `${p.nama} (${p.jenjang || 'S1'})`,
                   })),
                 ]}
+              />
+
+              <Input
+                label="Kelas"
+                placeholder="cth: 25A, kosongkan = semua kelas"
+                maxLength={10}
+                value={massKelas}
+                onChange={(e) => { massBiayaDirtyRef.current = false; setMassKelas(e.target.value.toUpperCase().slice(0, 10)); }}
+                hint={`Format: 2 digit angkatan + huruf (cth: ${kelasPrefix(massAngkatan) || '25'}A). Kosongkan = semua kelas.`}
               />
 
               <Select
@@ -521,7 +541,7 @@ export default function CreateTagihanMahasiswaPage() {
                 <span>2. Komponen Biaya yang Ditagihkan (Otomatis Cocok Tarif)</span>
               </h2>
               <span className="text-2xs text-slate-500 font-medium">
-                Angkatan {massAngkatan} • {massProdiId ? 'Prodi terpilih' : 'Semua prodi'} • Semester {massSemester}
+                Angkatan {massAngkatan} • {massProdiId ? 'Prodi terpilih' : 'Semua prodi'} • {massKelas.trim() ? `Kelas ${massKelas.trim().toUpperCase()}` : 'Semua kelas'} • Semester {massSemester}
               </span>
             </div>
 
@@ -619,7 +639,7 @@ export default function CreateTagihanMahasiswaPage() {
                       <span className="text-xs text-blue-800 font-medium">Mahasiswa Aktif</span>
                     </div>
                     <p className="text-2xs text-blue-700">
-                      Angkatan {massAngkatan} {massProdiId ? `• Prodi Terpilih` : `• Seluruh Prodi`} • Semester {massSemester}
+                      Angkatan {massAngkatan} {massProdiId ? `• Prodi Terpilih` : `• Seluruh Prodi`} {massKelas.trim() ? `• Kelas ${massKelas.trim().toUpperCase()}` : `• Semua Kelas`} • Semester {massSemester}
                     </p>
                   </div>
 
@@ -1033,7 +1053,8 @@ export default function CreateTagihanMahasiswaPage() {
             <p>
               Anda akan menerbitkan tagihan untuk <strong>{effectivePreview.akanTerbit} mahasiswa</strong>{' '}
               pada <strong>Angkatan {massAngkatan} Semester {massSemester}</strong>{' '}
-              {massProdiId ? `(Prodi terpilih)` : `(Semua Program Studi)`} dengan estimasi akumulasi nominal{' '}
+              {massProdiId ? `(Prodi terpilih)` : `(Semua Program Studi)`}{' '}
+              {massKelas.trim() ? `(Kelas ${massKelas.trim().toUpperCase()})` : `(Semua Kelas)`} dengan estimasi akumulasi nominal{' '}
               <strong className="text-primary-700 font-mono">
                 {formatRupiah(effectivePreview.estimasi)}
               </strong>.

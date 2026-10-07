@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   Users,
   ClipboardList,
@@ -13,18 +16,22 @@ import {
   Calendar,
   CheckCircle2,
   GraduationCap,
+  UserCheck,
+  Phone,
+  RotateCcw,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { siakadService } from '@/services/siakad.service';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const KATEGORI = [
@@ -36,11 +43,45 @@ const KATEGORI = [
   { value: 'lainnya', label: 'Lainnya' },
 ];
 
+const ajukanBimbinganSchema = z.object({
+  kategori: z.string().min(1, 'Kategori bimbingan wajib dipilih.'),
+  tanggal_bimbingan: z.string().min(1, 'Tanggal konsultasi wajib diisi.'),
+  isi: z.string().min(1, 'Topik / isi konsultasi wajib diisi.'),
+});
+
+type AjukanBimbinganFormValues = z.infer<typeof ajukanBimbinganSchema>;
+
 export default function BimbinganPaPage() {
-  const { user } = useAuthStore();
-  const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
-  const isSuperadminOrBaak = userRoles.includes('superadmin') || userRoles.includes('admin') || userRoles.includes('baak');
-  const isDosenOnly = userRoles.includes('dosen') && !isSuperadminOrBaak && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
+  const { user, hasRole, isSuperAdmin, isAdmin } = useAuth();
+  const isSuperadminOrBaak = isSuperAdmin || isAdmin || hasRole('baak');
+  const isDosenOnly = hasRole('dosen') && !isSuperadminOrBaak && !hasRole('kaprodi') && !hasRole('wakil_prodi');
+  const isMahasiswa = hasRole('mahasiswa') && !hasRole('dosen') && !isSuperadminOrBaak;
+
+  // Student view states
+  const [myPaData, setMyPaData] = useState<any | null>(null);
+  const [loadingMyPa, setLoadingMyPa] = useState(false);
+  const [isAjukanModalOpen, setIsAjukanModalOpen] = useState(false);
+
+  // Filter riwayat konsultasi mahasiswa. Endpointriwayat PA sudah mengembalikan
+  // seluruh sesi milik mahasiswa itu sendiri, jadi penyaringan cukup di sisi klien.
+  const [showRiwayatFilter, setShowRiwayatFilter] = useState(false);
+  const [riwayatSearch, setRiwayatSearch] = useState('');
+  const [riwayatKategori, setRiwayatKategori] = useState('');
+
+  const {
+    register: registerAjukan,
+    handleSubmit: handleAjukanSubmit,
+    control: ajukanControl,
+    reset: resetAjukan,
+    formState: { errors: ajukanErrors, isSubmitting: submittingAjukan },
+  } = useForm<AjukanBimbinganFormValues>({
+    resolver: zodResolver(ajukanBimbinganSchema),
+    defaultValues: {
+      kategori: 'akademik',
+      tanggal_bimbingan: new Date().toISOString().slice(0, 10),
+      isi: '',
+    },
+  });
 
   // Main Tabs: 'mahasiswa' (Mahasiswa Bimbingan & Jurnal) | 'aktivitas' (Laporan Aktivitas PA Model SIMPA - Superadmin/BAAK only)
   const [activeMainTab, setActiveMainTab] = useState<'mahasiswa' | 'aktivitas'>('mahasiswa');
@@ -343,12 +384,45 @@ export default function BimbinganPaPage() {
     } catch {}
   };
 
+  // Fetch Mahasiswa PA data
+  const fetchMyPa = async () => {
+    try {
+      setLoadingMyPa(true);
+      const res = await siakadService.getMyPa();
+      if (res.data) setMyPaData(res.data);
+    } catch {
+      toast.error('Gagal memuat informasi Pembimbing Akademik');
+    } finally {
+      setLoadingMyPa(false);
+    }
+  };
+
+  const onAjukanSubmit = async (values: AjukanBimbinganFormValues) => {
+    try {
+      await siakadService.createPaCatatan({
+        kategori: values.kategori,
+        isi: values.isi,
+        tanggal_bimbingan: values.tanggal_bimbingan,
+      });
+      toast.success('Pengajuan bimbingan berhasil dikirim ke Dosen PA');
+      setIsAjukanModalOpen(false);
+      resetAjukan();
+      fetchMyPa();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal mengirim pengajuan bimbingan');
+    }
+  };
+
   useEffect(() => {
-    fetchAll();
-    fetchAdvisees();
-    fetchCatatan();
+    if (isMahasiswa) {
+      fetchMyPa();
+    } else {
+      fetchAll();
+      fetchAdvisees();
+      fetchCatatan();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isMahasiswa]);
 
   useEffect(() => {
     const t = setTimeout(fetchAdvisees, 400);
@@ -742,6 +816,349 @@ export default function BimbinganPaPage() {
       ),
     },
   ];
+
+  if (isMahasiswa) {
+    const mhs = myPaData?.mahasiswa;
+    const dosenPa = myPaData?.dosen_wali;
+    const krsAktif = myPaData?.krs_aktif;
+    const catatanSiswa = myPaData?.catatan || [];
+
+    const catatanTersaring = catatanSiswa.filter((c: any) => {
+      if (riwayatKategori && c.kategori !== riwayatKategori) return false;
+      if (riwayatSearch) {
+        const kunci = riwayatSearch.toLowerCase();
+        const gabung = [c.isi, c.kesimpulan, c.kategori, c.status_tindak_lanjut]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        if (!gabung.includes(kunci)) return false;
+      }
+      return true;
+    });
+
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          title="Bimbingan Pembimbing Akademik (PA)"
+          description="Konsultasi rencana studi, pemantauan perkembangan akademik, dan komunikasi terpadu bersama Dosen Wali."
+          breadcrumbs={[
+            { label: 'Portal SSO', href: '/dashboard' },
+            { label: 'SIAKAD', href: '/siakad' },
+            { label: 'Bimbingan PA' },
+          ]}
+          action={
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                icon={<Filter size={16} />}
+                style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                onClick={() => setShowRiwayatFilter(true)}
+              >
+                Filter
+              </Button>
+              <Button
+                variant="primary"
+                icon={<Plus size={16} />}
+                onClick={() => setIsAjukanModalOpen(true)}
+              >
+                Ajukan Konsultasi ke PA
+              </Button>
+            </div>
+          }
+        />
+
+        {loadingMyPa ? (
+          <div className="card p-6 text-center text-slate-400">
+            <p className="text-xs">Memuat data bimbingan akademik...</p>
+          </div>
+        ) : (
+          <>
+            {/* Top Cards: Dosen PA & Status Akademik */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Dosen PA Card */}
+              <div className="card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Dosen Pembimbing Akademik
+                  </span>
+                  <div className="p-2 rounded-xl text-[var(--module-primary)] bg-[var(--module-primary-subtle)]">
+                    <UserCheck size={18} />
+                  </div>
+                </div>
+                {dosenPa ? (
+                  <div className="space-y-2">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-xs">{dosenPa.nama_lengkap}</h4>
+                      <p className="font-mono text-2xs text-slate-500">NIDN: {dosenPa.nidn || '-'}</p>
+                    </div>
+                    <div className="text-2xs text-slate-600 space-y-1">
+                      <div>Prodi: <strong>{dosenPa.program_studi || '-'}</strong></div>
+                      {dosenPa.jabatan_akademik && (
+                        <div>Jabatan: <strong>{dosenPa.jabatan_akademik}</strong></div>
+                      )}
+                      {dosenPa.telepon && (
+                        <div className="flex items-center gap-2 pt-1 text-emerald-700 font-semibold">
+                          <Phone size={12} />
+                          <span>{dosenPa.telepon}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                    Belum ada Dosen Pembimbing Akademik (Wali) yang ditetapkan oleh BAAK.
+                  </div>
+                )}
+              </div>
+
+              {/* Status Mahasiswa Card */}
+              <div className="card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Status Akademik Mahasiswa
+                  </span>
+                  <div className="p-2 rounded-xl text-emerald-700 bg-emerald-50">
+                    <GraduationCap size={18} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500">NIM / Nama:</span>
+                    <strong className="font-mono text-slate-800">{mhs?.nim}</strong>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500">Angkatan:</span>
+                    <strong className="text-slate-800">{mhs?.angkatan || '-'}</strong>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500">Program Studi:</span>
+                    <strong className="text-slate-800">{mhs?.program_studi || '-'}</strong>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500">IPK Berjalan:</span>
+                    <strong className="font-mono text-emerald-700 text-xs">{Number(mhs?.ipk || 0).toFixed(2)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* KRS & Bimbingan Status Card */}
+              <div className="card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Aktivitas & Approval KRS
+                  </span>
+                  <div className="p-2 rounded-xl text-indigo-700 bg-indigo-50">
+                    <CheckCircle2 size={18} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500">Status KRS Semester:</span>
+                    <Badge variant={krsAktif?.status === 'disetujui' ? 'green' : 'amber'} className="capitalize text-2xs">
+                      {krsAktif?.status || 'Belum Mengisi'}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500">Beban SKS Diambil:</span>
+                    <strong className="font-mono text-slate-800">{krsAktif?.total_sks || 0} SKS</strong>
+                  </div>
+                  <div className="flex justify-between items-center text-xs pt-1 border-t border-slate-100">
+                    <span className="text-slate-500">Total Bimbingan PA:</span>
+                    <strong className="font-mono text-[var(--module-primary)] text-xs">{myPaData?.total_bimbingan || 0} Kali</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Riwayat Sesi Konsultasi & Bimbingan */}
+            <div className="card p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-900">
+                    Riwayat Konsultasi & Sesi Bimbingan PA
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Catatan arahan Dosen Wali, hasil bimbingan studi, dan rekam jejak konsultasi akademik Anda.
+                  </p>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={<Plus size={16} />}
+                  onClick={() => setIsAjukanModalOpen(true)}
+                  className="text-xs font-bold"
+                >
+                  Ajukan Konsultasi
+                </Button>
+              </div>
+
+              {catatanTersaring.length === 0 ? (
+                catatanSiswa.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2 border border-dashed rounded-xl bg-slate-50">
+                    <ClipboardList size={32} className="text-slate-300" />
+                    <p className="text-xs font-bold text-slate-600">Belum Ada Riwayat Bimbingan PA</p>
+                    <p className="text-2xs text-slate-400 max-w-sm">
+                      Silakan klik tombol "Ajukan Konsultasi ke PA" untuk berkonsultasi mengenai rencana studi, KRS, KHS, atau kendala perkuliahan dengan Dosen Pembimbing Akademik Anda.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2 border border-dashed rounded-xl bg-slate-50">
+                    <ClipboardList size={32} className="text-slate-300" />
+                    <p className="text-xs font-bold text-slate-600">Tidak Ada Riwayat yang Cocok</p>
+                    <p className="text-2xs text-slate-400 max-w-sm">
+                      Ubah kata kunci atau kategori pada Filter untuk melihat sesi bimbingan lainnya.
+                    </p>
+                  </div>
+                )
+              ) : (
+                <div className="space-y-3">
+                  {catatanTersaring.map((c: any, idx: number) => (
+                    <div
+                      key={c.id}
+                      className="border border-slate-200 rounded-xl p-4 bg-white hover:border-[var(--module-primary)] transition space-y-2 shadow-sm"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-[var(--module-primary)] bg-[var(--module-primary-subtle)] px-2 py-0.5 rounded text-xs">
+                            Sesi Bimbingan #{catatanTersaring.length - idx}
+                          </span>
+                          <span className="capitalize text-slate-700 font-bold text-xs bg-slate-100 px-2 py-0.5 rounded">
+                            {KATEGORI.find((k) => k.value === c.kategori)?.label || c.kategori}
+                          </span>
+                          {c.butuh_penanganan_khusus && (
+                            <span className="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded text-2xs font-bold">
+                              Penanganan Khusus
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-2xs text-slate-400 font-mono">
+                          <Calendar size={12} />
+                          <span>{c.tanggal_bimbingan ? String(c.tanggal_bimbingan).slice(0, 10) : String(c.created_at).slice(0, 10)}</span>
+                          <Badge variant={c.status_tindak_lanjut === 'selesai' ? 'green' : 'amber'} className="text-2xs capitalize">
+                            {c.status_tindak_lanjut || 'Dipantau'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <div>
+                          <span className="font-bold text-slate-700 text-2xs block uppercase tracking-wider">Topik / Isi Bimbingan:</span>
+                          <p className="text-slate-800 leading-relaxed">{c.isi}</p>
+                        </div>
+                        {c.kesimpulan && (
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 mt-2">
+                            <span className="font-bold text-[var(--module-primary)] text-2xs block uppercase tracking-wider">
+                              Arahan & Kesimpulan Dosen PA:
+                            </span>
+                            <p className="text-slate-700 italic mt-0.5">{c.kesimpulan}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        <Drawer
+          open={showRiwayatFilter}
+          onClose={() => setShowRiwayatFilter(false)}
+          title="Filter Riwayat Konsultasi"
+          footer={
+            <div className="grid grid-cols-2 gap-2 w-full">
+              <Button
+                variant="outline"
+                icon={<RotateCcw size={16} />}
+                onClick={() => {
+                  setRiwayatSearch('');
+                  setRiwayatKategori('');
+                }}
+              >
+                Reset
+              </Button>
+              <Button icon={<CheckCircle2 size={16} />} onClick={() => setShowRiwayatFilter(false)}>
+                Terapkan
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <Input
+              label="Pencarian"
+              placeholder="Cari isi, kesimpulan, atau kategori..."
+              value={riwayatSearch}
+              onChange={(e) => setRiwayatSearch(e.target.value)}
+            />
+            <Select
+              label="Kategori Bimbingan"
+              placeholder="Semua kategori"
+              value={riwayatKategori}
+              onChange={(val) => setRiwayatKategori(val ? String(val) : '')}
+              options={KATEGORI}
+              isClearable
+            />
+          </div>
+        </Drawer>
+
+        {/* Modal Ajukan Konsultasi ke Dosen PA */}
+        <Modal
+          isOpen={isAjukanModalOpen}
+          onClose={() => setIsAjukanModalOpen(false)}
+          title="Ajukan Konsultasi ke Dosen PA"
+          size="md"
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setIsAjukanModalOpen(false)}>
+                Batal
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleAjukanSubmit(onAjukanSubmit)}
+                loading={submittingAjukan}
+                disabled={submittingAjukan}
+                icon={<Plus size={16} />}
+              >
+                Kirim Pengajuan
+              </Button>
+            </div>
+          }
+        >
+          <form onSubmit={handleAjukanSubmit(onAjukanSubmit)} className="flex flex-col gap-4">
+            <Controller
+              name="kategori"
+              control={ajukanControl}
+              render={({ field }) => (
+                <Select
+                  label="Kategori Bimbingan"
+                  options={KATEGORI}
+                  value={field.value}
+                  onChange={(val: any) => field.onChange(String(val))}
+                  error={ajukanErrors.kategori?.message}
+                />
+              )}
+            />
+            <Input
+              label="Tanggal Konsultasi"
+              type="date"
+              required
+              {...registerAjukan('tanggal_bimbingan')}
+              error={ajukanErrors.tanggal_bimbingan?.message}
+            />
+            <Textarea
+              label="Topik / Isi Konsultasi"
+              required
+              rows={4}
+              placeholder="Jelaskan topik yang ingin dikonsultasikan kepada Dosen PA (misal: rencana SKS semester depan, kendala mata kuliah, persiapan magang/skripsi)..."
+              {...registerAjukan('isi')}
+              error={ajukanErrors.isi?.message}
+            />
+          </form>
+        </Modal>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

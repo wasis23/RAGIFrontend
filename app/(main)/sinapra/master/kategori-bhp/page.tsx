@@ -7,12 +7,9 @@ import { z } from 'zod';
 import {
   Plus,
   Filter,
-  Package,
   Edit2,
   Trash2,
-  X,
-  RotateCcw,
-  Save,
+  FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -20,13 +17,13 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
-import { Checkbox } from '@/components/ui/Checkbox';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { SinapraImportModal } from '@/components/sinapra/SinapraImportModal';
 import { sinapraService } from '@/services/sinapra.service';
 import type { MasterKategoriBhp } from '@/types/sinapra.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -58,9 +55,10 @@ export default function MasterKategoriBhpPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  // Modal Form States (≤ 5 inputs)
+  // Modal Form States (Form <= 5 inputs menggunakan Modal)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MasterKategoriBhp | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Delete Confirm Dialog State
   const [deletingItem, setDeletingItem] = useState<MasterKategoriBhp | null>(null);
@@ -183,27 +181,16 @@ export default function MasterKategoriBhpPage() {
       key: 'no',
       label: 'NO',
       render: (_item: MasterKategoriBhp, index?: number) => (
-        <span className="text-xs text-slate-500">{((page - 1) * limit) + (index ?? 0) + 1}</span>
+        <span className="text-slate-500 text-xs font-semibold">{((page - 1) * limit) + (index ?? 0) + 1}</span>
       ),
     },
     {
       key: 'kode',
-      label: 'KODE',
+      label: 'KODE & NAMA KATEGORI',
       render: (item: MasterKategoriBhp) => (
-        <span className="font-mono text-xs font-semibold text-slate-800">
-          {item.kode}
-        </span>
-      ),
-    },
-    {
-      key: 'nama',
-      label: 'NAMA KATEGORI',
-      render: (item: MasterKategoriBhp) => (
-        <div>
-          <p className="text-xs font-medium text-slate-800">{item.nama}</p>
-          {item.deskripsi && (
-            <p className="text-2xs text-slate-500 line-clamp-1">{item.deskripsi}</p>
-          )}
+        <div className="flex flex-col">
+          <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">{item.kode}</span>
+          <span className="text-xs text-slate-600 font-medium">{item.nama}</span>
         </div>
       ),
     },
@@ -211,8 +198,8 @@ export default function MasterKategoriBhpPage() {
       key: 'deskripsi',
       label: 'DESKRIPSI',
       render: (item: MasterKategoriBhp) => (
-        <span className="text-xs text-slate-600">
-          {item.deskripsi || '-'}
+        <span className="text-xs text-slate-600 line-clamp-2">
+          {item.deskripsi || <span className="text-slate-400 italic">Tidak ada deskripsi</span>}
         </span>
       ),
     },
@@ -220,9 +207,7 @@ export default function MasterKategoriBhpPage() {
       key: 'urutan',
       label: 'URUTAN',
       render: (item: MasterKategoriBhp) => (
-        <span className="text-xs font-medium text-slate-700">
-          {item.urutan}
-        </span>
+        <span className="text-xs font-bold text-slate-700">{item.urutan}</span>
       ),
     },
     {
@@ -230,7 +215,7 @@ export default function MasterKategoriBhpPage() {
       label: 'STATUS',
       render: (item: MasterKategoriBhp) => (
         <Badge variant={item.is_active ? 'success' : 'secondary'}>
-          {item.is_active ? 'Aktif' : 'Nonaktif'}
+          {item.is_active ? 'Aktif' : 'Non-aktif'}
         </Badge>
       ),
     },
@@ -243,12 +228,12 @@ export default function MasterKategoriBhpPage() {
           items={[
             {
               label: 'Edit Kategori',
-              icon: <Edit2 size={16} />,
+              icon: <Edit2 size={14} />,
               onClick: () => handleOpenEditModal(item),
             },
             {
-              label: 'Hapus',
-              icon: <Trash2 size={16} className="text-rose-500" />,
+              label: 'Hapus Kategori',
+              icon: <Trash2 size={14} className="text-rose-500" />,
               variant: 'danger',
               onClick: () => setDeletingItem(item),
             },
@@ -259,24 +244,31 @@ export default function MasterKategoriBhpPage() {
   ];
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Master Kategori BHP"
-        description="Pengelolaan master data kategori bahan habis pakai (BHP) laboratorium kampus"
+        title="Master Kategori BHP (SINAPRA)"
+        description="Pengelolaan master data kategori bahan habis pakai (BHP) laboratorium dan unit operasional kampus."
         action={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={() => setIsImportOpen(true)}
+            >
+              Import Excel
+            </Button>
+            <Button
+              variant="outline"
+              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
               icon={<Filter size={16} />}
               onClick={() => setIsFilterOpen(true)}
-              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Filter
             </Button>
             <Button
+              variant="primary"
               icon={<Plus size={16} />}
               onClick={handleOpenAddModal}
-              style={{ background: 'var(--module-primary)' }}
             >
               Tambah Data
             </Button>
@@ -284,18 +276,17 @@ export default function MasterKategoriBhpPage() {
         }
       />
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="card">
         <DataTable
           columns={columns}
           data={dataList}
           isLoading={isLoading}
           meta={meta}
-          onPageChange={(newPage) => setPage(newPage)}
-          onLimitChange={(newLimit) => {
-            setLimit(newLimit);
+          onPageChange={(p) => setPage(p)}
+          onLimitChange={(l) => {
+            setLimit(l);
             setPage(1);
           }}
-          emptyMessage="Belum ada data master kategori BHP"
         />
       </div>
 
@@ -303,10 +294,9 @@ export default function MasterKategoriBhpPage() {
       <Drawer
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
-        title="Filter Kategori BHP"
-        position="right"
+        title="Filter Master Kategori BHP"
       >
-        <div className="space-y-4 p-4">
+        <div className="space-y-4">
           <Input
             label="Kode Kategori"
             placeholder="Cari kode kategori..."
@@ -331,23 +321,23 @@ export default function MasterKategoriBhpPage() {
           <Input
             label="Urutan"
             type="number"
-            placeholder="Nomor urutan..."
+            placeholder="Filter nomor urutan..."
             value={urutanFilter}
             onChange={(e) => setUrutanFilter(e.target.value)}
           />
 
           <Select
-            label="Status"
+            label="Status Keaktifan"
             value={activeFilter}
             onChange={(val) => setActiveFilter(String(val))}
             options={[
               { value: '', label: 'Semua Status' },
-              { value: 'true', label: 'Aktif' },
-              { value: 'false', label: 'Nonaktif' },
+              { value: 'true', label: 'Aktif Saja' },
+              { value: 'false', label: 'Non-aktif Saja' },
             ]}
           />
 
-          <hr className="my-4 border-slate-200" />
+          <hr className="border-t border-slate-200 my-4" />
 
           {/* Grid 2 Kolom Sorting Komprehensif Seluruh Kolom */}
           <div className="grid grid-cols-2 gap-4">
@@ -357,7 +347,7 @@ export default function MasterKategoriBhpPage() {
               onChange={(val) => setSortBy(String(val))}
               options={[
                 { value: 'urutan', label: 'Urutan' },
-                { value: 'kode', label: 'Kode' },
+                { value: 'kode', label: 'Kode Kategori' },
                 { value: 'nama', label: 'Nama Kategori' },
                 { value: 'deskripsi', label: 'Deskripsi' },
                 { value: 'is_active', label: 'Status' },
@@ -369,8 +359,8 @@ export default function MasterKategoriBhpPage() {
               value={sortDir}
               onChange={(val) => setSortDir(val as 'asc' | 'desc')}
               options={[
-                { value: 'asc', label: 'A - Z (Naik)' },
-                { value: 'desc', label: 'Z - A (Turun)' },
+                { value: 'asc', label: 'A-Z / Naik' },
+                { value: 'desc', label: 'Z-A / Turun' },
               ]}
             />
           </div>
@@ -379,18 +369,15 @@ export default function MasterKategoriBhpPage() {
             <Button
               variant="outline"
               className="flex-1"
-              icon={<RotateCcw size={16} />}
               onClick={handleResetFilter}
             >
               Reset
             </Button>
             <Button
+              variant="primary"
               className="flex-1"
-              icon={<Filter size={16} />}
-              style={{ background: 'var(--module-primary)' }}
               onClick={() => {
                 setPage(1);
-                fetchData();
                 setIsFilterOpen(false);
               }}
             >
@@ -402,15 +389,24 @@ export default function MasterKategoriBhpPage() {
 
       {/* MODAL FORM TAMBAH / EDIT (≤ 5 inputs) */}
       <Modal
-        isOpen={isModalOpen}
+        open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingItem ? 'Edit Kategori BHP' : 'Tambah Kategori BHP'}
+        title={editingItem ? 'Edit Kategori BHP' : 'Tambah Kategori BHP Baru'}
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Batal</Button>
+            <Button variant="primary" onClick={handleSubmit(onSubmitForm)} isLoading={isSubmitting}>
+              {editingItem ? 'Simpan Perubahan' : 'Tambah Data'}
+            </Button>
+          </>
+        }
       >
         <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Input
-                label="Kode Kategori"
+                label="Kode Kategori *"
                 placeholder="Contoh: KOMP_ELEKTRONIK"
                 {...register('kode')}
               />
@@ -421,30 +417,9 @@ export default function MasterKategoriBhpPage() {
 
             <div>
               <Input
-                label="Nama Kategori"
-                placeholder="Contoh: Komponen Elektronik & Jaringan"
-                {...register('nama')}
-              />
-              {errors.nama && (
-                <p className="text-xs text-rose-500">{errors.nama.message}</p>
-              )}
-            </div>
-
-            <div className="md:col-span-2">
-              <Textarea
-                label="Deskripsi"
-                placeholder="Keterangan singkat kategori bahan habis pakai..."
-                {...register('deskripsi')}
-              />
-              {errors.deskripsi && (
-                <p className="text-xs text-rose-500">{errors.deskripsi.message}</p>
-              )}
-            </div>
-
-            <div>
-              <Input
-                label="Urutan"
+                label="Urutan Tampilan *"
                 type="number"
+                min={1}
                 placeholder="1"
                 {...register('urutan', { valueAsNumber: true })}
               />
@@ -452,34 +427,38 @@ export default function MasterKategoriBhpPage() {
                 <p className="text-xs text-rose-500">{errors.urutan.message}</p>
               )}
             </div>
-
-            <div className="flex items-center">
-              <Checkbox
-                label="Aktif"
-                checked={watch('is_active')}
-                onChange={(e) => setValue('is_active', e.target.checked)}
-              />
-            </div>
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              icon={<X size={16} />}
-              onClick={() => setIsModalOpen(false)}
-            >
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              loading={isSubmitting}
-              disabled={isSubmitting}
-              icon={<Save size={16} />}
-              style={{ background: 'var(--module-primary)' }}
-            >
-              Simpan
-            </Button>
+          <div>
+            <Input
+              label="Nama Kategori *"
+              placeholder="Contoh: Komponen Elektronik & Jaringan"
+              {...register('nama')}
+            />
+            {errors.nama && (
+              <p className="text-xs text-rose-500">{errors.nama.message}</p>
+            )}
+          </div>
+
+          <div>
+            <Textarea
+              label="Deskripsi"
+              rows={2}
+              placeholder="Keterangan singkat kategori bahan habis pakai..."
+              {...register('deskripsi')}
+            />
+          </div>
+
+          <div>
+            <Select
+              label="Status Keaktifan *"
+              value={watch('is_active') ? 'true' : 'false'}
+              onChange={(val) => setValue('is_active', val === 'true')}
+              options={[
+                { value: 'true', label: 'Aktif & Dapat Digunakan' },
+                { value: 'false', label: 'Non-aktif' },
+              ]}
+            />
           </div>
         </form>
       </Modal>
@@ -488,13 +467,23 @@ export default function MasterKategoriBhpPage() {
       <ConfirmDialog
         isOpen={Boolean(deletingItem)}
         onClose={() => setDeletingItem(null)}
-        title="Hapus Kategori BHP"
+        title="Hapus Master Kategori BHP?"
         message={`Apakah Anda yakin ingin menghapus kategori "${deletingItem?.nama}"? Seluruh BHP dalam kategori ini akan terpengaruh.`}
         confirmText="Hapus"
         cancelText="Batal"
         variant="danger"
         isLoading={isDeleting}
         onConfirm={handleDelete}
+      />
+
+      {/* MODAL IMPORT EXCEL */}
+      <SinapraImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={fetchData}
+        title="Import Master Kategori BHP"
+        entity="kategori-bhp"
+        templateFilename="Template_Import_Kategori_BHP.xlsx"
       />
     </div>
   );

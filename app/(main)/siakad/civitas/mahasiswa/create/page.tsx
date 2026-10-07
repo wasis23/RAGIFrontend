@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { siakadService } from '@/services/siakad.service';
+import { kelasPrefix, suggestKelas, isKelasValid } from '@/lib/kelas';
 import toast from 'react-hot-toast';
 
 export default function CreateMahasiswaPage() {
@@ -22,6 +23,7 @@ export default function CreateMahasiswaPage() {
     nik: '',
     program_studi_id: 1,
     angkatan: new Date().getFullYear(),
+    kelas: '',
     jenis_kelamin: 'L',
     status: 'aktif',
     dosen_wali_id: '',
@@ -67,16 +69,27 @@ export default function CreateMahasiswaPage() {
 
     try {
       setSaving(true);
+      const kelas = form.kelas ? form.kelas.trim().toUpperCase() : '';
+      if (kelas && !isKelasValid(kelas)) {
+        toast.error('Format kelas salah. Gunakan 2 digit angkatan + huruf, cth: 25A');
+        setSaving(false);
+        return;
+      }
+      const payload = {
+        ...form,
+        kelas,
+      };
       if (!form.nim) {
         await siakadService.generateNim({
           nama_lengkap: form.nama_lengkap,
           program_studi_id: form.program_studi_id,
           angkatan: form.angkatan,
           jenis_kelamin: form.jenis_kelamin,
-        });
+          ...(payload.kelas ? { kelas: payload.kelas } : {}),
+        } as any);
         toast.success('Mahasiswa & NIM baru berhasil di-generate!');
       } else {
-        await siakadService.createMahasiswa(form);
+        await siakadService.createMahasiswa(payload);
         toast.success('Mahasiswa baru berhasil ditambahkan!');
       }
       router.push('/siakad/civitas/mahasiswa');
@@ -192,7 +205,19 @@ export default function CreateMahasiswaPage() {
               min={2000}
               max={2100}
               value={form.angkatan}
-              onChange={(e) => setForm({ ...form, angkatan: parseInt(e.target.value) || new Date().getFullYear() })}
+              onChange={(e) => {
+                const next = parseInt(e.target.value) || new Date().getFullYear();
+                setForm((prev) => ({ ...prev, angkatan: next, kelas: suggestKelas(prev.kelas, next) }));
+              }}
+            />
+
+            <Input
+              label="Kelas"
+              placeholder={`cth: ${kelasPrefix(form.angkatan) || '25'}A`}
+              maxLength={10}
+              value={form.kelas}
+              onChange={(e) => setForm({ ...form, kelas: e.target.value.toUpperCase().slice(0, 10) })}
+              hint="2 digit angkatan + huruf kelas (otomatis terisi dari angkatan)"
             />
 
             <div>

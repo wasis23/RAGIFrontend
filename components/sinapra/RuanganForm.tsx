@@ -103,7 +103,7 @@ export function RuanganForm({ initialData, isEdit = false }: RuanganFormProps) {
       luas_m2: initialData?.luas_m2 ?? undefined,
       tipe_ruangan_id: initialData?.tipe_ruangan_id || (initialData?.tipe_ruangan?.id ?? 0),
       program_studi_id: initialData?.program_studi_id || (initialData?.program_studi?.id ?? null),
-      status: initialData?.status || 'aktif',
+      status: ((initialData?.status as string) === 'tidak_aktif' ? 'nonaktif' : initialData?.status) || 'aktif',
       keterangan: initialData?.keterangan || '',
       ada_ac: Boolean(initialData?.ada_ac || (initialData?.jumlah_ac && initialData.jumlah_ac > 0)),
       jumlah_ac: initialData?.jumlah_ac ?? (initialData?.ada_ac ? 1 : 0),
