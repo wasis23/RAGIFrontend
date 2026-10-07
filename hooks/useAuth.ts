@@ -7,6 +7,7 @@ import { AxiosError } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
 import { ROUTES } from '@/lib/constants';
+import { getSafeRedirectTarget } from '@/lib/redirect';
 import { getDefaultLandingPath, getCookieDomain, getAuthTokenKey } from '@/lib/domain';
 import type { LoginRequest, User, Permission } from '@/types/auth.types';
 
@@ -62,19 +63,29 @@ export function useAuth() {
         const userObj: User = res?.data?.id ? res.data : res?.data?.user || res?.user;
 
         if (tokenStr && userObj) {
+          const refreshToken = res?.refresh_token || res?.data?.refresh_token;
+          if (!refreshToken) {
+            // Tanpa refresh token yang valid, sesi tidak bisa diperpanjang
+            // secara aman — jangan login setengah jalan.
+            clearAuthCookies();
+            clearAuth();
+            toast.error('Sesi tidak lengkap dari server. Silakan login ulang.');
+            return;
+          }
           setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
-          setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
+          setAuth(userObj, tokenStr, refreshToken);
           toast.success(res?.message || `Selamat datang, ${userObj.username || 'Pengguna'}!`);
-          
-          if (redirectPath) {
-            if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
-              window.location.href = redirectPath;
+
+          // F-001: hanya navigasi ke target allowlist; input mentah tidak
+          // pernah dipakai langsung (cegah open redirect pasca-login).
+          const safeRedirect = getSafeRedirectTarget(redirectPath);
+          if (safeRedirect) {
+            if (/^https?:\/\//i.test(safeRedirect)) {
+              window.location.href = safeRedirect;
               return;
             }
-            if (redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
-              router.push(redirectPath);
-              return;
-            }
+            router.push(safeRedirect);
+            return;
           }
           router.push(defaultLanding());
         } else {
@@ -99,7 +110,7 @@ export function useAuth() {
         setLoading(false);
       }
     },
-    [setAuth, setLoading, router]
+    [setAuth, setLoading, router, clearAuth]
   );
 
   const registerAndLogin = useCallback(
@@ -113,17 +124,24 @@ export function useAuth() {
         const userObj: User = res?.data?.id ? res.data : res?.data?.user || res?.user;
 
         if (tokenStr && userObj) {
+          const refreshToken = res?.refresh_token || res?.data?.refresh_token;
+          if (!refreshToken) {
+            clearAuthCookies();
+            clearAuth();
+            toast.error('Sesi tidak lengkap dari server. Silakan login ulang.');
+            return;
+          }
           setAuthCookies(tokenStr, userObj.roles?.[0]?.role?.slug || userObj.roles?.[0]?.slug || 'user');
-          setAuth(userObj, tokenStr, res?.refresh_token || tokenStr);
-          if (redirectPath) {
-            if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
-              window.location.href = redirectPath;
+          setAuth(userObj, tokenStr, refreshToken);
+          // F-001: hanya navigasi ke target allowlist.
+          const safeRedirect = getSafeRedirectTarget(redirectPath);
+          if (safeRedirect) {
+            if (/^https?:\/\//i.test(safeRedirect)) {
+              window.location.href = safeRedirect;
               return;
             }
-            if (redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
-              router.push(redirectPath);
-              return;
-            }
+            router.push(safeRedirect);
+            return;
           }
           router.push(defaultLanding());
         } else {
@@ -149,7 +167,7 @@ export function useAuth() {
         setLoading(false);
       }
     },
-    [setAuth, setLoading, router]
+    [setAuth, setLoading, router, clearAuth]
   );
 
   const logout = useCallback(async () => {

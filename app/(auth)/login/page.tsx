@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { getSafeRedirectTarget } from '@/lib/redirect';
 import { TurnstileWidget, type TurnstileHandle } from '@/components/ui/TurnstileWidget';
 
 const loginSchema = z.object({
@@ -41,7 +42,8 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     const params = new URLSearchParams(window.location.search);
-    const redirect = params.get('redirect');
+    // F-001: sanitasi sejak di page; useAuth memvalidasi ulang sebelum navigasi.
+    const redirect = getSafeRedirectTarget(params.get('redirect'));
 
     try {
       await login({
