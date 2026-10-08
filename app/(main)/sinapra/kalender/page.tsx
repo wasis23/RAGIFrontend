@@ -57,19 +57,6 @@ const formatTanggalIndo = (dateStr: string): string => {
   }
 };
 
-const getStartOfWeek = (d: Date): Date => {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Senin sebagai hari pertama
-  return new Date(date.setDate(diff));
-};
-
-const addDays = (d: Date, days: number): Date => {
-  const result = new Date(d);
-  result.setDate(result.getDate() + days);
-  return result;
-};
-
 const toISODate = (d: Date): string => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -96,8 +83,11 @@ export default function KalenderRuanganPage() {
   // Active View Tab: 'kalender' | 'agenda'
   const [activeTab, setActiveTab] = useState<'kalender' | 'agenda'>('kalender');
 
-  // State Tanggal Acuan Kalender Mingguan
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => getStartOfWeek(new Date()));
+  // State Bulan Acuan Kalender Bulanan (Default bulan saat ini)
+  const [currentMonthDate, setCurrentMonthDate] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   // Filter Drawer State
   const [showFilter, setShowFilter] = useState(false);
@@ -135,7 +125,6 @@ export default function KalenderRuanganPage() {
     handleSubmit: handleSubmitBooking,
     reset: resetBooking,
     setValue: setBookingValue,
-    watch: watchBooking,
     formState: { errors: bookingErrors, isSubmitting: isBookingSubmitting },
   } = useForm<QuickBookingFormData>({
     resolver: zodResolver(quickBookingSchema),
@@ -186,13 +175,44 @@ export default function KalenderRuanganPage() {
     }
   };
 
-  // Rentang Tanggal Kalender Mingguan
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }).map((_, i) => addDays(currentWeekStart, i));
-  }, [currentWeekStart]);
+  // ─────────────────────────────────────────────────────────────
+  // KALENDER BULANAN (GRID 7 KOLOM: SUN - SAT)
+  // ─────────────────────────────────────────────────────────────
+  const monthCalendarData = useMemo(() => {
+    const year = currentMonthDate.getFullYear();
+    const month = currentMonthDate.getMonth(); // 0-indexed
 
-  const weekStartDateStr = useMemo(() => toISODate(weekDays[0]), [weekDays]);
-  const weekEndDateStr = useMemo(() => toISODate(weekDays[6]), [weekDays]);
+    // Hari pertama dalam bulan ini
+    const firstDayOfMonth = new Date(year, month, 1);
+    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+
+    // Tanggal grid pertama (bisa dari bulan sebelumnya)
+    const startDate = new Date(year, month, 1 - startDayOfWeek);
+
+    // Hitung total 5 atau 6 minggu (35 atau 42 kotak)
+    const totalCells = startDayOfWeek + new Date(year, month + 1, 0).getDate() > 35 ? 42 : 35;
+
+    const days = [];
+    for (let i = 0; i < totalCells; i++) {
+      const cellDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+      const isCurrentMonth = cellDate.getMonth() === month;
+      const dateStr = toISODate(cellDate);
+      days.push({
+        date: cellDate,
+        dateStr,
+        dayNumber: cellDate.getDate(),
+        isCurrentMonth,
+        isFirstDayOfMonth: cellDate.getDate() === 1,
+        monthLabel: cellDate.toLocaleDateString('en-US', { month: 'short' }),
+      });
+    }
+
+    return {
+      days,
+      rangeStart: toISODate(days[0].date),
+      rangeEnd: toISODate(days[days.length - 1].date),
+    };
+  }, [currentMonthDate]);
 
   // Fetch Events
   const fetchEvents = useCallback(async () => {
@@ -200,8 +220,8 @@ export default function KalenderRuanganPage() {
     try {
       const params: KalenderRuanganFilterParams = {
         ...appliedFilters,
-        start_date: appliedFilters.start_date || (activeTab === 'kalender' ? weekStartDateStr : undefined),
-        end_date: appliedFilters.end_date || (activeTab === 'kalender' ? weekEndDateStr : undefined),
+        start_date: appliedFilters.start_date || (activeTab === 'kalender' ? monthCalendarData.rangeStart : undefined),
+        end_date: appliedFilters.end_date || (activeTab === 'kalender' ? monthCalendarData.rangeEnd : undefined),
       };
 
       const res = await sinapraService.getKalenderRuangan(params);
@@ -215,23 +235,24 @@ export default function KalenderRuanganPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [appliedFilters, activeTab, weekStartDateStr, weekEndDateStr]);
+  }, [appliedFilters, activeTab, monthCalendarData.rangeStart, monthCalendarData.rangeEnd]);
 
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Navigasi Minggu
-  const handlePrevWeek = () => {
-    setCurrentWeekStart((prev) => addDays(prev, -7));
+  // Navigasi Bulan
+  const handlePrevMonth = () => {
+    setCurrentMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
-  const handleNextWeek = () => {
-    setCurrentWeekStart((prev) => addDays(prev, 7));
+  const handleNextMonth = () => {
+    setCurrentMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   const handleToday = () => {
-    setCurrentWeekStart(getStartOfWeek(new Date()));
+    const now = new Date();
+    setCurrentMonthDate(new Date(now.getFullYear(), now.getMonth(), 1));
   };
 
   // AsyncSelect loaders
@@ -263,16 +284,16 @@ export default function KalenderRuanganPage() {
     }
   };
 
-  // Handler Apply & Reset Filter
+  // Filter Handlers
   const handleApplyFilter = () => {
-    setAppliedFilters({
+    const newFilters: KalenderRuanganFilterParams = {
       ruangan_id: filterRuangan ? filterRuangan.value : undefined,
       gedung_id: filterGedung ? filterGedung.value : undefined,
       source: filterSource,
       start_date: customStartDate || undefined,
       end_date: customEndDate || undefined,
-    });
-    setAgendaPage(1);
+    };
+    setAppliedFilters(newFilters);
     setShowFilter(false);
   };
 
@@ -285,11 +306,22 @@ export default function KalenderRuanganPage() {
     setSortBy('tanggal');
     setSortDir('asc');
     setAppliedFilters({ source: 'semua' });
-    setAgendaPage(1);
     setShowFilter(false);
   };
 
-  // Processed Events for Agenda View (Sorting + Pagination)
+  // Group events by date string
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, KalenderRuanganItem[]> = {};
+    events.forEach((evt) => {
+      if (!map[evt.tanggal]) {
+        map[evt.tanggal] = [];
+      }
+      map[evt.tanggal].push(evt);
+    });
+    return map;
+  }, [events]);
+
+  // Sorting dan Pagination untuk Tampilan Agenda
   const sortedAgendaEvents = useMemo(() => {
     const list = [...events];
     list.sort((a, b) => {
@@ -447,6 +479,8 @@ export default function KalenderRuanganPage() {
     },
   ];
 
+  const headerDayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
   return (
     <div className="space-y-4 w-full">
       {/* ── PageHeader ── */}
@@ -497,7 +531,7 @@ export default function KalenderRuanganPage() {
           }
         >
           <CalendarDays size={14} />
-          Kalender Mingguan
+          Kalender Bulanan
         </button>
         <button
           type="button"
@@ -522,17 +556,17 @@ export default function KalenderRuanganPage() {
         </button>
       </div>
 
-      {/* ── TAB 1: KALENDER MINGGUAN (TIMELINE VIEW) ── */}
+      {/* ── TAB 1: KALENDER BULANAN (GOOGLE CALENDAR STYLE) ── */}
       {activeTab === 'kalender' && (
-        <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4 shadow-sm">
-          {/* Header Navigasi Kalender */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3 shadow-sm">
+          {/* Header Navigasi Bulan */}
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 icon={<ChevronLeft size={16} />}
-                onClick={handlePrevWeek}
+                onClick={handlePrevMonth}
               >
                 Sebelumnya
               </Button>
@@ -547,133 +581,117 @@ export default function KalenderRuanganPage() {
                 variant="outline"
                 size="sm"
                 icon={<ChevronRight size={16} />}
-                onClick={handleNextWeek}
+                onClick={handleNextMonth}
               >
                 Selanjutnya
               </Button>
             </div>
-            <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <div className="text-xs font-bold text-slate-800 flex items-center gap-2">
               <CalendarIcon size={14} className="text-slate-400" />
               <span>
-                {formatTanggalIndo(weekStartDateStr)} &mdash; {formatTanggalIndo(weekEndDateStr)}
+                {currentMonthDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
               </span>
             </div>
           </div>
 
-          {/* Grid 7 Hari Mingguan */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
-            {weekDays.map((dayDate) => {
-              const dayStr = toISODate(dayDate);
-              const isToday = toISODate(new Date()) === dayStr;
-              const dayEvents = events.filter((e) => e.tanggal === dayStr);
-
-              return (
+          {/* Grid Kalender Bulanan (Table-like grid layout) */}
+          <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-200">
+            {/* Header 7 Nama Hari (SUN - SAT) */}
+            <div className="grid grid-cols-7 bg-slate-50 border-b border-slate-200 text-center">
+              {headerDayNames.map((name, idx) => (
                 <div
-                  key={dayStr}
-                  className={`rounded-lg border p-2.5 flex flex-col min-h-[300px] transition-colors ${
-                    isToday
-                      ? 'border-indigo-300 bg-indigo-50/20'
-                      : 'border-slate-200 bg-slate-50/40'
+                  key={name}
+                  className={`py-2 text-2xs font-bold tracking-wider ${
+                    idx === 0 ? 'text-rose-600' : 'text-slate-600'
                   }`}
                 >
-                  {/* Header Hari */}
-                  <div className="text-center pb-2 mb-2 border-b border-slate-200">
-                    <p className="text-2xs font-bold uppercase tracking-wider text-slate-500">
-                      {dayDate.toLocaleDateString('id-ID', { weekday: 'short' })}
-                    </p>
-                    <p
-                      className={`text-xs font-bold inline-block px-2 py-0.5 rounded-full mt-0.5 ${
-                        isToday
-                          ? 'bg-[var(--module-primary)] text-white'
-                          : 'text-slate-800'
-                      }`}
-                    >
-                      {dayDate.getDate()} {dayDate.toLocaleDateString('id-ID', { month: 'short' })}
-                    </p>
-                  </div>
+                  {name}
+                </div>
+              ))}
+            </div>
 
-                  {/* List Event Hari Tersebut */}
-                  <div className="flex-1 space-y-4 overflow-y-auto">
-                    {dayEvents.length === 0 ? (
-                      <div className="text-center p-4 flex flex-col items-center justify-center gap-2">
-                        <p className="text-2xs text-slate-400 italic">
-                          Tidak ada agenda terjadwal
-                        </p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          icon={<Plus size={16} />}
-                          onClick={() => handleOpenQuickBooking(dayStr, 8)}
-                          className="w-full text-2xs"
-                          style={{
-                            borderColor: 'var(--module-primary)',
-                            color: 'var(--module-primary)',
-                          }}
-                        >
-                          Booking Slot
-                        </Button>
-                      </div>
-                    ) : (
-                      dayEvents.map((evt) => {
+            {/* Kotak-Kotak Tanggal Bulanan (Minimalist Google Calendar Style) */}
+            <div className="grid grid-cols-7 gap-px bg-slate-200">
+              {monthCalendarData.days.map((dayItem) => {
+                const dayEvents = eventsByDate[dayItem.dateStr] || [];
+                const isToday = toISODate(new Date()) === dayItem.dateStr;
+
+                return (
+                  <div
+                    key={dayItem.dateStr}
+                    onClick={(e) => {
+                      // Jika klik area kosong di tanggal, buka dialog quick booking
+                      if ((e.target as HTMLElement).closest('.event-pill')) return;
+                      handleOpenQuickBooking(dayItem.dateStr);
+                    }}
+                    className={`bg-white min-h-24 md:min-h-28 p-1.5 flex flex-col justify-between transition-colors cursor-pointer group hover:bg-slate-50/80 ${
+                      !dayItem.isCurrentMonth ? 'bg-slate-50/50 opacity-60' : ''
+                    } ${isToday ? 'bg-[var(--module-primary-subtle)]/30' : ''}`}
+                  >
+                    {/* Baris Atas: Tanggal & Label Bulan jika tanggal 1 */}
+                    <div className="flex items-center justify-center mb-1">
+                      <span
+                        className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                          isToday
+                            ? 'bg-[var(--module-primary)] text-white font-bold'
+                            : dayItem.isCurrentMonth
+                            ? 'text-slate-800'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {dayItem.isFirstDayOfMonth ? `${dayItem.monthLabel} ` : ''}
+                        {dayItem.dayNumber}
+                      </span>
+                    </div>
+
+                    {/* Area Agenda Minimalis (Pill style seperti Google Calendar) */}
+                    <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-20">
+                      {dayEvents.slice(0, 3).map((evt) => {
                         const isSinapra = evt.source === 'sinapra';
                         return (
                           <div
                             key={evt.id}
-                            onClick={() => {
+                            title={`${evt.jam_mulai}-${evt.jam_selesai} • ${evt.title} (${evt.ruangan_nama})`}
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedEvent(evt);
                               setIsDetailOpen(true);
                             }}
-                            className="p-2 rounded-lg border border-slate-200 bg-white text-left cursor-pointer transition-all hover:shadow-xs"
+                            className="event-pill flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium leading-tight truncate cursor-pointer transition-all hover:opacity-90 hover:shadow-xs"
+                            style={
+                              isSinapra
+                                ? { backgroundColor: 'var(--module-primary)', color: '#ffffff' }
+                                : { backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)', border: '1px solid color-mix(in srgb, var(--module-primary) 30%, transparent)' }
+                            }
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-2xs font-bold font-mono p-2 rounded bg-white border border-slate-200 text-slate-700">
-                                {evt.jam_mulai} - {evt.jam_selesai}
-                              </span>
-                              <span
-                                style={
-                                  isSinapra
-                                    ? { backgroundColor: 'var(--module-primary)', color: '#ffffff' }
-                                    : { backgroundColor: 'var(--module-primary-subtle)', color: 'var(--module-primary)' }
-                                }
-                                className="text-2xs font-bold uppercase p-2 rounded"
-                              >
-                                {isSinapra ? 'SINAPRA' : 'KULIAH'}
-                              </span>
-                            </div>
-                            <p className="text-xs font-bold line-clamp-2 leading-tight">
+                            <span className="font-mono text-2xs opacity-90 shrink-0">
+                              {evt.jam_mulai.substring(0, 5)}
+                            </span>
+                            <span className="truncate">
                               {evt.title}
-                            </p>
-                            <p className="text-2xs text-slate-600 truncate flex items-center gap-2">
-                              <MapPin size={10} className="shrink-0 text-slate-400" />
-                              {evt.ruangan_nama}
-                            </p>
+                            </span>
                           </div>
                         );
-                      })
-                    )}
-                  </div>
+                      })}
 
-                  {/* Tombol Booking Tambahan di Hari Tersebut jika ada event */}
-                  {dayEvents.length > 0 && (
-                    <div className="border-t border-slate-200 p-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        icon={<Plus size={16} />}
-                        onClick={() => handleOpenQuickBooking(dayStr)}
-                        className="w-full text-2xs"
-                        style={{
-                          borderColor: 'var(--module-primary)',
-                          color: 'var(--module-primary)',
-                        }}
-                      >
-                        Pinjam di Hari Ini
-                      </Button>
+                      {/* Indikator Jika Ada Lebih dari 3 Agenda */}
+                      {dayEvents.length > 3 && (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEvent(dayEvents[0]);
+                            setIsDetailOpen(true);
+                          }}
+                          className="text-2xs font-bold text-slate-500 hover:text-[var(--module-primary)] px-1 cursor-pointer transition-colors"
+                        >
+                          +{dayEvents.length - 3} lainnya
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -792,11 +810,11 @@ export default function KalenderRuanganPage() {
         </div>
       </Drawer>
 
-      {/* ── MODAL DETAIL JADWAL / AGENDA ── */}
+      {/* ── MODAL PRATINJAU RINGKAS AGENDA (QUICK VIEW MODAL) ── */}
       <Modal
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
-        title="Detail Jadwal Pemakaian Ruangan"
+        title="Ringkasan Jadwal Pemakaian Ruangan"
       >
         {selectedEvent && (
           <div className="space-y-4">
@@ -812,7 +830,7 @@ export default function KalenderRuanganPage() {
                   {selectedEvent.status.toUpperCase()}
                 </Badge>
               </div>
-              <h3 className="text-sm font-bold text-slate-800">
+              <h3 className="text-xs font-bold text-slate-800">
                 {selectedEvent.title}
               </h3>
             </div>
@@ -861,7 +879,7 @@ export default function KalenderRuanganPage() {
               )}
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end gap-2 pt-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -869,6 +887,17 @@ export default function KalenderRuanganPage() {
               >
                 Tutup
               </Button>
+              {selectedEvent.source === 'sinapra' && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setIsDetailOpen(false);
+                    router.push(`/sinapra/peminjaman/ruangan/${selectedEvent.id}`);
+                  }}
+                >
+                  Buka Rincian Lengkap
+                </Button>
+              )}
             </div>
           </div>
         )}
