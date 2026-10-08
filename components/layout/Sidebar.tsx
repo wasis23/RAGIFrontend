@@ -236,6 +236,14 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
       { id: 7051, parent_id: 705, name: 'Integrasi Neo Feeder', url: '/siakad/feeder-sync', icon: 'FaCloudUploadAlt', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
     ]
   },
+  {
+    id: 708, parent_id: null, name: 'PENETAPAN BAHAN KAJIAN', url: '#bahan_kajian_siakad', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 6, is_active: true,
+    children: [
+      { id: 7081, parent_id: 708, name: 'Perumusan BK', url: '/siakad/obe/bahan-kajian', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+      { id: 7082, parent_id: 708, name: 'Pemetaan CPL-BK', url: '/siakad/obe/pemetaan-cpl-bk', icon: 'FaTh', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
+      { id: 7083, parent_id: 708, name: 'Pemetaan BK-MK', url: '/siakad/obe/pemetaan-bk-mk', icon: 'FaThList', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
+    ]
+  },
   { id: 706, parent_id: null, name: 'Panduan & Alur SIAKAD', url: '/siakad/panduan', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
 ];
 

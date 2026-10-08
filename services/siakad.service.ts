@@ -748,8 +748,33 @@ export const siakadService = {
     return response.data;
   },
 
+  updateBahanKajian: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/bahan-kajian/${id}`, payload);
+    return response.data;
+  },
+
   deleteBahanKajian: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.delete(`/v1/siakad/obe/bahan-kajian/${id}`);
+    return response.data;
+  },
+
+  getMatrixCplBahanKajian: async (params?: { program_studi_id?: number; kurikulum_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/bahan-kajian/matrix/cpl', { params });
+    return response.data;
+  },
+
+  syncCplBahanKajian: async (payload: { cpl_id: number; bahan_kajian_ids: number[] }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/cpl/bahan-kajian', payload);
+    return response.data;
+  },
+
+  getMatrixBahanKajianMataKuliah: async (params?: { program_studi_id?: number; kurikulum_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/bahan-kajian/matrix/mata-kuliah', { params });
+    return response.data;
+  },
+
+  syncBahanKajianMataKuliah: async (payload: { bahan_kajian_id: number; mata_kuliah_ids: number[] }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/bahan-kajian/mata-kuliah', payload);
     return response.data;
   },
 
