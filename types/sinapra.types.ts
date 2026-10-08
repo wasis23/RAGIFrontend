@@ -531,6 +531,59 @@ export interface SuratPeminjamanAsetData {
   verifikasi_token?: string;
 }
 
+export interface SuratPeminjamanRuanganData {
+  peminjaman_id: number;
+  kode_peminjaman?: string;
+  nomor_surat: string;
+  surat_generated_at: string;
+  tanggal: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  keperluan: string;
+  status: string;
+  ruangan: {
+    id?: number;
+    nama?: string;
+    kode?: string;
+    lantai?: number;
+    kapasitas?: number;
+    gedung?: string;
+    tipe_ruangan?: string;
+    ada_ac?: boolean;
+    ada_proyektor?: boolean;
+    ada_wifi?: boolean;
+  };
+  peminjam: {
+    user_id: number;
+    nama: string;
+    nomor_identitas: string;
+    unit_kerja: string;
+    kontak?: string;
+    email?: string;
+    tanda_tangan_url?: string | null;
+    qr_token?: string | null;
+  };
+  laboran?: {
+    user_id: number;
+    nama: string;
+    nip?: string;
+    nidn?: string | null;
+    verified_at?: string;
+    tanda_tangan_url?: string | null;
+    qr_token?: string | null;
+  } | null;
+  approver?: {
+    user_id: number;
+    nama: string;
+    nip?: string;
+    nidn?: string | null;
+    approved_at?: string;
+    tanda_tangan_url?: string | null;
+    qr_token?: string | null;
+  } | null;
+  verifikasi_token?: string;
+}
+
 // ------------------------------------------------------------
 // 4. Maintenance / Perawatan Types
 // ------------------------------------------------------------

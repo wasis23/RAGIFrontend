@@ -54,6 +54,7 @@ export default function GedungRuanganPage() {
   const [gedungList, setGedungList] = useState<Gedung[]>([]);
   const [isGedungLoading, setIsGedungLoading] = useState(true);
   const [gedungPage, setGedungPage] = useState(1);
+  const [gedungLimit, setGedungLimit] = useState(15);
   const [gedungMeta, setGedungMeta] = useState<PaginationMeta | undefined>(undefined);
   const [gedungSearch, setGedungSearch] = useState('');
   const [gedungStatusFilter, setGedungStatusFilter] = useState('');
@@ -82,6 +83,7 @@ export default function GedungRuanganPage() {
   const [ruanganList, setRuanganList] = useState<Ruangan[]>([]);
   const [isRuanganLoading, setIsRuanganLoading] = useState(true);
   const [ruanganPage, setRuanganPage] = useState(1);
+  const [ruanganLimit, setRuanganLimit] = useState(15);
   const [ruanganMeta, setRuanganMeta] = useState<PaginationMeta | undefined>(undefined);
   const [ruanganSearch, setRuanganSearch] = useState('');
   const [ruanganTipeFilter, setRuanganTipeFilter] = useState('');
@@ -116,6 +118,8 @@ export default function GedungRuanganPage() {
     try {
       const res: any = await sinapraService.getGedungList({
         page: gedungPage,
+        per_page: gedungLimit,
+        limit: gedungLimit,
         search: gedungSearch,
         status: gedungStatusFilter || undefined,
         sort_by: gedungSortBy || undefined,
@@ -156,6 +160,8 @@ export default function GedungRuanganPage() {
     try {
       const res: any = await sinapraService.getRuanganList({
         page: ruanganPage,
+        per_page: ruanganLimit,
+        limit: ruanganLimit,
         search: ruanganSearch,
         tipe: ruanganTipeFilter || undefined,
         tipe_ruangan_id: ruanganTipeRuanganFilterObj ? parseInt(ruanganTipeRuanganFilterObj.value) : undefined,
@@ -197,11 +203,11 @@ export default function GedungRuanganPage() {
 
   useEffect(() => {
     if (activeTab === 'gedung') fetchGedung();
-  }, [activeTab, gedungPage, gedungSearch, gedungStatusFilter, gedungSortBy, gedungSortDir]);
+  }, [activeTab, gedungPage, gedungLimit, gedungSearch, gedungStatusFilter, gedungSortBy, gedungSortDir]);
 
   useEffect(() => {
     if (activeTab === 'ruangan') fetchRuangan();
-  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganTipeFilter, ruanganTipeRuanganFilterObj, ruanganProdiFilterObj, ruanganGedungFilterObj, ruanganSortBy, ruanganSortDir]);
+  }, [activeTab, ruanganPage, ruanganLimit, ruanganSearch, ruanganStatusFilter, ruanganTipeFilter, ruanganTipeRuanganFilterObj, ruanganProdiFilterObj, ruanganGedungFilterObj, ruanganSortBy, ruanganSortDir]);
 
   const loadProdiOptions = async (inputValue: string) => {
     try {
@@ -717,6 +723,10 @@ export default function GedungRuanganPage() {
           isLoading={isGedungLoading}
           meta={gedungMeta}
           onPageChange={(p) => setGedungPage(p)}
+          onLimitChange={(l) => {
+            setGedungLimit(l);
+            setGedungPage(1);
+          }}
         />
       ) : (
         <DataTable
@@ -725,6 +735,10 @@ export default function GedungRuanganPage() {
           isLoading={isRuanganLoading}
           meta={ruanganMeta}
           onPageChange={(p) => setRuanganPage(p)}
+          onLimitChange={(l) => {
+            setRuanganLimit(l);
+            setRuanganPage(1);
+          }}
         />
       )}
 

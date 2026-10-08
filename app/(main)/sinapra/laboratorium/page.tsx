@@ -87,6 +87,7 @@ export default function SinapraLaboratoriumPage() {
   });
   const [bhpLoading, setBhpLoading] = useState(false);
   const [bhpPage, setBhpPage] = useState(1);
+  const [bhpLimit, setBhpLimit] = useState(15);
   const [bhpSearch, setBhpSearch] = useState('');
   const [bhpKategori, setBhpKategori] = useState('');
   const [bhpKategoriId, setBhpKategoriId] = useState<string>('');
@@ -131,6 +132,7 @@ export default function SinapraLaboratoriumPage() {
   });
   const [sbtLoading, setSbtLoading] = useState(false);
   const [sbtPage, setSbtPage] = useState(1);
+  const [sbtLimit, setSbtLimit] = useState(15);
   const [sbtSearch, setSbtSearch] = useState('');
   const [sbtStatus, setSbtStatus] = useState('');
   const [sbtCatatan, setSbtCatatan] = useState('');
@@ -185,6 +187,7 @@ export default function SinapraLaboratoriumPage() {
   });
   const [kalibrasiLoading, setKalibrasiLoading] = useState(false);
   const [kalibrasiPage, setKalibrasiPage] = useState(1);
+  const [kalibrasiLimit, setKalibrasiLimit] = useState(15);
   const [kalibrasiSearch, setKalibrasiSearch] = useState('');
   const [kalibrasiStatus, setKalibrasiStatus] = useState('');
   const [kalibrasiMendekati, setKalibrasiMendekati] = useState(false);
@@ -229,7 +232,8 @@ export default function SinapraLaboratoriumPage() {
     try {
       const res: any = await sinapraService.getLabBhpList({
         page: bhpPage,
-        per_page: 15,
+        per_page: bhpLimit,
+        limit: bhpLimit,
         search: bhpSearch || undefined,
         kategori: bhpKategori || undefined,
         kategori_bhp_id: bhpKategoriId ? Number(bhpKategoriId) : undefined,
@@ -250,14 +254,15 @@ export default function SinapraLaboratoriumPage() {
     } finally {
       setBhpLoading(false);
     }
-  }, [bhpPage, bhpSearch, bhpKategori, bhpKategoriId, bhpRuanganId, bhpLokasi, bhpSatuan, bhpSatuanId, bhpStatusStok, bhpOrderBy, bhpOrderDir]);
+  }, [bhpPage, bhpLimit, bhpSearch, bhpKategori, bhpKategoriId, bhpRuanganId, bhpLokasi, bhpSatuan, bhpSatuanId, bhpStatusStok, bhpOrderBy, bhpOrderDir]);
 
   const fetchSbt = useCallback(async () => {
     setSbtLoading(true);
     try {
       const res: any = await sinapraService.getBebasTanggunganList({
         page: sbtPage,
-        per_page: 15,
+        per_page: sbtLimit,
+        limit: sbtLimit,
         search: sbtSearch || undefined,
         status: sbtStatus || undefined,
         catatan: sbtCatatan || undefined,
@@ -274,14 +279,15 @@ export default function SinapraLaboratoriumPage() {
     } finally {
       setSbtLoading(false);
     }
-  }, [sbtPage, sbtSearch, sbtStatus, sbtCatatan, sbtTanggalPengajuan, sbtOrderBy, sbtOrderDir]);
+  }, [sbtPage, sbtLimit, sbtSearch, sbtStatus, sbtCatatan, sbtTanggalPengajuan, sbtOrderBy, sbtOrderDir]);
 
   const fetchKalibrasi = useCallback(async () => {
     setKalibrasiLoading(true);
     try {
       const res: any = await sinapraService.getAlatKalibrasiList({
         page: kalibrasiPage,
-        per_page: 15,
+        per_page: kalibrasiLimit,
+        limit: kalibrasiLimit,
         search: kalibrasiSearch || undefined,
         aset_id: kalibrasiAsetId ? Number(kalibrasiAsetId) : undefined,
         vendor_id: kalibrasiVendorId ? Number(kalibrasiVendorId) : undefined,
@@ -305,6 +311,7 @@ export default function SinapraLaboratoriumPage() {
     }
   }, [
     kalibrasiPage,
+    kalibrasiLimit,
     kalibrasiSearch,
     kalibrasiAsetId,
     kalibrasiVendorId,
@@ -1049,6 +1056,10 @@ export default function SinapraLaboratoriumPage() {
             isLoading={bhpLoading}
             meta={bhpMeta}
             onPageChange={(p) => setBhpPage(p)}
+            onLimitChange={(l) => {
+              setBhpLimit(l);
+              setBhpPage(1);
+            }}
           />
         </div>
       )}
@@ -1064,6 +1075,10 @@ export default function SinapraLaboratoriumPage() {
             isLoading={sbtLoading}
             meta={sbtMeta}
             onPageChange={(p) => setSbtPage(p)}
+            onLimitChange={(l) => {
+              setSbtLimit(l);
+              setSbtPage(1);
+            }}
           />
         </div>
       )}
@@ -1079,6 +1094,10 @@ export default function SinapraLaboratoriumPage() {
             isLoading={kalibrasiLoading}
             meta={kalibrasiMeta}
             onPageChange={(p) => setKalibrasiPage(p)}
+            onLimitChange={(l) => {
+              setKalibrasiLimit(l);
+              setKalibrasiPage(1);
+            }}
           />
         </div>
       )}

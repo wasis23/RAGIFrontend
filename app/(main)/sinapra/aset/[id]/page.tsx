@@ -35,6 +35,7 @@ import { AsetLabelPrintModal } from '@/components/sinapra/AsetLabelPrintModal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { sinapraService } from '@/services/sinapra.service';
 import type { Aset, AsetLabelData, PenyusutanAsetResult, RiwayatPenyusutanAset } from '@/types/sinapra.types';
+import type { PaginationMeta } from '@/types/api.types';
 
 const postingJurnalSchema = z.object({
   tahun: z
@@ -115,6 +116,8 @@ export default function DetailAsetPage() {
   const [labelData, setLabelData] = useState<AsetLabelData | null>(null);
   const [penyusutan, setPenyusutan] = useState<PenyusutanAsetResult | null>(null);
   const [riwayatList, setRiwayatList] = useState<RiwayatPenyusutanAset[]>([]);
+  const [riwayatPage, setRiwayatPage] = useState(1);
+  const [riwayatLimit, setRiwayatLimit] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isPostingModalOpen, setIsPostingModalOpen] = useState(false);
@@ -289,6 +292,22 @@ export default function DetailAsetPage() {
       </div>
     );
   }
+
+  const totalRiwayat = riwayatList.length;
+  const lastRiwayatPage = Math.max(1, Math.ceil(totalRiwayat / riwayatLimit));
+  const currentRiwayatPage = Math.min(Math.max(1, riwayatPage), lastRiwayatPage);
+  const pagedRiwayat = riwayatList.slice(
+    (currentRiwayatPage - 1) * riwayatLimit,
+    currentRiwayatPage * riwayatLimit
+  );
+  const riwayatMeta: PaginationMeta = {
+    current_page: currentRiwayatPage,
+    last_page: lastRiwayatPage,
+    per_page: riwayatLimit,
+    total: totalRiwayat,
+    from: totalRiwayat === 0 ? 0 : (currentRiwayatPage - 1) * riwayatLimit + 1,
+    to: Math.min(currentRiwayatPage * riwayatLimit, totalRiwayat),
+  };
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -631,7 +650,13 @@ export default function DetailAsetPage() {
         {/* Tabel Riwayat Posting */}
         <DataTable
           columns={riwayatColumns}
-          data={riwayatList}
+          data={pagedRiwayat}
+          meta={riwayatMeta}
+          onPageChange={(p) => setRiwayatPage(p)}
+          onLimitChange={(l) => {
+            setRiwayatLimit(l);
+            setRiwayatPage(1);
+          }}
           emptyMessage="Belum ada riwayat posting jurnal penyusutan ke SIKEU untuk aset ini."
         />
       </div>

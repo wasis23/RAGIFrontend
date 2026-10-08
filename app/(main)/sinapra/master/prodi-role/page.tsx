@@ -35,6 +35,7 @@ export default function PlottingRoleProdiPage() {
 
   // Filter States
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
   const [search, setSearch] = useState('');
   const [jenjangFilter, setJenjangFilter] = useState('');
   const [statusPlottingFilter, setStatusPlottingFilter] = useState('');
@@ -55,6 +56,8 @@ export default function PlottingRoleProdiPage() {
     try {
       const res: any = await sinapraService.getProdiRolesList({
         page,
+        per_page: limit,
+        limit,
         search: search || undefined,
         jenjang: jenjangFilter || undefined,
         status_plotting: statusPlottingFilter || undefined,
@@ -106,7 +109,7 @@ export default function PlottingRoleProdiPage() {
 
   useEffect(() => {
     fetchData();
-  }, [page, search, jenjangFilter, statusPlottingFilter, sortBy, sortOrder]);
+  }, [page, limit, search, jenjangFilter, statusPlottingFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchRoles();
@@ -280,6 +283,10 @@ export default function PlottingRoleProdiPage() {
           isLoading={isLoading}
           meta={meta}
           onPageChange={(p) => setPage(p)}
+          onLimitChange={(l) => {
+            setLimit(l);
+            setPage(1);
+          }}
           keyExtractor={(row) => row.id}
           emptyMessage="Tidak ada data program studi ditemukan."
         />

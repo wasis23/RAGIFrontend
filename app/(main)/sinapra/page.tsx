@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { sinapraService } from '@/services/sinapra.service';
 import type { SinapraDashboardSummary } from '@/types/sinapra.types';
+import type { PaginationMeta } from '@/types/api.types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -31,6 +32,14 @@ export default function SinapraDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<SinapraDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Pagination states
+  const [prodiPage, setProdiPage] = useState(1);
+  const [prodiLimit, setProdiLimit] = useState(10);
+  const [ruanganPage, setRuanganPage] = useState(1);
+  const [ruanganLimit, setRuanganLimit] = useState(10);
+  const [asetPage, setAsetPage] = useState(1);
+  const [asetLimit, setAsetLimit] = useState(10);
 
   const fetchDashboardData = async () => {
     try {
@@ -252,6 +261,59 @@ export default function SinapraDashboardPage() {
       ),
     },
   ];
+
+  // Pagination: Distribusi Fasilitas Prodi
+  const totalProdi = distribusiData.length;
+  const lastProdiPage = Math.max(1, Math.ceil(totalProdi / prodiLimit));
+  const currentProdiPage = Math.min(Math.max(1, prodiPage), lastProdiPage);
+  const pagedDistribusiData = distribusiData.slice(
+    (currentProdiPage - 1) * prodiLimit,
+    currentProdiPage * prodiLimit
+  );
+  const prodiMeta: PaginationMeta = {
+    current_page: currentProdiPage,
+    last_page: lastProdiPage,
+    per_page: prodiLimit,
+    total: totalProdi,
+    from: totalProdi === 0 ? 0 : (currentProdiPage - 1) * prodiLimit + 1,
+    to: Math.min(currentProdiPage * prodiLimit, totalProdi),
+  };
+
+  // Pagination: Peminjaman Ruangan Terkini
+  const peminjamanRuanganList = recent?.peminjaman_ruangan || [];
+  const totalRuangan = peminjamanRuanganList.length;
+  const lastRuanganPage = Math.max(1, Math.ceil(totalRuangan / ruanganLimit));
+  const currentRuanganPage = Math.min(Math.max(1, ruanganPage), lastRuanganPage);
+  const pagedPeminjamanRuangan = peminjamanRuanganList.slice(
+    (currentRuanganPage - 1) * ruanganLimit,
+    currentRuanganPage * ruanganLimit
+  );
+  const ruanganMeta: PaginationMeta = {
+    current_page: currentRuanganPage,
+    last_page: lastRuanganPage,
+    per_page: ruanganLimit,
+    total: totalRuangan,
+    from: totalRuangan === 0 ? 0 : (currentRuanganPage - 1) * ruanganLimit + 1,
+    to: Math.min(currentRuanganPage * ruanganLimit, totalRuangan),
+  };
+
+  // Pagination: Peminjaman Aset Terkini
+  const peminjamanAsetList = recent?.peminjaman_aset || [];
+  const totalAset = peminjamanAsetList.length;
+  const lastAsetPage = Math.max(1, Math.ceil(totalAset / asetLimit));
+  const currentAsetPage = Math.min(Math.max(1, asetPage), lastAsetPage);
+  const pagedPeminjamanAset = peminjamanAsetList.slice(
+    (currentAsetPage - 1) * asetLimit,
+    currentAsetPage * asetLimit
+  );
+  const asetMeta: PaginationMeta = {
+    current_page: currentAsetPage,
+    last_page: lastAsetPage,
+    per_page: asetLimit,
+    total: totalAset,
+    from: totalAset === 0 ? 0 : (currentAsetPage - 1) * asetLimit + 1,
+    to: Math.min(currentAsetPage * asetLimit, totalAset),
+  };
 
   return (
     <div className="space-y-6">
@@ -727,7 +789,13 @@ export default function SinapraDashboardPage() {
 
         <DataTable
           columns={prodiColumns}
-          data={distribusiData}
+          data={pagedDistribusiData}
+          meta={prodiMeta}
+          onPageChange={(p) => setProdiPage(p)}
+          onLimitChange={(l) => {
+            setProdiLimit(l);
+            setProdiPage(1);
+          }}
           keyExtractor={(row) => row.id ?? row.kode_prodi}
           emptyMessage="Belum ada data distribusi fasilitas program studi."
         />
@@ -754,7 +822,13 @@ export default function SinapraDashboardPage() {
           </div>
           <DataTable
             columns={peminjamanRuanganColumns}
-            data={recent?.peminjaman_ruangan || []}
+            data={pagedPeminjamanRuangan}
+            meta={ruanganMeta}
+            onPageChange={(p) => setRuanganPage(p)}
+            onLimitChange={(l) => {
+              setRuanganLimit(l);
+              setRuanganPage(1);
+            }}
             emptyMessage="Belum ada aktivitas peminjaman ruangan tercatat."
           />
         </div>
@@ -778,7 +852,13 @@ export default function SinapraDashboardPage() {
           </div>
           <DataTable
             columns={peminjamanAsetColumns}
-            data={recent?.peminjaman_aset || []}
+            data={pagedPeminjamanAset}
+            meta={asetMeta}
+            onPageChange={(p) => setAsetPage(p)}
+            onLimitChange={(l) => {
+              setAsetLimit(l);
+              setAsetPage(1);
+            }}
             emptyMessage="Belum ada aktivitas peminjaman aset tercatat."
           />
         </div>
