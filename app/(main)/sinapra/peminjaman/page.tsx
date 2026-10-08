@@ -51,6 +51,7 @@ export default function PeminjamanPage() {
   const [ruanganList, setRuanganList] = useState<PeminjamanRuangan[]>([]);
   const [isRuanganLoading, setIsRuanganLoading] = useState(true);
   const [ruanganPage, setRuanganPage] = useState(1);
+  const [ruanganLimit, setRuanganLimit] = useState(15);
   const [ruanganMeta, setRuanganMeta] = useState<PaginationMeta | undefined>(undefined);
   const [ruanganSearch, setRuanganSearch] = useState('');
   const [ruanganStatusFilter, setRuanganStatusFilter] = useState('');
@@ -70,6 +71,7 @@ export default function PeminjamanPage() {
   const [asetList, setAsetList] = useState<PeminjamanAset[]>([]);
   const [isAsetLoading, setIsAsetLoading] = useState(true);
   const [asetPage, setAsetPage] = useState(1);
+  const [asetLimit, setAsetLimit] = useState(15);
   const [asetMeta, setAsetMeta] = useState<PaginationMeta | undefined>(undefined);
   const [asetSearch, setAsetSearch] = useState('');
   const [asetStatusFilter, setAsetStatusFilter] = useState('');
@@ -99,6 +101,8 @@ export default function PeminjamanPage() {
     try {
       const res: any = await sinapraService.getPeminjamanRuanganList({
         page: ruanganPage,
+        per_page: ruanganLimit,
+        limit: ruanganLimit,
         search: ruanganSearch,
         status: ruanganStatusFilter || undefined,
         sort_by: ruanganSortBy || undefined,
@@ -139,6 +143,8 @@ export default function PeminjamanPage() {
     try {
       const res: any = await sinapraService.getPeminjamanAsetList({
         page: asetPage,
+        per_page: asetLimit,
+        limit: asetLimit,
         search: asetSearch,
         status: asetStatusFilter || undefined,
         sort_by: asetSortBy || undefined,
@@ -176,11 +182,11 @@ export default function PeminjamanPage() {
 
   useEffect(() => {
     if (activeTab === 'ruangan') fetchRuanganList();
-  }, [activeTab, ruanganPage, ruanganSearch, ruanganStatusFilter, ruanganSortBy, ruanganSortDir]);
+  }, [activeTab, ruanganPage, ruanganLimit, ruanganSearch, ruanganStatusFilter, ruanganSortBy, ruanganSortDir]);
 
   useEffect(() => {
     if (activeTab === 'aset') fetchAsetList();
-  }, [activeTab, asetPage, asetSearch, asetStatusFilter, asetSortBy, asetSortDir]);
+  }, [activeTab, asetPage, asetLimit, asetSearch, asetStatusFilter, asetSortBy, asetSortDir]);
 
 
 
@@ -358,6 +364,15 @@ export default function PeminjamanPage() {
                   icon: <Eye size={16} className="text-[var(--module-primary)]" />,
                   onClick: () => router.push(`/sinapra/peminjaman/ruangan/${row.id}`),
                 },
+                ...(['disetujui', 'selesai'].includes(row.status)
+                  ? [
+                      {
+                        label: 'Lihat Surat Peminjaman',
+                        icon: <Printer size={16} className="text-[var(--module-primary)]" />,
+                        onClick: () => router.push(`/sinapra/peminjaman/ruangan/${row.id}/surat`),
+                      },
+                    ]
+                  : []),
                 ...(isLaboran
                   ? [
                       {
@@ -499,7 +514,7 @@ export default function PeminjamanPage() {
                   ? [
                       {
                         label: 'Lihat Surat Peminjaman',
-                        icon: <Printer size={16} className="text-blue-600" />,
+                        icon: <Printer size={16} className="text-[var(--module-primary)]" />,
                         onClick: () => router.push(`/sinapra/peminjaman/aset/${row.id}/surat`),
                       },
                     ]
@@ -619,6 +634,10 @@ export default function PeminjamanPage() {
           isLoading={isRuanganLoading}
           meta={ruanganMeta}
           onPageChange={(p) => setRuanganPage(p)}
+          onLimitChange={(l) => {
+            setRuanganLimit(l);
+            setRuanganPage(1);
+          }}
         />
       ) : (
         <DataTable
@@ -627,6 +646,10 @@ export default function PeminjamanPage() {
           isLoading={isAsetLoading}
           meta={asetMeta}
           onPageChange={(p) => setAsetPage(p)}
+          onLimitChange={(l) => {
+            setAsetLimit(l);
+            setAsetPage(1);
+          }}
         />
       )}
 

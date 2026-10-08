@@ -24,6 +24,7 @@ import type {
   ApprovePeminjamanAsetPayload,
   KembalikanAsetPayload,
   SuratPeminjamanAsetData,
+  SuratPeminjamanRuanganData,
   MaintenanceLog,
   MaintenanceLogFormPayload,
   PengajuanPengadaan,
@@ -265,6 +266,11 @@ export const sinapraService = {
 
   approvePeminjamanRuangan: async (id: number, payload: ApprovePeminjamanRuanganPayload): Promise<ApiResponse<PeminjamanRuangan>> => {
     const { data } = await apiClient.post<ApiResponse<PeminjamanRuangan>>(`/sinapra/peminjaman-ruangan/${id}/approve`, payload);
+    return data;
+  },
+
+  getSuratPeminjamanRuangan: async (id: number): Promise<ApiResponse<SuratPeminjamanRuanganData>> => {
+    const { data } = await apiClient.get<ApiResponse<SuratPeminjamanRuanganData>>(`/sinapra/peminjaman-ruangan/${id}/surat`);
     return data;
   },
 

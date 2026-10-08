@@ -45,6 +45,7 @@ export default function PengadaanPage() {
   const [pengadaanList, setPengadaanList] = useState<PengajuanPengadaan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
   const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
 
   // Filters
@@ -76,6 +77,8 @@ export default function PengadaanPage() {
     try {
       const res: any = await sinapraService.getPengadaanList({
         page,
+        per_page: limit,
+        limit,
         search,
         status: statusFilter || undefined,
         sort_by: sortBy || undefined,
@@ -113,7 +116,7 @@ export default function PengadaanPage() {
 
   useEffect(() => {
     fetchPengadaan();
-  }, [page, search, statusFilter, sortBy, sortDir]);
+  }, [page, limit, search, statusFilter, sortBy, sortDir]);
 
   // ------------------------------------------------------------
   // HANDLERS
@@ -294,6 +297,10 @@ export default function PengadaanPage() {
         isLoading={isLoading}
         meta={meta}
         onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
       />
 
       {/* DELETE CONFIRM DIALOG */}

@@ -14,6 +14,7 @@ import {
   XCircle,
   AlertCircle,
   HelpCircle,
+  Printer,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -128,6 +129,15 @@ export default function DetailPeminjamanRuanganPage() {
             >
               Kembali
             </Button>
+            {['disetujui', 'selesai'].includes(peminjaman.status) && (
+              <Button
+                variant="primary"
+                icon={<Printer size={16} />}
+                onClick={() => router.push(`/sinapra/peminjaman/ruangan/${peminjaman.id}/surat`)}
+              >
+                Cetak Surat Bukti
+              </Button>
+            )}
             {isLaboranPending && (
               <Button
                 variant="primary"

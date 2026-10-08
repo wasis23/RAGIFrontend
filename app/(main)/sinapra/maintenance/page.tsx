@@ -45,6 +45,7 @@ export default function MaintenancePage() {
   const [maintenanceList, setMaintenanceList] = useState<MaintenanceLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
   const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
 
   // Filters
@@ -104,6 +105,8 @@ export default function MaintenancePage() {
     try {
       const res: any = await sinapraService.getMaintenanceList({
         page,
+        per_page: limit,
+        limit,
         search,
         status: statusFilter || undefined,
         prioritas: prioritasFilter || undefined,
@@ -142,7 +145,7 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     fetchMaintenanceLogs();
-  }, [page, search, statusFilter, prioritasFilter, sortBy, sortDir]);
+  }, [page, limit, search, statusFilter, prioritasFilter, sortBy, sortDir]);
 
   const loadAsetOptions = async (inputValue: string) => {
     try {
@@ -397,6 +400,10 @@ export default function MaintenancePage() {
         isLoading={isLoading}
         meta={meta}
         onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
       />
 
       {/* DELETE MAINTENANCE CONFIRM DIALOG */}

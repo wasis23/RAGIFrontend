@@ -57,6 +57,7 @@ export default function AsetPage() {
   const [asetList, setAsetList] = useState<Aset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
   const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
 
   // Filters
@@ -217,6 +218,8 @@ export default function AsetPage() {
     try {
       const res: any = await sinapraService.getAsetList({
         page,
+        per_page: limit,
+        limit,
         search,
         kondisi: kondisiFilter || undefined,
         status: statusFilter || undefined,
@@ -271,7 +274,7 @@ export default function AsetPage() {
 
   useEffect(() => {
     fetchAset();
-  }, [page, search, kondisiFilter, statusFilter, isBorrowableFilter, kategoriFilterObj, prodiFilterObj, sortBy, sortDir]);
+  }, [page, limit, search, kondisiFilter, statusFilter, isBorrowableFilter, kategoriFilterObj, prodiFilterObj, sortBy, sortDir]);
 
   const loadKategoriOptions = async (inputValue: string) => {
     try {
@@ -627,6 +630,10 @@ export default function AsetPage() {
         isLoading={isLoading}
         meta={meta}
         onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
       />
 
       {/* DELETE ASET CONFIRM DIALOG */}

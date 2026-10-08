@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/Badge';
 import { sinapraService } from '@/services/sinapra.service';
 import { arsipService } from '@/services/arsip.service';
 import { getApiErrorMessage, formatDate } from '@/lib/utils';
-import type { SuratPeminjamanAsetData } from '@/types/sinapra.types';
+import type { SuratPeminjamanRuanganData } from '@/types/sinapra.types';
 import type { KopSurat } from '@/types/arsip.types';
 
-export default function SuratPeminjamanAsetPage({
+export default function CetakSuratPeminjamanRuanganPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -22,21 +22,21 @@ export default function SuratPeminjamanAsetPage({
   const peminjamanId = Number(resolvedParams.id);
 
   const [loading, setLoading] = useState(true);
-  const [surat, setSurat] = useState<SuratPeminjamanAsetData | null>(null);
+  const [surat, setSurat] = useState<SuratPeminjamanRuanganData | null>(null);
   const [kopSurat, setKopSurat] = useState<KopSurat | null>(null);
 
   useEffect(() => {
-    const fetchSurat = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await sinapraService.getSuratPeminjamanAset(peminjamanId);
-        const data = res.data || null;
+        const resSurat = await sinapraService.getSuratPeminjamanRuangan(peminjamanId);
+        const data = resSurat.data || null;
         setSurat(data);
 
         if (data) {
           // Ambil Kop Surat aktif dari modul ARSIP sesuai tahun surat
-          const tahun = data.tanggal_pinjam
-            ? new Date(data.tanggal_pinjam).getFullYear()
+          const tahun = data.tanggal
+            ? new Date(data.tanggal).getFullYear()
             : new Date().getFullYear();
 
           try {
@@ -49,23 +49,23 @@ export default function SuratPeminjamanAsetPage({
           }
         }
       } catch (err: any) {
-        toast.error(getApiErrorMessage(err, 'Gagal memuat surat peminjaman aset.'));
+        toast.error(getApiErrorMessage(err, 'Gagal memuat dokumen surat peminjaman ruangan.'));
       } finally {
         setLoading(false);
       }
     };
 
     if (peminjamanId) {
-      fetchSurat();
+      fetchData();
     }
   }, [peminjamanId]);
 
   const handlePrint = () => {
     const originalTitle = document.title;
     if (surat?.nomor_surat) {
-      document.title = `Surat-Izin-Peminjaman-Aset-${surat.nomor_surat.replace(/[\/\\]/g, '_')}`;
+      document.title = `Surat-Izin-Peminjaman-Ruangan-${surat.nomor_surat.replace(/[\/\\]/g, '_')}`;
     } else {
-      document.title = 'Surat-Izin-Peminjaman-Aset';
+      document.title = 'Surat-Izin-Peminjaman-Ruangan';
     }
     window.print();
     setTimeout(() => {
@@ -73,10 +73,18 @@ export default function SuratPeminjamanAsetPage({
     }, 1000);
   };
 
+  // Helper format hari/tanggal pemakaian
+  const formattedHariTanggal = useMemo(() => {
+    if (!surat?.tanggal) return '-';
+    const d = new Date(surat.tanggal);
+    const namaHari = new Intl.DateTimeFormat('id-ID', { weekday: 'long' }).format(d);
+    return `${namaHari}, ${formatDate(surat.tanggal)}`;
+  }, [surat]);
+
   // Tanggal terbit surat
   const formattedTanggalTerbit = useMemo(() => {
     if (!surat) return '';
-    const dateSource = surat.surat_generated_at || surat.tanggal_pinjam || new Date().toISOString();
+    const dateSource = surat.surat_generated_at || surat.tanggal || new Date().toISOString();
     return formatDate(dateSource);
   }, [surat]);
 
@@ -84,7 +92,7 @@ export default function SuratPeminjamanAsetPage({
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <div className="w-10 h-10 border-4 border-[var(--module-primary)] border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-slate-500 font-medium">Menyiapkan Dokumen Surat Izin Peminjaman Aset Resmi...</p>
+        <p className="text-xs text-slate-500 font-medium">Menyiapkan Dokumen Surat Izin Peminjaman Ruangan Resmi...</p>
       </div>
     );
   }
@@ -92,11 +100,11 @@ export default function SuratPeminjamanAsetPage({
   if (!surat) {
     return (
       <div className="w-full flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6">
-        <p className="text-sm text-slate-600 font-medium">Surat peminjaman tidak ditemukan atau belum disetujui.</p>
-        <Link href={`/sinapra/peminjaman/aset/${peminjamanId}`}>
+        <p className="text-sm text-slate-600 font-medium">Dokumen Surat Peminjaman Ruangan tidak ditemukan atau belum disetujui.</p>
+        <Link href={`/sinapra/peminjaman/ruangan/${peminjamanId}`}>
           <Button variant="outline" size="md">
             <ArrowLeft size={16} className="mr-1.5" />
-            Kembali ke Detail Peminjaman
+            Kembali ke Rincian
           </Button>
         </Link>
       </div>
@@ -108,14 +116,14 @@ export default function SuratPeminjamanAsetPage({
       {/* Top Action Bar (Hidden when Printing) */}
       <div className="print-action-bar print:hidden w-full max-w-[210mm] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <Link href={`/sinapra/peminjaman/aset/${peminjamanId}`}>
+          <Link href={`/sinapra/peminjaman/ruangan/${peminjamanId}`}>
             <Button variant="outline" size="sm" className="border-slate-300 text-slate-700 hover:bg-slate-100">
               <ArrowLeft size={16} className="mr-1.5" />
               Kembali
             </Button>
           </Link>
           <div>
-            <h1 className="text-base font-bold text-slate-900">Format Cetak Surat Peminjaman Aset (A4)</h1>
+            <h1 className="text-base font-bold text-slate-900">Format Cetak Surat Peminjaman Ruangan (A4)</h1>
             <p className="text-xs text-slate-500">
               Nomor: <span className="font-mono font-bold text-slate-900">{surat.nomor_surat}</span>
             </p>
@@ -125,9 +133,7 @@ export default function SuratPeminjamanAsetPage({
         <div className="flex items-center gap-2">
           <Badge
             variant={
-              surat.status === 'kembali'
-                ? 'gray'
-                : surat.status === 'disetujui' || surat.status === 'dipinjam'
+              surat.status === 'disetujui' || surat.status === 'selesai'
                 ? 'success'
                 : 'warning'
             }
@@ -222,7 +228,7 @@ export default function SuratPeminjamanAsetPage({
       `}</style>
 
       {/* ========================================================================= */}
-      {/* HALAMAN 1: SURAT IZIN PEMINJAMAN ASET (1 LEMBAR A4)                       */}
+      {/* HALAMAN 1: SURAT IZIN PEMINJAMAN RUANGAN (1 LEMBAR A4)                     */}
       {/* ========================================================================= */}
       <div className="printable-document print-document a4-page-sheet bg-white text-slate-950 font-serif leading-[1.45] text-[10.5pt] flex flex-col justify-between">
         <div>
@@ -266,7 +272,7 @@ export default function SuratPeminjamanAsetPage({
           {/* JUDUL SURAT (13pt) & NOMOR (11pt) */}
           <div className="text-center my-2.5">
             <h2 className="text-[13pt] font-bold uppercase underline tracking-wider">
-              SURAT BUKTI & IZIN PEMINJAMAN ASET / BARANG
+              SURAT BUKTI & IZIN PEMINJAMAN RUANGAN
             </h2>
             <p className="text-[11pt] font-medium mt-0.5">
               NOMOR : <span className="font-mono font-bold">{surat.nomor_surat || '…………………………………………………'}</span>
@@ -275,7 +281,7 @@ export default function SuratPeminjamanAsetPage({
 
           {/* PENGANTAR */}
           <p className="text-justify text-[10.5pt] mb-2 leading-[1.45]">
-            Berdasarkan permohonan peminjaman aset dan barang inventaris kampus yang telah diajukan melalui Sistem Informasi Sarana Prasarana (SINAPRA) serta telah disetujui oleh pejabat yang berwenang, dengan ini diberikan izin peminjaman kepada:
+            Berdasarkan permohonan peminjaman ruangan yang telah diajukan melalui Sistem Informasi Sarana Prasarana (SINAPRA) serta telah disetujui oleh pejabat yang berwenang, dengan ini diberikan izin pemakaian fasilitas ruangan kampus kepada:
           </p>
 
           {/* TABEL DATA PEMINJAM */}
@@ -302,13 +308,6 @@ export default function SuratPeminjamanAsetPage({
                 <td className="align-top py-0.5">{surat.peminjam.kontak || '-'}</td>
               </tr>
               <tr>
-                <td className="w-40 align-top py-0.5 font-medium">Waktu Peminjaman</td>
-                <td className="w-4 align-top py-0.5">:</td>
-                <td className="align-top py-0.5 font-semibold">
-                  {formatDate(surat.tanggal_pinjam)} s.d. {formatDate(surat.tanggal_kembali_rencana)}
-                </td>
-              </tr>
-              <tr>
                 <td className="w-40 align-top py-0.5 font-medium">Keperluan Pemakaian</td>
                 <td className="w-4 align-top py-0.5">:</td>
                 <td className="align-top py-0.5 font-semibold text-slate-900">{surat.keperluan}</td>
@@ -316,56 +315,63 @@ export default function SuratPeminjamanAsetPage({
             </tbody>
           </table>
 
-          {/* DAFTAR BARANG YANG DIPINJAM */}
-          <div className="mt-2.5">
+          {/* RINCIAN RUANGAN & FASILITAS */}
+          <div className="mt-3">
             <p className="font-semibold text-[10.5pt] mb-1">
-              Rincian Peralatan / Barang Inventaris yang Dipinjam:
+              Rincian Ruangan dan Waktu Penggunaan Fasilitas :
             </p>
-            <table className="w-full border-collapse border border-black text-[9.5pt] leading-tight mb-2">
-              <thead>
-                <tr className="bg-slate-100 border-b border-black">
-                  <th className="border-r border-black p-1 text-center w-8">No</th>
-                  <th className="border-r border-black p-1 text-left w-28">Kode Aset</th>
-                  <th className="border-r border-black p-1 text-left">Nama Barang / Peralatan</th>
-                  <th className="border-r border-black p-1 text-left">Merk / Tipe</th>
-                  <th className="border-r border-black p-1 text-left">Lokasi Asal</th>
-                  <th className="p-1 text-center w-20">Kondisi</th>
-                </tr>
-              </thead>
+            <table className="w-full border-collapse border border-black text-[10pt] leading-tight mb-2">
               <tbody>
-                {surat.daftar_barang.map((item, idx) => (
-                  <tr key={item.aset_id || idx} className="border-b border-black">
-                    <td className="border-r border-black p-1 text-center">{idx + 1}</td>
-                    <td className="border-r border-black p-1 font-mono text-[8.5pt] font-semibold">{item.kode_aset}</td>
-                    <td className="border-r border-black p-1 font-medium">{item.nama_barang}</td>
-                    <td className="border-r border-black p-1 text-slate-700">{item.merk || item.nomor_seri || '-'}</td>
-                    <td className="border-r border-black p-1 text-slate-700">{item.lokasi_ruangan} ({item.gedung})</td>
-                    <td className="p-1 text-center capitalize">{item.kondisi_pinjam}</td>
-                  </tr>
-                ))}
+                <tr className="border-b border-black">
+                  <td className="border-r border-black p-1.5 w-1/3 bg-slate-50 font-medium">Nama Ruangan & Kode</td>
+                  <td className="p-1.5 font-semibold">
+                    {surat.ruangan.nama} <span className="font-mono text-[9pt] font-normal">({surat.ruangan.kode || '-'})</span>
+                  </td>
+                </tr>
+                <tr className="border-b border-black">
+                  <td className="border-r border-black p-1.5 bg-slate-50 font-medium">Lokasi Gedung / Lantai</td>
+                  <td className="p-1.5">
+                    {surat.ruangan.gedung || '-'} — Lantai {surat.ruangan.lantai || 1} ({surat.ruangan.tipe_ruangan || 'Umum'})
+                  </td>
+                </tr>
+                <tr className="border-b border-black">
+                  <td className="border-r border-black p-1.5 bg-slate-50 font-medium">Hari / Tanggal Pemakaian</td>
+                  <td className="p-1.5 font-semibold">{formattedHariTanggal}</td>
+                </tr>
+                <tr className="border-b border-black">
+                  <td className="border-r border-black p-1.5 bg-slate-50 font-medium">Waktu Penggunaan</td>
+                  <td className="p-1.5 font-semibold">
+                    Pukul {surat.jam_mulai?.substring(0, 5)} s.d. {surat.jam_selesai?.substring(0, 5)} WIB
+                  </td>
+                </tr>
+                <tr>
+                  <td className="border-r border-black p-1.5 bg-slate-50 font-medium">Fasilitas Standar Tersedia</td>
+                  <td className="p-1.5 text-[9.5pt]">
+                    Kapasitas: {surat.ruangan.kapasitas || '-'} Orang | AC: {surat.ruangan.ada_ac ? 'Tersedia' : 'Tidak'} | Proyektor: {surat.ruangan.ada_proyektor ? 'Tersedia' : 'Tidak'} | Wi-Fi: {surat.ruangan.ada_wifi ? 'Tersedia' : 'Tidak'}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
 
           {/* PAKTA INTEGRITAS & TANGGUNG JAWAB PEMINJAM */}
-          <div className="mt-2 p-2 bg-slate-50/70 border border-slate-300 rounded text-[8.5pt] leading-normal font-sans">
+          <div className="mt-2.5 p-2 bg-slate-50/70 border border-slate-300 rounded text-[8.5pt] leading-normal font-sans">
             <p className="font-bold text-slate-900 uppercase mb-0.5">Ketentuan & Tanggung Jawab Peminjam (Pakta Integritas):</p>
             <ol className="list-decimal pl-4 space-y-0.5 text-slate-700">
-              <li>Peminjam wajib menjaga keutuhan, kebersihan, dan fungsi normal dari seluruh peralatan yang dipinjam.</li>
-              <li>Peralatan hanya digunakan untuk kegiatan tridharma/akademik resmi sesuai keperluan yang diajukan.</li>
-              <li>Dilarang keras memindahtangankan barang pinjaman kepada pihak ketiga tanpa izin resmi dari Bagian Sarpras.</li>
-              <li>Barang wajib dikembalikan paling lambat pada tanggal rencana pengembalian dalam kondisi bersih dan lengkap.</li>
-              <li>Apabila terjadi kerusakan atau kehilangan barang, peminjam bersedia mengganti perbaikan atau unit barang baru yang setara sesuai regulasi kampus.</li>
+              <li>Peminjam wajib menjaga kebersihan, ketertiban, dan keutuhan seluruh fasilitas serta peralatan di dalam ruangan.</li>
+              <li>Ruangan hanya digunakan untuk kegiatan sesuai dengan keperluan yang diajukan dalam izin ini.</li>
+              <li>Mematikan AC, proyektor, lampu, dan mengunci pintu kembali setelah kegiatan selesai dilaksanakan.</li>
+              <li>Segala bentuk kerusakan fasilitas akibat kelalaian peminjam menjadi tanggung jawab penuh peminjam untuk memperbaiki/mengganti.</li>
             </ol>
           </div>
 
           {/* PARAGRAF PENUTUP */}
           <p className="pt-2 text-justify text-[10.5pt] leading-[1.45]">
-            Demikian surat izin dan bukti peminjaman aset ini diterbitkan untuk dipergunakan sebagaimana mestinya dan ditunjukkan saat pengambilan/pengembalian barang.
+            Demikian surat izin dan bukti peminjaman ruangan ini diterbitkan untuk dipergunakan sebagaimana mestinya dan ditunjukkan kepada petugas sarpras/keamanan yang bertugas di lokasi.
           </p>
         </div>
 
-        {/* AREA TANDA TANGAN (2 ATAU 3 KOLOM) */}
+        {/* AREA TANDA TANGAN (2 ATAU 3 KOLOM: PEMINJAM DI KIRI, LABORAN JIKA ADA DI TENGAH, APPROVER/ADMIN DI KANAN) */}
         <div className="mt-2 pt-1 border-t border-slate-200">
           <div className="flex justify-end mb-2 text-[9pt]">
             <p>Surakarta, {formattedTanggalTerbit}</p>
@@ -405,12 +411,12 @@ export default function SuratPeminjamanAsetPage({
               </div>
             </div>
 
-            {/* SISI TENGAH: LABORAN (JIKA ASET LABORATORIUM) */}
+            {/* SISI TENGAH: LABORAN (JIKA RUANGAN LABORATORIUM) */}
             {surat.laboran && (
               <div className="flex flex-col justify-between min-h-[140px] text-center">
                 <div>
-                  <p className="font-medium">Laboran / Pengelola Lab,</p>
-                  <p className="text-[8.5pt] text-slate-500">Verifikator Aset Laboratorium</p>
+                  <p className="font-medium">Laboran Ruangan,</p>
+                  <p className="text-[8.5pt] text-slate-500">Verifikator Laboratorium</p>
                 </div>
 
                 <div className="h-14 flex items-center justify-center my-0.5">
