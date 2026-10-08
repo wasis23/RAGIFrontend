@@ -977,7 +977,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 .table thead {
-  background: #ffffff;
+  background: rgba(248, 250, 252, 0.9);
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -3869,4 +3869,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     color: #000000 !important;
     border-color: #333333 !important;
   }
+}
+
+/* ============================================================
+   WYSIWYG LETTER EDITOR (SPMB Template Surat)
+   ============================================================ */
+.wysiwyg-edit {
+  outline: none;
+  border-radius: 3px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.wysiwyg-edit:hover {
+  background: color-mix(in srgb, var(--module-primary, #4f46e5) 6%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--module-primary, #4f46e5) 25%, transparent);
+}
+.wysiwyg-edit:focus {
+  background: color-mix(in srgb, var(--module-primary, #4f46e5) 8%, transparent);
+  box-shadow: 0 0 0 2px var(--module-primary, #4f46e5);
+}
+.wysiwyg-edit:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  font-style: italic;
 }

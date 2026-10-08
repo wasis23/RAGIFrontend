@@ -228,6 +228,24 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
     }
   };
 
+  const [terbitkanLoading, setTerbitkanLoading] = useState(false);
+
+  const handleTerbitkanSk = async () => {
+    if (!pendaftar?.id) return;
+    try {
+      setTerbitkanLoading(true);
+      const res = await spmbService.terbitkanSk(pendaftar.id);
+      const nomor = res.data?.nomor_sk ? ` Nomor SK: ${res.data.nomor_sk}.` : '';
+      toast.success((res.message || 'SK Tanda Lulus berhasil diterbitkan dan diarsipkan.') + nomor);
+      fetchDetail(id);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Gagal menerbitkan SK Tanda Lulus.');
+    } finally {
+      setTerbitkanLoading(false);
+    }
+  };
+
   // Konversi manual ke Mahasiswa
   const [showKonversiConfirm, setShowKonversiConfirm] = useState(false);
   const [showKonversiOverride, setShowKonversiOverride] = useState(false);
@@ -611,17 +629,30 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
         backUrl="/spmb/pendaftaran"
         action={
           (pendaftar.status === 'lulus_administrasi' || pendaftar.status === 'mahasiswa_baru' || pendaftar.hasil_seleksi?.status === 'lulus') ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadSk}
-              isLoading={downloadingSk}
-              icon={<Download size={15} />}
-              style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
-              className="font-bold text-xs"
-            >
-              {downloadingSk ? 'Mengunduh...' : 'Unduh SK Tanda Lulus'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleTerbitkanSk}
+                isLoading={terbitkanLoading}
+                icon={<FileCheck size={15} />}
+                style={{ backgroundColor: 'var(--module-primary)' }}
+                className="font-bold text-xs"
+              >
+                {terbitkanLoading ? 'Menerbitkan...' : (pendaftar.nomor_sk ? 'Terbitkan Ulang SK' : 'Terbitkan & Arsipkan SK')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadSk}
+                isLoading={downloadingSk}
+                icon={<Download size={15} />}
+                style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                className="font-bold text-xs"
+              >
+                {downloadingSk ? 'Mengunduh...' : 'Unduh SK Tanda Lulus'}
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -1042,7 +1073,22 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
               )}
 
               {(pendaftar.status === 'lulus_administrasi' || pendaftar.status === 'mahasiswa_baru' || pendaftar.hasil_seleksi?.status === 'lulus') && (
-                <div className="pt-2 border-t border-slate-100">
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  {pendaftar.nomor_sk && (
+                    <p className="text-2xs text-slate-500">
+                      Nomor SK (Arsip): <span className="font-mono font-bold text-slate-800">{pendaftar.nomor_sk}</span>
+                    </p>
+                  )}
+                  <Button 
+                    onClick={handleTerbitkanSk} 
+                    isLoading={terbitkanLoading}
+                    variant="primary"
+                    icon={<FileCheck size={16} />}
+                    style={{ backgroundColor: 'var(--module-primary)' }}
+                    className="w-full font-bold text-xs py-2.5"
+                  >
+                    {terbitkanLoading ? 'Menerbitkan...' : (pendaftar.nomor_sk ? 'Terbitkan Ulang SK (Arsip)' : 'Terbitkan & Arsipkan SK')}
+                  </Button>
                   <Button 
                     onClick={handleDownloadSk} 
                     isLoading={downloadingSk}

@@ -1,19 +1,32 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, HelpCircle, Download } from 'lucide-react';
-import { useForm, Controller } from 'react-hook-form';
+import {
+  ArrowLeft,
+  Save,
+  Download,
+  HelpCircle,
+  FileText,
+  Archive,
+  Info,
+  Copy,
+  CheckCircle2,
+  ChevronDown,
+  Pencil,
+  Eye,
+} from 'lucide-react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 import { spmbService } from '@/services/spmb.service';
-import { JalurMasuk, GelombangPenerimaan, TemplateSuratSpmb, JENIS_SURAT_OPTIONS } from '@/types/spmb.types';
+import { moduleService } from '@/services/module.service';
+import { JalurMasuk, GelombangPenerimaan, JENIS_SURAT_OPTIONS } from '@/types/spmb.types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { Textarea } from '@/components/ui/Textarea';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +35,10 @@ const schema = z.object({
   kode: z.string().min(1, 'Kode template wajib diisi').max(50, 'Maksimal 50 karakter'),
   nama: z.string().min(1, 'Nama template wajib diisi').max(150, 'Maksimal 150 karakter'),
   jenis_surat: z.string().min(1, 'Jenis surat wajib diisi'),
+  hasil: z.string().optional().nullable(),
+  module_id: z.string().optional().nullable(),
+  klasifikasi_surat_id: z.string().optional().nullable(),
+  unit_surat_id: z.string().optional().nullable(),
   jalur_masuk_id: z.string().optional().nullable(),
   gelombang_id: z.string().optional().nullable(),
   is_active: z.boolean(),
@@ -31,8 +48,13 @@ const schema = z.object({
   format_nomor_surat: z.string().optional().nullable(),
   judul_surat: z.string().optional().nullable(),
   teks_pembuka: z.string().optional().nullable(),
+  teks_pernyataan: z.string().optional().nullable(),
   teks_keputusan: z.string().optional().nullable(),
+  label_keputusan: z.string().optional().nullable(),
+  teks_prodi: z.string().optional().nullable(),
+  teks_penutup: z.string().optional().nullable(),
   petunjuk_daftar_ulang: z.string().optional().nullable(),
+  judul_petunjuk: z.string().optional().nullable(),
   kota_penetapan: z.string().optional().nullable(),
   nama_penandatangan: z.string().optional().nullable(),
   jabatan_penandatangan: z.string().optional().nullable(),
@@ -49,7 +71,7 @@ const AVAILABLE_PLACEHOLDERS = [
   { token: '{tempat_lahir}', desc: 'Tempat lahir peserta' },
   { token: '{tanggal_lahir}', desc: 'Tanggal lahir peserta' },
   { token: '{asal_sekolah}', desc: 'Nama sekolah / institusi asal' },
-  { token: '{prodi_diterima}', desc: 'Nama Program Studi yang diterima' },
+  { token: '{prodi_diterima}', desc: 'Nama Program Studi diterima' },
   { token: '{jenjang}', desc: 'Jenjang pendidikan (S1, D3, dll.)' },
   { token: '{jalur}', desc: 'Nama Jalur Masuk' },
   { token: '{gelombang}', desc: 'Nama Gelombang Penerimaan' },
@@ -60,13 +82,106 @@ const AVAILABLE_PLACEHOLDERS = [
   { token: '{kota}', desc: 'Kota penetapan surat' },
 ];
 
-export default function EditTemplateSuratPage({ params }: { params: Promise<{ id: string }> }) {
+const SAMPLE: Record<string, string> = {
+  no_pendaftaran: 'SPMB-2026-0001',
+  nama: 'AHMAD FAUZI PRATAMA',
+  nik: '3371012345670001',
+  tempat_lahir: 'Surakarta',
+  tanggal_lahir: '1 Januari 2008',
+  asal_sekolah: 'SMA Negeri 1 Surakarta',
+  prodi_diterima: 'Teknik Informatika',
+  jenjang: 'S1',
+  jalur: 'Jalur Reguler',
+  gelombang: 'Gelombang I',
+  tahun_akademik: '2026/2027',
+  tanggal_penetapan: '5 Oktober 2026',
+  tahun: '2026',
+  romawi_bulan: 'X',
+};
+
+function replacePlaceholders(text: string, values: Record<string, string>): string {
+  return (text || '').replace(/\{(\w+)\}/g, (m, key) => values[key] ?? m);
+}
+
+interface ArsipOptions {
+  klasifikasi: { id: number; kode: string; nama: string }[];
+  unit: { id: number; kode: string; nama: string }[];
+  kop_surat: {
+    id: number;
+    nama: string;
+    file_url?: string | null;
+    nama_institusi?: string | null;
+    alamat_institusi?: string | null;
+    kontak_institusi?: string | null;
+    website_institusi?: string | null;
+  } | null;
+}
+
+function Editable({
+  value,
+  onChange,
+  placeholder,
+  style,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  style?: CSSProperties;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (document.activeElement !== el && el.innerText !== value) {
+      el.innerText = value;
+    }
+  }, [value]);
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      data-placeholder={placeholder}
+      onInput={(e) => onChange(e.currentTarget.innerText)}
+      onBlur={(e) => onChange(e.currentTarget.innerText)}
+      className={`wysiwyg-edit ${className || ''}`}
+      style={style}
+    />
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <tr>
+      <td style={{ width: '30%', padding: '1.5px 4px', verticalAlign: 'top' }}>{label}</td>
+      <td style={{ width: '3%', padding: '1.5px 4px', verticalAlign: 'top' }}>:</td>
+      <td style={{ width: '67%', padding: '1.5px 4px', verticalAlign: 'top', fontWeight: 700 }}>
+        {value}
+      </td>
+    </tr>
+  );
+}
+
+export default function EditorTemplateSuratPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const id = resolvedParams.id;
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [showTokens, setShowTokens] = useState(false);
+  const [arsipOpts, setArsipOpts] = useState<ArsipOptions | null>(null);
+
+  const docBoxRef = useRef<HTMLDivElement>(null);
+  const docInnerRef = useRef<HTMLDivElement>(null);
+  const [docScale, setDocScale] = useState(0.8);
+  const [docHeight, setDocHeight] = useState(1123);
 
   const loadJalurOptions = async (inputValue: string) => {
     try {
@@ -92,11 +207,40 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
     }
   };
 
+  const loadModuleOptions = async (inputValue: string) => {
+    try {
+      const modules = await moduleService.getAllModules();
+      const q = inputValue.toLowerCase();
+      return (modules || [])
+        .filter((m) => m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q))
+        .map((m) => ({ value: String(m.id), label: `${m.name} (${m.code})` }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadKlasifikasiOptions = async (inputValue: string) => {
+    const items = arsipOpts?.klasifikasi || [];
+    const q = inputValue.toLowerCase();
+    return items
+      .filter((k) => k.kode.toLowerCase().includes(q) || k.nama.toLowerCase().includes(q))
+      .map((k) => ({ value: String(k.id), label: `${k.kode} - ${k.nama}` }));
+  };
+
+  const loadUnitOptions = async (inputValue: string) => {
+    const items = arsipOpts?.unit || [];
+    const q = inputValue.toLowerCase();
+    return items
+      .filter((u) => u.kode.toLowerCase().includes(q) || u.nama.toLowerCase().includes(q))
+      .map((u) => ({ value: String(u.id), label: `${u.kode} - ${u.nama}` }));
+  };
+
   const {
     register,
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -104,6 +248,10 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
       kode: '',
       nama: '',
       jenis_surat: 'sk_lulus',
+      hasil: 'diterima',
+      module_id: '',
+      klasifikasi_surat_id: '',
+      unit_surat_id: '',
       jalur_masuk_id: '',
       gelombang_id: '',
       is_active: true,
@@ -113,8 +261,13 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
       format_nomor_surat: '',
       judul_surat: '',
       teks_pembuka: '',
+      teks_pernyataan: '',
       teks_keputusan: '',
+      label_keputusan: '',
+      teks_prodi: '',
+      teks_penutup: '',
       petunjuk_daftar_ulang: '',
+      judul_petunjuk: '',
       kota_penetapan: '',
       nama_penandatangan: '',
       jabatan_penandatangan: '',
@@ -122,6 +275,21 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
       catatan_kaki: '',
     },
   });
+
+  const values = useWatch({ control }) as FormValues;
+
+  const bind = (name: keyof FormValues, placeholder?: string) => ({
+    value: (values?.[name] as string) || '',
+    onChange: (v: string) => setValue(name, v, { shouldDirty: true }),
+    placeholder,
+  });
+
+  useEffect(() => {
+    spmbService
+      .getTemplateSuratArsipOptions()
+      .then(setArsipOpts)
+      .catch(() => setArsipOpts(null));
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -131,10 +299,15 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
 
         if (resDetail?.data) {
           const d = resDetail.data;
+          const hasilVal = d.hasil || 'diterima';
           reset({
             kode: d.kode || '',
             nama: d.nama || '',
             jenis_surat: d.jenis_surat || 'sk_lulus',
+            hasil: d.hasil || 'diterima',
+            module_id: d.module_id ? String(d.module_id) : '',
+            klasifikasi_surat_id: d.klasifikasi_surat_id ? String(d.klasifikasi_surat_id) : '',
+            unit_surat_id: d.unit_surat_id ? String(d.unit_surat_id) : '',
             jalur_masuk_id: d.jalur_masuk_id ? String(d.jalur_masuk_id) : '',
             gelombang_id: d.gelombang_id ? String(d.gelombang_id) : '',
             is_active: d.is_active ?? true,
@@ -142,10 +315,23 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
             kop_nama_sub: d.kop_nama_sub || '',
             kop_alamat_kontak: d.kop_alamat_kontak || '',
             format_nomor_surat: d.format_nomor_surat || '',
-            judul_surat: d.judul_surat || '',
-            teks_pembuka: d.teks_pembuka || '',
-            teks_keputusan: d.teks_keputusan || '',
-            petunjuk_daftar_ulang: d.petunjuk_daftar_ulang || '',
+            judul_surat: d.judul_surat || 'SURAT KETERANGAN TANDA LULUS SELEKSI',
+            teks_pembuka:
+              d.teks_pembuka ||
+              'Berdasarkan hasil evaluasi verifikasi kelengkapan berkas administrasi dan pemenuhan syarat seleksi penerimaan mahasiswa baru Tahun Akademik {tahun_akademik}, Panitia Penerimaan Mahasiswa Baru menyatakan bahwa:',
+            teks_pernyataan:
+              d.teks_pernyataan ||
+              'Sehubungan dengan hasil seleksi penerimaan mahasiswa baru tersebut di atas, dengan ini dinyatakan:',
+            teks_keputusan:
+              d.teks_keputusan || (hasilVal === 'ditolak' ? 'DINYATAKAN TIDAK LULUS' : 'DINYATAKAN LULUS / DITERIMA'),
+            label_keputusan: d.label_keputusan || 'Keputusan Hasil Seleksi:',
+            teks_prodi: d.teks_prodi || 'Program Studi: {prodi_diterima} ({jenjang})',
+            teks_penutup:
+              d.teks_penutup || 'Demikian surat keterangan ini dibuat untuk dipergunakan sebagaimana mestinya.',
+            petunjuk_daftar_ulang:
+              d.petunjuk_daftar_ulang ||
+              '1. Calon mahasiswa yang dinyatakan lulus wajib melakukan Daftar Ulang melalui portal resmi SPMB pada menu Daftar Ulang.\n2. Selesaikan pembayaran biaya registrasi/UKT menggunakan nomor Virtual Account resmi yang tertera pada invoice tagihan Anda sebelum batas waktu yang ditentukan.\n3. Setelah pembayaran daftar ulang terkonfirmasi lunas, sistem akan menerbitkan Nomor Induk Mahasiswa (NIM) resmi dan akun akademik mahasiswa baru.\n4. Surat keterangan ini sah dan dihasilkan secara otomatis oleh Sistem Informasi Penerimaan Mahasiswa Baru terintegrasi.',
+            judul_petunjuk: d.judul_petunjuk || 'Petunjuk & Ketentuan Daftar Ulang:',
             kota_penetapan: d.kota_penetapan || '',
             nama_penandatangan: d.nama_penandatangan || '',
             jabatan_penandatangan: d.jabatan_penandatangan || '',
@@ -163,11 +349,29 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
     fetchData();
   }, [id, reset]);
 
+  useEffect(() => {
+    const box = docBoxRef.current;
+    const inner = docInnerRef.current;
+    if (!box || !inner) return;
+    const update = () => {
+      setDocScale(box.clientWidth / 794);
+      setDocHeight(inner.scrollHeight);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(box);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, [fetching]);
+
   const onSubmit = async (data: FormValues) => {
     try {
       setLoading(true);
       const payload = {
         ...data,
+        module_id: data.module_id ? Number(data.module_id) : null,
+        klasifikasi_surat_id: data.klasifikasi_surat_id ? Number(data.klasifikasi_surat_id) : null,
+        unit_surat_id: data.unit_surat_id ? Number(data.unit_surat_id) : null,
         jalur_masuk_id: data.jalur_masuk_id ? Number(data.jalur_masuk_id) : null,
         gelombang_id: data.gelombang_id ? Number(data.gelombang_id) : null,
       };
@@ -203,11 +407,33 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
     }
   };
 
+  const copyToken = async (token: string) => {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopiedToken(token);
+      toast.success(`${token} disalin ke clipboard`);
+      setTimeout(() => setCopiedToken(null), 1500);
+    } catch {
+      toast.error('Gagal menyalin token');
+    }
+  };
+
+  const ph = (text?: string | null) =>
+    replacePlaceholders(text || '', { ...SAMPLE, kota: values?.kota_penetapan || 'Surakarta' });
+
+  const kopSurat = arsipOpts?.kop_surat ?? null;
+  const nomorSurat = ph(values?.format_nomor_surat || 'SKL/SPMB/{tahun}/{romawi_bulan}/{no_pendaftaran}');
+  const isDitolak = values?.hasil === 'ditolak';
+  const fontFamily = "'DejaVu Serif', 'Times New Roman', Times, serif";
+
   if (fetching) {
     return (
       <div className="flex flex-col gap-6 animate-pulse">
         <div className="h-10 bg-slate-200 rounded w-1/3"></div>
-        <div className="card p-6 bg-slate-100 h-96 rounded-lg"></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <div className="h-96 bg-slate-100 rounded-xl"></div>
+          <div className="h-[600px] bg-slate-100 rounded-xl"></div>
+        </div>
       </div>
     );
   }
@@ -215,8 +441,13 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Edit Template Surat SPMB"
-        description="Perbarui konfigurasi teks, kop, dan format nomor surat keputusan"
+        title="Editor Template Surat SPMB"
+        description="Klik langsung pada teks surat di panel kanan untuk mengeditnya."
+        breadcrumbs={[
+          { label: 'SPMB', href: '/spmb' },
+          { label: 'Master Template Surat', href: '/spmb/master/template-surat' },
+          { label: 'Editor' },
+        ]}
         action={
           <div className="flex gap-2">
             <Button
@@ -239,257 +470,475 @@ export default function EditTemplateSuratPage({ params }: { params: Promise<{ id
         }
       />
 
-      {/* Cheatsheet Variabel Dinamis */}
-      <div className="card p-4 bg-slate-50 border border-slate-200">
-        <div className="flex items-center gap-2 mb-2 text-slate-800">
-          <HelpCircle size={16} className="text-slate-500" />
-          <span className="text-xs font-bold uppercase tracking-wider">
-            Token / Placeholder Dinamis yang Didukung
-          </span>
-        </div>
-        <p className="text-2xs text-slate-600 mb-3">
-          Anda dapat memasukkan token di bawah ini ke dalam format nomor surat, teks pembuka, teks
-          keputusan, atau petunjuk daftar ulang. Nilainya akan diganti otomatis sesuai data pendaftar.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {AVAILABLE_PLACEHOLDERS.map((item) => (
-            <span
-              key={item.token}
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-white border border-slate-200 text-2xs font-mono text-slate-700"
-              title={item.desc}
-            >
-              <strong className="text-slate-900">{item.token}</strong>
-              <span className="text-slate-400 font-sans">• {item.desc}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Section 1: Identitas & Ruang Lingkup */}
-        <div className="card p-4 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
-            1. Identitas & Ruang Lingkup Template
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Input
-              label="Kode Template"
-              placeholder="Misal: SK_LULUS_REGULER_2026"
-              required
-              hint="Kode unik template surat."
-              error={errors.kode?.message}
-              {...register('kode')}
-            />
-
-            <Input
-              label="Nama Template"
-              placeholder="Misal: Template SK Kelulusan Jalur Reguler"
-              required
-              hint="Nama deskriptif untuk mempermudah identifikasi."
-              error={errors.nama?.message}
-              {...register('nama')}
-            />
-
-            <Controller
-              name="jenis_surat"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  label="Jenis Surat"
-                  required
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.jenis_surat?.message}
-                  options={JENIS_SURAT_OPTIONS as any}
-                />
-              )}
-            />
-
-            <Controller
-              name="jalur_masuk_id"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Khusus Jalur Masuk"
-                  placeholder="Pilih Jalur Masuk (Kosongkan jika berlaku semua)"
-                  value={field.value}
-                  onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
-                  loadOptions={loadJalurOptions}
-                  isClearable
-                  hint="Kosongkan jika template ini berlaku untuk semua jalur."
-                />
-              )}
-            />
-
-            <Controller
-              name="gelombang_id"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Khusus Gelombang"
-                  placeholder="Pilih Gelombang (Kosongkan jika berlaku semua)"
-                  value={field.value}
-                  onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
-                  loadOptions={loadGelombangOptions}
-                  isClearable
-                  hint="Kosongkan jika template ini berlaku untuk semua gelombang."
-                />
-              )}
-            />
-
-            <div className="flex items-center pt-6">
-              <Controller
-                name="is_active"
-                control={control}
-                render={({ field }) => (
-                  <Checkbox
-                    label="Aktifkan Template Ini"
-                    checked={field.value}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    hint="Template yang aktif akan dipilih sistem saat menerbitkan SK."
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+          {/* KIRI: PARAMETER */}
+          <div className="space-y-6">
+            <div className="card overflow-hidden">
+              <div className="card-header">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                    style={{
+                      background: 'var(--module-primary-light, var(--primary-50))',
+                      color: 'var(--module-primary, var(--primary-600))',
+                    }}
+                  >
+                    <FileText size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-800">Identitas & Ruang Lingkup</h3>
+                    <p className="text-2xs text-slate-500 mt-0.5">
+                      Kode, nama, jenis surat, dan cakupan jalur/gelombang.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Kode Template"
+                    placeholder="Misal: SK_LULUS_REGULER_2026"
+                    required
+                    hint="Kode unik template surat."
+                    error={errors.kode?.message}
+                    {...register('kode')}
                   />
-                )}
-              />
+                  <Input
+                    label="Nama Template"
+                    placeholder="Misal: Template SK Kelulusan Jalur Reguler"
+                    required
+                    hint="Nama deskriptif untuk mempermudah identifikasi."
+                    error={errors.nama?.message}
+                    {...register('nama')}
+                  />
+                  <Controller
+                    name="jenis_surat"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        label="Jenis Surat"
+                        required
+                        value={field.value}
+                        onChange={field.onChange}
+                        error={errors.jenis_surat?.message}
+                        options={JENIS_SURAT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="jalur_masuk_id"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Khusus Jalur Masuk"
+                        placeholder="Pilih Jalur Masuk (kosongkan = semua)"
+                        value={field.value}
+                        onChange={(opt: { value: string; label: string } | null) =>
+                          field.onChange(opt ? opt.value : '')
+                        }
+                        loadOptions={loadJalurOptions}
+                        isClearable
+                        hint="Kosongkan jika berlaku untuk semua jalur."
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="gelombang_id"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Khusus Gelombang"
+                        placeholder="Pilih Gelombang (kosongkan = semua)"
+                        value={field.value}
+                        onChange={(opt: { value: string; label: string } | null) =>
+                          field.onChange(opt ? opt.value : '')
+                        }
+                        loadOptions={loadGelombangOptions}
+                        isClearable
+                        hint="Kosongkan jika berlaku untuk semua gelombang."
+                      />
+                    )}
+                  />
+                  <div className="flex items-end pb-1">
+                    <Controller
+                      name="is_active"
+                      control={control}
+                      render={({ field }) => (
+                        <Checkbox
+                          label="Aktifkan Template Ini"
+                          checked={field.value}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                          hint="Template aktif dipilih sistem saat menerbitkan SK."
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <div className="card-header">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                    style={{
+                      background: 'var(--module-primary-light, var(--primary-50))',
+                      color: 'var(--module-primary, var(--primary-600))',
+                    }}
+                  >
+                    <Archive size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-800">Penomoran & Integrasi Arsip</h3>
+                    <p className="text-2xs text-slate-500 mt-0.5">
+                      Format nomor internal & penomoran resmi dari modul Arsip.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <Input
+                      label="Format Nomor Surat"
+                      placeholder="SKL/SPMB/{tahun}/{romawi_bulan}/{no_pendaftaran}"
+                      hint="Dapat memakai token dinamis."
+                      error={errors.format_nomor_surat?.message}
+                      {...register('format_nomor_surat')}
+                    />
+                  </div>
+                  <Controller
+                    name="module_id"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Modul Asal Nomor"
+                        placeholder="Pilih modul (mis. SPMB)"
+                        value={field.value}
+                        onChange={(opt: { value: string; label: string } | null) =>
+                          field.onChange(opt ? opt.value : '')
+                        }
+                        loadOptions={loadModuleOptions}
+                        isClearable
+                        hint="Modul asal permohonan nomor surat."
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="klasifikasi_surat_id"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Klasifikasi Surat (Arsip)"
+                        placeholder="Cari kode/uraian klasifikasi..."
+                        value={field.value}
+                        onChange={(opt: { value: string; label: string } | null) =>
+                          field.onChange(opt ? opt.value : '')
+                        }
+                        loadOptions={loadKlasifikasiOptions}
+                        isClearable
+                        hint="Dari master Klasifikasi Surat Arsip."
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="unit_surat_id"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Unit Pengolah (Arsip)"
+                        placeholder="Cari kode/nama unit pengolah..."
+                        value={field.value}
+                        onChange={(opt: { value: string; label: string } | null) =>
+                          field.onChange(opt ? opt.value : '')
+                        }
+                        loadOptions={loadUnitOptions}
+                        isClearable
+                        hint="Dari master Kode Unit Arsip."
+                      />
+                    )}
+                  />
+                </div>
+                <div
+                  className="mt-4 flex items-start gap-2 rounded-lg border p-3 text-2xs"
+                  style={{
+                    borderColor: 'var(--module-primary-light, var(--primary-100))',
+                    background: 'var(--module-primary-light, var(--primary-50))',
+                    color: 'var(--module-primary, var(--primary-700))',
+                  }}
+                >
+                  <Info size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    Bila Modul, Klasifikasi, dan Unit diisi, nomor SK terbit resmi dari modul Arsip.
+                    Bila kosong, SK memakai format nomor internal di atas.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowTokens((s) => !s)}
+                className="card-header w-full text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <HelpCircle size={16} style={{ color: 'var(--module-primary)' }} />
+                  <h3 className="text-sm font-bold text-slate-800">Token Dinamis</h3>
+                  <span className="text-2xs text-slate-400">({AVAILABLE_PLACEHOLDERS.length})</span>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`text-slate-400 transition-transform ${showTokens ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {showTokens && (
+                <div className="card-body">
+                  <p className="text-2xs text-slate-500 mb-3">
+                    Klik token untuk menyalin, lalu tempel ke teks surat. Nilainya diganti otomatis saat
+                    SK diterbitkan.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {AVAILABLE_PLACEHOLDERS.map((item) => (
+                      <button
+                        key={item.token}
+                        type="button"
+                        title={item.desc}
+                        onClick={() => copyToken(item.token)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-2xs text-slate-700 transition hover:border-slate-300 hover:bg-white"
+                      >
+                        {copiedToken === item.token ? (
+                          <CheckCircle2 size={12} className="text-emerald-500" />
+                        ) : (
+                          <Copy size={12} className="text-slate-400" />
+                        )}
+                        {item.token}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* KANAN: DOKUMEN EDITABLE */}
+          <div className="xl:sticky xl:top-6">
+            <div className="card overflow-hidden">
+              <div className="card-header">
+                <div className="flex items-center gap-2">
+                  <Eye size={16} style={{ color: 'var(--module-primary)' }} />
+                  <h3 className="text-sm font-bold text-slate-800">Dokumen Surat</h3>
+                  <span className="badge badge-blue">A4</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="hidden items-center gap-1.5 text-2xs text-slate-500 sm:flex">
+                    <Pencil size={12} />
+                    Klik teks untuk mengedit
+                  </span>
+                  <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setValue('hasil', 'diterima', { shouldDirty: true })}
+                      className={`rounded-md px-3 py-1 text-2xs font-bold transition ${
+                        (values?.hasil || 'diterima') === 'diterima' ? 'text-white' : 'text-slate-600'
+                      }`}
+                      style={
+                        (values?.hasil || 'diterima') === 'diterima'
+                          ? { backgroundColor: 'var(--module-primary)' }
+                          : undefined
+                      }
+                    >
+                      Diterima
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setValue('hasil', 'ditolak', { shouldDirty: true })}
+                      className={`rounded-md px-3 py-1 text-2xs font-bold transition ${
+                        values?.hasil === 'ditolak' ? 'text-white' : 'text-slate-600'
+                      }`}
+                      style={
+                        values?.hasil === 'ditolak'
+                          ? { backgroundColor: 'var(--module-primary)' }
+                          : undefined
+                      }
+                    >
+                      Ditolak
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body bg-slate-100">
+                <div ref={docBoxRef} className="w-full">
+                  <div
+                    className="relative w-full overflow-hidden rounded-md ring-1 ring-slate-200"
+                    style={{ height: docHeight * docScale }}
+                  >
+                    <div
+                      ref={docInnerRef}
+                      className="absolute left-0 top-0 origin-top-left bg-white"
+                      style={{ width: 794, minHeight: 1123, transform: `scale(${docScale})`, fontFamily }}
+                    >
+                      {/* KOP */}
+                      {kopSurat?.file_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={kopSurat.file_url} alt="Kop Surat" style={{ width: 794, display: 'block' }} />
+                      ) : (
+                        <div style={{ padding: '14px 76px 6px', textAlign: 'center' }}>
+                          <Editable
+                            {...bind('kop_nama_institusi', 'Nama Institusi')}
+                            style={{ fontSize: 18.7, fontWeight: 700, textTransform: 'uppercase' }}
+                          />
+                          <Editable
+                            {...bind('kop_nama_sub', 'Sub Unit / Panitia')}
+                            style={{ fontSize: 16, fontWeight: 700, textTransform: 'uppercase' }}
+                          />
+                          <Editable
+                            {...bind('kop_alamat_kontak', 'Alamat & kontak institusi')}
+                            style={{ fontSize: 12, whiteSpace: 'pre-line', marginTop: 3 }}
+                          />
+                          <div style={{ borderTop: '2px solid #000', marginTop: 5 }} />
+                          <div style={{ borderTop: '1px solid #000', marginTop: 1 }} />
+                        </div>
+                      )}
+
+                      {/* BODY */}
+                      <div style={{ padding: '16px 76px 56px', fontSize: 14.7, lineHeight: 1.5, color: '#000' }}>
+                        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                          <Editable
+                            {...bind('judul_surat', 'Judul Surat')}
+                            style={{
+                              fontSize: 18.7,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              textDecoration: 'underline',
+                              letterSpacing: 0.5,
+                            }}
+                          />
+                          <div style={{ fontSize: 16, marginTop: 2 }}>Nomor: {nomorSurat}</div>
+                        </div>
+
+                        <Editable
+                          {...bind('teks_pembuka', 'Teks pembuka / konsideran surat...')}
+                          style={{ textAlign: 'justify', whiteSpace: 'pre-line', margin: '0 0 10px' }}
+                        />
+
+                        <table style={{ width: '100%', borderCollapse: 'collapse', margin: '0 0 10px 24px' }}>
+                          <tbody>
+                            <Row label="Nomor Pendaftaran" value={SAMPLE.no_pendaftaran} />
+                            <Row label="Nama Lengkap" value={SAMPLE.nama} />
+                            <Row label="NIK" value={SAMPLE.nik} />
+                            <Row label="Tempat, Tanggal Lahir" value={`${SAMPLE.tempat_lahir}, ${SAMPLE.tanggal_lahir}`} />
+                            <Row label="Asal Sekolah / Institusi" value={SAMPLE.asal_sekolah} />
+                            <Row label="Jalur Masuk" value={SAMPLE.jalur} />
+                            <Row label="Gelombang Pendaftaran" value={SAMPLE.gelombang} />
+                          </tbody>
+                        </table>
+
+                        <Editable
+                          {...bind(
+                            'teks_pernyataan',
+                            'Sehubungan dengan hasil seleksi penerimaan mahasiswa baru tersebut di atas, dengan ini dinyatakan:'
+                          )}
+                          style={{ textAlign: 'justify', margin: '10px 0 8px' }}
+                        />
+
+                        <div
+                          style={{
+                            border: '1.5px solid #000',
+                            padding: '10px 14px',
+                            textAlign: 'center',
+                            margin: '14px 0',
+                          }}
+                        >
+                          <Editable
+                            {...bind('label_keputusan', 'Keputusan Hasil Seleksi:')}
+                            style={{ fontSize: 13.3, textTransform: 'uppercase', letterSpacing: 0.5 }}
+                          />
+                          <Editable
+                            {...bind('teks_keputusan', 'Teks keputusan kelulusan')}
+                            style={{
+                              fontSize: 20,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: 1,
+                              margin: '4px 0 6px',
+                            }}
+                          />
+                          {!isDitolak && (
+                            <Editable
+                              {...bind('teks_prodi', 'Program Studi: {prodi_diterima} ({jenjang})')}
+                              style={{ fontSize: 14.7 }}
+                            />
+                          )}
+                        </div>
+
+                        {!isDitolak && (
+                          <div style={{ margin: '12px 0 18px' }}>
+                            <Editable
+                              {...bind('judul_petunjuk', 'Petunjuk & Ketentuan Daftar Ulang:')}
+                              style={{ fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}
+                            />
+                            <Editable
+                              {...bind('petunjuk_daftar_ulang', 'Petunjuk & ketentuan daftar ulang...')}
+                              style={{ whiteSpace: 'pre-line', textAlign: 'justify' }}
+                            />
+                          </div>
+                        )}
+
+                        <Editable
+                          {...bind('teks_penutup', 'Demikian surat keterangan ini dibuat untuk dipergunakan sebagaimana mestinya.')}
+                          style={{ textAlign: 'justify', margin: '0 0 10px' }}
+                        />
+
+                        <div style={{ width: '100%', marginTop: 28 }}>
+                          <div style={{ width: 234, marginLeft: 'auto', textAlign: 'center' }}>
+                            <div style={{ margin: '0 0 2px' }}>
+                              <Editable
+                                {...bind('kota_penetapan', 'Kota')}
+                                style={{ display: 'inline-block', minWidth: 60 }}
+                              />
+                              , {SAMPLE.tanggal_penetapan}
+                            </div>
+                            <Editable
+                              {...bind('jabatan_penandatangan', 'Jabatan penandatangan')}
+                              style={{ margin: '0 0 2px' }}
+                            />
+                            <div style={{ height: 83 }} />
+                            <Editable
+                              {...bind('nama_penandatangan', 'Nama penandatangan')}
+                              style={{ fontWeight: 700, textDecoration: 'underline', margin: 0 }}
+                            />
+                            <div style={{ fontSize: 13.3, margin: '1px 0 0' }}>
+                              NIP/NIDN:{' '}
+                              <Editable {...bind('nip_penandatangan', '-')} style={{ display: 'inline-block' }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <Editable
+                          {...bind('catatan_kaki', 'Catatan kaki dokumen...')}
+                          style={{
+                            marginTop: 22,
+                            borderTop: '1px solid #000',
+                            paddingTop: 5,
+                            fontSize: 11.3,
+                            textAlign: 'center',
+                            lineHeight: 1.4,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Section 2: Kop & Penomoran Surat */}
-        <div className="card p-4 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
-            2. Kop Surat & Penomoran
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Input
-              label="Nama Institusi (Kop Atas)"
-              placeholder="UNIVERSITAS INDONUSA"
-              error={errors.kop_nama_institusi?.message}
-              {...register('kop_nama_institusi')}
-            />
-
-            <Input
-              label="Sub Unit / Panitia (Kop Baris 2)"
-              placeholder="PANITIA PENERIMAAN MAHASISWA BARU (SPMB)"
-              error={errors.kop_nama_sub?.message}
-              {...register('kop_nama_sub')}
-            />
-
-            <Input
-              label="Format Nomor Surat"
-              placeholder="SKL/SPMB/{tahun}/{romawi_bulan}/{no_pendaftaran}"
-              hint="Dapat menggunakan token {tahun}, {romawi_bulan}, {no_pendaftaran}."
-              error={errors.format_nomor_surat?.message}
-              {...register('format_nomor_surat')}
-            />
-
-            <div className="col-span-full">
-              <Textarea
-                label="Alamat & Kontak Institusi (Kop Bawah)"
-                placeholder="Sekretariat SPMB • Email: spmb@kampus.ac.id • Website: spmb.kampus.ac.id"
-                rows={2}
-                error={errors.kop_alamat_kontak?.message}
-                {...register('kop_alamat_kontak')}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Konten & Isi Surat */}
-        <div className="card p-4 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
-            3. Isi Surat & Keputusan
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="col-span-full">
-              <Input
-                label="Judul Surat"
-                placeholder="SURAT KETERANGAN TANDA LULUS SELEKSI"
-                error={errors.judul_surat?.message}
-                {...register('judul_surat')}
-              />
-            </div>
-
-            <div className="col-span-full">
-              <Textarea
-                label="Teks Pembuka / Konsideran"
-                placeholder="Berdasarkan hasil evaluasi verifikasi kelengkapan berkas administrasi..."
-                rows={3}
-                hint="Dapat menggunakan token {tahun_akademik}, {nama}, dll."
-                error={errors.teks_pembuka?.message}
-                {...register('teks_pembuka')}
-              />
-            </div>
-
-            <div className="col-span-full">
-              <Input
-                label="Teks Status Keputusan Kelulusan"
-                placeholder="DINYATAKAN LULUS / DITERIMA"
-                hint="Teks utama yang tampil tebal di kotak status kelulusan."
-                error={errors.teks_keputusan?.message}
-                {...register('teks_keputusan')}
-              />
-            </div>
-
-            <div className="col-span-full">
-              <Textarea
-                label="Petunjuk & Ketentuan Daftar Ulang"
-                placeholder="1. Calon mahasiswa yang dinyatakan lulus wajib melakukan Daftar Ulang..."
-                rows={4}
-                hint="Masukkan butir petunjuk tahapan selanjutnya bagi calon mahasiswa baru."
-                error={errors.petunjuk_daftar_ulang?.message}
-                {...register('petunjuk_daftar_ulang')}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: Pengesahan & Footer */}
-        <div className="card p-4 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
-            4. Pengesahan & Catatan Kaki
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Input
-              label="Kota Penetapan"
-              placeholder="Surakarta"
-              error={errors.kota_penetapan?.message}
-              {...register('kota_penetapan')}
-            />
-
-            <Input
-              label="Nama Pejabat Penandatangan"
-              placeholder="Dr. Ir. H. Ahmad Fauzi, M.T."
-              error={errors.nama_penandatangan?.message}
-              {...register('nama_penandatangan')}
-            />
-
-            <Input
-              label="Jabatan Pejabat"
-              placeholder="Ketua Panitia SPMB"
-              error={errors.jabatan_penandatangan?.message}
-              {...register('jabatan_penandatangan')}
-            />
-
-            <Input
-              label="NIP / NIDN (Opsional)"
-              placeholder="198001012005011003"
-              error={errors.nip_penandatangan?.message}
-              {...register('nip_penandatangan')}
-            />
-
-            <div className="col-span-full">
-              <Input
-                label="Catatan Kaki (Footer Dokumen)"
-                placeholder="Dokumen ini merupakan bukti kelulusan seleksi SPMB yang sah..."
-                error={errors.catatan_kaki?.message}
-                {...register('catatan_kaki')}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Actions Bar */}
-        <div className="flex justify-end gap-3 pt-4">
+        {/* ACTION BAR */}
+        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
           <Button
             type="button"
             variant="secondary"

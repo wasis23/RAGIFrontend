@@ -69,6 +69,10 @@ export interface PendaftaranCalonMhs {
   } | null;
   no_pendaftaran: string;
   nim?: string;
+  nomor_sk?: string | null;
+  sk_file_path?: string | null;
+  sk_file_url?: string | null;
+  sk_generated_at?: string | null;
   nama_lengkap: string;
   nik: string;
   tanggal_lahir: string;
@@ -305,6 +309,17 @@ export const spmbService = {
     link.parentNode?.removeChild(link);
     window.URL.revokeObjectURL(url);
     return true;
+  },
+
+  terbitkanSk: async (
+    id: number | string
+  ): Promise<{
+    status: string;
+    message: string;
+    data: { nomor_sk: string | null; sk_file_path: string; sk_file_url: string | null };
+  }> => {
+    const response = await api.post(`/spmb/pendaftaran/${id}/terbitkan-sk`);
+    return response.data;
   },
 
   // Kuota Prodi
@@ -755,6 +770,23 @@ export const spmbService = {
   getTemplateSurat: async (params?: GetTemplateSuratParams) => {
     const response = await api.get('/spmb/template-surat', { params });
     return response.data;
+  },
+
+  getTemplateSuratArsipOptions: async (): Promise<{
+    klasifikasi: { id: number; kode: string; nama: string }[];
+    unit: { id: number; kode: string; nama: string }[];
+    kop_surat: {
+      id: number;
+      nama: string;
+      file_url?: string | null;
+      nama_institusi?: string | null;
+      alamat_institusi?: string | null;
+      kontak_institusi?: string | null;
+      website_institusi?: string | null;
+    } | null;
+  }> => {
+    const response = await api.get('/spmb/template-surat-arsip-opsi');
+    return response.data.data;
   },
 
   getTemplateSuratDetail: async (id: number | string): Promise<{ status: string; message: string; data: TemplateSuratSpmb }> => {

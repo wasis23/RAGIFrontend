@@ -460,6 +460,10 @@ export interface TemplateSuratSpmb {
   kode: string;
   nama: string;
   jenis_surat: string;
+  hasil?: string | null;
+  module_id?: number | null;
+  klasifikasi_surat_id?: number | null;
+  unit_surat_id?: number | null;
   jalur_masuk_id?: number | null;
   gelombang_id?: number | null;
   is_active: boolean;
@@ -469,8 +473,13 @@ export interface TemplateSuratSpmb {
   format_nomor_surat?: string | null;
   judul_surat?: string | null;
   teks_pembuka?: string | null;
+  teks_pernyataan?: string | null;
   teks_keputusan?: string | null;
+  label_keputusan?: string | null;
+  teks_prodi?: string | null;
+  teks_penutup?: string | null;
   petunjuk_daftar_ulang?: string | null;
+  judul_petunjuk?: string | null;
   kota_penetapan?: string | null;
   nama_penandatangan?: string | null;
   jabatan_penandatangan?: string | null;
@@ -481,12 +490,19 @@ export interface TemplateSuratSpmb {
   deleted_at?: string | null;
   jalur_masuk?: JalurMasuk | null;
   gelombang?: GelombangPenerimaan | null;
+  module?: { id: number; name: string; code: string } | null;
+  klasifikasi_surat?: { id: number; kode: string; nama: string } | null;
+  unit_surat?: { id: number; kode: string; nama: string } | null;
 }
 
 export interface TemplateSuratSpmbPayload {
   kode: string;
   nama: string;
   jenis_surat: string;
+  hasil?: string | null;
+  module_id?: number | null;
+  klasifikasi_surat_id?: number | null;
+  unit_surat_id?: number | null;
   jalur_masuk_id?: number | null;
   gelombang_id?: number | null;
   is_active?: boolean;
@@ -496,8 +512,13 @@ export interface TemplateSuratSpmbPayload {
   format_nomor_surat?: string | null;
   judul_surat?: string | null;
   teks_pembuka?: string | null;
+  teks_pernyataan?: string | null;
   teks_keputusan?: string | null;
+  label_keputusan?: string | null;
+  teks_prodi?: string | null;
+  teks_penutup?: string | null;
   petunjuk_daftar_ulang?: string | null;
+  judul_petunjuk?: string | null;
   kota_penetapan?: string | null;
   nama_penandatangan?: string | null;
   jabatan_penandatangan?: string | null;

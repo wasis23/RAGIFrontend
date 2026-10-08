@@ -63,6 +63,7 @@ export function ImpersonateBanner() {
     nextRefreshToken: string
   ) => {
     if (!nextAdminUser) return false;
+    const targetReturnUrl = useImpersonateStore.getState().returnUrl;
     stopImpersonating();
 
     const domainAttr = getCookieDomain();
@@ -75,8 +76,20 @@ export function ImpersonateBanner() {
 
     setAuth(nextAdminUser, nextToken, nextRefreshToken);
     toast.success(`Kembali ke akun administrator (${nextAdminUser.name || nextAdminUser.username})`);
-    // /admin/users hanya ada di portal SSO; di subdomain modul path relatif
-    // akan di-rewrite ke /<modul>/admin/users (404). Arahkan lintas-domain.
+    
+    // Jika ada returnUrl tersimpan (misal dari modul siakad), kembalikan ke URL tersebut
+    if (targetReturnUrl) {
+      window.location.href = targetReturnUrl;
+      return true;
+    }
+
+    // Default: jika admin superadmin atau modul SSO
+    const isAdminSiakad = adminRole === 'admin_siakad' || nextAdminUser.roles?.some((r: any) => r.slug === 'admin_siakad' || r.role?.slug === 'admin_siakad');
+    if (isAdminSiakad) {
+      window.location.href = '/siakad/master/fakultas';
+      return true;
+    }
+
     window.location.href = getModuleUrl('sso', ROUTES.ADMIN_USERS);
     return true;
   };
@@ -121,10 +134,15 @@ export function ImpersonateBanner() {
   const adminName = adminUser ? adminUser.name || adminUser.username || 'Admin' : 'Admin';
 
   const displayName = user?.name || user?.nama_lengkap || user?.username || 'Pengguna';
-  const roleDisplay = (user?.roles || [])
-    .map((r: any) => r.name || r.role?.name || r.slug || (typeof r === 'string' ? r : ''))
-    .filter(Boolean)
-    .join(', ') || 'Pengguna';
+  const roleDisplay = (() => {
+    const roles = (user?.roles || [])
+      .map((r: any) => r.name || r.role?.name || r.slug || (typeof r === 'string' ? r : ''))
+      .filter(Boolean);
+    const obeList = ((user as any)?.siakadAdminProdis || []).map(
+      (ap: any) => `Admin OBE (${ap.program_studi?.kode_prodi || ap.program_studi?.nama})`
+    );
+    return [...roles, ...obeList].join(', ') || 'Pengguna';
+  })();
 
   return (
     <div className="w-full bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 text-slate-950 px-4 py-2 text-xs sm:text-sm font-medium flex items-center justify-between shadow-md z-50 border-b border-amber-700 animate-fade-in">

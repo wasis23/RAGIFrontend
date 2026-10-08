@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 import { spmbService } from '@/services/spmb.service';
+import { moduleService } from '@/services/module.service';
 import { JalurMasuk, GelombangPenerimaan, JENIS_SURAT_OPTIONS } from '@/types/spmb.types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -22,6 +23,9 @@ const schema = z.object({
   kode: z.string().min(1, 'Kode template wajib diisi').max(50, 'Maksimal 50 karakter'),
   nama: z.string().min(1, 'Nama template wajib diisi').max(150, 'Maksimal 150 karakter'),
   jenis_surat: z.string().min(1, 'Jenis surat wajib diisi'),
+  module_id: z.string().optional().nullable(),
+  klasifikasi_surat_id: z.string().optional().nullable(),
+  unit_surat_id: z.string().optional().nullable(),
   jalur_masuk_id: z.string().optional().nullable(),
   gelombang_id: z.string().optional().nullable(),
   is_active: z.boolean(),
@@ -88,6 +92,42 @@ export default function CreateTemplateSuratPage() {
     }
   };
 
+  const loadModuleOptions = async (inputValue: string) => {
+    try {
+      const modules = await moduleService.getAllModules();
+      const q = inputValue.toLowerCase();
+      return (modules || [])
+        .filter((m) => m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q))
+        .map((m) => ({ value: String(m.id), label: `${m.name} (${m.code})` }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadKlasifikasiOptions = async (inputValue: string) => {
+    try {
+      const { klasifikasi: items } = await spmbService.getTemplateSuratArsipOptions();
+      const q = inputValue.toLowerCase();
+      return (items || [])
+        .filter((k) => k.kode.toLowerCase().includes(q) || k.nama.toLowerCase().includes(q))
+        .map((k) => ({ value: String(k.id), label: `${k.kode} - ${k.nama}` }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadUnitOptions = async (inputValue: string) => {
+    try {
+      const { unit: items } = await spmbService.getTemplateSuratArsipOptions();
+      const q = inputValue.toLowerCase();
+      return (items || [])
+        .filter((u) => u.kode.toLowerCase().includes(q) || u.nama.toLowerCase().includes(q))
+        .map((u) => ({ value: String(u.id), label: `${u.kode} - ${u.nama}` }));
+    } catch {
+      return [];
+    }
+  };
+
   const {
     register,
     handleSubmit,
@@ -99,6 +139,9 @@ export default function CreateTemplateSuratPage() {
       kode: '',
       nama: '',
       jenis_surat: 'sk_lulus',
+      module_id: '',
+      klasifikasi_surat_id: '',
+      unit_surat_id: '',
       jalur_masuk_id: '',
       gelombang_id: '',
       is_active: true,
@@ -127,6 +170,9 @@ export default function CreateTemplateSuratPage() {
       setLoading(true);
       const payload = {
         ...data,
+        module_id: data.module_id ? Number(data.module_id) : null,
+        klasifikasi_surat_id: data.klasifikasi_surat_id ? Number(data.klasifikasi_surat_id) : null,
+        unit_surat_id: data.unit_surat_id ? Number(data.unit_surat_id) : null,
         jalur_masuk_id: data.jalur_masuk_id ? Number(data.jalur_masuk_id) : null,
         gelombang_id: data.gelombang_id ? Number(data.gelombang_id) : null,
       };
@@ -311,6 +357,66 @@ export default function CreateTemplateSuratPage() {
                 {...register('kop_alamat_kontak')}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Section 2b: Integrasi Arsip */}
+        <div className="card p-4 space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
+            2b. Integrasi Penomoran Arsip (Opsional)
+          </h3>
+          <p className="text-2xs text-slate-500">
+            Bila Modul, Klasifikasi, dan Unit diisi, nomor SK akan diterbitkan otomatis dari modul
+            Arsip sesuai master data (bukan format internal SPMB).
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Controller
+              name="module_id"
+              control={control}
+              render={({ field }) => (
+                <AsyncSelect
+                  label="Modul Asal Nomor"
+                  placeholder="Pilih modul (mis. SPMB)"
+                  value={field.value}
+                  onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
+                  loadOptions={loadModuleOptions}
+                  isClearable
+                  hint="Modul yang menjadi asal permohonan nomor surat."
+                />
+              )}
+            />
+
+            <Controller
+              name="klasifikasi_surat_id"
+              control={control}
+              render={({ field }) => (
+                <AsyncSelect
+                  label="Klasifikasi Surat (Arsip)"
+                  placeholder="Cari kode/uraian klasifikasi..."
+                  value={field.value}
+                  onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
+                  loadOptions={loadKlasifikasiOptions}
+                  isClearable
+                  hint="Diambil dari master Klasifikasi Surat Arsip."
+                />
+              )}
+            />
+
+            <Controller
+              name="unit_surat_id"
+              control={control}
+              render={({ field }) => (
+                <AsyncSelect
+                  label="Unit Pengolah (Arsip)"
+                  placeholder="Cari kode/nama unit pengolah..."
+                  value={field.value}
+                  onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
+                  loadOptions={loadUnitOptions}
+                  isClearable
+                  hint="Diambil dari master Kode Unit Arsip."
+                />
+              )}
+            />
           </div>
         </div>
 

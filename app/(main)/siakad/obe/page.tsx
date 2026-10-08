@@ -37,6 +37,7 @@ import { Select } from '@/components/ui/Select';
 import { SIAKAD_OPTION_TYPES, useSiakadOptions } from '@/lib/siakad-options';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { siakadService } from '@/services/siakad.service';
+import { ObeMasterSection } from '@/components/siakad/ObeMasterSection';
 import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
@@ -44,6 +45,7 @@ export type ObeTabKey =
   | 'dashboard'
   | 'audit_pemetaan'
   | 'grafik_capaian'
+  | 'master_kurikulum'
   | 'cpl'
   | 'matrix_cpl_mk'
   | 'cpmk'
@@ -59,12 +61,14 @@ export interface ObeWorkspaceProps {
   description?: string;
   breadcrumbLabel?: string;
   allowedRoles?: string[];
+  requiredPermission?: string;
 }
 
 export function ObeWorkspace({
   initialTab = 'dashboard',
   visibleTabs = [
     'dashboard',
+    'master_kurikulum',
     'audit_pemetaan',
     'grafik_capaian',
     'cpl',
@@ -79,15 +83,22 @@ export function ObeWorkspace({
   description = 'Perumusan CPL, penurunan CPMK, penyusunan rancangan pembelajaran (RPS 16 Minggu), dan verifikasi Kaprodi.',
   breadcrumbLabel = 'Kurikulum OBE',
   allowedRoles,
+  requiredPermission,
 }: ObeWorkspaceProps) {
   const router = useRouter();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, hasPermission } = useAuth();
   const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
-  // Superadmin bypass semua batasan peran di workspace ini
+  // Pengecekan izin granular IAM
   const isAllowed =
     userRoles.includes('superadmin') ||
-    !allowedRoles ||
-    allowedRoles.some((r) => userRoles.includes(r));
+    userRoles.includes('admin') ||
+    userRoles.includes('admin_obe') ||
+    userRoles.includes('admin_siakad') ||
+    hasPermission('siakad.master.manage') ||
+    hasPermission('siakad.kurikulum.read') ||
+    hasPermission('siakad.dashboard.read') ||
+    (requiredPermission ? hasPermission(requiredPermission) : true) ||
+    (!allowedRoles || allowedRoles.some((r) => userRoles.includes(r)));
   const [activeTab, setActiveTab] = useState<ObeTabKey>(
     visibleTabs.includes(initialTab) ? initialTab : visibleTabs[0]
   );
@@ -117,8 +128,10 @@ export function ObeWorkspace({
 
   // Dosen murni: hanya MK yang diajarnya (mendukung lintas prodi)
   const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
-  // Verifikator RPS: hanya Kaprodi/Wakil/Admin yang boleh Setujui/Minta Revisi (backend approveRps juga 403 selain peran ini)
-  const isRpsVerifier = hasRole(['superadmin', 'admin', 'kaprodi', 'wakil_prodi']);
+  // Verifikator RPS: hanya Kaprodi/Wakil/Admin/Admin OBE yang boleh Setujui/Minta Revisi
+  const isRpsVerifier =
+    hasRole(['superadmin', 'admin', 'admin_obe', 'admin_siakad', 'kaprodi', 'wakil_prodi']) ||
+    hasPermission('siakad.master.manage');
   const [taughtMkIds, setTaughtMkIds] = useState<number[]>([]);
   const [taughtLoaded, setTaughtLoaded] = useState(false);
 
@@ -1117,15 +1130,21 @@ export function ObeWorkspace({
           action={
             <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
               <span className="text-xs font-bold text-slate-500">Program Studi:</span>
-              <select
-                value={selectedProdiId}
-                onChange={(e) => setSelectedProdiId(Number(e.target.value))}
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none cursor-pointer"
-              >
-                {prodis.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nama} ({p.jenjang})</option>
-                ))}
-              </select>
+              {prodis.length <= 1 ? (
+                <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs font-bold text-amber-900">
+                  {selectedProdiObj?.nama || 'Homebase Prodi'} ({selectedProdiObj?.jenjang || '-'})
+                </span>
+              ) : (
+                <select
+                  value={selectedProdiId}
+                  onChange={(e) => setSelectedProdiId(Number(e.target.value))}
+                  className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                >
+                  {prodis.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nama} ({p.jenjang})</option>
+                  ))}
+                </select>
+              )}
             </div>
           }
         />
@@ -1135,6 +1154,7 @@ export function ObeWorkspace({
         {(
           [
             { key: 'dashboard', label: 'Pemantauan & Monitoring OBE', icon: <BarChart3 size={16} /> },
+            { key: 'master_kurikulum', label: 'Master Kurikulum OBE', icon: <BookOpen size={16} /> },
             { key: 'audit_pemetaan', label: `Audit Pemetaan MK (${auditData?.summary?.total_matakuliah ?? matakuliahList.length})`, icon: <ShieldCheck size={16} /> },
             { key: 'grafik_capaian', label: 'Grafik Capaian CPL/CPMK', icon: <BarChart3 size={16} /> },
             { key: 'cpl', label: `Perumusan CPL Prodi (${cplList.length})`, icon: <Award size={16} /> },
@@ -1162,6 +1182,17 @@ export function ObeWorkspace({
             </button>
           ))}
       </div>
+
+      {/* ======================================================== */}
+      {/* TAB MASTER KURIKULUM OBE */}
+      {/* ======================================================== */}
+      {activeTab === 'master_kurikulum' && (
+        <ObeMasterSection
+          prodis={prodis}
+          selectedProdiId={selectedProdiId}
+          onProdiChange={(pId) => setSelectedProdiId(Number(pId))}
+        />
+      )}
 
       {/* ======================================================== */}
       {/* TAB 1: PEMANTAUAN & MONITORING OBE */}
@@ -2932,16 +2963,16 @@ export function ObeWorkspace({
   );
 }
 
-// Route default /siakad/obe = Pemantauan (Kaprodi & BAAK)
+// Route default /siakad/obe = Pemantauan & Master Kurikulum OBE (Admin OBE, Kaprodi & BAAK)
 export default function KurikulumObePage() {
   return (
     <ObeWorkspace
       initialTab="dashboard"
-      visibleTabs={['dashboard', 'audit_pemetaan', 'grafik_capaian']}
-      title="Pemantauan & Audit OBE"
-      description="Monitoring ketercapaian CPL, audit kesiapan penilaian MK (bobot 100%), dan kesiapan dosen pengampu."
+      visibleTabs={['dashboard', 'master_kurikulum', 'audit_pemetaan', 'grafik_capaian']}
+      title="Pemantauan & Master OBE Homebase"
+      description="Monitoring ketercapaian CPL, audit kesiapan penilaian MK (bobot 100%), dan pengelolaan master kurikulum homebase prodi."
       breadcrumbLabel="Pemantauan OBE"
-      allowedRoles={['superadmin', 'admin', 'kaprodi', 'wakil_prodi']}
+      allowedRoles={['superadmin', 'admin', 'admin_obe', 'admin_siakad', 'kaprodi', 'wakil_prodi', 'dosen']}
     />
   );
 }

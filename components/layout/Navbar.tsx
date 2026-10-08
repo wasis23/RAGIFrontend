@@ -94,6 +94,11 @@ export function Navbar() {
                   {user?.roles?.map(r => (
                     <span key={r.id} className="dropdown-role-tag">{r.name || r.role?.name}</span>
                   ))}
+                  {(((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis) || []).map((ap: any) => (
+                    <span key={`obe-${ap.id}`} className="dropdown-role-tag bg-amber-100 text-amber-900 border border-amber-300">
+                      Admin OBE ({ap.program_studi?.kode_prodi || ap.program_studi?.nama})
+                    </span>
+                  ))}
                 </div>
               </div>
 

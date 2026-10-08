@@ -9,6 +9,7 @@ const initialState: ImpersonateState = {
   adminToken: null,
   adminRefreshToken: null,
   adminUser: null,
+  returnUrl: null,
 };
 
 export const useImpersonateStore = create<ImpersonateStore>()(
@@ -16,12 +17,13 @@ export const useImpersonateStore = create<ImpersonateStore>()(
     (set) => ({
       ...initialState,
 
-      startImpersonating: (adminToken, adminRefreshToken, adminUser) =>
+      startImpersonating: (adminToken, adminRefreshToken, adminUser, returnUrl) =>
         set({
           isImpersonating: true,
           adminToken,
           adminRefreshToken,
           adminUser,
+          returnUrl: returnUrl || null,
         }),
 
       stopImpersonating: () =>
@@ -30,6 +32,7 @@ export const useImpersonateStore = create<ImpersonateStore>()(
           adminToken: null,
           adminRefreshToken: null,
           adminUser: null,
+          returnUrl: null,
         }),
 
       syncFromBackend: (adminUser) =>
@@ -38,6 +41,7 @@ export const useImpersonateStore = create<ImpersonateStore>()(
           adminToken: state.adminToken,
           adminRefreshToken: state.adminRefreshToken,
           adminUser,
+          returnUrl: state.returnUrl,
         })),
     }),
     {

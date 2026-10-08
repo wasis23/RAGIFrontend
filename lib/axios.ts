@@ -58,6 +58,59 @@ const processQueue = (error: unknown, token: string | null = null) => {
   refreshQueue = [];
 };
 
+/**
+ * Eksekusi pertukaran refresh token secara aman dengan fallback Web Locks API
+ * untuk mencegah race condition antar-tab peramban.
+ */
+async function performTokenRefresh(): Promise<string> {
+  const executeCall = async (): Promise<string> => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+      refresh_token: refreshToken,
+    });
+
+    const { access_token, refresh_token: newRefreshToken } = response.data.data;
+
+    localStorage.setItem(TOKEN_KEY, access_token);
+    if (newRefreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+    }
+
+    // Sinkronkan cookie lintas-subdomain agar subdomain modul lain
+    // memakai token terbaru.
+    if (typeof document !== 'undefined') {
+      const domainAttr = getCookieDomain();
+      document.cookie = `${TOKEN_KEY}=${access_token}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
+    }
+
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    return access_token;
+  };
+
+  // Gunakan Web Locks API bila didukung browser (mencegah multi-tab menembak refresh bersamaan)
+  if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+    return await (navigator.locks as any).request('ragi_auth_refresh_mutex', async () => {
+      // Periksa apakah tab lain sudah sukses me-refresh token dalam memori beberapa milidetik lalu
+      const existingToken = localStorage.getItem(TOKEN_KEY);
+      const authHeader = apiClient.defaults.headers.common['Authorization'] as string | undefined;
+      const currentBearer = authHeader ? authHeader.replace('Bearer ', '') : '';
+
+      if (existingToken && existingToken !== currentBearer) {
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${existingToken}`;
+        return existingToken;
+      }
+
+      return await executeCall();
+    });
+  }
+
+  return await executeCall();
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -80,34 +133,11 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-
-      if (!refreshToken) {
-        handleLogout();
-        return Promise.reject(error);
-      }
-
       try {
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken,
-        });
+        const newAccessToken = await performTokenRefresh();
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
-        const { access_token, refresh_token: newRefreshToken } = response.data.data;
-
-        localStorage.setItem(TOKEN_KEY, access_token);
-        localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
-
-        // Sinkronkan cookie lintas-subdomain agar subdomain modul lain
-        // memakai token terbaru (bukan token lama dari localStorage).
-        if (typeof document !== 'undefined') {
-          const domainAttr = getCookieDomain();
-          document.cookie = `${TOKEN_KEY}=${access_token}; ${domainAttr}path=/; max-age=86400; SameSite=Lax`;
-        }
-
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
-
-        processQueue(null, access_token);
+        processQueue(null, newAccessToken);
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);

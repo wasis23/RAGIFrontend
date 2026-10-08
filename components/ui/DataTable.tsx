@@ -78,10 +78,10 @@ export function DataTable<T extends object>({
     <div className="table-container bg-white shadow-xs">
       <div className="table-wrapper bg-white">
         <table className="table bg-white">
-          <thead className="bg-white border-b border-slate-200">
-            <tr className="bg-white">
+          <thead className="bg-slate-50/90 border-b border-slate-200">
+            <tr className="bg-slate-50/90">
               {expandable && (
-                <th className="bg-white" style={{ width: '36px', padding: '0.5rem' }}>
+                <th className="bg-slate-50/90" style={{ width: '36px', padding: '0.5rem' }}>
                   {data.length > 0 && !isLoading && (
                     <button
                       type="button"
@@ -129,7 +129,7 @@ export function DataTable<T extends object>({
                     className={`bg-white hover:bg-slate-50 transition-colors ${rowClassName ? rowClassName(row, rowIndex) : ''}`}
                   >
                     {expandable && (
-                      <td className="bg-white" style={{ width: '36px', padding: '0.5rem' }}>
+                      <td style={{ width: '36px', padding: '0.5rem' }}>
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm btn-icon"
@@ -148,7 +148,7 @@ export function DataTable<T extends object>({
                       </td>
                     )}
                     {columns.map((col, colIndex) => (
-                      <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }} className="bg-white">
+                      <td key={col.key || colIndex} style={{ textAlign: col.align || 'left' }}>
                         {col.render ? col.render(row, rowIndex) : (row as any)[col.key]}
                       </td>
                     ))}

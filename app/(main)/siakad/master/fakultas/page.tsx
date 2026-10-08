@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Plus, Filter, Edit2, Trash2, GraduationCap } from 'lucide-react';
+import { Building2, Plus, Filter, Edit2, Trash2, GraduationCap, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -14,26 +14,52 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FakultasForm, type FakultasFormValues } from '@/components/siakad/FakultasForm';
+import { AdminProdiTab } from '@/components/siakad/AdminProdiTab';
+import { PlottingAdminProdiMenuTab } from '@/components/siakad/PlottingAdminProdiMenuTab';
 import { SIAKAD_OPTION_TYPES, useSiakadOptions } from '@/lib/siakad-options';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
+const SORT_PRODI_BY_OPTIONS = [
+  { value: 'nama', label: 'Nama Prodi' },
+  { value: 'kode_prodi', label: 'Kode Prodi' },
+  { value: 'kode_prodi_dikti', label: 'Kode DIKTI' },
+  { value: 'jenjang', label: 'Jenjang' },
+  { value: 'akreditasi', label: 'Akreditasi' },
+];
+
+const SORT_PRODI_DIR_OPTIONS = [
+  { value: 'asc', label: 'A - Z (Naik)' },
+  { value: 'desc', label: 'Z - A (Turun)' },
+];
+
 export default function FakultasPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'fakultas' | 'prodi'>('fakultas');
+  const [activeTab, setActiveTab] = useState<'fakultas' | 'prodi' | 'admin_prodi' | 'plotting_menu'>('fakultas');
   const [fakultas, setFakultas] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
+  const [prodiMeta, setProdiMeta] = useState<any>(undefined);
+  const [prodiPage, setProdiPage] = useState(1);
+  const [prodiLimit, setProdiLimit] = useState(10);
   const [loading, setLoading] = useState(true);
+  const [showAdminProdiFilter, setShowAdminProdiFilter] = useState(false);
+  const [showAdminProdiCreate, setShowAdminProdiCreate] = useState(false);
 
   // Filter Drawer State
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterFakultasId, setFilterFakultasId] = useState('');
   const [filterJenjang, setFilterJenjang] = useState('');
+  const [filterAkreditasi, setFilterAkreditasi] = useState('');
+  const [filterSortBy, setFilterSortBy] = useState('nama');
+  const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     fakultasId: '',
     jenjang: '',
+    akreditasi: '',
+    sortBy: 'nama',
+    sortDir: 'asc' as 'asc' | 'desc',
   });
 
   // Modal Fakultas state
@@ -43,6 +69,7 @@ export default function FakultasPage() {
   const [deletingProdi, setDeletingProdi] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
   const jenjangOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.JENJANG);
+  const akreditasiOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.AKREDITASI);
 
   const fetchData = async () => {
     try {
@@ -50,13 +77,32 @@ export default function FakultasPage() {
       const [fRes, pRes] = await Promise.all([
         siakadService.getFakultas(),
         siakadService.getProdi({
+          page: prodiPage,
+          per_page: prodiLimit,
           search: appliedFilters.search || undefined,
           fakultas_id: appliedFilters.fakultasId || undefined,
           jenjang: appliedFilters.jenjang || undefined,
+          akreditasi: appliedFilters.akreditasi || undefined,
+          sort_by: appliedFilters.sortBy,
+          sort_order: appliedFilters.sortDir,
         }),
       ]);
       if (fRes.data) setFakultas(fRes.data);
-      if (pRes.data) setProdis(pRes.data);
+      if (pRes.data) {
+        setProdis(pRes.data);
+        if (pRes.meta) {
+          setProdiMeta(pRes.meta);
+        } else {
+          setProdiMeta({
+            current_page: 1,
+            per_page: pRes.data.length,
+            total: pRes.data.length,
+            last_page: 1,
+            from: 1,
+            to: pRes.data.length,
+          });
+        }
+      }
     } catch (err: any) {
       toast.error('Gagal memuat data fakultas & program studi');
     } finally {
@@ -66,7 +112,7 @@ export default function FakultasPage() {
 
   useEffect(() => {
     fetchData();
-  }, [appliedFilters]);
+  }, [appliedFilters, prodiPage, prodiLimit]);
 
   // --- HANDLER FAKULTAS ---
   const handleOpenFakultasModal = (item?: any) => {
@@ -117,6 +163,16 @@ export default function FakultasPage() {
   };
 
   const prodiColumns: ColumnDef<any>[] = [
+    {
+      key: 'id',
+      label: 'NO',
+      align: 'center',
+      render: (_row, index) => (
+        <span className="font-bold text-slate-400 text-xs">
+          {prodiMeta?.from ? prodiMeta.from + index : index + 1}
+        </span>
+      ),
+    },
     {
       key: 'kode_prodi',
       label: 'KODE PRODI',
@@ -202,16 +258,25 @@ export default function FakultasPage() {
         action={
           <div className="flex items-center gap-2">
             {activeTab === 'prodi' && (
-              <Button
-                variant="outline"
-                icon={<Filter size={16} />}
-                onClick={() => setShowFilter(true)}
-              >
-                Filter
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  icon={<Filter size={16} />}
+                  onClick={() => setShowFilter(true)}
+                >
+                  Filter
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={<Plus size={16} />}
+                  onClick={() => router.push('/siakad/master/fakultas/prodi/create')}
+                >
+                  Tambah Program Studi
+                </Button>
+              </>
             )}
 
-            {activeTab === 'fakultas' ? (
+            {activeTab === 'fakultas' && (
               <Button
                 variant="primary"
                 icon={<Plus size={16} />}
@@ -219,14 +284,25 @@ export default function FakultasPage() {
               >
                 Tambah Fakultas
               </Button>
-            ) : (
-              <Button
-                variant="primary"
-                icon={<Plus size={16} />}
-                onClick={() => router.push('/siakad/master/fakultas/prodi/create')}
-              >
-                Tambah Program Studi
-              </Button>
+            )}
+
+            {activeTab === 'admin_prodi' && (
+              <>
+                <Button
+                  variant="outline"
+                  icon={<Filter size={16} />}
+                  onClick={() => setShowAdminProdiFilter(true)}
+                >
+                  Filter
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={<Plus size={16} />}
+                  onClick={() => setShowAdminProdiCreate(true)}
+                >
+                  Tambah Admin OBE
+                </Button>
+              </>
             )}
           </div>
         }
@@ -250,14 +326,54 @@ export default function FakultasPage() {
           onClick={() => setActiveTab('prodi')}
           className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
             activeTab === 'prodi'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-lg rounded-b-none'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
               : 'border-transparent text-slate-500 hover:text-slate-900'
           }`}
         >
           <GraduationCap size={16} />
           Daftar Program Studi ({prodis.length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('admin_prodi')}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
+            activeTab === 'admin_prodi'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <ShieldCheck size={16} />
+          Admin OBE Homebase Prodi
+        </button>
+
+        <button
+          onClick={() => setActiveTab('plotting_menu')}
+          className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
+            activeTab === 'plotting_menu'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <ShieldCheck size={16} />
+          Plotting Menu Admin OBE
+        </button>
       </div>
+
+      {/* Tab 3: Admin OBE Homebase Prodi */}
+      {activeTab === 'admin_prodi' && (
+        <AdminProdiTab
+          prodis={prodis}
+          showFilterExternal={showAdminProdiFilter}
+          onCloseFilterExternal={() => setShowAdminProdiFilter(false)}
+          showCreateModalExternal={showAdminProdiCreate}
+          onCloseCreateModalExternal={() => setShowAdminProdiCreate(false)}
+        />
+      )}
+
+      {/* Tab 4: Plotting Menu Admin OBE */}
+      {activeTab === 'plotting_menu' && (
+        <PlottingAdminProdiMenuTab prodis={prodis} />
+      )}
 
       {/* Tab 1: Fakultas Cards Grid */}
       {activeTab === 'fakultas' && (
@@ -323,6 +439,12 @@ export default function FakultasPage() {
           columns={prodiColumns}
           data={prodis}
           isLoading={loading}
+          meta={prodiMeta}
+          onPageChange={(p) => setProdiPage(p)}
+          onLimitChange={(l) => {
+            setProdiLimit(l);
+            setProdiPage(1);
+          }}
           emptyMessage="Belum ada program studi yang terdaftar."
         />
       )}
@@ -340,7 +462,18 @@ export default function FakultasPage() {
                 setFilterSearch('');
                 setFilterFakultasId('');
                 setFilterJenjang('');
-                setAppliedFilters({ search: '', fakultasId: '', jenjang: '' });
+                setFilterAkreditasi('');
+                setFilterSortBy('nama');
+                setFilterSortDir('asc');
+                setAppliedFilters({
+                  search: '',
+                  fakultasId: '',
+                  jenjang: '',
+                  akreditasi: '',
+                  sortBy: 'nama',
+                  sortDir: 'asc',
+                });
+                setProdiPage(1);
                 setShowFilter(false);
               }}
             >
@@ -353,7 +486,11 @@ export default function FakultasPage() {
                   search: filterSearch,
                   fakultasId: filterFakultasId,
                   jenjang: filterJenjang,
+                  akreditasi: filterAkreditasi,
+                  sortBy: filterSortBy,
+                  sortDir: filterSortDir,
                 });
+                setProdiPage(1);
                 setShowFilter(false);
               }}
             >
@@ -362,7 +499,7 @@ export default function FakultasPage() {
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
           <Input
             label="Kode atau Nama Prodi"
             placeholder="Ketik kata kunci..."
@@ -387,6 +524,32 @@ export default function FakultasPage() {
             onChange={(val: any) => setFilterJenjang(val ? String(val) : '')}
             isClearable
           />
+
+          <Select
+            label="Akreditasi"
+            placeholder="Semua Akreditasi"
+            options={akreditasiOptions}
+            value={filterAkreditasi || ''}
+            onChange={(val: any) => setFilterAkreditasi(val ? String(val) : '')}
+            isClearable
+          />
+
+          <hr className="border-t border-slate-200 my-1" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterSortBy}
+              onChange={(val: any) => setFilterSortBy(val ? String(val) : 'nama')}
+              options={SORT_PRODI_BY_OPTIONS}
+            />
+            <Select
+              label="Arah"
+              value={filterSortDir}
+              onChange={(val: any) => setFilterSortDir((val as 'asc' | 'desc') || 'asc')}
+              options={SORT_PRODI_DIR_OPTIONS}
+            />
+          </div>
         </div>
       </Drawer>
 

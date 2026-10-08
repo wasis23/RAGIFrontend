@@ -5,10 +5,11 @@ export interface ImpersonateState {
   adminToken: string | null;
   adminRefreshToken: string | null;
   adminUser: User | null;
+  returnUrl?: string | null;
 }
 
 export interface ImpersonateActions {
-  startImpersonating: (adminToken: string, adminRefreshToken: string, adminUser: User) => void;
+  startImpersonating: (adminToken: string, adminRefreshToken: string, adminUser: User, returnUrl?: string) => void;
   stopImpersonating: () => void;
   /**
    * Hidrasikan flag impersonasi dari verifikasi backend

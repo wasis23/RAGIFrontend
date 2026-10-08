@@ -329,6 +329,47 @@ export const siakadService = {
     return response.data;
   },
 
+  // Admin OBE / Tim Kurikulum Prodi
+  getAdminProdi: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/akademik/admin-prodi', { params });
+    return response.data;
+  },
+
+  createAdminProdi: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/akademik/admin-prodi', payload);
+    return response.data;
+  },
+
+  updateAdminProdi: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/akademik/admin-prodi/${id}`, payload);
+    return response.data;
+  },
+
+  deleteAdminProdi: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/akademik/admin-prodi/${id}`);
+    return response.data;
+  },
+
+  impersonateAdminProdi: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/akademik/admin-prodi/${id}/impersonate`);
+    return response.data;
+  },
+
+  getAdminObeEligibleRoles: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/akademik/admin-obe-roles');
+    return response.data;
+  },
+
+  getAdminObeRoleMenus: async (roleId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/akademik/admin-obe-role-menus/${roleId}`);
+    return response.data;
+  },
+
+  assignAdminObeRoleMenus: async (roleId: number, menuIds: number[]): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/akademik/admin-obe-role-menus/${roleId}`, { menu_ids: menuIds });
+    return response.data;
+  },
+
   // Kurikulum
   getKurikulums: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/akademik/kurikulum', { params });
@@ -491,6 +532,16 @@ export const siakadService = {
   },
 
   // OBE (Outcome-Based Education)
+  getCpls: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/cpl', { params });
+    return response.data;
+  },
+
+  deleteCpl: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/cpl/${id}`);
+    return response.data;
+  },
+
   getCpl: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/cpl', { params });
     return response.data;
@@ -498,6 +549,11 @@ export const siakadService = {
 
   storeCpl: async (payload: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/obe/cpl', payload);
+    return response.data;
+  },
+
+  updateCpl: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/cpl/${id}`, payload);
     return response.data;
   },
 
@@ -765,6 +821,105 @@ export const siakadService = {
 
   saveBulkNilaiObe: async (kelasId: number, payload: { is_final: boolean; grades: any[] }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post(`/v1/siakad/obe/kelas/${kelasId}/bulk-nilai`, payload);
+    return response.data;
+  },
+
+  // --- MASTER OBE HOMEBASE PRODI EXTENSIONS ---
+  // 1. Rumpun Mata Kuliah
+  getRumpunMataKuliah: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/rumpun-mk', { params });
+    return response.data;
+  },
+  createRumpunMataKuliah: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/rumpun-mk', payload);
+    return response.data;
+  },
+  updateRumpunMataKuliah: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/rumpun-mk/${id}`, payload);
+    return response.data;
+  },
+  deleteRumpunMataKuliah: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/rumpun-mk/${id}`);
+    return response.data;
+  },
+
+  // 2. Jenis CPL
+  getJenisCpl: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/jenis-cpl', { params });
+    return response.data;
+  },
+  createJenisCpl: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/jenis-cpl', payload);
+    return response.data;
+  },
+  updateJenisCpl: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/jenis-cpl/${id}`, payload);
+    return response.data;
+  },
+  deleteJenisCpl: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/jenis-cpl/${id}`);
+    return response.data;
+  },
+
+  // 3. Profesi / Prospek Karir
+  getProfesiKarirList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/profesi-karir', { params });
+    return response.data;
+  },
+  createProfesiKarir: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/profesi-karir', payload);
+    return response.data;
+  },
+  updateProfesiKarir: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/profesi-karir/${id}`, payload);
+    return response.data;
+  },
+  deleteProfesiKarir: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/profesi-karir/${id}`);
+    return response.data;
+  },
+
+  // 4. Rubrik Penilaian OBE
+  getObeRubrikList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/rubrik', { params });
+    return response.data;
+  },
+  getObeRubrikDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/obe/rubrik/${id}`);
+    return response.data;
+  },
+  createObeRubrik: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/rubrik', payload);
+    return response.data;
+  },
+  updateObeRubrik: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/rubrik/${id}`, payload);
+    return response.data;
+  },
+  deleteObeRubrik: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/rubrik/${id}`);
+    return response.data;
+  },
+
+  // 4. Distribusi Mata Kuliah / Tambah Mengajar
+  getDistribusiMengajarList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/distribusi-mengajar', { params });
+    return response.data;
+  },
+  createDistribusiMengajar: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/distribusi-mengajar', payload);
+    return response.data;
+  },
+  updateDistribusiMengajar: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/distribusi-mengajar/${id}`, payload);
+    return response.data;
+  },
+  deleteDistribusiMengajar: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/distribusi-mengajar/${id}`);
+    return response.data;
+  },
+  getDistribusiMataKuliah: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/distribusi-matakuliah', { params });
     return response.data;
   },
 

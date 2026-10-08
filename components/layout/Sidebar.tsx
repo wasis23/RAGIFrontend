@@ -572,7 +572,7 @@ const LMS_FALLBACK_MENUS = (canManageKelas: boolean): Menu[] => [
     : []),
 ];
 
-type FallbackMenuOpts = { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean; isAdminSimpeg?: boolean; canManageKelas?: boolean };
+type FallbackMenuOpts = { isMahasiswa: boolean; isDosen: boolean; isTendik: boolean; canJafung: boolean; isKaprodi: boolean; isPanitia: boolean; isPetugas: boolean; isAdminSimpeg?: boolean; canManageKelas?: boolean; isAdminObeProdi?: boolean };
 
 const FALLBACK_MENUS_REGISTRY: Record<string, (opts: FallbackMenuOpts) => Menu[]> = {
   sso: () => IAM_FALLBACK_MENUS,
@@ -750,7 +750,7 @@ export function Sidebar() {
       setDynamicMenus(getFallbackMenusForModule(mod, { isMahasiswa: isMahasiswaRole, isDosen: isDosenRole, isTendik: isTendikRole, canJafung, isKaprodi: isKaprodiRole, isPanitia: isPanitiaAdmin, isPetugas: isPetugasKasKecilRole, isAdminSimpeg, canManageKelas }));
       setLoading(false);
     }
-  }, [user, pathname]);
+  }, [user?.id, pathname]);
 
   // Satu-satunya URL menu yang boleh aktif: exact match menang, lalu prefix TERPANJANG.
   // Mencegah dua menu beda fitur menyala bersamaan (mis. /siakad/obe + /siakad/obe/cpl).
@@ -929,13 +929,19 @@ export function Sidebar() {
           {sidebar_open && (
             <div>
               <div className="sidebar-brand-text">SSO Campus</div>
-                {isMahasiswaRole
-                  ? 'Portal Mahasiswa'
-                  : isDosenRole
-                  ? 'Portal Dosen'
-                  : isTendikRole
-                  ? 'Portal Tendik'
-                  : 'SIAKAD Utama'}
+              <div className="text-2xs text-slate-400 font-medium">
+                {(() => {
+                  const prodis = (user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis;
+                  const adminProdi = prodis?.[0]?.program_studi;
+                  if (adminProdi) {
+                    return `Admin OBE: ${adminProdi.kode_prodi || adminProdi.nama}`;
+                  }
+                  if (isMahasiswaRole) return 'Portal Mahasiswa';
+                  if (isDosenRole) return 'Portal Dosen';
+                  if (isTendikRole) return 'Portal Tendik';
+                  return 'SIAKAD Utama';
+                })()}
+              </div>
             </div>
           )}
         </div>
