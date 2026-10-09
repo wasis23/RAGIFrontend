@@ -156,7 +156,6 @@ export default function DetailPeminjamanAsetPage() {
                 variant="primary"
                 icon={<RotateCcw size={16} />}
                 onClick={() => router.push(`/sinapra/peminjaman/aset/${peminjaman.id}/kembalikan`)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 Kembalikan Aset
               </Button>
@@ -239,6 +238,52 @@ export default function DetailPeminjamanAsetPage() {
                 )}
               </div>
             </div>
+
+            {/* Daftar Seluruh Barang Pinjaman (Jika Batch) */}
+            {peminjaman.batch_items && peminjaman.batch_items.length > 1 && (
+              <div className="pt-2">
+                <span className="text-2xs text-slate-400 block font-semibold uppercase mb-2 flex items-center gap-1">
+                  <Boxes size={12} /> Daftar Seluruh Barang dalam Pengajuan Ini ({peminjaman.batch_items.length} Barang)
+                </span>
+                <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {peminjaman.batch_items.map((bItem, idx) => (
+                      <div
+                        key={bItem.id}
+                        className={`p-3 flex items-center justify-between gap-3 text-xs ${
+                          bItem.id === peminjaman.id
+                            ? 'bg-[var(--module-primary)]/10 font-medium'
+                            : 'bg-white dark:bg-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-2xs font-bold text-slate-400 w-4 text-center">{idx + 1}.</span>
+                          <div className="truncate">
+                            <span className="font-semibold text-slate-800 dark:text-slate-100 block truncate">
+                              {bItem.aset?.nama || `Aset #${bItem.aset_id}`}
+                            </span>
+                            <span className="text-2xs text-slate-400 font-mono block">
+                              Kode: {bItem.aset?.kode_aset || '-'} | Lokasi: {bItem.aset?.ruangan?.nama || '-'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {bItem.status === 'kembali' ? (
+                            <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">
+                              Kembali ({bItem.kondisi_kembali || 'Baik'})
+                            </span>
+                          ) : (
+                            <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 capitalize">
+                              {bItem.status.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Keperluan */}
             <div className="pt-2">
@@ -384,6 +429,35 @@ export default function DetailPeminjamanAsetPage() {
               Aksi Cepat
             </h4>
             <div className="flex flex-col gap-2">
+              {['disetujui', 'dipinjam'].includes(peminjaman.status) && (
+                <Button
+                  variant="primary"
+                  className="w-full justify-center"
+                  icon={<RotateCcw size={16} />}
+                  onClick={() => router.push(`/sinapra/peminjaman/aset/${peminjaman.id}/kembalikan`)}
+                >
+                  Pengembalian Barang
+                </Button>
+              )}
+              {peminjaman.status === 'kembali' && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-2xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                  <span className="font-bold flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 size={13} className="text-emerald-600" />
+                    Barang Telah Dikembalikan
+                  </span>
+                  <p>
+                    Tanggal: <strong>{formatDate(peminjaman.tanggal_kembali_aktual || peminjaman.tanggal_kembali_realisasi)}</strong>
+                  </p>
+                  <p>
+                    Kondisi: <strong className="capitalize">{peminjaman.kondisi_kembali || 'Baik'}</strong>
+                  </p>
+                  {peminjaman.catatan_pengembalian && (
+                    <p className="italic text-slate-600 dark:text-slate-400">
+                      &quot;{peminjaman.catatan_pengembalian}&quot;
+                    </p>
+                  )}
+                </div>
+              )}
               {isLaboranPending ? (
                 <Button
                   variant="primary"

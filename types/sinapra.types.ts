@@ -448,6 +448,7 @@ export interface PeminjamanAset {
   kontak_peminjam?: string;
   approver?: { id: number; name: string; email: string };
   laboran_approver?: { id: number; name: string; email: string };
+  batch_items?: PeminjamanAset[];
   created_at?: string;
   updated_at?: string;
 }
@@ -468,12 +469,19 @@ export interface ApprovePeminjamanAsetPayload {
   catatan_approver?: string;
 }
 
-export interface KembalikanAsetPayload {
+export interface KembalikanAsetItemPayload {
+  peminjaman_id: number;
   kondisi_kembali: 'baik' | 'rusak_ringan' | 'rusak_berat' | 'hilang';
+  catatan?: string;
+}
+
+export interface KembalikanAsetPayload {
+  kondisi_kembali?: 'baik' | 'rusak_ringan' | 'rusak_berat' | 'hilang';
   tanggal_kembali_aktual?: string;
   catatan?: string;
   catatan_pengembalian?: string;
   kembalikan_semua_dalam_batch?: boolean;
+  items?: KembalikanAsetItemPayload[];
 }
 
 export interface SuratPeminjamanAsetBarang {
