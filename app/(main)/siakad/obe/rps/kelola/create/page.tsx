@@ -8,11 +8,27 @@ import { z } from 'zod';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select, type SelectOption } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { ArrowLeft, BookOpen, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
+
+const DOSEN_BISA_EDIT_OPTIONS: SelectOption[] = [
+  { value: 'true', label: 'Ya' },
+  { value: 'false', label: 'Tidak' },
+];
+
+const JENIS_PEMBELAJARAN_OPTIONS: SelectOption[] = [
+  { value: 'Kuliah / Responsi', label: 'Kuliah / Responsi' },
+  { value: 'Seminar / Diskusi Kelompok', label: 'Seminar / Diskusi Kelompok' },
+  { value: 'Praktikum / Praktik Studio', label: 'Praktikum / Praktik Studio' },
+  { value: 'Praktik Lapangan / Magang', label: 'Praktik Lapangan / Magang' },
+  { value: 'Penelitian & Proyek Mandiri', label: 'Penelitian & Proyek Mandiri' },
+  { value: 'Pembelajaran Daring / E-Learning', label: 'Pembelajaran Daring / E-Learning' },
+  { value: 'Blended / Hybrid Learning', label: 'Blended / Hybrid Learning' },
+];
 
 const rpsCreateSchema = z.object({
   mata_kuliah_id: z.number({ error: 'Mata Kuliah wajib dipilih' }).min(1, 'Mata Kuliah wajib dipilih'),
@@ -20,6 +36,11 @@ const rpsCreateSchema = z.object({
   tanggal_penyusunan: z.string().min(1, 'Tanggal Penyusunan wajib diisi'),
   semester_rps: z.number({ error: 'Semester RPS wajib diisi' }).min(1, 'Semester minimal 1').max(14, 'Semester maksimal 14'),
   dosen_bisa_edit: z.boolean(),
+  deskripsi_singkat: z.string().trim().optional(),
+  bahan_kajian_mk: z.string().trim().optional(),
+  mata_kuliah_syarat: z.string().trim().optional(),
+  jenis_pembelajaran: z.string().optional(),
+  dosen_pengembang_id: z.number().nullable().optional(),
   dosen_anggota_ids: z.array(z.number()).optional(),
   koordinator_rmk_id: z.number().nullable().optional(),
   kaprodi_id: z.number().nullable().optional(),
@@ -40,7 +61,6 @@ export default function CreateRpsPage() {
     handleSubmit,
     control,
     setValue,
-    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(rpsCreateSchema),
@@ -50,6 +70,11 @@ export default function CreateRpsPage() {
       tanggal_penyusunan: new Date().toISOString().split('T')[0],
       semester_rps: 1,
       dosen_bisa_edit: true,
+      deskripsi_singkat: '',
+      bahan_kajian_mk: '',
+      mata_kuliah_syarat: '-',
+      jenis_pembelajaran: 'Kuliah / Responsi',
+      dosen_pengembang_id: null,
       dosen_anggota_ids: [],
       koordinator_rmk_id: null,
       kaprodi_id: null,
@@ -71,8 +96,6 @@ export default function CreateRpsPage() {
       initMk();
     }
   }, [paramMkId]);
-
-  const watchedDosenBisaEdit = watch('dosen_bisa_edit');
 
   const loadMataKuliahOptions = useCallback(async (keyword: string) => {
     try {
@@ -117,6 +140,11 @@ export default function CreateRpsPage() {
       setValue('kode_rps', `RPS-${kodeMk}-${year}`);
       setValue('semester_rps', Number(mk.semester_anjuran) || 1);
 
+      // Auto-fill deskripsi singkat & bahan kajian jika ada di relasi MK
+      if (mk.deskripsi) {
+        setValue('deskripsi_singkat', mk.deskripsi);
+      }
+
       // Otomatis ambil Dosen Koordinator & Anggota dari Distribusi Mata Kuliah
       try {
         const resDistribusi = await siakadService.getDistribusiMengajarList({ mata_kuliah_id: mkId, per_page: 1 });
@@ -150,11 +178,14 @@ export default function CreateRpsPage() {
         semester: values.semester_rps,
         tahun_ajaran: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
         dosen_bisa_edit: values.dosen_bisa_edit,
+        deskripsi_singkat: values.deskripsi_singkat?.trim() || `RPS untuk mata kuliah ${selectedMk?.nama || ''}`,
+        bahan_kajian_mk: values.bahan_kajian_mk?.trim() || undefined,
+        mata_kuliah_syarat: values.mata_kuliah_syarat?.trim() || '-',
+        jenis_pembelajaran: values.jenis_pembelajaran || 'Kuliah / Responsi',
         dosen_anggota_ids: values.dosen_anggota_ids || [],
-        dosen_pengembang_id: values.dosen_anggota_ids?.[0] || undefined,
+        dosen_pengembang_id: values.dosen_pengembang_id || values.dosen_anggota_ids?.[0] || undefined,
         koordinator_rmk_id: values.koordinator_rmk_id || undefined,
         kaprodi_id: values.kaprodi_id || undefined,
-        deskripsi_singkat: `RPS untuk mata kuliah ${selectedMk?.nama || ''}`,
       });
       toast.success('Dokumen RPS baru berhasil dibuat');
       router.push('/siakad/obe/rps/kelola');
@@ -169,7 +200,7 @@ export default function CreateRpsPage() {
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Buat Dokumen RPS"
-        description="Penyusunan header dan identitas Rencana Pembelajaran Semester (RPS) mata kuliah."
+        description="Penyusunan header, deskripsi, bahan kajian, dan pengesahan Rencana Pembelajaran Semester (RPS) mata kuliah."
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD', href: '/siakad' },
@@ -294,13 +325,59 @@ export default function CreateRpsPage() {
                   render={({ field }) => (
                     <Select
                       label="Dosen Bisa Edit RPS? *"
-                      options={[
-                        { value: 'true', label: 'Ya' },
-                        { value: 'false', label: 'Tidak' },
-                      ]}
+                      options={DOSEN_BISA_EDIT_OPTIONS}
                       value={field.value ? 'true' : 'false'}
                       onChange={(opt: any) => field.onChange(opt?.value === 'true' || opt === 'true')}
                       error={errors.dosen_bisa_edit?.message}
+                    />
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Baris 3: Deskripsi Singkat MK & Bahan Kajian MK */}
+            <div className="space-y-4 pt-2">
+              <Textarea
+                label="Deskripsi Singkat MK"
+                rows={3}
+                placeholder="Tuliskan ringkasan deskripsi cakupan materi mata kuliah..."
+                error={errors.deskripsi_singkat?.message}
+                {...register('deskripsi_singkat')}
+              />
+
+              <Textarea
+                label="Bahan Kajian MK"
+                rows={3}
+                placeholder="Tuliskan pokok-pokok bahasan dan bahan kajian mata kuliah..."
+                error={errors.bahan_kajian_mk?.message}
+                {...register('bahan_kajian_mk')}
+              />
+            </div>
+
+            {/* Baris 4: Mata Kuliah Syarat & Jenis Pembelajaran */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div>
+                <Input
+                  label="Mata Kuliah Syarat"
+                  placeholder="Nama Mata Kuliah(kode) atau -"
+                  hint="jika tidak ada mata kuliah syarat maka isi dengan - | jika ada mata kuliah syarat maka isi dengan Nama Mata Kuliah(kode)"
+                  error={errors.mata_kuliah_syarat?.message}
+                  {...register('mata_kuliah_syarat')}
+                />
+              </div>
+
+              <div>
+                <Controller
+                  name="jenis_pembelajaran"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Jenis Pembelajaran"
+                      placeholder="Pilih Jenis Pembelajaran"
+                      options={JENIS_PEMBELAJARAN_OPTIONS}
+                      value={field.value || 'Kuliah / Responsi'}
+                      onChange={(opt: any) => field.onChange(opt?.value || opt)}
+                      error={errors.jenis_pembelajaran?.message}
                     />
                   )}
                 />
@@ -313,23 +390,18 @@ export default function CreateRpsPage() {
             <h3 className="font-extrabold text-sm text-slate-900">Pengesahan</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-3">
+              <div className="md:col-span-1">
                 <Controller
-                  name="dosen_anggota_ids"
+                  name="dosen_pengembang_id"
                   control={control}
                   render={({ field }) => (
                     <AsyncSelect
-                      label="Dosen Anggota"
-                      placeholder="Cari berdasarkan NIDN atau nama..."
+                      label="Dosen Pengembang"
+                      placeholder="Pilih Dosen Pengembang..."
                       loadOptions={loadDosenOptions}
-                      defaultOptions={true}
-                      value={field.value || []}
-                      onChange={(opts: any) =>
-                        field.onChange(Array.isArray(opts) ? opts.map((o: any) => Number(o.value)).filter(Boolean) : [])
-                      }
-                      isMulti
+                      value={field.value || null}
+                      onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
                       isClearable
-                      error={errors.dosen_anggota_ids?.message}
                     />
                   )}
                 />
@@ -342,7 +414,7 @@ export default function CreateRpsPage() {
                   render={({ field }) => (
                     <AsyncSelect
                       label="Koordinator RMK"
-                      placeholder="Pilih koordinator RMK..."
+                      placeholder="Pilih Koordinator RMK..."
                       loadOptions={loadDosenOptions}
                       value={field.value || null}
                       onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
@@ -352,7 +424,7 @@ export default function CreateRpsPage() {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div className="md:col-span-1">
                 <Controller
                   name="kaprodi_id"
                   control={control}
