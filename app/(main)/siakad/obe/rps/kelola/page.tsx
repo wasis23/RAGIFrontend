@@ -22,7 +22,20 @@ const STATUS_IZIN_EDIT_OPTIONS: SelectOption[] = [
 const SORT_BY_OPTIONS: SelectOption[] = [
   { value: 'created_at', label: 'Waktu Dibuat' },
   { value: 'semester', label: 'Semester' },
+  { value: 'kode_rps', label: 'Kode RPS' },
   { value: 'id', label: 'ID' },
+];
+
+const SEMESTER_FILTER_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Semester' },
+  { value: '1', label: 'Semester 1' },
+  { value: '2', label: 'Semester 2' },
+  { value: '3', label: 'Semester 3' },
+  { value: '4', label: 'Semester 4' },
+  { value: '5', label: 'Semester 5' },
+  { value: '6', label: 'Semester 6' },
+  { value: '7', label: 'Semester 7' },
+  { value: '8', label: 'Semester 8' },
 ];
 
 const SORT_DIR_OPTIONS: SelectOption[] = [
@@ -40,11 +53,15 @@ export default function RpsKelolaPage() {
 
   const [filterSearch, setFilterSearch] = useState('');
   const [filterKurikulumId, setFilterKurikulumId] = useState('');
+  const [filterSemester, setFilterSemester] = useState('');
+  const [filterDosenId, setFilterDosenId] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('created_at');
   const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('desc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     kurikulumId: '',
+    semester: '',
+    dosenId: '',
     sortBy: 'created_at',
     sortDir: 'desc' as 'asc' | 'desc',
   });
@@ -65,12 +82,29 @@ export default function RpsKelolaPage() {
     }
   }, []);
 
+  const loadDosenOptions = useCallback(async (keyword: string) => {
+    try {
+      const res = await siakadService.getDosens({ search: keyword || undefined, per_page: 50 });
+      const raw = res?.data;
+      const list: any[] = Array.isArray(raw) ? raw : (raw?.items || raw?.data || []);
+      return list.map((d: any) => ({
+        value: d.id,
+        label: `${d.nama || d.nama_lengkap || d.name}${d.nidn ? ` (${d.nidn})` : ''}`,
+        raw: d,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await siakadService.getRps({
         search: appliedFilters.search || undefined,
         kurikulum_id: appliedFilters.kurikulumId ? Number(appliedFilters.kurikulumId) : undefined,
+        semester: appliedFilters.semester ? Number(appliedFilters.semester) : undefined,
+        dosen_id: appliedFilters.dosenId ? Number(appliedFilters.dosenId) : undefined,
         sort_by: appliedFilters.sortBy,
         sort_order: appliedFilters.sortDir,
         page,
@@ -109,6 +143,8 @@ export default function RpsKelolaPage() {
     setAppliedFilters({
       search: filterSearch,
       kurikulumId: filterKurikulumId,
+      semester: filterSemester,
+      dosenId: filterDosenId,
       sortBy: filterSortBy,
       sortDir: filterSortDir,
     });
@@ -119,9 +155,11 @@ export default function RpsKelolaPage() {
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterKurikulumId('');
+    setFilterSemester('');
+    setFilterDosenId('');
     setFilterSortBy('created_at');
     setFilterSortDir('desc');
-    setAppliedFilters({ search: '', kurikulumId: '', sortBy: 'created_at', sortDir: 'desc' });
+    setAppliedFilters({ search: '', kurikulumId: '', semester: '', dosenId: '', sortBy: 'created_at', sortDir: 'desc' });
     setPage(1);
     setShowFilter(false);
   };
@@ -333,6 +371,7 @@ export default function RpsKelolaPage() {
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
           />
+
           <AsyncSelect
             label="Kurikulum"
             placeholder="Semua kurikulum..."
@@ -341,6 +380,24 @@ export default function RpsKelolaPage() {
             onChange={(opt: any) => setFilterKurikulumId(opt?.value ? String(opt.value) : '')}
             isClearable
           />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Semester"
+              options={SEMESTER_FILTER_OPTIONS}
+              value={filterSemester}
+              onChange={(v) => setFilterSemester(String(v || ''))}
+            />
+
+            <AsyncSelect
+              label="Dosen Pengampu / RMK"
+              placeholder="Semua dosen..."
+              loadOptions={loadDosenOptions}
+              value={filterDosenId ? Number(filterDosenId) : null}
+              onChange={(opt: any) => setFilterDosenId(opt?.value ? String(opt.value) : '')}
+              isClearable
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
