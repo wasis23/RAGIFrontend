@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import {
   BahanKajianMatrix,
   MatrixPrintButton,
@@ -19,29 +18,10 @@ export default function PemetaanCplBkPage() {
   const [loading, setLoading] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
 
-  const [kurikulumId, setKurikulumId] = useState('');
-
-  const loadKurikulumOptions = useCallback(async (keyword: string) => {
-    try {
-      const res = await siakadService.getKurikulums({ search: keyword || undefined, per_page: 50 });
-      const raw = res?.data;
-      const list: any[] = Array.isArray(raw) ? raw : (raw?.items || raw?.data || []);
-      return list.map((k: any) => ({
-        value: k.id,
-        label: `${k.nama || k.kode || `Kurikulum #${k.id}`}${k.tahun_berlaku ? ` — ${k.tahun_berlaku}` : ''}`,
-        raw: k,
-      }));
-    } catch {
-      return [];
-    }
-  }, []);
-
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await siakadService.getMatrixCplBahanKajian({
-        kurikulum_id: kurikulumId ? Number(kurikulumId) : undefined,
-      });
+      const res = await siakadService.getMatrixCplBahanKajian();
       const payload = res?.data || {};
       setCpls(
         (payload.cpls || []).map((c: any) => ({
@@ -68,7 +48,7 @@ export default function PemetaanCplBkPage() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kurikulumId]);
+  }, []);
 
   const handleToggle = async (cplId: number, bahanKajianId: number, checked: boolean) => {
     const key = `${cplId}-${bahanKajianId}`;
@@ -112,17 +92,6 @@ export default function PemetaanCplBkPage() {
 
       <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs text-xs text-slate-700">
         <strong>Catatan:</strong> Pemetaan CPL dan BK dilakukan untuk mengetahui setiap CPL memiliki komponen Bahan Kajian tertentu.
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AsyncSelect
-          label="Kurikulum"
-          placeholder="Semua kurikulum..."
-          loadOptions={loadKurikulumOptions}
-          value={kurikulumId ? Number(kurikulumId) : null}
-          onChange={(opt: any) => setKurikulumId(opt?.value ? String(opt.value) : '')}
-          isClearable
-        />
       </div>
 
       <BahanKajianMatrix
