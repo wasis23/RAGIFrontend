@@ -57,7 +57,9 @@ import {
   Ruler,
   Package,
   Boxes,
-  Stamp
+  Stamp,
+  Shapes,
+  Lightbulb
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { SidebarResizer } from '@/components/layout/SidebarResizer';
@@ -87,6 +89,10 @@ const getIcon = (iconName: string) => {
     'FaListOl': List,
     'FaProjectDiagram': Share2,
     'FaLayerGroup': Layers,
+    'FaShapes': Shapes,
+    'FaLightbulb': Lightbulb,
+    'FaCubes': Boxes,
+    'FaFileContract': FileText,
     'FaBoxes': Boxes,
     'FaCalendar': Calendar,
     'FaTrophy': Award,
