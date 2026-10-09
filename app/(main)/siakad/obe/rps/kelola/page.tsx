@@ -9,11 +9,13 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { Filter, Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Filter, Eye } from 'lucide-react';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
 export default function RpsKelolaPage() {
+  const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +179,13 @@ export default function RpsKelolaPage() {
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Filter
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Plus size={16} />}
+              onClick={() => router.push('/siakad/obe/rps/kelola/create')}
+            >
+              Buat RPS
             </Button>
           </div>
         }
