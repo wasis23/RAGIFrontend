@@ -3,7 +3,7 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Award,
+Award,
   BookOpen,
   Target,
   FileText,
@@ -47,7 +47,6 @@ export type ObeTabKey =
   | 'grafik_capaian'
   | 'master_kurikulum'
   | 'cpl'
-  | 'matrix_cpl_mk'
   | 'cpmk'
   | 'rps'
   | 'profil_lulusan'
@@ -72,7 +71,6 @@ export function ObeWorkspace({
     'audit_pemetaan',
     'grafik_capaian',
     'cpl',
-    'matrix_cpl_mk',
     'cpmk',
     'rps',
     'profil_lulusan',
@@ -245,59 +243,6 @@ export function ObeWorkspace({
   const [isMapBkModalOpen, setIsMapBkModalOpen] = useState(false);
   const [selectedMkForMapping, setSelectedMkForMapping] = useState<any | null>(null);
   const [selectedBkIds, setSelectedBkIds] = useState<number[]>([]);
-
-  // Matrix CPL ↔ MK States
-  const [matrixData, setMatrixData] = useState<{ cpls: any[]; matakuliahs: any[] }>({ cpls: [], matakuliahs: [] });
-  const [togglingMatrixKey, setTogglingMatrixKey] = useState<string | null>(null);
-
-  const fetchMatrixCplMk = async () => {
-    try {
-      setLoading(true);
-      const res = await siakadService.getMatrixCplMk({
-        program_studi_id: selectedProdiId ? Number(selectedProdiId) : undefined,
-      });
-      if (res.data) setMatrixData({
-        cpls: Array.isArray((res.data as any)?.cpls) ? (res.data as any).cpls : [],
-        matakuliahs: Array.isArray((res.data as any)?.matakuliahs) ? (res.data as any).matakuliahs : [],
-      });
-    } catch (err: any) {
-      toast.error('Gagal memuat matriks korelasi CPL dan Mata Kuliah');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggleMatrix = async (mkId: number, cplId: number, currentChecked: boolean) => {
-    const key = `${mkId}-${cplId}`;
-    try {
-      setTogglingMatrixKey(key);
-      await siakadService.toggleMatrixCplMk({
-        mata_kuliah_id: mkId,
-        cpl_id: cplId,
-        is_checked: !currentChecked,
-      });
-
-      // Update local state optimistically
-      setMatrixData((prev) => {
-        const updatedMks = prev.matakuliahs.map((mk) => {
-          if (mk.id === mkId) {
-            const hasCpl = mk.cpls?.some((c: any) => c.id === cplId);
-            const newCpls = hasCpl
-              ? mk.cpls.filter((c: any) => c.id !== cplId)
-              : [...(mk.cpls || []), { id: cplId }];
-            return { ...mk, cpls: newCpls };
-          }
-          return mk;
-        });
-        return { ...prev, matakuliahs: updatedMks };
-      });
-      toast.success(!currentChecked ? 'Korelasi CPL ditambahkan' : 'Korelasi CPL dilepas');
-    } catch (err: any) {
-      toast.error('Gagal memperbarui korelasi CPL');
-    } finally {
-      setTogglingMatrixKey(null);
-    }
-  };
 
   const fetchPl = async () => {
     try {
@@ -732,7 +677,6 @@ export function ObeWorkspace({
       if (activeTab === 'grafik_capaian') fetchGrafik();
       if (activeTab === 'kepatuhan_dosen') fetchKepatuhanDosen();
       if (activeTab === 'cpl') fetchCpl();
-      if (activeTab === 'matrix_cpl_mk') fetchMatrixCplMk();
       if (activeTab === 'cpmk') {
         fetchMatakuliah();
         fetchCpl();
@@ -1158,7 +1102,6 @@ export function ObeWorkspace({
             { key: 'audit_pemetaan', label: `Audit Pemetaan MK (${auditData?.summary?.total_matakuliah ?? matakuliahList.length})`, icon: <ShieldCheck size={16} /> },
             { key: 'grafik_capaian', label: 'Grafik Capaian CPL/CPMK', icon: <BarChart3 size={16} /> },
             { key: 'cpl', label: `Perumusan CPL Prodi (${cplList.length})`, icon: <Award size={16} /> },
-            { key: 'matrix_cpl_mk', label: 'Matriks CPL ↔ Mata Kuliah', icon: <Layers size={16} /> },
             { key: 'cpmk', label: 'Pemetaan CPMK Mata Kuliah', icon: <Target size={16} /> },
             { key: 'rps', label: 'Dokumen RPS & Verifikasi Kaprodi', icon: <FileText size={16} /> },
             { key: 'kepatuhan_dosen', label: 'Ketertiban Dosen Nilai (SIMPEG)', icon: <UserCheck size={16} /> },
@@ -1885,117 +1828,6 @@ export function ObeWorkspace({
 
       {/* ======================================================== */}
       {/* TAB 2.5: MATRIKS KORELASI CPL ↔ MATA KULIAH (CHECKLIST) */}
-      {/* ======================================================== */}
-      {activeTab === 'matrix_cpl_mk' && (
-        <div className="space-y-4 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
-            <div>
-              <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Layers size={16} className="text-primary-600" />
-                Matriks Pemetaan CPL ↔ Mata Kuliah ({selectedProdiObj?.nama})
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Centang pada sel untuk menetapkan kontribusi mata kuliah terhadap Capaian Pembelajaran Lulusan (CPL) terkait.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                {matrixData.matakuliahs.length} Mata Kuliah • {matrixData.cpls.length} CPL Terdaftar
-              </span>
-            </div>
-          </div>
-
-          <div className="card p-4 overflow-x-auto border-slate-200">
-            {matrixData.cpls.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">
-                Belum ada CPL yang dirumuskan untuk program studi ini. Silakan buat CPL terlebih dahulu di tab <strong>Perumusan CPL</strong>.
-              </div>
-            ) : matrixData.matakuliahs.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-500">
-                Belum ada Mata Kuliah yang terhubung pada kurikulum program studi ini.
-              </div>
-            ) : (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-700">
-                    <th className="py-2.5 px-3 sticky left-0 bg-slate-50 z-10 w-20 border-r border-slate-200">SEM</th>
-                    <th className="py-2.5 px-3 sticky left-20 bg-slate-50 z-10 w-28 border-r border-slate-200">KODE MK</th>
-                    <th className="py-2.5 px-3 sticky left-48 bg-slate-50 z-10 min-w-[220px] border-r border-slate-200">NAMA MATA KULIAH</th>
-                    <th className="py-2.5 px-3 text-center w-16 border-r border-slate-200">SKS</th>
-                    {matrixData.cpls.map((cpl) => (
-                      <th
-                        key={cpl.id}
-                        className="py-2.5 px-2 text-center w-24 border-r border-slate-200 text-2xs font-extrabold uppercase"
-                        title={cpl.deskripsi}
-                      >
-                        <span className="block font-mono text-primary-700">{cpl.kode_cpl}</span>
-                        <span className="text-[9px] font-normal text-slate-400 capitalize block truncate max-w-[80px] mx-auto">
-                          {cpl.kategori?.replace('_', ' ')}
-                        </span>
-                      </th>
-                    ))}
-                    <th className="py-2.5 px-3 text-center w-24">TOTAL CPL</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-800">
-                  {matrixData.matakuliahs.map((mk) => {
-                    const mappedCount = matrixData.cpls.filter((cpl) =>
-                      mk.cpls?.some((mc: any) => mc.id === cpl.id)
-                    ).length;
-
-                    return (
-                      <tr key={mk.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-2.5 px-3 font-mono font-bold text-center sticky left-0 bg-white z-10 border-r border-slate-200">
-                          {mk.semester_anjuran}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900 sticky left-20 bg-white z-10 border-r border-slate-200">
-                          {mk.kode_mk}
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-900 sticky left-48 bg-white z-10 border-r border-slate-200">
-                          {mk.nama}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-center border-r border-slate-200">
-                          {mk.total_sks || 3}
-                        </td>
-                        {matrixData.cpls.map((cpl) => {
-                          const isChecked = mk.cpls?.some((mc: any) => mc.id === cpl.id) ?? false;
-                          const isToggling = togglingMatrixKey === `${mk.id}-${cpl.id}`;
-
-                          return (
-                            <td key={cpl.id} className="py-2 px-2 text-center border-r border-slate-100">
-                              <label className="inline-flex items-center justify-center p-1 rounded cursor-pointer hover:bg-slate-100 transition">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  disabled={isToggling}
-                                  onChange={() => handleToggleMatrix(mk.id, cpl.id, isChecked)}
-                                  className="w-4 h-4 rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
-                                />
-                              </label>
-                            </td>
-                          );
-                        })}
-                        <td className="py-2.5 px-3 text-center font-mono">
-                          <span
-                            className={`px-2 py-0.5 rounded text-2xs font-extrabold ${
-                              mappedCount > 0
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-600 border border-rose-200'
-                            }`}
-                          >
-                            {mappedCount} CPL
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* ======================================================== */}
       {/* TAB 3: PEMETAAN CPMK MATA KULIAH */}
       {/* ======================================================== */}

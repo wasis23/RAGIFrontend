@@ -778,21 +778,32 @@ export const siakadService = {
     return response.data;
   },
 
+  getMatrixCplMataKuliah: async (params?: { program_studi_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/matrix/cpl-mata-kuliah', { params });
+    return response.data;
+  },
+
+  toggleMatrixCplMataKuliah: async (payload: {
+    cpl_id: number;
+    mata_kuliah_id: number;
+    is_checked: boolean;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/cpl/mata-kuliah', payload);
+    return response.data;
+  },
+
+  getMatrixCplBahanKajianMataKuliah: async (params?: { program_studi_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/matrix/cpl-bahan-kajian-mata-kuliah', { params });
+    return response.data;
+  },
+
   mapMataKuliahBahanKajian: async (payload: { mata_kuliah_id: number; bahan_kajian_ids: number[] }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/obe/matakuliah/bahan-kajian', payload);
     return response.data;
   },
 
-  // Matrix CPL ↔ MK
-  getMatrixCplMk: async (params?: { program_studi_id?: number }): Promise<ApiResponse<any>> => {
-    const response = await apiClient.get('/v1/siakad/obe/matrix-cpl-mk', { params });
-    return response.data;
-  },
-
-  toggleMatrixCplMk: async (payload: { mata_kuliah_id: number; cpl_id: number; is_checked: boolean }): Promise<ApiResponse<any>> => {
-    const response = await apiClient.post('/v1/siakad/obe/matrix-cpl-mk/toggle', payload);
-    return response.data;
-  },
+  // Matriks CPL ↔ MK kini dilayani oleh getMatrixCplMataKuliah / toggleMatrixCplMataKuliah
+  // (menu "Mata Kuliah & SKS", dengan aturan kelayakan jalur CPL -> BK -> MK).
 
   // Audit Pemetaan OBE per Mata Kuliah
   getAuditPemetaan: async (params?: { program_studi_id?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
