@@ -363,7 +363,7 @@ export default function RpsKelolaPage() {
       />
 
       {/* Drawer Filter */}
-      <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Dokumen RPS">
+      <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Dokumen RPS" width="400px">
         <div className="space-y-4">
           <Input
             label="Kata Kunci"
@@ -381,23 +381,21 @@ export default function RpsKelolaPage() {
             isClearable
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Semester"
-              options={SEMESTER_FILTER_OPTIONS}
-              value={filterSemester}
-              onChange={(v) => setFilterSemester(String(v || ''))}
-            />
+          <Select
+            label="Semester"
+            options={SEMESTER_FILTER_OPTIONS}
+            value={filterSemester}
+            onChange={(v) => setFilterSemester(String(v || ''))}
+          />
 
-            <AsyncSelect
-              label="Dosen Pengampu / RMK"
-              placeholder="Semua dosen..."
-              loadOptions={loadDosenOptions}
-              value={filterDosenId ? Number(filterDosenId) : null}
-              onChange={(opt: any) => setFilterDosenId(opt?.value ? String(opt.value) : '')}
-              isClearable
-            />
-          </div>
+          <AsyncSelect
+            label="Dosen Pengampu / RMK"
+            placeholder="Semua dosen..."
+            loadOptions={loadDosenOptions}
+            value={filterDosenId ? Number(filterDosenId) : null}
+            onChange={(opt: any) => setFilterDosenId(opt?.value ? String(opt.value) : '')}
+            isClearable
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
