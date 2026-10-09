@@ -839,6 +839,24 @@ export const siakadService = {
     return response.data;
   },
 
+  // Pemetaan CPL-CPMK-MK (Distribusi Rumusan CPMK Prodi ke Mata Kuliah)
+  getPemetaanCplCpmkMk: async (params?: {
+    search?: string;
+    kurikulum_id?: number;
+    cpl_id?: number;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/pemetaan-cpl-cpmk-mk', { params });
+    return response.data;
+  },
+
+  syncCpmkProdiMataKuliah: async (payload: {
+    cpmk_prodi_id: number;
+    mata_kuliah_ids: number[];
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/pemetaan-cpl-cpmk-mk/sync', payload);
+    return response.data;
+  },
+
   mapMataKuliahBahanKajian: async (payload: { mata_kuliah_id: number; bahan_kajian_ids: number[] }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/obe/matakuliah/bahan-kajian', payload);
     return response.data;
