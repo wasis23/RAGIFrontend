@@ -34,7 +34,6 @@ const SORT_DIR_OPTIONS: SelectOption[] = [
 ];
 
 const bahanKajianSchema = z.object({
-  program_studi_id: z.coerce.number({ error: 'Program Studi wajib dipilih' }).int().min(1, 'Program Studi wajib dipilih'),
   kurikulum_id: z.coerce.number({ error: 'Kurikulum wajib dipilih' }).int().min(1, 'Kurikulum wajib dipilih'),
   kode_bk: z
     .string({ error: 'Kode wajib diisi' })
@@ -53,7 +52,6 @@ const bahanKajianSchema = z.object({
 type BahanKajianFormValues = z.infer<typeof bahanKajianSchema>;
 
 const DEFAULT_FORM: BahanKajianFormValues = {
-  program_studi_id: 0,
   kurikulum_id: 0,
   kode_bk: '',
   nama_bk: '',
@@ -88,7 +86,6 @@ export default function BahanKajianPage() {
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [deletingItem, setDeletingItem] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [selectedProdiRaw, setSelectedProdiRaw] = useState<any | null>(null);
 
   const {
     register,
@@ -180,16 +177,13 @@ export default function BahanKajianPage() {
 
   const handleOpenCreate = () => {
     setEditingItem(null);
-    setSelectedProdiRaw(null);
     reset(DEFAULT_FORM);
     setModalOpen(true);
   };
 
   const handleOpenEdit = (item: any) => {
     setEditingItem(item);
-    setSelectedProdiRaw(item.program_studi || null);
     reset({
-      program_studi_id: item.program_studi_id ? Number(item.program_studi_id) : 0,
       kurikulum_id: item.kurikulum_id ? Number(item.kurikulum_id) : 0,
       kode_bk: item.kode_bk || '',
       nama_bk: item.nama_bk || '',
@@ -201,8 +195,9 @@ export default function BahanKajianPage() {
 
   const onSubmit = async (values: BahanKajianFormValues) => {
     try {
+      // Program studi tidak dikirim: backend menurunkannya dari kurikulum,
+      // atau dari prodi aktif milik user bila kurikulum kosong.
       const payload = {
-        program_studi_id: Number(values.program_studi_id),
         kurikulum_id: Number(values.kurikulum_id),
         kode_bk: values.kode_bk.trim(),
         nama_bk: values.nama_bk.trim(),
@@ -415,37 +410,25 @@ export default function BahanKajianPage() {
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingItem ? 'Edit Rumusan Bahan Kajian' : 'Tambah Rumusan Bahan Kajian'} size="lg">
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Controller
-              name="program_studi_id"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Program Studi *"
-                  placeholder="Cari program studi..."
-                  loadOptions={loadProdiOptions}
-                  value={field.value || null}
-                  onChange={(opt: any) => {
-                    field.onChange(Number(opt?.value) || 0);
-                    setSelectedProdiRaw(opt?.raw || null);
-                  }}
-                  error={errors.program_studi_id?.message}
-                />
-              )}
-            />
-            <Controller
-              name="kurikulum_id"
-              control={control}
-              render={({ field }) => (
-                <AsyncSelect
-                  label="Kurikulum *"
-                  placeholder="Cari kurikulum..."
-                  loadOptions={loadKurikulumOptions}
-                  value={field.value || null}
-                  onChange={(opt: any) => field.onChange(Number(opt?.value) || 0)}
-                  error={errors.kurikulum_id?.message}
-                />
-              )}
-            />
+            <div className="md:col-span-2">
+              <Controller
+                name="kurikulum_id"
+                control={control}
+                render={({ field }) => (
+                  <AsyncSelect
+                    label="Kurikulum *"
+                    placeholder="Cari kurikulum..."
+                    loadOptions={loadKurikulumOptions}
+                    value={field.value || null}
+                    onChange={(opt: any) => field.onChange(Number(opt?.value) || 0)}
+                    error={errors.kurikulum_id?.message}
+                  />
+                )}
+              />
+              <p className="text-2xs text-slate-400 mt-1">
+                Program studi menyesuaikan otomatis mengikuti kurikulum yang dipilih.
+              </p>
+            </div>
             <Input label="Kode *" placeholder="Contoh: BK-01" error={errors.kode_bk?.message} {...register('kode_bk')} />
             <Controller
               name="koordinator_id"
