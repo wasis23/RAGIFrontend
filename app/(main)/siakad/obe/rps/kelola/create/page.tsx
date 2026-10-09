@@ -9,26 +9,17 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { Select, type SelectOption } from '@/components/ui/Select';
+import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { ArrowLeft } from 'lucide-react';
+import { Card, CardBody } from '@/components/ui/Card';
+import { ArrowLeft, FileText, Layers, BookOpen, Users } from 'lucide-react';
 import { siakadService } from '@/services/siakad.service';
+import {
+  DOSEN_BISA_EDIT_OPTIONS,
+  JENIS_PEMBELAJARAN_OPTIONS,
+  RpsMkBanner,
+} from '@/components/siakad/RpsFormShared';
 import toast from 'react-hot-toast';
-
-const DOSEN_BISA_EDIT_OPTIONS: SelectOption[] = [
-  { value: 'true', label: 'Ya' },
-  { value: 'false', label: 'Tidak' },
-];
-
-const JENIS_PEMBELAJARAN_OPTIONS: SelectOption[] = [
-  { value: 'Kuliah / Responsi', label: 'Kuliah / Responsi' },
-  { value: 'Seminar / Diskusi Kelompok', label: 'Seminar / Diskusi Kelompok' },
-  { value: 'Praktikum / Praktik Studio', label: 'Praktikum / Praktik Studio' },
-  { value: 'Praktik Lapangan / Magang', label: 'Praktik Lapangan / Magang' },
-  { value: 'Penelitian & Proyek Mandiri', label: 'Penelitian & Proyek Mandiri' },
-  { value: 'Pembelajaran Daring / E-Learning', label: 'Pembelajaran Daring / E-Learning' },
-  { value: 'Blended / Hybrid Learning', label: 'Blended / Hybrid Learning' },
-];
 
 const rpsCreateSchema = z.object({
   mata_kuliah_id: z.number({ error: 'Mata Kuliah wajib dipilih' }).min(1, 'Mata Kuliah wajib dipilih'),
@@ -81,22 +72,6 @@ export default function CreateRpsPage() {
     },
   });
 
-  useEffect(() => {
-    if (paramMkId) {
-      const initMk = async () => {
-        try {
-          const res = await siakadService.getMataKuliahs({ per_page: 200 });
-          const list = Array.isArray(res?.data) ? res.data : (res?.data?.items || []);
-          const found = list.find((m: any) => Number(m.id) === Number(paramMkId));
-          if (found) {
-            onMataKuliahChange({ value: found.id, label: `${found.kode_mk} - ${found.nama}`, raw: found });
-          }
-        } catch {}
-      };
-      initMk();
-    }
-  }, [paramMkId]);
-
   const loadMataKuliahOptions = useCallback(async (keyword: string) => {
     try {
       const res = await siakadService.getMataKuliahs({ search: keyword || undefined, per_page: 50 });
@@ -127,7 +102,7 @@ export default function CreateRpsPage() {
     }
   }, []);
 
-  const onMataKuliahChange = async (opt: any) => {
+  const onMataKuliahChange = useCallback(async (opt: any) => {
     const mk = opt?.raw || null;
     setSelectedMk(mk);
     const mkId = Number(opt?.value) || 0;
@@ -201,7 +176,23 @@ export default function CreateRpsPage() {
         setValue('kaprodi_id', Number(prodiKaprodiId));
       }
     }
-  };
+  }, [setValue]);
+
+  useEffect(() => {
+    if (paramMkId) {
+      const initMk = async () => {
+        try {
+          const res = await siakadService.getMataKuliahs({ per_page: 200 });
+          const list = Array.isArray(res?.data) ? res.data : (res?.data?.items || []);
+          const found = list.find((m: any) => Number(m.id) === Number(paramMkId));
+          if (found) {
+            onMataKuliahChange({ value: found.id, label: `${found.kode_mk} - ${found.nama}`, raw: found });
+          }
+        } catch {}
+      };
+      initMk();
+    }
+  }, [paramMkId, onMataKuliahChange]);
 
   const onSubmit = async (values: FormValues) => {
     setSaving(true);
@@ -231,7 +222,7 @@ export default function CreateRpsPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <PageHeader
         title="Buat Dokumen RPS"
         description="Penyusunan header, deskripsi, bahan kajian, dan pengesahan Rencana Pembelajaran Semester (RPS) mata kuliah."
@@ -253,254 +244,242 @@ export default function CreateRpsPage() {
         }
       />
 
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-6">
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
-          {/* Section 1: Detail RPS */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-extrabold text-sm text-slate-900">Detail RPS</h3>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Kolom Kiri: 3/4 (lg:col-span-8) - Form Input Utama */}
+        <div className="lg:col-span-8">
+          <Card>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
+              <CardBody className="space-y-6">
+                {/* Section 1: Pemilihan Mata Kuliah */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                    <BookOpen size={16} className="text-slate-600" style={{ color: 'var(--module-primary)' }} />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900">Mata Kuliah Pemilik RPS</h3>
+                      <p className="text-2xs text-slate-500">Pilih mata kuliah yang akan dibuatkan dokumen silabus RPS.</p>
+                    </div>
+                  </div>
 
-            {/* Baris 1: Mata Kuliah Selector & Info Terisi Otomatis */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-4">
-                <Controller
-                  name="mata_kuliah_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Pilih Mata Kuliah *"
-                      placeholder="Cari mata kuliah..."
-                      loadOptions={loadMataKuliahOptions}
-                      value={field.value || null}
-                      onChange={onMataKuliahChange}
-                      error={errors.mata_kuliah_id?.message}
+                  <Controller
+                    name="mata_kuliah_id"
+                    control={control}
+                    render={({ field }) => (
+                      <AsyncSelect
+                        label="Pilih Mata Kuliah *"
+                        placeholder="Cari nama atau kode mata kuliah..."
+                        loadOptions={loadMataKuliahOptions}
+                        value={field.value || null}
+                        onChange={onMataKuliahChange}
+                        error={errors.mata_kuliah_id?.message}
+                      />
+                    )}
+                  />
+                </div>
+
+                {/* Section 2: Detail Dokumen RPS */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                    <FileText size={16} className="text-slate-600" style={{ color: 'var(--module-primary)' }} />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900">Detail Dokumen RPS</h3>
+                      <p className="text-2xs text-slate-500">Kode dokumen, tanggal penyusunan, semester, dan izin edit dosen.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Input
+                      label="Kode RPS *"
+                      placeholder="Contoh: RPS--PM-IK-1-1-2026"
+                      error={errors.kode_rps?.message}
+                      {...register('kode_rps')}
                     />
-                  )}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Input
-                  label="Kode"
-                  value={selectedMk?.kode_mk || '-'}
-                  disabled
-                  readOnly
-                  className="bg-slate-50 font-mono font-bold"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Input
-                  label="Rumpun"
-                  value={selectedMk?.rumpun_mata_kuliah?.nama_rumpun || selectedMk?.rumpun || '-'}
-                  disabled
-                  readOnly
-                  className="bg-slate-50"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Input
-                  label="Bobot"
-                  value={selectedMk ? `T = ${selectedMk.sks_teori || selectedMk.total_sks || 0}${selectedMk.sks_praktik ? ` P = ${selectedMk.sks_praktik}` : ''}` : '-'}
-                  disabled
-                  readOnly
-                  className="bg-slate-50 font-mono"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Input
-                  label="Semester Mengajar"
-                  value={selectedMk?.semester_anjuran ? String(selectedMk.semester_anjuran) : '-'}
-                  disabled
-                  readOnly
-                  className="bg-slate-50 text-center font-bold"
-                />
-              </div>
-            </div>
-
-            {/* Baris 2: Input Spesifik RPS sesuai gambar */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-2">
-              <div className="md:col-span-4">
-                <Input
-                  label="Kode RPS *"
-                  placeholder="Contoh: RPS--PM-IK-1-1-2026"
-                  error={errors.kode_rps?.message}
-                  {...register('kode_rps')}
-                />
-              </div>
-
-              <div className="md:col-span-3">
-                <Input
-                  type="date"
-                  label="Tanggal Penyusunan *"
-                  error={errors.tanggal_penyusunan?.message}
-                  {...register('tanggal_penyusunan')}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Input
-                  type="number"
-                  label="Semester RPS *"
-                  min={1}
-                  max={14}
-                  error={errors.semester_rps?.message}
-                  {...register('semester_rps', { valueAsNumber: true })}
-                />
-              </div>
-
-              <div className="md:col-span-3">
-                <Controller
-                  name="dosen_bisa_edit"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      label="Dosen Bisa Edit RPS? *"
-                      options={DOSEN_BISA_EDIT_OPTIONS}
-                      value={field.value ? 'true' : 'false'}
-                      onChange={(opt: any) => field.onChange(opt?.value === 'true' || opt === 'true')}
-                      error={errors.dosen_bisa_edit?.message}
+                    <Input
+                      type="date"
+                      label="Tanggal Penyusunan *"
+                      error={errors.tanggal_penyusunan?.message}
+                      {...register('tanggal_penyusunan')}
                     />
-                  )}
-                />
-              </div>
-            </div>
-
-            {/* Baris 3: Deskripsi Singkat MK & Bahan Kajian MK */}
-            <div className="space-y-4 pt-2">
-              <Textarea
-                label="Deskripsi Singkat MK"
-                rows={3}
-                placeholder="Tuliskan ringkasan deskripsi cakupan materi mata kuliah..."
-                error={errors.deskripsi_singkat?.message}
-                {...register('deskripsi_singkat')}
-              />
-
-              <Textarea
-                label="Bahan Kajian MK"
-                rows={3}
-                placeholder="Tuliskan pokok-pokok bahasan dan bahan kajian mata kuliah..."
-                error={errors.bahan_kajian_mk?.message}
-                {...register('bahan_kajian_mk')}
-              />
-            </div>
-
-            {/* Baris 4: Mata Kuliah Syarat & Jenis Pembelajaran */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div>
-                <Input
-                  label="Mata Kuliah Syarat"
-                  placeholder="Nama Mata Kuliah(kode) atau -"
-                  hint="jika tidak ada mata kuliah syarat maka isi dengan - | jika ada mata kuliah syarat maka isi dengan Nama Mata Kuliah(kode)"
-                  error={errors.mata_kuliah_syarat?.message}
-                  {...register('mata_kuliah_syarat')}
-                />
-              </div>
-
-              <div>
-                <Controller
-                  name="jenis_pembelajaran"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      label="Jenis Pembelajaran"
-                      placeholder="Pilih Jenis Pembelajaran"
-                      options={JENIS_PEMBELAJARAN_OPTIONS}
-                      value={field.value || 'Kuliah / Responsi'}
-                      onChange={(opt: any) => field.onChange(opt?.value || opt)}
-                      error={errors.jenis_pembelajaran?.message}
+                    <Input
+                      type="number"
+                      label="Semester RPS *"
+                      min={1}
+                      max={14}
+                      error={errors.semester_rps?.message}
+                      {...register('semester_rps', { valueAsNumber: true })}
                     />
-                  )}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Pengesahan */}
-          <div className="space-y-4 pt-4 border-t border-slate-100">
-            <h3 className="font-extrabold text-sm text-slate-900">Pengesahan</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-1">
-                <Controller
-                  name="dosen_anggota_ids"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Anggota"
-                      placeholder="Cari berdasarkan NIDN atau nama..."
-                      loadOptions={loadDosenOptions}
-                      defaultOptions={true}
-                      value={field.value || []}
-                      onChange={(opts: any) =>
-                        field.onChange(Array.isArray(opts) ? opts.map((o: any) => Number(o.value)).filter(Boolean) : [])
-                      }
-                      isMulti
-                      isClearable
-                      error={errors.dosen_anggota_ids?.message}
+                    <Controller
+                      name="dosen_bisa_edit"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Dosen Bisa Edit RPS? *"
+                          options={DOSEN_BISA_EDIT_OPTIONS}
+                          value={field.value ? 'true' : 'false'}
+                          onChange={(opt: any) => field.onChange(opt?.value === 'true' || opt === 'true')}
+                          error={errors.dosen_bisa_edit?.message}
+                        />
+                      )}
                     />
-                  )}
-                />
-              </div>
+                  </div>
+                </div>
 
-              <div className="md:col-span-1">
-                <Controller
-                  name="koordinator_rmk_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Koordinator RMK"
-                      placeholder="Pilih Koordinator RMK..."
-                      loadOptions={loadDosenOptions}
-                      value={field.value || null}
-                      onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
-                      isClearable
+                {/* Section 3: Prasyarat & Metode Pembelajaran */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                    <Layers size={16} className="text-slate-600" style={{ color: 'var(--module-primary)' }} />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900">Prasyarat & Metode</h3>
+                      <p className="text-2xs text-slate-500">Mata kuliah syarat dan jenis metode pembelajaran yang digunakan.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Mata Kuliah Syarat"
+                      placeholder="Nama Mata Kuliah(kode) atau -"
+                      hint="Jika tidak ada mata kuliah syarat maka isi dengan -"
+                      error={errors.mata_kuliah_syarat?.message}
+                      {...register('mata_kuliah_syarat')}
                     />
-                  )}
-                />
-              </div>
-
-              <div className="md:col-span-1">
-                <Controller
-                  name="kaprodi_id"
-                  control={control}
-                  render={({ field }) => (
-                    <AsyncSelect
-                      label="Ka Prodi"
-                      placeholder="Pilih Ketua Program Studi..."
-                      loadOptions={loadDosenOptions}
-                      value={field.value || null}
-                      onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
-                      isClearable
+                    <Controller
+                      name="jenis_pembelajaran"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          label="Jenis Pembelajaran"
+                          placeholder="Pilih Jenis Pembelajaran"
+                          options={JENIS_PEMBELAJARAN_OPTIONS}
+                          value={field.value || 'Kuliah / Responsi'}
+                          onChange={(opt: any) => field.onChange(opt?.value || opt)}
+                          error={errors.jenis_pembelajaran?.message}
+                        />
+                      )}
                     />
-                  )}
-                />
-              </div>
-            </div>
-          </div>
+                  </div>
+                </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => router.push('/siakad/obe/rps/kelola')}
-              disabled={saving}
-            >
-              Kembali
-            </Button>
-            <Button
-              variant="primary"
-              type="submit"
-              isLoading={saving}
-            >
-              Simpan
-            </Button>
-          </div>
-        </form>
+                {/* Section 4: Deskripsi & Pokok Bahasan */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                    <BookOpen size={16} className="text-slate-600" style={{ color: 'var(--module-primary)' }} />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900">Deskripsi & Pokok Bahasan</h3>
+                      <p className="text-2xs text-slate-500">Ringkasan materi perkuliahan dan pokok-pokok bahan kajian mata kuliah.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Textarea
+                      label="Deskripsi Singkat MK"
+                      rows={3}
+                      placeholder="Tuliskan ringkasan deskripsi cakupan materi mata kuliah..."
+                      error={errors.deskripsi_singkat?.message}
+                      {...register('deskripsi_singkat')}
+                    />
+                    <Textarea
+                      label="Bahan Kajian MK"
+                      rows={3}
+                      placeholder="Tuliskan pokok-pokok bahasan dan bahan kajian mata kuliah..."
+                      error={errors.bahan_kajian_mk?.message}
+                      {...register('bahan_kajian_mk')}
+                    />
+                  </div>
+                </div>
+
+                {/* Section 5: Pengesahan Tim Pengajar & Pimpinan */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                    <Users size={16} className="text-slate-600" style={{ color: 'var(--module-primary)' }} />
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900">Pengesahan</h3>
+                      <p className="text-2xs text-slate-500">Dosen anggota tim penyusun, koordinator RMK, dan ketua program studi.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Controller
+                      name="dosen_anggota_ids"
+                      control={control}
+                      render={({ field }) => (
+                        <AsyncSelect
+                          label="Dosen Anggota"
+                          placeholder="Cari NIDN / nama..."
+                          loadOptions={loadDosenOptions}
+                          defaultOptions={true}
+                          value={field.value || []}
+                          onChange={(opts: any) =>
+                            field.onChange(Array.isArray(opts) ? opts.map((o: any) => Number(o.value)).filter(Boolean) : [])
+                          }
+                          isMulti
+                          isClearable
+                          error={errors.dosen_anggota_ids?.message}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="koordinator_rmk_id"
+                      control={control}
+                      render={({ field }) => (
+                        <AsyncSelect
+                          label="Koordinator RMK"
+                          placeholder="Pilih Koordinator..."
+                          loadOptions={loadDosenOptions}
+                          value={field.value || null}
+                          onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
+                          isClearable
+                          error={errors.koordinator_rmk_id?.message}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="kaprodi_id"
+                      control={control}
+                      render={({ field }) => (
+                        <AsyncSelect
+                          label="Ka Prodi"
+                          placeholder="Pilih Ka Prodi..."
+                          loadOptions={loadDosenOptions}
+                          value={field.value || null}
+                          onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
+                          isClearable
+                          error={errors.kaprodi_id?.message}
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Footer Tombol Simpan selalu di kanan */}
+                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                  <Button
+                    variant="secondary"
+                    type="button"
+                    onClick={() => router.push('/siakad/obe/rps/kelola')}
+                    disabled={saving}
+                  >
+                    Batal
+                  </Button>
+                  <Button variant="primary" type="submit" isLoading={saving}>
+                    Simpan
+                  </Button>
+                </div>
+              </CardBody>
+            </form>
+          </Card>
+        </div>
+
+        {/* Kolom Kanan: 1/4 (lg:col-span-4) - Informasi Read-Only Sticky */}
+        <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-4">
+          <Card>
+            <CardBody className="space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="text-xs font-bold text-slate-900">Identitas Mata Kuliah</h3>
+                <span className="text-2xs text-slate-400 font-medium">Otomatis Terisi</span>
+              </div>
+              <RpsMkBanner mk={selectedMk} />
+            </CardBody>
+          </Card>
+        </div>
       </div>
     </div>
   );
