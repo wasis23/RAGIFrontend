@@ -861,6 +861,46 @@ export const siakadService = {
     return response.data;
   },
 
+  // Referensi RPS (Bentuk, Metode, Kriteria, Komponen)
+  getRpsReferensi: async (params?: {
+    tipe?: 'bentuk' | 'metode' | 'kriteria' | 'komponen';
+    search?: string;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+    page?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/rps-referensi', { params });
+    return response.data;
+  },
+
+  createRpsReferensi: async (payload: {
+    tipe: 'bentuk' | 'metode' | 'kriteria' | 'komponen';
+    kode?: string;
+    nama: string;
+    deskripsi?: string;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/rps-referensi', payload);
+    return response.data;
+  },
+
+  updateRpsReferensi: async (
+    id: number,
+    payload: {
+      kode?: string;
+      nama: string;
+      deskripsi?: string;
+    }
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/rps-referensi/${id}`, payload);
+    return response.data;
+  },
+
+  deleteRpsReferensi: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/rps-referensi/${id}`);
+    return response.data;
+  },
+
   mapMataKuliahBahanKajian: async (payload: { mata_kuliah_id: number; bahan_kajian_ids: number[] }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/obe/matakuliah/bahan-kajian', payload);
     return response.data;

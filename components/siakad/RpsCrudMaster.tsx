@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Filter, Edit, Trash2, BookOpen } from 'lucide-react';
+import { Plus, Filter, Edit, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,13 +15,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
-
-export interface RpsRefFormSchema {
-  nama: string;
-  kode?: string;
-  deskripsi?: string;
-}
 
 const formSchema = z.object({
   kode: z.string().trim().max(50, 'Kode maksimal 50 karakter').optional(),
@@ -32,21 +27,23 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export interface RpsCrudMasterProps {
+  tipe: 'bentuk' | 'metode' | 'kriteria' | 'komponen';
   title: string;
   description: string;
   breadcrumbLabel: string;
   itemTypeLabel: string;
-  initialData: Array<{ id: number; kode: string; nama: string; deskripsi: string; created_at: string }>;
 }
 
 export function RpsCrudMaster({
+  tipe,
   title,
   description,
   breadcrumbLabel,
   itemTypeLabel,
-  initialData,
 }: RpsCrudMasterProps) {
-  const [items, setItems] = useState(initialData);
+  const [items, setItems] = useState<any[]>([]);
+  const [meta, setMeta] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(15);
 
@@ -62,8 +59,10 @@ export function RpsCrudMaster({
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [deletingItem, setDeletingItem] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -75,42 +74,30 @@ export function RpsCrudMaster({
     defaultValues: { kode: '', nama: '', deskripsi: '' },
   });
 
-  const filteredItems = useMemo(() => {
-    let res = [...items];
-    if (appliedFilters.search) {
-      const q = appliedFilters.search.toLowerCase();
-      res = res.filter(
-        (i) =>
-          i.nama?.toLowerCase().includes(q) ||
-          i.kode?.toLowerCase().includes(q) ||
-          i.deskripsi?.toLowerCase().includes(q)
-      );
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await siakadService.getRpsReferensi({
+        tipe,
+        search: appliedFilters.search || undefined,
+        sort_by: appliedFilters.sortBy,
+        sort_order: appliedFilters.sortDir,
+        page,
+        per_page: limit,
+      });
+      const raw = res?.data;
+      setItems(Array.isArray(raw) ? raw : []);
+      setMeta(res?.meta || null);
+    } catch {
+      toast.error(`Gagal memuat data ${itemTypeLabel.toLowerCase()}`);
+    } finally {
+      setLoading(false);
     }
-    res.sort((a: any, b: any) => {
-      const va = String(a[appliedFilters.sortBy] || '');
-      const vb = String(b[appliedFilters.sortBy] || '');
-      const cmp = va.localeCompare(vb);
-      return appliedFilters.sortDir === 'desc' ? -cmp : cmp;
-    });
-    return res;
-  }, [items, appliedFilters]);
+  }, [tipe, appliedFilters, page, limit, itemTypeLabel]);
 
-  const paginatedItems = useMemo(() => {
-    const start = (page - 1) * limit;
-    return filteredItems.slice(start, start + limit);
-  }, [filteredItems, page, limit]);
-
-  const meta = useMemo(
-    () => ({
-      current_page: page,
-      per_page: limit,
-      total: filteredItems.length,
-      last_page: Math.max(1, Math.ceil(filteredItems.length / limit)),
-      from: filteredItems.length > 0 ? (page - 1) * limit + 1 : 0,
-      to: Math.min(filteredItems.length, page * limit),
-    }),
-    [filteredItems.length, page, limit]
-  );
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -128,40 +115,47 @@ export function RpsCrudMaster({
     setModalOpen(true);
   };
 
-  const onSubmit = (values: FormValues) => {
-    if (editingItem?.id) {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === editingItem.id
-            ? {
-                ...i,
-                kode: values.kode?.trim() || i.kode,
-                nama: values.nama.trim(),
-                deskripsi: values.deskripsi?.trim() || '',
-              }
-            : i
-        )
-      );
-      toast.success(`${itemTypeLabel} berhasil diperbarui`);
-    } else {
-      const newItem = {
-        id: Date.now(),
-        kode: values.kode?.trim() || `REF-${Math.floor(100 + Math.random() * 900)}`,
-        nama: values.nama.trim(),
-        deskripsi: values.deskripsi?.trim() || '',
-        created_at: new Date().toISOString(),
-      };
-      setItems((prev) => [newItem, ...prev]);
-      toast.success(`${itemTypeLabel} baru berhasil disimpan`);
+  const onSubmit = async (values: FormValues) => {
+    setSaving(true);
+    try {
+      if (editingItem?.id) {
+        await siakadService.updateRpsReferensi(editingItem.id, {
+          kode: values.kode?.trim() || undefined,
+          nama: values.nama.trim(),
+          deskripsi: values.deskripsi?.trim() || undefined,
+        });
+        toast.success(`${itemTypeLabel} berhasil diperbarui`);
+      } else {
+        await siakadService.createRpsReferensi({
+          tipe,
+          kode: values.kode?.trim() || undefined,
+          nama: values.nama.trim(),
+          deskripsi: values.deskripsi?.trim() || undefined,
+        });
+        toast.success(`${itemTypeLabel} baru berhasil disimpan`);
+      }
+      setModalOpen(false);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || `Gagal menyimpan ${itemTypeLabel.toLowerCase()}`);
+    } finally {
+      setSaving(false);
     }
-    setModalOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingItem?.id) return;
-    setItems((prev) => prev.filter((i) => i.id !== deletingItem.id));
-    toast.success(`${itemTypeLabel} berhasil dihapus`);
-    setDeletingItem(null);
+    setDeleting(true);
+    try {
+      await siakadService.deleteRpsReferensi(deletingItem.id);
+      toast.success(`${itemTypeLabel} berhasil dihapus`);
+      setDeletingItem(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || `Gagal menghapus ${itemTypeLabel.toLowerCase()}`);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleApplyFilter = () => {
@@ -257,7 +251,8 @@ export function RpsCrudMaster({
 
       <DataTable
         columns={columns}
-        data={paginatedItems}
+        data={items}
+        isLoading={loading}
         meta={meta}
         onPageChange={setPage}
         onLimitChange={(l) => {
@@ -270,7 +265,7 @@ export function RpsCrudMaster({
       {/* Modal Form CRUD */}
       <Modal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => !saving && setModalOpen(false)}
         title={editingItem ? `Edit ${itemTypeLabel}` : `Tambah ${itemTypeLabel}`}
         size="md"
       >
@@ -300,10 +295,10 @@ export function RpsCrudMaster({
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setModalOpen(false)} disabled={saving}>
               Batal
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" isLoading={saving}>
               Simpan
             </Button>
           </div>
@@ -361,6 +356,7 @@ export function RpsCrudMaster({
         message={`Apakah Anda yakin ingin menghapus "${deletingItem?.nama}"? Aksi ini akan menghapus data.`}
         confirmText="Hapus"
         variant="danger"
+        isLoading={deleting}
       />
     </div>
   );
