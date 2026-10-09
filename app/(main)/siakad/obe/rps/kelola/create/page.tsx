@@ -140,10 +140,40 @@ export default function CreateRpsPage() {
       setValue('kode_rps', `RPS-${kodeMk}-${year}`);
       setValue('semester_rps', Number(mk.semester_anjuran) || 1);
 
-      // Auto-fill deskripsi singkat & bahan kajian jika ada di relasi MK
+      // Auto-fill deskripsi singkat jika ada di relasi MK
       if (mk.deskripsi) {
         setValue('deskripsi_singkat', mk.deskripsi);
       }
+
+      // Otomatis tarik Mata Kuliah Syarat dari master prasyarat mata kuliah
+      try {
+        const resPrasyarat = await siakadService.getPrasyaratMks({ mata_kuliah_id: mkId });
+        const listPrasyarat = Array.isArray(resPrasyarat?.data) ? resPrasyarat.data : (resPrasyarat?.data?.items || []);
+        if (listPrasyarat.length > 0) {
+          const syaratsFormatted = listPrasyarat
+            .map((p: any) => {
+              const pMk = p.prasyarat || p.mata_kuliah_prasyarat;
+              return pMk ? `${pMk.nama}(${pMk.kode_mk})` : null;
+            })
+            .filter(Boolean)
+            .join(', ');
+          setValue('mata_kuliah_syarat', syaratsFormatted || '-');
+        } else {
+          setValue('mata_kuliah_syarat', '-');
+        }
+      } catch {
+        setValue('mata_kuliah_syarat', '-');
+      }
+
+      // Otomatis tarik Bahan Kajian MK jika mata kuliah sudah dipetakan ke Bahan Kajian
+      try {
+        const resBk = await siakadService.getBahanKajians({ mata_kuliah_id: mkId, per_page: 50 });
+        const listBk = Array.isArray(resBk?.data) ? resBk.data : (resBk?.data?.items || []);
+        if (listBk.length > 0) {
+          const bksFormatted = listBk.map((b: any) => `${b.kode_bk} - ${b.nama_bk}`).join('\n');
+          setValue('bahan_kajian_mk', bksFormatted);
+        }
+      } catch {}
 
       // Otomatis ambil Dosen Koordinator & Anggota dari Distribusi Mata Kuliah
       try {
