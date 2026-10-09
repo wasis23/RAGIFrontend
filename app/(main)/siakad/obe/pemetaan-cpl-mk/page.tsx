@@ -60,7 +60,11 @@ export default function PemetaanCplMkPage() {
     fetchData(appliedProdi || undefined);
   }, [appliedProdi, fetchData]);
 
-  const handleToggle = async (cplId: number, mataKuliahId: number, checked: boolean) => {
+  /**
+   * `nextChecked` adalah state yang DIINGINKAN setelah klik (bukan state saat ini),
+   * karena endpoint toggle memakainya sebagai nilai akhir `is_checked`.
+   */
+  const handleToggle = async (cplId: number, mataKuliahId: number, nextChecked: boolean) => {
     const key = `${cplId}-${mataKuliahId}`;
     setTogglingKey(key);
 
@@ -72,12 +76,12 @@ export default function PemetaanCplMkPage() {
       await siakadService.toggleMatrixCplMataKuliah({
         cpl_id: cplId,
         mata_kuliah_id: mataKuliahId,
-        is_checked: checked,
+        is_checked: nextChecked,
       });
 
       setPairs((prev) => {
         const updated = new Set(prev);
-        if (checked) updated.add(key);
+        if (nextChecked) updated.add(key);
         else updated.delete(key);
         return updated;
       });
@@ -86,7 +90,21 @@ export default function PemetaanCplMkPage() {
         updated.delete(key);
         return updated;
       });
-      toast.success(checked ? 'Pemetaan CPL-MK disimpan' : 'Pemetaan CPL-MK dilepas');
+      toast.success(nextChecked ? 'Pemetaan CPL-MK disimpan' : 'Pemetaan CPL-MK dilepas');
+
+      // Sinkronkan ulang centang dari server tanpa menampilkan state loading,
+      // sehingga matriks selalu mencerminkan kondisi database meski ada selisih
+      // pada perhitungan state optimistis.
+      try {
+        const fresh = await siakadService.getMatrixCplMataKuliah({
+          program_studi_id: appliedProdi ? Number(appliedProdi) : undefined,
+        });
+        const data = fresh?.data || {};
+        setPairs(new Set((data.pairs || []).map((p: any) => `${p.cpl_id}-${p.mata_kuliah_id}`)));
+        setYatim(new Set(data.yatim || []));
+      } catch {
+        // Abaikan: state optimistis di atas sudah benar untuk kasus ini.
+      }
     } catch (err: any) {
       setPairs(prevPairs);
       setYatim(prevYatim);
@@ -98,7 +116,7 @@ export default function PemetaanCplMkPage() {
 
   /**
    * Sel terkunci diklik: beri tahu penyebab spesifik, bukan pesan generik, agar
-   * Kaprodi tahu harus去哪里 menyelesaikan pemetaan yang kurang.
+   * Kaprodi tahu harus ke halaman mana menyelesaikan pemetaan yang kurang.
    */
   const handleLockedClick = (row: CplMkRow, col: CplMkCol) => {
     const cpl = cpls.find((c) => c.id === col.id);

@@ -40,7 +40,11 @@ export interface CplMkMatrixProps {
   pairs: Set<string>;
   /** Kunci pasangan yang sudah dicentang namun jalurnya hilang ( perlu ditinjau ). */
   yatim: Set<string>;
-  onToggle: (cplId: number, mataKuliahId: number, checked: boolean) => void;
+  /**
+   * `nextChecked` adalah state yang DIINGINKAN setelah sel diklik (bukan state
+   * saat ini), karena endpoint toggle memakai nilainya sebagai `is_checked` akhir.
+   */
+  onToggle: (cplId: number, mataKuliahId: number, nextChecked: boolean) => void;
   /** Handler saat sel terkunci diklik, untuk menampilkan toast peringatan. */
   onLockedClick: (row: CplMkRow, col: CplMkCol) => void;
   togglingKey: string | null;
@@ -155,7 +159,9 @@ export function CplMkMatrix({
                         key={col.id}
                         onClick={() => {
                           if (isToggling) return;
-                          if (canToggle) onToggle(col.id, row.id, isChecked);
+                          // Kirim state yang DIINGINKAN, bukan state sekarang:
+                          // endpoint toggle menerima is_checked sebagai nilai akhir.
+                          if (canToggle) onToggle(col.id, row.id, !isChecked);
                           else onLockedClick(row, col);
                         }}
                         className={`p-3 text-center border-r border-slate-100 last:border-r-0 transition-colors ${stateClass} ${
