@@ -632,6 +632,11 @@ export const siakadService = {
     return response.data;
   },
 
+  toggleDosenBisaEditRps: async (id: number, dosen_bisa_edit: boolean): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/obe/rps/${id}/toggle-dosen-edit`, { dosen_bisa_edit });
+    return response.data;
+  },
+
   duplicateRps: async (id: number, payload: { tahun_ajaran: string; semester?: number }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post(`/v1/siakad/obe/rps/${id}/duplicate`, payload);
     return response.data;

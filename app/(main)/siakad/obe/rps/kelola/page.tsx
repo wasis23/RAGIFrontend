@@ -1,18 +1,34 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { Select, type SelectOption } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { useRouter } from 'next/navigation';
-import { Plus, Filter, Eye } from 'lucide-react';
+import { Plus, Filter, Eye, Copy } from 'lucide-react';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
+
+const STATUS_IZIN_EDIT_OPTIONS: SelectOption[] = [
+  { value: 'ya', label: 'Ya' },
+  { value: 'tidak', label: 'Tidak' },
+];
+
+const SORT_BY_OPTIONS: SelectOption[] = [
+  { value: 'created_at', label: 'Waktu Dibuat' },
+  { value: 'semester', label: 'Semester' },
+  { value: 'id', label: 'ID' },
+];
+
+const SORT_DIR_OPTIONS: SelectOption[] = [
+  { value: 'asc', label: 'Menaik (A-Z)' },
+  { value: 'desc', label: 'Menurun (Z-A)' },
+];
 
 export default function RpsKelolaPage() {
   const router = useRouter();
@@ -74,6 +90,21 @@ export default function RpsKelolaPage() {
     fetchData();
   }, [fetchData]);
 
+  const handleToggleDosenEdit = async (rpsId: number, currentVal: boolean) => {
+    const nextVal = !currentVal;
+    try {
+      await siakadService.toggleDosenBisaEditRps(rpsId, nextVal);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === rpsId ? { ...item, dosen_bisa_edit: nextVal } : item
+        )
+      );
+      toast.success(nextVal ? 'Dosen diizinkan mengedit RPS' : 'Izin edit dosen dinonaktifkan');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengubah izin edit dosen');
+    }
+  };
+
   const handleApplyFilter = () => {
     setAppliedFilters({
       search: filterSearch,
@@ -98,50 +129,124 @@ export default function RpsKelolaPage() {
   const columns: ColumnDef<any>[] = [
     {
       key: 'mata_kuliah',
-      label: 'MATA KULIAH',
+      label: 'Mata Kuliah',
       sortable: true,
-      render: (row) => (
-        <div>
-          <span className="font-mono font-bold text-slate-900 block text-xs">
-            {row.mata_kuliah?.kode_mk || row.mataKuliah?.kode_mk || '-'}
-          </span>
-          <span className="text-xs text-slate-700 block">
-            {row.mata_kuliah?.nama || row.mataKuliah?.nama || 'Tanpa Nama MK'}
-          </span>
-        </div>
-      ),
+      render: (row) => {
+        const mk = row.mata_kuliah || row.mataKuliah;
+        return (
+          <div className="leading-snug">
+            <span className="font-mono font-bold text-slate-900 block text-xs">
+              {mk?.kode_mk || '-'}
+            </span>
+            <span className="text-xs text-slate-700 block uppercase font-medium">
+              {mk?.nama || 'Tanpa Nama MK'}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: 'kurikulum',
-      label: 'KURIKULUM',
+      label: 'Kurikulum',
+      render: (row) => {
+        const kur = row.mata_kuliah?.kurikulum || row.kurikulum;
+        return (
+          <span className="text-xs font-semibold text-slate-700 block">
+            {kur?.kode || kur?.nama || '-'}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'semester',
+      label: 'Semester',
+      align: 'center',
+      sortable: true,
       render: (row) => (
-        <span className="text-2xs text-slate-600 block">
-          {row.mata_kuliah?.kurikulum?.nama || row.kurikulum?.nama || '-'}
+        <span className="text-xs font-bold text-slate-800 text-center block">
+          {row.semester || row.mata_kuliah?.semester_anjuran || 1}
         </span>
       ),
     },
     {
-      key: 'status',
-      label: 'STATUS RPS',
+      key: 'dosen_pengampu',
+      label: 'Dosen Koordinator / Anggota',
+      render: (row) => {
+        const pengembang = row.dosen_pengembang || row.dosenPengembang;
+        const koorRmk = row.koordinator_rmk || row.koordinatorRmk;
+        const kaprodi = row.kaprodi;
+
+        return (
+          <div className="space-y-1 text-2xs leading-snug">
+            {pengembang && (
+              <div>
+                <span style={{ color: 'var(--module-primary)' }} className="font-bold block">Pengampu RPS:</span>
+                <span className="text-slate-800">{pengembang.nama_lengkap || pengembang.nama || pengembang.name}</span>
+              </div>
+            )}
+            {koorRmk && (
+              <div>
+                <span style={{ color: 'var(--module-primary)' }} className="font-bold block">Pengembang:</span>
+                <span className="text-slate-700">{koorRmk.nama_lengkap || koorRmk.nama || koorRmk.name}</span>
+              </div>
+            )}
+            {kaprodi && (
+              <div className="pt-0.5 border-t border-slate-100">
+                <span className="text-slate-400 font-semibold block">Penugasan (Ka Prodi):</span>
+                <span style={{ color: 'var(--module-primary)' }} className="font-medium">{kaprodi.nama_lengkap || kaprodi.nama || kaprodi.name}</span>
+              </div>
+            )}
+            {!pengembang && !koorRmk && !kaprodi && (
+              <span className="text-slate-300 italic">Belum ditentukan</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'koor_boleh_edit',
+      label: 'Koor Boleh Edit RPS?',
       align: 'center',
       render: (row) => {
-        const isApproved = row.status === 'disetujui' || row.status === 'approved';
+        const canEdit = row.dosen_bisa_edit ?? true;
         return (
-          <span
-            className={`inline-block px-2 py-0.5 text-2xs font-semibold rounded-md ${
-              isApproved
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-amber-50 text-amber-700 border border-amber-200'
-            }`}
-          >
-            {row.status || 'Draft'}
+          <div className="w-24 mx-auto">
+            <Select
+              options={STATUS_IZIN_EDIT_OPTIONS}
+              value={canEdit ? 'ya' : 'tidak'}
+              onChange={(opt: any) => {
+                const val = typeof opt === 'object' ? opt?.value : opt;
+                handleToggleDosenEdit(row.id, val === 'tidak');
+              }}
+            />
+          </div>
+        );
+      },
+    },
+    {
+      key: 'kelas',
+      label: 'Kelas',
+      render: (row) => {
+        const mk = row.mata_kuliah || row.mataKuliah;
+        const kelasList = mk?.kelas || [];
+        return kelasList.length > 0 ? (
+          <div className="space-y-0.5 font-mono text-2xs text-slate-800">
+            {kelasList.map((k: any) => (
+              <span key={k.id} className="block">
+                {k.kode_kelas || `${mk.kode_mk} (${k.nama_kelas || 'Kelas'})`}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-2xs text-slate-400 italic block">
+            Belum ada kelas
           </span>
         );
       },
     },
     {
       key: 'actions',
-      label: 'AKSI',
+      label: 'Opsi',
       align: 'center',
       render: (row) => (
         <DropdownMenu
@@ -150,7 +255,22 @@ export default function RpsKelolaPage() {
               label: 'Detail RPS',
               icon: <Eye size={14} />,
               onClick: () => {
-                toast(`Membuka RPS ID #${row.id}`);
+                router.push(`/siakad/obe/rps/${row.id}`);
+              },
+            },
+            {
+              label: 'Duplikasi RPS',
+              icon: <Copy size={14} />,
+              onClick: async () => {
+                try {
+                  await siakadService.duplicateRps(row.id, {
+                    tahun_ajaran: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
+                  });
+                  toast.success('RPS berhasil diduplikasi');
+                  fetchData();
+                } catch {
+                  toast.error('Gagal menduplikasi RPS');
+                }
               },
             },
           ]}
@@ -201,7 +321,7 @@ export default function RpsKelolaPage() {
           setLimit(l);
           setPage(1);
         }}
-        emptyMessage="Belum ada dokumen RPS yang terdaftar."
+        emptyMessage="Belum ada dokumen RPS yang terdaftar. Klik 'Buat RPS' untuk menambahkan dokumen baru."
       />
 
       {/* Drawer Filter */}
@@ -225,19 +345,13 @@ export default function RpsKelolaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Urutkan Berdasarkan"
-              options={[
-                { value: 'created_at', label: 'Waktu Dibuat' },
-                { value: 'id', label: 'ID' },
-              ]}
+              options={SORT_BY_OPTIONS}
               value={filterSortBy}
               onChange={(v) => setFilterSortBy(String(v || 'created_at'))}
             />
             <Select
               label="Arah Urutan"
-              options={[
-                { value: 'asc', label: 'Menaik (A-Z)' },
-                { value: 'desc', label: 'Menurun (Z-A)' },
-              ]}
+              options={SORT_DIR_OPTIONS}
               value={filterSortDir}
               onChange={(v) => setFilterSortDir((v as 'asc' | 'desc') || 'desc')}
             />
