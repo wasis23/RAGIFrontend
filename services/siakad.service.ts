@@ -797,6 +797,48 @@ export const siakadService = {
     return response.data;
   },
 
+  // Rumusan CPMK Program Studi (CPMK-PS)
+  getCpmkProdis: async (params?: {
+    search?: string;
+    kurikulum_id?: number;
+    cpl_id?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+    page?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/cpmk-prodi', { params });
+    return response.data;
+  },
+
+  createCpmkProdi: async (payload: {
+    kurikulum_id: number;
+    cpl_id: number;
+    kode_cpmk: string;
+    deskripsi: string;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/cpmk-prodi', payload);
+    return response.data;
+  },
+
+  updateCpmkProdi: async (
+    id: number,
+    payload: {
+      kurikulum_id: number;
+      cpl_id: number;
+      kode_cpmk: string;
+      deskripsi: string;
+    }
+  ): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/cpmk-prodi/${id}`, payload);
+    return response.data;
+  },
+
+  deleteCpmkProdi: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/cpmk-prodi/${id}`);
+    return response.data;
+  },
+
   mapMataKuliahBahanKajian: async (payload: { mata_kuliah_id: number; bahan_kajian_ids: number[] }): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/obe/matakuliah/bahan-kajian', payload);
     return response.data;
