@@ -567,8 +567,11 @@ p.text-white, span.text-white, div.text-white {
 }
 
 .main-layout {
+  /* Lebar sidebar mengikuti pilihan user (disimpan di uiStore). Nilai ini
+     di-override inline oleh MainLayout; default ini untuk render pertama. */
+  --sidebar-width: 260px;
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   min-height: 100vh;
   transition: grid-template-columns var(--transition-normal);
 }
@@ -597,6 +600,11 @@ p.text-white, span.text-white, div.text-white {
   
   .sidebar.sidebar-collapsed {
     transform: translateX(-100%);
+  }
+
+  /* Di layar kecil sidebar menjadi overlay fixed, sehingga tidak bisa digeser. */
+  .sidebar-resizer {
+    display: none;
   }
 
   .sidebar-overlay {
@@ -1079,6 +1087,40 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 /* ============================================================
    SIDEBAR
    ============================================================ */
+
+/* Handles geser lebar sidebar di tepi kanan sidebar.
+   Lebar strip adalah area sentuh, bukan spacing layout. */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0.5rem;
+  cursor: col-resize;
+  background: transparent;
+  border: none;
+  padding: 0;
+  z-index: 60;
+  touch-action: none;
+  transition: background var(--transition-fast);
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+}
+
+.sidebar-resizer:focus-visible {
+  box-shadow: inset 2px 0 0 var(--module-primary, #3b82f6);
+}
+
+/* Cegah seleksi teks dan ubah kursor selama sedang drag. */
+body.sidebar-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .sidebar {
   background: var(--bg-sidebar);
   height: 100vh;

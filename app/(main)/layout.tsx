@@ -19,6 +19,7 @@ import { generateModuleThemeStyles } from '@/lib/theme';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const sidebar_open = useUiStore((s) => s.sidebar_open);
+  const sidebar_width = useUiStore((s) => s.sidebar_width);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const module_colors = useUiStore((s) => s.module_colors);
   const fetchAllModuleColors = useUiStore((s) => s.fetchAllModuleColors);
@@ -169,9 +170,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <div 
       className={`main-layout ${sidebar_open ? '' : 'sidebar-collapsed'}`}
-      style={themeStyles}
+      style={{
+        ...themeStyles,
+        // Lebar sidebar mengikuti pilihan user yang disimpan di uiStore.
+        // Hanya berlaku saat sidebar ter-expand; mode collapsed mengunci 72px
+        // melalui aturan `.main-layout.sidebar-collapsed` di globals.css.
+        ...(sidebar_open ? { '--sidebar-width': `${sidebar_width}px` } : {}),
+      } as React.CSSProperties}
     >
-      <Suspense fallback={<div style={{ width: 260 }} />}>
+      <Suspense fallback={<div style={{ width: sidebar_width }} />}>
         <Sidebar />
       </Suspense>
       {sidebar_open && (

@@ -60,6 +60,7 @@ import {
   Stamp
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
+import { SidebarResizer } from '@/components/layout/SidebarResizer';
 import { useAuth } from '@/hooks/useAuth';
 import { SYSTEM_MODULES } from '@/lib/constants';
 import { resolveDomainContext } from '@/lib/domain';
@@ -1109,6 +1110,10 @@ export function Sidebar() {
           </div>
         </div>
       )}
+
+      {/* Handle geser lebar sidebar; tidak muncul saat sidebar dalam keadaan
+          collapsed karena saat itu lebar dikunci oleh mode ikon. */}
+      {sidebar_open && <SidebarResizer />}
     </aside>
   );
 }

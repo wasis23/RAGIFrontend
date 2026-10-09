@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import api from '@/lib/axios';
+import { clampSidebarWidth, sidebarWidthDefaultPx } from '@/lib/sidebar';
 
 // ============================================================
 // UI STORE — Global UI state (sidebar, modal, theme, module colors)
@@ -10,6 +11,8 @@ import api from '@/lib/axios';
 
 interface UiState {
   sidebar_open: boolean;
+  /** Lebar sidebar hasil drag user, dalam pixel. Di-clamp oleh clampSidebarWidth(). */
+  sidebar_width: number;
   active_modal: string | null;
   is_dark_mode: boolean;
   module_color: string | null;
@@ -19,6 +22,8 @@ interface UiState {
 interface UiActions {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  setSidebarWidth: (px: number) => void;
+  resetSidebarWidth: () => void;
   openModal: (modalId: string) => void;
   closeModal: () => void;
   toggleDarkMode: () => void;
@@ -34,6 +39,7 @@ export const useUiStore = create<UiStore>()(
   persist(
     (set, get) => ({
       sidebar_open: true,
+      sidebar_width: sidebarWidthDefaultPx(),
       active_modal: null,
       is_dark_mode: false,
       module_color: null,
@@ -41,6 +47,8 @@ export const useUiStore = create<UiStore>()(
 
       toggleSidebar: () => set((state) => ({ sidebar_open: !state.sidebar_open })),
       setSidebarOpen: (open) => set({ sidebar_open: open }),
+      setSidebarWidth: (px) => set({ sidebar_width: clampSidebarWidth(px) }),
+      resetSidebarWidth: () => set({ sidebar_width: sidebarWidthDefaultPx() }),
       openModal: (modalId) => set({ active_modal: modalId }),
       closeModal: () => set({ active_modal: null }),
       toggleDarkMode: () => set((state) => ({ is_dark_mode: !state.is_dark_mode })),
