@@ -30,7 +30,7 @@ export default function PemetaanCplCpmkMkPage() {
   const [items, setItems] = useState<PemetaanRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filter
+  // Filter 1:1 (Drawer)
   const [filterSearch, setFilterSearch] = useState('');
   const [filterKurikulumId, setFilterKurikulumId] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('kode_cpmk');
@@ -224,7 +224,7 @@ export default function PemetaanCplCpmkMkPage() {
     },
     {
       key: 'opsi',
-      label: 'OPSI',
+      label: 'AKSI',
       align: 'center',
       render: (row) => (
         <DropdownMenu
@@ -275,7 +275,7 @@ export default function PemetaanCplCpmkMkPage() {
         emptyMessage="Belum ada rumusan CPMK yang terdaftar. Silakan buat rumusan CPMK terlebih dahulu di menu 'Rumusan CPMK'."
       />
 
-      {/* Modal Checklist Mata Kuliah persis sesuai gambar kedua */}
+      {/* Modal Checklist Mata Kuliah */}
       <Modal
         isOpen={modalOpen}
         onClose={() => !saving && setModalOpen(false)}
@@ -349,7 +349,7 @@ export default function PemetaanCplCpmkMkPage() {
         </div>
       </Modal>
 
-      {/* Drawer Filter */}
+      {/* Drawer Filter 1:1 */}
       <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Pemetaan CPL-CPMK-MK">
         <div className="space-y-4">
           <Input
