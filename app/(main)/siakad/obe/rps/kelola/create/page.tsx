@@ -175,23 +175,28 @@ export default function CreateRpsPage() {
         }
       } catch {}
 
-      // Otomatis ambil Dosen Koordinator & Anggota dari Distribusi Mata Kuliah
+      // Otomatis tarik Dosen Anggota & Koordinator RMK dari Distribusi Mata Kuliah
       try {
         const resDistribusi = await siakadService.getDistribusiMengajarList({ mata_kuliah_id: mkId, per_page: 1 });
         const listDist = resDistribusi?.data || [];
         const dist = Array.isArray(listDist) ? listDist[0] : null;
 
-        if (dist) {
-          if (dist.dosen_koordinator_id) {
-            setValue('koordinator_rmk_id', dist.dosen_koordinator_id);
-          }
-          const anggotaIds = Array.isArray(dist.dosen_anggota_ids) ? dist.dosen_anggota_ids.map(Number).filter(Boolean) : [];
+        if (dist && Array.isArray(dist.dosen_anggota_ids)) {
+          const anggotaIds = dist.dosen_anggota_ids.map(Number).filter(Boolean);
           setValue('dosen_anggota_ids', anggotaIds);
+        } else {
+          setValue('dosen_anggota_ids', []);
         }
-      } catch {}
 
-      // Otomatis isi Kaprodi jika prodi memiliki kaprodi terdaftar
-      const prodiKaprodiId = mk?.kurikulum?.program_studi?.kaprodi_id;
+        if (dist?.dosen_koordinator_id) {
+          setValue('koordinator_rmk_id', Number(dist.dosen_koordinator_id));
+        }
+      } catch {
+        setValue('dosen_anggota_ids', []);
+      }
+
+      // Ka Prodi = Ketua Program Studi pada prodi kurikulum mata kuliah
+      const prodiKaprodiId = mk?.kurikulum?.program_studi?.kaprodi_id || mk?.kurikulum?.programStudi?.kaprodi_id;
       if (prodiKaprodiId) {
         setValue('kaprodi_id', Number(prodiKaprodiId));
       }
@@ -213,7 +218,6 @@ export default function CreateRpsPage() {
         mata_kuliah_syarat: values.mata_kuliah_syarat?.trim() || '-',
         jenis_pembelajaran: values.jenis_pembelajaran || 'Kuliah / Responsi',
         dosen_anggota_ids: values.dosen_anggota_ids || [],
-        dosen_pengembang_id: values.dosen_pengembang_id || values.dosen_anggota_ids?.[0] || undefined,
         koordinator_rmk_id: values.koordinator_rmk_id || undefined,
         kaprodi_id: values.kaprodi_id || undefined,
       });
@@ -422,16 +426,21 @@ export default function CreateRpsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-1">
                 <Controller
-                  name="dosen_pengembang_id"
+                  name="dosen_anggota_ids"
                   control={control}
                   render={({ field }) => (
                     <AsyncSelect
-                      label="Dosen Pengembang"
-                      placeholder="Pilih Dosen Pengembang..."
+                      label="Anggota"
+                      placeholder="Cari berdasarkan NIDN atau nama..."
                       loadOptions={loadDosenOptions}
-                      value={field.value || null}
-                      onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
+                      defaultOptions={true}
+                      value={field.value || []}
+                      onChange={(opts: any) =>
+                        field.onChange(Array.isArray(opts) ? opts.map((o: any) => Number(o.value)).filter(Boolean) : [])
+                      }
+                      isMulti
                       isClearable
+                      error={errors.dosen_anggota_ids?.message}
                     />
                   )}
                 />
