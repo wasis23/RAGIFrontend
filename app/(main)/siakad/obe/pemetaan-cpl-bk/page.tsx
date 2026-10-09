@@ -3,7 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { BahanKajianMatrix, type MatrixCol, type MatrixRow } from '@/components/siakad/BahanKajianMatrix';
+import {
+  BahanKajianMatrix,
+  MatrixPrintButton,
+  type MatrixCol,
+  type MatrixRow,
+} from '@/components/siakad/BahanKajianMatrix';
 import { loadProdiOptions } from '@/components/siakad/RubrikForm';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
@@ -45,7 +50,7 @@ export default function PemetaanCplBkPage() {
         (payload.cpls || []).map((c: any) => ({
           id: c.id,
           kode: c.kode_cpl || '-',
-          nama: c.kategori,
+          detail: c.deskripsi,
         })),
       );
       setBahanKajians(
@@ -107,7 +112,7 @@ export default function PemetaanCplBkPage() {
         else updated.add(key);
         return updated;
       });
-      toast.success(checked ? 'Pemetaan dilepas' : 'Pemetaan CPL-BK disimpan');
+      toast.success(checked ? 'Korelasi dilepas' : 'Korelasi CPL-BK disimpan');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal menyimpan pemetaan CPL-BK');
     } finally {
@@ -125,9 +130,10 @@ export default function PemetaanCplBkPage() {
           { label: 'SIAKAD', href: '/siakad' },
           { label: 'Pemetaan CPL-BK' },
         ]}
+        action={<MatrixPrintButton onPrint={() => window.print()} />}
       />
 
-      <div className="p-4 bg-white border border-slate-200 rounded-xl text-xs text-slate-700">
+      <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs text-xs text-slate-700">
         <strong>Catatan:</strong> Pemetaan CPL dan BK dilakukan untuk mengetahui setiap CPL memiliki komponen Bahan Kajian tertentu.
       </div>
 
@@ -152,8 +158,8 @@ export default function PemetaanCplBkPage() {
 
       <BahanKajianMatrix
         rowLabel="Kode CPL"
-        rowGroupLabel="CPL"
         colGroupLabel="Bahan Kajian"
+        loadingLabel="CPL-BK"
         rows={cpls}
         cols={bahanKajians}
         pairs={pairs}

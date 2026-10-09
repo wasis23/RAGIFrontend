@@ -3,7 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { BahanKajianMatrix, type MatrixCol, type MatrixRow } from '@/components/siakad/BahanKajianMatrix';
+import {
+  BahanKajianMatrix,
+  MatrixPrintButton,
+  type MatrixCol,
+  type MatrixRow,
+} from '@/components/siakad/BahanKajianMatrix';
 import { loadProdiOptions } from '@/components/siakad/RubrikForm';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
@@ -45,7 +50,7 @@ export default function PemetaanBkMkPage() {
         (payload.mata_kuliahs || []).map((m: any) => ({
           id: m.id,
           kode: m.kode_mk || '-',
-          nama: m.nama,
+          detail: m.nama,
         })),
       );
       setBahanKajians(
@@ -89,7 +94,7 @@ export default function PemetaanBkMkPage() {
   }, []);
 
   // Baris matriks = Mata Kuliah, kolom = Bahan Kajian. Endpoint menyinkronkan
-  // per Bahan Kajian, jadi klik di satu sel.openapi daftar MK milik BK tersebut.
+  // per Bahan Kajian, jadi klik di satu sel akan memakai daftar MK milik BK tersebut.
   const handleToggle = async (mataKuliahId: number, bahanKajianId: number, checked: boolean) => {
     const key = `${mataKuliahId}-${bahanKajianId}`;
     const mataKuliahIds = mataKuliahs
@@ -112,7 +117,7 @@ export default function PemetaanBkMkPage() {
         else updated.add(key);
         return updated;
       });
-      toast.success(checked ? 'Pemetaan dilepas' : 'Pemetaan BK-MK disimpan');
+      toast.success(checked ? 'Korelasi dilepas' : 'Korelasi BK-MK disimpan');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal menyimpan pemetaan BK-MK');
     } finally {
@@ -130,9 +135,10 @@ export default function PemetaanBkMkPage() {
           { label: 'SIAKAD', href: '/siakad' },
           { label: 'Pemetaan BK-MK' },
         ]}
+        action={<MatrixPrintButton onPrint={() => window.print()} />}
       />
 
-      <div className="p-4 bg-white border border-slate-200 rounded-xl text-xs text-slate-700">
+      <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs text-xs text-slate-700">
         <strong>Catatan:</strong> Pemetaan BK dan MK dilakukan untuk mengetahui suatu Bahan Kajian memiliki Mata Kuliah tertentu.
       </div>
 
@@ -157,8 +163,8 @@ export default function PemetaanBkMkPage() {
 
       <BahanKajianMatrix
         rowLabel="Kode MK"
-        rowGroupLabel="MK"
         colGroupLabel="Bahan Kajian"
+        loadingLabel="BK-MK"
         rows={mataKuliahs}
         cols={bahanKajians}
         pairs={pairs}
