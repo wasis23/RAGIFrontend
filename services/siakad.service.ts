@@ -632,6 +632,11 @@ export const siakadService = {
     return response.data;
   },
 
+  deleteRps: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/rps/${id}`);
+    return response.data;
+  },
+
   toggleDosenBisaEditRps: async (id: number, dosen_bisa_edit: boolean): Promise<ApiResponse<any>> => {
     const response = await apiClient.patch(`/v1/siakad/obe/rps/${id}/toggle-dosen-edit`, { dosen_bisa_edit });
     return response.data;
@@ -970,6 +975,32 @@ export const siakadService = {
   },
 
   // --- MASTER OBE HOMEBASE PRODI EXTENSIONS ---
+  // Master Kelas & Pemetaan Mahasiswa (OBE)
+  getMasterKelasList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/master-kelas', { params });
+    return response.data;
+  },
+  createMasterKelas: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/master-kelas', payload);
+    return response.data;
+  },
+  updateMasterKelas: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/master-kelas/${id}`, payload);
+    return response.data;
+  },
+  deleteMasterKelas: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/master-kelas/${id}`);
+    return response.data;
+  },
+  getMahasiswaForPemetaanKelas: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/master-kelas/mahasiswa-pemetaan', { params });
+    return response.data;
+  },
+  assignMahasiswaToMasterKelas: async (payload: { master_kelas_id: number; mahasiswa_ids: number[]; sync_dosen_pa?: boolean }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/master-kelas/assign-mahasiswa', payload);
+    return response.data;
+  },
+
   // 1. Rumpun Mata Kuliah
   getRumpunMataKuliah: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/rumpun-mk', { params });

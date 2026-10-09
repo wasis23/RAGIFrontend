@@ -111,6 +111,7 @@ const getIcon = (iconName: string) => {
     'FaKey': Key,
     'FaGraduationCap': GraduationCap,
     'FaUserGraduate': GraduationCap,
+    'FaChalkboard': Users,
     'FaChalkboardTeacher': Users,
     'FaExchangeAlt': RefreshCw,
     'FaPen': FileText,

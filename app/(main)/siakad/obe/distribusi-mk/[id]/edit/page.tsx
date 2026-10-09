@@ -120,6 +120,15 @@ export default function EditDistribusiMengajarPage() {
                   dosen_anggota_ids: Array.isArray(initial.dosen_anggota_ids)
                     ? initial.dosen_anggota_ids.map(Number).filter(Boolean)
                     : [],
+                  kelas_ids: Array.isArray(initial.kelas_ids)
+                    ? initial.kelas_ids.map(Number).filter(Boolean)
+                    : [],
+                  kelasOptions: Array.isArray(initial.master_kelas_items)
+                    ? initial.master_kelas_items.map((k: any) => ({
+                        value: k.id,
+                        label: `${k.nama_kelas}${k.tahun_angkatan ? ` — Angkatan ${k.tahun_angkatan}` : ''}${k.dosen_pa ? ` (PA: ${k.dosen_pa.nama_lengkap})` : ''}`,
+                      }))
+                    : [],
                 }}
                 onSubmit={handleSubmit}
                 onCancel={() => router.push('/siakad/obe/distribusi-mk')}

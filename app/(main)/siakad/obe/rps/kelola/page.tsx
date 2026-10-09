@@ -10,7 +10,8 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { Plus, Filter, Eye, Copy } from 'lucide-react';
+import { Plus, Filter, Eye, Copy, Edit2, FileText, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
@@ -66,6 +67,8 @@ export default function RpsKelolaPage() {
     sortDir: 'desc' as 'asc' | 'desc',
   });
   const [showFilter, setShowFilter] = useState(false);
+  const [deletingRpsId, setDeletingRpsId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadKurikulumOptions = useCallback(async (keyword: string) => {
     try {
@@ -210,22 +213,22 @@ export default function RpsKelolaPage() {
       key: 'dosen_pengampu',
       label: 'Dosen Koordinator / Anggota',
       render: (row) => {
-        const pengembang = row.dosen_pengembang || row.dosenPengembang;
-        const koorRmk = row.koordinator_rmk || row.koordinatorRmk;
+        const koordinator = row.dosen_koordinator || row.koordinator_rmk || row.koordinatorRmk;
+        const anggotas: any[] = Array.isArray(row.dosen_anggotas) ? row.dosen_anggotas : [];
         const kaprodi = row.kaprodi;
 
         return (
           <div className="space-y-1 text-2xs leading-snug">
-            {pengembang && (
+            {koordinator && (
               <div>
-                <span style={{ color: 'var(--module-primary)' }} className="font-bold block">Pengampu RPS:</span>
-                <span className="text-slate-800">{pengembang.nama_lengkap || pengembang.nama || pengembang.name}</span>
+                <span style={{ color: 'var(--module-primary)' }} className="font-bold block">Koordinator:</span>
+                <span className="text-slate-800 font-semibold">{koordinator.nama_lengkap || koordinator.nama || koordinator.name}</span>
               </div>
             )}
-            {koorRmk && (
+            {anggotas.length > 0 && (
               <div>
-                <span style={{ color: 'var(--module-primary)' }} className="font-bold block">Pengembang:</span>
-                <span className="text-slate-700">{koorRmk.nama_lengkap || koorRmk.nama || koorRmk.name}</span>
+                <span className="text-slate-500 font-bold block">Anggota:</span>
+                <span className="text-slate-700">{anggotas.map((a: any) => a.nama_lengkap || a.nama || a.name).join(', ')}</span>
               </div>
             )}
             {kaprodi && (
@@ -234,7 +237,7 @@ export default function RpsKelolaPage() {
                 <span style={{ color: 'var(--module-primary)' }} className="font-medium">{kaprodi.nama_lengkap || kaprodi.nama || kaprodi.name}</span>
               </div>
             )}
-            {!pengembang && !koorRmk && !kaprodi && (
+            {!koordinator && anggotas.length === 0 && !kaprodi && (
               <span className="text-slate-300 italic">Belum ditentukan</span>
             )}
           </div>
@@ -266,7 +269,17 @@ export default function RpsKelolaPage() {
       label: 'Kelas',
       render: (row) => {
         const mk = row.mata_kuliah || row.mataKuliah;
+        const distribusiKelas = row.distribusi_kelas_formatted || (row.distribusi_kelas_list?.length > 0 ? row.distribusi_kelas_list.join(',') : null);
         const kelasList = mk?.kelas || [];
+
+        if (distribusiKelas) {
+          return (
+            <div className="font-mono text-2xs text-slate-900 font-bold">
+              {mk?.kode_mk ? `${mk.kode_mk} (${distribusiKelas})` : distribusiKelas}
+            </div>
+          );
+        }
+
         return kelasList.length > 0 ? (
           <div className="space-y-0.5 font-mono text-2xs text-slate-800">
             {kelasList.map((k: any) => (
@@ -286,34 +299,57 @@ export default function RpsKelolaPage() {
       key: 'actions',
       label: 'Opsi',
       align: 'center',
-      render: (row) => (
-        <DropdownMenu
-          items={[
-            {
-              label: 'Detail RPS',
-              icon: <Eye size={14} />,
-              onClick: () => {
-                router.push(`/siakad/obe/rps/${row.id}`);
+      render: (row) => {
+        if (!row.has_rps) {
+          return (
+            <DropdownMenu
+              items={[
+                {
+                  label: 'Buat RPS',
+                  icon: <Plus size={14} />,
+                  onClick: () => router.push(`/siakad/obe/rps/kelola/create?mata_kuliah_id=${row.mata_kuliah_id}`),
+                },
+              ]}
+            />
+          );
+        }
+
+        return (
+          <DropdownMenu
+            items={[
+              {
+                label: 'Edit RPS',
+                icon: <Edit2 size={14} />,
+                onClick: () => {
+                  router.push(`/siakad/obe/rps/${row.id}/edit`);
+                },
               },
-            },
-            {
-              label: 'Duplikasi RPS',
-              icon: <Copy size={14} />,
-              onClick: async () => {
-                try {
-                  await siakadService.duplicateRps(row.id, {
-                    tahun_ajaran: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
-                  });
-                  toast.success('RPS berhasil diduplikasi');
-                  fetchData();
-                } catch {
-                  toast.error('Gagal menduplikasi RPS');
-                }
+              {
+                label: 'Detail RPS',
+                icon: <Eye size={14} />,
+                onClick: () => {
+                  router.push(`/siakad/obe/rps/${row.id}`);
+                },
               },
-            },
-          ]}
-        />
-      ),
+              {
+                label: 'Cetak RPS',
+                icon: <FileText size={14} />,
+                onClick: () => {
+                  window.open(`/siakad/obe/rps/${row.id}/cetak`, '_blank');
+                },
+              },
+              {
+                label: 'Hapus RPS',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => {
+                  setDeletingRpsId(row.id);
+                },
+              },
+            ]}
+          />
+        );
+      },
     },
   ];
 
@@ -422,6 +458,28 @@ export default function RpsKelolaPage() {
           </div>
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingRpsId)}
+        onClose={() => setDeletingRpsId(null)}
+        onConfirm={async () => {
+          if (!deletingRpsId) return;
+          try {
+            setDeleting(true);
+            await siakadService.deleteRps(deletingRpsId);
+            toast.success('Dokumen RPS berhasil dihapus');
+            setDeletingRpsId(null);
+            fetchData();
+          } catch {
+            toast.error('Gagal menghapus dokumen RPS');
+          } finally {
+            setDeleting(false);
+          }
+        }}
+        title="Hapus Dokumen RPS?"
+        message="Apakah Anda yakin ingin menghapus dokumen RPS ini? Aksi ini tidak dapat dibatalkan."
+        isLoading={deleting}
+      />
     </div>
   );
 }

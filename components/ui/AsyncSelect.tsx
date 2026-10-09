@@ -100,11 +100,13 @@ export const AsyncSelect = forwardRef<any, AsyncSelectProps>(
       [loadOptions, forceUpdate]
     );
 
-    // Initial fetch to populate options cache when defaultOptions is true
+    // Initial fetch to populate options cache when defaultOptions is true or when empty
     useEffect(() => {
-      if (defaultOptions === true && !initialFetchedRef.current) {
-        initialFetchedRef.current = true;
-        wrappedLoadOptions('');
+      if (defaultOptions === true || (Array.isArray(defaultOptions) && defaultOptions.length === 0)) {
+        if (!initialFetchedRef.current) {
+          initialFetchedRef.current = true;
+          wrappedLoadOptions('');
+        }
       }
     }, [defaultOptions, wrappedLoadOptions]);
 

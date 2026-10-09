@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ const rpsCreateSchema = z.object({
   tanggal_penyusunan: z.string().min(1, 'Tanggal Penyusunan wajib diisi'),
   semester_rps: z.number({ error: 'Semester RPS wajib diisi' }).min(1, 'Semester minimal 1').max(14, 'Semester maksimal 14'),
   dosen_bisa_edit: z.boolean(),
-  dosen_pengembang_id: z.number().nullable().optional(),
+  dosen_anggota_ids: z.array(z.number()).optional(),
   koordinator_rmk_id: z.number().nullable().optional(),
   kaprodi_id: z.number().nullable().optional(),
 });
@@ -29,6 +29,9 @@ type FormValues = z.infer<typeof rpsCreateSchema>;
 
 export default function CreateRpsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const paramMkId = searchParams.get('mata_kuliah_id');
+
   const [saving, setSaving] = useState(false);
   const [selectedMk, setSelectedMk] = useState<any | null>(null);
 
@@ -42,16 +45,32 @@ export default function CreateRpsPage() {
   } = useForm<FormValues>({
     resolver: zodResolver(rpsCreateSchema),
     defaultValues: {
-      mata_kuliah_id: 0,
+      mata_kuliah_id: paramMkId ? Number(paramMkId) : 0,
       kode_rps: '',
       tanggal_penyusunan: new Date().toISOString().split('T')[0],
       semester_rps: 1,
       dosen_bisa_edit: true,
-      dosen_pengembang_id: null,
+      dosen_anggota_ids: [],
       koordinator_rmk_id: null,
       kaprodi_id: null,
     },
   });
+
+  useEffect(() => {
+    if (paramMkId) {
+      const initMk = async () => {
+        try {
+          const res = await siakadService.getMataKuliahs({ per_page: 200 });
+          const list = Array.isArray(res?.data) ? res.data : (res?.data?.items || []);
+          const found = list.find((m: any) => Number(m.id) === Number(paramMkId));
+          if (found) {
+            onMataKuliahChange({ value: found.id, label: `${found.kode_mk} - ${found.nama}`, raw: found });
+          }
+        } catch {}
+      };
+      initMk();
+    }
+  }, [paramMkId]);
 
   const watchedDosenBisaEdit = watch('dosen_bisa_edit');
 
@@ -85,10 +104,11 @@ export default function CreateRpsPage() {
     }
   }, []);
 
-  const onMataKuliahChange = (opt: any) => {
+  const onMataKuliahChange = async (opt: any) => {
     const mk = opt?.raw || null;
     setSelectedMk(mk);
-    setValue('mata_kuliah_id', Number(opt?.value) || 0);
+    const mkId = Number(opt?.value) || 0;
+    setValue('mata_kuliah_id', mkId);
 
     if (mk) {
       // Auto-generate saran kode RPS
@@ -96,6 +116,27 @@ export default function CreateRpsPage() {
       const year = new Date().getFullYear();
       setValue('kode_rps', `RPS-${kodeMk}-${year}`);
       setValue('semester_rps', Number(mk.semester_anjuran) || 1);
+
+      // Otomatis ambil Dosen Koordinator & Anggota dari Distribusi Mata Kuliah
+      try {
+        const resDistribusi = await siakadService.getDistribusiMengajarList({ mata_kuliah_id: mkId, per_page: 1 });
+        const listDist = resDistribusi?.data || [];
+        const dist = Array.isArray(listDist) ? listDist[0] : null;
+
+        if (dist) {
+          if (dist.dosen_koordinator_id) {
+            setValue('koordinator_rmk_id', dist.dosen_koordinator_id);
+          }
+          const anggotaIds = Array.isArray(dist.dosen_anggota_ids) ? dist.dosen_anggota_ids.map(Number).filter(Boolean) : [];
+          setValue('dosen_anggota_ids', anggotaIds);
+        }
+      } catch {}
+
+      // Otomatis isi Kaprodi jika prodi memiliki kaprodi terdaftar
+      const prodiKaprodiId = mk?.kurikulum?.program_studi?.kaprodi_id;
+      if (prodiKaprodiId) {
+        setValue('kaprodi_id', Number(prodiKaprodiId));
+      }
     }
   };
 
@@ -109,7 +150,8 @@ export default function CreateRpsPage() {
         semester: values.semester_rps,
         tahun_ajaran: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
         dosen_bisa_edit: values.dosen_bisa_edit,
-        dosen_pengembang_id: values.dosen_pengembang_id || undefined,
+        dosen_anggota_ids: values.dosen_anggota_ids || [],
+        dosen_pengembang_id: values.dosen_anggota_ids?.[0] || undefined,
         koordinator_rmk_id: values.koordinator_rmk_id || undefined,
         kaprodi_id: values.kaprodi_id || undefined,
         deskripsi_singkat: `RPS untuk mata kuliah ${selectedMk?.nama || ''}`,
@@ -271,50 +313,61 @@ export default function CreateRpsPage() {
             <h3 className="font-extrabold text-sm text-slate-900">Pengesahan</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Controller
-                name="dosen_pengembang_id"
-                control={control}
-                render={({ field }) => (
-                  <AsyncSelect
-                    label="Dosen Pengembang"
-                    placeholder="Pilih dosen pengembang..."
-                    loadOptions={loadDosenOptions}
-                    value={field.value || null}
-                    onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
-                    isClearable
-                  />
-                )}
-              />
+              <div className="md:col-span-3">
+                <Controller
+                  name="dosen_anggota_ids"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Dosen Anggota"
+                      placeholder="Cari berdasarkan NIDN atau nama..."
+                      loadOptions={loadDosenOptions}
+                      defaultOptions={true}
+                      value={field.value || []}
+                      onChange={(opts: any) =>
+                        field.onChange(Array.isArray(opts) ? opts.map((o: any) => Number(o.value)).filter(Boolean) : [])
+                      }
+                      isMulti
+                      isClearable
+                      error={errors.dosen_anggota_ids?.message}
+                    />
+                  )}
+                />
+              </div>
 
-              <Controller
-                name="koordinator_rmk_id"
-                control={control}
-                render={({ field }) => (
-                  <AsyncSelect
-                    label="Koordinator RMK"
-                    placeholder="Pilih koordinator RMK..."
-                    loadOptions={loadDosenOptions}
-                    value={field.value || null}
-                    onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
-                    isClearable
-                  />
-                )}
-              />
+              <div className="md:col-span-1">
+                <Controller
+                  name="koordinator_rmk_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Koordinator RMK"
+                      placeholder="Pilih koordinator RMK..."
+                      loadOptions={loadDosenOptions}
+                      value={field.value || null}
+                      onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
+                      isClearable
+                    />
+                  )}
+                />
+              </div>
 
-              <Controller
-                name="kaprodi_id"
-                control={control}
-                render={({ field }) => (
-                  <AsyncSelect
-                    label="Ka Prodi"
-                    placeholder="Pilih Ketua Program Studi..."
-                    loadOptions={loadDosenOptions}
-                    value={field.value || null}
-                    onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
-                    isClearable
-                  />
-                )}
-              />
+              <div className="md:col-span-2">
+                <Controller
+                  name="kaprodi_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Ka Prodi"
+                      placeholder="Pilih Ketua Program Studi..."
+                      loadOptions={loadDosenOptions}
+                      value={field.value || null}
+                      onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
+                      isClearable
+                    />
+                  )}
+                />
+              </div>
             </div>
           </div>
 

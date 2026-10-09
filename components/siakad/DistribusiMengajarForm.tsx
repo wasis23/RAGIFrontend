@@ -35,6 +35,7 @@ export const distribusiMengajarSchema = z.object({
   semester: z.number({ error: 'Semester wajib diisi' }).min(1, 'Semester minimal 1').max(8, 'Semester maksimal 8'),
   dosen_koordinator_id: z.number().nullable().optional(),
   dosen_anggota_ids: z.array(z.number()).optional(),
+  kelas_ids: z.array(z.number()).optional(),
 });
 
 export type DistribusiMengajarFormValues = z.infer<typeof distribusiMengajarSchema>;
@@ -45,6 +46,7 @@ interface DistribusiMengajarFormProps {
     mataKuliahOption?: SelectOption | null;
     koordinatorOption?: SelectOption | null;
     anggotaOptions?: SelectOption[];
+    kelasOptions?: SelectOption[];
     tahunAkademikNama?: string;
   };
   tahunAktifNama?: string;
@@ -61,6 +63,20 @@ export const loadKurikulumOptions = async (keyword: string) => {
     value: k.id,
     label: `${k.nama} (${k.tahun_berlaku || k.tahun_mulai || '-'})`,
   }));
+};
+
+export const loadMasterKelasOptions = async (keyword: string) => {
+  try {
+    const res = await siakadService.getMasterKelasList({ search: keyword || undefined, per_page: 50 });
+    const raw = res.data;
+    const list: any[] = Array.isArray(raw) ? raw : (raw?.items || raw || []);
+    return list.map((k: any) => ({
+      value: k.id,
+      label: `${k.nama_kelas}${k.tahun_angkatan ? ` — Angkatan ${k.tahun_angkatan}` : ''}${k.dosen_pa ? ` (PA: ${k.dosen_pa.nama_lengkap})` : ''}`,
+    }));
+  } catch {
+    return [];
+  }
 };
 
 export const loadMataKuliahOptions = async (keyword: string, kurikulumId?: number | null) => {
@@ -117,14 +133,14 @@ export function DistribusiMengajarForm({
 
   // Cascading: daftar MK difilter berdasarkan kurikulum yang dipilih.
   const selectedKurikulumId = watch('kurikulum_id');
-  const isFirstKurikulumRender = useRef(true);
+  const prevKurikulumRef = useRef<number | null | undefined>(defaultValues?.kurikulum_id ?? null);
+
   useEffect(() => {
-    // Lewati render pertama agar nilai awal mode edit tidak terhapus.
-    if (isFirstKurikulumRender.current) {
-      isFirstKurikulumRender.current = false;
-      return;
+    // Jika kurikulum berubah dari pilihan sebelumnya, reset mata_kuliah_id
+    if (prevKurikulumRef.current !== undefined && prevKurikulumRef.current !== selectedKurikulumId) {
+      setValue('mata_kuliah_id', 0);
     }
-    setValue('mata_kuliah_id', 0);
+    prevKurikulumRef.current = selectedKurikulumId;
   }, [selectedKurikulumId, setValue]);
 
   return (
@@ -169,7 +185,6 @@ export function DistribusiMengajarForm({
                   setValue('semester', semAnjuran);
                 }
               }}
-              isDisabled={!selectedKurikulumId}
               error={errors.mata_kuliah_id?.message}
             />
           )}
@@ -210,6 +225,28 @@ export function DistribusiMengajarForm({
 
         <div className="md:col-span-2">
           <Controller
+            name="kelas_ids"
+            control={control}
+            render={({ field }) => (
+              <AsyncSelect
+                label="Kelas"
+                placeholder="Pilih kelas (mis. 25A, 25B)..."
+                loadOptions={loadMasterKelasOptions}
+                defaultOptions={true}
+                value={field.value || []}
+                onChange={(opts: any) =>
+                  field.onChange(Array.isArray(opts) ? opts.map((o: any) => Number(o.value)).filter(Boolean) : [])
+                }
+                isMulti
+                isClearable
+                error={errors.kelas_ids?.message}
+              />
+            )}
+          />
+        </div>
+
+        <div className="md:col-span-2">
+          <Controller
             name="dosen_anggota_ids"
             control={control}
             render={({ field }) => (
@@ -217,7 +254,7 @@ export function DistribusiMengajarForm({
                 label="Dosen Anggota"
                 placeholder="Cari berdasarkan NIDN atau nama..."
                 loadOptions={loadDosenOptions}
-                defaultOptions={defaultValues?.anggotaOptions || true}
+                defaultOptions={true}
                 value={field.value || []}
                 onChange={(opts: any) =>
                   field.onChange(Array.isArray(opts) ? opts.map((o: any) => Number(o.value)).filter(Boolean) : [])
