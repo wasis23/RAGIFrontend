@@ -13,6 +13,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
+import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 
 export default function SkalaNilaiPage() {
@@ -21,13 +22,24 @@ export default function SkalaNilaiPage() {
   const [prodis, setProdis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination & Limit State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
+
   // Filter Drawer State
   const [showFilter, setShowFilter] = useState(false);
   const [filterProdiId, setFilterProdiId] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
+  const [filterIsLulus, setFilterIsLulus] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('bobot_indeks');
+  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
   const [appliedFilters, setAppliedFilters] = useState({
     prodiId: '',
     search: '',
+    isLulus: '',
+    orderBy: 'bobot_indeks',
+    orderDir: 'desc' as 'asc' | 'desc',
   });
 
   const [deletingItem, setDeletingItem] = useState<any | null>(null);
@@ -38,14 +50,39 @@ export default function SkalaNilaiPage() {
       setLoading(true);
       const [skalaRes, prodiRes] = await Promise.all([
         siakadService.getSkalaNilais({
+          page,
+          per_page: limit,
           program_studi_id: appliedFilters.prodiId || undefined,
           search: appliedFilters.search || undefined,
+          is_lulus: appliedFilters.isLulus !== '' ? appliedFilters.isLulus : undefined,
+          sort_by: appliedFilters.orderBy || 'bobot_indeks',
+          sort_order: appliedFilters.orderDir || 'desc',
         }),
         siakadService.getProdi(),
       ]);
 
-      if (skalaRes.data) setSkalaNilais(skalaRes.data);
-      if (prodiRes.data) setProdis(prodiRes.data);
+      if (skalaRes.data) {
+        if (Array.isArray(skalaRes.data)) {
+          setSkalaNilais(skalaRes.data);
+        } else if ((skalaRes.data as any).items) {
+          setSkalaNilais((skalaRes.data as any).items);
+        }
+      }
+      if (skalaRes.meta) {
+        setMeta(skalaRes.meta);
+      } else if (Array.isArray(skalaRes.data)) {
+        setMeta({
+          current_page: 1,
+          per_page: limit,
+          total: skalaRes.data.length,
+          last_page: 1,
+          from: skalaRes.data.length > 0 ? 1 : 0,
+          to: skalaRes.data.length,
+        });
+      }
+      if (prodiRes.data) {
+        setProdis(Array.isArray(prodiRes.data) ? prodiRes.data : []);
+      }
     } catch (err: any) {
       toast.error('Gagal memuat data skala penilaian akademik');
     } finally {
@@ -55,7 +92,16 @@ export default function SkalaNilaiPage() {
 
   useEffect(() => {
     fetchData();
-  }, [appliedFilters]);
+  }, [page, limit, appliedFilters]);
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  };
 
   const handleDelete = async () => {
     if (!deletingItem) return;
@@ -198,6 +244,9 @@ export default function SkalaNilaiPage() {
         columns={columns}
         data={skalaNilais}
         isLoading={loading}
+        meta={meta}
+        onPageChange={handlePageChange}
+        onLimitChange={handleLimitChange}
         emptyMessage="Belum ada skala nilai yang tersimpan."
       />
 
@@ -213,7 +262,17 @@ export default function SkalaNilaiPage() {
               onClick={() => {
                 setFilterProdiId('');
                 setFilterSearch('');
-                setAppliedFilters({ prodiId: '', search: '' });
+                setFilterIsLulus('');
+                setFilterOrderBy('bobot_indeks');
+                setFilterOrderDir('desc');
+                setAppliedFilters({
+                  prodiId: '',
+                  search: '',
+                  isLulus: '',
+                  orderBy: 'bobot_indeks',
+                  orderDir: 'desc',
+                });
+                setPage(1);
                 setShowFilter(false);
               }}
             >
@@ -222,7 +281,14 @@ export default function SkalaNilaiPage() {
             <Button
               variant="primary"
               onClick={() => {
-                setAppliedFilters({ prodiId: filterProdiId, search: filterSearch });
+                setAppliedFilters({
+                  prodiId: filterProdiId,
+                  search: filterSearch,
+                  isLulus: filterIsLulus,
+                  orderBy: filterOrderBy,
+                  orderDir: filterOrderDir,
+                });
+                setPage(1);
                 setShowFilter(false);
               }}
             >
@@ -249,6 +315,44 @@ export default function SkalaNilaiPage() {
             onChange={(val: any) => setFilterProdiId(val ? String(val) : '')}
             isClearable
           />
+          <Select
+            label="Status Kelulusan"
+            placeholder="Semua Status"
+            options={[
+              { value: 'true', label: 'Lulus MK' },
+              { value: 'false', label: 'Tidak Lulus (Mengulang)' },
+            ]}
+            value={filterIsLulus}
+            onChange={(val: any) => setFilterIsLulus(val ? String(val) : '')}
+            isClearable
+          />
+
+          <hr className="border-t border-slate-200 my-1" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urut Berdasarkan"
+              value={filterOrderBy}
+              onChange={(val: any) => setFilterOrderBy(val ? String(val) : 'bobot_indeks')}
+              options={[
+                { value: 'bobot_indeks', label: 'Bobot Indeks' },
+                { value: 'nilai_huruf', label: 'Nilai Huruf' },
+                { value: 'batas_bawah', label: 'Batas Bawah' },
+                { value: 'batas_atas', label: 'Batas Atas' },
+                { value: 'id', label: 'ID' },
+                { value: 'created_at', label: 'Tanggal Dibuat' },
+              ]}
+            />
+            <Select
+              label="Arah"
+              value={filterOrderDir}
+              onChange={(val: any) => setFilterOrderDir((val as 'asc' | 'desc') || 'desc')}
+              options={[
+                { value: 'desc', label: 'Z - A / Terbesar (Turun)' },
+                { value: 'asc', label: 'A - Z / Terkecil (Naik)' },
+              ]}
+            />
+          </div>
         </div>
       </Drawer>
 
