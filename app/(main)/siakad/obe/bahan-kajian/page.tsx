@@ -18,7 +18,6 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
-import { loadProdiOptions } from '@/components/siakad/RubrikForm';
 import toast from 'react-hot-toast';
 
 // Nilai tetap domain (closed-set, bukan entitas master): terpusat sekali.
@@ -68,14 +67,12 @@ export default function BahanKajianPage() {
 
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
-  const [filterProdiId, setFilterProdiId] = useState('');
   const [filterKurikulumId, setFilterKurikulumId] = useState('');
   const [filterKoordinatorId, setFilterKoordinatorId] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('kode_bk');
   const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
-    prodiId: '',
     kurikulumId: '',
     koordinatorId: '',
     sortBy: 'kode_bk',
@@ -103,7 +100,6 @@ export default function BahanKajianPage() {
     try {
       const res = await siakadService.getBahanKajians({
         search: appliedFilters.search || undefined,
-        program_studi_id: appliedFilters.prodiId || undefined,
         kurikulum_id: appliedFilters.kurikulumId || undefined,
         koordinator_id: appliedFilters.koordinatorId || undefined,
         sort_by: appliedFilters.sortBy,
@@ -235,12 +231,11 @@ export default function BahanKajianPage() {
 
   const handleResetFilter = () => {
     setFilterSearch('');
-    setFilterProdiId('');
     setFilterKurikulumId('');
     setFilterKoordinatorId('');
     setFilterSortBy('kode_bk');
     setFilterSortDir('asc');
-    setAppliedFilters({ search: '', prodiId: '', kurikulumId: '', koordinatorId: '', sortBy: 'kode_bk', sortDir: 'asc' });
+    setAppliedFilters({ search: '', kurikulumId: '', koordinatorId: '', sortBy: 'kode_bk', sortDir: 'asc' });
     setPage(1);
     setShowFilter(false);
   };
@@ -248,7 +243,6 @@ export default function BahanKajianPage() {
   const handleApplyFilter = () => {
     setAppliedFilters({
       search: filterSearch,
-      prodiId: filterProdiId,
       kurikulumId: filterKurikulumId,
       koordinatorId: filterKoordinatorId,
       sortBy: filterSortBy,
@@ -277,16 +271,6 @@ export default function BahanKajianPage() {
         <div>
           <span className="font-bold text-slate-800 text-xs block">{r.kurikulum?.nama || r.kurikulum?.kode || '-'}</span>
           <span className="text-2xs text-slate-400 font-mono block">{r.kurikulum?.tahun_berlaku || '-'}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'program_studi',
-      label: 'PROGRAM STUDI',
-      render: (r) => (
-        <div>
-          <span className="font-bold text-slate-800 text-xs block">{r.program_studi?.nama || r.programStudi?.nama || '-'}</span>
-          <span className="text-2xs text-slate-400 font-mono block">{r.program_studi?.kode_prodi || r.programStudi?.kode_prodi || '-'}</span>
         </div>
       ),
     },
@@ -375,14 +359,6 @@ export default function BahanKajianPage() {
       >
         <div className="space-y-4">
           <Input label="Kata Kunci" placeholder="Cari kode atau rumusan..." value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
-          <AsyncSelect
-            label="Program Studi"
-            placeholder="Semua prodi..."
-            loadOptions={loadProdiOptions}
-            value={filterProdiId ? Number(filterProdiId) : null}
-            onChange={(opt: any) => setFilterProdiId(opt?.value ? String(opt.value) : '')}
-            isClearable
-          />
           <AsyncSelect
             label="Kurikulum"
             placeholder="Semua kurikulum..."
