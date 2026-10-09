@@ -844,6 +844,10 @@ export const siakadService = {
     search?: string;
     kurikulum_id?: number;
     cpl_id?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+    page?: number;
+    per_page?: number;
   }): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/pemetaan-cpl-cpmk-mk', { params });
     return response.data;

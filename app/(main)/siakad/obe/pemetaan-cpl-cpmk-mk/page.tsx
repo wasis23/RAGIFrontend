@@ -28,7 +28,10 @@ interface PemetaanRow {
 
 export default function PemetaanCplCpmkMkPage() {
   const [items, setItems] = useState<PemetaanRow[]>([]);
+  const [meta, setMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
 
   // Filter 1:1 (Drawer)
   const [filterSearch, setFilterSearch] = useState('');
@@ -73,15 +76,20 @@ export default function PemetaanCplCpmkMkPage() {
       const res = await siakadService.getPemetaanCplCpmkMk({
         search: appliedFilters.search || undefined,
         kurikulum_id: appliedFilters.kurikulumId ? Number(appliedFilters.kurikulumId) : undefined,
+        sort_by: appliedFilters.sortBy,
+        sort_order: appliedFilters.sortDir,
+        page,
+        per_page: limit,
       });
       const data = res?.data;
       setItems(Array.isArray(data) ? data : []);
+      setMeta(res?.meta || null);
     } catch {
       toast.error('Gagal memuat pemetaan CPL-CPMK-MK');
     } finally {
       setLoading(false);
     }
-  }, [appliedFilters]);
+  }, [appliedFilters, page, limit]);
 
   useEffect(() => {
     fetchData();
@@ -267,11 +275,17 @@ export default function PemetaanCplCpmkMkPage() {
         }
       />
 
-      {/* Tabel Pemetaan CPL-CPMK-MK menggunakan DataTable terstandarisasi */}
+      {/* Tabel Pemetaan CPL-CPMK-MK menggunakan DataTable terstandarisasi dengan Pagination & Limit */}
       <DataTable
         columns={columns}
         data={items}
         isLoading={loading}
+        meta={meta}
+        onPageChange={setPage}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
         emptyMessage="Belum ada rumusan CPMK yang terdaftar. Silakan buat rumusan CPMK terlebih dahulu di menu 'Rumusan CPMK'."
       />
 
