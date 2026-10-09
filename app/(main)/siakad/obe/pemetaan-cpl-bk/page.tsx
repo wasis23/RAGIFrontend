@@ -9,7 +9,6 @@ import {
   type MatrixCol,
   type MatrixRow,
 } from '@/components/siakad/BahanKajianMatrix';
-import { loadProdiOptions } from '@/components/siakad/RubrikForm';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
@@ -20,7 +19,6 @@ export default function PemetaanCplBkPage() {
   const [loading, setLoading] = useState(true);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
 
-  const [prodiId, setProdiId] = useState('');
   const [kurikulumId, setKurikulumId] = useState('');
 
   const loadKurikulumOptions = useCallback(async (keyword: string) => {
@@ -42,7 +40,6 @@ export default function PemetaanCplBkPage() {
     setLoading(true);
     try {
       const res = await siakadService.getMatrixCplBahanKajian({
-        program_studi_id: prodiId ? Number(prodiId) : undefined,
         kurikulum_id: kurikulumId ? Number(kurikulumId) : undefined,
       });
       const payload = res?.data || {};
@@ -71,27 +68,7 @@ export default function PemetaanCplBkPage() {
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prodiId, kurikulumId]);
-
-  // Default: batasi ke program studi aktif pertama agar matriks tidak menampilkan
-  // seluruh prodi sekaligus. Endpoint prodi hanya mengembalikan prodi aktif.
-  useEffect(() => {
-    let mounted = true;
-    siakadService
-      .getProdi({ per_page: 50 })
-      .then((res) => {
-        if (!mounted || prodiId) return;
-        const raw = res?.data;
-        const list: any[] = Array.isArray(raw) ? raw : (raw?.items || raw?.data || []);
-        const first = list.find((p: any) => p?.is_active !== false);
-        if (first?.id) setProdiId(String(first.id));
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [kurikulumId]);
 
   const handleToggle = async (cplId: number, bahanKajianId: number, checked: boolean) => {
     const key = `${cplId}-${bahanKajianId}`;
@@ -138,14 +115,6 @@ export default function PemetaanCplBkPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AsyncSelect
-          label="Program Studi"
-          placeholder="Semua prodi..."
-          loadOptions={loadProdiOptions}
-          value={prodiId ? Number(prodiId) : null}
-          onChange={(opt: any) => setProdiId(opt?.value ? String(opt.value) : '')}
-          isClearable
-        />
         <AsyncSelect
           label="Kurikulum"
           placeholder="Semua kurikulum..."
