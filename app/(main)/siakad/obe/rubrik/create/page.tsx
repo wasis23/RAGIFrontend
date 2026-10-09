@@ -16,7 +16,6 @@ export default function CreateRubrikPage() {
   const handleSubmit = async (values: RubrikFormValues) => {
     try {
       await siakadService.createObeRubrik({
-        program_studi_id: Number(values.program_studi_id),
         kode_rubrik: values.kode_rubrik.trim() || suggestKodeRubrik(values.nama_rubrik),
         nama_rubrik: values.nama_rubrik.trim(),
         tipe_rubrik: values.tipe_rubrik,

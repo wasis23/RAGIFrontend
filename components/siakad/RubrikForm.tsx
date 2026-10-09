@@ -52,7 +52,6 @@ const kriteriaSchema = z.object({
 });
 
 export const rubrikSchema = z.object({
-  program_studi_id: z.number({ error: 'Program studi wajib dipilih' }).min(1, 'Program studi wajib dipilih'),
   kode_rubrik: z.string().trim().min(1, 'Kode rubrik wajib diisi').max(50, 'Kode rubrik maksimal 50 karakter'),
   nama_rubrik: z.string().trim().min(1, 'Nama rubrik wajib diisi').max(255, 'Nama rubrik maksimal 255 karakter'),
   tipe_rubrik: z.enum(['holistik', 'analitik', 'skala_persepsi'], { error: 'Tipe rubrik wajib dipilih' }),
@@ -64,7 +63,6 @@ export const rubrikSchema = z.object({
 export type RubrikFormValues = z.infer<typeof rubrikSchema>;
 
 export const DEFAULT_RUBRIK_VALUES: RubrikFormValues = {
-  program_studi_id: 0,
   kode_rubrik: '',
   nama_rubrik: '',
   tipe_rubrik: 'analitik',
@@ -74,7 +72,7 @@ export const DEFAULT_RUBRIK_VALUES: RubrikFormValues = {
 };
 
 interface RubrikFormProps {
-  defaultValues?: Partial<RubrikFormValues> & { prodiOption?: SelectOption | null };
+  defaultValues?: Partial<RubrikFormValues>;
   onSubmit: (values: RubrikFormValues) => Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
@@ -101,28 +99,10 @@ export function RubrikForm({ defaultValues, onSubmit, onCancel, submitLabel = 'S
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
       <div className="border-b border-slate-100 pb-3">
         <h3 className="font-extrabold text-sm text-slate-900">1. Identitas Rubrik</h3>
-        <p className="text-2xs text-slate-500">Program studi pemilik, kode unik, nama instrumen, dan tipe penilaian.</p>
+        <p className="text-2xs text-slate-500">Kode unik, nama instrumen, dan tipe penilaian. Program studi mengikuti prodi aktif akun Anda.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="md:col-span-2 lg:col-span-3">
-          <Controller
-            name="program_studi_id"
-            control={control}
-            render={({ field }) => (
-              <AsyncSelect
-                label="Program Studi *"
-                placeholder="Cari program studi..."
-                loadOptions={loadProdiOptions}
-                defaultOptions={defaultValues?.prodiOption ? [defaultValues.prodiOption] : true}
-                value={field.value || null}
-                onChange={(opt: any) => field.onChange(Number(opt?.value) || 0)}
-                error={errors.program_studi_id?.message}
-              />
-            )}
-          />
-        </div>
-
         <Controller
           name="tipe_rubrik"
           control={control}

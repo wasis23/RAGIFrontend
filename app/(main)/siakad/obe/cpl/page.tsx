@@ -20,7 +20,6 @@ import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
 import { SIAKAD_OPTION_TYPES, useSiakadOptions } from '@/lib/siakad-options';
-import { loadProdiOptions } from '@/components/siakad/RubrikForm';
 import toast from 'react-hot-toast';
 
 // Nilai tetap domain (closed-set, bukan entitas master): terpusat sekali.
@@ -87,7 +86,6 @@ export default function PerumusanCplProdiPage() {
 
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
-  const [filterProdiId, setFilterProdiId] = useState('');
   const [filterKurikulumId, setFilterKurikulumId] = useState('');
   const [filterKategori, setFilterKategori] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -95,7 +93,6 @@ export default function PerumusanCplProdiPage() {
   const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
-    prodiId: '',
     kurikulumId: '',
     kategori: '',
     status: '',
@@ -127,7 +124,6 @@ export default function PerumusanCplProdiPage() {
     try {
       const res = await siakadService.getCpls({
         search: appliedFilters.search || undefined,
-        program_studi_id: appliedFilters.prodiId || undefined,
         kurikulum_id: appliedFilters.kurikulumId || undefined,
         kategori: appliedFilters.kategori || undefined,
         is_active: appliedFilters.status === '' ? undefined : appliedFilters.status === 'aktif',
@@ -252,13 +248,12 @@ export default function PerumusanCplProdiPage() {
 
   const handleResetFilter = () => {
     setFilterSearch('');
-    setFilterProdiId('');
     setFilterKurikulumId('');
     setFilterKategori('');
     setFilterStatus('');
     setFilterSortBy('kode_cpl');
     setFilterSortDir('asc');
-    setAppliedFilters({ search: '', prodiId: '', kurikulumId: '', kategori: '', status: '', sortBy: 'kode_cpl', sortDir: 'asc' });
+    setAppliedFilters({ search: '', kurikulumId: '', kategori: '', status: '', sortBy: 'kode_cpl', sortDir: 'asc' });
     setPage(1);
     setShowFilter(false);
   };
@@ -266,7 +261,6 @@ export default function PerumusanCplProdiPage() {
   const handleApplyFilter = () => {
     setAppliedFilters({
       search: filterSearch,
-      prodiId: filterProdiId,
       kurikulumId: filterKurikulumId,
       kategori: filterKategori,
       status: filterStatus,
@@ -393,14 +387,6 @@ export default function PerumusanCplProdiPage() {
       >
         <div className="space-y-4">
           <Input label="Kata Kunci" placeholder="Cari kode atau deskripsi CPL..." value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
-          <AsyncSelect
-            label="Program Studi"
-            placeholder="Semua prodi..."
-            loadOptions={loadProdiOptions}
-            value={filterProdiId ? Number(filterProdiId) : null}
-            onChange={(opt: any) => setFilterProdiId(opt?.value ? String(opt.value) : '')}
-            isClearable
-          />
           <AsyncSelect
             label="Kurikulum"
             placeholder="Semua kurikulum..."

@@ -16,7 +16,6 @@ export default function EditRubrikPage() {
   const id = Number(params?.id);
   const [loading, setLoading] = useState(true);
   const [initial, setInitial] = useState<RubrikFormValues | null>(null);
-  const [prodiOption, setProdiOption] = useState<any | null>(null);
   const [title, setTitle] = useState('');
 
   const back = () => router.push('/siakad/obe/rubrik');
@@ -33,16 +32,8 @@ export default function EditRubrikPage() {
           return;
         }
         setTitle(item.nama_rubrik || '');
-        const ps = item.program_studi || item.programStudi;
-        if (ps) {
-          setProdiOption({
-            value: ps.id,
-            label: `${ps.nama || ps.nama_prodi || `Prodi #${ps.id}`}${ps.kode_prodi ? ` — ${ps.kode_prodi}` : ''}`,
-          });
-        }
         const list = Array.isArray(item.kriterias) ? item.kriterias : [];
         setInitial({
-          program_studi_id: Number(item.program_studi_id) || 0,
           kode_rubrik: item.kode_rubrik || '',
           nama_rubrik: item.nama_rubrik || '',
           tipe_rubrik: item.tipe_rubrik || 'analitik',
@@ -72,7 +63,6 @@ export default function EditRubrikPage() {
   const handleSubmit = async (values: RubrikFormValues) => {
     try {
       await siakadService.updateObeRubrik(id, {
-        program_studi_id: Number(values.program_studi_id),
         kode_rubrik: values.kode_rubrik.trim(),
         nama_rubrik: values.nama_rubrik.trim(),
         tipe_rubrik: values.tipe_rubrik,
@@ -137,7 +127,7 @@ export default function EditRubrikPage() {
               </div>
               <RubrikForm
                 key={id}
-                defaultValues={{ ...initial, prodiOption }}
+                defaultValues={initial}
                 onSubmit={handleSubmit}
                 onCancel={back}
                 submitLabel="Simpan Perubahan"

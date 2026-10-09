@@ -28,7 +28,6 @@ export default function BankSoalPage() {
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [mkFilter, setMkFilter] = useState('');
-  const [prodiFilter, setProdiFilter] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [toDelete, setToDelete] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -82,8 +81,6 @@ export default function BankSoalPage() {
   const filtered = list.filter((s: any) => {
     if (isDosenOnly && !taughtMkIds.includes(Number(s.rps?.mata_kuliah_id))) return false;
     if (mkFilter && String(s.rps?.mata_kuliah_id) !== String(mkFilter)) return false;
-    const prodiNama = s.rps?.mataKuliah?.kurikulum?.program_studi?.nama || '';
-    if (prodiFilter && prodiNama !== prodiFilter) return false;
     if (debounced) {
       const q = debounced.toLowerCase();
       const hay = `${String(s.pertanyaan || '').replace(/<[^>]*>/g, ' ')} ${s.rps?.mataKuliah?.nama || ''} ${s.rps?.mataKuliah?.kode_mk || ''}`.toLowerCase();
@@ -91,15 +88,6 @@ export default function BankSoalPage() {
     }
     return true;
   });
-
-  const prodiOptions = (() => {
-    const set = new Set<string>();
-    list.forEach((s: any) => {
-      const n = s.rps?.mataKuliah?.kurikulum?.program_studi?.nama;
-      if (n) set.add(n);
-    });
-    return [...set].sort();
-  })();
 
   const mkOptions = (() => {
     const map = new Map<number, string>();
@@ -216,15 +204,6 @@ export default function BankSoalPage() {
       <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Bank Soal">
         <div className="flex flex-col gap-5">
           <div>
-            <label className="label">Program Studi</label>
-            <select value={prodiFilter} onChange={(e) => setProdiFilter(e.target.value)} className="select w-full">
-              <option value="">Semua Program Studi</option>
-              {prodiOptions.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label className="label">Mata Kuliah</label>
             <select value={mkFilter} onChange={(e) => setMkFilter(e.target.value)} className="select w-full">
               <option value="">Semua Mata Kuliah</option>
@@ -237,7 +216,6 @@ export default function BankSoalPage() {
             variant="secondary"
             onClick={() => {
               setMkFilter('');
-              setProdiFilter('');
               setSearch('');
               setShowFilter(false);
             }}

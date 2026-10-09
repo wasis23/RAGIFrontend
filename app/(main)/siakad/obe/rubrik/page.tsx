@@ -7,14 +7,13 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select, type SelectOption } from '@/components/ui/Select';
-import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
-import { TIPE_RUBRIK_OPTIONS, loadProdiOptions } from '@/components/siakad/RubrikForm';
+import { TIPE_RUBRIK_OPTIONS } from '@/components/siakad/RubrikForm';
 import toast from 'react-hot-toast';
 
 // Nilai tetap domain (closed-set, bukan tabel master): terpusat di satu lokasi.
@@ -46,14 +45,12 @@ export default function RubrikObePage() {
 
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
-  const [filterProdi, setFilterProdi] = useState('');
   const [filterTipe, setFilterTipe] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterSortBy, setFilterSortBy] = useState('nama_rubrik');
   const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
-    prodi: '',
     tipe: '',
     status: '',
     sortBy: 'nama_rubrik',
@@ -68,7 +65,6 @@ export default function RubrikObePage() {
     try {
       const res = await siakadService.getObeRubrikList({
         search: appliedFilters.search || undefined,
-        program_studi_id: appliedFilters.prodi || undefined,
         tipe_rubrik: appliedFilters.tipe || undefined,
         is_active: appliedFilters.status === 'aktif' ? true : appliedFilters.status === 'nonaktif' ? false : undefined,
         sort_by: appliedFilters.sortBy,
@@ -108,12 +104,11 @@ export default function RubrikObePage() {
 
   const handleResetFilter = () => {
     setFilterSearch('');
-    setFilterProdi('');
     setFilterTipe('');
     setFilterStatus('');
     setFilterSortBy('nama_rubrik');
     setFilterSortDir('asc');
-    setAppliedFilters({ search: '', prodi: '', tipe: '', status: '', sortBy: 'nama_rubrik', sortDir: 'asc' });
+    setAppliedFilters({ search: '', tipe: '', status: '', sortBy: 'nama_rubrik', sortDir: 'asc' });
     setPage(1);
     setShowFilter(false);
   };
@@ -121,7 +116,6 @@ export default function RubrikObePage() {
   const handleApplyFilter = () => {
     setAppliedFilters({
       search: filterSearch,
-      prodi: filterProdi,
       tipe: filterTipe,
       status: filterStatus,
       sortBy: filterSortBy,
@@ -257,14 +251,6 @@ export default function RubrikObePage() {
       >
         <div className="space-y-4">
           <Input label="Kata Kunci" placeholder="Cari kode / nama rubrik..." value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} />
-          <AsyncSelect
-            label="Program Studi"
-            placeholder="Semua prodi..."
-            loadOptions={loadProdiOptions}
-            value={filterProdi ? Number(filterProdi) : null}
-            onChange={(opt: any) => setFilterProdi(opt?.value ? String(opt.value) : '')}
-            isClearable
-          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Tipe Rubrik"
