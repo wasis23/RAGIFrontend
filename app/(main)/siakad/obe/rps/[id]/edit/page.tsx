@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Card, CardBody } from '@/components/ui/Card';
-import { ArrowLeft, Loader2, FileText, BookOpen, Layers, Users, Plus, Award, Trash2, Library, X } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, BookOpen, Layers, Users, Plus, Award, Trash2, Library } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Modal } from '@/components/ui/Modal';
@@ -52,6 +52,13 @@ const subCpmkSchema = z.object({
 
 type SubCpmkFormValues = z.infer<typeof subCpmkSchema>;
 
+const pustakaSchema = z.object({
+  jenis: z.enum(['utama', 'pendukung'], { error: 'Jenis pustaka wajib dipilih' }),
+  isi: z.string().trim().min(3, 'Keterangan/judul pustaka minimal 3 karakter'),
+});
+
+type PustakaFormValues = z.infer<typeof pustakaSchema>;
+
 const dosenLabel = (d: any) =>
   `${d?.nama_lengkap || d?.nama || d?.name || '-'}${d?.nidn ? ` (${d.nidn})` : ''}`;
 
@@ -69,6 +76,24 @@ export default function EditRpsPage() {
   // Pustaka (Daftar Referensi Utama & Pendukung)
   type PustakaItem = { id: string; jenis: 'utama' | 'pendukung'; isi: string };
   const [pustakaList, setPustakaList] = useState<PustakaItem[]>([]);
+  const [showAddPustaka, setShowAddPustaka] = useState(false);
+  const [savingPustaka, setSavingPustaka] = useState(false);
+  const [deletingPustakaId, setDeletingPustakaId] = useState<string | null>(null);
+  const [deletingPustaka, setDeletingPustaka] = useState(false);
+
+  const {
+    register: registerPustaka,
+    handleSubmit: handleSubmitPustaka,
+    control: controlPustaka,
+    reset: resetPustaka,
+    formState: { errors: errorsPustaka },
+  } = useForm<PustakaFormValues>({
+    resolver: zodResolver(pustakaSchema),
+    defaultValues: {
+      jenis: 'utama',
+      isi: '',
+    },
+  });
 
   const {
     register,
@@ -285,22 +310,112 @@ export default function EditRpsPage() {
     }
   };
 
-  const handleAddPustaka = () => {
-    setPustakaList((prev) => [
-      ...prev,
-      { id: `pustaka_${Date.now()}_${Math.random()}`, jenis: 'utama', isi: '' },
-    ]);
+  const onPustakaSubmit = async (values: PustakaFormValues) => {
+    if (!selectedMk?.id) return;
+    const newId = `pustaka_${values.jenis}_${pustakaList.length + 1}`;
+    const nextList: PustakaItem[] = [
+      ...pustakaList,
+      { id: newId, jenis: values.jenis, isi: values.isi.trim() },
+    ];
+
+    const utama = nextList
+      .filter((p) => p.jenis === 'utama' && p.isi.trim())
+      .map((p) => p.isi.trim())
+      .join('\n');
+    const pendukung = nextList
+      .filter((p) => p.jenis === 'pendukung' && p.isi.trim())
+      .map((p) => p.isi.trim())
+      .join('\n');
+
+    try {
+      setSavingPustaka(true);
+      await siakadService.storeRps({
+        id: rpsId,
+        mata_kuliah_id: Number(selectedMk.id),
+        pustaka_utama: utama || undefined,
+        pustaka_pendukung: pendukung || undefined,
+      });
+      setPustakaList(nextList);
+      toast.success('Pustaka berhasil ditambahkan');
+      resetPustaka({ jenis: 'utama', isi: '' });
+      setShowAddPustaka(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menyimpan pustaka');
+    } finally {
+      setSavingPustaka(false);
+    }
   };
 
-  const handleRemovePustaka = (index: number) => {
-    setPustakaList((prev) => prev.filter((_, i) => i !== index));
+  const handleConfirmDeletePustaka = async () => {
+    if (!deletingPustakaId || !selectedMk?.id) return;
+    const nextList = pustakaList.filter((p) => p.id !== deletingPustakaId);
+    const utama = nextList
+      .filter((p) => p.jenis === 'utama' && p.isi.trim())
+      .map((p) => p.isi.trim())
+      .join('\n');
+    const pendukung = nextList
+      .filter((p) => p.jenis === 'pendukung' && p.isi.trim())
+      .map((p) => p.isi.trim())
+      .join('\n');
+
+    try {
+      setDeletingPustaka(true);
+      await siakadService.storeRps({
+        id: rpsId,
+        mata_kuliah_id: Number(selectedMk.id),
+        pustaka_utama: utama || undefined,
+        pustaka_pendukung: pendukung || undefined,
+      });
+      setPustakaList(nextList);
+      toast.success('Pustaka berhasil dihapus');
+      setDeletingPustakaId(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus pustaka');
+    } finally {
+      setDeletingPustaka(false);
+    }
   };
 
-  const handleUpdatePustaka = (index: number, field: 'jenis' | 'isi', value: string) => {
-    setPustakaList((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-    );
-  };
+  const pustakaColumns: ColumnDef<PustakaItem>[] = [
+    {
+      key: 'jenis',
+      label: 'Kategori',
+      align: 'center',
+      render: (row) => (
+        <span
+          className={`px-2 py-0.5 rounded text-2xs font-bold uppercase ${
+            row.jenis === 'utama'
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              : 'bg-slate-100 text-slate-700 border border-slate-200'
+          }`}
+        >
+          {row.jenis}
+        </span>
+      ),
+    },
+    {
+      key: 'isi',
+      label: 'Referensi / Judul Pustaka',
+      render: (row) => <span className="text-xs text-slate-800 leading-relaxed font-medium">{row.isi}</span>,
+    },
+    {
+      key: 'actions',
+      label: 'Opsi',
+      align: 'center',
+      render: (row) => (
+        <DropdownMenu
+          items={[
+            {
+              label: 'Hapus Pustaka',
+              icon: <Trash2 size={14} />,
+              variant: 'danger',
+              onClick: () => setDeletingPustakaId(row.id),
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   const onSubCpmkSubmit = async (values: SubCpmkFormValues) => {
     if (!values.cpmk_id || !selectedMk?.id) {
@@ -711,59 +826,26 @@ export default function EditRpsPage() {
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  icon={<Plus size={14} />}
-                  onClick={handleAddPustaka}
-                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
-                >
-                  Tambah Pustaka
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                <span className="text-2xs font-bold text-slate-600 block">Masukkan Pustaka</span>
-
-                {pustakaList.length === 0 ? (
-                  <p className="text-2xs text-slate-400 italic py-2">
-                    Belum ada pustaka yang ditambahkan. Klik tombol &apos;Tambah Pustaka&apos; di kanan atas untuk menambahkan.
-                  </p>
-                ) : (
-                  <div className="space-y-2.5">
-                    {pustakaList.map((item, idx) => (
-                      <div key={item.id} className="flex items-start gap-2">
-                        <div className="w-36 shrink-0">
-                          <Select
-                            options={JENIS_PUSTAKA_OPTIONS}
-                            value={item.jenis}
-                            onChange={(opt: any) => {
-                              const val = typeof opt === 'object' ? opt?.value : opt;
-                              handleUpdatePustaka(idx, 'jenis', val || 'utama');
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <Input
-                            placeholder="Tuliskan judul pustaka, pengarang, penerbit, tahun..."
-                            value={item.isi}
-                            onChange={(e) => handleUpdatePustaka(idx, 'isi', e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleRemovePustaka(idx)}
-                          className="shrink-0 p-2 text-rose-600 border-rose-200 hover:bg-rose-50"
-                          title="Hapus baris pustaka"
-                        >
-                          <X size={14} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                {!showAddPustaka && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    icon={<Plus size={14} />}
+                    onClick={() => setShowAddPustaka(true)}
+                    style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                  >
+                    Tambah Pustaka
+                  </Button>
                 )}
               </div>
+
+              {/* Tabel Daftar Pustaka */}
+              <DataTable
+                columns={pustakaColumns}
+                data={pustakaList}
+                isLoading={false}
+                emptyMessage="Belum ada pustaka yang ditambahkan untuk mata kuliah ini."
+              />
             </CardBody>
           </Card>
 
@@ -834,6 +916,64 @@ export default function EditRpsPage() {
         </div>
       </div>
 
+      {/* Modal Popup Tambah Pustaka */}
+      <Modal
+        open={showAddPustaka}
+        onClose={() => {
+          setShowAddPustaka(false);
+          resetPustaka();
+        }}
+        title="Tambah Pustaka"
+      >
+        <form onSubmit={handleSubmitPustaka(onPustakaSubmit)} noValidate className="space-y-4">
+          <Controller
+            name="jenis"
+            control={controlPustaka}
+            render={({ field }) => (
+              <Select
+                label="Jenis Pustaka *"
+                placeholder="Pilih Jenis Pustaka"
+                options={JENIS_PUSTAKA_OPTIONS}
+                value={field.value}
+                onChange={(opt: any) => {
+                  const val = typeof opt === 'object' ? opt?.value : opt;
+                  field.onChange(val || 'utama');
+                }}
+                error={errorsPustaka.jenis?.message}
+              />
+            )}
+          />
+
+          <Textarea
+            label="Referensi / Judul Pustaka *"
+            rows={3}
+            placeholder="Tuliskan nama pengarang, tahun, judul buku/jurnal, penerbit, kota..."
+            error={errorsPustaka.isi?.message}
+            {...registerPustaka('isi')}
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowAddPustaka(false);
+                resetPustaka();
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={savingPustaka}
+            >
+              Simpan Pustaka
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Modal Popup Tambah Sub-CPMK */}
       <Modal
         open={showAddSub}
@@ -894,6 +1034,15 @@ export default function EditRpsPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingPustakaId)}
+        onClose={() => setDeletingPustakaId(null)}
+        onConfirm={handleConfirmDeletePustaka}
+        title="Hapus Pustaka?"
+        message="Apakah Anda yakin ingin menghapus referensi pustaka ini dari dokumen RPS?"
+        isLoading={deletingPustaka}
+      />
 
       <ConfirmDialog
         isOpen={Boolean(deletingSubId)}
