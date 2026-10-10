@@ -24,6 +24,8 @@ import {
   SlidersHorizontal,
   Pencil,
   RotateCcw,
+  History,
+  CalendarDays,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -39,9 +41,9 @@ import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDate, formatJamMasukWIB, formatJamPulangWIB, formatJamWIB } from '@/lib/utils';
+import { formatDate, formatJamMasukWIB, formatJamPulangWIB, formatJamWIB, getApiErrorMessage } from '@/lib/utils';
 import type { PaginationMeta } from '@/types/api.types';
-import type { CutoffReport } from '@/types/simpeg.types';
+import type { AttendanceHistoryItem, AttendanceRecapData, AttendanceRecapRow, CutoffReport } from '@/types/simpeg.types';
 
 // ── ZOD SCHEMAS ─────────────────────────────────────────────
 
@@ -95,14 +97,64 @@ const EDIT_STATUS_OPTIONS = [
   { value: 'alfa', label: 'Alpa' },
 ];
 
+const RIWAYAT_STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'Semua Status' },
+  { value: 'hadir', label: 'Hadir (Tepat Waktu)' },
+  { value: 'terlambat', label: 'Terlambat' },
+  { value: 'menunggu_approval', label: 'Menunggu Approval' },
+  { value: 'ditolak', label: 'Ditolak' },
+  { value: 'izin', label: 'Izin' },
+  { value: 'sakit', label: 'Sakit' },
+  { value: 'dinas', label: 'Dinas Luar' },
+  { value: 'alfa', label: 'Alpa' },
+];
+
+// ── KONTRAK RIWAYAT BULANAN (BACKEND_FIX_CLOCKOUT_DAN_RIWAYAT §3.1) ──
+// Nilai status bersifat closed-set domain presensi; dideklarasikan terpusat di sini.
+const RIWAYAT_STATUS_META: Record<string, { label: string; variant: 'green' | 'amber' | 'red' | 'blue' | 'purple' }> = {
+  hadir: { label: 'Tepat Waktu', variant: 'green' },
+  terlambat: { label: 'Terlambat', variant: 'amber' },
+  ditolak: { label: 'Ditolak', variant: 'red' },
+  menunggu_approval: { label: 'Menunggu Approval', variant: 'purple' },
+  izin: { label: 'Izin', variant: 'blue' },
+  sakit: { label: 'Sakit', variant: 'blue' },
+  dinas: { label: 'Dinas Luar', variant: 'blue' },
+  alfa: { label: 'Alpa', variant: 'red' },
+};
+
+const buildMonthOptions = () =>
+  Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(2026, i, 1)),
+  }));
+
+const buildYearOptions = () => {
+  const currentYear = new Date().getFullYear();
+  return Array.from({ length: 4 }, (_, i) => {
+    const y = currentYear - 2 + i;
+    return { value: String(y), label: String(y) };
+  });
+};
+
+const MONTH_OPTIONS = buildMonthOptions();
+
+const toStartEndOfMonth = (month: number, year: number) => {
+  const mm = String(month).padStart(2, '0');
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start_date: `${year}-${mm}-01`,
+    end_date: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`,
+  };
+};
+
 export default function PresensiPage() {
   const router = useRouter();
   const { user, hasPermission, isAdmin } = useAuth();
   const canManage = isAdmin || hasPermission('simpeg.presensi.manage');
   const canDelete = isAdmin || hasPermission('simpeg.presensi.delete') || hasPermission('simpeg.presensi.manage');
 
-  // Active View Tab: 'realtime' | 'bundle'
-  const [activeTab, setActiveTab] = useState<'realtime' | 'bundle'>('realtime');
+  // Active View Tab: 'realtime' | 'bundle' | 'riwayat'
+  const [activeTab, setActiveTab] = useState<'realtime' | 'bundle' | 'riwayat'>('realtime');
 
   // Modal Konfirmasi Hapus/Reset UI
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -142,6 +194,21 @@ export default function PresensiPage() {
   const [editingLog, setEditingLog] = useState<any | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // ── TAB 3: RIWAYAT & REKAP BULAN BERJALAN (§3.1–§3.2) ─────
+  const nowDate = new Date();
+  const [riwayatMonth, setRiwayatMonth] = useState(String(nowDate.getMonth() + 1));
+  const [riwayatYear, setRiwayatYear] = useState(String(nowDate.getFullYear()));
+  const [riwayatStatus, setRiwayatStatus] = useState('');
+  const [riwayatPage, setRiwayatPage] = useState(1);
+  const [loadingRiwayat, setLoadingRiwayat] = useState(false);
+  const [riwayatList, setRiwayatList] = useState<AttendanceHistoryItem[]>([]);
+  const [riwayatMeta, setRiwayatMeta] = useState<PaginationMeta | undefined>();
+  const [showRiwayatDrawer, setShowRiwayatDrawer] = useState(false);
+  const [recapPegawaiId, setRecapPegawaiId] = useState<number | null>(null);
+  const [recapPegawaiOption, setRecapPegawaiOption] = useState<{ value: number; label: string } | null>(null);
+  const [loadingRecap, setLoadingRecap] = useState(false);
+  const [recapData, setRecapData] = useState<AttendanceRecapData | null>(null);
 
   // ── TAB 2: BUNDLE REKAP STATE ───────────────────────────────
   const [bundleList, setBundleList] = useState<any[]>([]);
@@ -239,13 +306,61 @@ export default function PresensiPage() {
     }
   }, [bundleSearch, bundlePage]);
 
+  // ── FETCH: RIWAYAT BULAN BERJALAN (§3.1: ?month&year) ─────────
+  const fetchRiwayat = useCallback(async () => {
+    setLoadingRiwayat(true);
+    try {
+      const res = await simpegService.getPresensiList({
+        month: Number(riwayatMonth),
+        year: Number(riwayatYear),
+        status: riwayatStatus || undefined,
+        sort_by: 'tanggal',
+        sort_dir: 'desc',
+        page: riwayatPage,
+        per_page: 15,
+      });
+      if (res.status === 'success' && res.data) {
+        setRiwayatList(res.data as AttendanceHistoryItem[]);
+        if (res.meta) setRiwayatMeta(res.meta);
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Gagal memuat riwayat presensi bulanan.'));
+    } finally {
+      setLoadingRiwayat(false);
+    }
+  }, [riwayatMonth, riwayatYear, riwayatStatus, riwayatPage]);
+
+  // ── FETCH: REKAP SEBULAN (§3.2: ?start_date&end_date) ─────────
+  const fetchRecap = useCallback(async () => {
+    setLoadingRecap(true);
+    try {
+      const { start_date, end_date } = toStartEndOfMonth(Number(riwayatMonth), Number(riwayatYear));
+      const res = await simpegService.getPresensiRecap({
+        pegawai_id: recapPegawaiId ?? undefined,
+        start_date,
+        end_date,
+      });
+      if (res.status === 'success' && res.data) {
+        setRecapData(res.data as AttendanceRecapData);
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Gagal memuat rekap presensi sebulan.'));
+      setRecapData(null);
+    } finally {
+      setLoadingRecap(false);
+    }
+  }, [riwayatMonth, riwayatYear, recapPegawaiId]);
+
   useEffect(() => {
     if (activeTab === 'realtime') {
       fetchLogPresensi();
-    } else {
+    } else if (activeTab === 'bundle') {
       fetchBundleList();
+    } else {
+      fetchRiwayat();
+      fetchRecap();
     }
-  }, [activeTab, fetchLogPresensi, fetchBundleList]);
+  }, [activeTab, fetchLogPresensi, fetchBundleList, fetchRiwayat, fetchRecap]);
 
   // ── ACTION HANDLERS: LOG REALTIME ──────────────────────────
 
@@ -563,12 +678,12 @@ export default function PresensiPage() {
               {statusLabels[st] || st}
             </Badge>
             {row.late_minutes > 0 && (
-              <div className="text-[11px] text-rose-600 font-semibold">
+              <div className="text-2xs text-rose-600 font-semibold">
                 Terlambat {row.late_minutes} mnt
               </div>
             )}
             {row.early_leave_minutes > 0 && (
-              <div className="text-[11px] text-amber-600 font-semibold">
+              <div className="text-2xs text-amber-600 font-semibold">
                 Pulang Cepat {row.early_leave_minutes} mnt
               </div>
             )}
@@ -625,7 +740,7 @@ export default function PresensiPage() {
             <span>Skor Wajah: {row.clock_in_face_score !== null && row.clock_in_face_score !== undefined ? `${(Number(row.clock_in_face_score) * 100).toFixed(0)}%` : '-'}</span>
           </div>
           {row.clock_in_is_mock_location ? (
-            <span className="inline-flex items-center gap-0.5 text-rose-600 font-bold text-[11px]">
+            <span className="inline-flex items-center gap-0.5 text-rose-600 font-bold text-2xs">
               <AlertTriangle size={11} /> Terdeteksi Mock GPS
             </span>
           ) : null}
@@ -774,6 +889,152 @@ export default function PresensiPage() {
     },
   ];
 
+  // ── TABLE COLUMNS: RIWAYAT BULANAN (§3.1) ────────────────────
+
+  const riwayatColumns: ColumnDef<AttendanceHistoryItem>[] = [
+    {
+      key: 'tanggal',
+      label: 'Tanggal & Waktu',
+      render: (row) => (
+        <div className="space-y-0.5">
+          <div className="font-bold text-slate-800 text-xs">
+            {new Date(row.tanggal).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+          <div className="text-xs text-slate-500 font-mono">
+            Masuk: {formatJamMasukWIB(row)} | Pulang: {formatJamPulangWIB(row)}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'employee',
+      label: 'Pegawai',
+      render: (row) => (
+        <div className="space-y-0.5">
+          <div className="font-semibold text-slate-900 text-xs">{row.employee?.nama_lengkap || `Pegawai #${row.pegawai_id}`}</div>
+          <div className="text-xs text-slate-500 font-mono">NIP: {row.employee?.nip || '-'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => {
+        const st = String(row.status || row.status_kehadiran || '').toLowerCase();
+        const meta = RIWAYAT_STATUS_META[st];
+        return (
+          <div className="space-y-1">
+            <Badge variant={meta?.variant || 'green'} className="capitalize font-bold text-xs">
+              {meta?.label || st}
+            </Badge>
+            {Number(row.late_minutes) > 0 && (
+              <div className="text-2xs text-rose-600 font-semibold">
+                Terlambat {row.late_minutes} mnt
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'audit',
+      label: 'Jarak & Skor AI',
+      render: (row) => (
+        <div className="space-y-0.5 text-xs text-slate-600">
+          <div className="flex items-center gap-1">
+            <MapPin size={12} className={Number(row.clock_in_distance_meters) > 150 ? 'text-amber-500' : 'text-emerald-600'} />
+            <span>Jarak: {row.clock_in_distance_meters !== null && row.clock_in_distance_meters !== undefined ? `${Number(row.clock_in_distance_meters).toFixed(0)} m` : '-'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <ShieldCheck size={12} className="text-[var(--module-primary)]" />
+            <span>Skor AI: {row.clock_in_face_score !== null && row.clock_in_face_score !== undefined ? `${(Number(row.clock_in_face_score) * 100).toFixed(0)}%` : '-'}</span>
+          </div>
+          {row.rejection_reason && (
+            <div className="text-2xs text-rose-600 font-medium">Catatan: {row.rejection_reason}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row) => (
+        <DropdownMenu
+          items={[
+            {
+              label: 'Lihat Rincian',
+              icon: <Eye size={14} />,
+              onClick: () => {
+                setSelectedLog(row);
+                setShowDetailModal(true);
+              },
+            },
+          ]}
+        />
+      ),
+    },
+  ];
+
+  // ── TABLE COLUMNS: REKAP SEBULAN (§3.2) ──────────────────────
+
+  const recapColumns: ColumnDef<AttendanceRecapRow>[] = [
+    {
+      key: 'tanggal',
+      label: 'Tanggal',
+      render: (row) => (
+        <div className="space-y-0.5">
+          <div className="font-bold text-slate-900 text-xs">{row.tanggal}</div>
+          <div className="text-xs text-slate-500">{row.day_name}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'scan_masuk',
+      label: 'Scan Masuk',
+      render: (row) => (
+        <span className={`font-mono font-bold text-xs ${row.scan_masuk === '-' ? 'text-slate-400' : 'text-emerald-700'}`}>
+          {row.scan_masuk}
+        </span>
+      ),
+    },
+    {
+      key: 'terlambat',
+      label: 'Terlambat',
+      render: (row) => (
+        <span className={`font-mono font-bold text-xs ${row.terlambat && row.terlambat !== '-' ? 'text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded' : 'text-slate-400'}`}>
+          {row.terlambat}
+        </span>
+      ),
+    },
+    {
+      key: 'scan_pulang',
+      label: 'Scan Pulang',
+      render: (row) => (
+        <span className={`font-mono font-bold text-xs ${row.scan_pulang === '-' ? 'text-slate-400' : 'text-slate-800'}`}>
+          {row.scan_pulang}
+        </span>
+      ),
+    },
+    {
+      key: 'keterangan',
+      label: 'Keterangan',
+      render: (row) => {
+        const badge = String(row.status_badge || '').toLowerCase();
+        const meta = RIWAYAT_STATUS_META[badge];
+        const isNeutral = row.keterangan === '-' || !row.keterangan;
+        return (
+          <div className="space-y-1">
+            {!isNeutral && <div className="text-xs text-slate-600">{row.keterangan}</div>}
+            <Badge variant={meta?.variant || 'gray'} className="capitalize text-xs">
+              {meta?.label || row.status_badge || '-'}
+            </Badge>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="animate-fade-in space-y-6">
       {/* Page Header */}
@@ -807,7 +1068,7 @@ export default function PresensiPage() {
                   </Button>
                 )}
               </>
-            ) : (
+            ) : activeTab === 'bundle' ? (
               <>
                 <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
                   Filter
@@ -818,6 +1079,10 @@ export default function PresensiPage() {
                   </Button>
                 )}
               </>
+            ) : (
+              <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowRiwayatDrawer(true)}>
+                Filter
+              </Button>
             )}
           </div>
         }
@@ -849,6 +1114,17 @@ export default function PresensiPage() {
             <Layers size={16} /> Rekap Bundle Periode
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => setActiveTab('riwayat')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'riwayat'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          <History size={16} /> Riwayat & Rekap Bulanan
+        </button>
       </div>
 
       {/* ── TAB 1: LOG REALTIME BIOMETRIK ── */}
@@ -883,6 +1159,75 @@ export default function PresensiPage() {
               <div className="py-8 text-center text-slate-400">
                 <Layers size={48} className="mx-auto mb-4 opacity-40" />
                 <p>Belum ada berkas bundle rekap presensi yang diunggah.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {/* ── TAB 3: RIWAYAT & REKAP BULANAN (§3.1–§3.2) ── */}
+      {activeTab === 'riwayat' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <CalendarDays size={14} className="text-[var(--module-primary)]" />
+            <span>
+              Periode: <strong className="text-slate-700">{MONTH_OPTIONS.find((m) => m.value === riwayatMonth)?.label} {riwayatYear}</strong>
+              {recapData?.employee?.name ? <> — Rekap: <strong className="text-slate-700">{recapData.employee.name}</strong></> : null}
+            </span>
+          </div>
+
+          {/* Ringkasan rekap sebulan */}
+          {recapData && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <div className="text-xs font-medium text-slate-400">Hadir Tepat Waktu</div>
+                <div className="text-xl font-bold text-emerald-700">{recapData.summary.total_hadir}</div>
+                <div className="text-xs text-slate-400">dari {recapData.summary.total_days} hari</div>
+              </div>
+              <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <div className="text-xs font-medium text-slate-400">Terlambat</div>
+                <div className="text-xl font-bold text-amber-600">{recapData.summary.total_terlambat}</div>
+                <div className="text-xs text-slate-400">keterlambatan tercatat</div>
+              </div>
+              <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <div className="text-xs font-medium text-slate-400">Alpa</div>
+                <div className="text-xl font-bold text-rose-600">{recapData.summary.total_alpa}</div>
+                <div className="text-xs text-slate-400">tanpa keterangan</div>
+              </div>
+              <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm">
+                <div className="text-xs font-medium text-slate-400">Libur / Izin / Sakit / Dinas</div>
+                <div className="text-xl font-bold text-slate-700">
+                  {(recapData.summary.total_libur || 0) + (recapData.summary.total_izin || 0) + (recapData.summary.total_sakit || 0) + (recapData.summary.total_dinas || 0)}
+                </div>
+                <div className="text-xs text-slate-400">Libur {recapData.summary.total_libur} hari</div>
+              </div>
+            </div>
+          )}
+
+          {/* Tabel rekap sebulan: tanggal | scan masuk | terlambat | scan pulang | keterangan */}
+          <DataTable
+            columns={recapColumns}
+            data={recapData?.rows || []}
+            isLoading={loadingRecap}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <CalendarDays size={48} className="mx-auto mb-4 opacity-40" />
+                <p>{canManage && !recapPegawaiId ? 'Pilih pegawai melalui Filter untuk melihat rekap sebulan.' : 'Belum ada data rekap pada periode ini.'}</p>
+              </div>
+            }
+          />
+
+          {/* Tabel riwayat per-baris */}
+          <DataTable
+            columns={riwayatColumns}
+            data={riwayatList}
+            isLoading={loadingRiwayat}
+            meta={riwayatMeta}
+            onPageChange={(newPage) => setRiwayatPage(newPage)}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <History size={48} className="mx-auto mb-4 opacity-40" />
+                <p>Tidak ada riwayat presensi pada bulan berjalan.</p>
               </div>
             }
           />
@@ -940,17 +1285,7 @@ export default function PresensiPage() {
             label="Status Kehadiran"
             value={statusFilter}
             onChange={(val) => setStatusFilter(val)}
-            options={[
-              { value: '', label: 'Semua Status' },
-              { value: 'hadir', label: 'Hadir (Tepat Waktu)' },
-              { value: 'terlambat', label: 'Terlambat' },
-              { value: 'menunggu_approval', label: 'Menunggu Approval' },
-              { value: 'ditolak', label: 'Ditolak' },
-              { value: 'izin', label: 'Izin' },
-              { value: 'sakit', label: 'Sakit' },
-              { value: 'dinas', label: 'Dinas Luar' },
-              { value: 'alfa', label: 'Alpa' },
-            ]}
+            options={RIWAYAT_STATUS_FILTER_OPTIONS}
           />
 
           <hr className="border-t border-slate-200 my-2" />
@@ -978,6 +1313,84 @@ export default function PresensiPage() {
               ]}
             />
           </div>
+        </div>
+      </Drawer>
+
+      {/* ── DRAWER FILTER RIWAYAT & REKAP BULANAN ── */}
+      <Drawer
+        open={showRiwayatDrawer}
+        onClose={() => setShowRiwayatDrawer(false)}
+        title="Filter Riwayat Bulanan"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const d = new Date();
+                setRiwayatMonth(String(d.getMonth() + 1));
+                setRiwayatYear(String(d.getFullYear()));
+                setRiwayatStatus('');
+                setRecapPegawaiId(null);
+                setRecapPegawaiOption(null);
+                setRiwayatPage(1);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => {
+                setRiwayatPage(1);
+                setShowRiwayatDrawer(false);
+                fetchRiwayat();
+                fetchRecap();
+              }}
+            >
+              Terapkan Filter
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Bulan"
+              value={riwayatMonth}
+              onChange={(val) => setRiwayatMonth(val)}
+              options={MONTH_OPTIONS}
+            />
+            <Select
+              label="Tahun"
+              value={riwayatYear}
+              onChange={(val) => setRiwayatYear(val)}
+              options={buildYearOptions()}
+            />
+          </div>
+
+          <Select
+            label="Status Kehadiran"
+            value={riwayatStatus}
+            onChange={(val) => setRiwayatStatus(val)}
+            options={RIWAYAT_STATUS_FILTER_OPTIONS}
+          />
+
+          {canManage && (
+            <AsyncSelect
+              label="Rekap Pegawai Tertentu"
+              placeholder="Ketik nama atau NIP pegawai..."
+              loadOptions={loadPegawaiOptions}
+              value={recapPegawaiOption}
+              onChange={(opt: { value: number; label: string } | null) => {
+                setRecapPegawaiOption(opt || null);
+                setRecapPegawaiId(opt ? opt.value : null);
+              }}
+              isClearable
+            />
+          )}
+          <p className="text-xs text-slate-500">
+            {canManage
+              ? 'Rekap sebulan dihitung per pegawai. Pilih pegawai untuk melihat tabel tanggal | scan masuk | terlambat | scan pulang | keterangan.'
+              : 'Rekap sebulan dihitung otomatis untuk akun Anda.'}
+          </p>
         </div>
       </Drawer>
 

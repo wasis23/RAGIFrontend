@@ -13,6 +13,7 @@ import type {
   MasterJenisCuti,
   PengajuanCuti,
   PresensiPegawai,
+  AttendanceRecapData,
   GajiPegawai,
   UsulanJafung,
   PenilaianKinerja,
@@ -417,6 +418,17 @@ export const simpegService = {
 
   approvePresensi: async (id: number | string): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/presensi/${id}/approve`);
+    return data;
+  },
+
+  getPresensiRecap: async (params?: {
+    pegawai_id?: number;
+    start_date?: string;
+    end_date?: string;
+    month?: number;
+    year?: number;
+  }): Promise<ApiResponse<AttendanceRecapData>> => {
+    const { data } = await apiClient.get<ApiResponse<AttendanceRecapData>>('/simpeg/presensi/recap', { params });
     return data;
   },
 

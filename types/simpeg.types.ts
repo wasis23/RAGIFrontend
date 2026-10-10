@@ -481,6 +481,74 @@ export interface CutoffReport {
   }>;
 }
 
+// ── RIWAYAT & REKAP PRESENSI BULANAN (kontrak BACKEND_FIX_CLOCKOUT_DAN_RIWAYAT §3) ──
+
+/** Satu baris riwayat presensi (`GET /api/simpeg/presensi?month&year`). */
+export interface AttendanceHistoryItem {
+  id: number;
+  pegawai_id: number;
+  tanggal: string;
+  clock_in?: string | null;
+  clock_out?: string | null;
+  jam_masuk?: string | null;
+  jam_keluar?: string | null;
+  status: string;
+  status_kehadiran?: string;
+  late_minutes?: number;
+  early_leave_minutes?: number;
+  rejection_reason?: string | null;
+  notes?: string | null;
+  clock_in_distance_meters?: number | null;
+  clock_in_face_score?: number | null;
+  clock_out_face_score?: number | null;
+  employee?: Pegawai | null;
+  office_location?: { id: number; name: string } | null;
+}
+
+/** Satu baris rekap sebulan (`GET /api/simpeg/presensi/recap?start_date&end_date`). */
+export interface AttendanceRecapRow {
+  date: string;
+  tanggal: string;
+  day_name: string;
+  scan_masuk: string;
+  terlambat: string;
+  scan_pulang: string;
+  keterangan: string;
+  status_badge: string;
+}
+
+export interface AttendanceRecapData {
+  employee: {
+    id: number;
+    employee_code?: string;
+    name?: string;
+    department?: string | null;
+    position?: string | null;
+    shift_name?: string | null;
+  };
+  filter: { start_date: string; end_date: string };
+  summary: {
+    total_days: number;
+    total_hadir: number;
+    total_terlambat: number;
+    total_alpa: number;
+    total_libur: number;
+    total_izin?: number;
+    total_sakit?: number;
+    total_dinas?: number;
+    total_cuti?: number;
+  };
+  rows: AttendanceRecapRow[];
+}
+
+export interface AttendanceRecapParams {
+  pegawai_id?: number;
+  start_date?: string;
+  end_date?: string;
+  month?: number;
+  year?: number;
+}
+
 // ── MASTER DATA KOMPETENSI, IZIN JAM KERJA & KATEGORI SK ──
 export interface MasterJenisSertifikasi {
   id: number;
