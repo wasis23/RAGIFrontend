@@ -17,6 +17,7 @@ export default function CreateSesiPage() {
   const [loading, setLoading] = useState(true);
   const [mataKuliahId, setMataKuliahId] = useState<number | undefined>(undefined);
   const [defaultMingguKe, setDefaultMingguKe] = useState(1);
+  const [totalSisaBobot, setTotalSisaBobot] = useState(100);
 
   useEffect(() => {
     let active = true;
@@ -28,7 +29,7 @@ export default function CreateSesiPage() {
       try {
         const [detailRes, sesiRes] = await Promise.all([
           siakadService.showRps(rpsId),
-          siakadService.listRpsSesi(rpsId),
+          siakadService.listRpsSesi(rpsId, { per_page: 50 }),
         ]);
         if (!active) return;
         const d = detailRes?.data;
@@ -39,6 +40,9 @@ export default function CreateSesiPage() {
         let next = 1;
         while (next <= 16 && used.has(next)) next += 1;
         setDefaultMingguKe(next <= 16 ? next : 1);
+        
+        const currentTotal = sesiRes?.meta?.total_bobot ? Number(sesiRes.meta.total_bobot) : list.reduce((sum, s) => sum + (Number(s.bobot_penilaian) || 0), 0);
+        setTotalSisaBobot(Math.max(0, 100 - currentTotal));
       } catch (err: any) {
         if (active) toast.error(err?.response?.data?.message || 'Gagal memuat data RPS');
       } finally {
@@ -97,7 +101,13 @@ export default function CreateSesiPage() {
         }
       />
 
-      <SesiForm rpsId={rpsId} mataKuliahId={mataKuliahId} defaultMingguKe={defaultMingguKe} submitLabel="Simpan Sesi" />
+      <SesiForm 
+        rpsId={rpsId} 
+        mataKuliahId={mataKuliahId} 
+        defaultMingguKe={defaultMingguKe} 
+        submitLabel="Simpan Sesi" 
+        totalSisaBobot={totalSisaBobot}
+      />
     </div>
   );
 }

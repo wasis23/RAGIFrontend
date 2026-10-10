@@ -19,6 +19,7 @@ export default function EditSesiPage() {
   const [notFound, setNotFound] = useState(false);
   const [mataKuliahId, setMataKuliahId] = useState<number | undefined>(undefined);
   const [initial, setInitial] = useState<any | null>(null);
+  const [totalSisaBobot, setTotalSisaBobot] = useState(100);
 
   useEffect(() => {
     let active = true;
@@ -31,7 +32,7 @@ export default function EditSesiPage() {
       try {
         const [detailRes, sesiRes] = await Promise.all([
           siakadService.showRps(rpsId),
-          siakadService.listRpsSesi(rpsId),
+          siakadService.listRpsSesi(rpsId, { per_page: 50 }),
         ]);
         if (!active) return;
         const d = detailRes?.data;
@@ -44,6 +45,9 @@ export default function EditSesiPage() {
           return;
         }
         setInitial(found);
+
+        const currentTotal = sesiRes?.meta?.total_bobot ? Number(sesiRes.meta.total_bobot) : list.reduce((sum, s) => sum + (Number(s.bobot_penilaian) || 0), 0);
+        setTotalSisaBobot(Math.max(0, 100 - currentTotal));
       } catch (err: any) {
         if (active) {
           setNotFound(true);
@@ -144,6 +148,7 @@ export default function EditSesiPage() {
         initial={initial}
         defaultMingguKe={Number(initial.minggu_ke) || 1}
         submitLabel="Simpan Perubahan"
+        totalSisaBobot={totalSisaBobot}
       />
     </div>
   );

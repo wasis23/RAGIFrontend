@@ -79,6 +79,7 @@ interface SesiFormProps {
   initial?: any | null;
   defaultMingguKe?: number;
   submitLabel?: string;
+  totalSisaBobot?: number;
 }
 
 export function SesiForm({
@@ -86,6 +87,7 @@ export function SesiForm({
   mataKuliahId,
   initial,
   defaultMingguKe = 1,
+  totalSisaBobot = 100,
 }: SesiFormProps) {
   const router = useRouter();
   const [currentSesiId, setCurrentSesiId] = useState<number | undefined>(initial?.id);
@@ -1032,10 +1034,10 @@ export function SesiForm({
             <div>
               <Input
                 type="number"
-                label="Bobot Penilaian %. Maksimal 100"
+                label={`Bobot Penilaian %. Maksimal ${Math.min(100, Number(initial?.bobot_penilaian || 0) + totalSisaBobot)}`}
                 placeholder="0"
                 min={0}
-                max={100}
+                max={Math.min(100, Number(initial?.bobot_penilaian || 0) + totalSisaBobot)}
                 error={errorsSec5.bobot_penilaian?.message}
                 {...registerSec5('bobot_penilaian', { valueAsNumber: true })}
               />

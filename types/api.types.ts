@@ -29,6 +29,7 @@ export interface PaginationMeta {
   total: number;
   from?: number;
   to?: number;
+  total_bobot?: number;
 }
 
 export interface PaginationParams {
