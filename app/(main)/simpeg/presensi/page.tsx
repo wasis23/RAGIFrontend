@@ -22,6 +22,8 @@ import {
   FileSpreadsheet,
   Layers,
   SlidersHorizontal,
+  Pencil,
+  RotateCcw,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -37,7 +39,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu, type DropdownMenuItem } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatJamMasukWIB, formatJamPulangWIB, formatJamWIB } from '@/lib/utils';
 import type { PaginationMeta } from '@/types/api.types';
 import type { CutoffReport } from '@/types/simpeg.types';
 
@@ -65,11 +67,32 @@ const rekapFormSchema = z.object({
 });
 type RekapFormValues = z.infer<typeof rekapFormSchema>;
 
+const editLogFormSchema = z.object({
+  tanggal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').optional().nullable(),
+  jam_masuk: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Format jam HH:MM / HH:MM:SS').optional().nullable(),
+  jam_keluar: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, 'Format jam HH:MM / HH:MM:SS').optional().nullable(),
+  status: z.enum(['hadir', 'terlambat', 'menunggu_approval', 'ditolak', 'izin', 'sakit', 'dinas', 'alfa']).optional().nullable(),
+  catatan: z.string().max(1000, 'Catatan maksimal 1000 karakter').optional().nullable(),
+});
+type EditLogFormValues = z.infer<typeof editLogFormSchema>;
+
 const KETERANGAN_OPTIONS = [
   { value: 'izin', label: 'Izin' },
   { value: 'sakit', label: 'Sakit' },
   { value: 'dinas', label: 'Dinas Luar' },
   { value: 'alfa', label: 'Alpa (Tanpa Keterangan)' },
+];
+
+const EDIT_STATUS_OPTIONS = [
+  { value: '', label: '-- Biarkan --' },
+  { value: 'hadir', label: 'Hadir' },
+  { value: 'terlambat', label: 'Terlambat' },
+  { value: 'menunggu_approval', label: 'Menunggu Approval' },
+  { value: 'ditolak', label: 'Ditolak' },
+  { value: 'izin', label: 'Izin' },
+  { value: 'sakit', label: 'Sakit' },
+  { value: 'dinas', label: 'Dinas Luar' },
+  { value: 'alfa', label: 'Alpa' },
 ];
 
 export default function PresensiPage() {
@@ -81,19 +104,21 @@ export default function PresensiPage() {
   // Active View Tab: 'realtime' | 'bundle'
   const [activeTab, setActiveTab] = useState<'realtime' | 'bundle'>('realtime');
 
-  // Modal Konfirmasi Hapus UI
+  // Modal Konfirmasi Hapus/Reset UI
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     title: string;
     message: string | React.ReactNode;
     onConfirm: () => Promise<void>;
     isLoading: boolean;
+    confirmText: string;
   }>({
     isOpen: false,
     title: 'Konfirmasi Hapus',
     message: '',
     onConfirm: async () => {},
     isLoading: false,
+    confirmText: 'Hapus',
   });
 
   // ── TAB 1: LOG PRESENSI REALTIME STATE ──────────────────────
@@ -112,6 +137,11 @@ export default function PresensiPage() {
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [approvingId, setApprovingId] = useState<number | null>(null);
+
+  // ── EDIT / RESET LOG STATE ────────────────────────────────
+  const [editingLog, setEditingLog] = useState<any | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // ── TAB 2: BUNDLE REKAP STATE ───────────────────────────────
   const [bundleList, setBundleList] = useState<any[]>([]);
@@ -154,6 +184,11 @@ export default function PresensiPage() {
       tanggal_akhir: '',
       catatan: '',
     },
+  });
+
+  const formEdit = useForm<EditLogFormValues>({
+    resolver: zodResolver(editLogFormSchema),
+    defaultValues: { tanggal: '', jam_masuk: '', jam_keluar: '', status: null, catatan: '' },
   });
 
   // ── FETCH HANDLERS ─────────────────────────────────────────
@@ -230,6 +265,66 @@ export default function PresensiPage() {
     } finally {
       setApprovingId(null);
     }
+  };
+
+  const handleOpenEditModal = (log: any) => {
+    setEditingLog(log);
+    formEdit.reset({
+      tanggal: log.tanggal ? String(log.tanggal).substring(0, 10) : '',
+      jam_masuk: log.clock_in ? formatJamWIB(log.clock_in) : (log.jam_masuk ? String(log.jam_masuk).substring(0, 5) : ''),
+      jam_keluar: log.clock_out ? formatJamWIB(log.clock_out) : (log.jam_keluar ? String(log.jam_keluar).substring(0, 5) : ''),
+      status: (log.status || log.status_kehadiran || null) as any,
+      catatan: log.notes || log.catatan || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const onSubmitEdit = async (values: EditLogFormValues) => {
+    if (!editingLog) return;
+    setSavingEdit(true);
+    try {
+      const res = await simpegService.updatePresensiLog(editingLog.id, {
+        tanggal: values.tanggal || undefined,
+        jam_masuk: values.jam_masuk || undefined,
+        jam_keluar: values.jam_keluar || undefined,
+        status: values.status || undefined,
+        catatan: values.catatan || undefined,
+      });
+      toast.success(res.message || 'Log presensi berhasil diperbarui');
+      setShowEditModal(false);
+      setShowDetailModal(false);
+      fetchLogPresensi();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal memperbarui log presensi');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleAskResetClock = (log: any, field: 'in' | 'out') => {
+    const namaPegawai = log.employee?.nama_lengkap || `Pegawai #${log.pegawai_id}`;
+    const isMasuk = field === 'in';
+    setDeleteConfirm({
+      isOpen: true,
+      title: isMasuk ? 'Reset Scan Masuk' : 'Reset Scan Pulang',
+      message: `Reset ${isMasuk ? 'scan masuk' : 'scan pulang'} untuk ${namaPegawai} pada tanggal ${log.tanggal ? String(log.tanggal).substring(0, 10) : '-'}? Scan ${isMasuk ? 'pulang' : 'masuk'} yang tersisa tetap aman.`,
+      isLoading: false,
+      confirmText: 'Reset',
+      onConfirm: async () => {
+        try {
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          await simpegService.updatePresensiLog(log.id, isMasuk ? { reset_clock_in: true } : { reset_clock_out: true });
+          toast.success(isMasuk ? 'Scan masuk berhasil direset.' : 'Scan pulang berhasil direset.');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          setShowDetailModal(false);
+          setShowEditModal(false);
+          fetchLogPresensi();
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal mereset log presensi.');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
   };
 
   const loadPegawaiOptions = useCallback(async (inputValue: string) => {
@@ -323,6 +418,7 @@ export default function PresensiPage() {
       title: 'Hapus Rekap Periode Presensi',
       message: `Apakah Anda yakin ingin menghapus bundle "${bundle.nama_periode}" beserta seluruh log presensi di dalamnya?`,
       isLoading: false,
+      confirmText: 'Hapus',
       onConfirm: async () => {
         try {
           setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
@@ -354,6 +450,7 @@ export default function PresensiPage() {
       title: 'Hapus Log Presensi',
       message: `Apakah Anda yakin ingin menghapus catatan presensi untuk ${namaPegawai} pada tanggal ${tanggalFormatted}? Tindakan ini tidak dapat dibatalkan.`,
       isLoading: false,
+      confirmText: 'Hapus',
       onConfirm: async () => {
         try {
           setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
@@ -427,7 +524,7 @@ export default function PresensiPage() {
             {new Date(row.tanggal).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
           </div>
           <div className="text-xs text-slate-500 font-mono">
-            Masuk: {row.clock_in ? row.clock_in.substring(11, 16) : (row.jam_masuk || '--:--')} | Pulang: {row.clock_out ? row.clock_out.substring(11, 16) : (row.jam_keluar || '--:--')}
+            Masuk: {formatJamMasukWIB(row)} | Pulang: {formatJamPulangWIB(row)}
           </div>
         </div>
       ),
@@ -540,8 +637,11 @@ export default function PresensiPage() {
       label: 'Aksi',
       align: 'right',
       render: (row) => {
+        // Scan wajah sukses langsung hadir/terlambat tanpa approval.
+        // Approval hanya untuk menunggu_approval (scan hari libur) & ditolak (gagal berulang).
+        const statusVal = (row.status || row.status_kehadiran || '').toLowerCase();
         const canApprove =
-          canManage && (row.status === 'ditolak' || row.status === 'menunggu_approval' || !row.is_approved_by_admin);
+          canManage && (statusVal === 'ditolak' || statusVal === 'menunggu_approval');
         const items: DropdownMenuItem[] = [
           {
             label: 'Lihat Rincian',
@@ -559,6 +659,27 @@ export default function PresensiPage() {
             disabled: approvingId === row.id,
             onClick: () => handleApprovePresensi(row.id),
           });
+        }
+        if (canManage) {
+          items.push({
+            label: 'Edit / Koreksi Jam',
+            icon: <Pencil size={14} />,
+            onClick: () => handleOpenEditModal(row),
+          });
+          if (row.clock_in || row.jam_masuk) {
+            items.push({
+              label: 'Reset Scan Masuk',
+              icon: <RotateCcw size={14} />,
+              onClick: () => handleAskResetClock(row, 'in'),
+            });
+          }
+          if (row.clock_out || row.jam_keluar) {
+            items.push({
+              label: 'Reset Scan Pulang',
+              icon: <RotateCcw size={14} />,
+              onClick: () => handleAskResetClock(row, 'out'),
+            });
+          }
         }
         if (canDelete) {
           items.push({
@@ -870,13 +991,18 @@ export default function PresensiPage() {
             <Button variant="outline" onClick={() => setShowDetailModal(false)}>
               Tutup
             </Button>
-            {canManage && selectedLog && (selectedLog.status === 'ditolak' || selectedLog.status === 'menunggu_approval' || !selectedLog.is_approved_by_admin) && (
+            {canManage && selectedLog && ['ditolak', 'menunggu_approval'].includes(String(selectedLog.status || selectedLog.status_kehadiran || '').toLowerCase()) && (
               <Button
                 loading={approvingId === selectedLog.id}
                 disabled={approvingId === selectedLog.id}
                 onClick={() => handleApprovePresensi(selectedLog.id)}
               >
                 Setujui Manual
+              </Button>
+            )}
+            {canManage && selectedLog && (
+              <Button variant="outline" onClick={() => handleOpenEditModal(selectedLog)}>
+                Edit Jam
               </Button>
             )}
             {canDelete && selectedLog && (
@@ -909,15 +1035,15 @@ export default function PresensiPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 border border-slate-200 rounded-xl space-y-1">
-                <div className="font-bold text-slate-800">Scan Masuk (In)</div>
-                <div className="text-slate-600">Jam: {selectedLog.clock_in ? selectedLog.clock_in.substring(11, 19) : (selectedLog.jam_masuk || '-')}</div>
+                <div className="font-bold text-slate-800">Scan Masuk (In) — WIB</div>
+                <div className="text-slate-600">Jam: {selectedLog.clock_in ? formatJamWIB(selectedLog.clock_in, true) : (selectedLog.jam_masuk || '-')}</div>
                 <div className="text-slate-600">Jarak: {selectedLog.clock_in_distance_meters || 0} meter</div>
                 <div className="text-slate-600">Skor Wajah: {selectedLog.clock_in_face_score ? `${(Number(selectedLog.clock_in_face_score) * 100).toFixed(1)}%` : '-'}</div>
               </div>
 
               <div className="p-3 border border-slate-200 rounded-xl space-y-1">
-                <div className="font-bold text-slate-800">Scan Pulang (Out)</div>
-                <div className="text-slate-600">Jam: {selectedLog.clock_out ? selectedLog.clock_out.substring(11, 19) : (selectedLog.jam_keluar || '-')}</div>
+                <div className="font-bold text-slate-800">Scan Pulang (Out) — WIB</div>
+                <div className="text-slate-600">Jam: {selectedLog.clock_out ? formatJamWIB(selectedLog.clock_out, true) : (selectedLog.jam_keluar || '-')}</div>
                 <div className="text-slate-600">Jarak: {selectedLog.clock_out_distance_meters || 0} meter</div>
                 <div className="text-slate-600">Skor Wajah: {selectedLog.clock_out_face_score ? `${(Number(selectedLog.clock_out_face_score) * 100).toFixed(1)}%` : '-'}</div>
               </div>
@@ -1173,6 +1299,116 @@ export default function PresensiPage() {
         </form>
       </Modal>
 
+      {/* ── MODAL: EDIT / RESET LOG PRESENSI ── */}
+      <Modal
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title={`Koreksi Log Presensi${editingLog?.employee?.nama_lengkap ? ` — ${editingLog.employee.nama_lengkap}` : ''}`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowEditModal(false)} disabled={savingEdit}>
+              Batal
+            </Button>
+            <Button type="submit" loading={savingEdit} disabled={savingEdit} form="edit-log-form">
+              Simpan Koreksi
+            </Button>
+          </>
+        }
+      >
+        <form id="edit-log-form" onSubmit={formEdit.handleSubmit(onSubmitEdit)} noValidate className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Jam diisi dalam WIB (misal 07:41). Kosongkan jam bila ingin membiarkan nilai lama. Untuk salah tekan scan pulang, gunakan tombol reset di bawah tanpa menghapus scan masuk.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Controller
+              control={formEdit.control}
+              name="tanggal"
+              render={({ field }) => (
+                <Input
+                  label="Tanggal Dinas"
+                  type="date"
+                  error={formEdit.formState.errors.tanggal?.message}
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+            <Controller
+              control={formEdit.control}
+              name="status"
+              render={({ field }) => (
+                <Select
+                  label="Status Kehadiran"
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                  options={EDIT_STATUS_OPTIONS}
+                  error={formEdit.formState.errors.status?.message}
+                />
+              )}
+            />
+            <Controller
+              control={formEdit.control}
+              name="jam_masuk"
+              render={({ field }) => (
+                <Input
+                  label="Jam Masuk (WIB)"
+                  type="time"
+                  error={formEdit.formState.errors.jam_masuk?.message}
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+            <Controller
+              control={formEdit.control}
+              name="jam_keluar"
+              render={({ field }) => (
+                <Input
+                  label="Jam Pulang (WIB)"
+                  type="time"
+                  error={formEdit.formState.errors.jam_keluar?.message}
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          </div>
+          <Controller
+            control={formEdit.control}
+            name="catatan"
+            render={({ field }) => (
+              <Input
+                label="Catatan koreksi (opsional)"
+                placeholder="Alasan koreksi HR..."
+                error={formEdit.formState.errors.catatan?.message}
+                value={field.value || ''}
+                onChange={field.onChange}
+              />
+            )}
+          />
+          {editingLog && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                icon={<RotateCcw size={14} />}
+                onClick={() => editingLog && handleAskResetClock(editingLog, 'in')}
+              >
+                Reset Scan Masuk Saja
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                icon={<RotateCcw size={14} />}
+                onClick={() => editingLog && handleAskResetClock(editingLog, 'out')}
+              >
+                Reset Scan Pulang Saja
+              </Button>
+            </div>
+          )}
+        </form>
+      </Modal>
+
       {/* ── CONFIRM DIALOG ── */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
@@ -1180,7 +1416,7 @@ export default function PresensiPage() {
         onConfirm={deleteConfirm.onConfirm}
         title={deleteConfirm.title}
         message={deleteConfirm.message}
-        confirmText="Hapus"
+        confirmText={deleteConfirm.confirmText}
         cancelText="Batal"
         variant="danger"
         isLoading={deleteConfirm.isLoading}

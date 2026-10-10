@@ -44,6 +44,107 @@ export function formatDateTime(dateString: string | null | undefined): string {
 }
 
 // ============================================================
+// parseUtcDate — Parse string datetime backend (UTC) secara aman
+// Backend menyimpan clock_in/clock_out dalam UTC (config/app timezone UTC).
+// Format bisa "2026-10-10T00:41:00.000000Z" atau "2026-10-10 00:41:00".
+// ============================================================
+export function parseUtcDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  // Sudah ada info timezone (Z atau offset) → parse langsung
+  if (/[zZ]$/.test(s) || /[+-]\d{2}:?\d{2}$/.test(s)) {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // "YYYY-MM-DD HH:MM:SS" (MySQL) → anggap UTC
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?/.test(s)) {
+    const d = new Date(s.replace(' ', 'T') + 'Z');
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // "YYYY-MM-DDTHH:MM:SS" tanpa timezone → anggap UTC
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) {
+    const d = new Date(s + 'Z');
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// ============================================================
+// formatJamWIB — Format jam clock_in/clock_out UTC ke WIB (Asia/Jakarta)
+// Contoh: "2026-10-10T00:41:00Z" → "07:41"
+// ============================================================
+export function formatJamWIB(
+  value: string | null | undefined,
+  withSeconds = false
+): string {
+  const d = parseUtcDate(value);
+  if (!d) return '--:--';
+  return new Intl.DateTimeFormat('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(withSeconds ? { second: '2-digit' as const } : {}),
+    hour12: false,
+    timeZone: 'Asia/Jakarta',
+  })
+    .format(d)
+    .replace(/\./g, ':');
+}
+
+// ============================================================
+// formatJamMasukWIB — Prioritas clock_in (UTC→WIB), fallback jam_masuk
+// jam_masuk fallback adalah wall-time; jika clock_in tidak ada,
+// gabungkan tanggal+jam_masuk sebagai UTC lalu konversi ke WIB.
+// ============================================================
+export function formatJamMasukWIB(
+  row: { clock_in?: string | null; jam_masuk?: string | null; tanggal?: string | null },
+  withSeconds = false
+): string {
+  if (row.clock_in) return formatJamWIB(row.clock_in, withSeconds);
+  if (!row.jam_masuk) return '--:--';
+  // jam_masuk "HH:MM:SS" + tanggal → perlakukan sebagai UTC lalu ke WIB
+  if (row.tanggal && /^\d{2}:\d{2}/.test(row.jam_masuk)) {
+    const d = parseUtcDate(`${String(row.tanggal).substring(0, 10)} ${row.jam_masuk}`);
+    if (d) {
+      return new Intl.DateTimeFormat('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        ...(withSeconds ? { second: '2-digit' as const } : {}),
+        hour12: false,
+        timeZone: 'Asia/Jakarta',
+      })
+        .format(d)
+        .replace(/\./g, ':');
+    }
+  }
+  return row.jam_masuk.substring(0, withSeconds ? 8 : 5);
+}
+
+export function formatJamPulangWIB(
+  row: { clock_out?: string | null; jam_keluar?: string | null; tanggal?: string | null },
+  withSeconds = false
+): string {
+  if (row.clock_out) return formatJamWIB(row.clock_out, withSeconds);
+  if (!row.jam_keluar) return '--:--';
+  if (row.tanggal && /^\d{2}:\d{2}/.test(row.jam_keluar)) {
+    const d = parseUtcDate(`${String(row.tanggal).substring(0, 10)} ${row.jam_keluar}`);
+    if (d) {
+      return new Intl.DateTimeFormat('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        ...(withSeconds ? { second: '2-digit' as const } : {}),
+        hour12: false,
+        timeZone: 'Asia/Jakarta',
+      })
+        .format(d)
+        .replace(/\./g, ':');
+    }
+  }
+  return row.jam_keluar.substring(0, withSeconds ? 8 : 5);
+}
+
+// ============================================================
 // formatRelativeTime — "2 menit yang lalu"
 // ============================================================
 export function formatRelativeTime(dateString: string | null | undefined): string {

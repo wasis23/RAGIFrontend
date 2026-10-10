@@ -392,6 +392,24 @@ export const simpegService = {
     return data;
   },
 
+  updatePresensiLog: async (
+    id: number | string,
+    payload: {
+      tanggal?: string;
+      jam_masuk?: string | null;
+      jam_keluar?: string | null;
+      reset_clock_in?: boolean;
+      reset_clock_out?: boolean;
+      status?: string;
+      status_kehadiran?: string;
+      catatan?: string;
+      notes?: string;
+    }
+  ): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.patch<ApiResponse<any>>(`/simpeg/presensi/log/${id}`, payload);
+    return data;
+  },
+
   processBundlePayroll: async (id: number | string): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/presensi/${id}/payroll`);
     return data;
