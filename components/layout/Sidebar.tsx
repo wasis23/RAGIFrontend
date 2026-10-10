@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import {
@@ -18,8 +18,6 @@ import {
   History,
   ExternalLink,
   ChevronLeft,
-  ChevronRight,
-  ChevronDown,
   GraduationCap,
   Building2,
   Briefcase,
@@ -69,7 +67,7 @@ import { resolveDomainContext } from '@/lib/domain';
 import { menuService } from '@/services/menu.service';
 import { Menu } from '@/types/menu';
 
-const getIcon = (iconName: string) => {
+const getIconComponent = (iconName?: string | null) => {
   const iconMap: Record<string, any> = {
     'FaHome': Home,
     'FaUserPlus': UserPlus,
@@ -154,8 +152,52 @@ const getIcon = (iconName: string) => {
     'FileText': FileText,
     'FaStamp': Stamp,
   };
-  const IconComponent = iconMap[iconName] || LayoutDashboard;
-  return <IconComponent className="sidebar-item-icon" />;
+  const IconComponent = (iconName && iconMap[iconName]) || LayoutDashboard;
+  return IconComponent;
+};
+
+/**
+ * Pool ikon rail two-level navigation. Setiap grup menu di rail WAJIB memakai
+ * ikon berbeda agar mudah dibedakan antar-modul (lihat desain Opsi C).
+ * `buildRailIconMap` mengisi ikon yang duplikat / tidak dikenal dari pool ini.
+ */
+const RAIL_ICON_POOL: any[] = [
+  LayoutDashboard, Home, Users, UserCheck, UserPlus, User, Shield, ShieldCheck,
+  ShieldAlert, Key, Lock, Layers, Database, Tags, History, Settings, Sliders,
+  Monitor, Smartphone, Activity, GraduationCap, Building2, Briefcase, Award,
+  FileText, Calendar, Clock, DollarSign, Coins, TrendingUp, CheckSquare, List,
+  PieChart, BookOpen, RefreshCw, Sparkles, Tag, Share2, DoorOpen, Handshake,
+  HeartHandshake, Ruler, Package, Boxes, Stamp, Shapes, Lightbulb, Contact,
+];
+
+/**
+ * Petakan setiap menu level-atas ke SATU ikon rail yang dijamin berbeda.
+ * Prioritas: ikon bawaan menu bila belum dipakai grup lain; selebihnya ambil
+ * berurutan dari RAIL_ICON_POOL. Deterministik per daftar menu.
+ */
+const buildRailIconMap = (menus: Menu[]): Map<string | number, any> => {
+  const used = new Set<any>();
+  const map = new Map<string | number, any>();
+  const deferred: Menu[] = [];
+  for (const menu of menus) {
+    const comp = getIconComponent(menu.icon);
+    const isFallback = comp === LayoutDashboard && menu.icon !== 'FaHome' && menu.icon !== undefined;
+    if (!used.has(comp) && !isFallback) {
+      used.add(comp);
+      map.set(menu.id, comp);
+    } else {
+      deferred.push(menu);
+    }
+  }
+  let poolIdx = 0;
+  for (const menu of deferred) {
+    while (poolIdx < RAIL_ICON_POOL.length && used.has(RAIL_ICON_POOL[poolIdx])) poolIdx++;
+    const comp = RAIL_ICON_POOL[poolIdx] || LayoutDashboard;
+    used.add(comp);
+    map.set(menu.id, comp);
+    poolIdx++;
+  }
+  return map;
 };
 
 // Menus SIAKAD untuk Mahasiswa (Portal Mahasiswa Mandiri)
@@ -652,15 +694,13 @@ export function Sidebar() {
     isAdmin ||
     hasRole(['admin_simpeg', 'operator_sdm', 'admin', 'superadmin']);
 
-  const [ssoPanelOpen, setSsoPanelOpen] = useState(pathname.startsWith('/admin'));
-  
   const [dynamicMenus, setDynamicMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Accordion grup + Favorit (persist localStorage per browser)
   const FAVORITES_KEY = 'sidebar_favorites_v1';
-  const OPEN_GROUPS_KEY = 'sidebar_open_groups_v1';
   const readStoredArray = (key: string): string[] => {
     try {
       if (typeof window === 'undefined') return [];
@@ -671,18 +711,7 @@ export function Sidebar() {
     }
   };
 
-  const readStoredRecord = (key: string): Record<string, boolean> => {
-    try {
-      if (typeof window === 'undefined') return {};
-      const parsed = JSON.parse(localStorage.getItem(key) || '{}');
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch {
-      return {};
-    }
-  };
-
   const [favorites, setFavorites] = useState<string[]>(() => readStoredArray(FAVORITES_KEY));
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => readStoredRecord(OPEN_GROUPS_KEY));
 
   const persistFavorites = (next: string[]) => {
     setFavorites(next);
@@ -693,16 +722,6 @@ export function Sidebar() {
 
   const toggleFavorite = (url: string) => {
     persistFavorites(favorites.includes(url) ? favorites.filter((u) => u !== url) : [...favorites, url]);
-  };
-
-  const setGroupOpen = (key: string, open: boolean) => {
-    setOpenGroups((prev) => {
-      const next = { ...prev, [key]: open };
-      try {
-        localStorage.setItem(OPEN_GROUPS_KEY, JSON.stringify(next));
-      } catch {}
-      return next;
-    });
   };
 
   // Determine module based on pathname or hostname dynamically without hardcoding
@@ -876,11 +895,35 @@ export function Sidebar() {
     return null;
   }, [processedMenus, activeMenuId]);
 
-  const isGroupOpen = (key: string) => {
-    if (searchQuery.trim()) return true;
-    if (key in openGroups) return openGroups[key];
-    return key === activeGroupKey;
-  };
+  // ── Two-level navigation (Opsi C): rail ikon + panel submenu ──
+  // Kunci rail: `g:<id>` untuk grup (url '#...'), id menu untuk daun.
+  const railKeyOf = (menu: Menu): string | number =>
+    menu.url.startsWith('#') ? `g:${menu.id}` : menu.id;
+
+  // Ikon rail dijamin berbeda antar-grup dalam modul aktif.
+  const railIconMap = useMemo(() => buildRailIconMap(processedMenus), [processedMenus]);
+
+  // Grup yang memuat menu aktif (fallback seleksi awal).
+  // Pilihan eksplisit user (pinnedSelection) menang sampai rute berubah.
+  const [pinnedSelection, setPinnedSelection] = useState<string | number | null>(null);
+
+  useEffect(() => {
+    setPinnedSelection(null);
+  }, [pathname]);
+
+  // Shortcut Ctrl+K / Cmd+K: buka panel lalu fokus ke pencarian.
+  const setSidebarOpen = useUiStore((s) => s.setSidebarOpen);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSidebarOpen(true);
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setSidebarOpen]);
 
   // Link daun untuk seksi Favorit (hanya yang ada di menu modul aktif)
   const favoriteLinks = useMemo(() => {
@@ -928,196 +971,240 @@ export function Sidebar() {
     return false;
   };
 
+  // ── Seleksi rail efektif (Opsi C): pilihan user menang, selebihnya
+  // mengikuti rute (grup menu aktif → daun aktif → item pertama).
+  const firstRailKey = processedMenus.length > 0 ? railKeyOf(processedMenus[0]) : null;
+  const derivedSelection = activeGroupKey ?? activeMenuId ?? firstRailKey;
+  const effectiveSelection = pinnedSelection ?? derivedSelection;
+  const selectedMenu =
+    processedMenus.find((m) => railKeyOf(m) === effectiveSelection) ?? null;
+
+  const portalLabel = isMahasiswaRole
+    ? 'Portal Akademik Mahasiswa'
+    : isDosenRole
+    ? 'Portal Layanan Dosen'
+    : isTendikRole
+    ? 'Portal Layanan Tendik'
+    : 'Menu Utama';
+
   return (
-    <aside className={`sidebar ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
-      {/* Brand */}
-      <div 
-        className="sidebar-brand" 
-        style={{ 
-          justifyContent: sidebar_open ? 'space-between' : 'center',
-          cursor: sidebar_open ? 'default' : 'pointer',
-          padding: sidebar_open ? '1.25rem 1.5rem' : '1.25rem 0'
-        }}
-        onClick={!sidebar_open ? toggleSidebar : undefined}
-        title={!sidebar_open ? 'Tampilkan Sidebar' : undefined}
-      >
-        <div className="sidebar-brand-inner">
+    <aside className={`sidebar sidebar-twolevel ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
+      {/* ── Rail ikon two-level (ikon tiap grup dijamin berbeda) ── */}
+      <div className="sidebar-rail">
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="sidebar-rail-logo"
+          title={sidebar_open ? 'SSO Campus' : 'Tampilkan Sidebar'}
+          aria-label="SSO Campus"
+        >
           <div className="sidebar-logo">
             <GraduationCap size={22} color="white" />
           </div>
-          {sidebar_open && (
-            <div>
-              <div className="sidebar-brand-text">SSO Campus</div>
-              <div className="text-2xs text-slate-400 font-medium">
-                {(() => {
-                  const prodis = (user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis;
-                  const adminProdi = prodis?.[0]?.program_studi;
-                  if (adminProdi) {
-                    return `Admin OBE: ${adminProdi.kode_prodi || adminProdi.nama}`;
-                  }
-                  if (isMahasiswaRole) return 'Portal Mahasiswa';
-                  if (isDosenRole) return 'Portal Dosen';
-                  if (isTendikRole) return 'Portal Tendik';
-                  return 'SIAKAD Utama';
-                })()}
-              </div>
-            </div>
+        </button>
+
+        <nav className="sidebar-rail-nav" aria-label="Navigasi utama">
+          {loading ? (
+            <div className="sidebar-loading">…</div>
+          ) : (
+            <>
+              {favoriteLinks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPinnedSelection('fav')}
+                  className={`sidebar-rail-item${effectiveSelection === 'fav' ? ' active' : ''}`}
+                  title="Favorit"
+                  aria-label="Menu favorit"
+                >
+                  <Star size={20} fill={effectiveSelection === 'fav' ? 'currentColor' : 'none'} />
+                </button>
+              )}
+              {processedMenus.map((menu) => {
+                const key = railKeyOf(menu);
+                const RailIcon = railIconMap.get(menu.id) || LayoutDashboard;
+                const railActive = key === effectiveSelection;
+                if (menu.url.startsWith('#')) {
+                  return (
+                    <button
+                      key={menu.id}
+                      type="button"
+                      onClick={() => setPinnedSelection(key)}
+                      className={`sidebar-rail-item${railActive ? ' active' : ''}`}
+                      title={menu.name}
+                      aria-label={menu.name}
+                    >
+                      <RailIcon size={20} />
+                    </button>
+                  );
+                }
+                return (
+                  <Link
+                    key={menu.id}
+                    href={menu.url}
+                    onClick={() => setPinnedSelection(menu.id)}
+                    className={`sidebar-rail-item${railActive ? ' active' : ''}`}
+                    title={menu.name}
+                    aria-label={menu.name}
+                  >
+                    <RailIcon size={20} />
+                  </Link>
+                );
+              })}
+            </>
           )}
-        </div>
-        {sidebar_open && (
-          <button
-            onClick={(e) => { e.stopPropagation(); toggleSidebar(); }}
-            className="btn btn-ghost btn-icon btn-sm hide-mobile sidebar-toggle"
-            title="Sembunyikan Sidebar"
-          >
-            <ChevronLeft size={18} />
-          </button>
-        )}
+        </nav>
+
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="sidebar-rail-toggle hide-mobile"
+          title={sidebar_open ? 'Sembunyikan panel' : 'Tampilkan panel'}
+          aria-label={sidebar_open ? 'Sembunyikan panel' : 'Tampilkan panel'}
+        >
+          <ChevronLeft size={18} className={sidebar_open ? '' : 'sidebar-rail-toggle-flip'} />
+        </button>
       </div>
 
-      {/* Navigation */}
-      <div className="sidebar-nav">
-        
-        {sidebar_open && (
-          <div className="sidebar-search">
+      {/* ── Panel submenu two-level (Opsi C) ── */}
+      {sidebar_open && (
+        <div className="sidebar-panel">
+          <div className="sidebar-panel-search">
             <div className="sidebar-search-wrap">
               <Search size={14} className="sidebar-search-icon" />
-              <input 
-                type="text" 
-                placeholder="Cari Menu..." 
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Cari"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="sidebar-search-input"
+                aria-label="Cari menu"
               />
+              <kbd className="sidebar-search-kbd">Ctrl K</kbd>
             </div>
           </div>
-        )}
 
+          <div className="sidebar-panel-body">
         {/* Dynamic Menus from Database / Fallback */}
         {(() => {
           const q = searchQuery.trim().toLowerCase();
-          const visibleChildren = (children?: Menu[]) => {
-            if (!children) return [];
-            if (!q) return children;
-            return children.filter((c) => c.name.toLowerCase().includes(q));
-          };
 
-          const renderLeaf = (item: Menu, sub = false) => {
+          const renderPanelItem = (item: Menu) => {
             const isFav = favorites.includes(item.url);
+            const itemActive = isMainActive(item.url, item.id);
             return (
               <div key={item.id} className="sidebar-link-row">
                 <Link
                   href={item.url}
-                  className={`sidebar-item${sub ? ' sidebar-submenu-item' : ''} ${isMainActive(item.url, item.id) ? 'active' : ''}`}
+                  className={`sidebar-panel-item${itemActive ? ' active' : ''}`}
                   title={item.name}
                 >
-                  {getIcon(item.icon)}
-                  {sidebar_open && <span>{item.name}</span>}
+                  {itemActive && <span className="sidebar-panel-dot" aria-hidden="true" />}
+                  <span>{item.name}</span>
                 </Link>
-                {sidebar_open && (
-                  <button
-                    type="button"
-                    onClick={() => toggleFavorite(item.url)}
-                    className={`sidebar-pin${isFav ? ' is-fav' : ''}`}
-                    title={isFav ? 'Lepas dari Favorit' : 'Sematkan ke Favorit'}
-                  >
-                    <Star size={13} fill={isFav ? 'currentColor' : 'none'} />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(item.url)}
+                  className={`sidebar-pin${isFav ? ' is-fav' : ''}`}
+                  title={isFav ? 'Lepas dari Favorit' : 'Sematkan ke Favorit'}
+                >
+                  <Star size={13} fill={isFav ? 'currentColor' : 'none'} />
+                </button>
               </div>
             );
           };
 
-          if (!loading && processedMenus.length === 0 && favoriteLinks.length === 0) {
-            return null;
+          if (loading) {
+            return <div className="sidebar-loading">Loading menus...</div>;
           }
 
+          // Mode pencarian: hasil datar lintas grup dengan caption grup.
+          if (q) {
+            const grouped = new Map<string, Menu[]>();
+            for (const menu of processedMenus) {
+              if (menu.url.startsWith('#')) {
+                const kids = (menu.children || []).filter((c) => c.name.toLowerCase().includes(q));
+                if (kids.length > 0) grouped.set(menu.name, kids);
+              } else if (menu.name.toLowerCase().includes(q)) {
+                const list = grouped.get(portalLabel) || [];
+                list.push(menu);
+                grouped.set(portalLabel, list);
+              }
+            }
+            if (grouped.size === 0) {
+              return <div className="sidebar-loading">Menu tidak ditemukan.</div>;
+            }
+            return (
+              <>
+                {[...grouped.entries()].map(([group, items]) => (
+                  <div key={group}>
+                    <div className="sidebar-panel-caption">{group}</div>
+                    {items.map((item) => renderPanelItem(item))}
+                  </div>
+                ))}
+              </>
+            );
+          }
+
+          // Tab Favorit dari rail.
+          if (effectiveSelection === 'fav') {
+            if (favoriteLinks.length === 0) {
+              return <div className="sidebar-loading">Belum ada menu favorit.</div>;
+            }
+            return (
+              <>
+                <div className="sidebar-panel-title">Favorit</div>
+                {favoriteLinks.map((fav) => renderPanelItem(fav))}
+              </>
+            );
+          }
+
+          if (!selectedMenu) {
+            return <div className="sidebar-loading">Belum ada menu tersedia.</div>;
+          }
+
+          // Grup terpilih: judul + daftar submenu teks (tanpa ikon, seperti Opsi C).
+          if (selectedMenu.url.startsWith('#')) {
+            const kids = selectedMenu.children || [];
+            if (kids.length === 0) {
+              return <div className="sidebar-loading">Belum ada submenu.</div>;
+            }
+            return (
+              <>
+                <div className="sidebar-panel-title">{selectedMenu.name}</div>
+                {kids.map((child) => renderPanelItem(child))}
+              </>
+            );
+          }
+
+          // Daun terpilih: tampilkan dirinya + anaknya bila ada.
+          const subKids = selectedMenu.children || [];
           return (
             <>
-              {sidebar_open && favoriteLinks.length > 0 && (
-                <div className="sidebar-section">
-                  <div className="sidebar-section-label">Favorit</div>
-                  {loading ? (
-                    <div className="sidebar-loading">Loading menus...</div>
-                  ) : (
-                    favoriteLinks.map((fav) => renderLeaf(fav))
-                  )}
-                </div>
-              )}
-              <div className="sidebar-section">
-                {sidebar_open && (
-                  <div className="sidebar-section-label">
-                    {isMahasiswaRole
-                      ? 'Portal Akademik Mahasiswa'
-                      : isDosenRole
-                      ? 'Portal Layanan Dosen'
-                      : isTendikRole
-                      ? 'Portal Layanan Tendik'
-                      : 'Menu Utama'}
-                  </div>
-                )}
-
-                {loading ? (
-                  <div className="sidebar-loading">Loading menus...</div>
-                ) : (
-                  processedMenus.map((menu) => {
-                    if (menu.url.startsWith('#')) {
-                      const kids = visibleChildren(menu.children);
-                      if (kids.length === 0) return null;
-                      const gkey = `g:${menu.id}`;
-                      const open = !sidebar_open || isGroupOpen(gkey);
-
-                      return (
-                        <div key={menu.id}>
-                          <button
-                            type="button"
-                            onClick={() => setGroupOpen(gkey, !isGroupOpen(gkey))}
-                            className={`sidebar-group-title sidebar-group-toggle${isGroupOpen(gkey) ? ' open' : ''}`}
-                            title={menu.name}
-                          >
-                            {sidebar_open && <span>{menu.name}</span>}
-                            {sidebar_open && <ChevronDown size={13} className="toggle-chev" />}
-                          </button>
-                          {open && kids.map((child) => renderLeaf(child))}
-                        </div>
-                      );
-                    }
-
-                    const validSubChildren = visibleChildren(menu.children);
-
-                    return (
-                      <div key={menu.id}>
-                        {renderLeaf(menu)}
-                        {validSubChildren.length > 0 && sidebar_open && (
-                          <div className="sidebar-submenu">
-                            {validSubChildren.map((child) => renderLeaf(child, true))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+              <div className="sidebar-panel-title">{selectedMenu.name}</div>
+              {renderPanelItem(selectedMenu)}
+              {subKids.map((child) => renderPanelItem(child))}
             </>
           );
         })()}
-
-      </div>
-
-      {/* Footer Info */}
-      {sidebar_open && user && (
-        <div className="sidebar-footer">
-          <div className="sidebar-user-card">
-            <div className="avatar avatar-sm">
-              {(user.name || user.nama_lengkap || user.username)
-                ? (user.name || user.nama_lengkap || user.username).slice(0, 2).toUpperCase()
-                : 'US'}
-            </div>
-            <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{user.name || user.nama_lengkap || user.username}</div>
-              <div className="sidebar-user-role">{user.roles?.[0]?.name || user.roles?.[0]?.role?.name || 'User'}</div>
-            </div>
           </div>
+
+          {/* Info pengguna */}
+          {user && (
+            <div className="sidebar-footer">
+              <div className="sidebar-user-card">
+                <div className="avatar avatar-sm">
+                  {(user.name || user.nama_lengkap || user.username)
+                    ? (user.name || user.nama_lengkap || user.username).slice(0, 2).toUpperCase()
+                    : 'US'}
+                </div>
+                <div className="sidebar-user-info">
+                  <div className="sidebar-user-name">{user.name || user.nama_lengkap || user.username}</div>
+                  <div className="sidebar-user-role">{user.roles?.[0]?.name || user.roles?.[0]?.role?.name || 'User'}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
