@@ -10,18 +10,16 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
-import { Checkbox } from '@/components/ui/Checkbox';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah, formatDate } from '@/lib/utils';
 
 interface GajiRow {
   id: number;
-  gaji_pegawai_id?: number;
   nip: string;
   nama: string;
   periode: string;
   gajiBersih: number;
-  isSent: boolean;
   statusBayar: string;
+  tanggalTransfer: string | null;
 }
 
 export default function GajiBundleDetailPage() {
@@ -31,7 +29,6 @@ export default function GajiBundleDetailPage() {
 
   const [bundle, setBundle] = useState<PengajuanOperasional | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sentMap, setSentMap] = useState<Record<number, boolean>>({});
   const [exporting, setExporting] = useState(false);
 
   const fetchDetail = useCallback(async () => {
@@ -39,13 +36,6 @@ export default function GajiBundleDetailPage() {
     try {
       const res = await pengajuanOperasionalService.detail(id);
       setBundle(res.data ?? null);
-      const map: Record<number, boolean> = {};
-      res.data?.items?.forEach((item: any) => {
-        if (item.gaji_pegawai_id) {
-          map[item.gaji_pegawai_id] = item.gaji_pegawai?.status_transfer === 'paid';
-        }
-      });
-      setSentMap(map);
     } catch {
       toast.error('Gagal memuat detail bundle gaji');
     } finally {
@@ -57,10 +47,6 @@ export default function GajiBundleDetailPage() {
     fetchDetail();
   }, [fetchDetail]);
 
-  const handleToggleSent = (gajiPegawaiId: number) => {
-    setSentMap((prev) => ({ ...prev, [gajiPegawaiId]: !prev[gajiPegawaiId] }));
-  };
-
   const handleExportXlsx = async () => {
     if (!bundle) return;
     setExporting(true);
@@ -71,8 +57,10 @@ export default function GajiBundleDetailPage() {
         'NAMA PEGAWAI': item.gaji_pegawai?.pegawai?.nama_lengkap || item.nama_barang || '-',
         'PERIODE': item.gaji_pegawai?.periode_bulan_tahun || bundle.sumber_id || '-',
         'GAJI BERSIH (Rp)': Number(item.harga_satuan) || 0,
-        'STATUS KIRIM': sentMap[item.gaji_pegawai_id] ? 'Sudah Dikirim' : 'Belum Dikirim',
         'STATUS BAYAR': item.gaji_pegawai?.status_transfer || '-',
+        'TANGGAL TRANSFER': item.gaji_pegawai?.tanggal_transfer
+          ? formatDate(item.gaji_pegawai.tanggal_transfer)
+          : '-',
       }));
       const XLSX = await import('xlsx');
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -107,16 +95,15 @@ export default function GajiBundleDetailPage() {
   }
 
   const items = bundle.items || [];
-  const sentCount = items.filter((item: any) => sentMap[item.gaji_pegawai_id]).length;
+  const paidCount = items.filter((item: any) => item.gaji_pegawai?.status_transfer === 'paid').length;
   const rows: GajiRow[] = items.map((item: any) => ({
     id: item.id,
-    gaji_pegawai_id: item.gaji_pegawai_id,
     nip: item.gaji_pegawai?.pegawai?.nip || '-',
     nama: item.gaji_pegawai?.pegawai?.nama_lengkap || item.nama_barang || '-',
     periode: item.gaji_pegawai?.periode_bulan_tahun || bundle.sumber_id || '-',
     gajiBersih: Number(item.harga_satuan) || 0,
-    isSent: sentMap[item.gaji_pegawai_id] || false,
     statusBayar: item.gaji_pegawai?.status_transfer || '-',
+    tanggalTransfer: item.gaji_pegawai?.tanggal_transfer || null,
   }));
 
   const columns: ColumnDef<GajiRow>[] = [
@@ -143,31 +130,20 @@ export default function GajiBundleDetailPage() {
       ),
     },
     {
-      key: 'isSent',
-      label: 'SUDAH DIKIRIM?',
-      render: (row) => (
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={row.isSent}
-            onChange={() => row.gaji_pegawai_id && handleToggleSent(row.gaji_pegawai_id)}
-            label={row.isSent ? 'Sudah' : 'Belum'}
-          />
-          <Badge variant={row.isSent ? 'success' : 'warning'} className="text-2xs">
-            {row.isSent ? 'Terkirim' : 'Pending'}
-          </Badge>
-        </div>
-      ),
-    },
-    {
       key: 'statusBayar',
-      label: 'STATUS BAYAR',
+      label: 'STATUS',
       render: (row) => (
-        <Badge
-          variant={row.statusBayar === 'paid' ? 'success' : 'secondary'}
-          className="text-2xs"
-        >
-          {row.statusBayar || '-'}
-        </Badge>
+        <div className="space-y-0.5">
+          <Badge
+            variant={row.statusBayar === 'paid' ? 'success' : row.statusBayar === 'submitted_to_sikeu' ? 'info' : 'secondary'}
+            className="text-2xs"
+          >
+            {row.statusBayar === 'paid' ? 'Sudah Dibayar' : row.statusBayar === 'submitted_to_sikeu' ? 'Diajukan' : (row.statusBayar || '-')}
+          </Badge>
+          {row.tanggalTransfer && (
+            <div className="text-2xs text-slate-500">{formatDate(row.tanggalTransfer)}</div>
+          )}
+        </div>
       ),
     },
   ];
@@ -201,9 +177,9 @@ export default function GajiBundleDetailPage() {
           <div className="text-sm font-bold text-slate-900">{items.length} Orang</div>
         </div>
         <div className="p-4 bg-white border border-slate-200 rounded-2xl">
-          <div className="text-xs text-slate-500 mb-1">Sudah Dikirim</div>
+          <div className="text-xs text-slate-500 mb-1">Sudah Dibayar</div>
           <div className="text-sm font-bold text-emerald-600">
-            {sentCount} / {items.length} Pegawai
+            {paidCount} / {items.length} Pegawai
           </div>
         </div>
         <div className="p-4 bg-white border border-slate-200 rounded-2xl">
