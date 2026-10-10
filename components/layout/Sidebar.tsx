@@ -62,9 +62,10 @@ import {
 import { useUiStore } from '@/store/uiStore';
 import { SidebarResizer } from '@/components/layout/SidebarResizer';
 import { useAuth } from '@/hooks/useAuth';
-import { SYSTEM_MODULES } from '@/lib/constants';
+import { SYSTEM_MODULES, APP_NAME, ROUTES } from '@/lib/constants';
 import { resolveDomainContext } from '@/lib/domain';
 import { menuService } from '@/services/menu.service';
+import { moduleService, AppModule } from '@/services/module.service';
 import { Menu } from '@/types/menu';
 
 const getIconComponent = (iconName?: string | null) => {
@@ -699,6 +700,15 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Nama aplikasi & modul dari Master Modul (dikelola superadmin).
+  const [appModules, setAppModules] = useState<AppModule[]>([]);
+  useEffect(() => {
+    moduleService
+      .getAllModules()
+      .then((res) => setAppModules(Array.isArray(res) ? res : []))
+      .catch(() => {});
+  }, []);
+
   // Accordion grup + Favorit (persist localStorage per browser)
   const FAVORITES_KEY = 'sidebar_favorites_v1';
   const readStoredArray = (key: string): string[] => {
@@ -987,6 +997,43 @@ export function Sidebar() {
     ? 'Portal Layanan Tendik'
     : 'Menu Utama';
 
+  // Modul portal (SSO) = entitas Master Modul yang tidak terdaftar sebagai
+  // modul fungsional di SYSTEM_MODULES. Tanpa hardcode string kode modul —
+  // bila superadmin mengubah nama/kode modul portal, brand ikut berubah.
+  const portalModule = useMemo(
+    () =>
+      appModules.find(
+        (m) => !SYSTEM_MODULES.some((s) => s.value === m.code?.toLowerCase())
+      ) ??
+      appModules[0] ??
+      null,
+    [appModules]
+  );
+
+  // Slug modul aktif (domain → segmen path yang cocok dengan Master Modul → memori modul terakhir).
+  const activeModuleSlug = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const ctx = resolveDomainContext(window.location.hostname);
+        if (ctx.isModule && ctx.moduleSlug) return ctx.moduleSlug;
+      } catch {}
+    }
+    const seg = pathname.split('/').filter(Boolean)[0]?.toLowerCase() || '';
+    if (seg && appModules.some((m) => m.code?.toLowerCase() === seg)) return seg;
+    if (seg === ROUTES.PROFILE.replace('/', '') && typeof window !== 'undefined') {
+      const saved = localStorage.getItem('last_active_module');
+      if (saved && appModules.some((m) => m.code?.toLowerCase() === saved.toLowerCase())) return saved;
+    }
+    return portalModule?.code ?? '';
+  }, [pathname, appModules, portalModule]);
+
+  // Baris 1: nama aplikasi mengikuti Master Modul portal (setting superadmin).
+  const appName = portalModule?.name || APP_NAME;
+
+  // Baris 2: nama modul aktif + "Utama", otomatis berubah per modul.
+  const activeModuleName = appModules.find((m) => m.code === activeModuleSlug)?.name;
+  const moduleSubtitle = activeModuleName ? `${activeModuleName} Utama` : portalLabel;
+
   return (
     <aside className={`sidebar sidebar-twolevel ${sidebar_open ? '' : 'sidebar-collapsed'}`}>
       {/* ── Rail ikon two-level (ikon tiap grup dijamin berbeda) ── */}
@@ -995,8 +1042,8 @@ export function Sidebar() {
           type="button"
           onClick={toggleSidebar}
           className="sidebar-rail-logo"
-          title={sidebar_open ? 'SSO Campus' : 'Tampilkan Sidebar'}
-          aria-label="SSO Campus"
+          title={appName}
+          aria-label={appName}
         >
           <div className="sidebar-logo">
             <GraduationCap size={22} color="white" />
@@ -1068,6 +1115,10 @@ export function Sidebar() {
       {/* ── Panel submenu two-level (Opsi C) ── */}
       {sidebar_open && (
         <div className="sidebar-panel">
+          <div className="sidebar-panel-brand">
+            <div className="sidebar-brand-text">{appName}</div>
+            <div className="sidebar-brand-sub">{moduleSubtitle}</div>
+          </div>
           <div className="sidebar-panel-search">
             <div className="sidebar-search-wrap">
               <Search size={14} className="sidebar-search-icon" />

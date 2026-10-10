@@ -1458,6 +1458,16 @@ body.sidebar-resizing {
   overflow: hidden;
 }
 
+.sidebar-panel-brand {
+  padding: 1rem 1rem 0.25rem;
+}
+
+.sidebar-panel-brand .sidebar-brand-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar-panel-search {
   padding: 1rem 1rem 0.75rem;
 }
