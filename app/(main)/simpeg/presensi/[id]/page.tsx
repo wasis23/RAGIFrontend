@@ -16,7 +16,7 @@ import { simpegService } from '@/services/simpeg.service';
 import type { PresensiPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatJamMasukWIB, formatJamPulangWIB } from '@/lib/utils';
 
 export interface PresensiBundle {
   id: number;
@@ -68,10 +68,17 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
       });
 
       if (res.status === 'success') {
-        setBundle(res.bundle);
-        setPresensiList(res.data || []);
+        setBundle(res.bundle || null);
+        const rawList = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+        setPresensiList(rawList);
         if (res.meta) {
           setMeta(res.meta);
+        } else if (res.data?.meta) {
+          setMeta(res.data.meta);
         }
       }
     } catch (err: any) {
@@ -100,14 +107,19 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
     }
   };
 
-  const columns: ColumnDef<PresensiPegawai>[] = [
+  const columns: ColumnDef<any>[] = [
     {
-      key: 'pegawai_id',
-      label: 'Pegawai ID',
+      key: 'pegawai',
+      label: 'Pegawai',
       render: (row) => (
-        <span className="font-mono font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-lg text-xs border border-primary-200">
-          ID {row.pegawai_id}
-        </span>
+        <div className="space-y-0.5">
+          <div className="font-semibold text-slate-900 text-xs">
+            {row.pegawai?.nama_lengkap || row.employee?.nama_lengkap || `Pegawai #${row.pegawai_id}`}
+          </div>
+          <div className="text-2xs text-slate-500 font-mono">
+            NIP: {row.pegawai?.nip || row.employee?.nip || '-'}
+          </div>
+        </div>
       ),
     },
     {
@@ -140,16 +152,15 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
       key: 'jam_masuk',
       label: 'Scan Masuk',
       render: (row) => {
-        if (!row.jam_masuk) {
+        const jam = row.jam_masuk || (row.clock_in ? formatJamMasukWIB(row) : null);
+        if (!jam || jam === '--:--') {
           return <span className="text-xs text-slate-400 font-medium">-</span>;
         }
 
-        const jam = row.jam_masuk;
         const isLate = jam > '08:15:00';
-
         if (isLate) {
           const [h, m] = jam.split(':').map(Number);
-          const scanInMinutes = h * 60 + m;
+          const scanInMinutes = (h || 0) * 60 + (m || 0);
           const targetMinutes = 8 * 60; // 08:00
           const diffMins = Math.max(0, scanInMinutes - targetMinutes);
 
@@ -159,7 +170,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
                 <Clock size={13} className="text-rose-500 shrink-0" />
                 <span>{jam}</span>
               </div>
-              <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded w-fit">
+              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded w-fit">
                 Terlambat {diffMins} mnt
               </span>
             </div>
@@ -178,16 +189,15 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
       key: 'jam_keluar',
       label: 'Scan Pulang',
       render: (row) => {
-        if (!row.jam_keluar) {
+        const jam = row.jam_keluar || (row.clock_out ? formatJamPulangWIB(row) : null);
+        if (!jam || jam === '--:--') {
           return <span className="text-xs text-slate-400 font-medium">-</span>;
         }
 
-        const jam = row.jam_keluar;
         const isEarly = jam < '16:00:00';
-
         if (isEarly) {
           const [h, m] = jam.split(':').map(Number);
-          const scanOutMinutes = h * 60 + m;
+          const scanOutMinutes = (h || 0) * 60 + (m || 0);
           const targetMinutes = 16 * 60; // 16:00
           const diffMins = Math.max(0, targetMinutes - scanOutMinutes);
 
@@ -197,7 +207,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
                 <Clock size={13} className="text-rose-500 shrink-0" />
                 <span>{jam}</span>
               </div>
-              <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded w-fit">
+              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded w-fit">
                 Pulang Cepat {diffMins} mnt
               </span>
             </div>
@@ -216,24 +226,27 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
       key: 'status_kehadiran',
       label: 'Status Kehadiran',
       render: (row) => {
+        const st = (row.status_kehadiran || row.status || '').toLowerCase();
         let variant: 'success' | 'danger' | 'warning' | 'info' | 'secondary' = 'secondary';
-        if (row.status_kehadiran === 'hadir') variant = 'success';
-        else if (row.status_kehadiran === 'alfa') variant = 'danger';
-        else if (row.status_kehadiran === 'izin' || row.status_kehadiran === 'sakit') variant = 'warning';
-        else if (row.status_kehadiran === 'dinas') variant = 'info';
+        if (st === 'hadir') variant = 'success';
+        else if (st === 'alfa' || st === 'ditolak') variant = 'danger';
+        else if (st === 'izin' || st === 'sakit') variant = 'warning';
+        else if (st === 'dinas') variant = 'info';
 
         return (
           <Badge variant={variant} className="capitalize">
-            {row.status_kehadiran}
+            {st || 'Hadir'}
           </Badge>
         );
       },
     },
     {
-      key: 'informasi_izin',
-      label: 'Informasi Izin',
-      render: () => (
-        <span className="text-xs text-slate-400 font-normal">-</span>
+      key: 'catatan',
+      label: 'Catatan / Alasan',
+      render: (row) => (
+        <span className="text-xs text-slate-600 font-normal">
+          {row.catatan || row.notes || '-'}
+        </span>
       ),
     },
   ];
