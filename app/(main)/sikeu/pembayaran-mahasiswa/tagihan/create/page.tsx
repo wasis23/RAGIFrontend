@@ -412,7 +412,7 @@ export default function CreateTagihanMahasiswaPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl pb-16 animate-fade-in">
+    <div className="space-y-6 pb-16 animate-fade-in">
       <PageHeader
         title="Input Tagihan Mahasiswa Baru"
         description="Terbitkan tagihan kuliah dinamis secara massal (per angkatan & program studi) atau per mahasiswa/SPMB."

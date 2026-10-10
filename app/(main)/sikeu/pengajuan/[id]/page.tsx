@@ -257,7 +257,7 @@ export default function DetailPengajuanPage() {
   const tahapPenolak = history.find((h) => h.status_action === 'rejected');
 
   return (
-    <div className="space-y-6 max-w-5xl pb-16 animate-fade-in">
+    <div className="space-y-6 pb-16 animate-fade-in">
       <PageHeader
         title={`${data.nomor_pengajuan} — ${data.judul_pengajuan}`}
         description={`${data.kategori_pengajuan === 'pengadaan_barang' ? 'Pengadaan Barang' : 'Non-Barang'} • ${formatRupiah(Number(data.nominal_diajukan))}`}

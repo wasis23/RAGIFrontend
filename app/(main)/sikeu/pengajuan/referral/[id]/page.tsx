@@ -72,7 +72,7 @@ export default function DetailReferralPencairanPage() {
 
   if (loading || !data) {
     return (
-      <div className="space-y-6 max-w-5xl mx-auto pb-16 animate-fade-in">
+      <div className="space-y-6 pb-16 animate-fade-in">
         <PageHeader
           title="Detail Invoice Referral SPMB"
           action={
@@ -96,7 +96,7 @@ export default function DetailReferralPencairanPage() {
   const status = referralStatusLabel(data.status);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-16 animate-fade-in">
+    <div className="space-y-6 pb-16 animate-fade-in">
       <PageHeader
         title="Detail Invoice Referral SPMB"
         description={`Bukti pencairan reward referral — ${data.nomor_bukti}`}

@@ -105,7 +105,7 @@ export default function CreateBeasiswaPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl pb-12">
+    <div className="space-y-6 pb-12">
       <PageHeader
         title="Tambah Master Program Beasiswa"
         description="Kelola skema beasiswa, sumber dana penyandang, besaran diskon potongan, dan komponen biaya yang dicover."

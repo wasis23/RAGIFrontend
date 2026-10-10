@@ -118,7 +118,7 @@ export default function CreatePengajuanPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl pb-16 animate-fade-in">
+    <div className="space-y-6 pb-16 animate-fade-in">
       <PageHeader
         title="Buat Pengajuan Operasional"
         description="Isi alasan/alokasi, fakultas & ruang, dan rincian barang (nama, qty, harga satuan)."

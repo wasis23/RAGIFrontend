@@ -126,7 +126,7 @@ export default function CreateKasKecilUnitPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl pb-12">
+    <div className="space-y-6 pb-12">
       <PageHeader
         title="Tambah Unit Kas Kecil"
         description="Daftarkan kas kecil untuk fakultas/unit dan tunjuk Petugas Kas Kecil sebagai penanggung jawab."

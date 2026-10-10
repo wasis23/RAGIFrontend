@@ -108,7 +108,7 @@ export default function CreateUnitKasPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl pb-12">
+    <div className="space-y-6 pb-12">
       <PageHeader
         title="Pendaftaran Unit Kas Baru"
         description="Kelola kas operasional fakultas, program studi, unit bisnis, dan rekening penampung kampus."

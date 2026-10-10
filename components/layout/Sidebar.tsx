@@ -18,6 +18,7 @@ import {
   History,
   ExternalLink,
   ChevronLeft,
+  X,
   GraduationCap,
   Building2,
   Briefcase,
@@ -60,7 +61,6 @@ import {
   Lightbulb
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
-import { SidebarResizer } from '@/components/layout/SidebarResizer';
 import { useAuth } from '@/hooks/useAuth';
 import { SYSTEM_MODULES, APP_NAME, ROUTES } from '@/lib/constants';
 import { resolveDomainContext } from '@/lib/domain';
@@ -1090,10 +1090,12 @@ export function Sidebar() {
                     </button>
                   );
                 }
+                // Daun (satu menu): ikon rail HANYA membuka panel, navigasi
+                // tetap lewat klik item di panel (konsisten untuk semua menu).
                 return (
-                  <Link
+                  <button
                     key={menu.id}
-                    href={menu.url}
+                    type="button"
                     onClick={() => {
                       setPinnedSelection(menu.id);
                       setSidebarOpen(true);
@@ -1103,7 +1105,7 @@ export function Sidebar() {
                     aria-label={menu.name}
                   >
                     <RailIcon size={20} />
-                  </Link>
+                  </button>
                 );
               })}
             </>
@@ -1137,6 +1139,15 @@ export function Sidebar() {
               aria-label="Sembunyikan panel"
             >
               <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="btn btn-ghost btn-icon btn-sm hide-desktop"
+              title="Tutup menu"
+              aria-label="Tutup menu"
+            >
+              <X size={18} />
             </button>
           </div>
           <div className="sidebar-panel-search">
@@ -1278,10 +1289,6 @@ export function Sidebar() {
           )}
         </div>
       )}
-
-      {/* Handle geser lebar sidebar; tidak muncul saat sidebar dalam keadaan
-          collapsed karena saat itu lebar dikunci oleh mode ikon. */}
-      {sidebar_open && <SidebarResizer />}
     </aside>
   );
 }

@@ -193,7 +193,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           <ImpersonateBanner />
           <Navbar />
         </div>
-        <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-6">
+        <main className="flex-1 w-full min-w-0 p-4 md:p-6">
           {children}
         </main>
       </div>

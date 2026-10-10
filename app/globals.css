@@ -571,7 +571,7 @@ p.text-white, span.text-white, div.text-white {
      di-override inline oleh MainLayout; default ini untuk render pertama. */
   --sidebar-width: 260px;
   display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-columns: auto 1fr;
   min-height: 100vh;
   transition: grid-template-columns var(--transition-normal);
 }
@@ -592,7 +592,7 @@ p.text-white, span.text-white, div.text-white {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 320px !important;
+    width: min(24rem, calc(100vw - 2rem)) !important;
     z-index: 1000 !important;
     transform: translateX(0);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -615,6 +615,13 @@ p.text-white, span.text-white, div.text-white {
     z-index: 999;
     opacity: 1;
     animation: fadeIn 0.3s ease;
+  }
+}
+
+/* Ponsel: menu tampil full selayar + tombol tutup (X) di panel. */
+@media (max-width: 640px) {
+  .sidebar {
+    width: 100% !important;
   }
 }
 
@@ -1452,7 +1459,9 @@ body.sidebar-resizing {
 }
 
 .sidebar-panel {
-  flex: 1;
+  /* Lebar panel dikunci (fixed): rail 4.5rem + panel 15rem. */
+  width: 15rem;
+  flex-shrink: 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
