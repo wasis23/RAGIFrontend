@@ -1058,7 +1058,10 @@ export function Sidebar() {
               {favoriteLinks.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setPinnedSelection('fav')}
+                  onClick={() => {
+                    setPinnedSelection('fav');
+                    setSidebarOpen(true);
+                  }}
                   className={`sidebar-rail-item${effectiveSelection === 'fav' ? ' active' : ''}`}
                   title="Favorit"
                   aria-label="Menu favorit"
@@ -1075,7 +1078,10 @@ export function Sidebar() {
                     <button
                       key={menu.id}
                       type="button"
-                      onClick={() => setPinnedSelection(key)}
+                      onClick={() => {
+                        setPinnedSelection(key);
+                        setSidebarOpen(true);
+                      }}
                       className={`sidebar-rail-item${railActive ? ' active' : ''}`}
                       title={menu.name}
                       aria-label={menu.name}
@@ -1088,7 +1094,10 @@ export function Sidebar() {
                   <Link
                     key={menu.id}
                     href={menu.url}
-                    onClick={() => setPinnedSelection(menu.id)}
+                    onClick={() => {
+                      setPinnedSelection(menu.id);
+                      setSidebarOpen(true);
+                    }}
                     className={`sidebar-rail-item${railActive ? ' active' : ''}`}
                     title={menu.name}
                     aria-label={menu.name}
@@ -1115,9 +1124,20 @@ export function Sidebar() {
       {/* ── Panel submenu two-level (Opsi C) ── */}
       {sidebar_open && (
         <div className="sidebar-panel">
-          <div className="sidebar-panel-brand">
-            <div className="sidebar-brand-text">{appName}</div>
-            <div className="sidebar-brand-sub">{moduleSubtitle}</div>
+          <div className="sidebar-panel-brand-row">
+            <div className="sidebar-panel-brand">
+              <div className="sidebar-brand-text">{appName}</div>
+              <div className="sidebar-brand-sub">{moduleSubtitle}</div>
+            </div>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="btn btn-ghost btn-icon btn-sm hide-mobile"
+              title="Sembunyikan panel"
+              aria-label="Sembunyikan panel"
+            >
+              <ChevronLeft size={18} />
+            </button>
           </div>
           <div className="sidebar-panel-search">
             <div className="sidebar-search-wrap">

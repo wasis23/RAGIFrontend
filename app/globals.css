@@ -1458,8 +1458,17 @@ body.sidebar-resizing {
   overflow: hidden;
 }
 
+.sidebar-panel-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem 0.25rem 1rem;
+}
+
 .sidebar-panel-brand {
-  padding: 1rem 1rem 0.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .sidebar-panel-brand .sidebar-brand-text {
