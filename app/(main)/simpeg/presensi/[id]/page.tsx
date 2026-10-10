@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, use } from 'react';
+import { useEffect, useState, useCallback, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Clock, CheckCircle2, FileText, Users } from 'lucide-react';
+import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Users, FileText, UserCheck, Copy, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
@@ -12,11 +12,11 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { simpegService } from '@/services/simpeg.service';
-import type { PresensiPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDate, formatJamMasukWIB, formatJamPulangWIB } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 export interface PresensiBundle {
   id: number;
@@ -30,6 +30,46 @@ export interface PresensiBundle {
   created_at: string;
 }
 
+export interface DayInfo {
+  index: number;
+  date: string;
+  day: number;
+  month: number;
+  day_name: string;
+  is_sunday: boolean;
+  is_holiday: boolean;
+  holiday_name?: string | null;
+}
+
+export interface AttendanceDayStatus {
+  date: string;
+  is_holiday: boolean;
+  status_kehadiran: string;
+  in_status: 'on_time' | 'late' | 'permission' | 'absent' | 'holiday' | 'upcoming';
+  in_time?: string | null;
+  in_minutes_late?: number;
+  out_status: 'on_time' | 'early' | 'permission' | 'absent' | 'holiday' | 'upcoming';
+  out_time?: string | null;
+  out_minutes_early?: number;
+  catatan?: string | null;
+}
+
+export interface EmployeeMatrixRow {
+  pegawai_id: number;
+  nip: string;
+  nama_lengkap: string;
+  matrix: Record<string, AttendanceDayStatus>;
+  summary: {
+    total_hadir: number;
+    total_terlambat: number;
+    total_pulang_cepat: number;
+    total_izin: number;
+    total_alfa: number;
+    total_hari_kerja: number;
+    persentase: number;
+  };
+}
+
 export default function PresensiBundleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const bundleId = resolvedParams.id;
@@ -39,58 +79,58 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
 
   const [loading, setLoading] = useState(true);
   const [bundle, setBundle] = useState<PresensiBundle | null>(null);
-  const [presensiList, setPresensiList] = useState<PresensiPegawai[]>([]);
+  const [days, setDays] = useState<DayInfo[]>([]);
+  const [matrixData, setMatrixData] = useState<EmployeeMatrixRow[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | undefined>();
 
   // Filter & Pagination state
-  const [searchPegawaiId, setSearchPegawaiId] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterOrderBy, setFilterOrderBy] = useState('tanggal');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [filterOrderBy, setFilterOrderBy] = useState('nama_lengkap');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
+  const [filterLimit, setFilterLimit] = useState(15);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(15);
   const [showFilter, setShowFilter] = useState(false);
 
   // Modal Payroll Process State
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [processingPayroll, setProcessingPayroll] = useState(false);
 
-  const fetchBundleDetail = useCallback(async () => {
+  const fetchBundleMatrix = useCallback(async () => {
     setLoading(true);
     try {
       const res: any = await simpegService.getPresensiBundleDetail(bundleId, {
-        search: searchPegawaiId.trim() || undefined,
-        status_kehadiran: filterStatus || undefined,
+        view: 'matrix',
+        search: searchKeyword.trim() || undefined,
         sort_by: filterOrderBy,
         sort_dir: filterOrderDir,
         page,
-        limit,
+        per_page: filterLimit,
+        limit: filterLimit,
       });
 
       if (res.status === 'success') {
-        setBundle(res.bundle || null);
-        const rawList = Array.isArray(res.data)
-          ? res.data
-          : Array.isArray(res.data?.data)
-          ? res.data.data
-          : [];
-        setPresensiList(rawList);
-        if (res.meta) {
-          setMeta(res.meta);
-        } else if (res.data?.meta) {
-          setMeta(res.data.meta);
+        const payload = res.data;
+        if (payload && payload.periode) {
+          setBundle(payload.periode || null);
+          setDays(Array.isArray(payload.days) ? payload.days : []);
+          setMatrixData(Array.isArray(payload.matrix) ? payload.matrix : []);
+        } else {
+          setBundle(res.bundle || null);
+          setDays(Array.isArray(res.days) ? res.days : []);
+          setMatrixData(Array.isArray(res.data) ? res.data : []);
         }
+        setMeta(res.meta);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal memuat rincian Bundle Presensi');
+      toast.error(err.response?.data?.message || 'Gagal memuat matriks Bundle Presensi');
     } finally {
       setLoading(false);
     }
-  }, [bundleId, searchPegawaiId, filterStatus, filterOrderBy, filterOrderDir, page, limit]);
+  }, [bundleId, searchKeyword, filterOrderBy, filterOrderDir, page, filterLimit]);
 
   useEffect(() => {
-    fetchBundleDetail();
-  }, [fetchBundleDetail]);
+    fetchBundleMatrix();
+  }, [fetchBundleMatrix]);
 
   const handleProcessPayroll = async () => {
     setProcessingPayroll(true);
@@ -107,155 +147,205 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
     }
   };
 
-  const columns: ColumnDef<any>[] = [
-    {
-      key: 'pegawai',
-      label: 'Pegawai',
-      render: (row) => (
-        <div className="space-y-0.5">
-          <div className="font-semibold text-slate-900 text-xs">
-            {row.pegawai?.nama_lengkap || row.employee?.nama_lengkap || `Pegawai #${row.pegawai_id}`}
-          </div>
-          <div className="text-2xs text-slate-500 font-mono">
-            NIP: {row.pegawai?.nip || row.employee?.nip || '-'}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'tanggal',
-      label: 'Tanggal Presensi',
-      render: (row) => {
-        const d = new Date(row.tanggal);
-        const isSunday = d.getDay() === 0;
+  const getIndicatorClass = (status?: string) => {
+    switch (status) {
+      case 'on_time':
+        // Hijau: tepat waktu
+        return 'bg-emerald-500 border border-emerald-600 shadow-xs';
+      case 'permission':
+        // Kuning: izin / sakit / dinas
+        return 'bg-amber-400 border border-amber-500 shadow-xs';
+      case 'late':
+      case 'early':
+        // Merah: datang telat atau pulang cepat
+        return 'bg-rose-500 border border-rose-600 shadow-xs';
+      case 'absent':
+        // Hitam: tidak absen pada hari kerja
+        return 'bg-slate-900 border border-black shadow-xs';
+      case 'holiday':
+        // Abu-abu netral: hari libur / Minggu tanpa absensi
+        return 'bg-slate-200 border border-slate-300';
+      case 'upcoming':
+      default:
+        // Tanggal masa depan yang belum tiba
+        return 'bg-slate-100 border border-dashed border-slate-300 opacity-60';
+    }
+  };
 
-        return (
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-semibold ${isSunday ? 'text-rose-700 font-bold' : 'text-slate-700'}`}>
-              {d.toLocaleDateString('id-ID', {
-                weekday: 'short',
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })}
+  const columns = useMemo<ColumnDef<EmployeeMatrixRow>[]>(() => {
+    const cols: ColumnDef<EmployeeMatrixRow>[] = [
+      {
+        key: 'no',
+        label: 'No',
+        align: 'center',
+        render: (_, index) => (
+          <span className="text-2xs font-mono text-slate-500">
+            {(meta?.from || 1) + index}
+          </span>
+        ),
+      },
+      {
+        key: 'nip',
+        label: 'NIP',
+        render: (row) => (
+          <span className="text-xs font-mono font-medium text-slate-700 whitespace-nowrap">
+            {row.nip || '-'}
+          </span>
+        ),
+      },
+      {
+        key: 'nama_lengkap',
+        label: 'Nama Pegawai',
+        render: (row) => (
+          <div className="space-y-0.5 min-w-[170px] max-w-[220px]">
+            <div className="font-semibold text-slate-900 text-xs truncate" title={row.nama_lengkap}>
+              {row.nama_lengkap}
+            </div>
+            <div className="text-2xs text-slate-400 font-mono">
+              ID #{row.pegawai_id}
+            </div>
+          </div>
+        ),
+      },
+    ];
+
+    // Kolom-kolom Tanggal Dinamis (26 s/d 25)
+    days.forEach((dayObj) => {
+      cols.push({
+        key: `day_${dayObj.date}`,
+        label: dayObj.day,
+        align: 'center',
+        headerRender: () => (
+          <div
+            className={`flex flex-col items-center justify-center py-1 px-1 min-w-[34px] rounded transition-colors ${
+              dayObj.is_holiday ? 'bg-rose-100/80 text-rose-800 border border-rose-200' : 'text-slate-700'
+            }`}
+            title={
+              dayObj.holiday_name
+                ? `${dayObj.date}: ${dayObj.holiday_name}`
+                : dayObj.is_sunday
+                ? `${dayObj.date}: Hari Minggu (Libur)`
+                : dayObj.date
+            }
+          >
+            <span className="text-xs font-extrabold leading-none">{dayObj.day}</span>
+            <span className={`text-[9px] font-semibold tracking-tighter ${dayObj.is_holiday ? 'text-rose-700' : 'text-slate-500'}`}>
+              {dayObj.day_name}
             </span>
-            {isSunday && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
-                Minggu
-              </span>
-            )}
           </div>
-        );
-      },
-    },
-    {
-      key: 'jam_masuk',
-      label: 'Scan Masuk',
-      render: (row) => {
-        const jam = row.jam_masuk || (row.clock_in ? formatJamMasukWIB(row) : null);
-        if (!jam || jam === '--:--') {
-          return <span className="text-xs text-slate-400 font-medium">-</span>;
-        }
+        ),
+        render: (row) => {
+          const m = row.matrix?.[dayObj.date];
+          const inStatus = m?.in_status || 'upcoming';
+          const outStatus = m?.out_status || 'upcoming';
 
-        const isLate = jam > '08:15:00';
-        if (isLate) {
-          const [h, m] = jam.split(':').map(Number);
-          const scanInMinutes = (h || 0) * 60 + (m || 0);
-          const targetMinutes = 8 * 60; // 08:00
-          const diffMins = Math.max(0, scanInMinutes - targetMinutes);
+          // Bangun tooltip detail hover
+          const dateTitle = `${dayObj.day_name}, ${dayObj.date}`;
+          let inDesc = 'Masuk: -';
+          if (inStatus === 'on_time') inDesc = `Masuk: ${m?.in_time || '-'} (Tepat Waktu)`;
+          else if (inStatus === 'late') inDesc = `Masuk: ${m?.in_time || '-'} (Terlambat ${m?.in_minutes_late || 0} mnt)`;
+          else if (inStatus === 'permission') inDesc = `Masuk: Dispensasi (${m?.status_kehadiran})`;
+          else if (inStatus === 'absent') inDesc = 'Masuk: Tidak Absen (Alpa)';
+          else if (inStatus === 'holiday') inDesc = 'Masuk: Libur';
+
+          let outDesc = 'Pulang: -';
+          if (outStatus === 'on_time') outDesc = `Pulang: ${m?.out_time || '-'} (Tepat Waktu)`;
+          else if (outStatus === 'early') outDesc = `Pulang: ${m?.out_time || '-'} (Pulang Cepat ${m?.out_minutes_early || 0} mnt)`;
+          else if (outStatus === 'permission') outDesc = `Pulang: Dispensasi (${m?.status_kehadiran})`;
+          else if (outStatus === 'absent') outDesc = 'Pulang: Tidak Absen (Alpa)';
+          else if (outStatus === 'holiday') outDesc = 'Pulang: Libur';
+
+          const fullTooltip = `${dateTitle}\n• ${inDesc}\n• ${outDesc}${m?.catatan ? `\nCatatan: ${m.catatan}` : ''}`;
 
           return (
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1 text-xs font-bold text-rose-700">
-                <Clock size={13} className="text-rose-500 shrink-0" />
-                <span>{jam}</span>
-              </div>
-              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded w-fit">
-                Terlambat {diffMins} mnt
-              </span>
+            <div
+              className={`flex flex-col items-center justify-center gap-1 py-1 px-1 min-w-[34px] rounded hover:bg-slate-100/90 transition-colors cursor-pointer ${
+                dayObj.is_holiday ? 'bg-rose-50/50' : ''
+              }`}
+              title={fullTooltip}
+            >
+              {/* Kotak 1: Masuk (Atas) */}
+              <div
+                className={`w-3.5 h-3.5 rounded-[3px] transition-transform hover:scale-125 ${getIndicatorClass(inStatus)}`}
+                aria-label={`Masuk: ${inStatus}`}
+              />
+              {/* Kotak 2: Pulang (Bawah) */}
+              <div
+                className={`w-3.5 h-3.5 rounded-[3px] transition-transform hover:scale-125 ${getIndicatorClass(outStatus)}`}
+                aria-label={`Pulang: ${outStatus}`}
+              />
             </div>
           );
-        }
+        },
+      });
+    });
+
+    // Kolom Persentase Kehadiran (%)
+    cols.push({
+      key: 'persentase',
+      label: 'Presentase %',
+      align: 'center',
+      render: (row) => {
+        const pct = row.summary?.persentase ?? 0;
+        let badgeVariant: 'success' | 'warning' | 'danger' = 'success';
+        if (pct < 75) badgeVariant = 'danger';
+        else if (pct < 90) badgeVariant = 'warning';
 
         return (
-          <div className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
-            <Clock size={13} className="text-emerald-500 shrink-0" />
-            <span>{jam}</span>
+          <div className="flex flex-col items-center justify-center gap-0.5 min-w-[80px]">
+            <Badge variant={badgeVariant} className="font-mono font-bold text-xs px-2 py-0.5">
+              {pct}%
+            </Badge>
+            <span className="text-[10px] text-slate-500 font-medium">
+              {row.summary?.total_hadir ?? 0}/{row.summary?.total_hari_kerja ?? 0} Hari
+            </span>
           </div>
         );
       },
-    },
-    {
-      key: 'jam_keluar',
-      label: 'Scan Pulang',
-      render: (row) => {
-        const jam = row.jam_keluar || (row.clock_out ? formatJamPulangWIB(row) : null);
-        if (!jam || jam === '--:--') {
-          return <span className="text-xs text-slate-400 font-medium">-</span>;
-        }
+    });
 
-        const isEarly = jam < '16:00:00';
-        if (isEarly) {
-          const [h, m] = jam.split(':').map(Number);
-          const scanOutMinutes = (h || 0) * 60 + (m || 0);
-          const targetMinutes = 16 * 60; // 16:00
-          const diffMins = Math.max(0, targetMinutes - scanOutMinutes);
-
-          return (
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-1 text-xs font-bold text-rose-700">
-                <Clock size={13} className="text-rose-500 shrink-0" />
-                <span>{jam}</span>
-              </div>
-              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded w-fit">
-                Pulang Cepat {diffMins} mnt
-              </span>
-            </div>
-          );
-        }
-
-        return (
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary-700">
-            <Clock size={13} className="text-primary-500 shrink-0" />
-            <span>{jam}</span>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'status_kehadiran',
-      label: 'Status Kehadiran',
-      render: (row) => {
-        const st = (row.status_kehadiran || row.status || '').toLowerCase();
-        let variant: 'success' | 'danger' | 'warning' | 'info' | 'secondary' = 'secondary';
-        if (st === 'hadir') variant = 'success';
-        else if (st === 'alfa' || st === 'ditolak') variant = 'danger';
-        else if (st === 'izin' || st === 'sakit') variant = 'warning';
-        else if (st === 'dinas') variant = 'info';
-
-        return (
-          <Badge variant={variant} className="capitalize">
-            {st || 'Hadir'}
-          </Badge>
-        );
-      },
-    },
-    {
-      key: 'catatan',
-      label: 'Catatan / Alasan',
+    // Kolom Aksi Menu Titik 3
+    cols.push({
+      key: 'actions',
+      label: 'Aksi',
+      align: 'center',
       render: (row) => (
-        <span className="text-xs text-slate-600 font-normal">
-          {row.catatan || row.notes || '-'}
-        </span>
+        <DropdownMenu
+          items={[
+            {
+              label: 'Salin NIP',
+              icon: <Copy size={14} />,
+              onClick: () => {
+                if (row.nip && row.nip !== '-') {
+                  navigator.clipboard.writeText(row.nip);
+                  toast.success(`NIP ${row.nip} disalin ke clipboard`);
+                } else {
+                  toast.error('NIP pegawai tidak tersedia');
+                }
+              },
+            },
+            {
+              label: 'Filter Pegawai Ini',
+              icon: <UserCheck size={14} />,
+              onClick: () => {
+                setSearchKeyword(row.nip && row.nip !== '-' ? row.nip : row.nama_lengkap);
+                setPage(1);
+                toast.success(`Memfilter presensi untuk ${row.nama_lengkap}`);
+              },
+            },
+          ]}
+        />
       ),
-    },
-  ];
+    });
+
+    return cols;
+  }, [days, meta?.from]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={bundle ? bundle.nama_periode : 'Rincian Bundle Presensi'}
-        description={`Detail log absensi pegawai periode ${bundle?.tanggal_awal ? formatDate(bundle.tanggal_awal) : ''} s/d ${bundle?.tanggal_akhir ? formatDate(bundle.tanggal_akhir) : ''}`}
+        description={`Detail matriks presensi pegawai siklus periode ${bundle?.tanggal_awal ? formatDate(bundle.tanggal_awal) : ''} s/d ${bundle?.tanggal_akhir ? formatDate(bundle.tanggal_akhir) : ''}`}
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIMPEG', href: '/simpeg' },
@@ -263,16 +353,21 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
           { label: bundle ? bundle.nama_periode : 'Rincian Bundle' },
         ]}
         action={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" icon={<ArrowLeft size={16} />} onClick={() => router.push('/simpeg/presensi')}>
-              Kembali ke Daftar Bundle
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              icon={<ArrowLeft size={16} />}
+              onClick={() => router.push('/simpeg/presensi')}
+              className="text-[var(--module-primary)] border-[var(--module-primary)] hover:bg-[var(--module-primary-subtle)]"
+            >
+              Kembali
             </Button>
             <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
             </Button>
             {isAdmin && (
               <Button icon={<DollarSign size={16} />} onClick={() => setShowPayrollModal(true)}>
-                Proses Payroll Bundle Ini
+                Proses Payroll
               </Button>
             )}
           </div>
@@ -281,7 +376,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
 
       {/* Bundle Metadata Header Card */}
       {bundle && (
-        <div className="p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-primary-50 text-primary-600 rounded-xl">
               <Layers size={20} />
@@ -297,7 +392,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
               <Calendar size={20} />
             </div>
             <div>
-              <div className="text-xs font-medium text-slate-400">Rentang Tanggal</div>
+              <div className="text-xs font-medium text-slate-400">Rentang Siklus</div>
               <div className="text-sm font-bold text-slate-800">
                 {formatDate(bundle.tanggal_awal)} s/d {formatDate(bundle.tanggal_akhir)}
               </div>
@@ -309,9 +404,9 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
               <Users size={20} />
             </div>
             <div>
-              <div className="text-xs font-medium text-slate-400">Jumlah Karyawan</div>
+              <div className="text-xs font-medium text-slate-400">Pegawai Terdaftar</div>
               <div className="text-sm font-bold text-emerald-700">
-                {bundle.total_pegawai !== undefined ? bundle.total_pegawai.toLocaleString('id-ID') : (bundle.total_record ? bundle.total_record.toLocaleString('id-ID') : 0)} Karyawan
+                {bundle.total_pegawai !== undefined ? bundle.total_pegawai.toLocaleString('id-ID') : 0} Pegawai
               </div>
             </div>
           </div>
@@ -336,40 +431,70 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
         </div>
       )}
 
+      {/* Legend & Format Indikator Presensi Bar */}
+      <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <Info size={16} className="text-primary-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-800">
+              Format Sel Tanggal: Kotak Atas = Scan Masuk | Kotak Bawah = Scan Pulang
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-500 italic">
+            *Arahkan kursor (hover) ke setiap kotak untuk melihat jam aktual dan status kehadiran.
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-slate-700 font-medium">
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-emerald-500 border border-emerald-600 shadow-xs" />
+            <span>Tepat Waktu (In ≤ 08:15 / Out ≥ 16:00)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-amber-400 border border-amber-500 shadow-xs" />
+            <span>Izin / Sakit / Dinas</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-rose-500 border border-rose-600 shadow-xs" />
+            <span>Terlambat / Pulang Cepat</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-slate-900 border border-black shadow-xs" />
+            <span>Tidak Absen (Alpa)</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-slate-200 border border-slate-300" />
+            <span>Hari Libur / Minggu</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Matriks DataTable */}
       <DataTable
         columns={columns}
-        data={presensiList}
+        data={matrixData}
         isLoading={loading}
         meta={meta}
         onPageChange={(newPage) => setPage(newPage)}
-        rowClassName={(row) => {
-          const isSunday = new Date(row.tanggal).getDay() === 0;
-          return isSunday ? 'bg-rose-50/70 hover:bg-rose-100/80 border-l-4 border-l-rose-500' : '';
+        onLimitChange={(newLimit) => {
+          setFilterLimit(newLimit);
+          setPage(1);
         }}
+        emptyMessage="Tidak ada data pegawai yang sesuai pada bundle presensi ini."
       />
 
-      {/* Filter Drawer (Slide Kanan-ke-Kiri) */}
-      <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Absensi di Bundle Ini">
+      {/* Drawer Filter */}
+      <Drawer open={showFilter} onClose={() => setShowFilter(false)} title="Filter Pegawai Bundle">
         <div className="space-y-4">
           <Input
-            label="Cari Pegawai ID (Spesifik)"
-            placeholder="Contoh: 35 (hanya memfilter Pegawai ID 35)"
-            value={searchPegawaiId}
-            onChange={(e) => setSearchPegawaiId(e.target.value)}
-          />
-
-          <Select
-            label="Status Kehadiran"
-            value={filterStatus}
-            onChange={(val) => setFilterStatus(val)}
-            options={[
-              { value: '', label: 'Semua Status Kehadiran' },
-              { value: 'hadir', label: 'Hadir' },
-              { value: 'alfa', label: 'Alpha / Tidak Hadir' },
-              { value: 'izin', label: 'Izin' },
-              { value: 'sakit', label: 'Sakit' },
-              { value: 'dinas', label: 'Dinas Luar' },
-            ]}
+            label="Cari Pegawai (Nama / NIP)"
+            placeholder="Ketik nama atau NIP..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
           />
 
           <hr className="border-t border-slate-200 my-2" />
@@ -380,9 +505,9 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
               options={[
-                { value: 'tanggal', label: 'Tanggal Absensi' },
-                { value: 'pegawai_id', label: 'Pegawai ID' },
-                { value: 'jam_masuk', label: 'Jam Masuk' },
+                { value: 'nama_lengkap', label: 'Nama Pegawai' },
+                { value: 'nip', label: 'NIP Pegawai' },
+                { value: 'pegawai_id', label: 'ID Pegawai' },
               ]}
             />
             <Select
@@ -390,8 +515,8 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
               value={filterOrderDir}
               onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
               options={[
-                { value: 'asc', label: 'A - Z (Terlama/Asc)' },
-                { value: 'desc', label: 'Z - A (Terbaru/Desc)' },
+                { value: 'asc', label: 'A - Z (Asc)' },
+                { value: 'desc', label: 'Z - A (Desc)' },
               ]}
             />
           </div>
@@ -402,7 +527,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
               onClick={() => {
                 setPage(1);
                 setShowFilter(false);
-                fetchBundleDetail();
+                fetchBundleMatrix();
               }}
             >
               Terapkan Filter
@@ -410,9 +535,8 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
             <Button
               variant="outline"
               onClick={() => {
-                setSearchPegawaiId('');
-                setFilterStatus('');
-                setFilterOrderBy('tanggal');
+                setSearchKeyword('');
+                setFilterOrderBy('nama_lengkap');
                 setFilterOrderDir('asc');
                 setPage(1);
               }}
@@ -445,7 +569,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
             <div className="text-sm space-y-1">
               <p className="font-semibold text-primary-900">Proses Perhitungan Gaji Payroll</p>
               <p className="text-primary-700 text-xs">
-                Perhitungan komponen gaji (gaji pokok, tunjangan kehadiran, dan potongan keterlambatan) akan dikalkulasi berdasarkan {bundle?.total_record} log presensi dalam bundle <strong>{bundle?.nama_periode}</strong> (Periode: {formatDate(bundle?.tanggal_awal)} s/d {formatDate(bundle?.tanggal_akhir)}).
+                Perhitungan komponen gaji (gaji pokok, tunjangan kehadiran, dan potongan keterlambatan) akan dikalkulasi berdasarkan rekap kehadiran {bundle?.total_pegawai} pegawai dalam bundle <strong>{bundle?.nama_periode}</strong> (Periode: {formatDate(bundle?.tanggal_awal)} s/d {formatDate(bundle?.tanggal_akhir)}).
               </p>
             </div>
           </div>
@@ -457,3 +581,4 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
     </div>
   );
 }
+
