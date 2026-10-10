@@ -222,18 +222,34 @@ export function SesiForm({
   const [showPustakaModal, setShowPustakaModal] = useState(false);
 
   // Form Section 5: Rubrik & Bobot Penilaian
+  const maxBobotAllowed = Math.min(100, Number(initial?.bobot_penilaian || 0) + totalSisaBobot);
+
+  const section5SchemaDynamic = useMemo(() => {
+    return z.object({
+      rubrik_id: z.string().optional(),
+      bobot_penilaian: z
+        .number({ error: 'Bobot penilaian wajib berupa angka' })
+        .min(0, 'Bobot minimal 0%')
+        .max(maxBobotAllowed, `Bobot maksimal yang diizinkan adalah ${maxBobotAllowed}%`),
+    });
+  }, [maxBobotAllowed]);
+
   const {
     register: registerSec5,
     handleSubmit: handleSubmitSec5,
     control: controlSec5,
+    watch: watchSec5,
     formState: { errors: errorsSec5 },
   } = useForm<Section5FormValues>({
-    resolver: zodResolver(section5Schema),
+    resolver: zodResolver(section5SchemaDynamic),
     defaultValues: {
       rubrik_id: initial?.rubrik_id ? String(initial.rubrik_id) : '',
       bobot_penilaian: initial?.bobot_penilaian !== undefined ? Number(initial.bobot_penilaian) : 0,
     },
   });
+
+  const currentBobotInput = watchSec5('bobot_penilaian') || 0;
+  const currentSisa = Math.max(0, maxBobotAllowed - currentBobotInput);
 
   // Muat referensi RPS, Rubrik, dan Dokumen RPS Pustaka
   useEffect(() => {
@@ -1034,10 +1050,11 @@ export function SesiForm({
             <div>
               <Input
                 type="number"
-                label={`Bobot Penilaian %. Maksimal ${Math.min(100, Number(initial?.bobot_penilaian || 0) + totalSisaBobot)}`}
+                label={`Bobot Penilaian % (Maksimal ${maxBobotAllowed}%)`}
                 placeholder="0"
                 min={0}
-                max={Math.min(100, Number(initial?.bobot_penilaian || 0) + totalSisaBobot)}
+                max={maxBobotAllowed}
+                hint={`Total sisa bobot yang bisa diisi: ${currentSisa}%`}
                 error={errorsSec5.bobot_penilaian?.message}
                 {...registerSec5('bobot_penilaian', { valueAsNumber: true })}
               />
