@@ -7,13 +7,14 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { siakadService } from '@/services/siakad.service';
 import toast from 'react-hot-toast';
 
-const sesiSection1Schema = z.object({
+const sesiSchema = z.object({
   minggu_ke_input: z
     .string()
     .trim()
@@ -23,9 +24,13 @@ const sesiSection1Schema = z.object({
   sub_cpmk_ids: z
     .array(z.number())
     .min(1, 'Pilih minimal satu Sub-CPMK tahapan belajar'),
+  komponen_evaluasi_id: z.string().optional(),
+  indikator_penilaian: z.string().trim().optional(),
+  kriteria_penilaian_id: z.string().optional(),
+  teknik_penilaian: z.string().trim().optional(),
 });
 
-export type SesiSection1FormValues = z.infer<typeof sesiSection1Schema>;
+export type SesiFormValues = z.infer<typeof sesiSchema>;
 
 interface SesiFormProps {
   rpsId: number;
@@ -47,6 +52,8 @@ export function SesiForm({
   const [cpmkList, setCpmkList] = useState<any[]>([]);
   const [subCpmkList, setSubCpmkList] = useState<any[]>([]);
   const [jenisOptions, setJenisOptions] = useState<{ value: string; label: string }[]>([]);
+  const [komponenOptions, setKomponenOptions] = useState<{ value: string; label: string }[]>([]);
+  const [kriteriaOptions, setKriteriaOptions] = useState<{ value: string; label: string }[]>([]);
 
   const initialSubIds: number[] = useMemo(() => {
     if (Array.isArray(initial?.sub_cpmk_ids) && initial.sub_cpmk_ids.length > 0) {
@@ -64,32 +71,55 @@ export function SesiForm({
     control,
     watch,
     formState: { errors },
-  } = useForm<SesiSection1FormValues>({
-    resolver: zodResolver(sesiSection1Schema),
+  } = useForm<SesiFormValues>({
+    resolver: zodResolver(sesiSchema),
     defaultValues: {
       minggu_ke_input: initial?.minggu_ke ? String(initial.minggu_ke) : String(defaultMingguKe),
       jenis_pertemuan: initial?.jenis_pertemuan || '',
       cpmk_filter_id: '',
       sub_cpmk_ids: initialSubIds,
+      komponen_evaluasi_id: initial?.komponen_evaluasi_id ? String(initial.komponen_evaluasi_id) : '',
+      indikator_penilaian: initial?.indikator_penilaian || '',
+      kriteria_penilaian_id: initial?.kriteria_penilaian_id ? String(initial.kriteria_penilaian_id) : '',
+      teknik_penilaian: initial?.teknik_penilaian || initial?.kriteria_teknik || '',
     },
   });
 
   const selectedCpmkFilter = watch('cpmk_filter_id');
 
-  // Muat master jenis pembelajaran dinamis murni dari API
+  // Muat referensi RPS: jenis_pembelajaran, komponen evaluasi, kriteria penilaian
   useEffect(() => {
     let active = true;
-    const fetchJenis = async () => {
+    const fetchReferences = async () => {
       try {
-        const res = await siakadService.getRpsReferensi({ tipe: 'jenis_pembelajaran', per_page: 50 });
-        const list: any[] = Array.isArray(res.data) ? res.data : [];
+        const [jenisRes, kompRes, kritRes] = await Promise.all([
+          siakadService.getRpsReferensi({ tipe: 'jenis_pembelajaran', per_page: 50 }),
+          siakadService.getRpsReferensi({ tipe: 'komponen', per_page: 50 }),
+          siakadService.getRpsReferensi({ tipe: 'kriteria', per_page: 50 }),
+        ]);
         if (!active) return;
-        setJenisOptions(list.map((j: any) => ({ value: String(j.id ?? j.kode ?? j.nama), label: j.nama })));
+        const jList: any[] = Array.isArray(jenisRes.data) ? jenisRes.data : [];
+        const kList: any[] = Array.isArray(kompRes.data) ? kompRes.data : [];
+        const rList: any[] = Array.isArray(kritRes.data) ? kritRes.data : [];
+
+        setJenisOptions(jList.map((j: any) => ({ value: String(j.id ?? j.kode ?? j.nama), label: j.nama })));
+        setKomponenOptions([
+          { value: '', label: 'Pilih Komponen (Opsional)' },
+          ...kList.map((k: any) => ({ value: String(k.id), label: `${k.kode ? `[${k.kode}] ` : ''}${k.nama}` })),
+        ]);
+        setKriteriaOptions([
+          { value: '', label: 'Pilih Kriteria (Opsional)' },
+          ...rList.map((r: any) => ({ value: String(r.id), label: `${r.kode ? `[${r.kode}] ` : ''}${r.nama}` })),
+        ]);
       } catch {
-        if (active) setJenisOptions([]);
+        if (active) {
+          setJenisOptions([]);
+          setKomponenOptions([]);
+          setKriteriaOptions([]);
+        }
       }
     };
-    fetchJenis();
+    fetchReferences();
     return () => {
       active = false;
     };
@@ -138,7 +168,7 @@ export function SesiForm({
     return subCpmkList.filter((s: any) => String(s.cpmk_id) === String(selectedCpmkFilter));
   }, [subCpmkList, selectedCpmkFilter]);
 
-  const onSubmit = async (values: SesiSection1FormValues) => {
+  const onSubmit = async (values: SesiFormValues) => {
     // Parsing daftar minggu (mis: "1" atau "1,2,3,4")
     const rawSessions = values.minggu_ke_input
       .split(',')
@@ -164,6 +194,11 @@ export function SesiForm({
           jenis_pertemuan: values.jenis_pertemuan,
           sub_cpmk_id: values.sub_cpmk_ids[0] || undefined,
           sub_cpmk_ids: values.sub_cpmk_ids,
+          komponen_evaluasi_id: values.komponen_evaluasi_id ? Number(values.komponen_evaluasi_id) : undefined,
+          kriteria_penilaian_id: values.kriteria_penilaian_id ? Number(values.kriteria_penilaian_id) : undefined,
+          indikator_penilaian: values.indikator_penilaian?.trim() || undefined,
+          teknik_penilaian: values.teknik_penilaian?.trim() || undefined,
+          kriteria_teknik: values.teknik_penilaian?.trim() || undefined,
           kemampuan_akhir: kemampuanAkhirSummary || `Sub-CPMK Pertemuan ${m}`,
           bahan_kajian: initial?.bahan_kajian || `Bahan kajian pertemuan ${m}`,
           bobot_penilaian: initial?.bobot_penilaian !== undefined ? Number(initial.bobot_penilaian) : 3,
@@ -184,8 +219,9 @@ export function SesiForm({
   };
 
   return (
-    <Card>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-6">
+      {/* SECTION 1: Pertemuan & Sub-CPMK */}
+      <Card>
         <CardHeader className="pb-3 border-b border-slate-100">
           <h3 className="text-sm font-bold text-slate-900">Pertemuan &amp; Sub-CPMK</h3>
         </CardHeader>
@@ -291,6 +327,75 @@ export function SesiForm({
               <p className="text-2xs text-rose-600 font-semibold">{errors.sub_cpmk_ids.message}</p>
             )}
           </div>
+        </CardBody>
+      </Card>
+
+      {/* SECTION 2: Penilaian */}
+      <Card>
+        <CardHeader className="pb-3 border-b border-slate-100">
+          <h3 className="text-sm font-bold text-slate-900">Penilaian</h3>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <div>
+            <Controller
+              name="komponen_evaluasi_id"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Komponen"
+                  placeholder="Pilih"
+                  hint="Boleh dikosongkan jika tidak ada komponen pengambilan nilai pada pertemuan ini"
+                  options={komponenOptions}
+                  value={field.value || ''}
+                  onChange={(opt: any) => {
+                    const val = typeof opt === 'object' ? opt?.value : opt;
+                    field.onChange(val || '');
+                  }}
+                  error={errors.komponen_evaluasi_id?.message}
+                />
+              )}
+            />
+          </div>
+
+          <div>
+            <Textarea
+              label="Indikator"
+              rows={3}
+              placeholder="Tuliskan indikator capaian penilaian..."
+              error={errors.indikator_penilaian?.message}
+              {...register('indikator_penilaian')}
+            />
+          </div>
+
+          <div>
+            <Controller
+              name="kriteria_penilaian_id"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  label="Kriteria"
+                  placeholder="Pilih"
+                  options={kriteriaOptions}
+                  value={field.value || ''}
+                  onChange={(opt: any) => {
+                    const val = typeof opt === 'object' ? opt?.value : opt;
+                    field.onChange(val || '');
+                  }}
+                  error={errors.kriteria_penilaian_id?.message}
+                />
+              )}
+            />
+          </div>
+
+          <div>
+            <Textarea
+              label="Teknik"
+              rows={3}
+              placeholder="Tuliskan teknik penilaian yang digunakan..."
+              error={errors.teknik_penilaian?.message}
+              {...register('teknik_penilaian')}
+            />
+          </div>
 
           <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
             <Button
@@ -306,7 +411,7 @@ export function SesiForm({
             </Button>
           </div>
         </CardBody>
-      </form>
-    </Card>
+      </Card>
+    </form>
   );
 }
