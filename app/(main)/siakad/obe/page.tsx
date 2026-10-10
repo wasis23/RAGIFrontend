@@ -126,10 +126,11 @@ export function ObeWorkspace({
 
   // Dosen murni: hanya MK yang diajarnya (mendukung lintas prodi)
   const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
-  // Verifikator RPS: hanya Kaprodi/Wakil/Admin/Admin OBE yang boleh Setujui/Minta Revisi
+  // Verifikator RPS: Kaprodi, Admin OBE (via relasi), Admin Global
+  const isAdminObe = ((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || []).length > 0;
   const isRpsVerifier =
-    hasRole(['superadmin', 'admin', 'admin_obe', 'admin_siakad', 'kaprodi', 'wakil_prodi']) ||
-    hasPermission('siakad.master.manage');
+    hasRole(['superadmin', 'admin', 'admin_siakad', 'kaprodi', 'wakil_prodi']) ||
+    hasPermission('siakad.master.manage') || isAdminObe;
   const [taughtMkIds, setTaughtMkIds] = useState<number[]>([]);
   const [taughtLoaded, setTaughtLoaded] = useState(false);
 

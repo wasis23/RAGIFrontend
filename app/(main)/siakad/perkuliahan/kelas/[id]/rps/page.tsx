@@ -19,15 +19,26 @@ export default function KelasRpsPage() {
   const params = useParams();
   const router = useRouter();
   const kelasId = Number(params.id);
-  const { hasRole, isMahasiswa } = useAuth();
+  const { user, hasRole, isMahasiswa } = useAuth();
   // Mahasiswa hanya boleh MELIHAT RPS, tidak mengedit
   const readOnly = isMahasiswa;
-  // Verifikator RPS: hanya Kaprodi/Wakil/Admin yang boleh Setujui/Minta Revisi
-  const isRpsVerifier = hasRole(['superadmin', 'admin', 'kaprodi', 'wakil_prodi']);
+
   const [kelas, setKelas] = useState<any | null>(null);
   const [rpsDetail, setRpsDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Verifikator RPS: 
+  // 1. Kaprodi: dicek dari id kaprodi pada RPS
+  // 2. Admin/Superadmin/Wakil Prodi (Global)
+  // 3. Admin OBE: dicek dari relasi tabel siakad_admin_prodis
+  const isKaprodiAssigned = rpsDetail?.kaprodi?.id === user?.id;
+  const isGlobalVerifier = hasRole(['superadmin', 'admin', 'admin_siakad', 'wakil_prodi']);
+  const isAdminObe = ((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || []).some(
+    (ap: any) => ap.program_studi_id === rpsDetail?.mata_kuliah?.kurikulum?.program_studi_id || ap.program_studi_id === kelas?.program_studi_id
+  );
+  
+  const isRpsVerifier = isGlobalVerifier || isKaprodiAssigned || isAdminObe;
   const [form, setForm] = useState({
     deskripsi_singkat: '',
     pustaka_utama: '',
