@@ -58,7 +58,8 @@ import {
   Boxes,
   Stamp,
   Shapes,
-  Lightbulb
+  Lightbulb,
+  FlaskConical
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -90,6 +91,7 @@ const getIconComponent = (iconName?: string | null) => {
     'FaLayerGroup': Layers,
     'FaShapes': Shapes,
     'FaLightbulb': Lightbulb,
+    'FaFlaskConical': FlaskConical,
     'FaCubes': Boxes,
     'FaFileContract': FileText,
     'FaBoxes': Boxes,
@@ -354,14 +356,24 @@ const IAM_FALLBACK_MENUS: Menu[] = [
 
 const SINAPRA_FALLBACK_MENUS: Menu[] = [
   { id: 900, parent_id: null, name: 'Dashboard SINAPRA', url: '/sinapra', icon: 'FaChartPie', module: 'sinapra', permission_id: null, order_index: 0, is_active: true },
-  { id: 901, parent_id: null, name: 'Gedung & Ruangan', url: '/sinapra/gedung-ruangan', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
-  { id: 902, parent_id: null, name: 'Inventaris Aset', url: '/sinapra/aset', icon: 'FaBoxes', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
-  { id: 903, parent_id: null, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
-  { id: 904, parent_id: null, name: 'Maintenance', url: '/sinapra/maintenance', icon: 'FaWrench', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
-  { id: 905, parent_id: null, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
-  { id: 906, parent_id: null, name: 'Laboratorium & BHP', url: '/sinapra/laboratorium', icon: 'FaFlask', module: 'sinapra', permission_id: null, order_index: 6, is_active: true },
-  { id: 907, parent_id: null, name: 'Audit & Mutasi', url: '/sinapra/audit-mutasi', icon: 'FaClipboardCheck', module: 'sinapra', permission_id: null, order_index: 7, is_active: true },
-  { id: 908, parent_id: null, name: 'Kalender Ruangan', url: '/sinapra/kalender', icon: 'FaCalendarAlt', module: 'sinapra', permission_id: null, order_index: 8, is_active: true },
+  {
+    id: 909, parent_id: null, name: 'FASILITAS & PEMINJAMAN', url: '#fasilitas_sinapra', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 2, is_active: true,
+    children: [
+      { id: 901, parent_id: 909, name: 'Gedung & Ruangan', url: '/sinapra/gedung-ruangan', icon: 'FaBuilding', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
+      { id: 902, parent_id: 909, name: 'Inventaris Aset', url: '/sinapra/aset', icon: 'FaBoxes', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
+      { id: 903, parent_id: 909, name: 'Peminjaman', url: '/sinapra/peminjaman', icon: 'FaCalendarCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
+      { id: 904, parent_id: 909, name: 'Maintenance', url: '/sinapra/maintenance', icon: 'FaWrench', module: 'sinapra', permission_id: null, order_index: 4, is_active: true },
+      { id: 908, parent_id: 909, name: 'Kalender Ruangan', url: '/sinapra/kalender', icon: 'FaCalendarAlt', module: 'sinapra', permission_id: null, order_index: 5, is_active: true },
+    ],
+  },
+  {
+    id: 911, parent_id: null, name: 'OPERASIONAL SARPRAS', url: '#operasional_sinapra', icon: 'FaClipboardCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true,
+    children: [
+      { id: 905, parent_id: 911, name: 'Pengadaan Barang', url: '/sinapra/pengadaan', icon: 'FaShoppingCart', module: 'sinapra', permission_id: null, order_index: 1, is_active: true },
+      { id: 906, parent_id: 911, name: 'Laboratorium & BHP', url: '/sinapra/laboratorium', icon: 'FaFlaskConical', module: 'sinapra', permission_id: null, order_index: 2, is_active: true },
+      { id: 907, parent_id: 911, name: 'Audit & Mutasi', url: '/sinapra/audit-mutasi', icon: 'FaClipboardCheck', module: 'sinapra', permission_id: null, order_index: 3, is_active: true },
+    ],
+  },
   {
     id: 910,
     parent_id: null,
