@@ -24,6 +24,7 @@ import { Select } from '@/components/ui/Select';
 import type { SelectOption } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { Checkbox } from '@/components/ui/Checkbox';
 
 // ── SCHEMAS ZOD DI LUAR KOMPONEN (AUDIT 03 FORM VALIDATION) ──────────────────
 const setujuiPanjarSchema = z.object({
@@ -90,7 +91,7 @@ type CairkanReferralFormValues = z.infer<typeof cairkanReferralSchema>;
 
 export default function PengajuanOperasionalPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'operasional' | 'simpeg' | 'spmb'>('operasional');
+  const [activeTab, setActiveTab] = useState<'operasional' | 'simpeg' | 'spmb' | 'gaji'>('operasional');
   const [data, setData] = useState<PengajuanOperasional[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -100,6 +101,10 @@ export default function PengajuanOperasionalPage() {
   const [approveReferralItem, setApproveReferralItem] = useState<ReferralInvoice | null>(null);
   const [approveReferralAksi, setApproveReferralAksi] = useState<'approve' | 'reject'>('approve');
   const [cairkanReferralItem, setCairkanReferralItem] = useState<ReferralInvoice | null>(null);
+
+  // Tab GAJI (Bundle Penggajian SIMPEG) — data & detail state
+  const [gajiData, setGajiData] = useState<PengajuanOperasional[]>([]);
+  const [gajiMeta, setGajiMeta] = useState<any>(undefined);
 
   // Pagination states (Audit 02)
   const [page, setPage] = useState(1);
@@ -243,6 +248,18 @@ export default function PengajuanOperasionalPage() {
         });
         setReferralData(Array.isArray(res.data) ? res.data : []);
         setReferralMeta((res as any).meta ?? undefined);
+        return;
+      }
+      if (activeTab === 'gaji') {
+        const res = await pengajuanOperasionalService.list({
+          sumber: 'gaji_simpeg',
+          page,
+          per_page: limit,
+          search: applied.search || undefined,
+          status: applied.status !== 'all' ? applied.status : undefined,
+        });
+        setGajiData(Array.isArray(res.data) ? res.data : []);
+        setGajiMeta((res as any).meta ?? undefined);
         return;
       }
       const res = await pengajuanOperasionalService.list({
@@ -745,11 +762,77 @@ export default function PengajuanOperasionalPage() {
     },
   ];
 
+  // TAB GAJI (BUNDLE PENGGAJIAN SIMPEG) COLUMNS
+  const columnsGaji: ColumnDef<PengajuanOperasional>[] = [
+    {
+      key: 'nomor_pengajuan',
+      label: 'BUNDLE / PERIODE',
+      render: (row) => (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-900 text-xs font-mono">{row.nomor_pengajuan}</span>
+            <Badge variant="info">GAJI</Badge>
+          </div>
+          <p className="text-xs font-medium text-slate-800 line-clamp-1">{row.judul_pengajuan}</p>
+          <p className="text-2xs text-slate-400">Periode: {row.sumber_id || '-'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'pegawai',
+      label: 'PEGAWAI',
+      render: (row) => (
+        <div>
+          <p className="text-xs font-semibold text-slate-900">{row.items?.length || 0} Orang</p>
+          <p className="text-2xs text-slate-400">Klik untuk lihat rincian</p>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (row) => {
+        const s = STATUS_LABEL[row.status] || { label: row.status, variant: 'secondary' as const };
+        return <Badge variant={s.variant}>{s.label}</Badge>;
+      },
+    },
+    {
+      key: 'nominal_diajukan',
+      label: 'TOTAL BERSIH',
+      render: (row) => (
+        <span className="font-bold tabular-nums text-xs">{formatRupiah(Number(row.nominal_diajukan) || 0)}</span>
+      ),
+    },
+    {
+      key: 'created_at',
+      label: 'TANGGAL',
+      render: (row) => <span className="text-xs text-slate-600">{row.created_at ? formatDate(row.created_at) : '-'}</span>,
+    },
+    {
+      key: 'actions',
+      label: 'AKSI',
+      align: 'right',
+      render: (row) => (
+        <DropdownMenu
+          items={[
+            {
+              label: 'Lihat Daftar Pegawai',
+              icon: <Eye size={16} />,
+              onClick: () => router.push(`/sikeu/pengajuan/gaji/${row.id}`),
+            },
+          ]}
+        />
+      ),
+    },
+  ];
+
+
+
   return (
     <div className="w-full space-y-6 animate-fade-in">
       <PageHeader
         title="Pengajuan Operasional"
-        description="Kelola pengajuan anggaran operasional kampus: Pengadaan Sarpras (SINAPRA) dan Panjar Dinas (SIMPEG)."
+        description="Kelola pengajuan anggaran operasional kampus: Pengadaan Sarpras (SINAPRA), Panjar Dinas (SIMPEG), dan Bundle Penggajian (SIMPEG)."
         action={
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -824,6 +907,22 @@ export default function PengajuanOperasionalPage() {
           <Banknote size={16} />
           <span>Referral SPMB</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('gaji');
+            setPage(1);
+          }}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === 'gaji'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Wallet size={16} />
+          <span>Gaji SIMPEG</span>
+        </button>
       </div>
 
       {/* DATA TABLE DENGAN SERVER-SIDE PAGINATION & META (ATURAN 5 ADMIN CRUD) */}
@@ -867,6 +966,20 @@ export default function PengajuanOperasionalPage() {
             setPage(1);
           }}
           emptyMessage="Belum ada bukti pencairan referral SPMB yang masuk."
+        />
+      )}
+      {activeTab === 'gaji' && (
+        <DataTable
+          data={gajiData}
+          isLoading={loading}
+          columns={columnsGaji}
+          meta={gajiMeta}
+          onPageChange={(newPage) => setPage(newPage)}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+          emptyMessage="Belum ada bundle penggajian dari SIMPEG."
         />
       )}
 
@@ -1563,6 +1676,7 @@ export default function PengajuanOperasionalPage() {
           </div>
         </form>
       </Modal>
+
     </div>
   );
 }
