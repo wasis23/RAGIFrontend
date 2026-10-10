@@ -113,6 +113,7 @@ export interface Pegawai {
   shift_template_id?: number | null;
   office_location_id?: number | null;
   shift_template?: { id: number; name: string; start_time?: string; end_time?: string } | null;
+  terdampak_absensi?: boolean;
   office_location?: { id: number; name: string; radius_meters?: number } | null;
   is_face_enrolled?: boolean;
   face_enrolled_at?: string | null;
@@ -368,6 +369,7 @@ export interface MasterKomponenGaji {
   nilai_default: number;
   is_taxable: boolean;
   is_active: boolean;
+  is_kolom_aktif?: boolean;
   urutan: number;
   keterangan?: string | null;
   created_at?: string;

@@ -15,6 +15,7 @@ import type {
   PresensiPegawai,
   AttendanceRecapData,
   GajiPegawai,
+  MasterKomponenGaji,
   UsulanJafung,
   PenilaianKinerja,
   MasterKategoriSkp,
@@ -681,7 +682,35 @@ export const simpegService = {
     return data;
   },
 
-  // Komponen Gaji Spesifik Pegawai
+  // Komponen Gaji Spesifik Pegawai & Matriks
+  getPegawaiMatriksGaji: async (params?: Record<string, any>): Promise<ApiResponse<{
+    pegawai: any[];
+    active_columns: MasterKomponenGaji[];
+  }>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/payroll/pegawai-matriks', { params });
+    return data;
+  },
+
+  toggleKomponenKolom: async (id: number): Promise<ApiResponse<MasterKomponenGaji>> => {
+    const { data } = await apiClient.patch<ApiResponse<MasterKomponenGaji>>(`/simpeg/payroll/komponen/${id}/toggle-kolom`);
+    return data;
+  },
+
+  updatePegawaiTerdampakAbsensi: async (pegawaiId: number, terdampak_absensi: boolean): Promise<ApiResponse<Pegawai>> => {
+    const { data } = await apiClient.patch<ApiResponse<Pegawai>>(`/simpeg/payroll/pegawai/${pegawaiId}/terdampak-absensi`, {
+      terdampak_absensi,
+    });
+    return data;
+  },
+
+  bulkUpdatePegawaiTerdampakAbsensi: async (pegawai_ids: number[], terdampak_absensi: boolean): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/pegawai/batch-terdampak-absensi', {
+      pegawai_ids,
+      terdampak_absensi,
+    });
+    return data;
+  },
+
   getPegawaiKomponenList: async (pegawaiId: number): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/payroll/pegawai/${pegawaiId}/komponen`);
     return data;

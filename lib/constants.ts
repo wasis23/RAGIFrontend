@@ -139,6 +139,69 @@ export const SORT_ORDER_OPTIONS: SelectOption[] = [
 ];
 
 // ============================================================
+// SIMPEG DOMAIN CONSTANTS
+// ============================================================
+export const JENIS_PEGAWAI_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Jenis' },
+  { value: 'dosen', label: 'Dosen' },
+  { value: 'tendik', label: 'Tenaga Kependidikan (Tendik)' },
+  { value: 'magang', label: 'Anak Magang / PKL' },
+  { value: 'honorer', label: 'Honorer' },
+];
+
+export const JENIS_KOMPONEN_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Jenis' },
+  { value: 'pendapatan', label: 'Pendapatan' },
+  { value: 'potongan', label: 'Potongan' },
+];
+
+export const JENIS_KOMPONEN_FORM_OPTIONS: SelectOption[] = [
+  { value: 'pendapatan', label: 'Pendapatan (Tunjangan / Insentif)' },
+  { value: 'potongan', label: 'Potongan (Keterlambatan / Iuran)' },
+];
+
+export const TIPE_NILAI_KOMPONEN_OPTIONS: SelectOption[] = [
+  { value: 'tetap', label: 'Nominal Tetap Bulanan' },
+  { value: 'rumus_kehadiran', label: 'Tarif Harian Presensi' },
+  { value: 'rumus_sks', label: 'Tarif per SKS Mengajar Dosen' },
+  { value: 'rumus_pph21', label: 'Rumus Pajak Penghasilan (PPh 21)' },
+  { value: 'persentase', label: 'Persentase Gaji Pokok' },
+];
+
+export const TIPE_NILAI_FILTER_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Tipe Nilai' },
+  { value: 'tetap', label: 'Nominal Tetap Bulanan' },
+  { value: 'rumus_kehadiran', label: 'Tarif Harian Presensi' },
+  { value: 'rumus_sks', label: 'Tarif per SKS Mengajar Dosen' },
+  { value: 'rumus_pph21', label: 'Rumus Pajak Penghasilan (PPh 21)' },
+  { value: 'persentase', label: 'Persentase Gaji Pokok' },
+];
+
+export const STATUS_VISIBILITAS_KOLOM_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Status Visibilitas' },
+  { value: 'true', label: 'Aktif di Kolom' },
+  { value: 'false', label: 'Disembunyikan' },
+];
+
+export const SORT_BY_PEGAWAI_OPTIONS: SelectOption[] = [
+  { value: 'nama_lengkap', label: 'Nama Lengkap' },
+  { value: 'nip', label: 'NIP' },
+  { value: 'id', label: 'ID Pegawai' },
+];
+
+export const SORT_BY_KOMPONEN_OPTIONS: SelectOption[] = [
+  { value: 'urutan', label: 'Nomor Urutan' },
+  { value: 'nama', label: 'Nama Komponen' },
+  { value: 'kode', label: 'Kode Komponen' },
+];
+
+export const STATUS_ABSENSI_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Status' },
+  { value: 'true', label: 'Terdampak Presensi' },
+  { value: 'false', label: 'Bebas Absensi' },
+];
+
+// ============================================================
 // HARI — Nilai tetap domain kalender (tabel master tidak ada)
 // ============================================================
 export type HariKey = 'senin' | 'selasa' | 'rabu' | 'kamis' | 'jumat' | 'sabtu';

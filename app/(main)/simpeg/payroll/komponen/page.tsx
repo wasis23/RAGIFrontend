@@ -7,17 +7,16 @@ import {
   Edit2, 
   Trash2, 
   ArrowLeft, 
-  Layers, 
-  CheckCircle2,
-  TrendingUp,
-  Award,
-  Percent,
-  DollarSign,
-  Calendar,
-  Filter,
-  AlertCircle
+  Filter, 
+  ToggleLeft, 
+  ToggleRight, 
+  UserCheck, 
+  UserX, 
+  Sliders, 
+  Users, 
+  Clock 
 } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
@@ -25,6 +24,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -33,13 +34,23 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
 import type { 
-  MasterKomponenGaji, 
-  MasterSkalaGajiPokok, 
-  JabatanFungsionalAkademik, 
-  MasterBracketPph21 
+  MasterKomponenGaji
 } from '@/types/simpeg.types';
+import type { PaginationMeta } from '@/types/api.types';
 import { formatRupiah } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { 
+  SORT_ORDER_OPTIONS, 
+  JENIS_PEGAWAI_OPTIONS, 
+  JENIS_KOMPONEN_OPTIONS, 
+  JENIS_KOMPONEN_FORM_OPTIONS,
+  TIPE_NILAI_KOMPONEN_OPTIONS,
+  TIPE_NILAI_FILTER_OPTIONS,
+  STATUS_VISIBILITAS_KOLOM_OPTIONS,
+  SORT_BY_PEGAWAI_OPTIONS,
+  SORT_BY_KOMPONEN_OPTIONS,
+  STATUS_ABSENSI_OPTIONS 
+} from '@/lib/constants';
 
 // ── ZOD SCHEMAS ─────────────────────────────────────────────
 
@@ -51,47 +62,54 @@ const komponenSchema = z.object({
   nilai_default: z.number().min(0, 'Nilai default tidak boleh negatif'),
   is_taxable: z.boolean(),
   is_active: z.boolean(),
+  is_kolom_aktif: z.boolean(),
   urutan: z.number().min(1, 'Urutan minimal 1'),
   keterangan: z.string().optional().nullable(),
 });
 type KomponenFormValues = z.infer<typeof komponenSchema>;
 
-const skalaGajiSchema = z.object({
-  nama_skala: z.string().min(3, 'Nama skala minimal 3 karakter'),
-  golongan: z.string().optional().nullable(),
-  masa_kerja_min_tahun: z.number().min(0, 'Minimal 0 tahun'),
-  masa_kerja_max_tahun: z.number().min(0, 'Maksimal minimal 0 tahun'),
-  nominal_gaji: z.number().min(0, 'Nominal gaji tidak boleh negatif'),
-  keterangan: z.string().optional().nullable(),
-  is_active: z.boolean(),
-});
-type SkalaGajiFormValues = z.infer<typeof skalaGajiSchema>;
-
-const jafungTunjanganSchema = z.object({
-  tunjangan_nominal: z.number().min(0, 'Nominal tidak boleh negatif'),
-});
-type JafungTunjanganFormValues = z.infer<typeof jafungTunjanganSchema>;
-
-const bracketPph21Schema = z.object({
-  penghasilan_bruto_min: z.number().min(0, 'Bruto min tidak boleh negatif'),
-  penghasilan_bruto_max: z.number().nullable().optional(),
-  tarif_persen: z.number().min(0, 'Tarif persen tidak boleh negatif').max(1, 'Maksimal 1 (100%)'),
-  keterangan: z.string().optional().nullable(),
-});
-type BracketPph21FormValues = z.infer<typeof bracketPph21Schema>;
-
 export default function MasterKomponenGajiPage() {
   const router = useRouter();
-  const { isAdmin, hasPermission } = useAuth();
-  const canManage = isAdmin || hasPermission('simpeg.payroll.manage');
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('simpeg.payroll.manage');
 
-  // Active Tab: 'komponen' | 'skala' | 'jafung' | 'pph21'
-  const [activeTab, setActiveTab] = useState<'komponen' | 'skala' | 'jafung' | 'pph21'>('komponen');
+  // Active Tab: 'matriks' (Tab 1) | 'kolom' (Tab 2) | 'absensi' (Tab 3)
+  const [activeTab, setActiveTab] = useState<'matriks' | 'kolom' | 'absensi'>('matriks');
 
-  // ── TAB 1: MASTER KOMPONEN GAJI STATE ──
+  // ── TAB 1: MATRIKS NOMINAL PEGAWAI STATE ──
+  const [loadingMatriks, setLoadingMatriks] = useState(true);
+  const [pegawaiMatriksList, setPegawaiMatriksList] = useState<any[]>([]);
+  const [activeColumns, setActiveColumns] = useState<MasterKomponenGaji[]>([]);
+  const [matriksMeta, setMatriksMeta] = useState<PaginationMeta>({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
+  const [searchMatriks, setSearchMatriks] = useState('');
+  const [tempSearchMatriks, setTempSearchMatriks] = useState('');
+  const [filterUnitKerja, setFilterUnitKerja] = useState('');
+  const [tempFilterUnitKerja, setTempFilterUnitKerja] = useState('');
+  const [filterJenisPegawai, setFilterJenisPegawai] = useState('');
+  const [tempFilterJenisPegawai, setTempFilterJenisPegawai] = useState('');
+  const [sortByMatriks, setSortByMatriks] = useState('nama_lengkap');
+  const [tempSortByMatriks, setTempSortByMatriks] = useState('nama_lengkap');
+  const [sortDirMatriks, setSortDirMatriks] = useState<'asc' | 'desc'>('asc');
+  const [tempSortDirMatriks, setTempSortDirMatriks] = useState<'asc' | 'desc'>('asc');
+  const [showFilterMatriks, setShowFilterMatriks] = useState(false);
+
+  // ── TAB 2: MANAJEMEN KOLOM KOMPONEN STATE ──
   const [loadingKomponen, setLoadingKomponen] = useState(true);
   const [komponenList, setKomponenList] = useState<MasterKomponenGaji[]>([]);
+  const [komponenMeta, setKomponenMeta] = useState<PaginationMeta>({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
   const [searchKomponen, setSearchKomponen] = useState('');
+  const [tempSearchKomponen, setTempSearchKomponen] = useState('');
+  const [filterJenisKomponen, setFilterJenisKomponen] = useState('');
+  const [tempFilterJenisKomponen, setTempFilterJenisKomponen] = useState('');
+  const [filterTipeNilaiKomponen, setFilterTipeNilaiKomponen] = useState('');
+  const [tempFilterTipeNilaiKomponen, setTempFilterTipeNilaiKomponen] = useState('');
+  const [filterKolomAktif, setFilterKolomAktif] = useState('');
+  const [tempFilterKolomAktif, setTempFilterKolomAktif] = useState('');
+  const [sortByKomponen, setSortByKomponen] = useState('urutan');
+  const [tempSortByKomponen, setTempSortByKomponen] = useState('urutan');
+  const [sortDirKomponen, setSortDirKomponen] = useState<'asc' | 'desc'>('asc');
+  const [tempSortDirKomponen, setTempSortDirKomponen] = useState<'asc' | 'desc'>('asc');
+  const [showFilterKomponen, setShowFilterKomponen] = useState(false);
   const [modalKomponenOpen, setModalKomponenOpen] = useState(false);
   const [editingKomponen, setEditingKomponen] = useState<MasterKomponenGaji | null>(null);
   const [deleteModalKomponen, setDeleteModalKomponen] = useState<{
@@ -100,39 +118,21 @@ export default function MasterKomponenGajiPage() {
     isLoading: boolean;
   }>({ isOpen: false, item: null, isLoading: false });
 
-  // Sorting state for Drawer filter
-  const [filterOrderBy, setFilterOrderBy] = useState('nama');
-  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
-
-  // ── TAB 2: SKALA GAJI POKOK STATE ──
-  const [loadingSkala, setLoadingSkala] = useState(false);
-  const [skalaList, setSkalaList] = useState<MasterSkalaGajiPokok[]>([]);
-  const [searchSkala, setSearchSkala] = useState('');
-  const [modalSkalaOpen, setModalSkalaOpen] = useState(false);
-  const [editingSkala, setEditingSkala] = useState<MasterSkalaGajiPokok | null>(null);
-  const [deleteModalSkala, setDeleteModalSkala] = useState<{
-    isOpen: boolean;
-    item: MasterSkalaGajiPokok | null;
-    isLoading: boolean;
-  }>({ isOpen: false, item: null, isLoading: false });
-
-  // ── TAB 3: TUNJANGAN JAFUNG STATE ──
-  const [loadingJafung, setLoadingJafung] = useState(false);
-  const [jafungList, setJafungList] = useState<JabatanFungsionalAkademik[]>([]);
-  const [searchJafung, setSearchJafung] = useState('');
-  const [modalJafungOpen, setModalJafungOpen] = useState(false);
-  const [editingJafung, setEditingJafung] = useState<JabatanFungsionalAkademik | null>(null);
-  const [deleteModalJafung, setDeleteModalJafung] = useState<{
-    isOpen: boolean;
-    item: JabatanFungsionalAkademik | null;
-    isLoading: boolean;
-  }>({ isOpen: false, item: null, isLoading: false });
-
-  // ── TAB 4: BRACKET PPH 21 STATE ──
-  const [loadingPph21, setLoadingPph21] = useState(false);
-  const [pph21List, setPph21List] = useState<MasterBracketPph21[]>([]);
-  const [modalPph21Open, setModalPph21Open] = useState(false);
-  const [editingPph21, setEditingPph21] = useState<MasterBracketPph21 | null>(null);
+  // ── TAB 3: PLOTING TERDAMPAK ABSENSI STATE ──
+  const [loadingAbsensi, setLoadingAbsensi] = useState(true);
+  const [pegawaiAbsensiList, setPegawaiAbsensiList] = useState<any[]>([]);
+  const [absensiMeta, setAbsensiMeta] = useState<PaginationMeta>({ current_page: 1, per_page: 15, total: 0, last_page: 1 });
+  const [searchAbsensi, setSearchAbsensi] = useState('');
+  const [tempSearchAbsensi, setTempSearchAbsensi] = useState('');
+  const [filterStatusAbsensi, setFilterStatusAbsensi] = useState('');
+  const [tempFilterStatusAbsensi, setTempFilterStatusAbsensi] = useState('');
+  const [sortByAbsensi, setSortByAbsensi] = useState('nama_lengkap');
+  const [tempSortByAbsensi, setTempSortByAbsensi] = useState('nama_lengkap');
+  const [sortDirAbsensi, setSortDirAbsensi] = useState<'asc' | 'desc'>('asc');
+  const [tempSortDirAbsensi, setTempSortDirAbsensi] = useState<'asc' | 'desc'>('asc');
+  const [showFilterAbsensi, setShowFilterAbsensi] = useState(false);
+  const [selectedPegawaiIds, setSelectedPegawaiIds] = useState<number[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   // ── FORMS ──
   const formKomponen = useForm<KomponenFormValues>({
@@ -145,99 +145,188 @@ export default function MasterKomponenGajiPage() {
       nilai_default: 0,
       is_taxable: true,
       is_active: true,
+      is_kolom_aktif: true,
       urutan: 1,
-      keterangan: '',
-    },
-  });
-
-  const formSkala = useForm<SkalaGajiFormValues>({
-    resolver: zodResolver(skalaGajiSchema),
-    defaultValues: {
-      nama_skala: '',
-      golongan: '',
-      masa_kerja_min_tahun: 0,
-      masa_kerja_max_tahun: 5,
-      nominal_gaji: 4000000,
-      keterangan: '',
-      is_active: true,
-    },
-  });
-
-  const formJafung = useForm<JafungTunjanganFormValues>({
-    resolver: zodResolver(jafungTunjanganSchema),
-    defaultValues: {
-      tunjangan_nominal: 0,
-    },
-  });
-
-  const formPph21 = useForm<BracketPph21FormValues>({
-    resolver: zodResolver(bracketPph21Schema),
-    defaultValues: {
-      penghasilan_bruto_min: 0,
-      penghasilan_bruto_max: null,
-      tarif_persen: 0.005,
       keterangan: '',
     },
   });
 
   // ── FETCH HANDLERS ──
 
-  const loadKomponen = useCallback(async () => {
+  // 1. Fetch Matriks Pegawai (Tab 1)
+  const loadMatriks = useCallback(async (page = 1) => {
+    try {
+      setLoadingMatriks(true);
+      const params: Record<string, any> = {
+        page,
+        per_page: matriksMeta.per_page,
+        sort_by: sortByMatriks,
+        sort_order: sortDirMatriks,
+      };
+      if (searchMatriks) params.search = searchMatriks;
+      if (filterUnitKerja) params.unit_kerja_id = filterUnitKerja;
+      if (filterJenisPegawai) params.jenis_pegawai = filterJenisPegawai;
+
+      const res: any = await simpegService.getPegawaiMatriksGaji(params);
+      const data = res?.data || {};
+      setPegawaiMatriksList(data?.pegawai || []);
+      setActiveColumns(data?.active_columns || []);
+
+      if (res?.meta) {
+        setMatriksMeta({
+          current_page: res.meta.current_page,
+          per_page: res.meta.per_page,
+          total: res.meta.total,
+          last_page: res.meta.last_page,
+        });
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal memuat matriks komponen pegawai');
+    } finally {
+      setLoadingMatriks(false);
+    }
+  }, [searchMatriks, filterUnitKerja, filterJenisPegawai, sortByMatriks, sortDirMatriks, matriksMeta.per_page]);
+
+  // 2. Fetch Komponen Kolom (Tab 2)
+  const loadKomponen = useCallback(async (page = 1) => {
     try {
       setLoadingKomponen(true);
-      const res: any = await simpegService.getKomponenGajiList({ search: searchKomponen });
+      const params: Record<string, any> = {
+        page,
+        per_page: komponenMeta.per_page,
+        sort_by: sortByKomponen,
+        sort_order: sortDirKomponen,
+      };
+      if (searchKomponen) params.search = searchKomponen;
+      if (filterJenisKomponen) params.jenis = filterJenisKomponen;
+      if (filterTipeNilaiKomponen) params.tipe_nilai = filterTipeNilaiKomponen;
+      if (filterKolomAktif !== '') params.is_kolom_aktif = filterKolomAktif;
+
+      const res: any = await simpegService.getKomponenGajiList(params);
       setKomponenList(res?.data || []);
+      if (res?.meta) {
+        setKomponenMeta({
+          current_page: res.meta.current_page,
+          per_page: res.meta.per_page,
+          total: res.meta.total,
+          last_page: res.meta.last_page,
+        });
+      }
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memuat master komponen gaji');
     } finally {
       setLoadingKomponen(false);
     }
-  }, [searchKomponen]);
+  }, [searchKomponen, filterJenisKomponen, filterTipeNilaiKomponen, filterKolomAktif, sortByKomponen, sortDirKomponen, komponenMeta.per_page]);
 
-  const loadSkala = useCallback(async () => {
+  // 3. Fetch Pegawai untuk Ploting Absensi (Tab 3)
+  const loadPegawaiAbsensi = useCallback(async (page = 1) => {
     try {
-      setLoadingSkala(true);
-      const res: any = await simpegService.getSkalaGajiList({ search: searchSkala });
-      setSkalaList(res?.data || []);
+      setLoadingAbsensi(true);
+      const params: Record<string, any> = {
+        page,
+        per_page: absensiMeta.per_page,
+        sort_by: sortByAbsensi,
+        sort_order: sortDirAbsensi,
+      };
+      if (searchAbsensi) params.search = searchAbsensi;
+      if (filterStatusAbsensi !== '') {
+        params.terdampak_absensi = filterStatusAbsensi;
+      }
+
+      const res: any = await simpegService.getPegawaiMatriksGaji(params);
+      const data = res?.data || {};
+      setPegawaiAbsensiList(data?.pegawai || []);
+
+      if (res?.meta) {
+        setAbsensiMeta({
+          current_page: res.meta.current_page,
+          per_page: res.meta.per_page,
+          total: res.meta.total,
+          last_page: res.meta.last_page,
+        });
+      }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat skala gaji pokok');
+      toast.error(err?.response?.data?.message || 'Gagal memuat daftar ploting absensi pegawai');
     } finally {
-      setLoadingSkala(false);
+      setLoadingAbsensi(false);
     }
-  }, [searchSkala]);
+  }, [searchAbsensi, filterStatusAbsensi, sortByAbsensi, sortDirAbsensi, absensiMeta.per_page]);
 
-  const loadJafung = useCallback(async () => {
-    try {
-      setLoadingJafung(true);
-      const res: any = await simpegService.getJafungTunjanganList({ search: searchJafung });
-      setJafungList(res?.data || []);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat tunjangan fungsional');
-    } finally {
-      setLoadingJafung(false);
+  useEffect(() => {
+    if (activeTab === 'matriks') {
+      loadMatriks(1);
+    } else if (activeTab === 'kolom') {
+      loadKomponen();
+    } else if (activeTab === 'absensi') {
+      loadPegawaiAbsensi(1);
     }
-  }, [searchJafung]);
+  }, [activeTab, loadMatriks, loadKomponen, loadPegawaiAbsensi]);
 
-  const loadPph21 = useCallback(async () => {
+  // Load options unit kerja untuk AsyncSelect
+  const loadUnitKerjaOptions = useCallback(async (inputValue: string) => {
     try {
-      setLoadingPph21(true);
-      const res: any = await simpegService.getBracketPph21List();
-      setPph21List(res?.data || []);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat tarif PPh 21');
-    } finally {
-      setLoadingPph21(false);
+      const res: any = await simpegService.getUnitKerjaList({ search: inputValue, per_page: 50 });
+      const items = res?.data || [];
+      return items.map((u: any) => ({
+        value: String(u.id),
+        label: u.nama,
+      }));
+    } catch {
+      return [];
     }
   }, []);
 
-  useEffect(() => {
-    if (activeTab === 'komponen') loadKomponen();
-    else if (activeTab === 'skala') loadSkala();
-    else if (activeTab === 'jafung') loadJafung();
-    else if (activeTab === 'pph21') loadPph21();
-  }, [activeTab, loadKomponen, loadSkala, loadJafung, loadPph21]);
+  // ── TAB 1 ACTIONS ──
+  const handleApplyFilterMatriks = () => {
+    setSearchMatriks(tempSearchMatriks);
+    setFilterUnitKerja(tempFilterUnitKerja);
+    setFilterJenisPegawai(tempFilterJenisPegawai);
+    setSortByMatriks(tempSortByMatriks);
+    setSortDirMatriks(tempSortDirMatriks);
+    setShowFilterMatriks(false);
+  };
 
-  // ── ACTION HANDLERS: KOMPONEN ──
+  const handleResetFilterMatriks = () => {
+    setTempSearchMatriks('');
+    setTempFilterUnitKerja('');
+    setTempFilterJenisPegawai('');
+    setTempSortByMatriks('nama_lengkap');
+    setTempSortDirMatriks('asc');
+    setSearchMatriks('');
+    setFilterUnitKerja('');
+    setFilterJenisPegawai('');
+    setSortByMatriks('nama_lengkap');
+    setSortDirMatriks('asc');
+    setShowFilterMatriks(false);
+  };
+
+  // ── TAB 2 ACTIONS (KOMPONEN / KOLOM) ──
+  const handleApplyFilterKomponen = () => {
+    setSearchKomponen(tempSearchKomponen);
+    setFilterJenisKomponen(tempFilterJenisKomponen);
+    setFilterTipeNilaiKomponen(tempFilterTipeNilaiKomponen);
+    setFilterKolomAktif(tempFilterKolomAktif);
+    setSortByKomponen(tempSortByKomponen);
+    setSortDirKomponen(tempSortDirKomponen);
+    setShowFilterKomponen(false);
+  };
+
+  const handleResetFilterKomponen = () => {
+    setTempSearchKomponen('');
+    setTempFilterJenisKomponen('');
+    setTempFilterTipeNilaiKomponen('');
+    setTempFilterKolomAktif('');
+    setTempSortByKomponen('urutan');
+    setTempSortDirKomponen('asc');
+    setSearchKomponen('');
+    setFilterJenisKomponen('');
+    setFilterTipeNilaiKomponen('');
+    setFilterKolomAktif('');
+    setSortByKomponen('urutan');
+    setSortDirKomponen('asc');
+    setShowFilterKomponen(false);
+  };
 
   const handleOpenCreateKomponen = () => {
     setEditingKomponen(null);
@@ -249,6 +338,7 @@ export default function MasterKomponenGajiPage() {
       nilai_default: 0,
       is_taxable: true,
       is_active: true,
+      is_kolom_aktif: true,
       urutan: (komponenList.length || 0) + 1,
       keterangan: '',
     });
@@ -262,10 +352,11 @@ export default function MasterKomponenGajiPage() {
       nama: item.nama,
       jenis: item.jenis,
       tipe_nilai: item.tipe_nilai,
-      nilai_default: item.nilai_default,
-      is_taxable: item.is_taxable,
-      is_active: item.is_active,
-      urutan: item.urutan,
+      nilai_default: Number(item.nilai_default),
+      is_taxable: Boolean(item.is_taxable),
+      is_active: Boolean(item.is_active),
+      is_kolom_aktif: Boolean(item.is_kolom_aktif ?? true),
+      urutan: Number(item.urutan),
       keterangan: item.keterangan || '',
     });
     setModalKomponenOpen(true);
@@ -287,197 +378,246 @@ export default function MasterKomponenGajiPage() {
     }
   };
 
-  const handleConfirmDeleteKomponen = async () => {
+  const handleToggleKolom = async (item: MasterKomponenGaji) => {
+    try {
+      await simpegService.toggleKomponenKolom(item.id);
+      toast.success(`Visibilitas kolom '${item.nama}' berhasil diubah`);
+      loadKomponen();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengubah visibilitas kolom');
+    }
+  };
+
+  const handleDeleteKomponen = async () => {
     if (!deleteModalKomponen.item) return;
     try {
-      setDeleteModalKomponen((prev) => ({ ...prev, isLoading: true }));
+      setDeleteModalKomponen(prev => ({ ...prev, isLoading: true }));
       await simpegService.deleteKomponenGaji(deleteModalKomponen.item.id);
       toast.success(`Komponen '${deleteModalKomponen.item.nama}' berhasil dihapus`);
       setDeleteModalKomponen({ isOpen: false, item: null, isLoading: false });
       loadKomponen();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus komponen gaji');
-      setDeleteModalKomponen((prev) => ({ ...prev, isLoading: false }));
+      toast.error(err?.response?.data?.message || 'Gagal menghapus komponen');
+      setDeleteModalKomponen(prev => ({ ...prev, isLoading: false }));
     }
   };
 
-  // ── ACTION HANDLERS: SKALA GAJI ──
-
-  const handleOpenCreateSkala = () => {
-    setEditingSkala(null);
-    formSkala.reset({
-      nama_skala: '',
-      golongan: '',
-      masa_kerja_min_tahun: 0,
-      masa_kerja_max_tahun: 5,
-      nominal_gaji: 4000000,
-      keterangan: '',
-      is_active: true,
-    });
-    setModalSkalaOpen(true);
+  // ── TAB 3 ACTIONS (PLOTING ABSENSI) ──
+  const handleApplyFilterAbsensi = () => {
+    setSearchAbsensi(tempSearchAbsensi);
+    setFilterStatusAbsensi(tempFilterStatusAbsensi);
+    setSortByAbsensi(tempSortByAbsensi);
+    setSortDirAbsensi(tempSortDirAbsensi);
+    setShowFilterAbsensi(false);
   };
 
-  const handleOpenEditSkala = (item: MasterSkalaGajiPokok) => {
-    setEditingSkala(item);
-    formSkala.reset({
-      nama_skala: item.nama_skala,
-      golongan: item.golongan || '',
-      masa_kerja_min_tahun: item.masa_kerja_min_tahun,
-      masa_kerja_max_tahun: item.masa_kerja_max_tahun,
-      nominal_gaji: item.nominal_gaji,
-      keterangan: item.keterangan || '',
-      is_active: item.is_active,
-    });
-    setModalSkalaOpen(true);
+  const handleResetFilterAbsensi = () => {
+    setTempSearchAbsensi('');
+    setTempFilterStatusAbsensi('');
+    setTempSortByAbsensi('nama_lengkap');
+    setTempSortDirAbsensi('asc');
+    setSearchAbsensi('');
+    setFilterStatusAbsensi('');
+    setSortByAbsensi('nama_lengkap');
+    setSortDirAbsensi('asc');
+    setShowFilterAbsensi(false);
   };
 
-  const onSubmitSkala = async (values: SkalaGajiFormValues) => {
+  const handleTogglePegawaiAbsensi = async (peg: any) => {
     try {
-      const payload = {
-        ...values,
-        golongan: values.golongan ? values.golongan : null,
-      };
-      if (editingSkala) {
-        await simpegService.updateSkalaGaji(editingSkala.id, payload);
-        toast.success(`Skala gaji '${values.nama_skala}' berhasil diperbarui`);
-      } else {
-        await simpegService.createSkalaGaji(payload);
-        toast.success(`Skala gaji '${values.nama_skala}' berhasil ditambahkan`);
-      }
-      setModalSkalaOpen(false);
-      loadSkala();
+      const nextStatus = !peg.terdampak_absensi;
+      await simpegService.updatePegawaiTerdampakAbsensi(peg.id, nextStatus);
+      toast.success(`Status absensi ${peg.nama_lengkap} diubah menjadi ${nextStatus ? 'Terdampak' : 'Bebas Absensi'}`);
+      setPegawaiAbsensiList(prev => prev.map(p => p.id === peg.id ? { ...p, terdampak_absensi: nextStatus } : p));
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan skala gaji');
+      toast.error(err?.response?.data?.message || 'Gagal mengubah status absensi pegawai');
     }
   };
 
-  const handleConfirmDeleteSkala = async () => {
-    if (!deleteModalSkala.item) return;
+  const handleBatchToggleAbsensi = async (terdampak: boolean) => {
+    if (selectedPegawaiIds.length === 0) {
+      toast.error('Pilih minimal satu pegawai untuk pembaruan massal');
+      return;
+    }
     try {
-      setDeleteModalSkala((prev) => ({ ...prev, isLoading: true }));
-      await simpegService.deleteSkalaGaji(deleteModalSkala.item.id);
-      toast.success(`Skala gaji '${deleteModalSkala.item.nama_skala}' berhasil dihapus`);
-      setDeleteModalSkala({ isOpen: false, item: null, isLoading: false });
-      loadSkala();
+      setBatchLoading(true);
+      await simpegService.bulkUpdatePegawaiTerdampakAbsensi(selectedPegawaiIds, terdampak);
+      toast.success(`Berhasil memperbarui ${selectedPegawaiIds.length} pegawai menjadi ${terdampak ? 'Terdampak' : 'Bebas Absensi'}`);
+      setSelectedPegawaiIds([]);
+      loadPegawaiAbsensi(absensiMeta.current_page);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus skala gaji');
-      setDeleteModalSkala((prev) => ({ ...prev, isLoading: false }));
+      toast.error(err?.response?.data?.message || 'Gagal memperbarui status absensi pegawai secara massal');
+    } finally {
+      setBatchLoading(false);
     }
   };
 
-  // ── ACTION HANDLERS: JAFUNG ──
-
-  const handleOpenEditJafung = (item: JabatanFungsionalAkademik) => {
-    setEditingJafung(item);
-    formJafung.reset({
-      tunjangan_nominal: item.tunjangan_nominal || 0,
-    });
-    setModalJafungOpen(true);
+  const toggleSelectPegawai = (id: number) => {
+    setSelectedPegawaiIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
-  const onSubmitJafung = async (values: JafungTunjanganFormValues) => {
-    if (!editingJafung) return;
-    try {
-      await simpegService.updateJafungTunjangan(editingJafung.id, values.tunjangan_nominal);
-      toast.success(`Tunjangan untuk '${editingJafung.nama}' berhasil diperbarui`);
-      setModalJafungOpen(false);
-      loadJafung();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memperbarui tunjangan jafung');
+  const toggleSelectAllPegawai = () => {
+    if (selectedPegawaiIds.length === pegawaiAbsensiList.length) {
+      setSelectedPegawaiIds([]);
+    } else {
+      setSelectedPegawaiIds(pegawaiAbsensiList.map(p => p.id));
     }
   };
 
-  // ── ACTION HANDLERS: PPH 21 ──
+  // ── COLUMNS TAB 1: MATRIKS PEGAWAI & NOMINAL ──
+  const columnsMatriks: ColumnDef<any>[] = [
+    {
+      key: 'nama_lengkap',
+      label: 'Pegawai',
+      render: (row: any) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+            {row.nama_lengkap}
+          </span>
+          <span className="text-2xs text-slate-500 font-mono">
+            NIP: {row.nip || '-'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'unit_kerja',
+      label: 'Unit Kerja / Status',
+      render: (row: any) => (
+        <div className="flex flex-col">
+          <span className="text-xs text-slate-700 dark:text-slate-300">
+            {row.unit_kerja || '-'}
+          </span>
+          <span className="text-2xs text-slate-500 capitalize">
+            {row.jenis_pegawai || '-'} • {(row.status_kepegawaian || '-').replace('_', ' ')}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'terdampak_absensi',
+      label: 'Absensi',
+      render: (row: any) => (
+        <Badge variant={row.terdampak_absensi ? 'success' : 'warning'}>
+          {row.terdampak_absensi ? 'Terdampak' : 'Bebas Absensi'}
+        </Badge>
+      ),
+    },
+    // Dynamic Columns per Active Komponen
+    ...activeColumns.map((col) => ({
+      key: `komponen_${col.kode}`,
+      label: `${col.nama} (${col.kode})`,
+      render: (row: any) => {
+        const valObj = row.komponen_values?.[col.kode];
+        if (!valObj) return <span className="text-slate-400 text-2xs">-</span>;
+        
+        return (
+          <div className="flex flex-col gap-0.5">
+            {col.jenis === 'potongan' ? (
+              <Badge variant="danger">
+                {formatRupiah(valObj.nominal)}
+              </Badge>
+            ) : (
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+                {formatRupiah(valObj.nominal)}
+              </span>
+            )}
+            {valObj.is_custom && (
+              <div className="mt-0.5">
+                <Badge variant="success">
+                  Kustom
+                </Badge>
+              </div>
+            )}
+          </div>
+        );
+      },
+    })),
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (row: any) => {
+        if (!canManage) return null;
+        return (
+          <DropdownMenu
+            items={[
+              {
+                label: 'Ubah Nominal Komponen',
+                icon: <Edit2 size={14} />,
+                onClick: () => router.push(`/simpeg/payroll/komponen/pegawai/${row.id}`),
+              },
+            ]}
+          />
+        );
+      },
+    },
+  ];
 
-  const handleOpenEditPph21 = (item: MasterBracketPph21) => {
-    setEditingPph21(item);
-    formPph21.reset({
-      penghasilan_bruto_min: item.penghasilan_bruto_min,
-      penghasilan_bruto_max: item.penghasilan_bruto_max,
-      tarif_persen: item.tarif_persen,
-      keterangan: item.keterangan || '',
-    });
-    setModalPph21Open(true);
-  };
-
-  const onSubmitPph21 = async (values: BracketPph21FormValues) => {
-    if (!editingPph21) return;
-    try {
-      await simpegService.updateBracketPph21(editingPph21.id, values);
-      toast.success('Tarif PPh 21 berhasil diperbarui');
-      setModalPph21Open(false);
-      loadPph21();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memperbarui tarif PPh 21');
-    }
-  };
-
-  // ── TABLE COLUMNS: KOMPONEN ──
-
+  // ── COLUMNS TAB 2: MANAJEMEN KOLOM KOMPONEN ──
   const columnsKomponen: ColumnDef<MasterKomponenGaji>[] = [
     {
-      key: 'urutan',
-      label: 'No',
-      render: (row) => <span className="font-bold font-mono text-slate-500">#{row.urutan}</span>,
+      key: 'kode',
+      label: 'Kode & Urutan',
+      render: (row: MasterKomponenGaji) => (
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-2xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-300">
+            {row.kode}
+          </span>
+          <span className="text-2xs text-slate-400">#{row.urutan}</span>
+        </div>
+      ),
     },
     {
       key: 'nama',
-      label: 'Nama Komponen & Kode',
-      render: (row) => (
-        <div>
-          <span className="font-bold text-slate-900 block">{row.nama}</span>
-          <span className="text-[11px] font-mono text-slate-500">Kode: {row.kode}</span>
+      label: 'Nama Komponen',
+      render: (row: MasterKomponenGaji) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+            {row.nama}
+          </span>
+          {row.keterangan && (
+            <span className="text-2xs text-slate-500 line-clamp-1">{row.keterangan}</span>
+          )}
         </div>
       ),
     },
     {
       key: 'jenis',
-      label: 'Jenis',
-      render: (row) => (
-        <Badge variant={row.jenis === 'pendapatan' ? 'green' : 'red'} className="uppercase font-bold text-xs">
-          {row.jenis}
-        </Badge>
-      ),
-    },
-    {
-      key: 'tipe_nilai',
-      label: 'Metode / Rumus',
-      render: (row) => {
-        const labels: Record<string, string> = {
-          tetap: 'Nominal Tetap Bulanan',
-          rumus_sks: 'Formula SKS Perkuliahan (SIAKAD)',
-          rumus_kehadiran: 'Log Presensi Hadir/Terlambat (SIMPEG)',
-          rumus_pph21: 'Formula PPh 21 TER Dinamis',
-          persentase: 'Persentase Gaji',
-        };
-        return (
-          <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-1 rounded-md">
-            {labels[row.tipe_nilai] || row.tipe_nilai}
+      label: 'Jenis & Tipe Nilai',
+      render: (row: MasterKomponenGaji) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <Badge variant={row.jenis === 'pendapatan' ? 'success' : 'danger'}>
+              {row.jenis}
+            </Badge>
+            {row.is_taxable && (
+              <Badge variant="warning">Taxable</Badge>
+            )}
+          </div>
+          <span className="text-2xs text-slate-500 font-medium">
+            {row.tipe_nilai.replace('_', ' ')}
           </span>
-        );
-      },
+        </div>
+      ),
     },
     {
       key: 'nilai_default',
-      label: 'Tarif Default',
-      render: (row) => (
-        <span className="font-mono font-bold text-slate-800">
-          {row.tipe_nilai === 'rumus_sks'
-            ? `${formatRupiah(row.nilai_default)} / SKS`
-            : row.tipe_nilai === 'rumus_kehadiran'
-            ? `${formatRupiah(row.nilai_default)} / Hari / Kejadian`
-            : row.tipe_nilai === 'rumus_pph21'
-            ? 'Dinamis (Bracket TER)'
-            : formatRupiah(row.nilai_default)}
+      label: 'Nilai Default Master',
+      render: (row: MasterKomponenGaji) => (
+        <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+          {formatRupiah(row.nilai_default)}
         </span>
       ),
     },
     {
-      key: 'is_active',
-      label: 'Status',
-      render: (row) => (
-        <Badge variant={row.is_active ? 'green' : 'gray'}>
-          {row.is_active ? 'Aktif' : 'Nonaktif'}
+      key: 'is_kolom_aktif',
+      label: 'Status Visibilitas Kolom',
+      render: (row: MasterKomponenGaji) => (
+        <Badge variant={row.is_kolom_aktif ?? true ? 'success' : 'gray'}>
+          {row.is_kolom_aktif ?? true ? 'Aktif di Kolom' : 'Disembunyikan'}
         </Badge>
       ),
     },
@@ -485,239 +625,140 @@ export default function MasterKomponenGajiPage() {
       key: 'aksi',
       label: 'Aksi',
       align: 'right',
-      render: (row) => {
+      render: (row: MasterKomponenGaji) => {
         if (!canManage) return null;
         return (
-          <div className="flex justify-end">
-            <DropdownMenu
-              items={[
-                {
-                  label: 'Ubah Konfigurasi',
-                  icon: <Edit2 size={14} />,
-                  onClick: () => handleOpenEditKomponen(row),
-                },
-                {
-                  label: 'Hapus Komponen',
-                  icon: <Trash2 size={14} />,
-                  variant: 'danger',
-                  onClick: () => setDeleteModalKomponen({ isOpen: true, item: row, isLoading: false }),
-                },
-              ]}
-            />
-          </div>
+          <DropdownMenu
+            items={[
+              {
+                label: row.is_kolom_aktif ?? true ? 'Sembunyikan dari Kolom' : 'Tampilkan di Kolom',
+                icon: row.is_kolom_aktif ?? true ? <ToggleLeft size={14} /> : <ToggleRight size={14} />,
+                onClick: () => handleToggleKolom(row),
+              },
+              {
+                label: 'Ubah Komponen',
+                icon: <Edit2 size={14} />,
+                onClick: () => handleOpenEditKomponen(row),
+              },
+              {
+                label: 'Hapus Komponen',
+                icon: <Trash2 size={14} />,
+                variant: 'danger',
+                onClick: () => setDeleteModalKomponen({ isOpen: true, item: row, isLoading: false }),
+              },
+            ]}
+          />
         );
       },
     },
   ];
 
-  // ── TABLE COLUMNS: SKALA GAJI ──
-
-  const columnsSkala: ColumnDef<MasterSkalaGajiPokok>[] = [
+  // ── COLUMNS TAB 3: PLOTING ABSENSI ──
+  const columnsAbsensi: ColumnDef<any>[] = [
     {
-      key: 'nama_skala',
-      label: 'Nama Skala Jenjang',
-      render: (row) => (
-        <div>
-          <span className="font-bold text-slate-900 block">{row.nama_skala}</span>
-          {row.keterangan && <span className="text-xs text-slate-500">{row.keterangan}</span>}
+      key: 'select',
+      label: (
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={pegawaiAbsensiList.length > 0 && selectedPegawaiIds.length === pegawaiAbsensiList.length}
+            onChange={toggleSelectAllPegawai}
+          />
+        </div>
+      ),
+      render: (row: any) => (
+        <div className="flex items-center justify-center">
+          <Checkbox
+            checked={selectedPegawaiIds.includes(row.id)}
+            onChange={() => toggleSelectPegawai(row.id)}
+          />
         </div>
       ),
     },
     {
-      key: 'golongan',
-      label: 'Golongan / Pangkat',
-      render: (row) => (
-        <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-xs">
-          {row.golongan ? row.golongan.toUpperCase() : 'UMUM / TENDIK'}
-        </span>
-      ),
-    },
-    {
-      key: 'masa_kerja',
-      label: 'Rentang Masa Kerja',
-      render: (row) => (
-        <span className="text-sm font-medium text-slate-700">
-          {row.masa_kerja_min_tahun} s.d {row.masa_kerja_max_tahun >= 90 ? 'ke atas' : `${row.masa_kerja_max_tahun} Tahun`}
-        </span>
-      ),
-    },
-    {
-      key: 'nominal_gaji',
-      label: 'Gaji Pokok',
-      render: (row) => (
-        <span className="font-mono font-bold text-emerald-700 text-sm">
-          {formatRupiah(row.nominal_gaji)}
-        </span>
-      ),
-    },
-    {
-      key: 'is_active',
-      label: 'Status',
-      render: (row) => (
-        <Badge variant={row.is_active ? 'green' : 'gray'}>
-          {row.is_active ? 'Aktif' : 'Nonaktif'}
-        </Badge>
-      ),
-    },
-    {
-      key: 'aksi',
-      label: 'Aksi',
-      align: 'right',
-      render: (row) => {
-        if (!canManage) return null;
-        return (
-          <div className="flex justify-end">
-            <DropdownMenu
-              items={[
-                {
-                  label: 'Ubah Skala Gaji',
-                  icon: <Edit2 size={14} />,
-                  onClick: () => handleOpenEditSkala(row),
-                },
-                {
-                  label: 'Hapus Skala',
-                  icon: <Trash2 size={14} />,
-                  variant: 'danger',
-                  onClick: () => setDeleteModalSkala({ isOpen: true, item: row, isLoading: false }),
-                },
-              ]}
-            />
-          </div>
-        );
-      },
-    },
-  ];
-
-  // ── TABLE COLUMNS: JAFUNG ──
-
-  const columnsJafung: ColumnDef<JabatanFungsionalAkademik>[] = [
-    {
-      key: 'nama',
-      label: 'Jabatan Fungsional Akademik',
-      render: (row) => (
-        <div>
-          <span className="font-bold text-slate-900 block">{row.nama}</span>
-          <span className="text-xs text-slate-500 font-mono">Golongan: {row.golongan}</span>
+      key: 'nama_lengkap',
+      label: 'Pegawai',
+      render: (row: any) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs">
+            {row.nama_lengkap}
+          </span>
+          <span className="text-2xs text-slate-500 font-mono">
+            NIP: {row.nip || '-'}
+          </span>
         </div>
       ),
     },
     {
-      key: 'angka_kredit',
-      label: 'Syarat Angka Kredit (KUM)',
-      render: (row) => (
-        <span className="text-sm text-slate-600 font-mono">
-          {row.angka_kredit_min ?? 0} - {row.angka_kredit_max ?? 'Tak Terbatas'}
-        </span>
+      key: 'unit_kerja',
+      label: 'Unit Kerja & Jabatan',
+      render: (row: any) => (
+        <div className="flex flex-col">
+          <span className="text-xs text-slate-700 dark:text-slate-300">
+            {row.unit_kerja || '-'}
+          </span>
+          <span className="text-2xs text-slate-500 capitalize">
+            {row.jenis_pegawai || '-'} • {(row.status_kepegawaian || '-').replace('_', ' ')}
+          </span>
+        </div>
       ),
     },
     {
-      key: 'tunjangan_nominal',
-      label: 'Nominal Tunjangan Fungsional',
-      render: (row) => (
-        <span className="font-mono font-bold text-emerald-700 text-base">
-          {formatRupiah(row.tunjangan_nominal || 0)} / Bulan
-        </span>
+      key: 'terdampak_absensi',
+      label: 'Dampak Terhadap Penggajian',
+      render: (row: any) => (
+        <div className="flex flex-col gap-1 items-start">
+          <Badge variant={row.terdampak_absensi ? 'success' : 'warning'}>
+            {row.terdampak_absensi ? 'Terdampak Presensi Penuh' : 'Bebas Absensi (0 Potongan/Insentif)'}
+          </Badge>
+          <span className="text-2xs text-slate-400">
+            {row.terdampak_absensi 
+              ? 'Dikenakan insentif transport & potongan telat/alpha'
+              : 'Tidak dipengaruhi jam masuk atau absensi (misal anak magang)'}
+          </span>
+        </div>
       ),
     },
     {
       key: 'aksi',
       label: 'Aksi',
       align: 'right',
-      render: (row) => {
+      render: (row: any) => {
         if (!canManage) return null;
         return (
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<Edit2 size={14} />}
-              onClick={() => handleOpenEditJafung(row)}
-            >
-              Ubah Tunjangan
-            </Button>
-          </div>
+          <DropdownMenu
+            items={[
+              {
+                label: row.terdampak_absensi ? 'Set Bebas Absensi' : 'Set Terdampak Presensi',
+                icon: row.terdampak_absensi ? <UserX size={14} /> : <UserCheck size={14} />,
+                onClick: () => handleTogglePegawaiAbsensi(row),
+              },
+            ]}
+          />
         );
       },
     },
   ];
-
-  // ── TABLE COLUMNS: PPH 21 ──
-
-  const columnsPph21: ColumnDef<MasterBracketPph21>[] = [
-    {
-      key: 'kategori',
-      label: 'Kategori / Golongan',
-      render: (row) => <Badge variant="blue">{row.kategori}</Badge>,
-    },
-    {
-      key: 'rentang_bruto',
-      label: 'Rentang Penghasilan Bruto Sebulan',
-      render: (row) => (
-        <span className="font-mono text-sm font-semibold text-slate-800">
-          {formatRupiah(row.penghasilan_bruto_min)} s.d {row.penghasilan_bruto_max ? formatRupiah(row.penghasilan_bruto_max) : 'ke atas'}
-        </span>
-      ),
-    },
-    {
-      key: 'tarif_persen',
-      label: 'Tarif Pajak (TER)',
-      render: (row) => (
-        <span className="font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded text-sm font-mono">
-          {(row.tarif_persen * 100).toFixed(2)} %
-        </span>
-      ),
-    },
-    {
-      key: 'keterangan',
-      label: 'Keterangan',
-      render: (row) => <span className="text-xs text-slate-500">{row.keterangan || '-'}</span>,
-    },
-    {
-      key: 'aksi',
-      label: 'Aksi',
-      align: 'right',
-      render: (row) => {
-        if (!canManage) return null;
-        return (
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={<Edit2 size={14} />}
-              onClick={() => handleOpenEditPph21(row)}
-            >
-              Ubah Tarif
-            </Button>
-          </div>
-        );
-      },
-    },
-  ];
-
-  const [showFilter, setShowFilter] = useState(false);
 
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Master Komponen & Variabel Penggajian"
-        description="Pengaturan dinamis gaji pokok masa kerja, tunjangan jafung dosen, honor SKS, insentif presensi, dan bracket PPh 21"
+        description="Atur matriks pendapatan pegawai, manajemen kolom komponen penggajian, dan ploting dampak kehadiran/absensi"
+        backUrl="/simpeg/payroll"
         action={
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              icon={<ArrowLeft size={16} />}
-              onClick={() => router.push('/simpeg/payroll')}
-            >
-              Kembali ke Payroll
-            </Button>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               icon={<Filter size={16} />}
-              onClick={() => setShowFilter(true)}
+              onClick={() => {
+                if (activeTab === 'matriks') setShowFilterMatriks(true);
+                else if (activeTab === 'kolom') setShowFilterKomponen(true);
+                else if (activeTab === 'absensi') setShowFilterAbsensi(true);
+              }}
             >
               Filter
             </Button>
-            {canManage && activeTab === 'komponen' && (
+            {canManage && activeTab === 'kolom' && (
               <Button
                 icon={<Plus size={16} />}
                 onClick={handleOpenCreateKomponen}
@@ -725,245 +766,315 @@ export default function MasterKomponenGajiPage() {
                 Tambah Komponen
               </Button>
             )}
-            {canManage && activeTab === 'skala' && (
-              <Button
-                icon={<Plus size={16} />}
-                onClick={handleOpenCreateSkala}
-              >
-                Tambah Skala Gaji
-              </Button>
-            )}
           </div>
         }
       />
 
-      {/* Modern Navigation Tabs (Mengikuti Format Master Jabatan & Jenjang Fungsional) */}
+      {/* Modern Navigation Tabs Sesuai Rancangan Baru */}
       <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto">
         <button
           type="button"
-          onClick={() => setActiveTab('komponen')}
+          onClick={() => setActiveTab('matriks')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'komponen'
+            activeTab === 'matriks'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <Layers size={16} /> Komponen & Tarif Variabel
+          <Users size={16} /> Matriks Nominal Komponen Pegawai
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('skala')}
+          onClick={() => setActiveTab('kolom')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'skala'
+            activeTab === 'kolom'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <Calendar size={16} /> Skala Gaji Pokok (Masa Kerja)
+          <Sliders size={16} /> Manajemen Kolom Komponen Gaji
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('jafung')}
+          onClick={() => setActiveTab('absensi')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'jafung'
+            activeTab === 'absensi'
               ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <Award size={16} /> Tunjangan Fungsional Dosen
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('pph21')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'pph21'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Percent size={16} /> Bracket Pajak PPh 21 (TER)
+          <Clock size={16} /> Ploting Terdampak Absensi Pegawai
         </button>
       </div>
 
-      {/* ── TAB 1: KOMPONEN GAJI ── */}
-      {activeTab === 'komponen' && (
+      {/* ── TAB 1 CONTENT: MATRIKS NOMINAL PEGAWAI ── */}
+      {activeTab === 'matriks' && (
+        <div className="space-y-4">
+          <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-800 dark:text-slate-100">Kolom Aktif:</span>
+              <div className="flex flex-wrap gap-1">
+                {activeColumns.map((c) => (
+                  <Badge key={c.id} variant="gray">
+                    {c.nama} ({c.kode})
+                  </Badge>
+                ))}
+                {activeColumns.length === 0 && (
+                  <span className="text-slate-400 italic">Belum ada kolom aktif dari Tab 2</span>
+                )}
+              </div>
+            </div>
+            <span className="text-2xs text-slate-500 shrink-0">
+              *Untuk mengaktifkan/menyembunyikan kolom, atur switch di <strong>Tab 2 (Manajemen Kolom)</strong>.
+            </span>
+          </div>
+
+          <DataTable
+            columns={columnsMatriks}
+            data={pegawaiMatriksList}
+            isLoading={loadingMatriks}
+            meta={matriksMeta}
+            onPageChange={(p) => loadMatriks(p)}
+          />
+        </div>
+      )}
+
+      {/* ── TAB 2 CONTENT: MANAJEMEN KOLOM KOMPONEN ── */}
+      {activeTab === 'kolom' && (
         <div className="space-y-4">
           <DataTable
             columns={columnsKomponen}
             data={komponenList}
             isLoading={loadingKomponen}
-            emptyMessage={
-              <div className="py-8 text-center text-slate-400">
-                <Layers size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada master komponen gaji yang terdaftar.</p>
-              </div>
-            }
+            meta={komponenMeta}
+            onPageChange={(p) => loadKomponen(p)}
           />
         </div>
       )}
 
-      {/* ── TAB 2: SKALA GAJI POKOK (MASA KERJA) ── */}
-      {activeTab === 'skala' && (
+      {/* ── TAB 3 CONTENT: PLOTING TERDAMPAK ABSENSI ── */}
+      {activeTab === 'absensi' && (
         <div className="space-y-4">
-          <DataTable
-            columns={columnsSkala}
-            data={skalaList}
-            isLoading={loadingSkala}
-            emptyMessage={
-              <div className="py-8 text-center text-slate-400">
-                <Calendar size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada matriks skala gaji pokok yang terdaftar.</p>
+          {/* Action bar batch update */}
+          {canManage && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">
+                  Terpilih: {selectedPegawaiIds.length} Pegawai
+                </span>
+                {selectedPegawaiIds.length > 0 && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setSelectedPegawaiIds([])}
+                  >
+                    Batalkan Pilihan
+                  </Button>
+                )}
               </div>
-            }
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={<UserX size={14} />}
+                  disabled={selectedPegawaiIds.length === 0 || batchLoading}
+                  onClick={() => handleBatchToggleAbsensi(false)}
+                >
+                  Set Terpilih Bebas Absensi
+                </Button>
+                <Button
+                  size="sm"
+                  icon={<UserCheck size={14} />}
+                  disabled={selectedPegawaiIds.length === 0 || batchLoading}
+                  onClick={() => handleBatchToggleAbsensi(true)}
+                >
+                  Set Terpilih Terdampak Absensi
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DataTable
+            columns={columnsAbsensi}
+            data={pegawaiAbsensiList}
+            isLoading={loadingAbsensi}
+            meta={absensiMeta}
+            onPageChange={(p) => loadPegawaiAbsensi(p)}
           />
         </div>
       )}
 
-      {/* ── TAB 3: TUNJANGAN JAFUNG ── */}
-      {activeTab === 'jafung' && (
-        <div className="space-y-4">
-          <DataTable
-            columns={columnsJafung}
-            data={jafungList}
-            isLoading={loadingJafung}
-            emptyMessage={
-              <div className="py-8 text-center text-slate-400">
-                <Award size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada jabatan fungsional akademik yang terdaftar.</p>
-              </div>
-            }
-          />
-        </div>
-      )}
-
-      {/* Drawer Filter */}
+      {/* ── FILTER DRAWER TAB 1 (MATRIKS) ── */}
       <Drawer
-        open={showFilter}
-        onClose={() => setShowFilter(false)}
-        title="Filter Master Penggajian"
-      >
-        <div className="space-y-4">
-          {activeTab === 'komponen' && (
-            <Input
-              label="Cari Komponen / Kode"
-              placeholder="Cari nama komponen atau kode..."
-              value={searchKomponen}
-              onChange={(e) => setSearchKomponen(e.target.value)}
-            />
-          )}
-          {activeTab === 'skala' && (
-            <Input
-              label="Cari Skala Gaji"
-              placeholder="Cari nama skala jenjang atau golongan..."
-              value={searchSkala}
-              onChange={(e) => setSearchSkala(e.target.value)}
-            />
-          )}
-          {activeTab === 'jafung' && (
-            <Input
-              label="Cari Jafung"
-              placeholder="Cari jabatan fungsional..."
-              value={searchJafung}
-              onChange={(e) => setSearchJafung(e.target.value)}
-            />
-          )}
-
-          <hr className="my-4 border-slate-200 dark:border-slate-700" />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Urut Berdasarkan"
-              value={filterOrderBy}
-              onChange={(val) => setFilterOrderBy(val)}
-              options={[
-                { value: 'nama', label: 'Nama / Komponen' },
-                { value: 'kode', label: 'Kode' },
-                { value: 'created_at', label: 'Tanggal Dibuat' },
-                { value: 'id', label: 'ID' },
-              ]}
-            />
-            <Select
-              label="Arah"
-              value={filterOrderDir}
-              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
-              options={[
-                { value: 'asc', label: 'A - Z (Terlama)' },
-                { value: 'desc', label: 'Z - A (Terbaru)' },
-              ]}
-            />
-          </div>
-
-          <div className="pt-4 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchKomponen('');
-                setSearchSkala('');
-                setSearchJafung('');
-                setFilterOrderBy('nama');
-                setFilterOrderDir('asc');
-              }}
-            >
+        isOpen={showFilterMatriks}
+        onClose={() => setShowFilterMatriks(false)}
+        title="Filter Matriks Pegawai"
+        footer={
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" className="flex-1" onClick={handleResetFilterMatriks}>
               Reset
             </Button>
-            <Button
-              onClick={() => {
-                setShowFilter(false);
-                if (activeTab === 'komponen') loadKomponen();
-                else if (activeTab === 'skala') loadSkala();
-                else if (activeTab === 'jafung') loadJafung();
-              }}
-            >
+            <Button className="flex-1" onClick={handleApplyFilterMatriks}>
               Terapkan
             </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Pegawai (Nama / NIP)"
+            placeholder="Ketik kata kunci..."
+            value={tempSearchMatriks}
+            onChange={(e) => setTempSearchMatriks(e.target.value)}
+          />
+          <AsyncSelect
+            label="Unit Kerja"
+            placeholder="Pilih atau cari unit kerja..."
+            value={tempFilterUnitKerja}
+            onChange={(val) => setTempFilterUnitKerja(val ? String(val) : '')}
+            loadOptions={loadUnitKerjaOptions}
+            isClearable
+          />
+          <Select
+            label="Jenis Pegawai"
+            value={tempFilterJenisPegawai}
+            onChange={(e) => setTempFilterJenisPegawai(e.target.value)}
+            options={JENIS_PEGAWAI_OPTIONS}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={tempSortByMatriks}
+              onChange={(e) => setTempSortByMatriks(e.target.value)}
+              options={SORT_BY_PEGAWAI_OPTIONS}
+            />
+            <Select
+              label="Arah Urutan"
+              value={tempSortDirMatriks}
+              onChange={(e) => setTempSortDirMatriks(e.target.value as 'asc' | 'desc')}
+              options={SORT_ORDER_OPTIONS}
+            />
           </div>
         </div>
       </Drawer>
 
-      {/* ── TAB 4: BRACKET PPH 21 ── */}
-      {activeTab === 'pph21' && (
-        <div className="space-y-4">
-          <div className="card p-4 border border-slate-200 bg-slate-50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Percent size={24} className="text-amber-600" />
-              <div>
-                <p className="font-semibold text-slate-800 text-sm">Tarif Efektif Rata-Rata (TER) Pajak PPh 21 Bulanan</p>
-                <p className="text-xs text-slate-500">Tarif dipotong otomatis dari total bruto gaji per bulan sesuai PP No. 58/2023.</p>
-              </div>
-            </div>
+      {/* ── FILTER DRAWER TAB 2 (KOMPONEN) ── */}
+      <Drawer
+        isOpen={showFilterKomponen}
+        onClose={() => setShowFilterKomponen(false)}
+        title="Filter Komponen Gaji"
+        footer={
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" className="flex-1" onClick={handleResetFilterKomponen}>
+              Reset
+            </Button>
+            <Button className="flex-1" onClick={handleApplyFilterKomponen}>
+              Terapkan
+            </Button>
           </div>
-
-          <DataTable
-            columns={columnsPph21}
-            data={pph21List}
-            isLoading={loadingPph21}
-            emptyMessage={
-              <div className="py-8 text-center text-slate-400">
-                <Percent size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada tier tarif PPh 21 yang terdaftar.</p>
-              </div>
-            }
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Komponen (Nama / Kode)"
+            placeholder="Ketik nama atau kode..."
+            value={tempSearchKomponen}
+            onChange={(e) => setTempSearchKomponen(e.target.value)}
           />
+          <Select
+            label="Jenis Komponen"
+            value={tempFilterJenisKomponen}
+            onChange={(e) => setTempFilterJenisKomponen(e.target.value)}
+            options={JENIS_KOMPONEN_OPTIONS}
+          />
+          <Select
+            label="Tipe Nilai Perhitungan"
+            value={tempFilterTipeNilaiKomponen}
+            onChange={(e) => setTempFilterTipeNilaiKomponen(e.target.value)}
+            options={TIPE_NILAI_FILTER_OPTIONS}
+          />
+          <Select
+            label="Status Visibilitas Kolom"
+            value={tempFilterKolomAktif}
+            onChange={(e) => setTempFilterKolomAktif(e.target.value)}
+            options={STATUS_VISIBILITAS_KOLOM_OPTIONS}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={tempSortByKomponen}
+              onChange={(e) => setTempSortByKomponen(e.target.value)}
+              options={SORT_BY_KOMPONEN_OPTIONS}
+            />
+            <Select
+              label="Arah Urutan"
+              value={tempSortDirKomponen}
+              onChange={(e) => setTempSortDirKomponen(e.target.value as 'asc' | 'desc')}
+              options={SORT_ORDER_OPTIONS}
+            />
+          </div>
         </div>
-      )}
+      </Drawer>
 
-      {/* ── MODAL FORM: KOMPONEN GAJI ── */}
+      {/* ── FILTER DRAWER TAB 3 (ABSENSI) ── */}
+      <Drawer
+        isOpen={showFilterAbsensi}
+        onClose={() => setShowFilterAbsensi(false)}
+        title="Filter Ploting Absensi"
+        footer={
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" className="flex-1" onClick={handleResetFilterAbsensi}>
+              Reset
+            </Button>
+            <Button className="flex-1" onClick={handleApplyFilterAbsensi}>
+              Terapkan
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cari Pegawai (Nama / NIP)"
+            placeholder="Ketik kata kunci..."
+            value={tempSearchAbsensi}
+            onChange={(e) => setTempSearchAbsensi(e.target.value)}
+          />
+          <Select
+            label="Status Dampak Absensi"
+            value={tempFilterStatusAbsensi}
+            onChange={(e) => setTempFilterStatusAbsensi(e.target.value)}
+            options={STATUS_ABSENSI_OPTIONS}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={tempSortByAbsensi}
+              onChange={(e) => setTempSortByAbsensi(e.target.value)}
+              options={SORT_BY_PEGAWAI_OPTIONS}
+            />
+            <Select
+              label="Arah Urutan"
+              value={tempSortDirAbsensi}
+              onChange={(e) => setTempSortDirAbsensi(e.target.value as 'asc' | 'desc')}
+              options={SORT_ORDER_OPTIONS}
+            />
+          </div>
+        </div>
+      </Drawer>
+
+      {/* ── MODAL CREATE / EDIT KOMPONEN (TAB 2) ── */}
       <Modal
-        open={modalKomponenOpen}
+        isOpen={modalKomponenOpen}
         onClose={() => setModalKomponenOpen(false)}
         title={editingKomponen ? `Ubah Komponen: ${editingKomponen.nama}` : 'Tambah Master Komponen Gaji Baru'}
         footer={
-          <div className="flex gap-2 justify-end w-full">
-            <Button variant="secondary" onClick={() => setModalKomponenOpen(false)}>
+          <div className="flex justify-end gap-2 w-full">
+            <Button variant="outline" type="button" onClick={() => setModalKomponenOpen(false)}>
               Batal
             </Button>
-            <Button
-              variant="primary"
-              loading={formKomponen.formState.isSubmitting}
-              disabled={formKomponen.formState.isSubmitting}
-              onClick={formKomponen.handleSubmit(onSubmitKomponen)}
-            >
-              <CheckCircle2 size={16} /> Simpan Komponen
+            <Button onClick={formKomponen.handleSubmit(onSubmitKomponen)}>
+              {editingKomponen ? 'Simpan Perubahan' : 'Tambahkan Komponen'}
             </Button>
           </div>
         }
@@ -971,270 +1082,121 @@ export default function MasterKomponenGajiPage() {
         <form onSubmit={formKomponen.handleSubmit(onSubmitKomponen)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Kode Komponen (Unik)"
-              placeholder="Contoh: HONOR_SKS"
+              label="Kode Komponen"
+              placeholder="Contoh: TUNJ_MAKAN"
+              disabled={Boolean(editingKomponen)}
               {...formKomponen.register('kode')}
               error={formKomponen.formState.errors.kode?.message}
-              required
             />
             <Input
               label="Nama Komponen"
-              placeholder="Contoh: Honor Mengajar SKS"
+              placeholder="Contoh: Tunjangan Makan Siang"
               {...formKomponen.register('nama')}
               error={formKomponen.formState.errors.nama?.message}
-              required
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Jenis Komponen"
-              value={formKomponen.watch('jenis')}
-              onChange={(val) => formKomponen.setValue('jenis', val as 'pendapatan' | 'potongan')}
-              options={[
-                { value: 'pendapatan', label: 'Pendapatan / Tunjangan (+)' },
-                { value: 'potongan', label: 'Potongan Pajak / Iuran / Denda (-)' },
-              ]}
+            <Controller
+              control={formKomponen.control}
+              name="jenis"
+              render={({ field, fieldState }) => (
+                <Select
+                  label="Jenis Komponen"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                  options={JENIS_KOMPONEN_FORM_OPTIONS}
+                />
+              )}
             />
-            <Select
-              label="Metode / Rumus Nilai"
-              value={formKomponen.watch('tipe_nilai')}
-              onChange={(val) => formKomponen.setValue('tipe_nilai', val as any)}
-              options={[
-                { value: 'tetap', label: 'Nominal Tetap Bulanan' },
-                { value: 'rumus_sks', label: 'Formula Total SKS Mengajar (SIAKAD)' },
-                { value: 'rumus_kehadiran', label: 'Formula Log Presensi (SIMPEG)' },
-                { value: 'rumus_pph21', label: 'Formula Pajak PPh 21 (TER)' },
-              ]}
+            <Controller
+              control={formKomponen.control}
+              name="tipe_nilai"
+              render={({ field, fieldState }) => (
+                <Select
+                  label="Tipe Nilai Perhitungan"
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                  options={TIPE_NILAI_KOMPONEN_OPTIONS}
+                />
+              )}
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Tarif / Nilai Default (Rp)"
+              label="Nilai Default Master (Rp)"
               type="number"
               placeholder="0"
               {...formKomponen.register('nilai_default', { valueAsNumber: true })}
               error={formKomponen.formState.errors.nilai_default?.message}
-              required
             />
             <Input
-              label="Urutan Tampil"
+              label="Urutan Tampilan Kolom"
               type="number"
               placeholder="1"
               {...formKomponen.register('urutan', { valueAsNumber: true })}
               error={formKomponen.formState.errors.urutan?.message}
-              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            <Controller
+              control={formKomponen.control}
+              name="is_taxable"
+              render={({ field }) => (
+                <Checkbox
+                  label="Kena Pajak PPh 21 (Taxable)"
+                  checked={Boolean(field.value)}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              )}
+            />
+            <Controller
+              control={formKomponen.control}
+              name="is_active"
+              render={({ field }) => (
+                <Checkbox
+                  label="Komponen Aktif Sistem"
+                  checked={Boolean(field.value)}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              )}
+            />
+            <Controller
+              control={formKomponen.control}
+              name="is_kolom_aktif"
+              render={({ field }) => (
+                <Checkbox
+                  label="Tampil di Kolom Tab 1"
+                  checked={Boolean(field.value)}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              )}
             />
           </div>
 
           <Input
-            label="Keterangan Tambahan (Opsional)"
-            placeholder="Penjelasan dasar komponen atau peraturan kampus..."
+            label="Keterangan Komponen"
+            placeholder="Catatan regulasi atau formula..."
             {...formKomponen.register('keterangan')}
+            error={formKomponen.formState.errors.keterangan?.message}
           />
         </form>
       </Modal>
 
-      {/* ── MODAL FORM: SKALA GAJI POKOK ── */}
-      <Modal
-        open={modalSkalaOpen}
-        onClose={() => setModalSkalaOpen(false)}
-        title={editingSkala ? `Ubah Skala Gaji: ${editingSkala.nama_skala}` : 'Tambah Skala Gaji Pokok Baru'}
-        footer={
-          <div className="flex gap-2 justify-end w-full">
-            <Button variant="secondary" onClick={() => setModalSkalaOpen(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              loading={formSkala.formState.isSubmitting}
-              disabled={formSkala.formState.isSubmitting}
-              onClick={formSkala.handleSubmit(onSubmitSkala)}
-            >
-              <CheckCircle2 size={16} /> Simpan Skala Gaji
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={formSkala.handleSubmit(onSubmitSkala)} className="space-y-4">
-          <Input
-            label="Nama Skala Jenjang"
-            placeholder="Contoh: Lektor (Masa Kerja 0-3 Thn)"
-            {...formSkala.register('nama_skala')}
-            error={formSkala.formState.errors.nama_skala?.message}
-            required
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Kode Golongan (Opsional)"
-              placeholder="Contoh: lektor, asisten_ahli, atau kosongkan"
-              {...formSkala.register('golongan')}
-            />
-            <Input
-              label="Nominal Gaji Pokok (Rp)"
-              type="number"
-              placeholder="0"
-              {...formSkala.register('nominal_gaji', { valueAsNumber: true })}
-              error={formSkala.formState.errors.nominal_gaji?.message}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Batas Bawah Masa Kerja (Tahun)"
-              type="number"
-              placeholder="0"
-              {...formSkala.register('masa_kerja_min_tahun', { valueAsNumber: true })}
-              error={formSkala.formState.errors.masa_kerja_min_tahun?.message}
-              required
-            />
-            <Input
-              label="Batas Atas Masa Kerja (Tahun)"
-              type="number"
-              placeholder="5"
-              {...formSkala.register('masa_kerja_max_tahun', { valueAsNumber: true })}
-              error={formSkala.formState.errors.masa_kerja_max_tahun?.message}
-              required
-            />
-          </div>
-
-          <Input
-            label="Keterangan (Opsional)"
-            placeholder="Keterangan atau dasar SK penetapan gaji pokok..."
-            {...formSkala.register('keterangan')}
-          />
-        </form>
-      </Modal>
-
-      {/* ── MODAL FORM: TUNJANGAN JAFUNG ── */}
-      <Modal
-        open={modalJafungOpen}
-        onClose={() => setModalJafungOpen(false)}
-        title={editingJafung ? `Ubah Tunjangan: ${editingJafung.nama}` : 'Ubah Tunjangan Jafung'}
-        footer={
-          <div className="flex gap-2 justify-end w-full">
-            <Button variant="secondary" onClick={() => setModalJafungOpen(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              loading={formJafung.formState.isSubmitting}
-              disabled={formJafung.formState.isSubmitting}
-              onClick={formJafung.handleSubmit(onSubmitJafung)}
-            >
-              <CheckCircle2 size={16} /> Simpan Tunjangan
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={formJafung.handleSubmit(onSubmitJafung)} className="space-y-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-800 mb-1">{editingJafung?.nama}</p>
-            <p className="text-xs text-slate-500 mb-4 font-mono">Golongan: {editingJafung?.golongan}</p>
-          </div>
-
-          <Input
-            label="Nominal Tunjangan Fungsional per Bulan (Rp)"
-            type="number"
-            placeholder="0"
-            {...formJafung.register('tunjangan_nominal', { valueAsNumber: true })}
-            error={formJafung.formState.errors.tunjangan_nominal?.message}
-            required
-          />
-        </form>
-      </Modal>
-
-      {/* ── MODAL FORM: BRACKET PPH 21 ── */}
-      <Modal
-        open={modalPph21Open}
-        onClose={() => setModalPph21Open(false)}
-        title="Ubah Tarif Bracket PPh 21"
-        footer={
-          <div className="flex gap-2 justify-end w-full">
-            <Button variant="secondary" onClick={() => setModalPph21Open(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              loading={formPph21.formState.isSubmitting}
-              disabled={formPph21.formState.isSubmitting}
-              onClick={formPph21.handleSubmit(onSubmitPph21)}
-            >
-              <CheckCircle2 size={16} /> Simpan Tarif
-            </Button>
-          </div>
-        }
-      >
-        <form onSubmit={formPph21.handleSubmit(onSubmitPph21)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Bruto Minimum (Rp)"
-              type="number"
-              {...formPph21.register('penghasilan_bruto_min', { valueAsNumber: true })}
-              error={formPph21.formState.errors.penghasilan_bruto_min?.message}
-              required
-            />
-            <Input
-              label="Bruto Maksimum (Rp, kosongkan jika tak terbatas)"
-              type="number"
-              {...formPph21.register('penghasilan_bruto_max', { 
-                setValueAs: (v) => (v === '' || v === null || isNaN(v) ? null : Number(v))
-              })}
-            />
-          </div>
-
-          <Input
-            label="Tarif Pajak Desimal (Contoh: 0.0150 untuk 1.5%)"
-            type="number"
-            step="0.0001"
-            {...formPph21.register('tarif_persen', { valueAsNumber: true })}
-            error={formPph21.formState.errors.tarif_persen?.message}
-            required
-          />
-
-          <Input
-            label="Keterangan"
-            placeholder="Deskripsi tier pajak..."
-            {...formPph21.register('keterangan')}
-          />
-        </form>
-      </Modal>
-
-      {/* ── CONFIRM DIALOG: DELETE KOMPONEN ── */}
+      {/* ── MODAL KONFIRMASI HAPUS KOMPONEN ── */}
       <ConfirmDialog
         isOpen={deleteModalKomponen.isOpen}
         onClose={() => setDeleteModalKomponen({ isOpen: false, item: null, isLoading: false })}
-        onConfirm={handleConfirmDeleteKomponen}
+        onConfirm={handleDeleteKomponen}
+        title="Hapus Master Komponen Gaji"
+        message={`Apakah Anda yakin ingin menghapus komponen '${deleteModalKomponen.item?.nama}'? Data riwayat penggajian lama tetap aman namun komponen ini tidak akan lagi digunakan dalam perhitungan baru.`}
+        confirmText="Hapus Komponen"
+        variant="danger"
         isLoading={deleteModalKomponen.isLoading}
-        title="Hapus Komponen Gaji"
-        message={
-          <span>
-            Apakah Anda yakin ingin menghapus komponen <strong>{deleteModalKomponen.item?.nama}</strong>? Seluruh formula yang menggunakannya akan terpengaruh.
-          </span>
-        }
-        confirmText="Hapus"
-        cancelText="Batal"
-        variant="danger"
-      />
-
-      {/* ── CONFIRM DIALOG: DELETE SKALA GAJI ── */}
-      <ConfirmDialog
-        isOpen={deleteModalSkala.isOpen}
-        onClose={() => setDeleteModalSkala({ isOpen: false, item: null, isLoading: false })}
-        onConfirm={handleConfirmDeleteSkala}
-        isLoading={deleteModalSkala.isLoading}
-        title="Hapus Skala Gaji Pokok"
-        message={
-          <span>
-            Apakah Anda yakin ingin menghapus skala gaji <strong>{deleteModalSkala.item?.nama_skala}</strong>?
-          </span>
-        }
-        confirmText="Hapus"
-        cancelText="Batal"
-        variant="danger"
       />
     </div>
   );
