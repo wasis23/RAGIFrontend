@@ -1026,7 +1026,7 @@ export default function EditRpsPage() {
                           label="Koordinator RMK"
                           placeholder="Pilih Koordinator..."
                           loadOptions={loadDosenOptions}
-                          defaultOptions={koordinatorOption ? [koordinatorOption] : []}
+                          defaultOptions={koordinatorOption ? [koordinatorOption] : true}
                           value={field.value || null}
                           onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
                           isClearable
@@ -1042,7 +1042,7 @@ export default function EditRpsPage() {
                           label="Ka Prodi"
                           placeholder="Pilih Ka Prodi..."
                           loadOptions={loadDosenOptions}
-                          defaultOptions={kaprodiOption ? [kaprodiOption] : []}
+                          defaultOptions={kaprodiOption ? [kaprodiOption] : true}
                           value={field.value || null}
                           onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
                           isClearable

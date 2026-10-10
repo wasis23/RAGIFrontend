@@ -424,6 +424,7 @@ export default function CreateRpsPage() {
                           label="Koordinator RMK"
                           placeholder="Pilih Koordinator..."
                           loadOptions={loadDosenOptions}
+                          defaultOptions={true}
                           value={field.value || null}
                           onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
                           isClearable
@@ -439,6 +440,7 @@ export default function CreateRpsPage() {
                           label="Ka Prodi"
                           placeholder="Pilih Ka Prodi..."
                           loadOptions={loadDosenOptions}
+                          defaultOptions={true}
                           value={field.value || null}
                           onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
                           isClearable
