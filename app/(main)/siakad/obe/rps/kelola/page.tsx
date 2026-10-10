@@ -10,9 +10,10 @@ import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { Plus, Filter, Eye, Copy, Edit2, FileText, Trash2 } from 'lucide-react';
+import { Plus, Filter, Eye, Copy, Edit2, FileText, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
+import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
 const STATUS_IZIN_EDIT_OPTIONS: SelectOption[] = [
@@ -167,6 +168,8 @@ export default function RpsKelolaPage() {
     setShowFilter(false);
   };
 
+  const hasPermission = useAuthStore((state: any) => state.hasPermission);
+  
   const columns: ColumnDef<any>[] = [
     {
       key: 'mata_kuliah',
@@ -296,10 +299,39 @@ export default function RpsKelolaPage() {
       },
     },
     {
+      key: 'status_rps',
+      label: 'Status',
+      align: 'center',
+      sortable: true,
+      render: (row) => {
+        if (!row.has_rps) return <span className="text-2xs text-slate-400 italic block">Belum dibuat</span>;
+        
+        const status = row.status || 'draft';
+        let bgClass = 'bg-slate-100 text-slate-700';
+        let label = 'Draft';
+
+        if (status === 'revisi') {
+          bgClass = 'bg-amber-100 text-amber-700';
+          label = 'Revisi';
+        } else if (status === 'approve' || status === 'approved') {
+          bgClass = 'bg-emerald-100 text-emerald-700';
+          label = 'Approve';
+        }
+
+        return (
+          <span className={`text-2xs font-bold px-2 py-0.5 rounded ${bgClass}`}>
+            {label}
+          </span>
+        );
+      },
+    },
+    {
       key: 'actions',
       label: 'Opsi',
       align: 'center',
       render: (row) => {
+        const canApprove = hasPermission ? hasPermission('siakad.obe.rps.approve') || hasPermission('siakad.obe.rps.review') : false;
+
         if (!row.has_rps) {
           return (
             <DropdownMenu
@@ -314,41 +346,61 @@ export default function RpsKelolaPage() {
           );
         }
 
-        return (
-          <DropdownMenu
-            items={[
-              {
-                label: 'Edit RPS',
-                icon: <Edit2 size={14} />,
-                onClick: () => {
-                  router.push(`/siakad/obe/rps/${row.id}/edit`);
-                },
+        const items: any[] = [
+          {
+            label: 'Edit RPS',
+            icon: <Edit2 size={14} />,
+            onClick: () => {
+              router.push(`/siakad/obe/rps/${row.id}/edit`);
+            },
+          },
+          {
+            label: 'Detail RPS',
+            icon: <Eye size={14} />,
+            onClick: () => {
+              router.push(`/siakad/obe/rps/${row.id}`);
+            },
+          },
+          {
+            label: 'Cetak RPS',
+            icon: <FileText size={14} />,
+            onClick: () => {
+              window.open(`/siakad/obe/rps/${row.id}/cetak`, '_blank');
+            },
+          },
+        ];
+
+        if (canApprove) {
+          items.push(
+            {
+              label: 'Revisi RPS',
+              icon: <XCircle size={14} className="text-amber-600" />,
+              onClick: () => {
+                // Buka modal revisi/catatan
+                toast.success('Fitur revisi RPS akan segera tersedia');
               },
-              {
-                label: 'Detail RPS',
-                icon: <Eye size={14} />,
-                onClick: () => {
-                  router.push(`/siakad/obe/rps/${row.id}`);
-                },
+            },
+            {
+              label: 'Approve RPS',
+              icon: <CheckCircle size={14} className="text-emerald-600" />,
+              onClick: () => {
+                 // Jalankan aksi konfirmasi approve
+                 toast.success('Fitur approve RPS akan segera tersedia');
               },
-              {
-                label: 'Cetak RPS',
-                icon: <FileText size={14} />,
-                onClick: () => {
-                  window.open(`/siakad/obe/rps/${row.id}/cetak`, '_blank');
-                },
-              },
-              {
-                label: 'Hapus RPS',
-                icon: <Trash2 size={14} />,
-                variant: 'danger',
-                onClick: () => {
-                  setDeletingRpsId(row.id);
-                },
-              },
-            ]}
-          />
-        );
+            }
+          );
+        }
+
+        items.push({
+          label: 'Hapus RPS',
+          icon: <Trash2 size={14} />,
+          variant: 'danger',
+          onClick: () => {
+            setDeletingRpsId(row.id);
+          },
+        });
+
+        return <DropdownMenu items={items} />;
       },
     },
   ];
