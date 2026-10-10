@@ -16,6 +16,11 @@ export const DOSEN_BISA_EDIT_OPTIONS: SelectOption[] = [
   { value: 'false', label: 'Tidak' },
 ];
 
+export const JENIS_PUSTAKA_OPTIONS: SelectOption[] = [
+  { value: 'utama', label: 'Utama' },
+  { value: 'pendukung', label: 'Pendukung' },
+];
+
 export const JENIS_PEMBELAJARAN_OPTIONS: SelectOption[] = [
   { value: 'Kuliah / Responsi', label: 'Kuliah / Responsi' },
   { value: 'Seminar / Diskusi Kelompok', label: 'Seminar / Diskusi Kelompok' },

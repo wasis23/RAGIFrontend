@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Card, CardBody } from '@/components/ui/Card';
-import { ArrowLeft, Loader2, FileText, BookOpen, Layers, Users, Plus, Award, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, BookOpen, Layers, Users, Plus, Award, Trash2, Library, X } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Modal } from '@/components/ui/Modal';
@@ -21,6 +21,7 @@ import { siakadService } from '@/services/siakad.service';
 import {
   DOSEN_BISA_EDIT_OPTIONS,
   JENIS_PEMBELAJARAN_OPTIONS,
+  JENIS_PUSTAKA_OPTIONS,
   RpsMkBanner,
   RpsCplCpmkTabs,
   type CplRow,
@@ -64,6 +65,10 @@ export default function EditRpsPage() {
   const [notFound, setNotFound] = useState(false);
   const [selectedMk, setSelectedMk] = useState<any | null>(null);
   const [rps, setRps] = useState<any | null>(null);
+
+  // Pustaka (Daftar Referensi Utama & Pendukung)
+  type PustakaItem = { id: string; jenis: 'utama' | 'pendukung'; isi: string };
+  const [pustakaList, setPustakaList] = useState<PustakaItem[]>([]);
 
   const {
     register,
@@ -120,6 +125,18 @@ export default function EditRpsPage() {
         setValue('dosen_anggota_ids', (d.dosen_anggota_ids || []).map(Number).filter(Boolean));
         setValue('koordinator_rmk_id', d.koordinator_rmk_id ? Number(d.koordinator_rmk_id) : null);
         setValue('kaprodi_id', d.kaprodi_id ? Number(d.kaprodi_id) : null);
+
+        // Parse pustaka_utama dan pustaka_pendukung ke pustakaList
+        const parsedPustaka: PustakaItem[] = [];
+        if (d.pustaka_utama) {
+          const lines = String(d.pustaka_utama).split('\n').map((s) => s.trim()).filter(Boolean);
+          lines.forEach((l, idx) => parsedPustaka.push({ id: `u_${idx}_${Date.now()}`, jenis: 'utama', isi: l }));
+        }
+        if (d.pustaka_pendukung) {
+          const lines = String(d.pustaka_pendukung).split('\n').map((s) => s.trim()).filter(Boolean);
+          lines.forEach((l, idx) => parsedPustaka.push({ id: `p_${idx}_${Date.now()}`, jenis: 'pendukung', isi: l }));
+        }
+        setPustakaList(parsedPustaka);
       } catch (err: any) {
         if (active) {
           setNotFound(true);
@@ -268,6 +285,23 @@ export default function EditRpsPage() {
     }
   };
 
+  const handleAddPustaka = () => {
+    setPustakaList((prev) => [
+      ...prev,
+      { id: `pustaka_${Date.now()}_${Math.random()}`, jenis: 'utama', isi: '' },
+    ]);
+  };
+
+  const handleRemovePustaka = (index: number) => {
+    setPustakaList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdatePustaka = (index: number, field: 'jenis' | 'isi', value: string) => {
+    setPustakaList((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  };
+
   const onSubCpmkSubmit = async (values: SubCpmkFormValues) => {
     if (!values.cpmk_id || !selectedMk?.id) {
       toast.error('Pilih CPMK terlebih dahulu');
@@ -349,6 +383,15 @@ export default function EditRpsPage() {
 
   const onSubmit = async (values: FormValues) => {
     if (!selectedMk) return;
+    const utama = pustakaList
+      .filter((p) => p.jenis === 'utama' && p.isi.trim())
+      .map((p) => p.isi.trim())
+      .join('\n');
+    const pendukung = pustakaList
+      .filter((p) => p.jenis === 'pendukung' && p.isi.trim())
+      .map((p) => p.isi.trim())
+      .join('\n');
+
     try {
       setSaving(true);
       await siakadService.storeRps({
@@ -363,6 +406,8 @@ export default function EditRpsPage() {
         bahan_kajian_mk: values.bahan_kajian_mk?.trim() || undefined,
         mata_kuliah_syarat: values.mata_kuliah_syarat?.trim() || '-',
         jenis_pembelajaran: values.jenis_pembelajaran || 'Kuliah / Responsi',
+        pustaka_utama: utama || undefined,
+        pustaka_pendukung: pendukung || undefined,
         dosen_anggota_ids: values.dosen_anggota_ids || [],
         koordinator_rmk_id: values.koordinator_rmk_id || undefined,
         kaprodi_id: values.kaprodi_id || undefined,
@@ -652,7 +697,77 @@ export default function EditRpsPage() {
             </form>
           </Card>
 
-          {/* CARD 2: Sub-CPMK (Mandiri / Terpisah di Luar Form Dokumen RPS) */}
+          {/* CARD 2: Pustaka (Referensi Utama & Pendukung) */}
+          <Card>
+            <CardBody className="space-y-4">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Library size={16} className="text-slate-600" style={{ color: 'var(--module-primary)' }} />
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">Pustaka</h3>
+                    <p className="text-2xs text-slate-500">
+                      Daftar buku, artikel ilmiah, modul, dan referensi pendukung mata kuliah.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  icon={<Plus size={14} />}
+                  onClick={handleAddPustaka}
+                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                >
+                  Tambah Pustaka
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <span className="text-2xs font-bold text-slate-600 block">Masukkan Pustaka</span>
+
+                {pustakaList.length === 0 ? (
+                  <p className="text-2xs text-slate-400 italic py-2">
+                    Belum ada pustaka yang ditambahkan. Klik tombol &apos;Tambah Pustaka&apos; di kanan atas untuk menambahkan.
+                  </p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {pustakaList.map((item, idx) => (
+                      <div key={item.id} className="flex items-start gap-2">
+                        <div className="w-36 shrink-0">
+                          <Select
+                            options={JENIS_PUSTAKA_OPTIONS}
+                            value={item.jenis}
+                            onChange={(opt: any) => {
+                              const val = typeof opt === 'object' ? opt?.value : opt;
+                              handleUpdatePustaka(idx, 'jenis', val || 'utama');
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Tuliskan judul pustaka, pengarang, penerbit, tahun..."
+                            value={item.isi}
+                            onChange={(e) => handleUpdatePustaka(idx, 'isi', e.target.value)}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleRemovePustaka(idx)}
+                          className="shrink-0 p-2 text-rose-600 border-rose-200 hover:bg-rose-50"
+                          title="Hapus baris pustaka"
+                        >
+                          <X size={14} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* CARD 3: Sub-CPMK (Mandiri / Terpisah di Luar Form Dokumen RPS) */}
           <Card>
             <CardBody className="space-y-4">
               <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
