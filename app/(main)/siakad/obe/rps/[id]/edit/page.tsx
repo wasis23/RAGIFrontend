@@ -15,6 +15,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { ArrowLeft, Loader2, FileText, BookOpen, Layers, Users, Plus, Award, Trash2 } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
 import {
@@ -42,6 +43,13 @@ const rpsEditSchema = z.object({
 });
 
 type FormValues = z.infer<typeof rpsEditSchema>;
+
+const subCpmkSchema = z.object({
+  cpmk_id: z.number({ error: 'CPMK Induk wajib dipilih' }).min(1, 'CPMK Induk wajib dipilih'),
+  deskripsi: z.string().trim().min(3, 'Rumusan Sub-CPMK minimal 3 karakter'),
+});
+
+type SubCpmkFormValues = z.infer<typeof subCpmkSchema>;
 
 const dosenLabel = (d: any) =>
   `${d?.nama_lengkap || d?.nama || d?.name || '-'}${d?.nidn ? ` (${d.nidn})` : ''}`;
@@ -195,13 +203,30 @@ export default function EditRpsPage() {
   const [subCpmkList, setSubCpmkList] = useState<any[]>([]);
   const [loadingSub, setLoadingSub] = useState(false);
   const [showAddSub, setShowAddSub] = useState(false);
-  const [selectedCpmkId, setSelectedCpmkId] = useState<number | ''>('');
-  const [subDeskripsi, setSubDeskripsi] = useState('');
   const [savingSub, setSavingSub] = useState(false);
   const [deletingSubId, setDeletingSubId] = useState<number | null>(null);
   const [deletingSub, setDeletingSub] = useState(false);
 
-  const effectiveCpmkId = selectedCpmkId || (availableCpmks.length > 0 ? Number(availableCpmks[0].id) : '');
+  const {
+    register: registerSub,
+    handleSubmit: handleSubmitSub,
+    control: controlSub,
+    reset: resetSub,
+    setValue: setValueSub,
+    formState: { errors: errorsSub },
+  } = useForm<SubCpmkFormValues>({
+    resolver: zodResolver(subCpmkSchema),
+    defaultValues: {
+      cpmk_id: 0,
+      deskripsi: '',
+    },
+  });
+
+  useEffect(() => {
+    if (availableCpmks.length > 0) {
+      setValueSub('cpmk_id', Number(availableCpmks[0].id));
+    }
+  }, [availableCpmks, setValueSub]);
 
   useEffect(() => {
     let active = true;
@@ -243,33 +268,31 @@ export default function EditRpsPage() {
     }
   };
 
-  const handleSaveSubCpmk = async () => {
-    const cpmkIdToUse = effectiveCpmkId;
-    if (!cpmkIdToUse || !selectedMk?.id) {
+  const onSubCpmkSubmit = async (values: SubCpmkFormValues) => {
+    if (!values.cpmk_id || !selectedMk?.id) {
       toast.error('Pilih CPMK terlebih dahulu');
       return;
     }
-    if (!subDeskripsi.trim()) {
-      toast.error('Tuliskan rumusan Sub-CPMK terlebih dahulu');
-      return;
-    }
 
-    const cpmkObj = availableCpmks.find((c: any) => Number(c.id) === Number(cpmkIdToUse));
-    const cpmkCode = cpmkObj?.kode_cpmk || `CPMK${cpmkIdToUse}`;
-    const existingForCpmk = subCpmkList.filter((s: any) => Number(s.cpmk_id) === Number(cpmkIdToUse));
+    const cpmkObj = availableCpmks.find((c: any) => Number(c.id) === Number(values.cpmk_id));
+    const cpmkCode = cpmkObj?.kode_cpmk || `CPMK${values.cpmk_id}`;
+    const existingForCpmk = subCpmkList.filter((s: any) => Number(s.cpmk_id) === Number(values.cpmk_id));
     const nextIndex = existingForCpmk.length + 1;
     const kodeSub = `sub.cpmk.${selectedMk?.kode_mk || 'MK'}.${cpmkCode}.${nextIndex}`;
 
     try {
       setSavingSub(true);
       await siakadService.storeSubCpmk({
-        cpmk_prodi_id: Number(cpmkIdToUse),
+        cpmk_prodi_id: Number(values.cpmk_id),
         mata_kuliah_id: Number(selectedMk.id),
         kode_sub_cpmk: kodeSub,
-        deskripsi: subDeskripsi.trim(),
+        deskripsi: values.deskripsi.trim(),
       });
       toast.success('Sub-CPMK berhasil disimpan');
-      setSubDeskripsi('');
+      resetSub({
+        cpmk_id: availableCpmks.length > 0 ? Number(availableCpmks[0].id) : 0,
+        deskripsi: '',
+      });
       setShowAddSub(false);
       refreshSubCpmkList();
     } catch (err: any) {
@@ -649,8 +672,8 @@ export default function EditRpsPage() {
                     variant="outline"
                     icon={<Plus size={14} />}
                     onClick={() => {
-                      if (!selectedCpmkId && availableCpmks.length > 0) {
-                        setSelectedCpmkId(Number(availableCpmks[0].id));
+                      if (availableCpmks.length > 0) {
+                        setValueSub('cpmk_id', Number(availableCpmks[0].id));
                       }
                       setShowAddSub(true);
                     }}
@@ -668,60 +691,6 @@ export default function EditRpsPage() {
                 isLoading={loadingSub}
                 emptyMessage="Belum ada Sub-CPMK yang ditambahkan untuk mata kuliah ini."
               />
-
-              {/* Form Inline Tambah Sub-CPMK */}
-              {showAddSub && (
-                <div className="p-4 bg-slate-50/80 border border-slate-200 rounded-xl space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-                    <div className="md:col-span-4">
-                      <Select
-                        label="Pilih CPMK Induk *"
-                        placeholder="Pilih CPMK"
-                        options={availableCpmks.map((c: any) => ({
-                          value: c.id,
-                          label: `${c.kode_cpmk || `CPMK #${c.id}`} - ${(c.deskripsi || '').substring(0, 35)}...`,
-                        }))}
-                        value={effectiveCpmkId ? String(effectiveCpmkId) : ''}
-                        onChange={(opt: any) => {
-                          const val = typeof opt === 'object' ? opt?.value : opt;
-                          setSelectedCpmkId(val ? Number(val) : '');
-                        }}
-                      />
-                    </div>
-                    <div className="md:col-span-8">
-                      <Textarea
-                        label="Rumusan Kemampuan Akhir (Sub-CPMK) *"
-                        rows={2}
-                        placeholder="Tuliskan rumusan kemampuan akhir tahapan belajar..."
-                        value={subDeskripsi}
-                        onChange={(e) => setSubDeskripsi(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setShowAddSub(false);
-                        setSubDeskripsi('');
-                      }}
-                    >
-                      Batal
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      onClick={handleSaveSubCpmk}
-                      isLoading={savingSub}
-                      disabled={savingSub || !selectedCpmkId || !subDeskripsi.trim()}
-                    >
-                      Simpan Sub-CPMK
-                    </Button>
-                  </div>
-                </div>
-              )}
             </CardBody>
           </Card>
         </div>
@@ -749,6 +718,67 @@ export default function EditRpsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Modal Popup Tambah Sub-CPMK */}
+      <Modal
+        open={showAddSub}
+        onClose={() => {
+          setShowAddSub(false);
+          resetSub();
+        }}
+        title="Tambah Sub-CPMK"
+      >
+        <form onSubmit={handleSubmitSub(onSubCpmkSubmit)} noValidate className="space-y-4">
+          <Controller
+            name="cpmk_id"
+            control={controlSub}
+            render={({ field }) => (
+              <Select
+                label="Pilih CPMK Induk *"
+                placeholder="Pilih CPMK"
+                options={availableCpmks.map((c: any) => ({
+                  value: c.id,
+                  label: `${c.kode_cpmk || `CPMK #${c.id}`} - ${(c.deskripsi || '').substring(0, 50)}...`,
+                }))}
+                value={field.value ? String(field.value) : ''}
+                onChange={(opt: any) => {
+                  const val = typeof opt === 'object' ? opt?.value : opt;
+                  field.onChange(val ? Number(val) : 0);
+                }}
+                error={errorsSub.cpmk_id?.message}
+              />
+            )}
+          />
+
+          <Textarea
+            label="Rumusan Kemampuan Akhir (Sub-CPMK) *"
+            rows={3}
+            placeholder="Tuliskan rumusan kemampuan akhir tahapan belajar..."
+            error={errorsSub.deskripsi?.message}
+            {...registerSub('deskripsi')}
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowAddSub(false);
+                resetSub();
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={savingSub}
+            >
+              Simpan Sub-CPMK
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <ConfirmDialog
         isOpen={Boolean(deletingSubId)}
