@@ -59,7 +59,7 @@ const pustakaSchema = z.object({
 
 type PustakaFormValues = z.infer<typeof pustakaSchema>;
 
-const dosenLabel = (d: any) =>
+const dosenDisplayLabel = (d: any) =>
   `${d?.nama_lengkap || d?.nama || d?.name || '-'}${d?.nidn ? ` (${d.nidn})` : ''}`;
 
 export default function EditRpsPage() {
@@ -185,7 +185,7 @@ export default function EditRpsPage() {
       const list: any[] = Array.isArray(raw) ? raw : (raw?.items || raw?.data || []);
       return list.map((d: any) => ({
         value: d.id,
-        label: dosenLabel(d),
+        label: `${d.nama_lengkap || d.nama || d.name || '-'}${d.nidn ? ` (${d.nidn})` : ''}`,
         raw: d,
       }));
     } catch {
@@ -196,17 +196,33 @@ export default function EditRpsPage() {
   // Opsi awal agar AsyncSelect menampilkan label, bukan angka ID.
   const anggotaOptions = useMemo(() => {
     const list: any[] = rps?.dosen_anggotas || [];
-    return list.map((d: any) => ({ value: Number(d.id), label: dosenLabel(d), raw: d }));
+    return list.map((d: any) => ({
+      value: Number(d.id),
+      label: `${d.nama_lengkap || d.nama || d.name || '-'}${d.nidn ? ` (${d.nidn})` : ''}`,
+      raw: d,
+    }));
   }, [rps]);
 
   const koordinatorOption = useMemo(() => {
     const k = rps?.koordinatorRmk || rps?.koordinator_rmk;
-    return k ? { value: Number(k.id), label: dosenLabel(k), raw: k } : null;
+    return k
+      ? {
+          value: Number(k.id),
+          label: `${k.nama_lengkap || k.nama || k.name || '-'}${k.nidn ? ` (${k.nidn})` : ''}`,
+          raw: k,
+        }
+      : null;
   }, [rps]);
 
   const kaprodiOption = useMemo(() => {
     const k = rps?.kaprodi;
-    return k ? { value: Number(k.id), label: dosenLabel(k), raw: k } : null;
+    return k
+      ? {
+          value: Number(k.id),
+          label: `${k.nama_lengkap || k.nama || k.name || '-'}${k.nidn ? ` (${k.nidn})` : ''}`,
+          raw: k,
+        }
+      : null;
   }, [rps]);
 
   // CPL-PRODI dibebankan pada MK: pivot siakad_mata_kuliah_cpl (read-only).
@@ -523,6 +539,7 @@ export default function EditRpsPage() {
         jenis_pembelajaran: values.jenis_pembelajaran || 'Kuliah / Responsi',
         pustaka_utama: utama || undefined,
         pustaka_pendukung: pendukung || undefined,
+        dosen_pengembang_id: rps?.dosen_pengembang_id ?? undefined,
         dosen_anggota_ids: values.dosen_anggota_ids || [],
         koordinator_rmk_id: values.koordinator_rmk_id || undefined,
         kaprodi_id: values.kaprodi_id || undefined,
