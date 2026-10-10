@@ -13,7 +13,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Plus, Filter, Eye, Copy, Edit2, FileText, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { siakadService } from '@/services/siakad.service';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const STATUS_IZIN_EDIT_OPTIONS: SelectOption[] = [
@@ -168,7 +168,7 @@ export default function RpsKelolaPage() {
     setShowFilter(false);
   };
 
-  const hasPermission = useAuthStore((state: any) => state.hasPermission);
+  const { user, hasPermission } = useAuth();
   
   const columns: ColumnDef<any>[] = [
     {
@@ -330,7 +330,33 @@ export default function RpsKelolaPage() {
       label: 'Opsi',
       align: 'center',
       render: (row) => {
-        const canApprove = hasPermission ? hasPermission('siakad.obe.rps.approve') || hasPermission('siakad.obe.rps.review') : false;
+        // 1. Cek Permission Global
+        let canApprove = hasPermission ? hasPermission('siakad.obe.rps.approve') || hasPermission('siakad.obe.rps.review') : false;
+
+        // 2. Cek Role Khusus (jika belum dapet permission global)
+        if (!canApprove) {
+          const mkProdiId = row.mata_kuliah?.program_studi_id;
+          
+          // A. Role admin OBE yg ditugaskan (tabel siakad_admin_prodis)
+          const adminProdis = (user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || [];
+          if (adminProdis.length > 0) {
+            // Berhak approve jika ditugaskan ke prodi dari MK ini dan flag can_approve_rps = true
+            const assigned = adminProdis.find((ap: any) => 
+               ap.program_studi_id === mkProdiId && 
+               (ap.can_approve_rps === true || ap.can_approve_rps === 1)
+            );
+            if (assigned) canApprove = true;
+          }
+
+        // B. Cek akses scope prodi
+        if (!canApprove) {
+           const kaprodi = row.kaprodi;
+           // Hanya izinkan jika user ini memang ditugaskan sebagai kaprodi di prodi MK tersebut
+           if (kaprodi && (kaprodi.id === user?.id || kaprodi.user_id === user?.id)) {
+             canApprove = true;
+           }
+        }
+        }
 
         if (!row.has_rps) {
           return (
