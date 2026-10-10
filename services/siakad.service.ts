@@ -567,7 +567,7 @@ export const siakadService = {
     return response.data;
   },
 
-  getSubCpmk: async (params?: { cpmk_id?: number }): Promise<ApiResponse<any>> => {
+  getSubCpmk: async (params?: { cpmk_id?: number; mata_kuliah_id?: number; search?: string }): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/sub-cpmk', { params });
     return response.data;
   },
@@ -634,6 +634,21 @@ export const siakadService = {
 
   deleteRps: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.delete(`/v1/siakad/obe/rps/${id}`);
+    return response.data;
+  },
+
+  listRpsSesi: async (rpsId: number, params?: { page?: number; per_page?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/obe/rps/${rpsId}/sesi`, { params });
+    return response.data;
+  },
+
+  storeRpsSesi: async (rpsId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/obe/rps/${rpsId}/sesi`, payload);
+    return response.data;
+  },
+
+  deleteRpsSesi: async (sesiId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/rps-sesi/${sesiId}`);
     return response.data;
   },
 

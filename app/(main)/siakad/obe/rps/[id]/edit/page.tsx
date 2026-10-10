@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Card, CardBody } from '@/components/ui/Card';
-import { ArrowLeft, Loader2, FileText, BookOpen, Layers, Users, Plus, Award, Trash2, Library } from 'lucide-react';
+import { ArrowLeft, Loader2, FileText, BookOpen, Layers, Users, Plus, Award, Trash2, Library, CalendarDays, Pencil } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Modal } from '@/components/ui/Modal';
@@ -58,6 +58,8 @@ const pustakaSchema = z.object({
 });
 
 type PustakaFormValues = z.infer<typeof pustakaSchema>;
+
+
 
 const dosenDisplayLabel = (d: any) =>
   `${d?.nama_lengkap || d?.nama || d?.name || '-'}${d?.nidn ? ` (${d.nidn})` : ''}`;
@@ -512,6 +514,134 @@ export default function EditRpsPage() {
     }
   };
 
+  // Sesi Pertemuan (Rencana Mingguan RPS) — daftar + hapus di halaman ini,
+  // tambah/ubah di halaman form terpisah (form > 5 input wajib separate page).
+  const [sesiList, setSesiList] = useState<any[]>([]);
+  const [sesiMeta, setSesiMeta] = useState<any>(null);
+  const [loadingSesi, setLoadingSesi] = useState(false);
+  const [sesiPage, setSesiPage] = useState(1);
+  const [sesiLimit, setSesiLimit] = useState(16);
+  const [deletingSesiId, setDeletingSesiId] = useState<number | null>(null);
+  const [deletingSesi, setDeletingSesi] = useState(false);
+
+  const refreshSesiList = useCallback(async () => {
+    if (!rpsId || Number.isNaN(rpsId)) return;
+    try {
+      setLoadingSesi(true);
+      const res = await siakadService.listRpsSesi(rpsId, { page: sesiPage, per_page: sesiLimit });
+      const list: any[] = Array.isArray(res.data) ? res.data : [];
+      setSesiList(list);
+      setSesiMeta(res.meta || null);
+    } catch {
+      setSesiList([]);
+      setSesiMeta(null);
+    } finally {
+      setLoadingSesi(false);
+    }
+  }, [rpsId, sesiPage, sesiLimit]);
+
+  useEffect(() => {
+    refreshSesiList();
+  }, [refreshSesiList]);
+
+  const totalBobotSesi = useMemo(() => {
+    if (sesiMeta && sesiMeta.total_bobot !== undefined && sesiMeta.total_bobot !== null) {
+      return Number(sesiMeta.total_bobot) || 0;
+    }
+    return sesiList.reduce((sum, s) => sum + (Number(s.bobot_penilaian) || 0), 0);
+  }, [sesiList, sesiMeta]);
+
+  const handleConfirmDeleteSesi = async () => {
+    if (!deletingSesiId) return;
+    try {
+      setDeletingSesi(true);
+      await siakadService.deleteRpsSesi(deletingSesiId);
+      toast.success('Sesi pertemuan berhasil dihapus');
+      setDeletingSesiId(null);
+      refreshSesiList();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus sesi pertemuan');
+    } finally {
+      setDeletingSesi(false);
+    }
+  };
+
+  const sesiColumns: ColumnDef<any>[] = [
+    {
+      key: 'minggu_ke',
+      label: 'Pertemuan Ke',
+      align: 'center',
+      render: (row) => <span className="font-mono text-xs font-bold text-slate-900">{row.minggu_ke}</span>,
+    },
+    {
+      key: 'kemampuan_akhir',
+      label: 'Kemampuan Akhir (Sub-CPMK)',
+      render: (row) => (
+        <div className="space-y-1">
+          {row.sub_cpmk?.kode_sub_cpmk || row.subCpmk?.kode_sub_cpmk ? (
+            <span className="font-mono text-2xs font-bold text-slate-600 block">
+              {row.sub_cpmk?.kode_sub_cpmk || row.subCpmk?.kode_sub_cpmk}
+            </span>
+          ) : null}
+          <span className="text-xs text-slate-700 leading-relaxed block">{row.kemampuan_akhir || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'indikator_penilaian',
+      label: 'Indikator',
+      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.indikator_penilaian || '-'}</span>,
+    },
+    {
+      key: 'kriteria_teknik',
+      label: 'Kriteria & Teknik',
+      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.kriteria_teknik || '-'}</span>,
+    },
+    {
+      key: 'bentuk_luring',
+      label: 'Luring',
+      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.bentuk_luring || '-'}</span>,
+    },
+    {
+      key: 'bentuk_daring',
+      label: 'Daring',
+      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.bentuk_daring || '-'}</span>,
+    },
+    {
+      key: 'bahan_kajian',
+      label: 'Materi Pembelajaran',
+      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.bahan_kajian || '-'}</span>,
+    },
+    {
+      key: 'bobot_penilaian',
+      label: 'Bobot Penilaian',
+      align: 'center',
+      render: (row) => <span className="font-mono text-xs font-bold text-slate-900">{Number(row.bobot_penilaian) || 0}</span>,
+    },
+    {
+      key: 'actions',
+      label: 'Opsi',
+      align: 'center',
+      render: (row) => (
+        <DropdownMenu
+          items={[
+            {
+              label: 'Ubah Sesi',
+              icon: <Pencil size={14} />,
+              onClick: () => router.push(`/siakad/obe/rps/${rpsId}/sesi/${row.id}/edit`),
+            },
+            {
+              label: 'Hapus Sesi',
+              icon: <Trash2 size={14} />,
+              variant: 'danger',
+              onClick: () => setDeletingSesiId(row.id),
+            },
+          ]}
+        />
+      ),
+    },
+  ];
+
   const onSubmit = async (values: FormValues) => {
     if (!selectedMk) return;
     const utama = pustakaList
@@ -907,6 +1037,67 @@ export default function EditRpsPage() {
               />
             </CardBody>
           </Card>
+
+          {/* CARD 4: Sesi Pertemuan (Rencana Mingguan RPS) */}
+          <Card>
+            <CardBody className="space-y-4">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <CalendarDays size={16} className="text-slate-600" style={{ color: 'var(--module-primary)' }} />
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900">Sesi Pertemuan</h3>
+                    <p className="text-2xs text-slate-500">
+                      Rencana pembelajaran tiap pertemuan: Sub-CPMK, penilaian, luring/daring, materi, dan bobot.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  icon={<Plus size={14} />}
+                  onClick={() => router.push(`/siakad/obe/rps/${rpsId}/sesi/create`)}
+                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                >
+                  Tambah Sesi
+                </Button>
+              </div>
+
+              <p className="text-2xs text-slate-400">
+                Kelompok penilaian: <span className="font-bold text-slate-500">Indikator</span> |{' '}
+                <span className="font-bold text-slate-500">Kriteria &amp; Teknik</span> — Kelompok bentuk, metode,
+                dan penugasan: <span className="font-bold text-slate-500">Luring</span> |{' '}
+                <span className="font-bold text-slate-500">Daring</span>
+              </p>
+
+              {/* Tabel Daftar Sesi Pertemuan */}
+              <DataTable
+                columns={sesiColumns}
+                data={sesiList}
+                isLoading={loadingSesi}
+                meta={sesiMeta}
+                onPageChange={setSesiPage}
+                onLimitChange={(l) => {
+                  setSesiLimit(l);
+                  setSesiPage(1);
+                }}
+                emptyMessage="Belum ada sesi pertemuan yang ditambahkan untuk dokumen RPS ini."
+              />
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <span className="text-2xs font-bold text-slate-500 uppercase">Total Bobot Sesi</span>
+                <span
+                  className={`font-mono text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                    Math.abs(totalBobotSesi - 100) < 0.01
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}
+                >
+                  {Math.round(totalBobotSesi * 100) / 100}
+                </span>
+              </div>
+            </CardBody>
+          </Card>
         </div>
 
         {/* Kolom Kanan: 1/4 (lg:col-span-4) - Informasi Read-Only Sticky */}
@@ -1051,6 +1242,15 @@ export default function EditRpsPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingSesiId)}
+        onClose={() => setDeletingSesiId(null)}
+        onConfirm={handleConfirmDeleteSesi}
+        title="Hapus Sesi Pertemuan?"
+        message="Apakah Anda yakin ingin menghapus sesi pertemuan ini dari dokumen RPS?"
+        isLoading={deletingSesi}
+      />
 
       <ConfirmDialog
         isOpen={Boolean(deletingPustakaId)}
