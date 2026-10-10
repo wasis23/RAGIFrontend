@@ -187,10 +187,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           onClick={toggleSidebar}
         />
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
-        <DemoBanner />
-        <ImpersonateBanner />
-        <Navbar />
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%', minHeight: '100vh' }}>
+        <div className="sticky top-0 z-50 flex flex-col w-full bg-white shadow-xs">
+          <DemoBanner />
+          <ImpersonateBanner />
+          <Navbar />
+        </div>
         <main className="flex-1 w-full max-w-[1400px] mx-auto p-4 md:p-6">
           {children}
         </main>
