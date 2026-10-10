@@ -871,9 +871,9 @@ export const siakadService = {
     return response.data;
   },
 
-  // Referensi RPS (Bentuk, Metode, Kriteria, Komponen)
+  // Referensi RPS (Jenis Pembelajaran, Bentuk, Metode, Kriteria, Komponen)
   getRpsReferensi: async (params?: {
-    tipe?: 'bentuk' | 'metode' | 'kriteria' | 'komponen';
+    tipe?: 'jenis_pembelajaran' | 'bentuk' | 'metode' | 'kriteria' | 'komponen';
     search?: string;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
@@ -885,7 +885,7 @@ export const siakadService = {
   },
 
   createRpsReferensi: async (payload: {
-    tipe: 'bentuk' | 'metode' | 'kriteria' | 'komponen';
+    tipe: 'jenis_pembelajaran' | 'bentuk' | 'metode' | 'kriteria' | 'komponen';
     kode?: string;
     nama: string;
     deskripsi?: string;

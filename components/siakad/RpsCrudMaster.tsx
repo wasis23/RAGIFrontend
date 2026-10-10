@@ -27,7 +27,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export interface RpsCrudMasterProps {
-  tipe: 'bentuk' | 'metode' | 'kriteria' | 'komponen';
+  tipe: 'jenis_pembelajaran' | 'bentuk' | 'metode' | 'kriteria' | 'komponen';
   title: string;
   description: string;
   breadcrumbLabel: string;
