@@ -1,32 +1,32 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Textarea } from '@/components/ui/Textarea';
-import { Select } from '@/components/ui/Select';
-import { Checkbox } from '@/components/ui/Checkbox';
-import { Card, CardHeader, CardBody } from '@/components/ui/Card';
-import { Modal } from '@/components/ui/Modal';
-import { Plus, X } from 'lucide-react';
-import { siakadService } from '@/services/siakad.service';
-import toast from 'react-hot-toast';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
+import { Select } from "@/components/ui/Select";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Card, CardHeader, CardBody } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
+import { Plus, X } from "lucide-react";
+import { siakadService } from "@/services/siakad.service";
+import toast from "react-hot-toast";
 
 // Schema Section 1: Pertemuan & Sub-CPMK
 const section1Schema = z.object({
   minggu_ke_input: z
     .string()
     .trim()
-    .min(1, 'Pertemuan ke wajib diisi (cth: 1 atau 1,2,3,4)'),
-  jenis_pertemuan: z.string().trim().min(1, 'Jenis pertemuan wajib dipilih'),
+    .min(1, "Pertemuan ke wajib diisi (cth: 1 atau 1,2,3,4)"),
+  jenis_pertemuan: z.string().trim().min(1, "Jenis pertemuan wajib dipilih"),
   cpmk_filter_id: z.string().optional(),
   sub_cpmk_ids: z
     .array(z.number())
-    .min(1, 'Pilih minimal satu Sub-CPMK tahapan belajar'),
+    .min(1, "Pilih minimal satu Sub-CPMK tahapan belajar"),
 });
 type Section1FormValues = z.infer<typeof section1Schema>;
 
@@ -44,7 +44,7 @@ const aktivitasItemSchema = z.object({
   id: z.string(),
   bentuk: z.string().optional(),
   metode: z.string().optional(),
-  waktu_menit: z.number().min(0, 'Waktu minimal 0 menit'),
+  waktu_menit: z.number().min(0, "Waktu minimal 0 menit"),
 });
 
 const section3Schema = z.object({
@@ -57,7 +57,7 @@ type AktivitasItem = z.infer<typeof aktivitasItemSchema>;
 
 // Schema Section 4: Materi Pembelajaran [Pustaka]
 const section4Schema = z.object({
-  topik_materi: z.string().trim().min(1, 'Topik materi wajib diisi'),
+  topik_materi: z.string().trim().min(1, "Topik materi wajib diisi"),
   sub_topik_materi: z.string().trim().optional(),
   pustaka_ids: z.array(z.string()).optional(),
 });
@@ -67,9 +67,9 @@ type Section4FormValues = z.infer<typeof section4Schema>;
 const section5Schema = z.object({
   rubrik_id: z.string().optional(),
   bobot_penilaian: z
-    .number({ error: 'Bobot penilaian wajib berupa angka' })
-    .min(0, 'Bobot minimal 0%')
-    .max(100, 'Bobot maksimal 100%'),
+    .number({ error: "Bobot penilaian wajib berupa angka" })
+    .min(0, "Bobot minimal 0%")
+    .max(100, "Bobot maksimal 100%"),
 });
 type Section5FormValues = z.infer<typeof section5Schema>;
 
@@ -90,7 +90,9 @@ export function SesiForm({
   totalSisaBobot = 100,
 }: SesiFormProps) {
   const router = useRouter();
-  const [currentSesiId, setCurrentSesiId] = useState<number | undefined>(initial?.id);
+  const [currentSesiId, setCurrentSesiId] = useState<number | undefined>(
+    initial?.id,
+  );
 
   const [savingSec1, setSavingSec1] = useState(false);
   const [savingSec2, setSavingSec2] = useState(false);
@@ -100,16 +102,33 @@ export function SesiForm({
 
   const [cpmkList, setCpmkList] = useState<any[]>([]);
   const [subCpmkList, setSubCpmkList] = useState<any[]>([]);
-  const [jenisOptions, setJenisOptions] = useState<{ value: string; label: string }[]>([]);
-  const [komponenOptions, setKomponenOptions] = useState<{ value: string; label: string }[]>([]);
-  const [kriteriaOptions, setKriteriaOptions] = useState<{ value: string; label: string }[]>([]);
-  const [bentukOptions, setBentukOptions] = useState<{ value: string; label: string }[]>([]);
-  const [metodeOptions, setMetodeOptions] = useState<{ value: string; label: string }[]>([]);
-  const [rubrikOptions, setRubrikOptions] = useState<{ value: string; label: string }[]>([]);
-  const [rpsPustakaOptions, setRpsPustakaOptions] = useState<{ value: string; label: string }[]>([]);
+  const [jenisOptions, setJenisOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [komponenOptions, setKomponenOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [kriteriaOptions, setKriteriaOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [bentukOptions, setBentukOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [metodeOptions, setMetodeOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [rubrikOptions, setRubrikOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+  const [rpsPustakaOptions, setRpsPustakaOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
 
   const initialSubIds: number[] = useMemo(() => {
-    if (Array.isArray(initial?.sub_cpmk_ids) && initial.sub_cpmk_ids.length > 0) {
+    if (
+      Array.isArray(initial?.sub_cpmk_ids) &&
+      initial.sub_cpmk_ids.length > 0
+    ) {
       return initial.sub_cpmk_ids.map(Number).filter(Boolean);
     }
     if (initial?.sub_cpmk_id) {
@@ -129,14 +148,16 @@ export function SesiForm({
   } = useForm<Section1FormValues>({
     resolver: zodResolver(section1Schema),
     defaultValues: {
-      minggu_ke_input: initial?.minggu_ke ? String(initial.minggu_ke) : String(defaultMingguKe),
-      jenis_pertemuan: initial?.jenis_pertemuan || '',
-      cpmk_filter_id: '',
+      minggu_ke_input: initial?.minggu_ke
+        ? String(initial.minggu_ke)
+        : String(defaultMingguKe),
+      jenis_pertemuan: initial?.jenis_pertemuan || "",
+      cpmk_filter_id: "",
       sub_cpmk_ids: initialSubIds,
     },
   });
 
-  const selectedCpmkFilter = watchSec1('cpmk_filter_id');
+  const selectedCpmkFilter = watchSec1("cpmk_filter_id");
 
   // Form Section 2
   const {
@@ -147,36 +168,47 @@ export function SesiForm({
   } = useForm<Section2FormValues>({
     resolver: zodResolver(section2Schema),
     defaultValues: {
-      komponen_evaluasi_id: initial?.komponen_evaluasi_id ? String(initial.komponen_evaluasi_id) : '',
-      indikator_penilaian: initial?.indikator_penilaian || '',
-      kriteria_penilaian_id: initial?.kriteria_penilaian_id ? String(initial.kriteria_penilaian_id) : '',
-      teknik_penilaian: initial?.teknik_penilaian || initial?.kriteria_teknik || '',
+      komponen_evaluasi_id: initial?.komponen_evaluasi_id
+        ? String(initial.komponen_evaluasi_id)
+        : "",
+      indikator_penilaian: initial?.indikator_penilaian || "",
+      kriteria_penilaian_id: initial?.kriteria_penilaian_id
+        ? String(initial.kriteria_penilaian_id)
+        : "",
+      teknik_penilaian:
+        initial?.teknik_penilaian || initial?.kriteria_teknik || "",
     },
   });
 
   // Form Section 3
   const initialLuringList: AktivitasItem[] = useMemo(() => {
-    if (Array.isArray(initial?.aktivitas_luring) && initial.aktivitas_luring.length > 0) {
+    if (
+      Array.isArray(initial?.aktivitas_luring) &&
+      initial.aktivitas_luring.length > 0
+    ) {
       return initial.aktivitas_luring.map((item: any, idx: number) => ({
         id: `luring_${idx + 1}`,
-        bentuk: item.bentuk || '',
-        metode: item.metode || '',
+        bentuk: item.bentuk || "",
+        metode: item.metode || "",
         waktu_menit: Number(item.waktu_menit) || 50,
       }));
     }
-    return [{ id: 'luring_1', bentuk: '', metode: '', waktu_menit: 50 }];
+    return [{ id: "luring_1", bentuk: "", metode: "", waktu_menit: 50 }];
   }, [initial]);
 
   const initialDaringList: AktivitasItem[] = useMemo(() => {
-    if (Array.isArray(initial?.aktivitas_daring) && initial.aktivitas_daring.length > 0) {
+    if (
+      Array.isArray(initial?.aktivitas_daring) &&
+      initial.aktivitas_daring.length > 0
+    ) {
       return initial.aktivitas_daring.map((item: any, idx: number) => ({
         id: `daring_${idx + 1}`,
-        bentuk: item.bentuk || '',
-        metode: item.metode || '',
+        bentuk: item.bentuk || "",
+        metode: item.metode || "",
         waktu_menit: Number(item.waktu_menit) || 50,
       }));
     }
-    return [{ id: 'daring_1', bentuk: '', metode: '', waktu_menit: 50 }];
+    return [{ id: "daring_1", bentuk: "", metode: "", waktu_menit: 50 }];
   }, [initial]);
 
   const {
@@ -191,8 +223,8 @@ export function SesiForm({
     },
   });
 
-  const luringList = watchSec3('luringList') || initialLuringList;
-  const daringList = watchSec3('daringList') || initialDaringList;
+  const luringList = watchSec3("luringList") || initialLuringList;
+  const daringList = watchSec3("daringList") || initialDaringList;
 
   // Form Section 4: Materi Pembelajaran [Pustaka]
   const initialPustakaIds: string[] = useMemo(() => {
@@ -212,25 +244,31 @@ export function SesiForm({
   } = useForm<Section4FormValues>({
     resolver: zodResolver(section4Schema),
     defaultValues: {
-      topik_materi: initial?.topik_materi || initial?.bahan_kajian || '',
-      sub_topik_materi: initial?.sub_topik_materi || '',
+      topik_materi: initial?.topik_materi || initial?.bahan_kajian || "",
+      sub_topik_materi: initial?.sub_topik_materi || "",
       pustaka_ids: initialPustakaIds,
     },
   });
 
-  const selectedPustakaIds = watchSec4('pustaka_ids') || [];
+  const selectedPustakaIds = watchSec4("pustaka_ids") || [];
   const [showPustakaModal, setShowPustakaModal] = useState(false);
 
   // Form Section 5: Rubrik & Bobot Penilaian
-  const maxBobotAllowed = Math.min(100, Number(initial?.bobot_penilaian || 0) + totalSisaBobot);
+  const maxBobotAllowed = Math.min(
+    100,
+    Number(initial?.bobot_penilaian || 0) + totalSisaBobot,
+  );
 
   const section5SchemaDynamic = useMemo(() => {
     return z.object({
       rubrik_id: z.string().optional(),
       bobot_penilaian: z
-        .number({ error: 'Bobot penilaian wajib berupa angka' })
-        .min(0, 'Bobot minimal 0%')
-        .max(maxBobotAllowed, `Bobot maksimal yang diizinkan adalah ${maxBobotAllowed}%`),
+        .number({ error: "Bobot penilaian wajib berupa angka" })
+        .min(0, "Bobot minimal 0%")
+        .max(
+          maxBobotAllowed,
+          `Bobot maksimal yang diizinkan adalah ${maxBobotAllowed}%`,
+        ),
     });
   }, [maxBobotAllowed]);
 
@@ -243,25 +281,42 @@ export function SesiForm({
   } = useForm<Section5FormValues>({
     resolver: zodResolver(section5SchemaDynamic),
     defaultValues: {
-      rubrik_id: initial?.rubrik_id ? String(initial.rubrik_id) : '',
-      bobot_penilaian: initial?.bobot_penilaian !== undefined ? Number(initial.bobot_penilaian) : 0,
+      rubrik_id: initial?.rubrik_id ? String(initial.rubrik_id) : "",
+      bobot_penilaian:
+        initial?.bobot_penilaian !== undefined
+          ? Number(initial.bobot_penilaian)
+          : 0,
     },
   });
 
-  const currentBobotInput = watchSec5('bobot_penilaian') || 0;
-  const currentSisa = Math.max(0, maxBobotAllowed - currentBobotInput);
+  const currentBobotInput = Number(watchSec5("bobot_penilaian"));
+  const currentSisa = Math.max(
+    0,
+    maxBobotAllowed - (Number.isNaN(currentBobotInput) ? 0 : currentBobotInput),
+  );
 
   // Muat referensi RPS, Rubrik, dan Dokumen RPS Pustaka
   useEffect(() => {
     let active = true;
     const fetchReferences = async () => {
       try {
-        const [jenisRes, kompRes, kritRes, btkRes, mtdRes, rubrikRes, rpsDetailRes] = await Promise.all([
-          siakadService.getRpsReferensi({ tipe: 'jenis_pembelajaran', per_page: 50 }),
-          siakadService.getRpsReferensi({ tipe: 'komponen', per_page: 50 }),
-          siakadService.getRpsReferensi({ tipe: 'kriteria', per_page: 50 }),
-          siakadService.getRpsReferensi({ tipe: 'bentuk', per_page: 50 }),
-          siakadService.getRpsReferensi({ tipe: 'metode', per_page: 50 }),
+        const [
+          jenisRes,
+          kompRes,
+          kritRes,
+          btkRes,
+          mtdRes,
+          rubrikRes,
+          rpsDetailRes,
+        ] = await Promise.all([
+          siakadService.getRpsReferensi({
+            tipe: "jenis_pembelajaran",
+            per_page: 50,
+          }),
+          siakadService.getRpsReferensi({ tipe: "komponen", per_page: 50 }),
+          siakadService.getRpsReferensi({ tipe: "kriteria", per_page: 50 }),
+          siakadService.getRpsReferensi({ tipe: "bentuk", per_page: 50 }),
+          siakadService.getRpsReferensi({ tipe: "metode", per_page: 50 }),
           siakadService.getObeRubrikList({ per_page: 50 }),
           siakadService.showRps(rpsId),
         ]);
@@ -271,30 +326,49 @@ export function SesiForm({
         const rList: any[] = Array.isArray(kritRes.data) ? kritRes.data : [];
         const bList: any[] = Array.isArray(btkRes.data) ? btkRes.data : [];
         const mList: any[] = Array.isArray(mtdRes.data) ? mtdRes.data : [];
-        const rbList: any[] = Array.isArray(rubrikRes.data) ? rubrikRes.data : (rubrikRes.data?.items || []);
+        const rbList: any[] = Array.isArray(rubrikRes.data)
+          ? rubrikRes.data
+          : rubrikRes.data?.items || [];
 
-        setJenisOptions(jList.map((j: any) => ({ value: String(j.id ?? j.kode ?? j.nama), label: j.nama })));
+        setJenisOptions(
+          jList.map((j: any) => ({
+            value: String(j.id ?? j.kode ?? j.nama),
+            label: j.nama,
+          })),
+        );
         setKomponenOptions([
-          { value: '', label: 'Pilih' },
-          ...kList.map((k: any) => ({ value: String(k.id), label: `${k.kode ? `[${k.kode}] ` : ''}${k.nama}` })),
+          { value: "", label: "Pilih" },
+          ...kList.map((k: any) => ({
+            value: String(k.id),
+            label: `${k.kode ? `[${k.kode}] ` : ""}${k.nama}`,
+          })),
         ]);
         setKriteriaOptions([
-          { value: '', label: 'Pilih' },
-          ...rList.map((r: any) => ({ value: String(r.id), label: `${r.kode ? `[${r.kode}] ` : ''}${r.nama}` })),
+          { value: "", label: "Pilih" },
+          ...rList.map((r: any) => ({
+            value: String(r.id),
+            label: `${r.kode ? `[${r.kode}] ` : ""}${r.nama}`,
+          })),
         ]);
         setBentukOptions([
-          { value: '', label: 'Pilih Bentuk Perkuliahan' },
-          ...bList.map((b: any) => ({ value: String(b.id), label: `${b.kode ? `[${b.kode}] ` : ''}${b.nama}` })),
+          { value: "", label: "Pilih Bentuk Perkuliahan" },
+          ...bList.map((b: any) => ({
+            value: String(b.id),
+            label: `${b.kode ? `[${b.kode}] ` : ""}${b.nama}`,
+          })),
         ]);
         setMetodeOptions([
-          { value: '', label: 'Pilih Metode Perkuliahan' },
-          ...mList.map((m: any) => ({ value: String(m.id), label: `${m.kode ? `[${m.kode}] ` : ''}${m.nama}` })),
+          { value: "", label: "Pilih Metode Perkuliahan" },
+          ...mList.map((m: any) => ({
+            value: String(m.id),
+            label: `${m.kode ? `[${m.kode}] ` : ""}${m.nama}`,
+          })),
         ]);
         setRubrikOptions([
-          { value: '', label: 'Pilih Rubrik' },
+          { value: "", label: "Pilih Rubrik" },
           ...rbList.map((rb: any) => ({
             value: String(rb.id),
-            label: `${rb.kode_rubrik ? `[${rb.kode_rubrik}] ` : ''}${rb.nama_rubrik || rb.nama}`,
+            label: `${rb.kode_rubrik ? `[${rb.kode_rubrik}] ` : ""}${rb.nama_rubrik || rb.nama}`,
           })),
         ]);
 
@@ -303,20 +377,26 @@ export function SesiForm({
         const parsedPustakas: { value: string; label: string }[] = [];
         if (dRps?.pustaka_utama) {
           String(dRps.pustaka_utama)
-            .split('\n')
+            .split("\n")
             .map((s) => s.trim())
             .filter(Boolean)
             .forEach((p, idx) => {
-              parsedPustakas.push({ value: `utama_${idx + 1}`, label: `[Utama] ${p}` });
+              parsedPustakas.push({
+                value: `utama_${idx + 1}`,
+                label: `[Utama] ${p}`,
+              });
             });
         }
         if (dRps?.pustaka_pendukung) {
           String(dRps.pustaka_pendukung)
-            .split('\n')
+            .split("\n")
             .map((s) => s.trim())
             .filter(Boolean)
             .forEach((p, idx) => {
-              parsedPustakas.push({ value: `pendukung_${idx + 1}`, label: `[Pendukung] ${p}` });
+              parsedPustakas.push({
+                value: `pendukung_${idx + 1}`,
+                label: `[Pendukung] ${p}`,
+              });
             });
         }
         setRpsPustakaOptions(parsedPustakas);
@@ -344,8 +424,12 @@ export function SesiForm({
     const loadCpmkData = async () => {
       try {
         const [cpmkRes, subRes] = await Promise.all([
-          siakadService.getCpmk(mataKuliahId ? { mata_kuliah_id: mataKuliahId } : undefined),
-          siakadService.getSubCpmk(mataKuliahId ? { mata_kuliah_id: mataKuliahId } : undefined),
+          siakadService.getCpmk(
+            mataKuliahId ? { mata_kuliah_id: mataKuliahId } : undefined,
+          ),
+          siakadService.getSubCpmk(
+            mataKuliahId ? { mata_kuliah_id: mataKuliahId } : undefined,
+          ),
         ]);
         if (!active) return;
         const cpmks: any[] = Array.isArray(cpmkRes.data) ? cpmkRes.data : [];
@@ -367,66 +451,80 @@ export function SesiForm({
 
   const cpmkSelectOptions = useMemo(
     () => [
-      { value: '', label: 'Semua CPMK' },
+      { value: "", label: "Semua CPMK" },
       ...cpmkList.map((c: any) => ({
         value: String(c.id),
-        label: `${c.kode_cpmk || `CPMK #${c.id}`} - ${(c.deskripsi || '').substring(0, 60)}...`,
+        label: `${c.kode_cpmk || `CPMK #${c.id}`} - ${(c.deskripsi || "").substring(0, 60)}...`,
       })),
     ],
-    [cpmkList]
+    [cpmkList],
   );
 
   const filteredSubCpmkList = useMemo(() => {
     if (!selectedCpmkFilter) return subCpmkList;
-    return subCpmkList.filter((s: any) => String(s.cpmk_id) === String(selectedCpmkFilter));
+    return subCpmkList.filter(
+      (s: any) => String(s.cpmk_id) === String(selectedCpmkFilter),
+    );
   }, [subCpmkList, selectedCpmkFilter]);
 
   // Handler Luring Items
   const handleAddLuring = () => {
     const newId = `luring_${luringList.length + 1}`;
-    setValueSec3('luringList', [
+    setValueSec3("luringList", [
       ...luringList,
-      { id: newId, bentuk: '', metode: '', waktu_menit: 50 },
+      { id: newId, bentuk: "", metode: "", waktu_menit: 50 },
     ]);
   };
   const handleRemoveLuring = (idx: number) => {
     setValueSec3(
-      'luringList',
-      luringList.filter((_, i) => i !== idx)
+      "luringList",
+      luringList.filter((_, i) => i !== idx),
     );
   };
-  const handleUpdateLuring = (idx: number, field: keyof AktivitasItem, val: any) => {
+  const handleUpdateLuring = (
+    idx: number,
+    field: keyof AktivitasItem,
+    val: any,
+  ) => {
     setValueSec3(
-      'luringList',
-      luringList.map((item, i) => (i === idx ? { ...item, [field]: val } : item))
+      "luringList",
+      luringList.map((item, i) =>
+        i === idx ? { ...item, [field]: val } : item,
+      ),
     );
   };
 
   // Handler Daring Items
   const handleAddDaring = () => {
     const newId = `daring_${daringList.length + 1}`;
-    setValueSec3('daringList', [
+    setValueSec3("daringList", [
       ...daringList,
-      { id: newId, bentuk: '', metode: '', waktu_menit: 50 },
+      { id: newId, bentuk: "", metode: "", waktu_menit: 50 },
     ]);
   };
   const handleRemoveDaring = (idx: number) => {
     setValueSec3(
-      'daringList',
-      daringList.filter((_, i) => i !== idx)
+      "daringList",
+      daringList.filter((_, i) => i !== idx),
     );
   };
-  const handleUpdateDaring = (idx: number, field: keyof AktivitasItem, val: any) => {
+  const handleUpdateDaring = (
+    idx: number,
+    field: keyof AktivitasItem,
+    val: any,
+  ) => {
     setValueSec3(
-      'daringList',
-      daringList.map((item, i) => (i === idx ? { ...item, [field]: val } : item))
+      "daringList",
+      daringList.map((item, i) =>
+        i === idx ? { ...item, [field]: val } : item,
+      ),
     );
   };
 
   // Helper parsing daftar sesi minggu
   const parseSessions = (input: string) => {
     return input
-      .split(',')
+      .split(",")
       .map((s) => Number(s.trim()))
       .filter((n) => !Number.isNaN(n) && n >= 1 && n <= 16);
   };
@@ -435,14 +533,21 @@ export function SesiForm({
   const onSubmitSec1 = async (values: Section1FormValues) => {
     const rawSessions = parseSessions(values.minggu_ke_input);
     if (rawSessions.length === 0) {
-      toast.error('Format pertemuan ke tidak valid. Masukkan angka 1 s.d 16, pisahkan dengan koma.');
+      toast.error(
+        "Format pertemuan ke tidak valid. Masukkan angka 1 s.d 16, pisahkan dengan koma.",
+      );
       return;
     }
 
-    const selectedSubs = subCpmkList.filter((s: any) => values.sub_cpmk_ids.includes(Number(s.id)));
+    const selectedSubs = subCpmkList.filter((s: any) =>
+      values.sub_cpmk_ids.includes(Number(s.id)),
+    );
     const kemampuanAkhirSummary = selectedSubs
-      .map((s: any) => `${s.kode_sub_cpmk ? `[${s.kode_sub_cpmk}] ` : ''}${s.deskripsi || ''}`)
-      .join('; ');
+      .map(
+        (s: any) =>
+          `${s.kode_sub_cpmk ? `[${s.kode_sub_cpmk}] ` : ""}${s.deskripsi || ""}`,
+      )
+      .join("; ");
 
     try {
       setSavingSec1(true);
@@ -456,7 +561,10 @@ export function SesiForm({
           sub_cpmk_ids: values.sub_cpmk_ids,
           kemampuan_akhir: kemampuanAkhirSummary || `Sub-CPMK Pertemuan ${m}`,
           bahan_kajian: initial?.bahan_kajian || `Bahan kajian pertemuan ${m}`,
-          bobot_penilaian: initial?.bobot_penilaian !== undefined ? Number(initial.bobot_penilaian) : 0,
+          bobot_penilaian:
+            initial?.bobot_penilaian !== undefined
+              ? Number(initial.bobot_penilaian)
+              : 0,
         });
         if (res?.data?.id) {
           lastSavedId = Number(res.data.id);
@@ -466,10 +574,12 @@ export function SesiForm({
       toast.success(
         rawSessions.length > 1
           ? `Berhasil menyimpan ${rawSessions.length} sesi pertemuan & Sub-CPMK`
-          : 'Section Pertemuan & Sub-CPMK berhasil disimpan'
+          : "Section Pertemuan & Sub-CPMK berhasil disimpan",
       );
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan Pertemuan & Sub-CPMK');
+      toast.error(
+        err?.response?.data?.message || "Gagal menyimpan Pertemuan & Sub-CPMK",
+      );
     } finally {
       setSavingSec1(false);
     }
@@ -478,7 +588,9 @@ export function SesiForm({
   // Submit Section 2: Penilaian
   const onSubmitSec2 = async (values: Section2FormValues) => {
     const sec1Values = getValuesSec1();
-    const rawSessions = parseSessions(sec1Values.minggu_ke_input || String(defaultMingguKe));
+    const rawSessions = parseSessions(
+      sec1Values.minggu_ke_input || String(defaultMingguKe),
+    );
     const targetMinggu = rawSessions[0] || defaultMingguKe;
 
     try {
@@ -487,16 +599,22 @@ export function SesiForm({
         id: currentSesiId,
         minggu_ke: targetMinggu,
         jenis_pertemuan: sec1Values.jenis_pertemuan || undefined,
-        komponen_evaluasi_id: values.komponen_evaluasi_id ? Number(values.komponen_evaluasi_id) : undefined,
-        kriteria_penilaian_id: values.kriteria_penilaian_id ? Number(values.kriteria_penilaian_id) : undefined,
+        komponen_evaluasi_id: values.komponen_evaluasi_id
+          ? Number(values.komponen_evaluasi_id)
+          : undefined,
+        kriteria_penilaian_id: values.kriteria_penilaian_id
+          ? Number(values.kriteria_penilaian_id)
+          : undefined,
         indikator_penilaian: values.indikator_penilaian?.trim() || undefined,
         teknik_penilaian: values.teknik_penilaian?.trim() || undefined,
         kriteria_teknik: values.teknik_penilaian?.trim() || undefined,
       });
       if (res?.data?.id) setCurrentSesiId(Number(res.data.id));
-      toast.success('Section Penilaian berhasil disimpan');
+      toast.success("Section Penilaian berhasil disimpan");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan data penilaian');
+      toast.error(
+        err?.response?.data?.message || "Gagal menyimpan data penilaian",
+      );
     } finally {
       setSavingSec2(false);
     }
@@ -505,18 +623,26 @@ export function SesiForm({
   // Submit Section 3: Bentuk & Metode Pembelajaran
   const onSubmitSec3 = async (values: Section3FormValues) => {
     const sec1Values = getValuesSec1();
-    const rawSessions = parseSessions(sec1Values.minggu_ke_input || String(defaultMingguKe));
+    const rawSessions = parseSessions(
+      sec1Values.minggu_ke_input || String(defaultMingguKe),
+    );
     const targetMinggu = rawSessions[0] || defaultMingguKe;
 
     const luringSummary = (values.luringList || [])
       .filter((l) => l.bentuk || l.metode)
-      .map((l) => `${l.bentuk ? `Bentuk: ${l.bentuk}` : ''}${l.metode ? `, Metode: ${l.metode}` : ''} (${l.waktu_menit} mnt)`)
-      .join('; ');
+      .map(
+        (l) =>
+          `${l.bentuk ? `Bentuk: ${l.bentuk}` : ""}${l.metode ? `, Metode: ${l.metode}` : ""} (${l.waktu_menit} mnt)`,
+      )
+      .join("; ");
 
     const daringSummary = (values.daringList || [])
       .filter((d) => d.bentuk || d.metode)
-      .map((d) => `${d.bentuk ? `Bentuk: ${d.bentuk}` : ''}${d.metode ? `, Metode: ${d.metode}` : ''} (${d.waktu_menit} mnt)`)
-      .join('; ');
+      .map(
+        (d) =>
+          `${d.bentuk ? `Bentuk: ${d.bentuk}` : ""}${d.metode ? `, Metode: ${d.metode}` : ""} (${d.waktu_menit} mnt)`,
+      )
+      .join("; ");
 
     try {
       setSavingSec3(true);
@@ -526,13 +652,20 @@ export function SesiForm({
         jenis_pertemuan: sec1Values.jenis_pertemuan || undefined,
         bentuk_luring: luringSummary || undefined,
         bentuk_daring: daringSummary || undefined,
-        aktivitas_luring: (values.luringList || []).filter((l) => l.bentuk || l.metode),
-        aktivitas_daring: (values.daringList || []).filter((d) => d.bentuk || d.metode),
+        aktivitas_luring: (values.luringList || []).filter(
+          (l) => l.bentuk || l.metode,
+        ),
+        aktivitas_daring: (values.daringList || []).filter(
+          (d) => d.bentuk || d.metode,
+        ),
       });
       if (res?.data?.id) setCurrentSesiId(Number(res.data.id));
-      toast.success('Section Bentuk & Metode Pembelajaran berhasil disimpan');
+      toast.success("Section Bentuk & Metode Pembelajaran berhasil disimpan");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan Bentuk & Metode Pembelajaran');
+      toast.error(
+        err?.response?.data?.message ||
+          "Gagal menyimpan Bentuk & Metode Pembelajaran",
+      );
     } finally {
       setSavingSec3(false);
     }
@@ -541,7 +674,9 @@ export function SesiForm({
   // Submit Section 4: Materi Pembelajaran [Pustaka]
   const onSubmitSec4 = async (values: Section4FormValues) => {
     const sec1Values = getValuesSec1();
-    const rawSessions = parseSessions(sec1Values.minggu_ke_input || String(defaultMingguKe));
+    const rawSessions = parseSessions(
+      sec1Values.minggu_ke_input || String(defaultMingguKe),
+    );
     const targetMinggu = rawSessions[0] || defaultMingguKe;
 
     try {
@@ -556,9 +691,11 @@ export function SesiForm({
         pustaka_ids: values.pustaka_ids || [],
       });
       if (res?.data?.id) setCurrentSesiId(Number(res.data.id));
-      toast.success('Section Materi Pembelajaran [Pustaka] berhasil disimpan');
+      toast.success("Section Materi Pembelajaran [Pustaka] berhasil disimpan");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan materi pembelajaran');
+      toast.error(
+        err?.response?.data?.message || "Gagal menyimpan materi pembelajaran",
+      );
     } finally {
       setSavingSec4(false);
     }
@@ -567,7 +704,9 @@ export function SesiForm({
   // Submit Section 5: Rubrik & Bobot Penilaian
   const onSubmitSec5 = async (values: Section5FormValues) => {
     const sec1Values = getValuesSec1();
-    const rawSessions = parseSessions(sec1Values.minggu_ke_input || String(defaultMingguKe));
+    const rawSessions = parseSessions(
+      sec1Values.minggu_ke_input || String(defaultMingguKe),
+    );
     const targetMinggu = rawSessions[0] || defaultMingguKe;
 
     try {
@@ -580,9 +719,12 @@ export function SesiForm({
         bobot_penilaian: values.bobot_penilaian,
       });
       if (res?.data?.id) setCurrentSesiId(Number(res.data.id));
-      toast.success('Section Rubrik & Bobot Penilaian berhasil disimpan');
+      toast.success("Section Rubrik & Bobot Penilaian berhasil disimpan");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan rubrik & bobot penilaian');
+      toast.error(
+        err?.response?.data?.message ||
+          "Gagal menyimpan rubrik & bobot penilaian",
+      );
     } finally {
       setSavingSec5(false);
     }
@@ -594,7 +736,9 @@ export function SesiForm({
       <Card>
         <form onSubmit={handleSubmitSec1(onSubmitSec1)} noValidate>
           <CardHeader className="pb-3 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900">Pertemuan &amp; Sub-CPMK</h3>
+            <h3 className="text-sm font-bold text-slate-900">
+              Pertemuan &amp; Sub-CPMK
+            </h3>
           </CardHeader>
           <CardBody className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -604,7 +748,7 @@ export function SesiForm({
                   placeholder="1 atau 1,2,3,4"
                   error={errorsSec1.minggu_ke_input?.message}
                   hint="jika untuk banyak sesi sekaligus, maka pisahkan dengan koma. cth: 1,2,3,4 yang artinya data ini untuk perkuliahan sesi 1 sampai 4"
-                  {...registerSec1('minggu_ke_input')}
+                  {...registerSec1("minggu_ke_input")}
                 />
               </div>
               <div>
@@ -618,8 +762,8 @@ export function SesiForm({
                       options={jenisOptions}
                       value={field.value}
                       onChange={(opt: any) => {
-                        const val = typeof opt === 'object' ? opt?.value : opt;
-                        field.onChange(val ? String(val) : '');
+                        const val = typeof opt === "object" ? opt?.value : opt;
+                        field.onChange(val ? String(val) : "");
                       }}
                       error={errorsSec1.jenis_pertemuan?.message}
                     />
@@ -637,10 +781,10 @@ export function SesiForm({
                     label="CPMK"
                     placeholder="Pilih CPMK"
                     options={cpmkSelectOptions}
-                    value={field.value || ''}
+                    value={field.value || ""}
                     onChange={(opt: any) => {
-                      const val = typeof opt === 'object' ? opt?.value : opt;
-                      field.onChange(val || '');
+                      const val = typeof opt === "object" ? opt?.value : opt;
+                      field.onChange(val || "");
                     }}
                     error={errorsSec1.cpmk_filter_id?.message}
                   />
@@ -665,7 +809,9 @@ export function SesiForm({
                     ) : (
                       filteredSubCpmkList.map((sub: any) => {
                         const subId = Number(sub.id);
-                        const isChecked = Array.isArray(field.value) && field.value.includes(subId);
+                        const isChecked =
+                          Array.isArray(field.value) &&
+                          field.value.includes(subId);
                         return (
                           <div
                             key={sub.id}
@@ -673,15 +819,19 @@ export function SesiForm({
                           >
                             <Checkbox
                               id={`sub-cpmk-${sub.id}`}
-                              label={`${sub.kode_sub_cpmk || `Sub-CPMK #${sub.id}`} — ${sub.deskripsi || ''}`}
+                              label={`${sub.kode_sub_cpmk || `Sub-CPMK #${sub.id}`} — ${sub.deskripsi || ""}`}
                               checked={isChecked}
                               onChange={(e) => {
                                 const checked = e.target.checked;
-                                const current = Array.isArray(field.value) ? [...field.value] : [];
+                                const current = Array.isArray(field.value)
+                                  ? [...field.value]
+                                  : [];
                                 if (checked) {
                                   field.onChange([...current, subId]);
                                 } else {
-                                  field.onChange(current.filter((id) => id !== subId));
+                                  field.onChange(
+                                    current.filter((id) => id !== subId),
+                                  );
                                 }
                               }}
                             />
@@ -693,9 +843,13 @@ export function SesiForm({
                 )}
               />
 
-              <p className="text-2xs text-slate-400">Pilih Sub-CPMK dengan mencentang lebih dari satu</p>
+              <p className="text-2xs text-slate-400">
+                Pilih Sub-CPMK dengan mencentang lebih dari satu
+              </p>
               {errorsSec1.sub_cpmk_ids?.message && (
-                <p className="text-2xs text-rose-600 font-semibold">{errorsSec1.sub_cpmk_ids.message}</p>
+                <p className="text-2xs text-rose-600 font-semibold">
+                  {errorsSec1.sub_cpmk_ids.message}
+                </p>
               )}
             </div>
 
@@ -725,10 +879,10 @@ export function SesiForm({
                     placeholder="Pilih"
                     hint="Boleh dikosongkan jika tidak ada komponen pengambilan nilai pada pertemuan ini"
                     options={komponenOptions}
-                    value={field.value || ''}
+                    value={field.value || ""}
                     onChange={(opt: any) => {
-                      const val = typeof opt === 'object' ? opt?.value : opt;
-                      field.onChange(val || '');
+                      const val = typeof opt === "object" ? opt?.value : opt;
+                      field.onChange(val || "");
                     }}
                     error={errorsSec2.komponen_evaluasi_id?.message}
                   />
@@ -742,7 +896,7 @@ export function SesiForm({
                 rows={3}
                 placeholder="Tuliskan indikator capaian penilaian..."
                 error={errorsSec2.indikator_penilaian?.message}
-                {...registerSec2('indikator_penilaian')}
+                {...registerSec2("indikator_penilaian")}
               />
             </div>
 
@@ -755,10 +909,10 @@ export function SesiForm({
                     label="Kriteria"
                     placeholder="Pilih"
                     options={kriteriaOptions}
-                    value={field.value || ''}
+                    value={field.value || ""}
                     onChange={(opt: any) => {
-                      const val = typeof opt === 'object' ? opt?.value : opt;
-                      field.onChange(val || '');
+                      const val = typeof opt === "object" ? opt?.value : opt;
+                      field.onChange(val || "");
                     }}
                     error={errorsSec2.kriteria_penilaian_id?.message}
                   />
@@ -772,7 +926,7 @@ export function SesiForm({
                 rows={3}
                 placeholder="Tuliskan teknik penilaian yang digunakan..."
                 error={errorsSec2.teknik_penilaian?.message}
-                {...registerSec2('teknik_penilaian')}
+                {...registerSec2("teknik_penilaian")}
               />
             </div>
 
@@ -790,7 +944,8 @@ export function SesiForm({
         <form onSubmit={handleSubmitSec3(onSubmitSec3)} noValidate>
           <CardHeader className="pb-3 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-900">
-              Bentuk Pembelajaran; Metode Pembelajaran; Penugasan Mahasiswa; [Estimasi Waktu]
+              Bentuk Pembelajaran; Metode Pembelajaran; Penugasan Mahasiswa;
+              [Estimasi Waktu]
             </h3>
           </CardHeader>
           <CardBody className="space-y-6">
@@ -802,7 +957,10 @@ export function SesiForm({
                   variant="outline"
                   icon={<Plus size={14} />}
                   onClick={handleAddLuring}
-                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                  style={{
+                    borderColor: "var(--module-primary)",
+                    color: "var(--module-primary)",
+                  }}
                 >
                   Tambah Luring
                 </Button>
@@ -821,8 +979,9 @@ export function SesiForm({
                         options={bentukOptions}
                         value={item.bentuk}
                         onChange={(opt: any) => {
-                          const val = typeof opt === 'object' ? opt?.value : opt;
-                          handleUpdateLuring(idx, 'bentuk', val || '');
+                          const val =
+                            typeof opt === "object" ? opt?.value : opt;
+                          handleUpdateLuring(idx, "bentuk", val || "");
                         }}
                       />
                     </div>
@@ -833,8 +992,9 @@ export function SesiForm({
                         options={metodeOptions}
                         value={item.metode}
                         onChange={(opt: any) => {
-                          const val = typeof opt === 'object' ? opt?.value : opt;
-                          handleUpdateLuring(idx, 'metode', val || '');
+                          const val =
+                            typeof opt === "object" ? opt?.value : opt;
+                          handleUpdateLuring(idx, "metode", val || "");
                         }}
                       />
                     </div>
@@ -844,7 +1004,13 @@ export function SesiForm({
                         label="Waktu Luring (menit)"
                         min={1}
                         value={item.waktu_menit}
-                        onChange={(e) => handleUpdateLuring(idx, 'waktu_menit', Number(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleUpdateLuring(
+                            idx,
+                            "waktu_menit",
+                            Number(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                     <div className="md:col-span-1 flex justify-center pb-1">
@@ -874,7 +1040,10 @@ export function SesiForm({
                   variant="outline"
                   icon={<Plus size={14} />}
                   onClick={handleAddDaring}
-                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                  style={{
+                    borderColor: "var(--module-primary)",
+                    color: "var(--module-primary)",
+                  }}
                 >
                   Tambah Daring
                 </Button>
@@ -893,8 +1062,9 @@ export function SesiForm({
                         options={bentukOptions}
                         value={item.bentuk}
                         onChange={(opt: any) => {
-                          const val = typeof opt === 'object' ? opt?.value : opt;
-                          handleUpdateDaring(idx, 'bentuk', val || '');
+                          const val =
+                            typeof opt === "object" ? opt?.value : opt;
+                          handleUpdateDaring(idx, "bentuk", val || "");
                         }}
                       />
                     </div>
@@ -905,8 +1075,9 @@ export function SesiForm({
                         options={metodeOptions}
                         value={item.metode}
                         onChange={(opt: any) => {
-                          const val = typeof opt === 'object' ? opt?.value : opt;
-                          handleUpdateDaring(idx, 'metode', val || '');
+                          const val =
+                            typeof opt === "object" ? opt?.value : opt;
+                          handleUpdateDaring(idx, "metode", val || "");
                         }}
                       />
                     </div>
@@ -916,7 +1087,13 @@ export function SesiForm({
                         label="Waktu Daring (menit)"
                         min={1}
                         value={item.waktu_menit}
-                        onChange={(e) => handleUpdateDaring(idx, 'waktu_menit', Number(e.target.value) || 0)}
+                        onChange={(e) =>
+                          handleUpdateDaring(
+                            idx,
+                            "waktu_menit",
+                            Number(e.target.value) || 0,
+                          )
+                        }
                       />
                     </div>
                     <div className="md:col-span-1 flex justify-center pb-1">
@@ -945,11 +1122,29 @@ export function SesiForm({
         </form>
       </Card>
 
-      {/* SECTION 4: Materi Pembelajaran[Pustaka] */}
+      {/* SECTION 4: Pustaka */}
       <Card>
         <form onSubmit={handleSubmitSec4(onSubmitSec4)} noValidate>
-          <CardHeader className="pb-3 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900">Materi Pembelajaran[Pustaka]</h3>
+          <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Pustaka</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Daftar buku, artikel ilmiah, modul, dan referensi pendukung mata
+                kuliah.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              icon={<Plus size={14} />}
+              onClick={() => setShowPustakaModal(true)}
+              style={{
+                borderColor: "var(--module-primary)",
+                color: "var(--module-primary)",
+              }}
+            >
+              Tambah Pustaka
+            </Button>
           </CardHeader>
           <CardBody className="space-y-4">
             <div>
@@ -958,7 +1153,7 @@ export function SesiForm({
                 rows={3}
                 placeholder="Tuliskan topik utama materi pembelajaran..."
                 error={errorsSec4.topik_materi?.message}
-                {...registerSec4('topik_materi')}
+                {...registerSec4("topik_materi")}
               />
             </div>
 
@@ -968,45 +1163,65 @@ export function SesiForm({
                 rows={3}
                 placeholder="Tuliskan sub-topik / rincian materi pembelajaran..."
                 error={errorsSec4.sub_topik_materi?.message}
-                {...registerSec4('sub_topik_materi')}
+                {...registerSec4("sub_topik_materi")}
               />
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Button
-                  type="button"
-                  variant="outline"
-                  icon={<Plus size={14} />}
-                  onClick={() => setShowPustakaModal(true)}
-                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
-                >
-                  Tambah Pustaka
-                </Button>
-              </div>
-
-              {selectedPustakaIds.length > 0 && (
+              {selectedPustakaIds.length > 0 ? (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                  <span className="text-2xs font-bold text-slate-500 uppercase block">Pustaka Terpilih:</span>
-                  {selectedPustakaIds.map((pId) => {
-                    const match = rpsPustakaOptions.find((p) => p.value === pId);
-                    return (
-                      <div
-                        key={pId}
-                        className="flex items-center justify-between gap-2 text-xs bg-white p-2 rounded-lg border border-slate-100"
-                      >
-                        <span className="text-slate-700 font-medium">{match?.label || pId}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => setValueSec4('pustaka_ids', selectedPustakaIds.filter((id) => id !== pId))}
-                          className="text-rose-600 hover:text-rose-800 text-2xs font-bold p-1 h-auto"
+                  <div className="space-y-2">
+                    {selectedPustakaIds.map((pId) => {
+                      const match = rpsPustakaOptions.find(
+                        (p) => p.value === pId,
+                      );
+                      const isUtama = pId.startsWith("utama");
+                      const labelText = match
+                        ? match.label.replace(/^\[(Utama|Pendukung)\]\s*/, "")
+                        : pId;
+
+                      return (
+                        <div
+                          key={pId}
+                          className="flex items-center justify-between gap-3 p-2.5 bg-white border border-slate-200 rounded-lg"
                         >
-                          Lepas
-                        </Button>
-                      </div>
-                    );
-                  })}
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`text-2xs font-bold px-2 py-0.5 rounded ${
+                                isUtama
+                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                                  : "bg-slate-50 text-slate-600 border border-slate-200"
+                              }`}
+                            >
+                              {isUtama ? "UTAMA" : "PENDUKUNG"}
+                            </span>
+                            <span className="text-xs text-slate-700 font-medium truncate">
+                              {labelText}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() =>
+                              setValueSec4(
+                                "pustaka_ids",
+                                selectedPustakaIds.filter((id) => id !== pId),
+                              )
+                            }
+                            className="text-rose-600 hover:text-rose-800 text-2xs font-semibold p-1 h-auto shrink-0"
+                          >
+                            Hapus
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                  <p className="text-sm text-slate-400">
+                    Belum ada pustaka terpilih.
+                  </p>
                 </div>
               )}
             </div>
@@ -1024,7 +1239,9 @@ export function SesiForm({
       <Card>
         <form onSubmit={handleSubmitSec5(onSubmitSec5)} noValidate>
           <CardHeader className="pb-3 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900">Rubrik &amp; Bobot Penilaian</h3>
+            <h3 className="text-sm font-bold text-slate-900">
+              Rubrik &amp; Bobot Penilaian
+            </h3>
           </CardHeader>
           <CardBody className="space-y-4">
             <div>
@@ -1036,10 +1253,10 @@ export function SesiForm({
                     label="Rubrik (kosongkan jika tidak pakai rubrik)"
                     placeholder="Pilih Rubrik"
                     options={rubrikOptions}
-                    value={field.value || ''}
+                    value={field.value || ""}
                     onChange={(opt: any) => {
-                      const val = typeof opt === 'object' ? opt?.value : opt;
-                      field.onChange(val || '');
+                      const val = typeof opt === "object" ? opt?.value : opt;
+                      field.onChange(val || "");
                     }}
                     error={errorsSec5.rubrik_id?.message}
                   />
@@ -1056,7 +1273,7 @@ export function SesiForm({
                 max={maxBobotAllowed}
                 hint={`Total sisa bobot yang bisa diisi: ${currentSisa}%`}
                 error={errorsSec5.bobot_penilaian?.message}
-                {...registerSec5('bobot_penilaian', { valueAsNumber: true })}
+                {...registerSec5("bobot_penilaian", { valueAsNumber: true })}
               />
             </div>
 
@@ -1083,7 +1300,11 @@ export function SesiForm({
         title="Pilih Pustaka Rujukan RPS"
         size="lg"
         footer={
-          <Button type="button" variant="primary" onClick={() => setShowPustakaModal(false)}>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => setShowPustakaModal(false)}
+          >
             Tutup
           </Button>
         }
@@ -1091,7 +1312,8 @@ export function SesiForm({
         <div className="max-h-60 overflow-y-auto space-y-2">
           {rpsPustakaOptions.length === 0 ? (
             <p className="text-2xs text-slate-400 italic text-center py-4">
-              Belum ada pustaka pada dokumen RPS ini. Tambahkan pustaka terlebih dahulu di halaman Edit RPS.
+              Belum ada pustaka pada dokumen RPS ini. Tambahkan pustaka terlebih
+              dahulu di halaman Edit RPS.
             </p>
           ) : (
             rpsPustakaOptions.map((p) => {
@@ -1108,11 +1330,14 @@ export function SesiForm({
                     onChange={(e) => {
                       const checked = e.target.checked;
                       if (checked) {
-                        setValueSec4('pustaka_ids', [...selectedPustakaIds, p.value]);
+                        setValueSec4("pustaka_ids", [
+                          ...selectedPustakaIds,
+                          p.value,
+                        ]);
                       } else {
                         setValueSec4(
-                          'pustaka_ids',
-                          selectedPustakaIds.filter((id) => id !== p.value)
+                          "pustaka_ids",
+                          selectedPustakaIds.filter((id) => id !== p.value),
                         );
                       }
                     }}
