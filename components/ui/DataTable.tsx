@@ -27,6 +27,7 @@ interface DataTableProps<T> {
   renderExpandedRow?: (row: T, index: number) => React.ReactNode;
   defaultExpandedAll?: boolean;
   keyExtractor?: (row: T, index: number) => string | number;
+  customHeader?: React.ReactNode;
 }
 
 export function DataTable<T extends object>({
@@ -41,6 +42,7 @@ export function DataTable<T extends object>({
   renderExpandedRow,
   defaultExpandedAll = false,
   keyExtractor,
+  customHeader,
 }: DataTableProps<T>) {
   const [expandedAll, setExpandedAll] = useState(defaultExpandedAll);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
@@ -79,37 +81,41 @@ export function DataTable<T extends object>({
       <div className="table-wrapper bg-white">
         <table className="table bg-white">
           <thead className="bg-slate-50/90 border-b border-slate-200">
-            <tr className="bg-slate-50/90">
-              {expandable && (
-                <th className="bg-slate-50/90" style={{ width: '36px', padding: '0.5rem' }}>
-                  {data.length > 0 && !isLoading && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm btn-icon"
-                      style={{ padding: '2px' }}
-                      title={expandedAll ? 'Tutup semua rincian' : 'Buka semua rincian'}
-                      onClick={() => {
-                        setExpandedAll((v) => !v);
-                        setExpandedKeys(new Set());
-                      }}
-                    >
-                      <ChevronDown
-                        size={16}
-                        style={{
-                          transform: expandedAll ? 'rotate(0deg)' : 'rotate(-90deg)',
-                          transition: 'transform 0.15s ease-in-out',
+            {customHeader ? (
+              customHeader
+            ) : (
+              <tr className="bg-slate-50/90">
+                {expandable && (
+                  <th className="bg-slate-50/90" style={{ width: '36px', padding: '0.5rem' }}>
+                    {data.length > 0 && !isLoading && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm btn-icon"
+                        style={{ padding: '2px' }}
+                        title={expandedAll ? 'Tutup semua rincian' : 'Buka semua rincian'}
+                        onClick={() => {
+                          setExpandedAll((v) => !v);
+                          setExpandedKeys(new Set());
                         }}
-                      />
-                    </button>
-                  )}
-                </th>
-              )}
-              {columns.map((col, index) => (
-                <th key={col.key || index} style={{ textAlign: col.align || 'left' }}>
-                  {col.headerRender ? col.headerRender() : col.label}
-                </th>
-              ))}
-            </tr>
+                      >
+                        <ChevronDown
+                          size={16}
+                          style={{
+                            transform: expandedAll ? 'rotate(0deg)' : 'rotate(-90deg)',
+                            transition: 'transform 0.15s ease-in-out',
+                          }}
+                        />
+                      </button>
+                    )}
+                  </th>
+                )}
+                {columns.map((col, index) => (
+                  <th key={col.key || index} style={{ textAlign: col.align || 'left' }}>
+                    {col.headerRender ? col.headerRender() : col.label}
+                  </th>
+                ))}
+              </tr>
+            )}
           </thead>
           <tbody className="bg-white">
             {isLoading ? (

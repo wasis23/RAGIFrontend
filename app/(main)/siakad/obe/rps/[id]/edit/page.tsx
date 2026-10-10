@@ -566,6 +566,48 @@ export default function EditRpsPage() {
     }
   };
 
+  const customSesiHeader = (
+    <>
+      <tr className="bg-slate-50/90 border-b border-slate-200">
+        <th rowSpan={2} className="px-3 py-2 text-xs font-bold uppercase text-slate-700 align-middle text-left border-r border-slate-200">
+          Pertemuan Ke
+        </th>
+        <th rowSpan={2} className="px-3 py-2 text-xs font-bold uppercase text-slate-700 align-middle text-left border-r border-slate-200 min-w-[220px]">
+          Kemampuan akhir tiap tahapan belajar (Sub-CPMK)
+        </th>
+        <th colSpan={2} className="px-3 py-2 text-xs font-bold uppercase text-slate-700 text-center border-r border-slate-200 bg-slate-100/70">
+          Penilaian
+        </th>
+        <th colSpan={2} className="px-3 py-2 text-xs font-bold uppercase text-slate-700 text-center border-r border-slate-200 bg-slate-100/70">
+          Bentuk Pembelajaran; Metode Pembelajaran; Penugasan Mahasiswa;
+        </th>
+        <th rowSpan={2} className="px-3 py-2 text-xs font-bold uppercase text-slate-700 align-middle text-left border-r border-slate-200 min-w-[200px]">
+          Materi Pembelajaran
+        </th>
+        <th rowSpan={2} className="px-3 py-2 text-xs font-bold uppercase text-slate-700 align-middle text-center border-r border-slate-200">
+          Bobot Penilaian
+        </th>
+        <th rowSpan={2} className="px-3 py-2 text-xs font-bold uppercase text-slate-700 align-middle text-center">
+          Opsi
+        </th>
+      </tr>
+      <tr className="bg-slate-50/90 border-b border-slate-200">
+        <th className="px-3 py-1.5 text-2xs font-bold uppercase text-slate-600 text-left border-r border-slate-200">
+          Indikator
+        </th>
+        <th className="px-3 py-1.5 text-2xs font-bold uppercase text-slate-600 text-left border-r border-slate-200">
+          Kriteria &amp; Teknik
+        </th>
+        <th className="px-3 py-1.5 text-2xs font-bold uppercase text-slate-600 text-left border-r border-slate-200">
+          Luring
+        </th>
+        <th className="px-3 py-1.5 text-2xs font-bold uppercase text-slate-600 text-left border-r border-slate-200">
+          Daring
+        </th>
+      </tr>
+    </>
+  );
+
   const sesiColumns: ColumnDef<any>[] = [
     {
       key: 'minggu_ke',
@@ -595,22 +637,92 @@ export default function EditRpsPage() {
     {
       key: 'kriteria_teknik',
       label: 'Kriteria & Teknik',
-      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.kriteria_teknik || '-'}</span>,
+      render: (row) => {
+        const kriteriaLabel = row.kriteria_penilaian?.nama || row.kriteriaPenilaian?.nama;
+        const teknikText = row.teknik_penilaian || row.kriteria_teknik;
+        return (
+          <div className="space-y-1 text-xs text-slate-700 leading-relaxed">
+            {kriteriaLabel && (
+              <div>
+                <strong className="text-2xs font-bold text-slate-900 block">Kriteria:</strong>
+                <span>{kriteriaLabel}</span>
+              </div>
+            )}
+            {teknikText && (
+              <div>
+                <strong className="text-2xs font-bold text-slate-900 block">Teknik:</strong>
+                <span>{teknikText}</span>
+              </div>
+            )}
+            {!kriteriaLabel && !teknikText && <span className="text-slate-400 italic">-</span>}
+          </div>
+        );
+      },
     },
     {
       key: 'bentuk_luring',
       label: 'Luring',
-      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.bentuk_luring || '-'}</span>,
+      render: (row) => {
+        if (Array.isArray(row.aktivitas_luring) && row.aktivitas_luring.length > 0) {
+          return (
+            <div className="space-y-1 text-xs text-slate-700">
+              {row.aktivitas_luring.map((a: any, i: number) => (
+                <div key={i} className="leading-snug">
+                  {a.bentuk && <span className="font-medium text-slate-800">{a.bentuk}</span>}
+                  {a.metode && <span className="text-slate-600">, {a.metode}</span>}
+                  {a.waktu_menit ? <span className="text-slate-400 font-mono text-2xs"> [{a.waktu_menit} Menit]</span> : null}
+                </div>
+              ))}
+            </div>
+          );
+        }
+        return <span className="text-xs text-slate-700 leading-relaxed">{row.bentuk_luring || '-'}</span>;
+      },
     },
     {
       key: 'bentuk_daring',
       label: 'Daring',
-      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.bentuk_daring || '-'}</span>,
+      render: (row) => {
+        if (Array.isArray(row.aktivitas_daring) && row.aktivitas_daring.length > 0) {
+          return (
+            <div className="space-y-1 text-xs text-slate-700">
+              {row.aktivitas_daring.map((a: any, i: number) => (
+                <div key={i} className="leading-snug">
+                  {a.bentuk && <span className="font-medium text-slate-800">{a.bentuk}</span>}
+                  {a.metode && <span className="text-slate-600">, {a.metode}</span>}
+                  {a.waktu_menit ? <span className="text-slate-400 font-mono text-2xs"> [{a.waktu_menit} Menit]</span> : null}
+                </div>
+              ))}
+            </div>
+          );
+        }
+        return <span className="text-xs text-slate-700 leading-relaxed">{row.bentuk_daring || '-'}</span>;
+      },
     },
     {
       key: 'bahan_kajian',
       label: 'Materi Pembelajaran',
-      render: (row) => <span className="text-xs text-slate-700 leading-relaxed">{row.bahan_kajian || '-'}</span>,
+      render: (row) => {
+        const topik = row.topik_materi || row.bahan_kajian;
+        const subTopik = row.sub_topik_materi;
+        return (
+          <div className="space-y-1 text-xs leading-relaxed">
+            {topik && (
+              <div>
+                <strong className="text-2xs font-bold text-slate-900 block">Topik:</strong>
+                <span className="text-slate-700">{topik}</span>
+              </div>
+            )}
+            {subTopik && (
+              <div>
+                <strong className="text-2xs font-bold text-slate-900 block">Sub Topik:</strong>
+                <span className="text-slate-700">{subTopik}</span>
+              </div>
+            )}
+            {!topik && !subTopik && <span className="text-slate-400 italic">-</span>}
+          </div>
+        );
+      },
     },
     {
       key: 'bobot_penilaian',
@@ -1072,6 +1184,7 @@ export default function EditRpsPage() {
 
               {/* Tabel Daftar Sesi Pertemuan */}
               <DataTable
+                customHeader={customSesiHeader}
                 columns={sesiColumns}
                 data={sesiList}
                 isLoading={loadingSesi}
