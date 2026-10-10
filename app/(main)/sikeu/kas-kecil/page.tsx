@@ -364,7 +364,6 @@ export default function KasKecilPage() {
         }
       />
 
-      <div className="card p-4 sm:p-6 border border-slate-200/80">
         <DataTable
           columns={columns}
           data={data}
@@ -373,7 +372,6 @@ export default function KasKecilPage() {
           onPageChange={setPage}
           onLimitChange={(l) => { setPerPage(l); setPage(1); }}
         />
-      </div>
 
       {/* Filter Drawer slide kanan */}
       <Drawer

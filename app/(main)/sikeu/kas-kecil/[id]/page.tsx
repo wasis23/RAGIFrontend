@@ -656,7 +656,6 @@ export default function KasKecilDetailPage() {
               </Link>
             </div>
           )}
-          <div className="card p-4 sm:p-6 border border-slate-200/80">
             <DataTable
               columns={trxColumns}
               data={transaksis}
@@ -666,7 +665,6 @@ export default function KasKecilDetailPage() {
               onLimitChange={(l) => { setTrxLimit(l); setTrxPage(1); }}
               emptyMessage="Belum ada transaksi kas kecil."
             />
-          </div>
         </div>
       )}
 
@@ -724,7 +722,6 @@ export default function KasKecilDetailPage() {
             )}
           </div>
 
-          <div className="card p-4 sm:p-6 border border-slate-200/80">
             <DataTable
               columns={pgjColumns}
               data={pengajuans}
@@ -742,7 +739,6 @@ export default function KasKecilDetailPage() {
                   : 'Belum ada pengajuan kas langsung.'
               }
             />
-          </div>
         </div>
       )}
 
