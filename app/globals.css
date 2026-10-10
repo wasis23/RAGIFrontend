@@ -592,7 +592,7 @@ p.text-white, span.text-white, div.text-white {
     top: 0;
     left: 0;
     bottom: 0;
-    width: 280px !important;
+    width: 320px !important;
     z-index: 1000 !important;
     transform: translateX(0);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1484,6 +1484,7 @@ body.sidebar-resizing {
 .sidebar-panel-body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 1rem 1rem;
   display: flex;
   flex-direction: column;

@@ -5,8 +5,8 @@
  * browser (zoom + setelan aksesibilitas). Lebar tersimpan dalam pixel karena
  * delta drag dari pointer memang diukur dalam pixel.
  */
-export const SIDEBAR_WIDTH_DEFAULT_REM = 19.5; // 312px: rail 72px + panel ~240px (two-level)
-export const SIDEBAR_WIDTH_MIN_REM = 17; // 272px — panel tetap muat nama menu
+export const SIDEBAR_WIDTH_DEFAULT_REM = 21; // 336px: rail 72px + panel ~264px (two-level, muat nama menu panjang)
+export const SIDEBAR_WIDTH_MIN_REM = 18; // 288px — panel ~216px, tetap muat kebanyakan nama menu
 export const SIDEBAR_WIDTH_MAX_REM = 26; // 416px — cukup untuk nama menu terpanjang
 export const SIDEBAR_WIDTH_STEP_REM = 0.5; // increment panah keyboard
 
