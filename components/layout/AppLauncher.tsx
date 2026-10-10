@@ -129,7 +129,7 @@ export function AppLauncher() {
           />
 
           {/* App Switcher Dropdown Container */}
-          <div className="fixed inset-x-3 top-16 z-[999] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[360px] bg-white rounded-2xl p-4 shadow-2xl border border-slate-200/90 animate-fade-in max-h-[85vh] overflow-y-auto">
+          <div className="fixed inset-x-3 top-16 z-[999] sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[540px] bg-white rounded-2xl p-4 shadow-2xl border border-slate-200/90 animate-fade-in max-h-[85vh] overflow-y-auto">
             {/* Header Bar */}
             <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -151,8 +151,8 @@ export function AppLauncher() {
               </button>
             </div>
 
-            {/* Modules Grid (Mobile: 1-column list | Desktop: 2-column grid) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Modules Grid (Mobile: 1-column list | Desktop: 3-column grid) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {accessibleModules.map((app) => {
                 const meta = MODULE_META[app.code] || {
                   subpath: '',
