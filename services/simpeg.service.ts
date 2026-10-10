@@ -385,7 +385,9 @@ export const simpegService = {
   },
 
   getPresensiBundleDetail: async (id: number | string, params?: any): Promise<ApiResponse<any>> => {
-    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/presensi/${id}`, { params });
+    const { data } = await apiClient.get<ApiResponse<any>>(`/simpeg/presensi/${id}`, {
+      params: { ...params, bundle: 1, type: 'bundle' },
+    });
     return data;
   },
 
