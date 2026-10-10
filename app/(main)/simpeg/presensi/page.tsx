@@ -627,6 +627,21 @@ export default function PresensiPage() {
     }
   };
 
+  const [syncingBundle, setSyncingBundle] = useState(false);
+
+  const handleSyncBundle = async () => {
+    setSyncingBundle(true);
+    try {
+      const res = await simpegService.syncPresensiBundle();
+      toast.success(res.message || 'Log realtime presensi berhasil disinkronkan ke Rekap Bundle.');
+      fetchBundleList();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal menyinkronkan bundle presensi.');
+    } finally {
+      setSyncingBundle(false);
+    }
+  };
+
   // ── TABLE COLUMNS: REALTIME LOG ────────────────────────────
 
   const logColumns: ColumnDef<any>[] = [
@@ -1149,6 +1164,30 @@ export default function PresensiPage() {
       {/* ── TAB 2: REKAP BUNDLE PERIODE ── */}
       {activeTab === 'bundle' && (
         <div className="space-y-4">
+          {/* Banner Info Siklus Periode Kampus 26 - 25 */}
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar size={15} className="text-[var(--module-primary)] shrink-0" />
+              <span>
+                <strong>Siklus Presensi Kampus:</strong> Dihitung dari tanggal <strong>26 bulan sebelumnya s/d 25 bulan berjalan</strong> (contoh: 26 Januari s/d 25 Februari adalah Bundle Februari). Log presensi realtime otomatis dikelompokkan ke dalam bundle periode terkait.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <Badge variant="info">Siklus 26 - 25</Badge>
+              {canManage && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon={<Layers size={14} />}
+                  onClick={handleSyncBundle}
+                  isLoading={syncingBundle}
+                >
+                  Sinkronkan Sekarang
+                </Button>
+              )}
+            </div>
+          </div>
+
           <DataTable
             columns={bundleColumns}
             data={bundleList}
@@ -1158,7 +1197,7 @@ export default function PresensiPage() {
             emptyMessage={
               <div className="py-8 text-center text-slate-400">
                 <Layers size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada berkas bundle rekap presensi yang diunggah.</p>
+                <p>Belum ada bundle rekap presensi yang tersedia.</p>
               </div>
             }
           />
