@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { DollarSign, Printer, Send, Filter, ShieldAlert, CheckCircle2, Clock, Info, Eye, Layers, Calculator } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -28,6 +28,7 @@ export default function PayrollPage() {
 
   const [loading, setLoading] = useState(true);
   const [payrollList, setPayrollList] = useState<GajiPegawai[]>([]);
+  const [activeColumns, setActiveColumns] = useState<any[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | undefined>();
 
   // Filter & Pagination state
@@ -67,6 +68,11 @@ export default function PayrollPage() {
         sort_by: filterOrderBy,
         sort_dir: filterOrderDir,
       });
+
+      const cols = res?.meta?.active_columns || res?.active_columns;
+      if (Array.isArray(cols)) {
+        setActiveColumns(cols);
+      }
 
       if (res?.meta) {
         setPayrollList(res.data || []);
@@ -163,132 +169,192 @@ export default function PayrollPage() {
     }
   };
 
-  const columns: ColumnDef<GajiPegawai>[] = [
-    {
-      key: 'periode_bulan_tahun',
-      label: 'Periode',
-      render: (row) => <span className="font-bold font-mono text-xs">{row.periode_bulan_tahun}</span>,
-    },
-    {
-      key: 'pegawai',
-      label: 'Nama Pegawai',
-      render: (row) => (
-        <div>
-          <span className="font-bold block">{row.pegawai?.nama_lengkap || `Pegawai ID ${row.pegawai_id}`}</span>
-          <span className="text-[11px] text-slate-500 font-mono">NIP: {row.pegawai?.nip || '-'}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'gaji_pokok',
-      label: 'Gaji Pokok (SIKEU)',
-      render: (row) => <span className="font-medium text-slate-700">{formatRupiah(row.gaji_pokok)}</span>,
-    },
-    {
-      key: 'total_tunjangan',
-      label: 'Tunjangan & Insentif',
-      render: (row) => (
-        <div>
-          <span className="font-bold text-emerald-600">+{formatRupiah(row.total_tunjangan)}</span>
-          <div className="text-[10px] text-slate-500 font-medium">
-            <span>SKS: {row.total_sks_diampu ?? 0} SKS</span>
-            <span className="mx-1">•</span>
-            <span>Hadir: {row.jumlah_hari_hadir_tepat_waktu ?? 0} Hari</span>
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'total_potongan',
-      label: 'Potongan (PPh + BPJS)',
-      render: (row) => (
-        <div>
-          <span className="font-semibold text-rose-600">-{formatRupiah(row.total_potongan)}</span>
-          <span className="block text-[10px] text-slate-500">
-            PPh21: {formatRupiah(row.total_pph21 || 0)}
-          </span>
-        </div>
-      ),
-    },
-
-    {
-      key: 'gaji_bersih',
-      label: 'Take Home Pay',
-      render: (row) => <span className="font-extrabold text-primary-700 text-sm">{formatRupiah(row.gaji_bersih)}</span>,
-    },
-    {
-      key: 'status_transfer',
-      label: 'Status Alur Penggajian',
-      render: (row) => {
-        if (row.status_transfer === 'paid') {
-          return (
-            <Badge variant="green" className="uppercase">
-              <CheckCircle2 size={12} className="mr-1 inline" /> Lunas (Slip Terbit)
-            </Badge>
-          );
-        }
-        if (row.status_transfer === 'submitted_to_sikeu') {
-          return (
-            <Badge variant="blue" className="uppercase">
-              <Clock size={12} className="mr-1 inline text-blue-600 animate-pulse" /> Menunggu Pembayaran SIKEU
-            </Badge>
-          );
-        }
-        return (
-          <Badge variant="yellow" className="uppercase">
-            Draft (SIMPEG)
-          </Badge>
-        );
+  // Kolom DataTable Dinamis menyesuaikan Master Komponen Gaji yang aktif (is_kolom_aktif)
+  const columns: ColumnDef<GajiPegawai>[] = useMemo(() => {
+    const baseCols: ColumnDef<GajiPegawai>[] = [
+      {
+        key: 'periode_bulan_tahun',
+        label: 'Periode',
+        render: (row) => <span className="font-bold font-mono text-xs">{row.periode_bulan_tahun}</span>,
       },
-    },
-    {
-      key: 'aksi',
-      label: 'Aksi',
-      align: 'right',
-      render: (row) => {
-        const menuItems: DropdownMenuItem[] = [];
+      {
+        key: 'pegawai',
+        label: 'Nama Pegawai',
+        render: (row) => (
+          <div>
+            <span className="font-bold block text-xs">{row.pegawai?.nama_lengkap || `Pegawai ID ${row.pegawai_id}`}</span>
+            <span className="text-[10px] text-slate-500 font-mono">NIP: {row.pegawai?.nip || '-'}</span>
+          </div>
+        ),
+      },
+    ];
 
-        menuItems.push({
-          label: 'Rincian Slip Gaji Lengkap',
-          icon: <Eye size={14} />,
-          onClick: () => router.push(`/simpeg/payroll/${row.id}`),
+    if (activeColumns.length > 0) {
+      activeColumns.forEach((komp) => {
+        // Cek tipe nilai resmi berbasis skema tabel master (tipe_nilai === 'rumus_kehadiran' atau flag is_kehadiran)
+        const isPresensi = komp.tipe_nilai === 'rumus_kehadiran' || Boolean(komp.is_kehadiran);
+
+        baseCols.push({
+          key: `komponen_${komp.id}`,
+          label: komp.nama,
+          render: (row) => {
+            // Pencarian detail gaji murni berbasis ID entitas relasi master komponen
+            const detail = row.details?.find((d) => d.komponen_gaji_id === komp.id);
+            const nominal = detail ? Number(detail.nominal) : 0;
+            const hariPresensi = row.jumlah_hari_hadir_tepat_waktu ?? 0;
+
+            if (isPresensi) {
+              if (nominal > 0) {
+                return (
+                  <div>
+                    <span className="font-bold text-emerald-600 block text-xs">+{formatRupiah(nominal)}</span>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      {hariPresensi} Hari
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <Badge variant="yellow" className="text-[10px] font-semibold">
+                  {hariPresensi} Hari
+                </Badge>
+              );
+            }
+
+            if (nominal > 0) {
+              const isPotongan = komp.jenis === 'potongan';
+              return (
+                <span className={`font-medium text-xs ${isPotongan ? 'text-rose-600 font-semibold' : 'text-slate-700'}`}>
+                  {isPotongan ? `-${formatRupiah(nominal)}` : formatRupiah(nominal)}
+                </span>
+              );
+            }
+
+            return <span className="text-slate-400 text-xs">-</span>;
+          },
         });
-
-        if (row.status_transfer === 'paid') {
-          menuItems.push({
-            label: 'Cetak Slip Gaji PDF',
-            icon: <Printer size={14} />,
-            onClick: () => {
-              setSelectedSlip(row);
-              setShowSlipModal(true);
-            },
-          });
+      });
+    } else {
+      // Default fallback jika belum ada kolom master khusus yang dimuat
+      baseCols.push(
+        {
+          key: 'gaji_pokok',
+          label: 'Gaji Pokok (SIKEU)',
+          render: (row) => <span className="font-medium text-slate-700 text-xs">{formatRupiah(row.gaji_pokok)}</span>,
+        },
+        {
+          key: 'total_tunjangan',
+          label: 'Tunjangan & Presensi',
+          render: (row) => {
+            const nominal = Number(row.total_biaya_transport ?? 0);
+            const hari = row.jumlah_hari_hadir_tepat_waktu ?? 0;
+            return (
+              <div>
+                <span className="font-bold text-emerald-600 block text-xs">+{formatRupiah(row.total_tunjangan)}</span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  {nominal > 0 ? `Presensi: ${hari} Hari (${formatRupiah(nominal)})` : `Presensi: ${hari} Hari`}
+                </span>
+              </div>
+            );
+          },
+        },
+        {
+          key: 'total_potongan',
+          label: 'Potongan (PPh + BPJS)',
+          render: (row) => (
+            <div>
+              <span className="font-semibold text-rose-600 block text-xs">-{formatRupiah(row.total_potongan)}</span>
+              <span className="block text-[10px] text-slate-500">
+                PPh21: {formatRupiah(row.total_pph21 || 0)}
+              </span>
+            </div>
+          ),
         }
+      );
+    }
 
-        if (row.status_transfer === 'submitted_to_sikeu' && canAccess) {
-          menuItems.push({
-            label: 'Eksekusi Pembayaran SIKEU (Approve & Pay)',
-            icon: <CheckCircle2 size={14} className="text-emerald-600" />,
-            onClick: () => handleProcessPaymentSIKEU(row.id),
-          });
-        }
-
-        if (menuItems.length === 0) {
-          menuItems.push({
-            label: 'Menunggu Pengajuan SIMPEG / SIKEU',
-            icon: <Info size={14} />,
-            onClick: () => {},
-          });
-        }
-
-        return (
-          <div className="flex justify-end">
-            <DropdownMenu items={menuItems} />
-          </div>
-        );
+    baseCols.push(
+      {
+        key: 'gaji_bersih',
+        label: 'Take Home Pay',
+        render: (row) => <span className="font-extrabold text-[var(--module-primary)] text-xs">{formatRupiah(row.gaji_bersih)}</span>,
       },
-    },
-  ];
+      {
+        key: 'status_transfer',
+        label: 'Status Alur Penggajian',
+        render: (row) => {
+          if (row.status_transfer === 'paid') {
+            return (
+              <Badge variant="green" className="uppercase text-[10px]">
+                <CheckCircle2 size={12} className="mr-1 inline" /> Lunas (Slip Terbit)
+              </Badge>
+            );
+          }
+          if (row.status_transfer === 'submitted_to_sikeu') {
+            return (
+              <Badge variant="blue" className="uppercase text-[10px]">
+                <Clock size={12} className="mr-1 inline text-blue-600 animate-pulse" /> Menunggu Pembayaran SIKEU
+              </Badge>
+            );
+          }
+          return (
+            <Badge variant="yellow" className="uppercase text-[10px]">
+              Draft (SIMPEG)
+            </Badge>
+          );
+        },
+      },
+      {
+        key: 'aksi',
+        label: 'Aksi',
+        align: 'right',
+        render: (row) => {
+          const menuItems: DropdownMenuItem[] = [];
+
+          menuItems.push({
+            label: 'Rincian Slip Gaji Lengkap',
+            icon: <Eye size={14} />,
+            onClick: () => router.push(`/simpeg/payroll/${row.id}`),
+          });
+
+          if (row.status_transfer === 'paid') {
+            menuItems.push({
+              label: 'Cetak Slip Gaji PDF',
+              icon: <Printer size={14} />,
+              onClick: () => {
+                setSelectedSlip(row);
+                setShowSlipModal(true);
+              },
+            });
+          }
+
+          if (row.status_transfer === 'submitted_to_sikeu' && canAccess) {
+            menuItems.push({
+              label: 'Eksekusi Pembayaran SIKEU (Approve & Pay)',
+              icon: <CheckCircle2 size={14} className="text-emerald-600" />,
+              onClick: () => handleProcessPaymentSIKEU(row.id),
+            });
+          }
+
+          if (menuItems.length === 0) {
+            menuItems.push({
+              label: 'Menunggu Pengajuan SIMPEG / SIKEU',
+              icon: <Info size={14} />,
+              onClick: () => {},
+            });
+          }
+
+          return (
+            <div className="flex justify-end">
+              <DropdownMenu items={menuItems} />
+            </div>
+          );
+        },
+      }
+    );
+
+    return baseCols;
+  }, [activeColumns, canAccess, router]);
 
   if (!canRead) {
     return (

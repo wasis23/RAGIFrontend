@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Users, FileText, UserCheck, Copy, Info, Edit3, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Users, FileText, UserCheck, Copy, Info, Edit3, ShieldAlert, Lock, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,6 +48,9 @@ export interface PresensiBundle {
   bulan_tahun?: string;
   total_record: number;
   total_pegawai?: number;
+  is_locked?: boolean;
+  locked_at?: string | null;
+  locked_by?: number | null;
   catatan?: string;
   created_at: string;
 }
@@ -220,6 +223,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
       if (res.status === 'success') {
         toast.success(res.message || `Payroll untuk bundle ${bundle?.nama_periode} berhasil diproses!`);
         setShowPayrollModal(false);
+        fetchBundleMatrix();
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal memproses payroll untuk bundle ini.');
@@ -256,6 +260,10 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
 
   const handleOpenKoreksi = (row: EmployeeMatrixRow, dayObj: DayInfo) => {
     if (!isAdmin) return;
+    if (bundle?.is_locked) {
+      toast.error(`Bundle presensi '${bundle.nama_periode}' telah diproses ke Payroll dan berstatus terkunci permanen. Koreksi presensi tidak dapat dilakukan lagi.`);
+      return;
+    }
     const m = row.matrix?.[dayObj.date];
     const initialStatus = (m?.status_kehadiran && ['hadir', 'izin', 'sakit', 'dinas', 'alfa'].includes(m.status_kehadiran))
       ? (m.status_kehadiran as 'hadir' | 'izin' | 'sakit' | 'dinas' | 'alfa')
@@ -397,12 +405,15 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
           else if (outStatus === 'holiday') outDesc = 'Pulang: Libur';
 
           const isCorrected = Boolean(m?.is_corrected);
-          const fullTooltip = `${dateTitle}\n• ${inDesc}\n• ${outDesc}${isCorrected ? '\n★ [Telah Dikoreksi Admin]' : ''}${m?.catatan ? `\nCatatan: ${m.catatan}` : ''}${isAdmin ? '\n(Klik sel untuk koreksi presensi)' : ''}`;
+          const isLocked = Boolean(bundle?.is_locked);
+          const fullTooltip = `${dateTitle}\n• ${inDesc}\n• ${outDesc}${isCorrected ? '\n★ [Telah Dikoreksi Admin]' : ''}${m?.catatan ? `\nCatatan: ${m.catatan}` : ''}${isLocked ? '\n🔒 [Bundle Terkunci - Read Only]' : (isAdmin ? '\n(Klik sel untuk koreksi presensi)' : '')}`;
 
           return (
             <div
               onClick={() => handleOpenKoreksi(row, dayObj)}
-              className={`relative flex flex-col items-center justify-center gap-1 py-1 px-1 min-w-[34px] rounded hover:bg-slate-100/90 transition-all cursor-pointer group ${
+              className={`relative flex flex-col items-center justify-center gap-1 py-1 px-1 min-w-[34px] rounded transition-all ${
+                isLocked ? 'cursor-not-allowed opacity-90' : 'hover:bg-slate-100/90 cursor-pointer group'
+              } ${
                 dayObj.is_holiday ? 'bg-rose-50/40' : ''
               } ${isCorrected ? 'ring-1 ring-sky-400/80 bg-sky-50/40' : ''}`}
               title={fullTooltip}
@@ -517,9 +528,21 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
               Filter
             </Button>
             {isAdmin && (
-              <Button icon={<DollarSign size={16} />} onClick={() => setShowPayrollModal(true)}>
-                Proses Payroll
-              </Button>
+              bundle?.is_locked ? (
+                <Button
+                  variant="outline"
+                  icon={<Lock size={16} className="text-slate-500" />}
+                  disabled
+                  className="bg-slate-100 text-slate-500 border-slate-300 cursor-not-allowed"
+                  title="Bundle telah diproses ke Payroll dan dikunci secara permanen"
+                >
+                  Telah Diproses ke Payroll
+                </Button>
+              ) : (
+                <Button icon={<DollarSign size={16} />} onClick={() => setShowPayrollModal(true)}>
+                  Proses Payroll
+                </Button>
+              )
             )}
           </div>
         }
@@ -709,31 +732,33 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
       <Modal
         open={showPayrollModal}
         onClose={() => setShowPayrollModal(false)}
-        title="Proses Payroll Gaji dari Bundle Presensi"
+        title="Konfirmasi Proses ke Payroll & Slip Gaji"
         footer={
           <>
             <Button variant="outline" onClick={() => setShowPayrollModal(false)} disabled={processingPayroll}>
               Batal
             </Button>
             <Button loading={processingPayroll} disabled={processingPayroll} onClick={handleProcessPayroll}>
-              Proses & Kirim Payroll ke SIKEU
+              Ya, Kunci Data & Proses Payroll
             </Button>
           </>
         }
       >
-        <div className="space-y-3">
-          <div className="flex items-start gap-3 p-3.5 bg-primary-50 text-primary-900 rounded-xl border border-primary-100">
-            <DollarSign size={22} className="mt-0.5 shrink-0 text-primary-600" />
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3.5 bg-amber-50 text-amber-900 rounded-xl border border-amber-200">
+            <Lock size={22} className="mt-0.5 shrink-0 text-amber-600" />
             <div className="text-sm space-y-1">
-              <p className="font-semibold text-primary-900">Proses Perhitungan Gaji Payroll</p>
-              <p className="text-primary-700 text-xs">
-                Perhitungan komponen gaji (gaji pokok, tunjangan kehadiran, dan potongan keterlambatan) akan dikalkulasi berdasarkan rekap kehadiran {bundle?.total_pegawai} pegawai dalam bundle <strong>{bundle?.nama_periode}</strong> (Periode: {formatDate(bundle?.tanggal_awal)} s/d {formatDate(bundle?.tanggal_akhir)}).
+              <p className="font-semibold text-amber-900">Perhatian: Bundle Presensi Akan Dikunci Permanen</p>
+              <p className="text-amber-800 text-xs leading-relaxed">
+                Pastikan seluruh data presensi pegawai bulan ini telah diperiksa dan dikoreksi dengan benar. Setelah tombol ini dikonfirmasi, <strong>data presensi akan dikunci permanen (read-only) dan tidak dapat diubah lagi</strong>.
               </p>
             </div>
           </div>
-          <p className="text-xs text-slate-500">
-            Hasil kalkulasi payroll ini akan diteruskan ke modul SIKEU untuk verifikasi pembayaran gaji pegawai.
-          </p>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+            <p>• Data presensi bundle <strong>{bundle?.nama_periode}</strong> akan masuk sebagai draft ke halaman <strong>Payroll & Slip Gaji Pegawai</strong>.</p>
+            <p>• Kehadiran yang dihitung mencakup scan lengkap (masuk & pulang) serta dinas luar yang telah disetujui.</p>
+            <p>• Perhitungan nominal rupiah presensi dan Take Home Pay akan dihitung pada tahap Kalkulasi Payroll.</p>
+          </div>
         </div>
       </Modal>
 
