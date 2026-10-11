@@ -633,6 +633,11 @@ export const simpegService = {
     return data;
   },
 
+  resetPayroll: async (params?: { periode?: string }): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/payroll/reset', params || {});
+    return data;
+  },
+
   processPayrollPayment: async (id: number): Promise<ApiResponse<any>> => {
     const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/payroll/${id}/process-payment`);
     return data;

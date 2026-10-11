@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { DollarSign, Printer, Send, Filter, ShieldAlert, CheckCircle2, Clock, Info, Eye, Layers, Calculator } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { DollarSign, Printer, Send, Filter, ShieldAlert, CheckCircle2, Clock, Info, Eye, Layers, Calculator, RotateCcw, FileSpreadsheet } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -18,9 +19,13 @@ import type { GajiPegawai } from '@/types/simpeg.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 import { formatRupiah } from '@/lib/utils';
+import { exportToExcel } from '@/lib/excel';
 
 export default function PayrollPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialPeriode = searchParams.get('periode') || '';
+
   const { isAdmin, hasPermission } = useAuth();
   const canAccess = isAdmin || hasPermission('simpeg.payroll.manage');
   const canRead = hasPermission('simpeg.payroll.read') || hasPermission('simpeg.payroll.view') || hasPermission('simpeg.payroll.manage');
@@ -33,7 +38,7 @@ export default function PayrollPage() {
 
   // Filter & Pagination state
   const [search, setSearch] = useState('');
-  const [filterPeriode, setFilterPeriode] = useState('');
+  const [filterPeriode, setFilterPeriode] = useState(initialPeriode);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterOrderBy, setFilterOrderBy] = useState('periode_bulan_tahun');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
@@ -41,15 +46,14 @@ export default function PayrollPage() {
   const [limit, setLimit] = useState(15);
   const [showFilter, setShowFilter] = useState(false);
 
-  // Generate Modal State
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [periodeGenerate, setPeriodeGenerate] = useState(new Date().toISOString().substring(0, 7));
-  const [isGenerating, setIsGenerating] = useState(false);
-
   // Submit to SIKEU Modal State
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [periodeSubmit, setPeriodeSubmit] = useState(new Date().toISOString().substring(0, 7));
   const [isSubmittingToSikeu, setIsSubmittingToSikeu] = useState(false);
+
+  // Reset Payroll Modal State
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Print Slip Modal State
   const [selectedSlip, setSelectedSlip] = useState<GajiPegawai | null>(null);
@@ -61,6 +65,7 @@ export default function PayrollPage() {
     try {
       const res: any = await simpegService.getPayrollList({
         page,
+        per_page: limit,
         limit,
         search: search || undefined,
         periode: filterPeriode || undefined,
@@ -131,20 +136,6 @@ export default function PayrollPage() {
     loadPayroll();
   }, [loadPayroll]);
 
-  const handleExecuteGenerate = async () => {
-    setIsGenerating(true);
-    try {
-      const res: any = await simpegService.generatePayroll(periodeGenerate);
-      toast.success(res?.message || 'Payroll berhasil dikalkulasi dari master, presensi, dan SKS SIAKAD!');
-      setShowGenerateModal(false);
-      loadPayroll();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengkalkulasi payroll');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handleExecuteSubmitToSikeu = async () => {
     setIsSubmittingToSikeu(true);
     try {
@@ -166,6 +157,125 @@ export default function PayrollPage() {
       loadPayroll();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memproses pembayaran gaji');
+    }
+  };
+
+  const handleExecuteReset = async () => {
+    setIsResetting(true);
+    try {
+      // Kirim tanpa batasan periode agar seluruh draft data di tabel payroll dihapus bersih
+      const res: any = await simpegService.resetPayroll({});
+      toast.success(res?.message || 'Payroll berhasil di-reset. Seluruh draft dihapus dan bundle presensi kembali aktif.');
+      setShowResetModal(false);
+      setFilterPeriode('');
+      setSearch('');
+      setPage(1);
+      await loadPayroll();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mereset data payroll');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const targetPeriode = filterPeriode || new Date().toISOString().substring(0, 7);
+      
+      // Ambil seluruh data payroll lintas halaman (pagination loop)
+      let allPayrollRows: GajiPegawai[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+
+      while (currentPage <= totalPages) {
+        const res: any = await simpegService.getPayrollList({
+          page: currentPage,
+          limit: 100,
+          per_page: 100,
+          periode: filterPeriode || undefined,
+          status_transfer: filterStatus || undefined,
+          search: search || undefined,
+        });
+
+        const pageItems: GajiPegawai[] = Array.isArray(res?.data) ? res.data : [];
+        allPayrollRows = allPayrollRows.concat(pageItems);
+
+        const lastPage = Number(res?.meta?.last_page || 1);
+        totalPages = lastPage;
+        currentPage++;
+
+        if (pageItems.length === 0) break;
+      }
+
+      if (allPayrollRows.length === 0) {
+        allPayrollRows = payrollList;
+      }
+
+      if (allPayrollRows.length === 0) {
+        toast.error('Tidak ada data payroll untuk diekspor.');
+        return;
+      }
+
+      const rows = allPayrollRows.map((row, idx) => {
+        const item: Record<string, any> = {
+          'NO': idx + 1,
+          'PERIODE': row.periode_bulan_tahun,
+          'NIP': row.pegawai?.nip || '-',
+          'NAMA PEGAWAI': row.pegawai?.nama_lengkap || `Pegawai ID ${row.pegawai_id}`,
+          'UNIT KERJA': row.pegawai?.unit_kerja?.nama || '-',
+        };
+
+        if (activeColumns.length > 0) {
+          activeColumns.forEach((komp) => {
+            const detail = row.details?.find((d) => d.komponen_gaji_id === komp.id);
+            let nominal = detail ? Number(detail.nominal) : 0;
+            if (nominal === 0 && komp.kode === 'GAJI_POKOK' && row.gaji_pokok) {
+              nominal = Number(row.gaji_pokok);
+            }
+            if (!detail && komp.tipe_nilai === 'tetap' && komp.nilai_default) {
+              nominal = Number(komp.nilai_default);
+            }
+
+            const isPresensi = komp.tipe_nilai === 'rumus_kehadiran' || Boolean(komp.is_kehadiran);
+            if (isPresensi) {
+              const hari = row.jumlah_hari_hadir_tepat_waktu ?? 0;
+              item[`${komp.nama.toUpperCase()} (HARI)`] = hari;
+              item[`${komp.nama.toUpperCase()} (RP)`] = nominal;
+            } else {
+              item[`${komp.nama.toUpperCase()} (RP)`] = nominal;
+            }
+          });
+        } else {
+          item['GAJI POKOK (RP)'] = Number(row.gaji_pokok || 0);
+          item['PRESENSI HADIR (HARI)'] = Number(row.jumlah_hari_hadir_tepat_waktu || 0);
+          item['TOTAL BIAYA TRANSPORT (RP)'] = Number(row.total_biaya_transport || 0);
+          item['TOTAL TUNJANGAN (RP)'] = Number(row.total_tunjangan || 0);
+          item['TOTAL POTONGAN (RP)'] = Number(row.total_potongan || 0);
+        }
+
+        item['TOTAL TUNJANGAN (RP)'] = Number(row.total_tunjangan || 0);
+        item['TOTAL POTONGAN (RP)'] = Number(row.total_potongan || 0);
+        item['TAKE HOME PAY (RP)'] = Number(row.gaji_bersih || 0);
+        item['STATUS TRANSFER'] = row.status_transfer === 'paid' ? 'Lunas' : row.status_transfer === 'submitted_to_sikeu' ? 'Menunggu SIKEU' : 'Draft';
+        item['NAMA BANK'] = row.bank_nama || row.pegawai?.nama_bank || '-';
+        item['NO REKENING'] = row.nomor_rekening || row.pegawai?.nomor_rekening || '-';
+        item['CATATAN'] = row.catatan || '-';
+
+        return item;
+      });
+
+      await exportToExcel(`Laporan_Payroll_${targetPeriode}`, [
+        { name: `Payroll_${targetPeriode}`, data: rows }
+      ]);
+      toast.success('Laporan Excel Payroll berhasil diunduh!');
+    } catch (err: any) {
+      console.error('Export Excel Error:', err);
+      toast.error(err?.message || err?.response?.data?.message || 'Gagal mengekspor laporan payroll ke Excel');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -200,7 +310,13 @@ export default function PayrollPage() {
           render: (row) => {
             // Pencarian detail gaji murni berbasis ID entitas relasi master komponen
             const detail = row.details?.find((d) => d.komponen_gaji_id === komp.id);
-            const nominal = detail ? Number(detail.nominal) : 0;
+            let nominal = detail ? Number(detail.nominal) : 0;
+            if (nominal === 0 && komp.kode === 'GAJI_POKOK' && row.gaji_pokok) {
+              nominal = Number(row.gaji_pokok);
+            }
+            if (!detail && komp.tipe_nilai === 'tetap' && komp.nilai_default) {
+              nominal = Number(komp.nilai_default);
+            }
             const hariPresensi = row.jumlah_hari_hadir_tepat_waktu ?? 0;
 
             if (isPresensi) {
@@ -385,22 +501,21 @@ export default function PayrollPage() {
           <div className="flex gap-2">
             {canAccess && (
               <Button
-                variant="outline"
-                icon={<Layers size={16} />}
-                onClick={() => router.push('/simpeg/payroll/komponen')}
+                variant="danger"
+                icon={<RotateCcw size={16} />}
+                onClick={() => setShowResetModal(true)}
               >
-                Master Komponen Gaji
+                Reset Payroll
               </Button>
             )}
-            {canCreate && (
-              <Button
-                variant="outline"
-                icon={<Calculator size={16} />}
-                onClick={() => setShowGenerateModal(true)}
-              >
-                Kalkulasi Payroll
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={handleExportExcel}
+              disabled={isExporting}
+            >
+              Cetak Laporan Excel
+            </Button>
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -411,7 +526,14 @@ export default function PayrollPage() {
             {canCreate && (
               <Button
                 icon={<Send size={16} />}
-                onClick={() => setShowSubmitModal(true)}
+                onClick={() => {
+                  if (filterPeriode) {
+                    setPeriodeSubmit(filterPeriode);
+                  } else if (payrollList.length > 0 && payrollList[0].periode_bulan_tahun) {
+                    setPeriodeSubmit(payrollList[0].periode_bulan_tahun);
+                  }
+                  setShowSubmitModal(true);
+                }}
               >
                 Kirim Pengajuan ke SIKEU
               </Button>
@@ -528,49 +650,6 @@ export default function PayrollPage() {
         </div>
       </Drawer>
 
-      {/* Modal Kalkulasi Payroll Terpadu */}
-      {canCreate && (
-        <Modal
-          open={showGenerateModal}
-          onClose={() => setShowGenerateModal(false)}
-          title="Kalkulasi Otomatis Payroll Bulanan"
-          footer={
-            <div className="flex gap-2 justify-end w-full">
-              <Button variant="secondary" onClick={() => setShowGenerateModal(false)}>
-                Batal
-              </Button>
-              <Button
-                variant="primary"
-                loading={isGenerating}
-                disabled={isGenerating}
-                onClick={handleExecuteGenerate}
-              >
-                <Calculator size={16} /> Proses Kalkulasi Sekarang
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4 text-sm">
-            <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 text-primary-900 space-y-2">
-              <h4 className="font-bold flex items-center gap-2">
-                <Calculator size={18} /> Kalkulator Payroll Terpadu
-              </h4>
-              <p className="text-xs opacity-90">
-                Sistem akan secara otomatis menghitung Gaji Pokok, Tunjangan Fungsional, Honor SKS dari SIAKAD, Insentif Transport dari Presensi Hadir SIMPEG, serta potongan BPJS dan estimasi Pajak PPh 21 (TER).
-              </p>
-            </div>
-
-            <Input
-              label="Pilih Periode Penggajian (Tahun-Bulan)"
-              type="month"
-              value={periodeGenerate}
-              onChange={(e) => setPeriodeGenerate(e.target.value)}
-              required
-            />
-          </div>
-        </Modal>
-      )}
-
       {/* Modal Kirim Pengajuan ke SIKEU */}
       {canCreate && (
         <Modal
@@ -666,7 +745,7 @@ export default function PayrollPage() {
                 <span className="font-semibold">-{formatRupiah(selectedSlip.total_potongan)}</span>
               </div>
               <hr className="border-slate-300 my-1" />
-              <div className="flex justify-between font-black text-sm text-primary-700 pt-1">
+              <div className="flex justify-between font-black text-sm text-[var(--module-primary)] pt-1">
                 <span>TAKE HOME PAY (LUNAS):</span>
                 <span>{formatRupiah(selectedSlip.gaji_bersih)}</span>
               </div>
@@ -678,6 +757,19 @@ export default function PayrollPage() {
           </div>
         )}
       </Modal>
+
+      {/* Modal Konfirmasi Reset / Bersihkan Meja Kerja Payroll */}
+      <ConfirmDialog
+        isOpen={showResetModal}
+        title="Bersihkan Meja Kerja Payroll"
+        message="Apakah Anda yakin ingin membersihkan data dari meja kerja Payroll? Seluruh data slip gaji (draft maupun yang sudah dibayarkan) akan dihapus dari tampilan tabel ini sehingga siap memproses bundle periode berikutnya. Data pencatatan resmi & jurnal di modul SIKEU tidak akan terhapus."
+        confirmText="Bersihkan Meja Kerja"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isResetting}
+        onConfirm={handleExecuteReset}
+        onClose={() => setShowResetModal(false)}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Users, FileText, UserCheck, Copy, Info, Edit3, ShieldAlert, Lock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Users, FileText, UserCheck, Copy, Info, Edit3, ShieldAlert, Lock, CheckCircle2, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,6 +20,7 @@ import { simpegService } from '@/services/simpeg.service';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/lib/utils';
+import { exportStyledAttendanceMatrix } from '@/lib/excel';
 
 const koreksiPresensiSchema = z.object({
   status_kehadiran: z.enum(['hadir', 'izin', 'sakit', 'dinas', 'alfa'] as const, {
@@ -49,6 +50,7 @@ export interface PresensiBundle {
   total_record: number;
   total_pegawai?: number;
   is_locked?: boolean;
+  status_pembayaran?: string;
   locked_at?: string | null;
   locked_by?: number | null;
   catatan?: string;
@@ -221,14 +223,92 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
     try {
       const res = await simpegService.processBundlePayroll(bundleId);
       if (res.status === 'success') {
+        const targetPeriode = bundle?.bulan_tahun || (bundle?.tanggal_akhir ? bundle.tanggal_akhir.substring(0, 7) : '');
         toast.success(res.message || `Payroll untuk bundle ${bundle?.nama_periode} berhasil diproses!`);
         setShowPayrollModal(false);
         fetchBundleMatrix();
+        // Arahkan admin langsung ke halaman payroll dengan filter periode bundle terkait
+        if (targetPeriode) {
+          router.push(`/simpeg/payroll?periode=${targetPeriode}`);
+        } else {
+          router.push('/simpeg/payroll');
+        }
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Gagal memproses payroll untuk bundle ini.');
     } finally {
       setProcessingPayroll(false);
+    }
+  };
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      // Loop untuk mengambil SELURUH halaman data pegawai tanpa terpotong limit pagination
+      let allMatrixRows: EmployeeMatrixRow[] = [];
+      let currentPage = 1;
+      let totalPages = 1;
+      let fetchedDays = days;
+
+      while (currentPage <= totalPages) {
+        const res: any = await simpegService.getPresensiBundleDetail(bundleId, {
+          view: 'matrix',
+          search: searchKeyword.trim() || undefined,
+          sort_by: filterOrderBy,
+          sort_dir: filterOrderDir,
+          page: currentPage,
+          per_page: 100,
+          limit: 100,
+        });
+
+        if (res?.data?.days && Array.isArray(res.data.days) && res.data.days.length > 0) {
+          fetchedDays = res.data.days;
+        }
+
+        const pageRows: EmployeeMatrixRow[] = Array.isArray(res?.data?.matrix)
+          ? res.data.matrix
+          : Array.isArray(res?.data)
+          ? res.data
+          : [];
+
+        allMatrixRows = allMatrixRows.concat(pageRows);
+
+        const lastPage = Number(res?.meta?.last_page || 1);
+        totalPages = lastPage;
+        currentPage++;
+
+        // Safety break jika response kosong
+        if (pageRows.length === 0) break;
+      }
+
+      if (allMatrixRows.length === 0) {
+        allMatrixRows = matrixData;
+      }
+
+      if (allMatrixRows.length === 0) {
+        toast.error('Tidak ada data presensi untuk diekspor.');
+        return;
+      }
+
+      const periodeName = bundle?.nama_periode ? bundle.nama_periode.replace(/\s+/g, '_') : `Bundle_${bundleId}`;
+      await exportStyledAttendanceMatrix({
+        filename: `Rekap_Bundle_Presensi_${periodeName}`,
+        days: fetchedDays,
+        employees: allMatrixRows,
+        bundleInfo: {
+          nama_periode: bundle?.nama_periode,
+          tanggal_awal: bundle?.tanggal_awal,
+          tanggal_akhir: bundle?.tanggal_akhir,
+        },
+      });
+      toast.success(`Berhasil mengunduh matriks presensi berdesain visual (${allMatrixRows.length} pegawai) ke Excel!`);
+    } catch (err: any) {
+      console.error('Export Excel Error:', err);
+      toast.error(err?.message || err?.response?.data?.message || 'Gagal mengekspor laporan bundle presensi ke Excel');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -524,17 +604,35 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
             >
               Kembali
             </Button>
+            <Button
+              variant="outline"
+              icon={<FileSpreadsheet size={16} />}
+              onClick={handleExportExcel}
+              disabled={isExporting}
+            >
+              Cetak Laporan Excel
+            </Button>
             <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilter(true)}>
               Filter
             </Button>
             {isAdmin && (
-              bundle?.is_locked ? (
+              bundle?.status_pembayaran === 'paid' ? (
+                <Button
+                  variant="outline"
+                  icon={<CheckCircle2 size={16} className="text-emerald-600" />}
+                  disabled
+                  className="bg-emerald-50 text-emerald-700 border-emerald-300 cursor-not-allowed font-semibold"
+                  title="Bundle presensi ini telah terbayarkan (Paid) dan tidak dapat diproses ulang"
+                >
+                  Sudah Terbayarkan (Paid)
+                </Button>
+              ) : bundle?.is_locked ? (
                 <Button
                   variant="outline"
                   icon={<Lock size={16} className="text-slate-500" />}
                   disabled
                   className="bg-slate-100 text-slate-500 border-slate-300 cursor-not-allowed"
-                  title="Bundle telah diproses ke Payroll dan dikunci secara permanen"
+                  title="Bundle telah diproses ke Payroll dan dikunci"
                 >
                   Telah Diproses ke Payroll
                 </Button>

@@ -23,9 +23,11 @@ import {
   RotateCcw,
   History,
   CalendarDays,
+  FileSpreadsheet,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { exportToExcel } from '@/lib/excel';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -143,7 +145,7 @@ export default function PresensiPage() {
   const canManage = isAdmin || hasPermission('simpeg.presensi.manage');
   const canDelete = isAdmin || hasPermission('simpeg.presensi.delete') || hasPermission('simpeg.presensi.manage');
 
-  // Active View Tab: 'realtime' | 'bundle' | 'riwayat'
+  // Active View Tab: 'realtime' | 'bundle' (riwayat tab disembunyikan)
   const [activeTab, setActiveTab] = useState<'realtime' | 'bundle' | 'riwayat'>('realtime');
 
   // Modal Konfirmasi Hapus/Reset UI
@@ -173,6 +175,7 @@ export default function PresensiPage() {
   const [sortBy, setSortBy] = useState('tanggal');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // Detail / Approval Modal
@@ -191,6 +194,7 @@ export default function PresensiPage() {
   const [riwayatYear, setRiwayatYear] = useState(String(nowDate.getFullYear()));
   const [riwayatStatus, setRiwayatStatus] = useState('');
   const [riwayatPage, setRiwayatPage] = useState(1);
+  const [riwayatLimit, setRiwayatLimit] = useState(15);
   const [loadingRiwayat, setLoadingRiwayat] = useState(false);
   const [riwayatList, setRiwayatList] = useState<AttendanceHistoryItem[]>([]);
   const [riwayatMeta, setRiwayatMeta] = useState<PaginationMeta | undefined>();
@@ -206,6 +210,7 @@ export default function PresensiPage() {
   const [bundleMeta, setBundleMeta] = useState<PaginationMeta | undefined>();
   const [bundleSearch, setBundleSearch] = useState('');
   const [bundlePage, setBundlePage] = useState(1);
+  const [bundleLimit, setBundleLimit] = useState(10);
   // ── CUT-OFF OTOMASI STATE ───────────────────────────────────
   const [showCutoffModal, setShowCutoffModal] = useState(false);
   const [runningCutoff, setRunningCutoff] = useState(false);
@@ -247,7 +252,7 @@ export default function PresensiPage() {
         sort_by: sortBy,
         sort_dir: sortDir,
         page,
-        per_page: 10,
+        per_page: limit,
       });
 
       if (res.status === 'success' && res.data) {
@@ -261,7 +266,7 @@ export default function PresensiPage() {
     } finally {
       setLoadingLog(false);
     }
-  }, [search, statusFilter, tanggalFilter, sortBy, sortDir, page]);
+  }, [search, statusFilter, tanggalFilter, sortBy, sortDir, page, limit]);
 
   const fetchBundleList = useCallback(async () => {
     setLoadingBundle(true);
@@ -270,7 +275,7 @@ export default function PresensiPage() {
         type: 'bundle',
         search: bundleSearch.trim() || undefined,
         page: bundlePage,
-        per_page: 10,
+        per_page: bundleLimit,
       });
       if (res.status === 'success' && res.data) {
         setBundleList(res.data);
@@ -281,7 +286,7 @@ export default function PresensiPage() {
     } finally {
       setLoadingBundle(false);
     }
-  }, [bundleSearch, bundlePage]);
+  }, [bundleSearch, bundlePage, bundleLimit]);
 
   // ── FETCH: RIWAYAT BULAN BERJALAN (§3.1: ?month&year) ─────────
   const fetchRiwayat = useCallback(async () => {
@@ -294,7 +299,7 @@ export default function PresensiPage() {
         sort_by: 'tanggal',
         sort_dir: 'desc',
         page: riwayatPage,
-        per_page: 15,
+        per_page: riwayatLimit,
       });
       if (res.status === 'success' && res.data) {
         setRiwayatList(res.data as AttendanceHistoryItem[]);
@@ -305,7 +310,7 @@ export default function PresensiPage() {
     } finally {
       setLoadingRiwayat(false);
     }
-  }, [riwayatMonth, riwayatYear, riwayatStatus, riwayatPage]);
+  }, [riwayatMonth, riwayatYear, riwayatStatus, riwayatPage, riwayatLimit]);
 
   // ── FETCH: REKAP SEBULAN (§3.2: ?start_date&end_date) ─────────
   const fetchRecap = useCallback(async () => {
@@ -785,6 +790,32 @@ export default function PresensiPage() {
       ),
     },
     {
+      key: 'status_pembayaran',
+      label: 'Status Penggajian',
+      render: (row) => {
+        const st = (row.status_pembayaran || 'belum_diproses').toLowerCase();
+        let badgeVariant: 'secondary' | 'info' | 'warning' | 'success' = 'secondary';
+        let label = 'Belum Diproses';
+
+        if (st === 'paid') {
+          badgeVariant = 'success';
+          label = 'Sudah Terbayarkan (Paid)';
+        } else if (st === 'submitted_to_sikeu') {
+          badgeVariant = 'warning';
+          label = 'Antrean SIKEU';
+        } else if (st === 'draft' || row.is_locked) {
+          badgeVariant = 'info';
+          label = 'Draft di Payroll';
+        }
+
+        return (
+          <Badge variant={badgeVariant} className="text-2xs font-bold">
+            {label}
+          </Badge>
+        );
+      },
+    },
+    {
       key: 'created_at',
       label: 'Dibuat Pada',
       render: (row) => (
@@ -991,18 +1022,9 @@ export default function PresensiPage() {
                 <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
                   Filter
                 </Button>
-                {canManage && (
-                  <Button variant="primary" icon={<UserX size={16} />} onClick={handleOpenKeteranganModal}>
-                    Tandai Tidak Hadir
-                  </Button>
-                )}
               </>
-            ) : activeTab === 'bundle' ? (
-              <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
-                Filter
-              </Button>
             ) : (
-              <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowRiwayatDrawer(true)}>
+              <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
                 Filter
               </Button>
             )}
@@ -1036,17 +1058,6 @@ export default function PresensiPage() {
             <Layers size={16} /> Rekap Bundle Periode
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => setActiveTab('riwayat')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-            activeTab === 'riwayat'
-              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-          }`}
-        >
-          <History size={16} /> Riwayat & Rekap Bulanan
-        </button>
       </div>
 
       {/* ── TAB 1: LOG REALTIME BIOMETRIK ── */}
@@ -1058,6 +1069,10 @@ export default function PresensiPage() {
             isLoading={loadingLog}
             meta={meta}
             onPageChange={(newPage) => setPage(newPage)}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
             emptyMessage={
               <div className="py-8 text-center text-slate-400">
                 <Clock size={48} className="mx-auto mb-4 opacity-40" />
@@ -1090,6 +1105,10 @@ export default function PresensiPage() {
             isLoading={loadingBundle}
             meta={bundleMeta}
             onPageChange={(newPage) => setBundlePage(newPage)}
+            onLimitChange={(newLimit) => {
+              setBundleLimit(newLimit);
+              setBundlePage(1);
+            }}
             emptyMessage={
               <div className="py-8 text-center text-slate-400">
                 <Layers size={48} className="mx-auto mb-4 opacity-40" />
@@ -1159,6 +1178,10 @@ export default function PresensiPage() {
             isLoading={loadingRiwayat}
             meta={riwayatMeta}
             onPageChange={(newPage) => setRiwayatPage(newPage)}
+            onLimitChange={(newLimit) => {
+              setRiwayatLimit(newLimit);
+              setRiwayatPage(1);
+            }}
             emptyMessage={
               <div className="py-8 text-center text-slate-400">
                 <History size={48} className="mx-auto mb-4 opacity-40" />

@@ -15,7 +15,7 @@ import {
   Save,
   Trash2,
   Edit2,
-  RefreshCw,
+  Download,
   Copy,
   Users,
   ArrowLeft,
@@ -978,6 +978,17 @@ export default function MasterPresensiPage() {
                 Akses Lokasi Massal
               </Button>
             )}
+            {canManage && activeTab === 'holiday' && (
+              <Button
+                variant="outline"
+                icon={<Download size={16} />}
+                loading={syncingHolidays}
+                disabled={syncingHolidays}
+                onClick={handleSyncHolidays}
+              >
+                Sync API Nasional
+              </Button>
+            )}
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -1159,15 +1170,6 @@ export default function MasterPresensiPage() {
                 value={holidayYear}
                 onChange={(e) => setHolidayYear(parseInt(e.target.value) || new Date().getFullYear())}
               />
-              <Button
-                variant="outline"
-                className="w-full"
-                loading={syncingHolidays}
-                disabled={syncingHolidays}
-                onClick={handleSyncHolidays}
-              >
-                Sync API Nasional
-              </Button>
             </>
           )}
 
