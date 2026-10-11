@@ -17,9 +17,6 @@ import {
   Check,
   UserX,
   Clock,
-  CheckCircle2,
-  Upload,
-  FileSpreadsheet,
   Layers,
   SlidersHorizontal,
   Pencil,
@@ -61,13 +58,6 @@ const cutoffFormSchema = z.object({
 });
 type CutoffFormValues = z.infer<typeof cutoffFormSchema>;
 
-const rekapFormSchema = z.object({
-  nama_periode: z.string().min(3, 'Nama periode minimal 3 karakter'),
-  tanggal_awal: z.string().min(10, 'Tanggal awal wajib diisi'),
-  tanggal_akhir: z.string().min(10, 'Tanggal akhir wajib diisi'),
-  catatan: z.string().optional().nullable(),
-});
-type RekapFormValues = z.infer<typeof rekapFormSchema>;
 
 const editLogFormSchema = z.object({
   tanggal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').optional().nullable(),
@@ -216,9 +206,6 @@ export default function PresensiPage() {
   const [bundleMeta, setBundleMeta] = useState<PaginationMeta | undefined>();
   const [bundleSearch, setBundleSearch] = useState('');
   const [bundlePage, setBundlePage] = useState(1);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [fileRekap, setFileRekap] = useState<File | null>(null);
-
   // ── CUT-OFF OTOMASI STATE ───────────────────────────────────
   const [showCutoffModal, setShowCutoffModal] = useState(false);
   const [runningCutoff, setRunningCutoff] = useState(false);
@@ -240,16 +227,6 @@ export default function PresensiPage() {
     defaultValues: {
       date: new Date().toISOString().substring(0, 10),
       unit_kerja_id: 0,
-    },
-  });
-
-  const formRekap = useForm<RekapFormValues>({
-    resolver: zodResolver(rekapFormSchema),
-    defaultValues: {
-      nama_periode: '',
-      tanggal_awal: '',
-      tanggal_akhir: '',
-      catatan: '',
     },
   });
 
@@ -582,65 +559,7 @@ export default function PresensiPage() {
     });
   };
 
-  const handleProcessBundlePayroll = async (bundleId: number) => {
-    try {
-      const res = await simpegService.processBundlePayroll(bundleId);
-      toast.success(res.message || 'Payroll berhasil diproses dan dikirim ke SIKEU.');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal memproses payroll.');
-    }
-  };
 
-  const handleOpenUploadModal = () => {
-    formRekap.reset({
-      nama_periode: '',
-      tanggal_awal: '',
-      tanggal_akhir: '',
-      catatan: '',
-    });
-    setFileRekap(null);
-    setShowUploadModal(true);
-  };
-
-  const onSubmitUploadRekap = async (values: RekapFormValues) => {
-    if (!fileRekap) {
-      toast.error('Harap pilih berkas rekap presensi (.xlsx, .csv, .sql, .txt)');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('nama_periode', values.nama_periode);
-    formData.append('tanggal_awal', values.tanggal_awal);
-    formData.append('tanggal_akhir', values.tanggal_akhir);
-    formData.append('file_rekap', fileRekap);
-    if (values.catatan) {
-      formData.append('catatan', values.catatan);
-    }
-
-    try {
-      const res = await simpegService.uploadPresensiRekap(formData);
-      toast.success(res.message || 'Berkas rekap presensi berhasil diunggah.');
-      setShowUploadModal(false);
-      fetchBundleList();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal mengunggah berkas rekap presensi.');
-    }
-  };
-
-  const [syncingBundle, setSyncingBundle] = useState(false);
-
-  const handleSyncBundle = async () => {
-    setSyncingBundle(true);
-    try {
-      const res = await simpegService.syncPresensiBundle();
-      toast.success(res.message || 'Log realtime presensi berhasil disinkronkan ke Rekap Bundle.');
-      fetchBundleList();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Gagal menyinkronkan bundle presensi.');
-    } finally {
-      setSyncingBundle(false);
-    }
-  };
 
   // ── TABLE COLUMNS: REALTIME LOG ────────────────────────────
 
@@ -888,11 +807,6 @@ export default function PresensiPage() {
         ];
         if (canManage) {
           items.push({
-            label: 'Kalkulasi Payroll SIKEU',
-            icon: <CheckCircle2 size={14} />,
-            onClick: () => handleProcessBundlePayroll(row.id),
-          });
-          items.push({
             label: 'Hapus Bundle',
             icon: <Trash2 size={14} />,
             variant: 'danger',
@@ -1084,16 +998,9 @@ export default function PresensiPage() {
                 )}
               </>
             ) : activeTab === 'bundle' ? (
-              <>
-                <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
-                  Filter
-                </Button>
-                {canManage && (
-                  <Button variant="primary" icon={<Upload size={16} />} onClick={handleOpenUploadModal}>
-                    Upload Rekap Presensi
-                  </Button>
-                )}
-              </>
+              <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
+                Filter
+              </Button>
             ) : (
               <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowRiwayatDrawer(true)}>
                 Filter
@@ -1174,17 +1081,6 @@ export default function PresensiPage() {
             </div>
             <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
               <Badge variant="info">Siklus 26 - 25</Badge>
-              {canManage && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  icon={<Layers size={14} />}
-                  onClick={handleSyncBundle}
-                  isLoading={syncingBundle}
-                >
-                  Sinkronkan Sekarang
-                </Button>
-              )}
             </div>
           </div>
 
@@ -1680,76 +1576,7 @@ export default function PresensiPage() {
         </form>
       </Modal>
 
-      {/* ── MODAL: UPLOAD REKAP PRESENSI ── */}
-      <Modal
-        open={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        title="Upload Berkas Rekap Presensi Periode"
-        size="md"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setShowUploadModal(false)}>
-              Batal
-            </Button>
-            <Button type="submit" loading={formRekap.formState.isSubmitting} disabled={formRekap.formState.isSubmitting} form="rekap-upload-form">
-              Unggah & Proses
-            </Button>
-          </>
-        }
-      >
-        <form id="rekap-upload-form" onSubmit={formRekap.handleSubmit(onSubmitUploadRekap)} className="space-y-4">
-          <div className="p-3 bg-[var(--module-primary-subtle)] border border-[var(--module-primary)]/20 rounded-xl text-xs text-slate-800 flex items-start gap-2">
-            <FileSpreadsheet className="text-[var(--module-primary)] mt-0.5 shrink-0" size={16} />
-            <p className="text-xs">
-              Unggah file rekap presensi bulanan/periode (format: Excel, CSV, TXT, SQL). Sistem akan memproses dan mengelompokkan data presensi ke dalam bundle periode terkait.
-            </p>
-          </div>
 
-          <Input
-            label="Nama Periode Presensi *"
-            placeholder="Contoh: Rekap Presensi September 2026"
-            required
-            error={formRekap.formState.errors.nama_periode?.message}
-            {...formRekap.register('nama_periode')}
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Tanggal Awal Periode *"
-              type="date"
-              required
-              error={formRekap.formState.errors.tanggal_awal?.message}
-              {...formRekap.register('tanggal_awal')}
-            />
-            <Input
-              label="Tanggal Akhir Periode *"
-              type="date"
-              required
-              error={formRekap.formState.errors.tanggal_akhir?.message}
-              {...formRekap.register('tanggal_akhir')}
-            />
-          </div>
-
-          <Input
-            label="Berkas Rekap Presensi *"
-            type="file"
-            accept=".xlsx,.xls,.csv,.txt,.sql"
-            required
-            hint="Format berkas: .xlsx, .xls, .csv, .txt, .sql"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              setFileRekap(file);
-            }}
-          />
-
-          <Input
-            label="Catatan (Opsional)"
-            placeholder="Catatan tambahan untuk periode ini..."
-            error={formRekap.formState.errors.catatan?.message}
-            {...formRekap.register('catatan')}
-          />
-        </form>
-      </Modal>
 
       {/* ── MODAL: EDIT / RESET LOG PRESENSI ── */}
       <Modal
