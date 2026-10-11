@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useCallback, use, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Users, FileText, UserCheck, Copy, Info } from 'lucide-react';
+import { ArrowLeft, Filter, DollarSign, Layers, Calendar, Users, FileText, UserCheck, Copy, Info, Edit3, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Modal } from '@/components/ui/Modal';
 import { Drawer } from '@/components/ui/Drawer';
@@ -17,6 +20,25 @@ import { simpegService } from '@/services/simpeg.service';
 import type { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/lib/utils';
+
+const koreksiPresensiSchema = z.object({
+  status_kehadiran: z.enum(['hadir', 'izin', 'sakit', 'dinas', 'alfa'] as const, {
+    message: 'Status kehadiran wajib dipilih',
+  }),
+  jam_masuk: z.string().optional(),
+  jam_keluar: z.string().optional(),
+  alasan_koreksi: z.string().min(5, 'Alasan koreksi presensi wajib diisi minimal 5 karakter sebagai rekam audit'),
+});
+
+type KoreksiPresensiFormValues = z.infer<typeof koreksiPresensiSchema>;
+
+export const STATUS_KEHADIRAN_KOREKSI_OPTIONS = [
+  { value: 'hadir', label: 'Hadir (Masuk & Pulang)' },
+  { value: 'izin', label: 'Izin' },
+  { value: 'sakit', label: 'Sakit' },
+  { value: 'dinas', label: 'Dinas Luar' },
+  { value: 'alfa', label: 'Alfa / Tidak Hadir' },
+];
 
 export interface PresensiBundle {
   id: number;
@@ -42,6 +64,7 @@ export interface DayInfo {
 }
 
 export interface AttendanceDayStatus {
+  id?: number | null;
   date: string;
   is_holiday: boolean;
   status_kehadiran: string;
@@ -52,6 +75,8 @@ export interface AttendanceDayStatus {
   out_time?: string | null;
   out_minutes_early?: number;
   catatan?: string | null;
+  is_corrected?: boolean;
+  source?: string | null;
 }
 
 export interface EmployeeMatrixRow {
@@ -94,6 +119,62 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
   // Modal Payroll Process State
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [processingPayroll, setProcessingPayroll] = useState(false);
+
+  // Modal Koreksi Presensi State
+  const [koreksiModal, setKoreksiModal] = useState<{
+    open: boolean;
+    loading: boolean;
+    pegawaiId: number;
+    pegawaiNama: string;
+    pegawaiNip: string;
+    tanggal: string;
+    dayName: string;
+    isHoliday: boolean;
+    holidayName?: string | null;
+    dataAwal: {
+      status: string;
+      jamMasuk: string | null;
+      jamKeluar: string | null;
+      catatan: string | null;
+      isCorrected?: boolean;
+    };
+  }>({
+    open: false,
+    loading: false,
+    pegawaiId: 0,
+    pegawaiNama: '',
+    pegawaiNip: '',
+    tanggal: '',
+    dayName: '',
+    isHoliday: false,
+    holidayName: null,
+    dataAwal: {
+      status: 'alfa',
+      jamMasuk: null,
+      jamKeluar: null,
+      catatan: null,
+    },
+  });
+
+  const {
+    register: registerKoreksi,
+    handleSubmit: handleKoreksiSubmitHook,
+    setValue: setKoreksiValue,
+    watch: watchKoreksi,
+    reset: resetKoreksi,
+    control: koreksiControl,
+    formState: { errors: koreksiErrors },
+  } = useForm<KoreksiPresensiFormValues>({
+    resolver: zodResolver(koreksiPresensiSchema),
+    defaultValues: {
+      status_kehadiran: 'hadir',
+      jam_masuk: '08:00:00',
+      jam_keluar: '16:00:00',
+      alasan_koreksi: '',
+    },
+  });
+
+  const watchStatusKehadiran = watchKoreksi('status_kehadiran');
 
   const fetchBundleMatrix = useCallback(async () => {
     setLoading(true);
@@ -147,28 +228,88 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
     }
   };
 
-  const getIndicatorClass = (status?: string) => {
+  const getIndicatorClass = (status?: string, isCorrected?: boolean) => {
+    const baseShadow = 'shadow-xs transition-all duration-150';
     switch (status) {
       case 'on_time':
-        // Hijau: tepat waktu
-        return 'bg-emerald-500 border border-emerald-600 shadow-xs';
+        // Hijau: Emerald modern, elegan, bersih
+        return `bg-emerald-500 hover:bg-emerald-600 ring-1 ring-emerald-600/40 ${baseShadow}`;
       case 'permission':
-        // Kuning: izin / sakit / dinas
-        return 'bg-amber-400 border border-amber-500 shadow-xs';
+        // Kuning: Amber hangat, bersahabat
+        return `bg-amber-400 hover:bg-amber-500 ring-1 ring-amber-500/40 ${baseShadow}`;
       case 'late':
       case 'early':
-        // Merah: datang telat atau pulang cepat
-        return 'bg-rose-500 border border-rose-600 shadow-xs';
+        // Merah: Rose tegas modern
+        return `bg-rose-500 hover:bg-rose-600 ring-1 ring-rose-600/40 ${baseShadow}`;
       case 'absent':
-        // Hitam: tidak absen pada hari kerja
-        return 'bg-slate-900 border border-black shadow-xs';
+        // Hitam: Slate-900 pekat
+        return `bg-slate-900 hover:bg-black ring-1 ring-slate-950/70 ${baseShadow}`;
       case 'holiday':
-        // Abu-abu netral: hari libur / Minggu tanpa absensi
-        return 'bg-slate-200 border border-slate-300';
+        // Abu-abu netral: hari libur / Minggu
+        return `bg-slate-200 border border-slate-300 text-slate-400 ${baseShadow}`;
       case 'upcoming':
       default:
         // Tanggal masa depan yang belum tiba
         return 'bg-slate-100 border border-dashed border-slate-300 opacity-60';
+    }
+  };
+
+  const handleOpenKoreksi = (row: EmployeeMatrixRow, dayObj: DayInfo) => {
+    if (!isAdmin) return;
+    const m = row.matrix?.[dayObj.date];
+    const initialStatus = (m?.status_kehadiran && ['hadir', 'izin', 'sakit', 'dinas', 'alfa'].includes(m.status_kehadiran))
+      ? (m.status_kehadiran as 'hadir' | 'izin' | 'sakit' | 'dinas' | 'alfa')
+      : (m?.in_status === 'absent' || m?.out_status === 'absent' ? 'alfa' : 'hadir');
+
+    resetKoreksi({
+      status_kehadiran: initialStatus,
+      jam_masuk: m?.in_time || (initialStatus === 'hadir' ? '08:00:00' : ''),
+      jam_keluar: m?.out_time || (initialStatus === 'hadir' ? '16:00:00' : ''),
+      alasan_koreksi: '',
+    });
+
+    setKoreksiModal({
+      open: true,
+      loading: false,
+      pegawaiId: row.pegawai_id,
+      pegawaiNama: row.nama_lengkap,
+      pegawaiNip: row.nip || '-',
+      tanggal: dayObj.date,
+      dayName: dayObj.day_name,
+      isHoliday: dayObj.is_holiday,
+      holidayName: dayObj.holiday_name,
+      dataAwal: {
+        status: m?.status_kehadiran || (dayObj.is_holiday ? 'libur' : 'alfa'),
+        jamMasuk: m?.in_time || null,
+        jamKeluar: m?.out_time || null,
+        catatan: m?.catatan || null,
+        isCorrected: m?.is_corrected,
+      },
+    });
+  };
+
+  const onKoreksiSubmit = async (values: KoreksiPresensiFormValues) => {
+    setKoreksiModal((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await simpegService.koreksiPresensiBundle({
+        presensi_periode_id: Number(bundleId),
+        pegawai_id: koreksiModal.pegawaiId,
+        tanggal: koreksiModal.tanggal,
+        status_kehadiran: values.status_kehadiran,
+        jam_masuk: values.status_kehadiran === 'hadir' && values.jam_masuk?.trim() ? values.jam_masuk.trim() : null,
+        jam_keluar: values.status_kehadiran === 'hadir' && values.jam_keluar?.trim() ? values.jam_keluar.trim() : null,
+        alasan_koreksi: values.alasan_koreksi.trim(),
+      });
+
+      if (res.status === 'success') {
+        toast.success(res.message || 'Presensi berhasil dikoreksi dengan audit data asal.');
+        setKoreksiModal((prev) => ({ ...prev, open: false }));
+        fetchBundleMatrix();
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Gagal melakukan koreksi presensi.');
+    } finally {
+      setKoreksiModal((prev) => ({ ...prev, loading: false }));
     }
   };
 
@@ -255,23 +396,33 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
           else if (outStatus === 'absent') outDesc = 'Pulang: Tidak Absen (Alpa)';
           else if (outStatus === 'holiday') outDesc = 'Pulang: Libur';
 
-          const fullTooltip = `${dateTitle}\n• ${inDesc}\n• ${outDesc}${m?.catatan ? `\nCatatan: ${m.catatan}` : ''}`;
+          const isCorrected = Boolean(m?.is_corrected);
+          const fullTooltip = `${dateTitle}\n• ${inDesc}\n• ${outDesc}${isCorrected ? '\n★ [Telah Dikoreksi Admin]' : ''}${m?.catatan ? `\nCatatan: ${m.catatan}` : ''}${isAdmin ? '\n(Klik sel untuk koreksi presensi)' : ''}`;
 
           return (
             <div
-              className={`flex flex-col items-center justify-center gap-1 py-1 px-1 min-w-[34px] rounded hover:bg-slate-100/90 transition-colors cursor-pointer ${
-                dayObj.is_holiday ? 'bg-rose-50/50' : ''
-              }`}
+              onClick={() => handleOpenKoreksi(row, dayObj)}
+              className={`relative flex flex-col items-center justify-center gap-1 py-1 px-1 min-w-[34px] rounded hover:bg-slate-100/90 transition-all cursor-pointer group ${
+                dayObj.is_holiday ? 'bg-rose-50/40' : ''
+              } ${isCorrected ? 'ring-1 ring-sky-400/80 bg-sky-50/40' : ''}`}
               title={fullTooltip}
             >
+              {/* Pin/Dot Penanda Koreksi Admin */}
+              {isCorrected && (
+                <span
+                  className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-sky-500 ring-2 ring-white shadow-xs"
+                  title="Data telah dikoreksi oleh Admin"
+                />
+              )}
+
               {/* Kotak 1: Masuk (Atas) */}
               <div
-                className={`w-3.5 h-3.5 rounded-[3px] transition-transform hover:scale-125 ${getIndicatorClass(inStatus)}`}
+                className={`w-3.5 h-3.5 rounded-[3px] transition-transform group-hover:scale-110 ${getIndicatorClass(inStatus, isCorrected)}`}
                 aria-label={`Masuk: ${inStatus}`}
               />
               {/* Kotak 2: Pulang (Bawah) */}
               <div
-                className={`w-3.5 h-3.5 rounded-[3px] transition-transform hover:scale-125 ${getIndicatorClass(outStatus)}`}
+                className={`w-3.5 h-3.5 rounded-[3px] transition-transform group-hover:scale-110 ${getIndicatorClass(outStatus, isCorrected)}`}
                 aria-label={`Pulang: ${outStatus}`}
               />
             </div>
@@ -447,28 +598,35 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
 
         <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-slate-700 font-medium">
           <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded-[3px] bg-emerald-500 border border-emerald-600 shadow-xs" />
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-emerald-500 hover:bg-emerald-600 ring-1 ring-emerald-600/40 shadow-xs" />
             <span>Tepat Waktu (In ≤ 08:15 / Out ≥ 16:00)</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded-[3px] bg-amber-400 border border-amber-500 shadow-xs" />
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-amber-400 hover:bg-amber-500 ring-1 ring-amber-500/40 shadow-xs" />
             <span>Izin / Sakit / Dinas</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded-[3px] bg-rose-500 border border-rose-600 shadow-xs" />
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-rose-500 hover:bg-rose-600 ring-1 ring-rose-600/40 shadow-xs" />
             <span>Terlambat / Pulang Cepat</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded-[3px] bg-slate-900 border border-black shadow-xs" />
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-slate-900 hover:bg-black ring-1 ring-slate-950/70 shadow-xs" />
             <span>Tidak Absen (Alpa)</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded-[3px] bg-slate-200 border border-slate-300" />
+            <div className="w-3.5 h-3.5 rounded-[3px] bg-slate-200 border border-slate-300 shadow-xs" />
             <span>Hari Libur / Minggu</span>
+          </div>
+
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <div className="relative w-3.5 h-3.5 rounded-[3px] bg-sky-100 ring-1 ring-sky-400 flex items-center justify-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            </div>
+            <span className="text-sky-700 font-semibold">Dikoreksi Admin (Audit Trail)</span>
           </div>
         </div>
       </div>
@@ -577,6 +735,138 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
             Hasil kalkulasi payroll ini akan diteruskan ke modul SIKEU untuk verifikasi pembayaran gaji pegawai.
           </p>
         </div>
+      </Modal>
+
+      {/* Modal Koreksi Presensi Pegawai dengan Audit Data Asal */}
+      <Modal
+        open={koreksiModal.open}
+        onClose={() => setKoreksiModal((prev) => ({ ...prev, open: false }))}
+        title="Koreksi Presensi Pegawai (Audit Trail)"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setKoreksiModal((prev) => ({ ...prev, open: false }))}
+              disabled={koreksiModal.loading}
+            >
+              Batal
+            </Button>
+            <Button
+              loading={koreksiModal.loading}
+              disabled={koreksiModal.loading}
+              onClick={handleKoreksiSubmitHook(onKoreksiSubmit)}
+            >
+              Simpan Koreksi & Rekam Audit
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleKoreksiSubmitHook(onKoreksiSubmit)} className="space-y-4">
+          {/* Header Ringkasan Pegawai & Tanggal */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-semibold text-slate-700">{koreksiModal.pegawaiNama}</span>
+              <span className="font-mono text-slate-500">NIP: {koreksiModal.pegawaiNip}</span>
+            </div>
+            <div className="flex items-center gap-2 text-2xs text-slate-600 font-medium">
+              <Calendar size={13} className="text-[var(--module-primary)]" />
+              <span>
+                {koreksiModal.dayName}, {formatDate(koreksiModal.tanggal)}
+                {koreksiModal.isHoliday && (
+                  <span className="ml-1 text-rose-600 font-bold">
+                    ({koreksiModal.holidayName || 'Hari Libur / Minggu'})
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Card Data Awal / Asal (Audit Record) */}
+          <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 text-xs text-amber-900">
+            <div className="flex items-center gap-2 font-bold text-amber-800">
+              <ShieldAlert size={15} className="text-amber-600 shrink-0" />
+              <span>Data Asal Sebelum Dikoreksi:</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-2xs">
+              <div>
+                <span className="text-amber-700 font-medium">Status Awal: </span>
+                <span className="font-bold uppercase tracking-wider text-amber-950">
+                  {koreksiModal.dataAwal.status || 'Tidak Absen (Alpa)'}
+                </span>
+              </div>
+              <div>
+                <span className="text-amber-700 font-medium">Jam Masuk / Keluar: </span>
+                <span className="font-mono font-semibold">
+                  {koreksiModal.dataAwal.jamMasuk ? koreksiModal.dataAwal.jamMasuk.slice(0, 5) : '-'} / {koreksiModal.dataAwal.jamKeluar ? koreksiModal.dataAwal.jamKeluar.slice(0, 5) : '-'}
+                </span>
+              </div>
+            </div>
+            {koreksiModal.dataAwal.catatan && (
+              <div className="text-2xs text-amber-800/90 pt-1 border-t border-amber-200/60 truncate">
+                <span className="font-medium">Catatan Lama: </span>{koreksiModal.dataAwal.catatan}
+              </div>
+            )}
+          </div>
+
+          {/* Form Input Koreksi: Maksimal 2 Kolom per UI Standard */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Controller
+              name="status_kehadiran"
+              control={koreksiControl}
+              render={({ field }) => (
+                <Select
+                  label="Status Kehadiran Baru *"
+                  value={field.value}
+                  onChange={(val) => {
+                    const newStatus = val as 'hadir' | 'izin' | 'sakit' | 'dinas' | 'alfa';
+                    field.onChange(newStatus);
+                    if (newStatus === 'hadir') {
+                      setKoreksiValue('jam_masuk', '08:00:00');
+                      setKoreksiValue('jam_keluar', '16:00:00');
+                    } else {
+                      setKoreksiValue('jam_masuk', '');
+                      setKoreksiValue('jam_keluar', '');
+                    }
+                  }}
+                  error={koreksiErrors.status_kehadiran?.message}
+                  options={STATUS_KEHADIRAN_KOREKSI_OPTIONS}
+                />
+              )}
+            />
+
+            {watchStatusKehadiran === 'hadir' ? (
+              <Input
+                label="Jam Masuk (WIB) *"
+                placeholder="08:00:00"
+                {...registerKoreksi('jam_masuk')}
+                error={koreksiErrors.jam_masuk?.message}
+              />
+            ) : (
+              <div className="flex items-center text-xs text-slate-500 italic p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                Jam masuk & pulang otomatis ditiadakan untuk dispensasi/alfa.
+              </div>
+            )}
+
+            {watchStatusKehadiran === 'hadir' && (
+              <Input
+                label="Jam Pulang (WIB) *"
+                placeholder="16:00:00"
+                {...registerKoreksi('jam_keluar')}
+                error={koreksiErrors.jam_keluar?.message}
+              />
+            )}
+
+            <div className={watchStatusKehadiran === 'hadir' ? 'md:col-span-1' : 'md:col-span-2'}>
+              <Input
+                label="Alasan Koreksi Admin (Wajib Audit) *"
+                placeholder="Contoh: Pegawai hadir dinas luar / lupa tap mesin"
+                {...registerKoreksi('alasan_koreksi')}
+                error={koreksiErrors.alasan_koreksi?.message}
+                required
+              />
+            </div>
+          </div>
+        </form>
       </Modal>
     </div>
   );

@@ -62,7 +62,8 @@ export default function GajiBundleDetailPage() {
           ? formatDate(item.gaji_pegawai.tanggal_transfer)
           : '-',
       }));
-      const XLSX = await import('xlsx');
+      // @ts-ignore
+      const XLSX: any = await (new Function('m', 'return import(m)'))('xlsx');
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Data Gaji');
