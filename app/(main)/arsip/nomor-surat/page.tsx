@@ -8,7 +8,13 @@ import {
   Eye, 
   XCircle, 
   Calendar,
-  Building
+  Building,
+  Upload,
+  FileText,
+  Download,
+  CheckCircle,
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +23,7 @@ import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { Drawer } from '@/components/ui/Drawer';
+import { Modal } from '@/components/ui/Modal';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
@@ -25,13 +32,32 @@ import { arsipService } from '@/services/arsip.service';
 import { moduleService } from '@/services/module.service';
 import { useAuth } from '@/hooks/useAuth';
 import { getApiErrorMessage } from '@/lib/utils';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { 
   type NomorSurat, 
   STATUS_NOMOR_SURAT_OPTIONS,
+  STATUS_FILE_SURAT_OPTIONS,
   SORT_DIR_OPTIONS,
 } from '@/types/arsip.types';
 import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
+
+const uploadScanSchema = z.object({
+  file: z
+    .any()
+    .refine((f) => f instanceof File, {
+      message: 'Silakan pilih berkas scan dokumen terlebih dahulu.',
+    })
+    .refine((f) => !f || (f instanceof File && f.size <= 10 * 1024 * 1024), {
+      message: 'Ukuran berkas maksimal 10 MB.',
+    }),
+});
+
+type UploadScanFormData = {
+  file: any;
+};
 
 function DaftarNomorSuratContent() {
   const router = useRouter();
@@ -39,6 +65,7 @@ function DaftarNomorSuratContent() {
   const { hasPermission } = useAuth();
   const canCreate = hasPermission('arsip.nomor_surat.create');
   const canCancel = hasPermission('arsip.nomor_surat.update');
+  const canUpload = hasPermission('arsip.nomor_surat.upload') || hasPermission('arsip.nomor_surat.update') || hasPermission('arsip.nomor_surat.create');
 
   const [data, setData] = useState<NomorSurat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +80,7 @@ function DaftarNomorSuratContent() {
   const [filterKlasifikasi, setFilterKlasifikasi] = useState('');
   const [filterTahun, setFilterTahun] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterHasFile, setFilterHasFile] = useState<string>('');
   const [filterModule, setFilterModule] = useState('');
   const [sortBy, setSortBy] = useState('nomor_surat');
   const [sortDir, setSortDir] = useState('desc');
@@ -62,6 +90,22 @@ function DaftarNomorSuratContent() {
   const [selectedNomor, setSelectedNomor] = useState<NomorSurat | null>(null);
   const [alasanBatal, setAlasanBatal] = useState('');
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Upload Scan Modal State & Form Hook
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [targetUploadNomor, setTargetUploadNomor] = useState<NomorSurat | null>(null);
+  const [uploadingScan, setUploadingScan] = useState(false);
+
+  const {
+    handleSubmit: handleUploadSubmit,
+    control: uploadControl,
+    reset: resetUploadForm,
+  } = useForm<UploadScanFormData>({
+    resolver: zodResolver(uploadScanSchema),
+    defaultValues: {
+      file: null,
+    },
+  });
 
   // Check query param action=generate
   useEffect(() => {
@@ -82,6 +126,7 @@ function DaftarNomorSuratContent() {
       if (filterKlasifikasi) params.kode_klasifikasi = filterKlasifikasi;
       if (filterTahun) params.tahun = filterTahun;
       if (filterStatus) params.status = filterStatus;
+      if (filterHasFile !== '') params.has_file = filterHasFile;
       if (filterModule) params.module_origin = filterModule;
       if (sortBy) params.sort_by = sortBy;
       if (sortDir) params.sort_dir = sortDir;
@@ -101,7 +146,7 @@ function DaftarNomorSuratContent() {
 
   useEffect(() => {
     fetchNomorSurat();
-  }, [page, limit, filterTahun, filterStatus, filterModule]);
+  }, [page, limit, filterTahun, filterStatus, filterHasFile, filterModule]);
 
   const handleApplyFilter = () => {
     setPage(1);
@@ -115,6 +160,7 @@ function DaftarNomorSuratContent() {
     setFilterKlasifikasi('');
     setFilterTahun('');
     setFilterStatus('');
+    setFilterHasFile('');
     setFilterModule('');
     setSortBy('nomor_surat');
     setSortDir('desc');
@@ -123,6 +169,53 @@ function DaftarNomorSuratContent() {
     setTimeout(() => {
       fetchNomorSurat();
     }, 50);
+  };
+
+  const handleOpenUploadModal = (row: NomorSurat) => {
+    setTargetUploadNomor(row);
+    resetUploadForm({ file: null });
+    setUploadModalOpen(true);
+  };
+
+  const onConfirmUploadScan = async (formData: UploadScanFormData) => {
+    if (!targetUploadNomor || !formData.file) return;
+
+    try {
+      setUploadingScan(true);
+      await arsipService.uploadFileSurat(targetUploadNomor.id, formData.file);
+      toast.success(`Berkas scan surat ${targetUploadNomor.nomor_surat} berhasil diunggah!`);
+      setUploadModalOpen(false);
+      fetchNomorSurat();
+    } catch (err: any) {
+      toast.error(getApiErrorMessage(err, 'Gagal mengunggah berkas scan surat.'));
+    } finally {
+      setUploadingScan(false);
+    }
+  };
+
+  const handleDownloadFile = async (row: NomorSurat) => {
+    try {
+      const res = await arsipService.downloadFileSurat(row.id);
+      if (res.url) {
+        window.open(res.url, '_blank');
+        toast.success('Membuka tautan berkas surat resmi.');
+        return;
+      }
+      if (res.blob) {
+        const url = window.URL.createObjectURL(res.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = row.nomor_surat.replace(/[\/\\]/g, '_');
+        a.download = `Surat_${safeName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Berkas surat berhasil diunduh.');
+      }
+    } catch (err: any) {
+      toast.error(getApiErrorMessage(err, 'Gagal mengunduh berkas surat.'));
+    }
   };
 
   const handleOpenCancelDialog = (row: NomorSurat) => {
@@ -209,8 +302,47 @@ function DaftarNomorSuratContent() {
       ),
     },
     {
+      key: 'status_berkas',
+      label: 'STATUS BERKAS SURAT',
+      align: 'center',
+      render: (row: NomorSurat) => {
+        if (row.has_file || row.file_surat_path) {
+          return (
+            <div className="flex flex-col items-center gap-1">
+              <Badge variant="success" className="text-2xs font-semibold flex items-center gap-1">
+                <CheckCircle size={11} />
+                Sudah Ada Surat
+              </Badge>
+              {row.file_surat_url && (
+                <a
+                  href={row.file_surat_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-2xs text-[var(--module-primary)] hover:underline inline-flex items-center gap-0.5 font-medium"
+                >
+                  <Eye size={10} />
+                  Lihat Berkas
+                </a>
+              )}
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col items-center gap-1">
+            <Badge variant="warning" className="text-2xs font-semibold flex items-center gap-1">
+              <Clock size={11} />
+              Belum Ada Surat
+            </Badge>
+            <span className="text-2xs text-slate-400">
+              {row.pegawai ? `PIC: ${row.pegawai.nama_lengkap.split(' ')[0]}` : 'Menunggu scan'}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
       key: 'status',
-      label: 'STATUS',
+      label: 'STATUS NOMOR',
       align: 'center',
       render: (row: NomorSurat) => {
         const variant = row.status === 'terpakai' ? 'success' : row.status === 'direservasi' ? 'warning' : 'danger';
@@ -236,6 +368,24 @@ function DaftarNomorSuratContent() {
                   router.push(`/arsip/nomor-surat/${row.id}`);
                 },
               },
+              ...(canUpload
+                ? [
+                    {
+                      label: row.has_file || row.file_surat_path ? 'Ganti Berkas Scan' : 'Unggah Berkas Scan',
+                      icon: <Upload size={14} className="text-[var(--module-primary)]" />,
+                      onClick: () => handleOpenUploadModal(row),
+                    },
+                  ]
+                : []),
+              ...(row.has_file || row.file_surat_path
+                ? [
+                    {
+                      label: 'Unduh Berkas Surat',
+                      icon: <Download size={14} className="text-emerald-600" />,
+                      onClick: () => handleDownloadFile(row),
+                    },
+                  ]
+                : []),
               ...(row.status !== 'dibatalkan' && canCancel
                 ? [
                     {
@@ -265,10 +415,10 @@ function DaftarNomorSuratContent() {
               type="button"
               variant="outline"
               size="md"
+              icon={<Filter size={16} />}
               onClick={() => setDrawerOpen(true)}
               className="border-[var(--module-primary)] text-[var(--module-primary)] hover:bg-[var(--module-primary-subtle,#f0fdfa)]"
             >
-              <Filter size={16} className="mr-1.5" />
               Filter
             </Button>
             {canCreate && (
@@ -276,10 +426,10 @@ function DaftarNomorSuratContent() {
                 type="button"
                 variant="primary"
                 size="md"
+                icon={<Plus size={16} />}
                 className="bg-[var(--module-primary)] hover:opacity-90 text-white shadow-sm"
                 onClick={() => router.push('/arsip/nomor-surat/create')}
               >
-                <Plus size={16} className="mr-1.5" />
                 Terbitkan Nomor Surat
               </Button>
             )}
@@ -306,7 +456,6 @@ function DaftarNomorSuratContent() {
         isOpen={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Filter Nomor Surat"
-        width="400px"
       >
         <div className="flex flex-col gap-4 p-4">
           <Input
@@ -371,6 +520,13 @@ function DaftarNomorSuratContent() {
             options={STATUS_NOMOR_SURAT_OPTIONS}
           />
 
+          <Select
+            label="Status Berkas Surat Fisik"
+            value={filterHasFile}
+            onChange={(val) => setFilterHasFile(val || '')}
+            options={STATUS_FILE_SURAT_OPTIONS}
+          />
+
           <AsyncSelect
             label="Asal Modul"
             placeholder="Pilih modul asal..."
@@ -427,6 +583,85 @@ function DaftarNomorSuratContent() {
           </div>
         </div>
       </Drawer>
+
+      {/* Modal: Unggah Berkas Scan Dokumen Surat Resmi */}
+      <Modal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        title="Unggah Berkas Scan Surat Resmi"
+        size="md"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <span className="text-2xs uppercase tracking-wider text-slate-400 font-semibold block">
+              Nomor Surat Terpilih
+            </span>
+            <p className="font-mono text-xs font-bold text-slate-900 mt-0.5">
+              {targetUploadNomor?.nomor_surat}
+            </p>
+            <p className="text-2xs text-slate-500 mt-1">
+              Perihal: {targetUploadNomor?.perihal}
+            </p>
+            {targetUploadNomor?.pegawai && (
+              <p className="text-2xs text-slate-500">
+                PIC Pegawai: <strong className="text-slate-700">{targetUploadNomor.pegawai.nama_lengkap}</strong>
+              </p>
+            )}
+          </div>
+
+          <form onSubmit={handleUploadSubmit(onConfirmUploadScan)} className="flex flex-col gap-4">
+            <Controller
+              name="file"
+              control={uploadControl}
+              render={({ field, fieldState: { error } }) => (
+                <div>
+                  <Input
+                    type="file"
+                    label="Pilih Berkas Scan Dokumen (PDF/JPG/PNG) *"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    error={error?.message}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      field.onChange(file);
+                    }}
+                    className="text-xs text-slate-600 cursor-pointer"
+                  />
+                  {field.value && (
+                    <p className="text-2xs text-emerald-600 mt-1 font-medium">
+                      ✓ Berkas dipilih: {field.value.name} ({(field.value.size / 1024).toFixed(0)} KB)
+                    </p>
+                  )}
+                </div>
+              )}
+            />
+            <p className="text-2xs text-slate-400">
+              Format diperbolehkan: PDF, JPG, JPEG, PNG. Ukuran maksimal 10 MB. Berkas disimpan secara aman dan diakses menggunakan Signed URL privat.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => setUploadModalOpen(false)}
+                disabled={uploadingScan}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                icon={<Upload size={14} />}
+                className="bg-[var(--module-primary)] hover:opacity-90 text-white"
+                isLoading={uploadingScan}
+              >
+                Unggah Berkas Scan
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
 
       {/* Confirm Dialog: Pembatalan Nomor Surat */}
       <ConfirmDialog

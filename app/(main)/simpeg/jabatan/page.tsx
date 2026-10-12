@@ -685,7 +685,7 @@ export default function JabatanPage() {
   const columnsJafung: ColumnDef<JabatanFungsionalAkademik>[] = [
     {
       key: 'nama',
-      label: 'Nama Jenjang JAFUNG',
+      label: 'Nama Jenjang JAD',
       render: (row) => <span className="font-bold text-slate-900">{row.nama}</span>,
     },
     {
@@ -782,8 +782,8 @@ export default function JabatanPage() {
     return (
       <div className="animate-fade-in space-y-6">
         <PageHeader
-          title="Master Jabatan & Jenjang Fungsional (JAFUNG)"
-          description="Pengelolaan struktur jabatan struktural, fungsional, teknis, serta jenjang jabatan fungsional akademik dosen (KUM)"
+          title="Master Jabatan & Jabatan Akademik Dosen (JAD)"
+          description="Pengelolaan struktur jabatan struktural, fungsional, teknis, serta jenjang Jabatan Akademik Dosen / JAD (KUM)"
         />
         <div className="card p-6 text-center">
           <ShieldAlert size={56} className="mx-auto mb-4 opacity-40" />
@@ -799,8 +799,8 @@ export default function JabatanPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Master Jabatan & Jenjang Fungsional (JAFUNG)"
-        description="Kelola struktur jabatan struktural, fungsional, teknis, jenjang Jabatan Fungsional Akademik (JAFUNG Dosen), dan Master Jenjang Golongan/Pangkat"
+        title="Master Jabatan & Jabatan Akademik Dosen (JAD)"
+        description="Kelola struktur jabatan struktural, fungsional, teknis, jenjang Jabatan Akademik Dosen (JAD), dan Master Jenjang Golongan/Pangkat"
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -822,7 +822,7 @@ export default function JabatanPage() {
                 {activeTab === 'jabatan'
                   ? 'Tambah Jabatan'
                   : activeTab === 'jafung'
-                  ? 'Tambah Jenjang Jafung'
+                  ? 'Tambah Jenjang JAD'
                   : 'Tambah Golongan'}
               </Button>
             )}
@@ -852,7 +852,7 @@ export default function JabatanPage() {
               : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
           }`}
         >
-          <Award size={16} /> Jabatan Fungsional Akademik (JAFUNG) ({metaJafung?.total ?? jafungList.length})
+          <Award size={16} /> Jabatan Akademik Dosen (JAD) ({metaJafung?.total ?? jafungList.length})
         </button>
         <button
           type="button"
@@ -906,7 +906,7 @@ export default function JabatanPage() {
             emptyMessage={
               <div className="py-8 text-center text-slate-400">
                 <Award size={48} className="mx-auto mb-4 opacity-40" />
-                <p>Belum ada master jenjang Jabatan Fungsional Akademik (JAFUNG) dosen.</p>
+                <p>Belum ada master jenjang Jabatan Akademik Dosen (JAD) terdaftar.</p>
               </div>
             }
           />
@@ -944,7 +944,7 @@ export default function JabatanPage() {
           activeTab === 'golongan'
             ? 'Filter & Urutkan Jenjang Golongan'
             : activeTab === 'jafung'
-            ? 'Filter & Urutkan Jenjang JAFUNG'
+            ? 'Filter & Urutkan Jenjang JAD'
             : 'Filter & Urutkan Jabatan'
         }
         footer={
@@ -1302,7 +1302,7 @@ export default function JabatanPage() {
         <Modal
           open={showModalJafung}
           onClose={() => setShowModalJafung(false)}
-          title="Tambah Master Jafung Dosen"
+          title="Tambah Master JAD (Jabatan Akademik Dosen)"
           footer={
             <>
               <Button variant="secondary" onClick={() => setShowModalJafung(false)}>
@@ -1314,14 +1314,14 @@ export default function JabatanPage() {
                 disabled={isSubmittingJafung}
                 form="jafung-modal-form"
               >
-                Simpan Master Jafung
+                Simpan Master JAD
               </Button>
             </>
           }
         >
           <form id="jafung-modal-form" onSubmit={handleSubmitJafungForm(onSubmitJafung)} className="space-y-4">
             <Input
-              label="Nama Jabatan Fungsional"
+              label="Nama Jabatan Akademik Dosen (JAD)"
               required
               placeholder="Contoh: Lektor Kepala (AK 400)"
               error={errorsJafung.nama?.message}

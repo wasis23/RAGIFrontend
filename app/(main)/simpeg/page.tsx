@@ -212,7 +212,7 @@ export default function SimpegDashboardPage() {
               </Link>
               {canJafung && (
                 <Link href="/simpeg/usulan-jafung" className="btn btn-outline btn-sm justify-start no-underline">
-                  <Award size={16} /> Ajukan Usulan Jafung (KUM)
+                  <Award size={16} /> Ajukan Usulan JAD (KUM)
                 </Link>
               )}
             </div>
@@ -430,10 +430,10 @@ export default function SimpegDashboardPage() {
             <ArrowRight size={20} className="text-slate-400" />
           </div>
           <h3 className="text-lg font-bold mb-1">
-            Jabatan & Jafung Dosen
+            Jabatan & JAD Dosen
           </h3>
           <p className="text-sm text-slate-500 leading-relaxed">
-            Pengaturan Jabatan Struktural serta Jabatan Fungsional Akademik (Lektor, Guru Besar).
+            Pengaturan Jabatan Struktural serta Jabatan Akademik Dosen / JAD (Lektor, Guru Besar).
           </p>
         </Link>
       </div>

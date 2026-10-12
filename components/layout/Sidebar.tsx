@@ -452,18 +452,19 @@ const SIMPEG_FALLBACK_MENUS: Menu[] = [
       { id: 5041, parent_id: 504, name: 'Presensi & Absensi', url: '/simpeg/presensi', icon: 'FaClock', module: 'simpeg', permission_id: null, order_index: 1, is_active: true },
       { id: 5042, parent_id: 504, name: 'Cuti & Izin Kerja', url: '/simpeg/cuti', icon: 'FaCalendar', module: 'simpeg', permission_id: null, order_index: 2, is_active: true },
       { id: 5043, parent_id: 504, name: 'Payroll & Slip Gaji', url: '/simpeg/payroll', icon: 'FaMoneyBillWave', module: 'simpeg', permission_id: null, order_index: 3, is_active: true },
-      { id: 5044, parent_id: 504, name: 'Usulan Jafung (KUM)', url: '/simpeg/usulan-jafung', icon: 'FaAward', module: 'simpeg', permission_id: null, order_index: 4, is_active: true },
+      { id: 5044, parent_id: 504, name: 'Usulan JAD (KUM)', url: '/simpeg/usulan-jafung', icon: 'FaAward', module: 'simpeg', permission_id: null, order_index: 4, is_active: true },
       { id: 5045, parent_id: 504, name: 'Evaluasi Kinerja SKP', url: '/simpeg/kinerja', icon: 'FaChartPie', module: 'simpeg', permission_id: null, order_index: 5, is_active: true },
       { id: 5046, parent_id: 504, name: 'Kompetensi & Pelatihan', url: '/simpeg/kompetensi', icon: 'FaGraduationCap', module: 'simpeg', permission_id: null, order_index: 6, is_active: true },
       { id: 5047, parent_id: 504, name: 'Surat Tugas & LPJ', url: '/simpeg/surat-tugas', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: 7, is_active: true },
-      { id: 5049, parent_id: 504, name: 'Arsip SK Pegawai', url: '/simpeg/sk-pegawai', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: 8, is_active: true },
+      { id: 5048, parent_id: 504, name: 'Penomoran Surat', url: '/simpeg/nomor-surat', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: 8, is_active: true },
+      { id: 5049, parent_id: 504, name: 'Arsip SK Pegawai', url: '/simpeg/sk-pegawai', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: 9, is_active: true },
     ]
   },
   {
     id: 502, parent_id: null, name: 'MASTER DATA SDM', url: '#master_simpeg', icon: 'FaDatabase', module: 'simpeg', permission_id: null, order_index: 4, is_active: true,
     children: [
       { id: 5021, parent_id: 502, name: 'Unit Kerja', url: '/simpeg/unit-kerja', icon: 'FaSitemap', module: 'simpeg', permission_id: null, order_index: 1, is_active: true },
-      { id: 5022, parent_id: 502, name: 'Jabatan & Jafung', url: '/simpeg/jabatan', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: 2, is_active: true },
+      { id: 5022, parent_id: 502, name: 'Jabatan & JAD', url: '/simpeg/jabatan', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: 2, is_active: true },
       { id: 5023, parent_id: 502, name: 'Regulasi Cuti & Izin', url: '/simpeg/master/jenis-cuti', icon: 'FaCalendarCheck', module: 'simpeg', permission_id: null, order_index: 3, is_active: true },
       { id: 5028, parent_id: 502, name: 'Master Kompetensi', url: '/simpeg/master/kompetensi', icon: 'FaGraduationCap', module: 'simpeg', permission_id: null, order_index: 4, is_active: true },
       { id: 5029, parent_id: 502, name: 'Master Kategori SK', url: '/simpeg/master/kategori-sk', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: 5, is_active: true },
@@ -488,13 +489,14 @@ const getSimpegMandiriMenus = (canJafung: boolean): Menu[] => {
   let nextOrder = 6;
   if (canJafung) {
     menus.push({
-      id: 506, parent_id: null, name: 'Usulan Jafung (KUM)', url: '/simpeg/usulan-jafung', icon: 'FaAward', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true
+      id: 506, parent_id: null, name: 'Usulan JAD (KUM)', url: '/simpeg/usulan-jafung', icon: 'FaAward', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true
     });
   }
 
   menus.push(
     { id: 507, parent_id: null, name: 'Kompetensi & Pelatihan', url: '/simpeg/kompetensi', icon: 'FaGraduationCap', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true },
     { id: 508, parent_id: null, name: 'Surat Tugas & LPJ', url: '/simpeg/surat-tugas', icon: 'FaBriefcase', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true },
+    { id: 5085, parent_id: null, name: 'Penomoran Surat', url: '/simpeg/nomor-surat', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true },
     { id: 509, parent_id: null, name: 'Arsip SK Pegawai', url: '/simpeg/sk-pegawai', icon: 'FaFileSignature', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true },
     { id: 510, parent_id: null, name: 'E-File & Dokumen', url: '/simpeg/dokumen', icon: 'FaFileAlt', module: 'simpeg', permission_id: null, order_index: nextOrder++, is_active: true }
   );

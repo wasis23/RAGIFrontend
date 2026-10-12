@@ -30,6 +30,27 @@ export const arsipService = {
   },
 
   generateNomorSurat: async (payload: GenerateNomorSuratPayload): Promise<ApiResponse<NomorSurat | NomorSurat[]>> => {
+    if (payload.file_surat) {
+      const formData = new FormData();
+      if (payload.mode) formData.append('mode', payload.mode);
+      formData.append('tanggal_surat', payload.tanggal_surat);
+      formData.append('kode_unit', payload.kode_unit);
+      formData.append('kode_klasifikasi', payload.kode_klasifikasi);
+      formData.append('perihal', payload.perihal);
+      if (payload.tujuan) formData.append('tujuan', payload.tujuan);
+      if (payload.status) formData.append('status', payload.status);
+      if (payload.module_origin) formData.append('module_origin', payload.module_origin);
+      if (payload.catatan) formData.append('catatan', payload.catatan);
+      if (payload.jumlah_nomor) formData.append('jumlah_nomor', String(payload.jumlah_nomor));
+      if (payload.pegawai_id) formData.append('pegawai_id', String(payload.pegawai_id));
+      formData.append('file_surat', payload.file_surat);
+
+      const { data } = await apiClient.post<ApiResponse<NomorSurat | NomorSurat[]>>('/arsip/nomor-surat', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    }
+
     const { data } = await apiClient.post<ApiResponse<NomorSurat | NomorSurat[]>>('/arsip/nomor-surat', payload);
     return data;
   },
@@ -37,6 +58,34 @@ export const arsipService = {
   updateNomorSurat: async (id: number, payload: Partial<NomorSurat>): Promise<ApiResponse<NomorSurat>> => {
     const { data } = await apiClient.put<ApiResponse<NomorSurat>>(`/arsip/nomor-surat/${id}`, payload);
     return data;
+  },
+
+  uploadFileSurat: async (id: number, file: File): Promise<ApiResponse<NomorSurat>> => {
+    const formData = new FormData();
+    formData.append('file_surat', file);
+    const { data } = await apiClient.post<ApiResponse<NomorSurat>>(`/arsip/nomor-surat/${id}/upload-surat`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  downloadFileSurat: async (id: number): Promise<{ url?: string; blob?: Blob }> => {
+    try {
+      const { data } = await apiClient.get<ApiResponse<{ download_url?: string }>>(`/arsip/nomor-surat/${id}/download-surat`);
+      if (data?.data?.download_url) {
+        return { url: data.data.download_url };
+      }
+    } catch (e: any) {
+      // Fallback direct blob download jika response berupa binary
+      const response = await apiClient.get(`/arsip/nomor-surat/${id}/download-surat`, {
+        responseType: 'blob',
+      });
+      return { blob: response.data };
+    }
+    const response = await apiClient.get(`/arsip/nomor-surat/${id}/download-surat`, {
+      responseType: 'blob',
+    });
+    return { blob: response.data };
   },
 
   batalkanNomorSurat: async (id: number, alasan: string): Promise<ApiResponse<NomorSurat>> => {

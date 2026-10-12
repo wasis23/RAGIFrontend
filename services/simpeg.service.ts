@@ -1011,4 +1011,66 @@ export const simpegService = {
     const { data } = await apiClient.get<ApiResponse<TandaTanganPegawai>>(`/simpeg/tanda-tangan/user/${userId}`);
     return data;
   },
+
+  // ── NOMOR SURAT RESMI PEGAWAI ──────────────────────────────
+  getMyNomorSuratList: async (params?: Record<string, any>): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/nomor-surat/my-letters', { params });
+    return data;
+  },
+
+  submitRequestNomorSurat: async (payload: {
+    mode?: 'satuan' | 'bulk';
+    perihal: string;
+    tujuan?: string;
+    tanggal_surat: string;
+    kode_unit: string;
+    kode_klasifikasi: string;
+    jumlah_nomor?: number;
+    catatan_pemohon?: string;
+    lampiran?: File | null;
+  }): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    if (payload.mode) formData.append('mode', payload.mode);
+    formData.append('perihal', payload.perihal);
+    if (payload.tujuan) formData.append('tujuan', payload.tujuan);
+    formData.append('tanggal_surat', payload.tanggal_surat);
+    formData.append('kode_unit', payload.kode_unit);
+    formData.append('kode_klasifikasi', payload.kode_klasifikasi);
+    if (payload.jumlah_nomor) formData.append('jumlah_nomor', String(payload.jumlah_nomor));
+    if (payload.catatan_pemohon) formData.append('catatan_pemohon', payload.catatan_pemohon);
+    if (payload.lampiran) formData.append('lampiran', payload.lampiran);
+
+    const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/nomor-surat/request', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  uploadScanNomorSurat: async (id: number, file: File): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file_surat', file);
+    const { data } = await apiClient.post<ApiResponse<any>>(`/simpeg/nomor-surat/${id}/upload-scan`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  downloadScanNomorSurat: async (id: number): Promise<{ url?: string; blob?: Blob }> => {
+    try {
+      const { data } = await apiClient.get<ApiResponse<{ download_url?: string }>>(`/simpeg/nomor-surat/${id}/download-scan`);
+      if (data?.data?.download_url) {
+        return { url: data.data.download_url };
+      }
+    } catch (e: any) {
+      const response = await apiClient.get(`/simpeg/nomor-surat/${id}/download-scan`, {
+        responseType: 'blob',
+      });
+      return { blob: response.data };
+    }
+    const response = await apiClient.get(`/simpeg/nomor-surat/${id}/download-scan`, {
+      responseType: 'blob',
+    });
+    return { blob: response.data };
+  },
 };
+

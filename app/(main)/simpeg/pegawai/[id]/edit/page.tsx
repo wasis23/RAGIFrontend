@@ -530,9 +530,9 @@ export default function EditPegawaiPage({ params }: { params: Promise<{ id: stri
                 control={control}
                 render={({ field }) => (
                   <AsyncSelect
-                    label="Jabatan Fungsional Akademik (Jafung)"
-                    placeholder="Pilih Jafung (khusus Dosen)..."
-                    hint="Pilih tingkatan jafung awal jika pegawai merupakan Dosen."
+                    label="Jabatan Akademik Dosen (JAD)"
+                    placeholder="Pilih JAD (khusus Dosen)..."
+                    hint="Pilih tingkatan JAD awal jika pegawai merupakan Dosen."
                     isDisabled={!canManage}
                     loadOptions={loadJafungOptions}
                     value={selectedJafungOption || (field.value ? { value: field.value, label: field.value } : null)}

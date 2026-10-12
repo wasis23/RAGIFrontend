@@ -729,22 +729,22 @@ export default function PegawaiPage() {
                       </div>
                     </div>
 
-                    {/* Card 2: Riwayat Jabatan & Jabatan Fungsional (Jafung) */}
+                    {/* Card 2: Riwayat Jabatan & Jabatan Akademik Dosen (JAD) */}
                     <div className="card p-6">
                       <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-200">
                         <Building2 size={20} className="text-primary-600" />
                         <h3 className="text-lg font-bold m-0 text-slate-800">
-                          Riwayat Jabatan &amp; Jabatan Fungsional
+                          Riwayat Jabatan &amp; Jabatan Akademik (JAD)
                         </h3>
                       </div>
 
                       <div className="flex flex-col gap-4">
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                          <div className="text-xs text-slate-400 uppercase font-semibold">Jabatan Fungsional Akademik (Jafung)</div>
+                          <div className="text-xs text-slate-400 uppercase font-semibold">Jabatan Akademik Dosen (JAD)</div>
                           <div className="text-lg font-extrabold text-primary-600 my-1">
                             Lektor (200 KUM)
                           </div>
-                          <div className="text-xs text-slate-400">Status SK Jafung: Disetujui Kemendikbudristek</div>
+                          <div className="text-xs text-slate-400">Status SK JAD: Disetujui Kemendikbudristek</div>
                         </div>
 
                         <div>
@@ -786,7 +786,7 @@ export default function PegawaiPage() {
 
                         <div className="mt-2 bg-emerald-50 text-emerald-700 p-3 rounded-lg text-[0.8125rem] flex items-center gap-2">
                           <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" />
-                          <span>Persyaratan pengajuan kenaikan jafung ke <strong>Lektor Kepala (300 KUM)</strong> sudah memenuhi kriteria.</span>
+                          <span>Persyaratan pengajuan kenaikan JAD ke <strong>Lektor Kepala (300 KUM)</strong> sudah memenuhi kriteria.</span>
                         </div>
                       </div>
                     </div>

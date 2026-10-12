@@ -83,6 +83,12 @@ export interface KopSurat {
   updated_at?: string;
 }
 
+export const STATUS_FILE_SURAT_OPTIONS = [
+  { value: '', label: 'Semua Status Berkas' },
+  { value: '1', label: 'Sudah Ada Surat (Fisik Ada)' },
+  { value: '0', label: 'Belum Ada Surat (Menunggu Scan)' },
+];
+
 export interface NomorSurat {
   id: number;
   nomor_surat: string;
@@ -100,6 +106,12 @@ export interface NomorSurat {
   reference_type?: string | null;
   reference_id?: number | null;
   kop_surat_id?: number | null;
+  pegawai_id?: number | null;
+  file_surat_path?: string | null;
+  file_surat_uploaded_at?: string | null;
+  file_surat_uploaded_by?: number | null;
+  file_surat_url?: string | null;
+  has_file?: boolean;
   catatan?: string | null;
   created_by: number;
   created_at: string;
@@ -109,6 +121,26 @@ export interface NomorSurat {
     name: string;
     email: string;
     username?: string;
+  };
+  pegawai?: {
+    id: number;
+    nama_lengkap: string;
+    nip?: string | null;
+    nidn?: string | null;
+    email?: string | null;
+    unit_kerja?: {
+      id: number;
+      nama: string;
+    };
+    jabatan?: {
+      id: number;
+      nama: string;
+    };
+  };
+  file_uploader?: {
+    id: number;
+    name: string;
+    email: string;
   };
   kop_surat?: KopSurat;
   request?: RequestNomorSurat;
@@ -180,6 +212,8 @@ export interface GenerateNomorSuratPayload {
   jumlah_nomor?: number;
   keterangan_item?: string[];
   tujuan_item?: string[];
+  pegawai_id?: number | null;
+  file_surat?: File | null;
 }
 
 export interface ApplyRequestNomorSuratPayload {

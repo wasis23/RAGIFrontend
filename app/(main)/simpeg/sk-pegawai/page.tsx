@@ -342,7 +342,7 @@ export default function SkPegawaiListPage() {
       {/* Page Header */}
       <PageHeader
         title="Repositori & Arsip SK Pegawai"
-        description="Pusat arsip Surat Keputusan penugasan, jafung, pengangkatan, dan beban kerja dosen/tendik."
+        description="Pusat arsip Surat Keputusan penugasan, JAD, pengangkatan, dan beban kerja dosen/tendik."
         action={
           <div className="flex items-center gap-2">
             <Button

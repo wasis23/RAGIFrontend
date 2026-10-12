@@ -554,7 +554,7 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                     <span className="font-semibold text-slate-800">{pegawai.jabatan_terakhir || '-'}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-400 block font-medium">Jabatan Fungsional (Jafung)</span>
+                    <span className="text-xs text-slate-400 block font-medium">Jabatan Akademik Dosen (JAD)</span>
                     <span className="font-semibold text-slate-800">
                       {pegawai.jabatan_fungsional?.nama ? (
                         <Badge

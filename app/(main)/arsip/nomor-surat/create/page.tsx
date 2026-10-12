@@ -7,7 +7,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import toast from 'react-hot-toast';
-import { CheckCircle2, ShieldAlert, FileText, Hash, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, FileText, Hash, ArrowLeft, Upload, User, UserCheck } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
 import { arsipService } from '@/services/arsip.service';
+import { simpegService } from '@/services/simpeg.service';
 import { STATUS_AWAL_NOMOR_OPTIONS } from '@/types/arsip.types';
 
 const generateFormSchema = z.object({
@@ -30,6 +31,14 @@ const generateFormSchema = z.object({
   status: z.enum(['terpakai', 'direservasi']),
   jumlah_nomor: z.number().int().min(1, 'Minimal 1 nomor').max(100, 'Maksimal 100 nomor'),
   catatan: z.string().optional(),
+  pegawai_id: z.number().nullable().optional(),
+  file_surat: z
+    .custom<File | null>()
+    .optional()
+    .nullable()
+    .refine((file) => !file || file.size <= 10 * 1024 * 1024, {
+      message: 'Ukuran berkas maksimal 10 MB',
+    }),
 });
 
 type GenerateFormData = z.infer<typeof generateFormSchema>;
@@ -61,6 +70,8 @@ export default function CreateNomorSuratPage() {
       status: 'terpakai',
       jumlah_nomor: 1,
       catatan: '',
+      pegawai_id: null,
+      file_surat: null,
     },
   });
 
@@ -93,6 +104,8 @@ export default function CreateNomorSuratPage() {
         module_origin: 'arsip',
         jumlah_nomor: data.mode === 'bulk' ? data.jumlah_nomor : 1,
         catatan: data.catatan || undefined,
+        pegawai_id: data.pegawai_id || undefined,
+        file_surat: data.file_surat || undefined,
       });
 
       if (res.data) {
@@ -322,6 +335,66 @@ export default function CreateNomorSuratPage() {
                   error={errors.tujuan?.message}
                 />
               </div>
+
+              <div className="sm:col-span-2">
+                <Controller
+                  name="pegawai_id"
+                  control={control}
+                  render={({ field }) => (
+                    <AsyncSelect
+                      label="Pengaju / Penanggung Jawab Surat (Pegawai SIMPEG)"
+                      placeholder="Cari nama pegawai, NIP, atau NIDN (Opsional)..."
+                      loadOptions={async (query) => {
+                        const res: any = await simpegService.getPegawaiList({ search: query, limit: 20 });
+                        const rawItems = res?.data?.items || res?.data || [];
+                        const items = Array.isArray(rawItems) ? rawItems : [];
+                        return items.map((p: any) => ({
+                          value: p.id,
+                          label: `${p.nama_lengkap || p.nama} ${p.nip ? `(NIP: ${p.nip})` : p.nidn ? `(NIDN: ${p.nidn})` : ''}`,
+                        }));
+                      }}
+                      value={field.value ? String(field.value) : ''}
+                      onChange={(opt: any) => field.onChange(opt ? Number(opt.value) : null)}
+                      isClearable
+                    />
+                  )}
+                />
+                <p className="text-2xs text-slate-400 mt-1">
+                  Bila dipilih, nomor surat ini otomatis terhubung ke akun SIMPEG pegawai bersangkutan agar dapat mengunggah berkas scan surat jika belum diunggah sekarang.
+                </p>
+              </div>
+
+              {watchMode === 'satuan' && (
+                <div className="sm:col-span-2">
+                  <Controller
+                    name="file_surat"
+                    control={control}
+                    render={({ field, fieldState: { error } }) => (
+                      <div>
+                        <Input
+                          type="file"
+                          label="Unggah Berkas Scan Dokumen Surat Resmi (PDF/Gambar - Opsional)"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          error={error?.message}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            field.onChange(file);
+                          }}
+                          className="text-xs text-slate-600 cursor-pointer"
+                        />
+                        {field.value && (
+                          <span className="text-2xs text-emerald-600 font-medium block mt-1">
+                            ✓ Berkas siap: {field.value.name} ({(field.value.size / 1024).toFixed(0)} KB)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  />
+                  <p className="text-2xs text-slate-400 mt-1">
+                    Maks. 10MB. Dokumen akan disimpan secara aman dan diakses melalui Signed URL privat.
+                  </p>
+                </div>
+              )}
 
               <div className="sm:col-span-2">
                 <Textarea

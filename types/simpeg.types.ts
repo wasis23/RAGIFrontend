@@ -168,6 +168,7 @@ export interface PegawaiFilterParams {
   shift_template_id?: number;
   page?: number;
   per_page?: number;
+  limit?: number;
 }
 
 // ============================================================

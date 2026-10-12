@@ -232,7 +232,7 @@ export default function UsulanJafungPage() {
     },
     {
       key: 'jafung_asal',
-      label: 'Jafung Asal',
+      label: 'JAD Asal',
       render: (u) => (
         <span className="text-slate-700 font-medium">
           {u.jafung_asal?.nama || u.pegawai?.jabatan_fungsional?.nama || '-'}
@@ -241,7 +241,7 @@ export default function UsulanJafungPage() {
     },
     {
       key: 'jafung_tujuan',
-      label: 'Jafung Tujuan',
+      label: 'JAD Tujuan',
       render: (u) => (
         <Badge
           style={{
@@ -251,7 +251,7 @@ export default function UsulanJafungPage() {
           }}
           className="font-bold"
         >
-          {u.jafung_tujuan?.nama || `Jafung ID ${u.jafung_tujuan_id}`}
+          {u.jafung_tujuan?.nama || `JAD ID ${u.jafung_tujuan_id}`}
         </Badge>
       ),
     },
@@ -271,14 +271,14 @@ export default function UsulanJafungPage() {
     return (
       <div className="animate-fade-in space-y-6">
         <PageHeader
-          title="Usulan Kenaikan Jabatan Fungsional (Jafung & KUM Dosen)"
+          title="Usulan Kenaikan Jabatan Akademik Dosen (JAD & KUM)"
           description="Pengajuan & Verifikasi Angka Kredit Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
         />
         <Card>
           <EmptyState
             icon={<ShieldAlert size={48} className="text-[var(--danger)]" />}
             title="Akses Ditolak / Dibatasi"
-            description="Peran Anda saat ini tidak memiliki permission untuk melihat atau mengajukan Usulan Jafung Dosen."
+            description="Peran Anda saat ini tidak memiliki permission untuk melihat atau mengajukan Usulan JAD Dosen."
           />
         </Card>
       </div>
@@ -288,7 +288,7 @@ export default function UsulanJafungPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Usulan Kenaikan Jabatan Fungsional (Jafung & KUM Dosen)"
+        title="Usulan Kenaikan Jabatan Akademik Dosen (JAD & KUM)"
         description="Pengajuan & Verifikasi Angka Kredit Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
         action={
           <div className="flex gap-2">
@@ -301,7 +301,7 @@ export default function UsulanJafungPage() {
             </Button>
             {canCreate && (
               <Button icon={<Plus size={16} />} onClick={handleOpenModal}>
-                Ajukan Kenaikan Jafung
+                Ajukan Kenaikan JAD
               </Button>
             )}
           </div>
@@ -318,18 +318,18 @@ export default function UsulanJafungPage() {
           setLimit(newLimit);
           setPage(1);
         }}
-        emptyMessage="Belum ada usulan kenaikan Jafung Dosen."
+        emptyMessage="Belum ada usulan kenaikan Jabatan Akademik Dosen (JAD)."
       />
 
       {/* Drawer Filter */}
       <Drawer
         open={showFilter}
         onClose={() => setShowFilter(false)}
-        title="Filter Usulan Jafung Dosen"
+        title="Filter Usulan JAD Dosen"
       >
         <div className="space-y-4">
           <Input
-            label="Cari Dosen / Jafung"
+            label="Cari Dosen / JAD"
             placeholder="Ketik nama dosen..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -387,7 +387,7 @@ export default function UsulanJafungPage() {
         <Modal
           open={showModal}
           onClose={() => setShowModal(false)}
-          title="Ajukan Kenaikan Jabatan Fungsional Dosen"
+          title="Ajukan Kenaikan Jabatan Akademik Dosen (JAD)"
           footer={
             <>
               <Button variant="secondary" onClick={() => setShowModal(false)}>
@@ -405,7 +405,7 @@ export default function UsulanJafungPage() {
                   isSubmitting
                 }
               >
-                Kirim Usulan Jafung
+                Kirim Usulan JAD
               </Button>
             </>
           }
@@ -449,7 +449,7 @@ export default function UsulanJafungPage() {
                     <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
                     <div className="text-xs flex flex-col gap-2">
                       <span className="font-bold text-emerald-900 block">
-                        Jabatan Fungsional Asal: {selectedPegawai.jabatan_fungsional?.nama || 'Terdaftar'}
+                        Jabatan Akademik Dosen (JAD) Asal: {selectedPegawai.jabatan_fungsional?.nama || 'Terdaftar'}
                       </span>
                       <span className="text-emerald-700 block">
                         Otomatis terisi dari biodata kepegawaian dosen (KUM Minimal: {selectedPegawai.jabatan_fungsional?.angka_kredit_min ?? 0} KUM).
@@ -461,10 +461,10 @@ export default function UsulanJafungPage() {
                     <AlertTriangle size={16} className="text-amber-600 shrink-0" />
                     <div className="text-xs flex-1 flex flex-col gap-2">
                       <span className="font-bold text-amber-900 block">
-                        Jabatan Fungsional Asal Belum Diisi
+                        Jabatan Akademik Dosen (JAD) Asal Belum Diisi
                       </span>
                       <span className="text-amber-700 block leading-relaxed">
-                        Dosen ini belum memiliki data Jabatan Fungsional di biodata kepegawaian. Harap lengkapi terlebih dahulu Jabatan Fungsional di biodata dosen sebelum mengajukan usulan kenaikan jafung.
+                        Dosen ini belum memiliki data Jabatan Akademik (JAD) di biodata kepegawaian. Harap lengkapi terlebih dahulu JAD di biodata dosen sebelum mengajukan usulan kenaikan.
                       </span>
                       {canAccess && (
                         <div>
@@ -478,7 +478,7 @@ export default function UsulanJafungPage() {
                               variant="outline"
                               icon={<ExternalLink size={16} />}
                             >
-                              Lengkapi Jafung di Data Pegawai
+                              Lengkapi JAD di Data Pegawai
                             </Button>
                           </Link>
                         </div>
@@ -494,12 +494,12 @@ export default function UsulanJafungPage() {
               control={control}
               render={({ field }) => (
                 <Select
-                  label="Jabatan Fungsional Tujuan"
+                  label="Jabatan Akademik Dosen (JAD) Target"
                   value={field.value}
                   onChange={field.onChange}
                   error={errors.jafung_tujuan_id?.message}
                   options={[
-                    { value: '', label: '-- Pilih Jafung Target --' },
+                    { value: '', label: '-- Pilih JAD Target --' },
                     ...jafungList
                       .filter((jf) => !jafungAsalId || jf.id !== Number(jafungAsalId))
                       .map((jf) => ({

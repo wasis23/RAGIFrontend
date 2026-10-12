@@ -184,7 +184,7 @@ export default function CreateSkPegawaiPage() {
     <div className="w-full space-y-6 pb-6">
       <PageHeader
         title="Laporkan / Unggah SK Pegawai"
-        description="Pencatatan Surat Keputusan resmi (pengangkatan, jafung, penugasan mengajar, bimbingan, atau SK kepanitiaan)."
+        description="Pencatatan Surat Keputusan resmi (pengangkatan, JAD, penugasan mengajar, bimbingan, atau SK kepanitiaan)."
         action={
           <Button
             variant="outline"
