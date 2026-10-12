@@ -165,4 +165,31 @@ export const adminService = {
     const { data } = await apiClient.get<ApiResponse<AuditLog>>(`/admin/audit-logs/${id}`);
     return data;
   },
+
+  // ── API INTEGRATIONS (SSO / IAM) ──────────────────────────
+  getApiIntegrations: async (params?: PaginationParams & { module_id?: number | string; is_active?: boolean | string; sort_order?: string }): Promise<PaginatedResponse<import('@/types/api-integration.types').IamApiIntegration>> => {
+    const { data } = await apiClient.get<PaginatedResponse<import('@/types/api-integration.types').IamApiIntegration>>('/admin/api-integrations', { params });
+    return data;
+  },
+
+  getApiIntegrationById: async (id: number | string): Promise<ApiResponse<import('@/types/api-integration.types').IamApiIntegration>> => {
+    const { data } = await apiClient.get<ApiResponse<import('@/types/api-integration.types').IamApiIntegration>>(`/admin/api-integrations/${id}`);
+    return data;
+  },
+
+  updateApiIntegration: async (
+    id: number | string,
+    payload: import('@/types/api-integration.types').UpdateApiIntegrationPayload
+  ): Promise<ApiResponse<import('@/types/api-integration.types').IamApiIntegration>> => {
+    const { data } = await apiClient.put<ApiResponse<import('@/types/api-integration.types').IamApiIntegration>>(`/admin/api-integrations/${id}`, payload);
+    return data;
+  },
+
+  testApiIntegration: async (
+    id: number | string,
+    payload?: import('@/types/api-integration.types').TestApiIntegrationPayload
+  ): Promise<ApiResponse<import('@/types/api-integration.types').TestApiIntegrationResult>> => {
+    const { data } = await apiClient.post<ApiResponse<import('@/types/api-integration.types').TestApiIntegrationResult>>(`/admin/api-integrations/${id}/test`, payload ?? {});
+    return data;
+  },
 };
