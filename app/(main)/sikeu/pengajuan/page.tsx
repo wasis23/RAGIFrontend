@@ -38,6 +38,9 @@ const cairkanPanjarSchema = z.object({
   tanggal_pencairan: z.string().min(1, 'Tanggal pencairan wajib diisi'),
   unit_kas_id: z.string().min(1, 'Unit Kas pembayaran wajib dipilih'),
   nominal_cair: z.coerce.number().positive('Nominal pencairan harus lebih dari 0'),
+  nama_bank_penerima: z.string().max(50).optional(),
+  nomor_rekening_penerima: z.string().max(50).optional(),
+  nama_rekening_penerima: z.string().max(100).optional(),
   bukti_pencairan: z.any().optional(),
 });
 type CairkanPanjarFormValues = z.infer<typeof cairkanPanjarSchema>;
@@ -183,6 +186,9 @@ export default function PengajuanOperasionalPage() {
       tanggal_pencairan: new Date().toISOString().split('T')[0],
       unit_kas_id: '',
       nominal_cair: 0,
+      nama_bank_penerima: '',
+      nomor_rekening_penerima: '',
+      nama_rekening_penerima: '',
       bukti_pencairan: undefined,
     },
   });
@@ -324,6 +330,9 @@ export default function PengajuanOperasionalPage() {
       tanggal_pencairan: new Date().toISOString().split('T')[0],
       unit_kas_id: row.unit_kas_id ? String(row.unit_kas_id) : (unitKasList[0]?.id ? String(unitKasList[0].id) : ''),
       nominal_cair: Number(row.nominal_disetujui || row.nominal_diajukan),
+      nama_bank_penerima: row.nama_bank_penerima || row.surat_tugas?.nama_bank || row.surat_tugas?.pegawai?.nama_bank || '',
+      nomor_rekening_penerima: row.nomor_rekening_penerima || row.surat_tugas?.nomor_rekening || row.surat_tugas?.pegawai?.nomor_rekening || '',
+      nama_rekening_penerima: row.nama_rekening_penerima || row.surat_tugas?.nama_rekening || row.surat_tugas?.pegawai?.nama_rekening || '',
       bukti_pencairan: undefined,
     });
     setCairBuktiFile(null);
@@ -339,6 +348,9 @@ export default function PengajuanOperasionalPage() {
       formData.append('nominal_cair', String(values.nominal_cair));
       formData.append('tanggal_pencairan', values.tanggal_pencairan);
       if (values.unit_kas_id) formData.append('unit_kas_id', values.unit_kas_id);
+      if (values.nama_bank_penerima?.trim()) formData.append('nama_bank_penerima', values.nama_bank_penerima.trim());
+      if (values.nomor_rekening_penerima?.trim()) formData.append('nomor_rekening_penerima', values.nomor_rekening_penerima.trim());
+      if (values.nama_rekening_penerima?.trim()) formData.append('nama_rekening_penerima', values.nama_rekening_penerima.trim());
       if (cairBuktiFile) formData.append('bukti_pencairan', cairBuktiFile);
 
       await pengajuanOperasionalService.pencairan(selectedItemForCair.id, formData);
@@ -1323,6 +1335,27 @@ export default function PengajuanOperasionalPage() {
                   placeholder="Pilih unit kas..."
                 />
               )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Input
+              label="Bank Penerima"
+              placeholder="Otomatis dari SIMPEG bila ada"
+              error={formCair.formState.errors.nama_bank_penerima?.message}
+              {...formCair.register('nama_bank_penerima')}
+            />
+            <Input
+              label="No. Rekening Penerima"
+              placeholder="Bisa dikoreksi manual"
+              error={formCair.formState.errors.nomor_rekening_penerima?.message}
+              {...formCair.register('nomor_rekening_penerima')}
+            />
+            <Input
+              label="Nama Rekening"
+              placeholder="Pegawai / vendor"
+              error={formCair.formState.errors.nama_rekening_penerima?.message}
+              {...formCair.register('nama_rekening_penerima')}
             />
           </div>
 

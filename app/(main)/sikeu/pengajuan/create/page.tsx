@@ -7,9 +7,10 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Plus, Trash2, Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { pengajuanOperasionalService } from '@/services/pengajuan-operasional.service';
+import { simpegService } from '@/services/simpeg.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -30,9 +31,12 @@ const schema = z.object({
   kategori_pengajuan: z.enum(['pengadaan_barang', 'non_barang']),
   fakultas_id: z.number().min(1, 'Fakultas wajib dipilih'),
   ruangan_id: z.number().nullable().optional(),
-  unit_kas_id: z.number().min(1, 'Unit kas wajib dipilih'),
+  unit_kas_id: z.number().min(0, 'Unit kas tidak valid').optional(),
   jenis_pengajuan: z.string().optional(),
   nominal_diajukan: z.number().optional(),
+  nama_bank_penerima: z.string().max(50, 'Nama bank maksimal 50 karakter').optional(),
+  nomor_rekening_penerima: z.string().max(50, 'Nomor rekening maksimal 50 karakter').optional(),
+  nama_rekening_penerima: z.string().max(100, 'Nama rekening maksimal 100 karakter').optional(),
   items: z.array(itemSchema).optional(),
 }).superRefine((v, ctx) => {
   if (v.kategori_pengajuan === 'pengadaan_barang' && (!v.items || v.items.length === 0)) {
@@ -52,6 +56,30 @@ export default function CreatePengajuanPage() {
   const [ruangan, setRuangan] = useState<{ id: number; nama: string }[]>([]);
   const [unitKas, setUnitKas] = useState<{ id: number; nama_kas: string }[]>([]);
   const [lampiran, setLampiran] = useState<File | null>(null);
+  const [rekeningLoading, setRekeningLoading] = useState(false);
+
+  const gunakanRekeningSaya = async () => {
+    setRekeningLoading(true);
+    try {
+      const res = await simpegService.getMyPegawai();
+      const p: any = res.data;
+      const bank = p?.nama_bank || p?.bank_nama || '';
+      const norek = p?.nomor_rekening || '';
+      const nama = p?.nama_rekening || p?.nama_lengkap || '';
+      if (!norek) {
+        toast.error('Nomor rekening SIMPEG Anda masih kosong. Lengkapi di data pegawai SIMPEG.');
+        return;
+      }
+      setValue('nama_bank_penerima', bank);
+      setValue('nomor_rekening_penerima', norek);
+      setValue('nama_rekening_penerima', nama);
+      toast.success(`Rekening ${p?.nama_lengkap || 'Anda'} terisi otomatis`);
+    } catch {
+      toast.error('Gagal mengambil rekening SIMPEG');
+    } finally {
+      setRekeningLoading(false);
+    }
+  };
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
@@ -64,6 +92,9 @@ export default function CreatePengajuanPage() {
       unit_kas_id: 0,
       jenis_pengajuan: 'operasional',
       nominal_diajukan: 0,
+      nama_bank_penerima: '',
+      nomor_rekening_penerima: '',
+      nama_rekening_penerima: '',
       items: [{ nama_barang: '', qty: 1, satuan: 'pcs', harga_satuan: 0, keterangan: '' }],
     },
   });
@@ -92,7 +123,7 @@ export default function CreatePengajuanPage() {
       form.append('kategori_pengajuan', v.kategori_pengajuan);
       form.append('fakultas_id', String(v.fakultas_id));
       if (v.ruangan_id) form.append('ruangan_id', String(v.ruangan_id));
-      form.append('unit_kas_id', String(v.unit_kas_id));
+      if (Number(v.unit_kas_id) > 0) form.append('unit_kas_id', String(v.unit_kas_id));
       form.append('jenis_pengajuan', v.jenis_pengajuan || 'operasional');
       if (v.kategori_pengajuan === 'non_barang') {
         form.append('nominal_diajukan', String(v.nominal_diajukan || 0));
@@ -106,6 +137,9 @@ export default function CreatePengajuanPage() {
         });
       }
       if (lampiran) form.append('file_lampiran', lampiran);
+      if (v.nama_bank_penerima?.trim()) form.append('nama_bank_penerima', v.nama_bank_penerima.trim());
+      if (v.nomor_rekening_penerima?.trim()) form.append('nomor_rekening_penerima', v.nomor_rekening_penerima.trim());
+      if (v.nama_rekening_penerima?.trim()) form.append('nama_rekening_penerima', v.nama_rekening_penerima.trim());
 
       await pengajuanOperasionalService.create(form);
       toast.success('Pengajuan berhasil dibuat');
@@ -143,7 +177,7 @@ export default function CreatePengajuanPage() {
             <Select label="Jenis" value={watch('jenis_pengajuan') || 'operasional'} onChange={(v) => setValue('jenis_pengajuan', v as string)} options={[{ value: 'operasional', label: 'Operasional' }, { value: 'kegiatan', label: 'Kegiatan' }, { value: 'reimbursement', label: 'Reimbursement' }, { value: 'lainnya', label: 'Lainnya' }]} />
             <Select label="Fakultas *" value={String(watch('fakultas_id') || '')} onChange={(v) => setValue('fakultas_id', Number(v))} options={[{ value: '', label: 'Pilih Fakultas' }, ...fakultas.map((f) => ({ value: String(f.id), label: f.nama }))]} />
             <Select label="Ruang (opsional)" value={String(watch('ruangan_id') || '')} onChange={(v) => setValue('ruangan_id', v ? Number(v) : null)} options={[{ value: '', label: 'Tanpa ruang khusus' }, ...ruangan.map((r) => ({ value: String(r.id), label: r.nama }))]} />
-            <Select label="Unit Kas *" value={String(watch('unit_kas_id') || '')} onChange={(v) => setValue('unit_kas_id', Number(v))} options={[{ value: '', label: 'Pilih Unit Kas' }, ...unitKas.map((u) => ({ value: String(u.id), label: u.nama_kas }))]} />
+            <Select label="Unit Kas (opsional — ditentukan keuangan)" value={String(watch('unit_kas_id') || '')} onChange={(v) => setValue('unit_kas_id', Number(v) || 0)} options={[{ value: '', label: 'Ditentukan keuangan saat pencairan' }, ...unitKas.map((u) => ({ value: String(u.id), label: u.nama_kas }))]} />
             <div className="col-span-full">
               <Textarea label="Alasan / Alokasi Penggunaan *" placeholder="Untuk apa pengajuan ini dialokasikan..." {...register('deskripsi')} />
               {errors.deskripsi && <p className="text-xs text-rose-600 mt-1">{errors.deskripsi.message}</p>}
@@ -159,10 +193,25 @@ export default function CreatePengajuanPage() {
           {errors.fakultas_id && <p className="text-xs text-rose-600">{errors.fakultas_id.message}</p>}
         </div>
 
+        <div className="p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-sm font-extrabold">2. Rekening Tujuan Transfer (opsional)</h2>
+            <Button type="button" variant="outline" size="sm" icon={rekeningLoading ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />} onClick={gunakanRekeningSaya} disabled={rekeningLoading} className="text-xs">
+              {rekeningLoading ? 'Mengambil...' : 'Gunakan rekening saya'}
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500">Isi bila dana ditransfer ke rekening pegawai (lihat nomor rekening di SIMPEG) atau vendor langsung (mis. VPS). Kosongkan bila tunai dari kas.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Input label="Bank Penerima" placeholder="Contoh: BNI / Mandiri / BRI" {...register('nama_bank_penerima')} error={errors.nama_bank_penerima?.message} />
+            <Input label="Nomor Rekening Penerima" placeholder="Contoh: 1234567890" {...register('nomor_rekening_penerima')} error={errors.nomor_rekening_penerima?.message} />
+            <Input label="Nama Pemilik Rekening" placeholder="Nama pegawai / vendor" {...register('nama_rekening_penerima')} error={errors.nama_rekening_penerima?.message} />
+          </div>
+        </div>
+
         {kategori === 'pengadaan_barang' && (
           <div className="p-4 sm:p-5 bg-white border border-slate-200 rounded-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-extrabold">2. Rincian Barang</h2>
+              <h2 className="text-sm font-extrabold">3. Rincian Barang</h2>
               <Button type="button" variant="outline" icon={<Plus size={14} />} onClick={addItem} className="text-xs min-h-[36px]">Tambah Barang</Button>
             </div>
             <div className="space-y-3">

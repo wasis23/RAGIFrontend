@@ -4,13 +4,14 @@ import { formatRupiah, formatDate } from '@/lib/utils';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, XCircle, Loader2, Upload, Plus, Trash2, Banknote, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Loader2, Upload, Plus, Trash2, Banknote, FileText, Wallet } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import toast from 'react-hot-toast';
 import { pengajuanOperasionalService, type PengajuanOperasional } from '@/services/pengajuan-operasional.service';
 import { sikeuService } from '@/services/sikeu.service';
+import { simpegService } from '@/services/simpeg.service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -65,6 +66,31 @@ export default function DetailPengajuanPage() {
   const [referensiEksternal, setReferensiEksternal] = useState('');
   const [sumberKasList, setSumberKasList] = useState<any[]>([]);
   const [sumberKasId, setSumberKasId] = useState('');
+  const [bankPenerima, setBankPenerima] = useState('');
+  const [norekPenerima, setNorekPenerima] = useState('');
+  const [namaRekPenerima, setNamaRekPenerima] = useState('');
+  const [rekeningLoading, setRekeningLoading] = useState(false);
+
+  const gunakanRekeningSaya = async () => {
+    setRekeningLoading(true);
+    try {
+      const res = await simpegService.getMyPegawai();
+      const p: any = res.data;
+      const norek = p?.nomor_rekening || '';
+      if (!norek) {
+        toast.error('Nomor rekening SIMPEG Anda masih kosong. Lengkapi di data pegawai SIMPEG.');
+        return;
+      }
+      setBankPenerima(p?.nama_bank || p?.bank_nama || '');
+      setNorekPenerima(norek);
+      setNamaRekPenerima(p?.nama_rekening || p?.nama_lengkap || '');
+      toast.success(`Rekening ${p?.nama_lengkap || 'Anda'} terisi otomatis`);
+    } catch {
+      toast.error('Gagal mengambil rekening SIMPEG');
+    } finally {
+      setRekeningLoading(false);
+    }
+  };
 
   // LPJ
   const [tglLpj, setTglLpj] = useState(new Date().toISOString().split('T')[0]);
@@ -90,6 +116,9 @@ export default function DetailPengajuanPage() {
       setJurnal(Array.isArray(dataWithJurnal?.jurnal) ? dataWithJurnal.jurnal : []);
       setNominalCair(String(res.data?.nominal_disetujui || res.data?.nominal_diajukan || ''));
       if (res.data?.unit_kas_id) setSumberKasId(String(res.data.unit_kas_id));
+      setBankPenerima(String(res.data?.nama_bank_penerima || ''));
+      setNorekPenerima(String(res.data?.nomor_rekening_penerima || ''));
+      setNamaRekPenerima(String(res.data?.nama_rekening_penerima || ''));
     } catch {
       toast.error('Gagal memuat detail pengajuan');
     } finally {
@@ -132,6 +161,10 @@ export default function DetailPengajuanPage() {
   };
 
   const submitPencairan = async () => {
+    if (!sumberKasId) {
+      toast.error('Tentukan unit kas sumber dana pencairan.');
+      return;
+    }
     setActing(true);
     try {
       const form = new FormData();
@@ -139,6 +172,9 @@ export default function DetailPengajuanPage() {
       form.append('tanggal_pencairan', tglCair);
       if (sumberKasId) form.append('unit_kas_id', sumberKasId);
       if (referensiEksternal.trim()) form.append('referensi_eksternal', referensiEksternal.trim());
+      if (bankPenerima.trim()) form.append('nama_bank_penerima', bankPenerima.trim());
+      if (norekPenerima.trim()) form.append('nomor_rekening_penerima', norekPenerima.trim());
+      if (namaRekPenerima.trim()) form.append('nama_rekening_penerima', namaRekPenerima.trim());
       if (buktiCair) form.append('bukti_pencairan', buktiCair);
       await pengajuanOperasionalService.pencairan(id, form);
       toast.success('Dana dicairkan + jurnal otomatis terbit');
@@ -189,7 +225,7 @@ export default function DetailPengajuanPage() {
   const rmbAktif = reimbursements.filter((r) => r.status !== 'ditolak');
   const bisaAjukanReimburse = kurangBayar > 0 && rmbAktif.length === 0;
 
-  type ReimburseFormValues = { nominal_diajukan: number; unit_kas_id: string; deskripsi?: string };
+  type ReimburseFormValues = { nominal_diajukan: number; unit_kas_id: string; deskripsi?: string; nama_bank_penerima?: string; nomor_rekening_penerima?: string; nama_rekening_penerima?: string };
   const reimburseSchema = useMemo(
     () =>
       z.object({
@@ -197,15 +233,18 @@ export default function DetailPengajuanPage() {
           .coerce.number()
           .positive('Nominal reimbursement harus lebih dari 0')
           .max(kurangBayar || 0, `Maksimal selisih kurang ${formatRupiah(kurangBayar)}`),
-        unit_kas_id: z.string().min(1, 'Unit kas pembayar wajib dipilih'),
+        unit_kas_id: z.string().optional(),
         deskripsi: z.string().optional(),
+        nama_bank_penerima: z.string().max(50).optional(),
+        nomor_rekening_penerima: z.string().max(50).optional(),
+        nama_rekening_penerima: z.string().max(100).optional(),
       }),
     [kurangBayar]
   );
 
   const formReimburse = useForm<ReimburseFormValues>({
     resolver: zodResolver(reimburseSchema) as any,
-    defaultValues: { nominal_diajukan: 0, unit_kas_id: '', deskripsi: '' },
+    defaultValues: { nominal_diajukan: 0, unit_kas_id: '', deskripsi: '', nama_bank_penerima: '', nomor_rekening_penerima: '', nama_rekening_penerima: '' },
   });
 
   const openReimburse = () => {
@@ -213,9 +252,33 @@ export default function DetailPengajuanPage() {
       nominal_diajukan: kurangBayar,
       unit_kas_id: data?.unit_kas_id ? String(data.unit_kas_id) : '',
       deskripsi: '',
+      nama_bank_penerima: data?.nama_bank_penerima || '',
+      nomor_rekening_penerima: data?.nomor_rekening_penerima || '',
+      nama_rekening_penerima: data?.nama_rekening_penerima || '',
     });
     setFileLampiranRmb(null);
     setModalReimburseOpen(true);
+  };
+
+  const gunakanRekeningSayaReimburse = async () => {
+    setRekeningLoading(true);
+    try {
+      const res = await simpegService.getMyPegawai();
+      const p: any = res.data;
+      const norek = p?.nomor_rekening || '';
+      if (!norek) {
+        toast.error('Nomor rekening SIMPEG Anda masih kosong. Lengkapi di data pegawai SIMPEG.');
+        return;
+      }
+      formReimburse.setValue('nama_bank_penerima', p?.nama_bank || p?.bank_nama || '');
+      formReimburse.setValue('nomor_rekening_penerima', norek);
+      formReimburse.setValue('nama_rekening_penerima', p?.nama_rekening || p?.nama_lengkap || '');
+      toast.success(`Rekening ${p?.nama_lengkap || 'Anda'} terisi otomatis`);
+    } catch {
+      toast.error('Gagal mengambil rekening SIMPEG');
+    } finally {
+      setRekeningLoading(false);
+    }
   };
 
   const onSubmitReimburse = async (values: ReimburseFormValues) => {
@@ -223,8 +286,11 @@ export default function DetailPengajuanPage() {
     try {
       const form = new FormData();
       form.append('nominal_diajukan', String(values.nominal_diajukan));
-      form.append('unit_kas_id', values.unit_kas_id);
+      if (values.unit_kas_id) form.append('unit_kas_id', values.unit_kas_id);
       if (values.deskripsi) form.append('deskripsi', values.deskripsi);
+      if (values.nama_bank_penerima?.trim()) form.append('nama_bank_penerima', values.nama_bank_penerima.trim());
+      if (values.nomor_rekening_penerima?.trim()) form.append('nomor_rekening_penerima', values.nomor_rekening_penerima.trim());
+      if (values.nama_rekening_penerima?.trim()) form.append('nama_rekening_penerima', values.nama_rekening_penerima.trim());
       if (fileLampiranRmb) form.append('file_lampiran', fileLampiranRmb);
       await pengajuanOperasionalService.ajukanReimburse(id, form);
       toast.success('Pengajuan reimbursement dibuat, menunggu verifikasi keuangan');
@@ -273,6 +339,7 @@ export default function DetailPengajuanPage() {
         <p><b>Fakultas:</b> {data.fakultas?.nama || '-'} • <b>Ruang:</b> {data.ruangan?.nama || '-'}</p>
         <p><b>Dokumen:</b> <Badge variant="info">Pengajuan</Badge></p>
         <p><b>Status:</b> <Badge variant={statusStyle.variant}>{statusStyle.label}</Badge> • <b>Dicairkan:</b> {formatRupiah(Number(data.nominal_disetujui || 0))} • <b>Realisasi:</b> {formatRupiah(Number(data.total_realisasi || 0))} • <b>Sisa:</b> {formatRupiah(Number(data.sisa_nominal || 0))}</p>
+        <p><b>Rekening tujuan:</b> {data.nama_bank_penerima || '-'} • <span className="font-mono">{data.nomor_rekening_penerima || '-'}</span> • {data.nama_rekening_penerima || '-'}</p>
         {(data as any).kanal && (
           <p>
             <b>Kanal pencairan:</b>{' '}
@@ -357,7 +424,7 @@ export default function DetailPengajuanPage() {
         <div className="p-4 bg-white border rounded-2xl space-y-3">
           <h3 className="text-sm font-extrabold">Pencairan Manual (Keuangan)</h3>
           <p className="text-xs text-slate-600">
-            Sumber dana: <b>{data.unit_kas?.nama_kas || '-'}</b>
+            Sumber dana: <b>{data.unit_kas?.nama_kas || 'Belum ditentukan — wajib dipilih keuangan di bawah'}</b>
             {(data.unit_kas as any)?.kanal && (
               <span className="badge badge-cyan text-2xs font-bold uppercase ml-1">
                 {String((data.unit_kas as any).kanal).replace('_', ' ')}
@@ -371,7 +438,7 @@ export default function DetailPengajuanPage() {
             <Input label="Nominal Cair" type="number" value={nominalCair} onChange={(e) => setNominalCair(e.target.value)} />
             <Input label="Tanggal Pencairan" type="date" value={tglCair} onChange={(e) => setTglCair(e.target.value)} />
             <Select
-              label="Sumber Dana (Saldo)"
+              label="Sumber Dana (Saldo) *"
               value={sumberKasId}
               onChange={(val: any) => setSumberKasId(String(val || ''))}
               options={sumberKasList.map((u: any) => ({
@@ -386,6 +453,16 @@ export default function DetailPengajuanPage() {
               <label className="text-xs font-bold">Bukti Pencairan</label>
               <input type="file" onChange={(e) => setBuktiCair(e.target.files?.[0] || null)} className="mt-1 block w-full text-xs" />
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Bank Penerima (opsional)" placeholder="BNI / Mandiri / BRI" value={bankPenerima} onChange={(e) => setBankPenerima(e.target.value)} />
+            <Input label="No. Rekening Penerima (opsional)" placeholder="Nomor rekening tujuan" value={norekPenerima} onChange={(e) => setNorekPenerima(e.target.value)} />
+            <Input label="Nama Pemilik Rekening (opsional)" placeholder="Pegawai / vendor" value={namaRekPenerima} onChange={(e) => setNamaRekPenerima(e.target.value)} />
+          </div>
+          <div>
+            <Button type="button" variant="outline" size="sm" icon={rekeningLoading ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />} onClick={gunakanRekeningSaya} disabled={rekeningLoading || acting} className="text-xs">
+              {rekeningLoading ? 'Mengambil...' : 'Gunakan rekening saya (SIMPEG)'}
+            </Button>
           </div>
           <Button variant="primary" icon={<Upload size={16} />} onClick={submitPencairan} disabled={acting} className="font-bold">{acting ? 'Memproses...' : 'Cairkan Dana'}</Button>
         </div>
@@ -541,8 +618,7 @@ export default function DetailPengajuanPage() {
             name="unit_kas_id"
             render={({ field }) => (
               <Select
-                label="Unit Kas Pembayar"
-                required
+                label="Unit Kas Pembayar (opsional — ditentukan keuangan)"
                 value={field.value}
                 onChange={(val: any) => field.onChange(String(val || ''))}
                 error={formReimburse.formState.errors.unit_kas_id?.message}
@@ -556,6 +632,31 @@ export default function DetailPengajuanPage() {
             error={formReimburse.formState.errors.deskripsi?.message}
             {...formReimburse.register('deskripsi')}
           />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="Bank Penerima (opsional)"
+              placeholder="Default ikut pengajuan asal"
+              error={formReimburse.formState.errors.nama_bank_penerima?.message}
+              {...formReimburse.register('nama_bank_penerima')}
+            />
+            <Input
+              label="No. Rekening (opsional)"
+              placeholder="Default ikut pengajuan asal"
+              error={formReimburse.formState.errors.nomor_rekening_penerima?.message}
+              {...formReimburse.register('nomor_rekening_penerima')}
+            />
+            <Input
+              label="Nama Rekening (opsional)"
+              placeholder="Default ikut pengajuan asal"
+              error={formReimburse.formState.errors.nama_rekening_penerima?.message}
+              {...formReimburse.register('nama_rekening_penerima')}
+            />
+          </div>
+          <div>
+            <Button type="button" variant="outline" size="sm" icon={rekeningLoading ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />} onClick={gunakanRekeningSayaReimburse} disabled={rekeningLoading || acting} className="text-xs">
+              {rekeningLoading ? 'Mengambil...' : 'Gunakan rekening saya (SIMPEG)'}
+            </Button>
+          </div>
           <Input
             type="file"
             label="Lampiran Nota (PDF / Gambar, opsional)"
