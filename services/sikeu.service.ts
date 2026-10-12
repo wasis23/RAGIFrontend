@@ -1269,6 +1269,111 @@ export const sikeuService = {
     const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/pembayaran-mahasiswa/alihkan-pembayaran', payload);
     return data;
   },
+
+  // Koreksi Alokasi Pembayaran (redistribusi alokasi + kekurangan otomatis)
+  getKoreksiAlokasiList: async (params?: {
+    search?: string;
+    status?: string;
+    mahasiswa_id?: number;
+    page?: number;
+    per_page?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.append('search', params.search);
+    if (params?.status && params.status !== 'all') q.append('status', params.status);
+    if (params?.mahasiswa_id) q.append('mahasiswa_id', String(params.mahasiswa_id));
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/koreksi-alokasi${qs}`);
+    return data;
+  },
+
+  getKoreksiAlokasiKonsolidasi: async (params: { mahasiswa_id?: number; calon_mahasiswa_id?: number }) => {
+    const q = new URLSearchParams();
+    if (params.mahasiswa_id) q.append('mahasiswa_id', String(params.mahasiswa_id));
+    if (params.calon_mahasiswa_id) q.append('calon_mahasiswa_id', String(params.calon_mahasiswa_id));
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/koreksi-alokasi/konsolidasi?${q.toString()}`);
+    return data;
+  },
+
+  simulateKoreksiAlokasi: async (payload: { details: Array<{ from_tagihan_id: number; to_tagihan_id: number; nominal_dialihkan: number; keterangan?: string }> }) => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/koreksi-alokasi/simulate', payload);
+    return data;
+  },
+
+  createKoreksiAlokasiDraft: async (payload: {
+    alasan: string;
+    referensi?: string;
+    tahun_akademik_id?: number;
+    semester?: number;
+    buat_tagihan_kekurangan?: boolean;
+    details: Array<{ from_tagihan_id: number; to_tagihan_id: number; nominal_dialihkan: number; keterangan?: string }>;
+  }) => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/koreksi-alokasi/draft', payload);
+    return data;
+  },
+
+  getKoreksiAlokasiDetail: async (id: number | string) => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/koreksi-alokasi/${id}`);
+    return data;
+  },
+
+  approveKoreksiAlokasi: async (id: number | string, catatan?: string) => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/koreksi-alokasi/${id}/approve`, { catatan });
+    return data;
+  },
+
+  rejectKoreksiAlokasi: async (id: number | string, catatan?: string) => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/koreksi-alokasi/${id}/reject`, { catatan });
+    return data;
+  },
+
+  applyKoreksiAlokasi: async (id: number | string) => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/koreksi-alokasi/${id}/apply`);
+    return data;
+  },
+
+  cancelKoreksiAlokasi: async (id: number | string) => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/koreksi-alokasi/${id}/cancel`);
+    return data;
+  },
+
+  // Perubahan Prodi / Jenis Pendaftaran
+  getPerubahanProdiList: async (params?: { search?: string; status?: string; mahasiswa_id?: number; page?: number; per_page?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.append('search', params.search);
+    if (params?.status && params.status !== 'all') q.append('status', params.status);
+    if (params?.mahasiswa_id) q.append('mahasiswa_id', String(params.mahasiswa_id));
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/perubahan-prodi${qs}`);
+    return data;
+  },
+
+  getPerubahanProdiDampak: async (mahasiswa_id: number) => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/perubahan-prodi/dampak?mahasiswa_id=${mahasiswa_id}`);
+    return data;
+  },
+
+  createPerubahanProdi: async (payload: {
+    mahasiswa_id: number;
+    new_program_studi_id: number;
+    tahun_akademik_id?: number;
+    semester_efektif?: number;
+    tanggal_efektif?: string;
+    jenis_pendaftaran_baru?: string;
+    alasan: string;
+    referensi_surat?: string;
+  }) => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/perubahan-prodi', payload);
+    return data;
+  },
 };
 
 

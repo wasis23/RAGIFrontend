@@ -56,3 +56,25 @@ export const MATAKULIAH_SORT_BY_OPTIONS: SelectOption[] = [
   { value: 'tipe', label: 'Tipe MK' },
   { value: 'created_at', label: 'Tanggal Dibuat' },
 ];
+
+/**
+ * Pindah program studi — pemilik mutasi SIAKAD.
+ * SIKEU hanya menerima proyeksi via event MahasiswaPindahProdi.
+ */
+export type PindahProdiStatus = 'pending' | 'approved' | 'rejected' | 'applied' | 'cancelled';
+
+export interface PindahProdi {
+  id: number;
+  mahasiswa_id: number;
+  old_program_studi_id?: number | null;
+  new_program_studi_id: number;
+  tahun_akademik_id?: number | null;
+  semester_efektif?: number | null;
+  tanggal_efektif?: string | null;
+  alasan: string;
+  referensi_surat?: string | null;
+  status: PindahProdiStatus;
+  hasil_cek_keuangan?: 'layak' | 'ada_tunggakan' | null;
+  catatan_keuangan?: string | null;
+  created_at?: string;
+}

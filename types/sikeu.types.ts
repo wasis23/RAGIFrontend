@@ -398,3 +398,141 @@ export interface ReferralInvoice {
   usages?: ReferralInvoiceUsage[];
   usages_count?: number;
 }
+
+// ============================================================
+// KOREKSI ALOKASI PEMBAYARAN — SIKEU
+// Redistribusi alokasi antar tagihan milik mahasiswa yang sama.
+// Kekurangan target otomatis diusulkan sebagai tagihan koreksi.
+// ============================================================
+
+export type KoreksiAlokasiStatus = 'pending' | 'approved' | 'rejected' | 'applied' | 'cancelled';
+
+/** Closed-set status workflow koreksi (konstanta terpusat, DRY). */
+export const KOREKSI_ALOKASI_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'all', label: 'Semua Status' },
+  { value: 'pending', label: 'Menunggu Persetujuan' },
+  { value: 'approved', label: 'Disetujui' },
+  { value: 'applied', label: 'Diterapkan' },
+  { value: 'rejected', label: 'Ditolak' },
+  { value: 'cancelled', label: 'Dibatalkan' },
+];
+
+export interface KoreksiAlokasiRincian {
+  id: number;
+  master_biaya_id: number;
+  nama_biaya: string;
+  nominal_bersih: number;
+  terbayar: number;
+  sisa: number;
+}
+
+export interface KoreksiAlokasiTagihan {
+  id: number;
+  nomor_tagihan: string;
+  tahun_akademik_id?: number | null;
+  semester?: number | null;
+  total_tagihan: number;
+  total_potongan: number;
+  total_denda: number;
+  total_bayar: number;
+  total_bersih: number;
+  sisa: number;
+  status: string;
+  jatuh_tempo?: string | null;
+  tersedia_dialihkan: number;
+  rincian: KoreksiAlokasiRincian[];
+}
+
+export interface KoreksiAlokasiKonsolidasi {
+  tagihan: KoreksiAlokasiTagihan[];
+  ringkasan: {
+    total_tagihan_bersih: number;
+    total_terbayar: number;
+    total_sisa: number;
+    jumlah_tagihan: number;
+  };
+}
+
+export interface KoreksiAlokasiDetailInput {
+  from_tagihan_id: number;
+  to_tagihan_id: number;
+  nominal_dialihkan: number;
+  from_detail_tagihan_id?: number | null;
+  to_detail_tagihan_id?: number | null;
+  keterangan?: string | null;
+}
+
+export interface KoreksiAlokasiDampakTarget {
+  to_tagihan_id: number;
+  nomor_tagihan: string;
+  total_bersih: number;
+  terbayar_sebelum: number;
+  sisa_sebelum: number;
+  dialihkan_masuk: number;
+  sisa_setelah: number;
+  akan_lunas: boolean;
+}
+
+export interface KoreksiAlokasiSimulasi {
+  total_dialihkan: number;
+  dampak_target: KoreksiAlokasiDampakTarget[];
+  ada_kekurangan: boolean;
+  total_kekurangan: number;
+  usulan_tagihan_kekurangan?: string | null;
+}
+
+export interface KoreksiAlokasi {
+  id: number;
+  mahasiswa_id?: number | null;
+  calon_mahasiswa_id?: number | null;
+  tipe_referensi: string;
+  nomor_koreksi: string;
+  tahun_akademik_id?: number | null;
+  semester?: number | null;
+  alasan: string;
+  referensi?: string | null;
+  status: KoreksiAlokasiStatus;
+  requested_by?: number | null;
+  approved_by?: number | null;
+  approved_at?: string | null;
+  rejected_by?: number | null;
+  rejected_at?: string | null;
+  applied_at?: string | null;
+  catatan_approval?: string | null;
+  total_nominal_dialihkan: number;
+  buat_tagihan_kekurangan: boolean;
+  created_at?: string;
+  details?: Array<{
+    id: number;
+    from_tagihan_id: number;
+    to_tagihan_id: number;
+    nominal_dialihkan: number;
+    keterangan?: string | null;
+    from_tagihan?: { id: number; nomor_tagihan: string };
+    to_tagihan?: { id: number; nomor_tagihan: string };
+  }>;
+}
+
+// ============================================================
+// PERUBAHAN PRODI / JENIS PENDAFTARAN — SIKEU
+// ============================================================
+
+export type PerubahanProdiStatus = 'pending' | 'approved' | 'rejected' | 'applied' | 'cancelled';
+
+export interface PerubahanProdi {
+  id: number;
+  mahasiswa_id: number;
+  old_program_studi_id?: number | null;
+  new_program_studi_id: number;
+  tahun_akademik_id?: number | null;
+  semester_efektif?: number | null;
+  tanggal_efektif?: string | null;
+  jenis_pendaftaran_lama?: string | null;
+  jenis_pendaftaran_baru?: string | null;
+  alasan: string;
+  referensi_surat?: string | null;
+  dokumen_path?: string | null;
+  status: PerubahanProdiStatus;
+  catatan_approval?: string | null;
+  created_at?: string;
+}

@@ -1167,4 +1167,62 @@ export const siakadService = {
     const response = await apiClient.get('/v1/siakad/civitas/beasiswa/options');
     return response.data;
   },
+
+  // Pindah Program Studi (pemilik mutasi: SIAKAD; SIKEU mendengar via event)
+  getPindahProdiList: async (params?: {
+    search?: string;
+    status?: string;
+    mahasiswa_id?: number;
+    page?: number;
+    per_page?: number;
+    sort_by?: string;
+    sort_order?: string;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/pindah-prodi', { params });
+    return response.data;
+  },
+
+  getPindahProdiDampak: async (mahasiswa_id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/pindah-prodi/dampak', { params: { mahasiswa_id } });
+    return response.data;
+  },
+
+  createPindahProdi: async (payload: {
+    mahasiswa_id: number;
+    new_program_studi_id: number;
+    tahun_akademik_id?: number;
+    semester_efektif?: number;
+    tanggal_efektif?: string;
+    jenis_pendaftaran_baru?: string;
+    alasan: string;
+    referensi_surat?: string;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/pindah-prodi', payload);
+    return response.data;
+  },
+
+  getPindahProdiDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/pindah-prodi/${id}`);
+    return response.data;
+  },
+
+  cekKeuanganPindahProdi: async (id: number, payload: { hasil: 'layak' | 'ada_tunggakan'; catatan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/pindah-prodi/${id}/cek-keuangan`, payload);
+    return response.data;
+  },
+
+  approvePindahProdi: async (id: number, catatan?: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/pindah-prodi/${id}/approve`, { catatan });
+    return response.data;
+  },
+
+  rejectPindahProdi: async (id: number, catatan?: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/pindah-prodi/${id}/reject`, { catatan });
+    return response.data;
+  },
+
+  applyPindahProdi: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/pindah-prodi/${id}/apply`);
+    return response.data;
+  },
 };
