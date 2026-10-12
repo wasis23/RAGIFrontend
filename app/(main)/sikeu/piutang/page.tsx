@@ -4,7 +4,7 @@ import { formatRupiah, formatDate } from '@/lib/utils';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Download, Filter, Search, RefreshCw, AlertCircle, CheckCircle2, XCircle, Clock, ShieldAlert, FileSpreadsheet, UserX, FileText, Eye
+  Download, Filter, Search, RefreshCw, AlertCircle, CheckCircle2, XCircle, Clock, ShieldAlert, FileSpreadsheet, UserX, FileText, Eye, Printer
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -36,6 +36,8 @@ interface PiutangItem {
   jatuh_tempo: string | null;
   created_at: string | null;
   has_dispensasi: boolean;
+  umur_piutang_hari?: number | null;
+  bucket_umur?: string | null;
 }
 
 
@@ -56,6 +58,13 @@ export default function PiutangMahasiswaPage() {
     total_piutang: 0,
     total_mahasiswa_tunggakan: 0,
     total_record_dispensasi: 0,
+    aging: {
+      belum_jatuh_tempo: 0,
+      umur_1_30: 0,
+      umur_31_60: 0,
+      umur_61_90: 0,
+      umur_lebih_90: 0,
+    },
   });
 
   // Pagination
@@ -335,6 +344,11 @@ export default function PiutangMahasiswaPage() {
               Jatuh Tempo: {formatDate(row.jatuh_tempo)}
             </span>
           )}
+          {row.sisa_piutang > 0 && (row.umur_piutang_hari ?? 0) > 0 && (
+            <span className="text-2xs font-bold text-rose-600 block mt-0.5">
+              Telat {row.umur_piutang_hari} hari
+            </span>
+          )}
         </div>
       ),
     },
@@ -405,7 +419,15 @@ export default function PiutangMahasiswaPage() {
         title="Laporan & Rekapitulasi Piutang Mahasiswa"
         description="Pantau daftar tunggakan dan sisa pembayaran tagihan mahasiswa berdasarkan periode dan angkatan."
         action={
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap print:hidden">
+            <Button
+              variant="outline"
+              icon={<Printer size={16} />}
+              onClick={() => window.print()}
+              className="font-bold text-xs"
+            >
+              Cetak
+            </Button>
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -486,6 +508,25 @@ export default function PiutangMahasiswaPage() {
             {summary.total_mahasiswa_tunggakan || 0} Mahasiswa
           </p>
           <p className="text-2xs text-slate-400">Memiliki tunggakan aktif</p>
+        </div>
+      </div>
+
+      {/* Umur Piutang (Aging) */}
+      <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-3">
+        <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Umur Piutang per Jatuh Tempo</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: 'Belum Jatuh Tempo', value: summary.aging.belum_jatuh_tempo, tone: 'text-slate-700' },
+            { label: 'Telat 1–30 hari', value: summary.aging.umur_1_30, tone: 'text-amber-700' },
+            { label: 'Telat 31–60 hari', value: summary.aging.umur_31_60, tone: 'text-amber-800' },
+            { label: 'Telat 61–90 hari', value: summary.aging.umur_61_90, tone: 'text-orange-700' },
+            { label: 'Telat > 90 hari', value: summary.aging.umur_lebih_90, tone: 'text-rose-700' },
+          ].map((b) => (
+            <div key={b.label} className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
+              <p className="text-2xs font-bold text-slate-500">{b.label}</p>
+              <p className={`text-sm font-black tabular-nums ${b.tone}`}>{formatRupiah(b.value || 0)}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -653,6 +694,8 @@ export default function PiutangMahasiswaPage() {
                   { value: 'sisa_piutang', label: 'Sisa Piutang' },
                   { value: 'nama_mahasiswa', label: 'Nama Mahasiswa' },
                   { value: 'nim', label: 'NIM' },
+                  { value: 'jatuh_tempo', label: 'Jatuh Tempo' },
+                  { value: 'nomor_tagihan', label: 'Nomor Tagihan' },
                   { value: 'total_tagihan', label: 'Total Tagihan' },
                 ]}
               />
