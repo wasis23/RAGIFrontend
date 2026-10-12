@@ -12,6 +12,8 @@ import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Plus, Filter, Eye, Copy, Edit2, FileText, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Modal } from '@/components/ui/Modal';
+import { Textarea } from '@/components/ui/Textarea';
 import { siakadService } from '@/services/siakad.service';
 import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -70,6 +72,13 @@ export default function RpsKelolaPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [deletingRpsId, setDeletingRpsId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Approval & Rejection states
+  const [approvingRps, setApprovingRps] = useState<any | null>(null);
+  const [approving, setApproving] = useState(false);
+  const [rejectingRps, setRejectingRps] = useState<any | null>(null);
+  const [catatanRevisi, setCatatanRevisi] = useState('');
+  const [rejecting, setRejecting] = useState(false);
 
   const loadKurikulumOptions = useCallback(async (keyword: string) => {
     try {
@@ -166,6 +175,44 @@ export default function RpsKelolaPage() {
     setAppliedFilters({ search: '', kurikulumId: '', semester: '', dosenId: '', sortBy: 'created_at', sortDir: 'desc' });
     setPage(1);
     setShowFilter(false);
+  };
+
+  const handleApprove = async () => {
+    if (!approvingRps) return;
+    try {
+      setApproving(true);
+      await siakadService.approveRps(approvingRps.id, { status: 'disetujui' });
+      toast.success('Dokumen RPS berhasil disetujui (Approved)');
+      setApprovingRps(null);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menyetujui dokumen RPS');
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingRps) return;
+    if (!catatanRevisi.trim()) {
+      toast.error('Catatan revisi wajib diisi');
+      return;
+    }
+    try {
+      setRejecting(true);
+      await siakadService.approveRps(rejectingRps.id, {
+        status: 'revisi',
+        catatan_revisi: catatanRevisi.trim(),
+      });
+      toast.success('RPS berhasil dikembalikan dengan catatan revisi');
+      setRejectingRps(null);
+      setCatatanRevisi('');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal mengembalikan dokumen RPS');
+    } finally {
+      setRejecting(false);
+    }
   };
 
   const { user, hasPermission } = useAuth();
@@ -313,9 +360,12 @@ export default function RpsKelolaPage() {
         if (status === 'revisi') {
           bgClass = 'bg-amber-100 text-amber-700';
           label = 'Revisi';
-        } else if (status === 'approve' || status === 'approved') {
+        } else if (status === 'approve' || status === 'approved' || status === 'disetujui') {
           bgClass = 'bg-emerald-100 text-emerald-700';
           label = 'Approve';
+        } else if (status === 'diajukan') {
+          bgClass = 'bg-blue-100 text-blue-700';
+          label = 'Diajukan';
         }
 
         return (
@@ -331,31 +381,44 @@ export default function RpsKelolaPage() {
       align: 'center',
       render: (row) => {
         // 1. Cek Permission Global
-        let canApprove = hasPermission ? hasPermission('siakad.obe.rps.approve') || hasPermission('siakad.obe.rps.review') : false;
+        let canApprove = hasPermission
+          ? hasPermission('siakad.obe.rps.approve') ||
+            hasPermission('siakad.obe.rps.review') ||
+            hasPermission('siakad.master.manage') ||
+            hasPermission('siakad.kurikulum.manage')
+          : false;
 
         // 2. Cek Role Khusus (jika belum dapet permission global)
         if (!canApprove) {
-          const mkProdiId = row.mata_kuliah?.program_studi_id;
-          
+          const mkProdiId =
+            row.mata_kuliah?.kurikulum?.program_studi_id ||
+            row.kurikulum?.program_studi_id ||
+            row.mata_kuliah?.program_studi_id;
+
           // A. Role admin OBE yg ditugaskan (tabel siakad_admin_prodis)
-          const adminProdis = (user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || [];
-          if (adminProdis.length > 0) {
-            // Berhak approve jika ditugaskan ke prodi dari MK ini dan flag can_approve_rps = true
-            const assigned = adminProdis.find((ap: any) => 
-               ap.program_studi_id === mkProdiId && 
-               (ap.can_approve_rps === true || ap.can_approve_rps === 1)
+          const adminProdis =
+            (user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || [];
+          if (adminProdis.length > 0 && mkProdiId) {
+            const assigned = adminProdis.find(
+              (ap: any) =>
+                Number(ap.program_studi_id) === Number(mkProdiId) &&
+                (ap.can_approve_rps === true || ap.can_approve_rps === 1)
             );
             if (assigned) canApprove = true;
           }
 
-        // B. Cek akses scope prodi
-        if (!canApprove) {
-           const kaprodi = row.kaprodi;
-           // Hanya izinkan jika user ini memang ditugaskan sebagai kaprodi di prodi MK tersebut
-           if (kaprodi && (kaprodi.id === user?.id || kaprodi.user_id === user?.id)) {
-             canApprove = true;
-           }
-        }
+          // B. Cek akses scope kaprodi
+          if (!canApprove) {
+            const kaprodi = row.kaprodi;
+            if (
+              kaprodi &&
+              (kaprodi.id === user?.id ||
+                kaprodi.user_id === user?.id ||
+                (user as any)?.dosen?.id === kaprodi.id)
+            ) {
+              canApprove = true;
+            }
+          }
         }
 
         if (!row.has_rps) {
@@ -365,7 +428,8 @@ export default function RpsKelolaPage() {
                 {
                   label: 'Buat RPS',
                   icon: <Plus size={14} />,
-                  onClick: () => router.push(`/siakad/obe/rps/kelola/create?mata_kuliah_id=${row.mata_kuliah_id}`),
+                  onClick: () =>
+                    router.push(`/siakad/obe/rps/kelola/create?mata_kuliah_id=${row.mata_kuliah_id}`),
                 },
               ]}
             />
@@ -402,16 +466,15 @@ export default function RpsKelolaPage() {
               label: 'Revisi RPS',
               icon: <XCircle size={14} className="text-amber-600" />,
               onClick: () => {
-                // Buka modal revisi/catatan
-                toast.success('Fitur revisi RPS akan segera tersedia');
+                setRejectingRps(row);
+                setCatatanRevisi(row.catatan_revisi || '');
               },
             },
             {
               label: 'Approve RPS',
               icon: <CheckCircle size={14} className="text-emerald-600" />,
               onClick: () => {
-                 // Jalankan aksi konfirmasi approve
-                 toast.success('Fitur approve RPS akan segera tersedia');
+                setApprovingRps(row);
               },
             }
           );
@@ -558,6 +621,67 @@ export default function RpsKelolaPage() {
         message="Apakah Anda yakin ingin menghapus dokumen RPS ini? Aksi ini tidak dapat dibatalkan."
         isLoading={deleting}
       />
+
+      {/* Modal Konfirmasi Approve RPS */}
+      <ConfirmDialog
+        isOpen={Boolean(approvingRps)}
+        onClose={() => setApprovingRps(null)}
+        onConfirm={handleApprove}
+        title="Setujui Dokumen RPS?"
+        message={`Apakah Anda yakin ingin menyetujui (Approve) dokumen RPS untuk mata kuliah ${approvingRps?.mata_kuliah?.nama || ''} (${approvingRps?.mata_kuliah?.kode_mk || ''})? Dokumen yang disetujui akan menjadi silabus perkuliahan aktif.`}
+        confirmText="Setujui (Approve)"
+        cancelText="Batal"
+        isLoading={approving}
+      />
+
+      {/* Modal Input Catatan Revisi RPS */}
+      <Modal
+        isOpen={Boolean(rejectingRps)}
+        onClose={() => {
+          setRejectingRps(null);
+          setCatatanRevisi('');
+        }}
+        title="Kembalikan RPS untuk Revisi"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setRejectingRps(null);
+                setCatatanRevisi('');
+              }}
+              disabled={rejecting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleReject}
+              isLoading={rejecting}
+            >
+              Kirim Revisi
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-600">
+            Berikan catatan atau poin perbaikan untuk mata kuliah{' '}
+            <strong className="text-slate-800">
+              {rejectingRps?.mata_kuliah?.nama} ({rejectingRps?.mata_kuliah?.kode_mk})
+            </strong>
+            . Dokumen akan dikembalikan ke Dosen Pengembang dengan status Revisi.
+          </p>
+          <Textarea
+            label="Catatan Revisi RPS *"
+            placeholder="Tuliskan catatan revisi atau bagian yang perlu disesuaikan oleh tim pengembang..."
+            value={catatanRevisi}
+            onChange={(e) => setCatatanRevisi(e.target.value)}
+            rows={4}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }
