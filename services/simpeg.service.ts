@@ -1023,8 +1023,8 @@ export const simpegService = {
     perihal: string;
     tujuan?: string;
     tanggal_surat: string;
-    kode_unit: string;
-    kode_klasifikasi: string;
+    kode_unit?: string;
+    kode_klasifikasi?: string;
     jumlah_nomor?: number;
     catatan_pemohon?: string;
     lampiran?: File | null;
@@ -1034,11 +1034,11 @@ export const simpegService = {
     formData.append('perihal', payload.perihal);
     if (payload.tujuan) formData.append('tujuan', payload.tujuan);
     formData.append('tanggal_surat', payload.tanggal_surat);
-    formData.append('kode_unit', payload.kode_unit);
-    formData.append('kode_klasifikasi', payload.kode_klasifikasi);
+    if (payload.kode_unit) formData.append('kode_unit', payload.kode_unit);
+    if (payload.kode_klasifikasi) formData.append('kode_klasifikasi', payload.kode_klasifikasi);
     if (payload.jumlah_nomor) formData.append('jumlah_nomor', String(payload.jumlah_nomor));
     if (payload.catatan_pemohon) formData.append('catatan_pemohon', payload.catatan_pemohon);
-    if (payload.lampiran) formData.append('lampiran', payload.lampiran);
+    if (payload.lampiran instanceof File) formData.append('lampiran', payload.lampiran);
 
     const { data } = await apiClient.post<ApiResponse<any>>('/simpeg/nomor-surat/request', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
