@@ -119,7 +119,9 @@ export default function DetailSlipGajiPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="animate-fade-in space-y-6">
-      <PageHeader
+      {/* Konten Tampilan Layar Interaktif (Disembunyikan sepenuhnya saat dicetak/PDF) */}
+      <div className="print:hidden space-y-6">
+        <PageHeader
         title={`Slip Gaji: ${gaji.pegawai?.nama_lengkap || 'Pegawai'}`}
         description={`Periode Penggajian: ${gaji.periode_bulan_tahun} • Status: ${gaji.status_transfer.toUpperCase()}`}
         action={
@@ -345,7 +347,7 @@ export default function DetailSlipGajiPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Footer Take Home Pay Banner */}
-      <div className="card p-6 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-4 rounded-xl">
+      <div className="card p-6 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-4 rounded-xl print:hidden">
         <div>
           <span className="text-xs uppercase font-semibold text-slate-400 tracking-wider">Penerimaan Bersih Pegawai (Take Home Pay)</span>
           <p className="text-2xl md:text-3xl font-black text-emerald-400 mt-1">
@@ -356,6 +358,153 @@ export default function DetailSlipGajiPage({ params }: { params: Promise<{ id: s
         <div className="text-right text-xs text-slate-400">
           <p>Dokumen ini diterbitkan sah secara elektronik oleh Sistem Informasi Kepegawaian (SIMPEG)</p>
           <p>Terintegrasi dengan Modul Keuangan & Akuntansi Kampus (SIKEU).</p>
+        </div>
+      </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* LEMBAR CETAK DOKUMEN SLIP GAJI RESMI A4 (PRINT ONLY / PREVIEW)            */}
+      {/* ========================================================================= */}
+      <div className="printable-document print-document hidden print:block bg-white text-slate-950 font-sans p-6 space-y-5 border border-slate-300 rounded-lg max-w-[210mm] mx-auto">
+        {/* Kop Surat Resmi */}
+        <div className="border-b-2 border-slate-900 pb-3 flex items-center justify-between">
+          <div className="w-14 h-14 bg-[var(--module-primary)] text-white font-bold flex items-center justify-center rounded text-sm shrink-0">
+            POLTEK
+          </div>
+          <div className="flex-1 text-center px-4">
+            <h3 className="text-xs font-bold tracking-widest text-slate-700 uppercase">
+              YAYASAN PENDIDIKAN TINGGI SURAKARTA
+            </h3>
+            <h2 className="text-base font-extrabold text-slate-950 uppercase tracking-wide">
+              POLITEKNIK INDONUSA SURAKARTA
+            </h2>
+            <h4 className="text-xs font-bold text-[var(--module-primary)] uppercase">
+              SLIP GAJI & BUKTI PENGHASILAN PEGAWAI
+            </h4>
+            <p className="text-[9px] text-slate-600 mt-0.5">
+              Jl. KH Samanhudi No. 84-86, Surakarta, Jawa Tengah 57142 | Periode: {gaji.periode_bulan_tahun}
+            </p>
+          </div>
+          <div className="w-14 text-right text-[9px] font-mono text-slate-500 shrink-0">
+            ID #{gaji.id}
+          </div>
+        </div>
+
+        {/* Data Pegawai & Akun Pembayaran */}
+        <div className="grid grid-cols-2 gap-4 text-xs border-b border-slate-200 pb-3">
+          <div className="space-y-1">
+            <div className="flex"><span className="w-28 text-slate-500">Nama Pegawai</span><span className="font-bold">: {gaji.pegawai?.nama_lengkap || '-'}</span></div>
+            <div className="flex"><span className="w-28 text-slate-500">NIP / NIDN</span><span className="font-mono">: {gaji.pegawai?.nip || gaji.pegawai?.nidn || '-'}</span></div>
+            <div className="flex"><span className="w-28 text-slate-500">Unit Kerja</span><span>: {gaji.pegawai?.unit_kerja?.nama || 'Institut'}</span></div>
+            <div className="flex"><span className="w-28 text-slate-500">Status Pegawai</span><span className="capitalize">: {gaji.pegawai?.jenis_pegawai || 'Pegawai'} ({gaji.pegawai?.status_kepegawaian || 'Tetap'})</span></div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex"><span className="w-28 text-slate-500">Periode Gaji</span><span className="font-bold">: {gaji.periode_bulan_tahun}</span></div>
+            <div className="flex"><span className="w-28 text-slate-500">Penyaluran Bank</span><span>: {gaji.bank_nama || 'Bank Mandiri'} ({gaji.nomor_rekening || '-'})</span></div>
+            <div className="flex"><span className="w-28 text-slate-500">Status Slip</span><span className="font-bold text-emerald-700">: LUNAS / DITERBITKAN</span></div>
+            <div className="flex"><span className="w-28 text-slate-500">Tanggal Transfer</span><span>: {gaji.tanggal_transfer ? formatDateTime(gaji.tanggal_transfer) : 'Diproses Keuangan'}</span></div>
+          </div>
+        </div>
+
+        {/* Tabel Rincian Penghasilan vs Potongan */}
+        <div className="grid grid-cols-2 gap-4 text-xs">
+          {/* Kolom Penerimaan */}
+          <div className="border border-slate-300 rounded p-3 space-y-2">
+            <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 uppercase tracking-wider text-[11px]">
+              A. Penghasilan & Tunjangan
+            </div>
+            {detailPendapatan.length > 0 ? (
+              detailPendapatan.map((item, idx) => (
+                <div key={idx} className="flex justify-between">
+                  <div>
+                    <span className="block font-medium">{item.nama_komponen}</span>
+                    {item.keterangan && <span className="text-[10px] text-slate-500 block">{item.keterangan}</span>}
+                  </div>
+                  <span className="font-semibold text-right tabular-nums">{formatRupiah(item.nominal)}</span>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span>Gaji Pokok</span>
+                  <span className="font-semibold tabular-nums">{formatRupiah(gaji.gaji_pokok)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <div>
+                    <span>Tunjangan Kehadiran</span>
+                    <span className="text-[10px] text-slate-500 block">{gaji.jumlah_hari_hadir_tepat_waktu ?? 0} Hari Hadir</span>
+                  </div>
+                  <span className="font-semibold tabular-nums">{formatRupiah(gaji.total_biaya_transport || 0)}</span>
+                </div>
+              </>
+            )}
+            <div className="pt-2 border-t border-slate-300 flex justify-between font-bold text-slate-900">
+              <span>Total Penghasilan (Bruto)</span>
+              <span className="tabular-nums">{formatRupiah(gaji.gaji_pokok + (gaji.total_tunjangan || 0))}</span>
+            </div>
+          </div>
+
+          {/* Kolom Potongan */}
+          <div className="border border-slate-300 rounded p-3 space-y-2">
+            <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 uppercase tracking-wider text-[11px]">
+              B. Potongan Resmi
+            </div>
+            {detailPotongan.length > 0 ? (
+              detailPotongan.map((item, idx) => (
+                <div key={idx} className="flex justify-between">
+                  <div>
+                    <span className="block font-medium">{item.nama_komponen}</span>
+                    {item.keterangan && <span className="text-[10px] text-slate-500 block">{item.keterangan}</span>}
+                  </div>
+                  <span className="font-semibold text-right tabular-nums">-{formatRupiah(item.nominal)}</span>
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span>PPh Pasal 21</span>
+                  <span className="font-semibold tabular-nums">-{formatRupiah(gaji.total_pph21 || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Iuran BPJS</span>
+                  <span className="font-semibold tabular-nums">-{formatRupiah(gaji.total_bpjs || 0)}</span>
+                </div>
+              </>
+            )}
+            <div className="pt-2 border-t border-slate-300 flex justify-between font-bold text-rose-700">
+              <span>Total Potongan</span>
+              <span className="tabular-nums">-{formatRupiah(gaji.total_potongan || 0)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Ringkasan Take Home Pay */}
+        <div className="border-2 border-slate-900 p-3 rounded flex justify-between items-center text-xs">
+          <div>
+            <span className="text-[10px] uppercase font-bold text-slate-500 block">Penerimaan Bersih (Take Home Pay)</span>
+            <span className="text-base font-black text-slate-900 tabular-nums">{formatRupiah(gaji.gaji_bersih)}</span>
+          </div>
+          <div className="text-right text-[10px] text-slate-600 italic">
+            {gaji.catatan || `Kompensasi resmi periode ${gaji.periode_bulan_tahun}`}
+          </div>
+        </div>
+
+        {/* Tanda Tangan Pengesahan */}
+        <div className="grid grid-cols-2 gap-4 text-xs pt-4">
+          <div className="text-center space-y-12">
+            <p className="text-slate-500 text-[10px]">Penerima Gaji,</p>
+            <div>
+              <p className="font-bold underline">{gaji.pegawai?.nama_lengkap || 'Pegawai'}</p>
+              <p className="text-[10px] text-slate-500 font-mono">NIP: {gaji.pegawai?.nip || '-'}</p>
+            </div>
+          </div>
+          <div className="text-center space-y-12">
+            <p className="text-slate-500 text-[10px]">Surakarta, Bagian Keuangan & Penggajian,</p>
+            <div>
+              <p className="font-bold underline">Bendahara / Bagian Keuangan SIKEU</p>
+              <p className="text-[10px] text-slate-500">Politeknik Indonusa Surakarta</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

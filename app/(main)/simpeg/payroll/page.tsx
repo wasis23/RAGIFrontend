@@ -494,7 +494,9 @@ export default function PayrollPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <PageHeader
+      {/* Konten Halaman Interaktif (Disembunyikan saat mencetak dokumen PDF dari Modal) */}
+      <div className="print:hidden space-y-6">
+        <PageHeader
         title="Payroll & Slip Gaji Pegawai"
         description="Rekapitulasi Gaji Bulanan, Kalkulasi Transport Presensi, dan Pengajuan Pembayaran ke Modul SIKEU"
         action={
@@ -649,6 +651,7 @@ export default function PayrollPage() {
           </div>
         </div>
       </Drawer>
+      </div>
 
       {/* Modal Kirim Pengajuan ke SIKEU */}
       {canCreate && (
@@ -710,7 +713,7 @@ export default function PayrollPage() {
         }
       >
         {selectedSlip && (
-          <div className="space-y-4 p-4 border border-slate-200 rounded-xl bg-white text-slate-800">
+          <div className="printable-document print-document space-y-4 p-4 border border-slate-200 rounded-xl bg-white text-slate-800">
             <div className="border-b border-slate-300 pb-3 text-center">
               <h3 className="font-black text-lg text-slate-900 uppercase tracking-wider">Slip Gaji Pegawai</h3>
               <p className="text-xs text-slate-500 font-mono">Periode Penggajian: {selectedSlip.periode_bulan_tahun}</p>
