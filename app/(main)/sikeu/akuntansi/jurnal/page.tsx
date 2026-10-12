@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, ArrowLeft, BookOpen, CheckCircle, Inbox, Pencil, Lock, Trash2, Filter } from 'lucide-react';
+import { Plus, ArrowLeft, BookOpen, CheckCircle, Inbox, Pencil, Lock, Trash2, Filter, CalendarClock, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
 import { JurnalUmum } from '@/types/sikeu.types';
@@ -70,6 +70,36 @@ export default function JurnalListPage() {
 
   const [deletingItem, setDeletingItem] = useState<JurnalUmum | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Pengingat tutup buku: periode terbuka yang hampir / sudah berakhir
+  const [periodeList, setPeriodeList] = useState<any[]>([]);
+
+  useEffect(() => {
+    sikeuService
+      .getPeriodeList()
+      .then((res) => setPeriodeList(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setPeriodeList([]));
+  }, []);
+
+  const periodeReminder = useMemo(() => {
+    const terbuka = periodeList.filter((p) => p?.status === 'terbuka' && p?.tanggal_selesai);
+    if (terbuka.length === 0) return { kind: 'none' as const };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let nearest: any = null;
+    let minDays = Infinity;
+    for (const p of terbuka) {
+      const selesai = new Date(p.tanggal_selesai);
+      selesai.setHours(0, 0, 0, 0);
+      const days = Math.round((selesai.getTime() - today.getTime()) / 86400000);
+      if (days < minDays) {
+        minDays = days;
+        nearest = p;
+      }
+    }
+    if (minDays > 7) return { kind: 'ok' as const };
+    return { kind: 'warn' as const, periode: nearest, days: minDays };
+  }, [periodeList]);
 
   const loadJurnal = useCallback(async () => {
     setLoading(true);
@@ -302,6 +332,60 @@ export default function JurnalListPage() {
           </div>
         }
       />
+
+      {/* Pengingat Tutup Buku */}
+      {periodeReminder.kind === 'warn' && periodeReminder.periode && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5 rounded-xl border border-amber-300 bg-amber-50">
+          <div className="flex items-start gap-2.5 flex-1">
+            <CalendarClock size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs">
+              <p className="font-extrabold text-amber-900">
+                Periode &quot;{periodeReminder.periode.nama_periode}&quot; berakhir{' '}
+                {periodeReminder.periode.tanggal_selesai ? formatDate(periodeReminder.periode.tanggal_selesai) : '-'} (
+                {periodeReminder.days < 0
+                  ? `terlambat ${Math.abs(periodeReminder.days)} hari`
+                  : periodeReminder.days === 0
+                    ? 'hari ini'
+                    : `H-${periodeReminder.days}`}
+                ) — ayo segera tutup buku.
+              </p>
+              <p className="text-amber-800 mt-1">
+                Pastikan pemasukan &amp; pengeluaran periode ini sudah lengkap, lalu kunci periode agar laba/rugi
+                dipindahkan ke akun 301.02 dan transaksi baru di rentang ini ditolak otomatis.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<Lock size={14} />}
+            onClick={() => router.push('/sikeu/akuntansi/buku-besar')}
+            className="font-bold shrink-0"
+          >
+            Ke Tutup Buku
+          </Button>
+        </div>
+      )}
+      {periodeReminder.kind === 'none' && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50">
+          <div className="flex items-start gap-2.5 flex-1">
+            <Info size={20} className="text-slate-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-slate-600">
+              <span className="font-extrabold text-slate-800">Belum ada periode akuntansi terbuka.</span> Buat
+              periode di halaman Buku Besar agar jurnal bisa dikunci lewat Tutup Buku per periode.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={<BookOpen size={14} />}
+            onClick={() => router.push('/sikeu/akuntansi/buku-besar')}
+            className="font-bold shrink-0"
+          >
+            Buka Buku Besar
+          </Button>
+        </div>
+      )}
 
       {/* Active Filter Badges */}
       {activeFilterCount > 0 && (
