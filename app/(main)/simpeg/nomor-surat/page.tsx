@@ -55,6 +55,13 @@ const STATUS_FILTER_OPTIONS = [
   { value: '0', label: 'Belum Ada Surat (Menunggu Scan)' },
 ];
 
+const STATUS_PERMOHONAN_OPTIONS = [
+  { value: '', label: 'Semua Status Permohonan' },
+  { value: 'menunggu_verifikasi', label: 'Menunggu' },
+  { value: 'disetujui', label: 'Disetujui' },
+  { value: 'ditolak', label: 'Ditolak' },
+];
+
 export default function SimpegNomorSuratPage() {
   const router = useRouter();
   const { hasPermission } = useAuth();
@@ -80,6 +87,7 @@ export default function SimpegNomorSuratPage() {
   const [search, setSearch] = useState('');
   const [filterUnit, setFilterUnit] = useState('');
   const [filterKlasifikasi, setFilterKlasifikasi] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [filterHasFile, setFilterHasFile] = useState('');
   const [sortBy, setSortBy] = useState('nomor_surat');
   const [sortDir, setSortDir] = useState('desc');
@@ -110,6 +118,7 @@ export default function SimpegNomorSuratPage() {
       if (search) params.search = search;
       if (filterUnit) params.kode_unit = filterUnit;
       if (filterKlasifikasi) params.kode_klasifikasi = filterKlasifikasi;
+      if (filterStatus) params.status = filterStatus;
       if (filterHasFile !== '') params.has_file = filterHasFile;
       if (sortBy) params.sort_by = sortBy;
       if (sortDir) params.sort_dir = sortDir;
@@ -129,7 +138,7 @@ export default function SimpegNomorSuratPage() {
 
   useEffect(() => {
     fetchMyLetters();
-  }, [page, limit, filterHasFile]);
+  }, [page, limit, filterHasFile, filterStatus]);
 
   const handleApplyFilter = () => {
     setPage(1);
@@ -141,6 +150,7 @@ export default function SimpegNomorSuratPage() {
     setSearch('');
     setFilterUnit('');
     setFilterKlasifikasi('');
+    setFilterStatus('');
     setFilterHasFile('');
     setSortBy('nomor_surat');
     setSortDir('desc');
@@ -246,10 +256,51 @@ export default function SimpegNomorSuratPage() {
       ),
     },
     {
+      key: 'status_pengajuan',
+      label: 'STATUS NOMOR SURAT',
+      align: 'center',
+      render: (row: NomorSurat) => {
+        const rawStatus = (row.status_pengajuan || row.request?.status || (row.status === 'dibatalkan' ? 'ditolak' : 'disetujui')).toLowerCase();
+        if (rawStatus === 'menunggu_verifikasi' || rawStatus === 'menunggu') {
+          return (
+            <Badge variant="warning" className="text-2xs font-semibold">
+              Menunggu
+            </Badge>
+          );
+        }
+        if (rawStatus === 'disetujui' || rawStatus === 'terpakai') {
+          return (
+            <Badge variant="success" className="text-2xs font-semibold">
+              Disetujui
+            </Badge>
+          );
+        }
+        if (rawStatus === 'ditolak' || rawStatus === 'dibatalkan') {
+          return (
+            <Badge variant="danger" className="text-2xs font-semibold">
+              Ditolak
+            </Badge>
+          );
+        }
+        return (
+          <Badge variant="info" className="text-2xs font-semibold">
+            {row.status_pengajuan || row.status}
+          </Badge>
+        );
+      },
+    },
+    {
       key: 'status_berkas',
       label: 'STATUS BERKAS SCAN',
       align: 'center',
       render: (row: NomorSurat) => {
+        if (row.is_request_only || !row.id) {
+          return (
+            <span className="text-2xs text-slate-400 italic">
+              Menunggu Penerbitan
+            </span>
+          );
+        }
         if (row.has_file || row.file_surat_path) {
           return (
             <div className="flex flex-col items-center gap-1">
@@ -288,32 +339,49 @@ export default function SimpegNomorSuratPage() {
       key: 'aksi',
       label: 'AKSI',
       align: 'center',
-      render: (row: NomorSurat) => (
-        <div className="flex justify-center">
-          <DropdownMenu
-            items={[
-              ...(canUpload
-                ? [
-                    {
-                      label: row.has_file || row.file_surat_path ? 'Ganti Berkas Scan' : 'Unggah Berkas Scan',
-                      icon: <Upload size={14} className="text-[var(--module-primary)]" />,
-                      onClick: () => handleOpenUploadModal(row),
-                    },
-                  ]
-                : []),
-              ...(row.has_file || row.file_surat_path
-                ? [
-                    {
-                      label: 'Unduh Berkas Surat',
-                      icon: <Download size={14} className="text-emerald-600" />,
-                      onClick: () => handleDownloadScan(row),
-                    },
-                  ]
-                : []),
-            ]}
-          />
-        </div>
-      ),
+      render: (row: NomorSurat) => {
+        const canUploadThis = canUpload && !row.is_request_only && !!row.id;
+        const canDownloadThis = !row.is_request_only && !!row.id && (row.has_file || row.file_surat_path);
+
+        const menuItems = [
+          ...(canUploadThis
+            ? [
+                {
+                  label: row.has_file || row.file_surat_path ? 'Ganti Berkas Scan' : 'Unggah Berkas Scan',
+                  icon: <Upload size={14} className="text-[var(--module-primary)]" />,
+                  onClick: () => handleOpenUploadModal(row),
+                },
+              ]
+            : []),
+          ...(canDownloadThis
+            ? [
+                {
+                  label: 'Unduh Berkas Surat',
+                  icon: <Download size={14} className="text-emerald-600" />,
+                  onClick: () => handleDownloadScan(row),
+                },
+              ]
+            : []),
+        ];
+
+        return (
+          <div className="flex justify-center">
+            <DropdownMenu
+              items={
+                menuItems.length > 0
+                  ? menuItems
+                  : [
+                      {
+                        label: row.is_request_only ? 'Menunggu Verifikasi ARSIP' : 'Tidak Ada Aksi',
+                        disabled: true,
+                        onClick: () => {},
+                      },
+                    ]
+              }
+            />
+          </div>
+        );
+      },
     },
   ];
 
@@ -430,6 +498,13 @@ export default function SimpegNomorSuratPage() {
             value={filterKlasifikasi}
             onChange={(opt: any) => setFilterKlasifikasi(opt?.value || '')}
             isClearable
+          />
+
+          <Select
+            label="Status Nomor Surat"
+            value={filterStatus}
+            onChange={(val) => setFilterStatus(val || '')}
+            options={STATUS_PERMOHONAN_OPTIONS}
           />
 
           <Select

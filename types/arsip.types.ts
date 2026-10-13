@@ -112,6 +112,8 @@ export interface NomorSurat {
   file_surat_uploaded_by?: number | null;
   file_surat_url?: string | null;
   has_file?: boolean;
+  status_pengajuan?: StatusRequestNomor | string;
+  is_request_only?: boolean;
   catatan?: string | null;
   created_by: number;
   created_at: string;
