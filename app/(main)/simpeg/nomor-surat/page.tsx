@@ -58,8 +58,16 @@ const STATUS_FILTER_OPTIONS = [
 export default function SimpegNomorSuratPage() {
   const router = useRouter();
   const { hasPermission } = useAuth();
-  const canRequest = hasPermission('simpeg.nomor_surat.create') || hasPermission('simpeg.nomor_surat.request');
-  const canUpload = hasPermission('simpeg.nomor_surat.upload') || hasPermission('arsip.nomor_surat.upload');
+  const canRequest = 
+    hasPermission('arsip.request.create') || 
+    hasPermission('arsip.nomor_surat.create') || 
+    hasPermission('simpeg.nomor_surat.create') || 
+    hasPermission('simpeg.nomor_surat.request');
+  const canUpload = 
+    hasPermission('arsip.nomor_surat.update') || 
+    hasPermission('arsip.nomor_surat.upload') || 
+    hasPermission('simpeg.nomor_surat.upload') || 
+    hasPermission('simpeg.pegawai.manage');
 
   // State Tabel Daftar Surat Pegawai
   const [data, setData] = useState<NomorSurat[]>([]);
