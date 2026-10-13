@@ -780,21 +780,8 @@ export function Sidebar() {
       const fetchMenus = async () => {
         try {
           const mod = getModule();
-          let menus = await menuService.getMyMenus(mod);
+          const menus = await menuService.getMyMenus(mod);
 
-          // Menu SIMPEG Mandiri Dosen & Tendik
-          if (mod === 'simpeg' && !isAdminSimpeg && (isDosenRole || isTendikRole)) {
-            menus = getSimpegMandiriMenus(canJafung);
-          } else if (isMahasiswaRole && mod === 'sikeu') {
-            menus = SIKEU_MAHASISWA_MENUS;
-          } else if (!isMahasiswaRole) {
-            menus = menus
-              .filter((m) => m.url !== '/sikeu/mahasiswa/tagihan')
-              .map((m) => ({
-                ...m,
-                children: m.children?.filter((c) => c.url !== '/sikeu/mahasiswa/tagihan'),
-              }));
-          }
           // Hormati hasil plotting role-menu: array kosong berarti tidak ada menu
           // yang di-plot untuk user, sehingga tidak boleh jatuh ke fallback hardcoded.
           setDynamicMenus(menus);

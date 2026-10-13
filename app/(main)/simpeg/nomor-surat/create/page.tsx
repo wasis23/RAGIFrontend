@@ -45,10 +45,9 @@ export default function SimpegCreateNomorSuratPage() {
   const router = useRouter();
   const { hasPermission } = useAuth();
   const canRequest = 
-    hasPermission('arsip.request.create') || 
-    hasPermission('arsip.nomor_surat.create') || 
     hasPermission('simpeg.nomor_surat.create') || 
-    hasPermission('simpeg.nomor_surat.request');
+    hasPermission('simpeg.nomor_surat.request') ||
+    hasPermission('arsip.request.create');
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const todayStr = new Date().toISOString().split('T')[0];
 
