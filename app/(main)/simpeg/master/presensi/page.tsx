@@ -89,6 +89,7 @@ type BulkOfficeFormValues = z.infer<typeof bulkOfficeSchema>;
 const systemSettingsSchema = z.object({
   face_score_threshold: z.number().min(0.1, 'Minimal 0.1').max(1.0, 'Maksimal 1.0'),
   gps_accuracy_threshold_meters: z.number().min(5, 'Minimal 5 meter').max(500, 'Maksimal 500 meter'),
+  max_late_per_month: z.number().min(0, 'Minimal 0 kali').max(31, 'Maksimal 31 kali per bulan'),
 });
 type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
 
@@ -209,6 +210,7 @@ export default function MasterPresensiPage() {
     defaultValues: {
       face_score_threshold: 0.80,
       gps_accuracy_threshold_meters: 50.0,
+      max_late_per_month: 5,
     },
   });
 
@@ -274,6 +276,7 @@ export default function MasterPresensiPage() {
         formSettings.reset({
           face_score_threshold: res.data.face_score_threshold ?? 0.80,
           gps_accuracy_threshold_meters: res.data.gps_accuracy_threshold_meters ?? 50.0,
+          max_late_per_month: res.data.max_late_per_month ?? 5,
         });
       }
     } catch {
@@ -1240,15 +1243,31 @@ export default function MasterPresensiPage() {
                 />
               </div>
 
+              {/* Kolom 2: Kebijakan Batas Terlambat (SP) & Info Shift */}
               <div className="space-y-4">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">
-                  Keterangan Pengaturan Shift
+                  Batas Disiplin Kehadiran (SP)
                 </h4>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Toleransi terlambat, batas buka/tutup absen masuk & pulang, serta kebijakan libur nasional kini diatur
-                  per <strong>Template Shift & Jadwal Kerja</strong> pada tab pertama. Setiap tipe shift dapat memiliki
-                  toleransi berbeda (misal shift satpam vs tendik).
-                </p>
+
+                <Input
+                  label="Batas Maksimal Terlambat per Bulan (Kali)"
+                  type="number"
+                  min="0"
+                  max="31"
+                  hint="Maksimal frekuensi keterlambatan yang ditoleransi dalam 1 bulan sebelum SP diterbitkan (default: 5 kali)."
+                  error={formSettings.formState.errors.max_late_per_month?.message}
+                  {...formSettings.register('max_late_per_month', { valueAsNumber: true })}
+                />
+
+                <div className="pt-2 border-t border-slate-100">
+                  <h5 className="text-2xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                    Keterangan Pengaturan Shift
+                  </h5>
+                  <p className="text-2xs text-slate-500 leading-relaxed">
+                    Toleransi terlambat menit, batas jam masuk/pulang, dan kebijakan libur nasional dikelola langsung
+                    per <strong>Template Shift & Jadwal Kerja</strong> pada tab pertama.
+                  </p>
+                </div>
               </div>
             </div>
 
