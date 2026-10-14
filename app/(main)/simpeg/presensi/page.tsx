@@ -24,6 +24,7 @@ import {
   History,
   CalendarDays,
   FileSpreadsheet,
+  ScanFace,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -187,6 +188,7 @@ export default function PresensiPage() {
   const [editingLog, setEditingLog] = useState<any | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [resettingFaceId, setResettingFaceId] = useState<number | null>(null);
 
   // ── TAB 3: RIWAYAT & REKAP BULAN BERJALAN (§3.1–§3.2) ─────
   const nowDate = new Date();
@@ -419,6 +421,37 @@ export default function PresensiPage() {
         } catch (err: any) {
           toast.error(err.response?.data?.message || 'Gagal mereset log presensi.');
           setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        }
+      },
+    });
+  };
+
+  const handleAskResetFace = (log: any) => {
+    const pegawaiId = log.pegawai_id || log.employee?.id;
+    const namaPegawai = log.employee?.nama_lengkap || `Pegawai #${pegawaiId || '-'}`;
+    if (!pegawaiId) {
+      toast.error('ID pegawai tidak ditemukan pada log ini.');
+      return;
+    }
+    setDeleteConfirm({
+      isOpen: true,
+      title: 'Reset Wajah Terdaftar',
+      message: `Hapus data wajah terdaftar milik ${namaPegawai}? Pegawai harus mendaftarkan ulang wajahnya via aplikasi presensi mobile. Gunakan bila verifikasi wajah sering gagal.`,
+      isLoading: false,
+      confirmText: 'Reset Wajah',
+      onConfirm: async () => {
+        try {
+          setResettingFaceId(pegawaiId);
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+          const res = await simpegService.resetFaceBiometric(pegawaiId);
+          toast.success(res.message || 'Data wajah berhasil direset. Pegawai dapat mendaftar ulang.');
+          setDeleteConfirm((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+          fetchLogPresensi();
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || 'Gagal mereset data wajah.');
+          setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+        } finally {
+          setResettingFaceId(null);
         }
       },
     });
@@ -734,6 +767,12 @@ export default function PresensiPage() {
               onClick: () => handleAskResetClock(row, 'out'),
             });
           }
+          items.push({
+            label: 'Reset Wajah Terdaftar',
+            icon: <ScanFace size={14} />,
+            disabled: resettingFaceId === (row.pegawai_id || row.employee?.id),
+            onClick: () => handleAskResetFace(row),
+          });
         }
         if (canDelete) {
           items.push({
@@ -1374,6 +1413,17 @@ export default function PresensiPage() {
             {canManage && selectedLog && (
               <Button variant="outline" onClick={() => handleOpenEditModal(selectedLog)}>
                 Edit Jam
+              </Button>
+            )}
+            {canManage && selectedLog && (
+              <Button
+                variant="outline"
+                icon={<ScanFace size={16} />}
+                loading={resettingFaceId === (selectedLog.pegawai_id || selectedLog.employee?.id)}
+                disabled={resettingFaceId === (selectedLog.pegawai_id || selectedLog.employee?.id)}
+                onClick={() => handleAskResetFace(selectedLog)}
+              >
+                Reset Wajah
               </Button>
             )}
             {canDelete && selectedLog && (

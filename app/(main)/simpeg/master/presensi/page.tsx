@@ -89,13 +89,6 @@ type BulkOfficeFormValues = z.infer<typeof bulkOfficeSchema>;
 const systemSettingsSchema = z.object({
   face_score_threshold: z.number().min(0.1, 'Minimal 0.1').max(1.0, 'Maksimal 1.0'),
   gps_accuracy_threshold_meters: z.number().min(5, 'Minimal 5 meter').max(500, 'Maksimal 500 meter'),
-  late_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
-  early_leave_tolerance_minutes: z.number().min(0, 'Minimal 0 menit').max(120, 'Maksimal 120 menit'),
-  max_early_clock_in_minutes: z.number().min(0, 'Minimal 0 menit').max(720, 'Maksimal 720 menit'),
-  max_late_clock_in_minutes: z.number().min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
-  max_early_clock_out_minutes: z.number().min(0, 'Minimal 0 menit').max(720, 'Maksimal 720 menit').optional().nullable(),
-  max_late_clock_out_minutes: z.number().min(0, 'Minimal 0 menit (0 = tanpa batas)').max(720, 'Maksimal 720 menit'),
-  applies_national_holidays: z.boolean(),
 });
 type SystemSettingsValues = z.infer<typeof systemSettingsSchema>;
 
@@ -216,13 +209,6 @@ export default function MasterPresensiPage() {
     defaultValues: {
       face_score_threshold: 0.80,
       gps_accuracy_threshold_meters: 50.0,
-      late_tolerance_minutes: 15,
-      early_leave_tolerance_minutes: 15,
-      max_early_clock_in_minutes: 60,
-      max_late_clock_in_minutes: 240,
-      max_early_clock_out_minutes: 0,
-      max_late_clock_out_minutes: 240,
-      applies_national_holidays: true,
     },
   });
 
@@ -288,13 +274,6 @@ export default function MasterPresensiPage() {
         formSettings.reset({
           face_score_threshold: res.data.face_score_threshold ?? 0.80,
           gps_accuracy_threshold_meters: res.data.gps_accuracy_threshold_meters ?? 50.0,
-          late_tolerance_minutes: res.data.late_tolerance_minutes ?? 15,
-          early_leave_tolerance_minutes: res.data.early_leave_tolerance_minutes ?? 15,
-          max_early_clock_in_minutes: res.data.max_early_clock_in_minutes ?? 60,
-          max_late_clock_in_minutes: res.data.max_late_clock_in_minutes ?? 240,
-          max_early_clock_out_minutes: res.data.max_early_clock_out_minutes ?? 0,
-          max_late_clock_out_minutes: res.data.max_late_clock_out_minutes ?? 240,
-          applies_national_holidays: !!res.data.applies_national_holidays,
         });
       }
     } catch {
@@ -950,7 +929,7 @@ export default function MasterPresensiPage() {
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Master Pengaturan Presensi"
-        description="Konfigurasi template shift kerja, geofencing lokasi kantor, kalender libur, dan toleransi kehadiran"
+        description="Konfigurasi template shift kerja, geofencing lokasi kantor, dan kalender libur"
         action={
           <div className="flex gap-2">
             <Button
@@ -1217,22 +1196,22 @@ export default function MasterPresensiPage() {
         </div>
       </Drawer>
 
-      {/* ── TAB 5: PARAMETER SISTEM & TOLERANSI ── */}
+      {/* ── TAB: PARAMETER SISTEM (VALIDASI BIOMETRIK & GPS) ── */}
       {activeTab === 'settings' && (
         <div className="space-y-4">
           <div className="card p-4 border border-slate-200 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <SlidersHorizontal size={24} className="text-[var(--module-primary)]" />
               <div>
-                <p className="font-semibold text-slate-800 text-sm">Konfigurasi Validasi & Toleransi Absensi</p>
-                <p className="text-xs text-slate-500">Nilai parameter ini menjadi acuan server saat memproses presensi mobile (face recognition & GPS).</p>
+                <p className="font-semibold text-slate-800 text-sm">Konfigurasi Validasi Biometrik & GPS</p>
+                <p className="text-xs text-slate-500">Nilai parameter ini menjadi acuan server saat memproses presensi mobile (face recognition & GPS). Toleransi waktu & kebijakan libur diatur per shift template.</p>
               </div>
             </div>
           </div>
 
           <form onSubmit={formSettings.handleSubmit(onSubmitSettings)} className="card p-6 border border-slate-200 w-full space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Kolom 1: Validasi Biometrik Wajah & GPS */}
+              {/* Validasi Biometrik Wajah & GPS */}
               <div className="space-y-4">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">
                   Validasi Biometrik Wajah & GPS
@@ -1261,92 +1240,15 @@ export default function MasterPresensiPage() {
                 />
               </div>
 
-              {/* Kolom 2: Toleransi Waktu & Kalender Libur */}
               <div className="space-y-4">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">
-                  Toleransi Waktu & Kebijakan Libur
+                  Keterangan Pengaturan Shift
                 </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input
-                    label="Toleransi Terlambat (Menit)"
-                    type="number"
-                    min="0"
-                    max="120"
-                    hint="Dalam toleransi dihitung tepat waktu."
-                    error={formSettings.formState.errors.late_tolerance_minutes?.message}
-                    {...formSettings.register('late_tolerance_minutes', { valueAsNumber: true })}
-                  />
-
-                  <Input
-                    label="Toleransi Pulang Cepat (Menit)"
-                    type="number"
-                    min="0"
-                    max="120"
-                    hint="Batas toleransi clock-out."
-                    error={formSettings.formState.errors.early_leave_tolerance_minutes?.message}
-                    {...formSettings.register('early_leave_tolerance_minutes', { valueAsNumber: true })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Batas Buka Absen Masuk Lebih Awal (Menit Sebelum Shift)"
-                    type="number"
-                    min="0"
-                    max="720"
-                    hint="Contoh: 240 menit berarti shift jam 08:00 sudah bisa absen sejak 04:00 (4 jam sebelum)."
-                    error={formSettings.formState.errors.max_early_clock_in_minutes?.message}
-                    {...formSettings.register('max_early_clock_in_minutes', { valueAsNumber: true })}
-                  />
-
-                  <Input
-                    label="Batas Tutup Absen Masuk (Menit Setelah Shift Dimulai)"
-                    type="number"
-                    min="0"
-                    max="720"
-                    hint="Contoh: 240 menit berarti shift jam 08:00 batas masuk sampai 12:00. Lewat dari ini dialihkan ke presensi pulang."
-                    error={formSettings.formState.errors.max_late_clock_in_minutes?.message}
-                    {...formSettings.register('max_late_clock_in_minutes', { valueAsNumber: true })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input
-                    label="Batas Buka Absen Pulang Lebih Awal (Menit Sebelum Jam Pulang)"
-                    type="number"
-                    min="0"
-                    max="720"
-                    hint="Isi 0 / kosongkan untuk otomatis (mengikuti batas tutup masuk atau toleransi pulang cepat)."
-                    error={formSettings.formState.errors.max_early_clock_out_minutes?.message}
-                    {...formSettings.register('max_early_clock_out_minutes', { valueAsNumber: true })}
-                  />
-
-                  <Input
-                    label="Batas Tutup Absen Pulang (Menit Setelah Jam Pulang)"
-                    type="number"
-                    min="0"
-                    max="720"
-                    hint="Contoh: 240 menit berarti shift jam 17:00 masih bisa absen pulang sampai 21:00. Isi 0 = tanpa batas."
-                    error={formSettings.formState.errors.max_late_clock_out_minutes?.message}
-                    {...formSettings.register('max_late_clock_out_minutes', { valueAsNumber: true })}
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <Controller
-                    control={formSettings.control}
-                    name="applies_national_holidays"
-                    render={({ field }) => (
-                      <ToggleSwitch
-                        checked={!!field.value}
-                        onChange={field.onChange}
-                        label="Otomatis Terapkan Libur Nasional"
-                        description="Menonaktifkan kewajiban presensi pada tanggal merah dan cuti bersama resmi pemerintah."
-                      />
-                    )}
-                  />
-                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Toleransi terlambat, batas buka/tutup absen masuk & pulang, serta kebijakan libur nasional kini diatur
+                  per <strong>Template Shift & Jadwal Kerja</strong> pada tab pertama. Setiap tipe shift dapat memiliki
+                  toleransi berbeda (misal shift satpam vs tendik).
+                </p>
               </div>
             </div>
 
