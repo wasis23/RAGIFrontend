@@ -95,6 +95,7 @@ export interface AttendanceMatrixExportParams {
     tanggal_awal?: string;
     tanggal_akhir?: string;
   };
+  maxLateLimit?: number;
 }
 
 /**
@@ -387,8 +388,12 @@ export async function exportStyledAttendanceMatrix(params: AttendanceMatrixExpor
     c.border = CELL_STYLES.borderThin;
   });
 
+  const lateLimit = params.maxLateLimit !== undefined ? params.maxLateLimit : 5;
+
   employees.forEach((emp, idx) => {
     const s = emp.summary;
+    const isExceedingLate = (s?.total_terlambat ?? 0) > lateLimit;
+
     const r = ws2.addRow([
       idx + 1,
       emp.nip || '-',
@@ -406,6 +411,18 @@ export async function exportStyledAttendanceMatrix(params: AttendanceMatrixExpor
       c.border = CELL_STYLES.borderThin;
       c.font = { name: 'Calibri', size: 10 };
       c.alignment = colNum === 3 ? { horizontal: 'left', vertical: 'middle' } : { horizontal: 'center', vertical: 'middle' };
+
+      // Jika pegawai terlambat melebihi batas, blok sel/baris dengan warna merah
+      if (isExceedingLate) {
+        c.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFC7CE' }, // Merah pastel elegan
+        };
+        if (colNum === 6 || colNum === 3) {
+          c.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF9C0006' } };
+        }
+      }
     });
   });
 

@@ -21,12 +21,20 @@ import {
   Upload,
   CheckCircle,
   MapPin,
+  AlertTriangle,
+  Eye,
+  Printer,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Hero } from '@/components/ui/Hero';
 import { StatCard } from '@/components/ui/StatCard';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { Badge } from '@/components/ui/Badge';
 import { simpegService } from '@/services/simpeg.service';
-import type { Pegawai, UnitKerja, DokumenPegawai, PengajuanCuti, PresensiPegawai, GajiPegawai, UsulanJafung } from '@/types/simpeg.types';
+import type { Pegawai, UnitKerja, DokumenPegawai, PengajuanCuti, PresensiPegawai, GajiPegawai, UsulanJafung, SuratPeringatan } from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/lib/utils';
@@ -55,6 +63,9 @@ export default function SimpegDashboardPage() {
   const [myPresensi, setMyPresensi] = useState<PresensiPegawai[]>([]);
   const [myPayroll, setMyPayroll] = useState<GajiPegawai[]>([]);
   const [myUsulanJafung, setMyUsulanJafung] = useState<UsulanJafung[]>([]);
+  const [mySuratPeringatan, setMySuratPeringatan] = useState<SuratPeringatan[]>([]);
+  const [selectedSp, setSelectedSp] = useState<SuratPeringatan | null>(null);
+  const [showSpModal, setShowSpModal] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -83,12 +94,13 @@ export default function SimpegDashboardPage() {
 
         if (peg) {
           // Fetch Personal Data for this Pegawai
-          const [resDok, resCut, resPres, resPay, resJaf] = await Promise.allSettled([
+          const [resDok, resCut, resPres, resPay, resJaf, resSp] = await Promise.allSettled([
             simpegService.getDokumenList(peg.id),
             simpegService.getCutiList(peg.id),
             simpegService.getPresensiList(peg.id),
             simpegService.getPayrollList(peg.id),
             simpegService.getUsulanJafungList(peg.id),
+            simpegService.getMySuratPeringatan(),
           ]);
 
           if (resDok.status === 'fulfilled') setMyDokumen(resDok.value.data || []);
@@ -96,6 +108,7 @@ export default function SimpegDashboardPage() {
           if (resPres.status === 'fulfilled') setMyPresensi(resPres.value.data || []);
           if (resPay.status === 'fulfilled') setMyPayroll(resPay.value.data || []);
           if (resJaf.status === 'fulfilled') setMyUsulanJafung(resJaf.value.data || []);
+          if (resSp.status === 'fulfilled') setMySuratPeringatan(resSp.value.data || []);
         }
       }
     } catch (err: any) {
@@ -115,6 +128,66 @@ export default function SimpegDashboardPage() {
 
     return () => clearInterval(interval);
   }, [canAccess]);
+
+  const spColumns: ColumnDef<SuratPeringatan>[] = [
+    {
+      key: 'nomor_sp',
+      label: 'NOMOR SP & JENIS',
+      render: (sp) => (
+        <div>
+          <div className="font-bold text-xs text-slate-800">{sp.nomor_sp}</div>
+          <span className="text-2xs text-rose-600 font-semibold">{sp.jenis_sp}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'periode_bulan_tahun',
+      label: 'PERIODE',
+      render: (sp) => (
+        <span className="font-mono text-xs font-semibold">{sp.periode_bulan_tahun}</span>
+      ),
+    },
+    {
+      key: 'total_terlambat',
+      label: 'KETERLAMBATAN',
+      render: (sp) => (
+        <div>
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded-md">
+            {sp.total_terlambat}x terlambat
+          </span>
+          <div className="text-2xs text-slate-500">Maksimal: {sp.batas_maksimal}x</div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'STATUS',
+      render: (sp) => (
+        <Badge variant={sp.status === 'aktif' ? 'danger' : 'secondary'}>
+          {sp.status.toUpperCase()}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'AKSI',
+      align: 'right',
+      render: (sp) => (
+        <DropdownMenu
+          items={[
+            {
+              label: 'Lihat Surat',
+              icon: <Eye size={14} />,
+              onClick: () => {
+                setSelectedSp(sp);
+                setShowSpModal(true);
+              },
+            },
+          ]}
+        />
+      ),
+    },
+  ];
 
   // -------------------------------------------------------------
   // RENDER VIEW FOR REGULAR DOSEN / TENDIK (PERSONAL PORTAL)
@@ -334,9 +407,130 @@ export default function SimpegDashboardPage() {
               )}
             </div>
 
+            {/* 4. Surat Peringatan dari Kampus */}
+            <div className="card p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  <AlertTriangle size={18} className="text-rose-600" /> Surat Peringatan dari Kampus ({mySuratPeringatan.length})
+                </h3>
+              </div>
+              {mySuratPeringatan.length === 0 ? (
+                <div className="flex items-center gap-3 p-3.5 bg-emerald-50/60 border border-emerald-200/70 rounded-xl">
+                  <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+                  <p className="text-xs text-emerald-800">
+                    Tidak ada surat peringatan aktif. Riwayat kedisiplinan dan kehadiran Anda berjalan dengan baik.
+                  </p>
+                </div>
+              ) : (
+                <DataTable
+                  columns={spColumns}
+                  data={mySuratPeringatan}
+                  emptyMessage="Tidak ada surat peringatan aktif."
+                />
+              )}
+            </div>
+
           </div>
 
         </div>
+
+        {/* MODAL: DETAIL RESMI SURAT PERINGATAN KETERLAMBATAN */}
+        <Modal
+          open={showSpModal}
+          onClose={() => {
+            setShowSpModal(false);
+            setSelectedSp(null);
+          }}
+          title="Dokumen Resmi Surat Peringatan Kedisiplinan"
+          size="lg"
+          footer={
+            <div className="flex justify-between w-full">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  window.print();
+                }}
+                className="gap-1.5"
+              >
+                <Printer size={16} /> Cetak Dokumen
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowSpModal(false);
+                  setSelectedSp(null);
+                }}
+              >
+                Tutup
+              </Button>
+            </div>
+          }
+        >
+          {selectedSp && (
+            <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-6 text-slate-800">
+              {/* Kop Surat Resmi */}
+              <div className="border-b-2 border-slate-900 pb-3 text-center space-y-1">
+                <h2 className="text-sm font-extrabold tracking-wider uppercase">POLITEKNIK INDONUSA SURAKARTA</h2>
+                <p className="text-xs text-slate-600">BAGIAN PENGEMBANGAN SUMBER DAYA MANUSIA & KEPEGAWAIAN (SIMPEG)</p>
+                <p className="text-2xs text-slate-500 italic">Jl. KH Samanhudi No.84, Laweyan, Surakarta, Jawa Tengah 57142</p>
+              </div>
+
+              {/* Nomor & Judul Surat */}
+              <div className="text-center space-y-1">
+                <h3 className="text-xs font-bold uppercase underline tracking-wide text-rose-700">
+                  SURAT PERINGATAN KEDISIPLINAN PRESENSI ({selectedSp.jenis_sp})
+                </h3>
+                <p className="text-xs font-mono text-slate-600">Nomor: {selectedSp.nomor_sp}</p>
+              </div>
+
+              {/* Identitas Pegawai Penerima */}
+              <div className="text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1.5">
+                <div className="grid grid-cols-3">
+                  <span className="text-slate-500">Nama Pegawai</span>
+                  <span className="col-span-2 font-bold">{myPegawai?.nama_lengkap || user?.name || '-'}</span>
+                </div>
+                <div className="grid grid-cols-3">
+                  <span className="text-slate-500">NIP / Identitas</span>
+                  <span className="col-span-2 font-mono font-semibold">{myPegawai?.nip || '-'}</span>
+                </div>
+                <div className="grid grid-cols-3">
+                  <span className="text-slate-500">Unit Kerja / Divisi</span>
+                  <span className="col-span-2">{myPegawai?.unit_kerja?.nama || 'Rektorat & Pimpinan Universitas'}</span>
+                </div>
+                <div className="grid grid-cols-3">
+                  <span className="text-slate-500">Periode Keterlambatan</span>
+                  <span className="col-span-2 font-semibold font-mono">{selectedSp.periode_bulan_tahun}</span>
+                </div>
+              </div>
+
+              {/* Isi Peringatan */}
+              <div className="text-xs leading-relaxed space-y-3 text-slate-700">
+                <p>
+                  Berdasarkan hasil audit rekapitulasi kehadiran dan integrasi sistem presensi bulanan kampus, dengan ini Manajemen Sumber Daya Manusia memberikan Surat Peringatan atas pelanggaran ketentuan jam kerja:
+                </p>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-900 font-medium">
+                  Akumulasi keterlambatan presensi Anda tercatat sebanyak <strong className="text-rose-700 font-bold">{selectedSp.total_terlambat} kali</strong>, melampaui batas maksimal kebijakan kampus yaitu <strong className="text-rose-700 font-bold">{selectedSp.batas_maksimal} kali per bulan</strong>.
+                </div>
+                <p>
+                  {selectedSp.keterangan || 'Harap meningkatkan kedisiplinan dan kepatuhan kehadiran kerja demi kelancaran operasional institusi pendidikan kampus.'}
+                </p>
+              </div>
+
+              {/* Tanda Tangan */}
+              <div className="pt-4 flex justify-between text-xs text-slate-600 border-t border-slate-100">
+                <div>
+                  <p>Status Dokumen: <span className="font-bold text-rose-600 uppercase">{selectedSp.status}</span></p>
+                  <p className="text-2xs text-slate-400">Diterbitkan otomatis via Central SIMPEG Engine</p>
+                </div>
+                <div className="text-right space-y-1">
+                  <p>Surakarta, {formatDate(selectedSp.tanggal_terbit)}</p>
+                  <p className="font-semibold pt-8">Bagian Kepegawaian & SDM</p>
+                  <p className="text-2xs text-slate-400">Politeknik Indonusa Surakarta</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal>
 
       </div>
     );

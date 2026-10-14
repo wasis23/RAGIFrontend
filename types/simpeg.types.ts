@@ -669,5 +669,26 @@ export interface TandaTanganFilterParams {
   sort_order?: 'asc' | 'desc';
 }
 
+export interface SuratPeringatan {
+  id: number;
+  pegawai_id: number;
+  gaji_pegawai_id?: number | null;
+  presensi_periode_id?: number | null;
+  nomor_sp: string;
+  jenis_sp: string;
+  judul: string;
+  periode_bulan_tahun: string;
+  total_terlambat: number;
+  batas_maksimal: number;
+  keterangan?: string | null;
+  tanggal_terbit: string;
+  status: 'aktif' | 'selesai' | 'diarsipkan' | string;
+  created_at?: string;
+  updated_at?: string;
+  pegawai?: Pegawai;
+  presensi_periode?: unknown;
+  gaji_pegawai?: unknown;
+}
+
 
 

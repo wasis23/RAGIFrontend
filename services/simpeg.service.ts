@@ -32,6 +32,7 @@ import type {
   MasterKategoriSk,
   TandaTanganPegawai,
   TandaTanganFilterParams,
+  SuratPeringatan,
 } from '@/types/simpeg.types';
 
 export const simpegService = {
@@ -1071,6 +1072,22 @@ export const simpegService = {
       responseType: 'blob',
     });
     return { blob: response.data };
+  },
+
+  // Surat Peringatan (SP) Keterlambatan
+  getMySuratPeringatan: async (): Promise<ApiResponse<SuratPeringatan[]>> => {
+    const { data } = await apiClient.get<ApiResponse<SuratPeringatan[]>>('/simpeg/surat-peringatan/my');
+    return data;
+  },
+
+  getSuratPeringatanList: async (params?: Record<string, unknown>): Promise<ApiResponse<SuratPeringatan[]>> => {
+    const { data } = await apiClient.get<ApiResponse<SuratPeringatan[]>>('/simpeg/surat-peringatan', { params });
+    return data;
+  },
+
+  getSuratPeringatanDetail: async (id: number): Promise<ApiResponse<SuratPeringatan>> => {
+    const { data } = await apiClient.get<ApiResponse<SuratPeringatan>>(`/simpeg/surat-peringatan/${id}`);
+    return data;
   },
 };
 

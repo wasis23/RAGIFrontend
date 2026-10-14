@@ -292,6 +292,16 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
         return;
       }
 
+      let maxLateLimit = 5;
+      try {
+        const settingsRes = await simpegService.getPresensiSettings();
+        if (settingsRes?.data?.max_late_per_month !== undefined) {
+          maxLateLimit = Number(settingsRes.data.max_late_per_month);
+        }
+      } catch {
+        // default fallback 5
+      }
+
       const periodeName = bundle?.nama_periode ? bundle.nama_periode.replace(/\s+/g, '_') : `Bundle_${bundleId}`;
       await exportStyledAttendanceMatrix({
         filename: `Rekap_Bundle_Presensi_${periodeName}`,
@@ -302,6 +312,7 @@ export default function PresensiBundleDetailPage({ params }: { params: Promise<{
           tanggal_awal: bundle?.tanggal_awal,
           tanggal_akhir: bundle?.tanggal_akhir,
         },
+        maxLateLimit,
       });
       toast.success(`Berhasil mengunduh matriks presensi berdesain visual (${allMatrixRows.length} pegawai) ke Excel!`);
     } catch (err: any) {
