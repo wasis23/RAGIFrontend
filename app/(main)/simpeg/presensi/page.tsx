@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,6 +25,11 @@ import {
   CalendarDays,
   FileSpreadsheet,
   ScanFace,
+  Copy,
+  UserCheck,
+  ShieldAlert,
+  Users,
+  FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -43,7 +48,14 @@ import { simpegService } from '@/services/simpeg.service';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate, formatJamMasukWIB, formatJamPulangWIB, formatJamWIB, getApiErrorMessage } from '@/lib/utils';
 import type { PaginationMeta } from '@/types/api.types';
-import type { AttendanceHistoryItem, AttendanceRecapData, AttendanceRecapRow, CutoffReport } from '@/types/simpeg.types';
+import type {
+  AttendanceHistoryItem,
+  AttendanceRecapData,
+  AttendanceRecapRow,
+  CutoffReport,
+  AnnualSpMonitoringRow,
+  AnnualSpMonitoringMeta,
+} from '@/types/simpeg.types';
 
 // ── ZOD SCHEMAS ─────────────────────────────────────────────
 
@@ -102,6 +114,57 @@ const RIWAYAT_STATUS_FILTER_OPTIONS = [
   { value: 'alfa', label: 'Alpa' },
 ];
 
+const spFilterFormSchema = z.object({
+  search: z.string().optional(),
+  unit_kerja_id: z.string().optional(),
+  risk_level: z.string().optional(),
+  sort_by: z.string().optional(),
+  sort_order: z.enum(['asc', 'desc']).optional(),
+});
+type SpFilterFormValues = z.infer<typeof spFilterFormSchema>;
+
+const SP_RISK_OPTIONS = [
+  { value: 'all', label: 'Semua Status Kedisiplinan' },
+  { value: 'rawan', label: 'Rawan / Sering SP (≥ 2x SP)' },
+  { value: 'perhatian', label: 'Perhatian (1x SP)' },
+  { value: 'has_sp', label: 'Pernah Terbit SP (≥ 1x SP)' },
+  { value: 'disiplin', label: 'Disiplin (0 SP)' },
+];
+
+const SP_SORT_OPTIONS = [
+  { value: 'total_sp', label: 'Total Surat Peringatan (SP)' },
+  { value: 'total_terlambat', label: 'Akumulasi Keterlambatan' },
+  { value: 'nama_lengkap', label: 'Nama Pegawai' },
+  { value: 'nip', label: 'NIP Pegawai' },
+];
+
+const SP_SORT_DIR_OPTIONS = [
+  { value: 'desc', label: 'Menurun / Terbanyak (Z-A)' },
+  { value: 'asc', label: 'Menaik / Tersedikit (A-Z)' },
+];
+
+const YEAR_OPTIONS = [
+  { value: '2024', label: 'Tahun 2024' },
+  { value: '2025', label: 'Tahun 2025' },
+  { value: '2026', label: 'Tahun 2026' },
+  { value: '2027', label: 'Tahun 2027' },
+];
+
+const SP_MONTH_COLUMNS = [
+  { key: '01', label: 'Jan' },
+  { key: '02', label: 'Feb' },
+  { key: '03', label: 'Mar' },
+  { key: '04', label: 'Apr' },
+  { key: '05', label: 'Mei' },
+  { key: '06', label: 'Jun' },
+  { key: '07', label: 'Jul' },
+  { key: '08', label: 'Agu' },
+  { key: '09', label: 'Sep' },
+  { key: '10', label: 'Okt' },
+  { key: '11', label: 'Nov' },
+  { key: '12', label: 'Des' },
+];
+
 // ── KONTRAK RIWAYAT BULANAN (BACKEND_FIX_CLOCKOUT_DAN_RIWAYAT §3.1) ──
 // Nilai status bersifat closed-set domain presensi; dideklarasikan terpusat di sini.
 const RIWAYAT_STATUS_META: Record<string, { label: string; variant: 'green' | 'amber' | 'red' | 'blue' | 'purple' }> = {
@@ -146,8 +209,8 @@ export default function PresensiPage() {
   const canManage = isAdmin || hasPermission('simpeg.presensi.manage');
   const canDelete = isAdmin || hasPermission('simpeg.presensi.delete') || hasPermission('simpeg.presensi.manage');
 
-  // Active View Tab: 'realtime' | 'bundle' (riwayat tab disembunyikan)
-  const [activeTab, setActiveTab] = useState<'realtime' | 'bundle' | 'riwayat'>('realtime');
+  // Active View Tab: 'realtime' | 'bundle' | 'sp_monitoring'
+  const [activeTab, setActiveTab] = useState<'realtime' | 'bundle' | 'sp_monitoring' | 'riwayat'>('realtime');
 
   // Modal Konfirmasi Hapus/Reset UI
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -222,6 +285,34 @@ export default function PresensiPage() {
   // ── KETERANGAN KETIDAKHADIRAN STATE ─────────────────────────
   const [showKeteranganModal, setShowKeteranganModal] = useState(false);
   const [savingKeterangan, setSavingKeterangan] = useState(false);
+
+  // ── TAB 3: MONITORING SP TAHUNAN (12 BULAN) STATE ───────────
+  const currentYear = new Date().getFullYear();
+  const [spSelectedYear, setSpSelectedYear] = useState<number>(currentYear);
+  const [spLoading, setSpLoading] = useState(false);
+  const [spMonitoringData, setSpMonitoringData] = useState<AnnualSpMonitoringRow[]>([]);
+  const [spMeta, setSpMeta] = useState<AnnualSpMonitoringMeta | undefined>();
+  const [spSearch, setSpSearch] = useState('');
+  const [spRiskLevel, setSpRiskLevel] = useState('all');
+  const [spUnitKerjaId, setSpUnitKerjaId] = useState<number | undefined>();
+  const [spSortBy, setSpSortBy] = useState('total_sp');
+  const [spSortDir, setSpSortDir] = useState<'asc' | 'desc'>('desc');
+  const [spPage, setSpPage] = useState(1);
+  const [spLimit, setSpLimit] = useState(15);
+  const [showSpFilterDrawer, setShowSpFilterDrawer] = useState(false);
+
+  const [spUnitKerjaLabel, setSpUnitKerjaLabel] = useState('');
+
+  const formSpFilter = useForm<SpFilterFormValues>({
+    resolver: zodResolver(spFilterFormSchema),
+    defaultValues: {
+      search: '',
+      unit_kerja_id: '',
+      risk_level: 'all',
+      sort_by: 'total_sp',
+      sort_order: 'desc',
+    },
+  });
 
   // ── FORMS (ALL ZOD RESOLVER) ───────────────────────────────
   const formKeterangan = useForm<KeteranganFormValues>({
@@ -335,16 +426,54 @@ export default function PresensiPage() {
     }
   }, [riwayatMonth, riwayatYear, recapPegawaiId]);
 
+  // ── FETCH: MONITORING SP TAHUNAN (12 BULAN) ──────────────────
+  const fetchSpMonitoring = useCallback(async () => {
+    setSpLoading(true);
+    try {
+      const res = await simpegService.getAnnualSpMonitoring({
+        tahun: spSelectedYear,
+        search: spSearch.trim() || undefined,
+        unit_kerja_id: spUnitKerjaId,
+        risk_level: spRiskLevel !== 'all' ? spRiskLevel : undefined,
+        sort_by: spSortBy,
+        sort_order: spSortDir,
+        page: spPage,
+        per_page: spLimit,
+      });
+
+      if (res.status === 'success' && res.data) {
+        setSpMonitoringData(res.data);
+        if (res.meta) {
+          setSpMeta(res.meta);
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Gagal memuat matriks monitoring SP tahunan.');
+    } finally {
+      setSpLoading(false);
+    }
+  }, [spSelectedYear, spSearch, spUnitKerjaId, spRiskLevel, spSortBy, spSortDir, spPage, spLimit]);
+
+  const handleOpenSpDetail = (spId: number) => {
+    router.push(`/simpeg/presensi/sp/${spId}`);
+  };
+
+  const handleOpenSpFilterDrawer = () => {
+    setShowSpFilterDrawer(true);
+  };
+
   useEffect(() => {
     if (activeTab === 'realtime') {
       fetchLogPresensi();
     } else if (activeTab === 'bundle') {
       fetchBundleList();
+    } else if (activeTab === 'sp_monitoring') {
+      fetchSpMonitoring();
     } else {
       fetchRiwayat();
       fetchRecap();
     }
-  }, [activeTab, fetchLogPresensi, fetchBundleList, fetchRiwayat, fetchRecap]);
+  }, [activeTab, fetchLogPresensi, fetchBundleList, fetchSpMonitoring, fetchRiwayat, fetchRecap]);
 
   // ── ACTION HANDLERS: LOG REALTIME ──────────────────────────
 
@@ -1034,6 +1163,213 @@ export default function PresensiPage() {
     },
   ];
 
+  // ── TABLE COLUMNS: MONITORING SP TAHUNAN (12 BULAN) ───────────
+
+  const spMonitoringColumns = useMemo<ColumnDef<AnnualSpMonitoringRow>[]>(() => {
+    const cols: ColumnDef<AnnualSpMonitoringRow>[] = [
+      {
+        key: 'pegawai',
+        label: 'Pegawai',
+        render: (row) => (
+          <div className="space-y-0.5 min-w-[170px] max-w-[220px]">
+            <div className="font-semibold text-slate-900 text-xs truncate" title={row.nama_lengkap}>
+              {row.nama_lengkap}
+            </div>
+            <div className="text-2xs text-slate-500 font-mono flex items-center gap-1.5 truncate">
+              <span>{row.nip || '-'}</span>
+              <span>•</span>
+              <span className="truncate">{row.unit_kerja}</span>
+            </div>
+          </div>
+        ),
+      },
+    ];
+
+    SP_MONTH_COLUMNS.forEach((mObj) => {
+      cols.push({
+        key: `month_${mObj.key}`,
+        label: mObj.label,
+        align: 'center',
+        headerRender: () => (
+          <div className="text-center py-0.5">
+            <span className="text-xs font-bold uppercase">{mObj.label}</span>
+          </div>
+        ),
+        render: (row) => {
+          const m = row.months?.[mObj.key];
+          if (!m) return <span className="text-2xs text-slate-300">-</span>;
+
+          const isSp = Boolean(m.has_sp);
+          const tooltipLines = [
+            `${mObj.label} ${spSelectedYear}`,
+            `• Keterlambatan: ${m.total_terlambat} kali (Batas Maksimal: ${m.batas_maksimal} kali)`,
+          ];
+          if (isSp) {
+            tooltipLines.push(`• ⚠️ SURAT PERINGATAN TERBIT (${m.nomor_sp || 'SP'})`);
+            tooltipLines.push(`• Status SP: ${m.status_sp || 'Aktif'}`);
+            tooltipLines.push(`(Klik sel untuk melihat dokumen resmi SP)`);
+          } else if (m.status_color === 'warning') {
+            tooltipLines.push(`• Terlambat dalam toleransi (Belum terbit SP)`);
+          } else if (m.status_color === 'success') {
+            tooltipLines.push(`• Hadir tepat waktu / Disiplin`);
+          } else {
+            tooltipLines.push(m.is_future ? `• Bulan mendatang` : `• Belum ada log presensi`);
+          }
+
+          let colorClass = 'bg-slate-100 text-slate-400 border border-slate-200';
+          if (m.status_color === 'danger') {
+            colorClass = 'bg-rose-500 text-white ring-1 ring-rose-600/40 shadow-xs';
+          } else if (m.status_color === 'warning') {
+            colorClass = 'bg-amber-400 text-amber-950 ring-1 ring-amber-500/40 shadow-xs';
+          } else if (m.status_color === 'success') {
+            colorClass = 'bg-emerald-500 text-white ring-1 ring-emerald-600/40 shadow-xs';
+          }
+
+          return (
+            <div
+              onClick={() => {
+                if (m.sp_id) {
+                  handleOpenSpDetail(m.sp_id);
+                }
+              }}
+              className={`inline-flex flex-col items-center justify-center gap-0.5 py-1 px-1 rounded transition-all select-none ${
+                m.sp_id ? 'cursor-pointer hover:scale-110 active:scale-95' : ''
+              }`}
+              title={tooltipLines.join('\n')}
+            >
+              <div
+                className={`w-6 h-6 rounded flex items-center justify-center font-bold text-2xs transition-all ${colorClass}`}
+              >
+                {isSp ? (
+                  <span className="font-extrabold text-2xs">SP</span>
+                ) : m.total_terlambat > 0 ? (
+                  <span className="text-2xs">{m.total_terlambat}</span>
+                ) : m.status_color === 'success' ? (
+                  <span className="text-2xs">✓</span>
+                ) : (
+                  <span className="text-2xs text-slate-300">-</span>
+                )}
+              </div>
+              <span className={`text-2xs font-mono leading-none ${isSp ? 'text-rose-600 font-bold' : (m.total_terlambat > 0 ? 'text-amber-700 font-medium' : 'text-slate-400')}`}>
+                {m.total_terlambat > 0 ? `${m.total_terlambat}x` : '-'}
+              </span>
+            </div>
+          );
+        },
+      });
+    });
+
+    cols.push(
+      {
+        key: 'total_sp',
+        label: 'Total SP',
+        align: 'center',
+        render: (row) => (
+          <div className="flex flex-col items-center justify-center min-w-[65px]">
+            {row.summary.total_sp > 0 ? (
+              <Badge
+                variant={row.summary.total_sp >= 2 ? 'red' : 'amber'}
+                className="font-bold text-xs px-2 py-0.5 font-mono"
+              >
+                {row.summary.total_sp} SP
+              </Badge>
+            ) : (
+              <span className="text-2xs text-slate-400 font-medium">0 SP</span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'total_terlambat',
+        label: 'Akumulasi Terlambat',
+        align: 'center',
+        render: (row) => (
+          <div className="flex flex-col items-center justify-center min-w-[75px]">
+            <span
+              className={`text-xs font-mono font-bold ${
+                row.summary.total_terlambat > 0 ? 'text-slate-800' : 'text-slate-400'
+              }`}
+            >
+              {row.summary.total_terlambat} Kali
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: 'risk_level',
+        label: 'Status Kedisiplinan',
+        align: 'center',
+        render: (row) => (
+          <div className="min-w-[95px] text-center">
+            {row.summary.risk_level === 'rawan' && (
+              <Badge variant="red" className="text-2xs font-bold whitespace-nowrap">
+                Sering SP (Rawan)
+              </Badge>
+            )}
+            {row.summary.risk_level === 'perhatian' && (
+              <Badge variant="amber" className="text-2xs font-bold whitespace-nowrap">
+                Perhatian (1x SP)
+              </Badge>
+            )}
+            {row.summary.risk_level === 'waspada' && (
+              <Badge variant="purple" className="text-2xs font-semibold whitespace-nowrap">
+                Ada Terlambat
+              </Badge>
+            )}
+            {row.summary.risk_level === 'disiplin' && (
+              <Badge variant="green" className="text-2xs font-semibold whitespace-nowrap">
+                Disiplin (0 SP)
+              </Badge>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'aksi',
+        label: 'Aksi',
+        align: 'right',
+        render: (row) => {
+          const items: DropdownMenuItem[] = [
+            {
+              label: 'Salin NIP Pegawai',
+              icon: <Copy size={14} />,
+              onClick: () => {
+                if (row.nip && row.nip !== '-') {
+                  navigator.clipboard.writeText(row.nip);
+                  toast.success(`NIP ${row.nip} berhasil disalin ke clipboard`);
+                } else {
+                  toast.error('NIP pegawai tidak tersedia');
+                }
+              },
+            },
+            {
+              label: 'Filter Pegawai Ini',
+              icon: <UserCheck size={14} />,
+              onClick: () => {
+                formSpFilter.setValue('search', row.nama_lengkap);
+                setSpSearch(row.nama_lengkap);
+                setSpPage(1);
+              },
+            },
+          ];
+
+          const monthWithSp = Object.values(row.months || {}).find((m) => m.has_sp && m.sp_id);
+          if (monthWithSp && monthWithSp.sp_id) {
+            items.push({
+              label: `Lihat Dokumen Resmi SP (${monthWithSp.month_name})`,
+              icon: <FileText size={14} />,
+              onClick: () => handleOpenSpDetail(monthWithSp.sp_id!),
+            });
+          }
+
+          return <DropdownMenu items={items} />;
+        },
+      }
+    );
+
+    return cols;
+  }, [spSelectedYear, formSpFilter]);
+
   return (
     <div className="animate-fade-in space-y-6">
       {/* Page Header */}
@@ -1051,22 +1387,26 @@ export default function PresensiPage() {
                 Pengaturan Presensi
               </Button>
             )}
-            {activeTab === 'realtime' ? (
-              <>
-                {canManage && (
-                  <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
-                    Jalankan Cut-off Harian
-                  </Button>
-                )}
-                <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
-                  Filter
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" icon={<Filter size={16} />} onClick={() => setShowFilterDrawer(true)}>
-                Filter
+            {activeTab === 'realtime' && canManage && (
+              <Button variant="outline" icon={<Clock size={16} />} onClick={handleOpenCutoffModal}>
+                Jalankan Cut-off Harian
               </Button>
             )}
+            <Button
+              variant="outline"
+              icon={<Filter size={16} />}
+              onClick={() => {
+                if (activeTab === 'sp_monitoring') {
+                  handleOpenSpFilterDrawer();
+                } else if (activeTab === 'riwayat') {
+                  setShowRiwayatDrawer(true);
+                } else {
+                  setShowFilterDrawer(true);
+                }
+              }}
+            >
+              Filter
+            </Button>
           </div>
         }
       />
@@ -1095,6 +1435,19 @@ export default function PresensiPage() {
             }`}
           >
             <Layers size={16} /> Rekap Bundle Periode
+          </button>
+        )}
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('sp_monitoring')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'sp_monitoring'
+                ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)]'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+            }`}
+          >
+            <AlertTriangle size={16} /> Monitoring SP Tahunan (12 Bulan)
           </button>
         )}
       </div>
@@ -1158,7 +1511,133 @@ export default function PresensiPage() {
         </div>
       )}
 
-      {/* ── TAB 3: RIWAYAT & REKAP BULANAN (§3.1–§3.2) ── */}
+      {/* ── TAB 3: MONITORING SP TAHUNAN (12 BULAN) ── */}
+      {activeTab === 'sp_monitoring' && (
+        <div className="space-y-4">
+          {/* Header Card: Selector Tahun & 4 Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Tahun Monitoring</span>
+                <Calendar size={18} className="text-[var(--module-primary)]" />
+              </div>
+              <div className="w-full">
+                <Select
+                  value={String(spSelectedYear)}
+                  onChange={(val) => {
+                    const y = Number(val);
+                    setSpSelectedYear(y);
+                    setSpPage(1);
+                  }}
+                  options={YEAR_OPTIONS}
+                />
+              </div>
+              <div className="text-2xs text-slate-500">
+                Batas Toleransi: <strong className="text-slate-700">{spMeta?.max_late_per_month ?? 5}x terlambat/bulan</strong>
+              </div>
+            </div>
+
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Total Pegawai</span>
+                <Users size={18} className="text-emerald-600" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900">
+                {Number(spMeta?.stats?.total_pegawai || 0).toLocaleString('id-ID')}
+              </div>
+              <div className="text-2xs text-slate-500">Seluruh dosen & tenaga kependidikan aktif</div>
+            </div>
+
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Pegawai Terbit SP</span>
+                <ShieldAlert size={18} className="text-amber-500" />
+              </div>
+              <div className="text-2xl font-bold text-amber-600">
+                {Number(spMeta?.stats?.pegawai_pernah_sp || 0).toLocaleString('id-ID')}
+              </div>
+              <div className="text-2xs text-slate-500">Pernah melampaui batas toleransi keterlambatan</div>
+            </div>
+
+            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">Total SP Terbit</span>
+                <AlertTriangle size={18} className="text-rose-600" />
+              </div>
+              <div className="text-2xl font-bold text-rose-600">
+                {Number(spMeta?.stats?.total_sp_terbit || 0).toLocaleString('id-ID')}
+              </div>
+              <div className="text-2xs text-slate-500">Akumulasi surat peringatan sepanjang {spSelectedYear}</div>
+            </div>
+          </div>
+
+          {/* Legend Presensi Bar (Format Mirip Rincian Bundel) */}
+          <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="text-[var(--module-primary)] shrink-0" />
+                <span className="text-xs font-bold text-slate-800">
+                  Matriks Kedisiplinan 12 Bulan (Januari – Desember {spSelectedYear})
+                </span>
+              </div>
+              <span className="text-2xs text-slate-500 italic">
+                *Klik pada sel berlabel SP untuk membuka dokumen resmi Surat Peringatan.
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs text-slate-700 font-medium">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-2xs bg-rose-500 text-white ring-1 ring-rose-600/40 shadow-xs">
+                  SP
+                </div>
+                <span>Terbit SP (&gt; {spMeta?.max_late_per_month ?? 5}x Terlambat)</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-2xs bg-amber-400 text-amber-950 ring-1 ring-amber-500/40 shadow-xs">
+                  !
+                </div>
+                <span>Terlambat Dalam Toleransi (1–{spMeta?.max_late_per_month ?? 5}x)</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-2xs bg-emerald-500 text-white ring-1 ring-emerald-600/40 shadow-xs">
+                  ✓
+                </div>
+                <span>Disiplin (0 Keterlambatan)</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-2xs bg-slate-100 text-slate-400 border border-slate-200">
+                  -
+                </div>
+                <span>Tidak Ada Log / Bulan Mendatang</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Matriks DataTable */}
+          <DataTable
+            columns={spMonitoringColumns}
+            data={spMonitoringData}
+            isLoading={spLoading}
+            meta={spMeta}
+            onPageChange={(newPage) => setSpPage(newPage)}
+            onLimitChange={(newLimit) => {
+              setSpLimit(newLimit);
+              setSpPage(1);
+            }}
+            emptyMessage={
+              <div className="py-8 text-center text-slate-400">
+                <AlertTriangle size={48} className="mx-auto mb-4 opacity-40 text-amber-500" />
+                <p>Tidak ada data monitoring surat peringatan untuk filter yang dipilih.</p>
+              </div>
+            }
+          />
+        </div>
+      )}
+
+      {/* ── TAB: RIWAYAT & REKAP BULANAN (§3.1–§3.2) ── */}
       {activeTab === 'riwayat' && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1389,6 +1868,141 @@ export default function PresensiPage() {
               : 'Rekap sebulan dihitung otomatis untuk akun Anda.'}
           </p>
         </div>
+      </Drawer>
+
+      {/* ── DRAWER FILTER MONITORING SP TAHUNAN ── */}
+      <Drawer
+        open={showSpFilterDrawer}
+        onClose={() => setShowSpFilterDrawer(false)}
+        title="Filter Monitoring SP Tahunan"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                formSpFilter.reset({
+                  search: '',
+                  unit_kerja_id: '',
+                  risk_level: 'all',
+                  sort_by: 'total_sp',
+                  sort_order: 'desc',
+                });
+                setSpSearch('');
+                setSpUnitKerjaId(undefined);
+                setSpRiskLevel('all');
+                setSpSortBy('total_sp');
+                setSpSortDir('desc');
+                setSpPage(1);
+              }}
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={formSpFilter.handleSubmit((values) => {
+                setSpSearch(values.search || '');
+                setSpUnitKerjaId(values.unit_kerja_id ? Number(values.unit_kerja_id) : undefined);
+                setSpRiskLevel(values.risk_level || 'all');
+                setSpSortBy(values.sort_by || 'total_sp');
+                setSpSortDir(values.sort_order || 'desc');
+                setSpPage(1);
+                setShowSpFilterDrawer(false);
+              })}
+            >
+              Terapkan Filter
+            </Button>
+          </div>
+        }
+      >
+        <form className="space-y-4">
+          <Controller
+            control={formSpFilter.control}
+            name="search"
+            render={({ field }) => (
+              <Input
+                label="Cari Nama / NIP Pegawai"
+                placeholder="Ketik nama atau NIP..."
+                value={field.value || ''}
+                onChange={field.onChange}
+              />
+            )}
+          />
+
+          <Controller
+            control={formSpFilter.control}
+            name="unit_kerja_id"
+            render={({ field }) => (
+              <AsyncSelect
+                label="Unit Kerja / Divisi"
+                placeholder="Pilih atau cari unit kerja..."
+                loadOptions={async (query: string) => {
+                  try {
+                    const res = await simpegService.getUnitKerjaList({ search: query.trim() || undefined });
+                    const responseData = (res as any).data ?? res;
+                    const items = Array.isArray(responseData) ? responseData : (responseData?.items || responseData?.data || []);
+                    return items.map((u: any) => ({ value: String(u.id), label: `${u.nama} (${u.tipe || 'Unit'})` }));
+                  } catch {
+                    return [];
+                  }
+                }}
+                value={
+                  field.value
+                    ? {
+                        value: field.value,
+                        label: spUnitKerjaLabel || 'Unit Kerja Terpilih',
+                      }
+                    : null
+                }
+                onChange={(opt: { value: string; label: string } | null) => {
+                  field.onChange(opt ? opt.value : '');
+                  setSpUnitKerjaLabel(opt ? opt.label : '');
+                }}
+                isClearable
+              />
+            )}
+          />
+
+          <Controller
+            control={formSpFilter.control}
+            name="risk_level"
+            render={({ field }) => (
+              <Select
+                label="Status Kedisiplinan"
+                value={field.value || 'all'}
+                onChange={field.onChange}
+                options={SP_RISK_OPTIONS}
+              />
+            )}
+          />
+
+          <hr className="border-t border-slate-200 my-2" />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Controller
+              control={formSpFilter.control}
+              name="sort_by"
+              render={({ field }) => (
+                <Select
+                  label="Urutkan Berdasarkan"
+                  value={field.value || 'total_sp'}
+                  onChange={field.onChange}
+                  options={SP_SORT_OPTIONS}
+                />
+              )}
+            />
+            <Controller
+              control={formSpFilter.control}
+              name="sort_order"
+              render={({ field }) => (
+                <Select
+                  label="Arah Urutan"
+                  value={field.value || 'desc'}
+                  onChange={field.onChange}
+                  options={SP_SORT_DIR_OPTIONS}
+                />
+              )}
+            />
+          </div>
+        </form>
       </Drawer>
 
       {/* ── MODAL: DETAIL LOG PRESENSI ── */}

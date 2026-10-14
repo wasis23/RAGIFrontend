@@ -690,5 +690,48 @@ export interface SuratPeringatan {
   gaji_pegawai?: unknown;
 }
 
+export interface AnnualSpMonitoringMonth {
+  month: number;
+  month_code: string;
+  month_name: string;
+  periode: string;
+  has_data: boolean;
+  is_future: boolean;
+  total_terlambat: number;
+  batas_maksimal: number;
+  has_sp: boolean;
+  sp_id?: number | null;
+  nomor_sp?: string | null;
+  jenis_sp?: string | null;
+  judul_sp?: string | null;
+  status_sp?: string | null;
+  status_color: 'danger' | 'warning' | 'success' | 'neutral';
+}
 
+export interface AnnualSpMonitoringRow {
+  pegawai_id: number;
+  nip: string;
+  nama_lengkap: string;
+  unit_kerja: string;
+  months: Record<string, AnnualSpMonitoringMonth>;
+  summary: {
+    total_sp: number;
+    total_terlambat: number;
+    risk_level: 'disiplin' | 'perhatian' | 'rawan' | 'waspada';
+    risk_label: string;
+  };
+}
 
+export interface AnnualSpMonitoringMeta {
+  current_page: number;
+  per_page: number;
+  total: number;
+  last_page: number;
+  tahun: number;
+  max_late_per_month: number;
+  stats: {
+    total_pegawai: number;
+    pegawai_pernah_sp: number;
+    total_sp_terbit: number;
+  };
+}

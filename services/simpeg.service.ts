@@ -33,6 +33,8 @@ import type {
   TandaTanganPegawai,
   TandaTanganFilterParams,
   SuratPeringatan,
+  AnnualSpMonitoringRow,
+  AnnualSpMonitoringMeta,
 } from '@/types/simpeg.types';
 
 export const simpegService = {
@@ -1087,6 +1089,11 @@ export const simpegService = {
 
   getSuratPeringatanDetail: async (id: number): Promise<ApiResponse<SuratPeringatan>> => {
     const { data } = await apiClient.get<ApiResponse<SuratPeringatan>>(`/simpeg/surat-peringatan/${id}`);
+    return data;
+  },
+
+  getAnnualSpMonitoring: async (params?: Record<string, unknown>): Promise<ApiResponse<AnnualSpMonitoringRow[]> & { meta?: AnnualSpMonitoringMeta }> => {
+    const { data } = await apiClient.get<ApiResponse<AnnualSpMonitoringRow[]> & { meta?: AnnualSpMonitoringMeta }>('/simpeg/surat-peringatan/monitoring-tahunan', { params });
     return data;
   },
 };
