@@ -32,9 +32,12 @@ import {
   Pencil,
   Trash2,
   Percent,
+  Search,
 } from 'lucide-react';
 import { spmbService, PendaftaranCalonMhs, PendaftaranBerkas } from '@/services/spmb.service';
+import { arsipService } from '@/services/arsip.service';
 import type { SpmbPotonganCalon } from '@/types/spmb.types';
+import type { CheckSkResult } from '@/types/arsip.types';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { useForm, Controller } from 'react-hook-form';
@@ -326,6 +329,65 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
     },
   });
   const tipePotongan = watchPotongan('tipe_potongan');
+  const watchPotonganNomorSk = watchPotongan('nomor_sk');
+
+  // State Verifikasi Nomor SK Potongan ke Modul Arsip
+  const [skCheckPotongan, setSkCheckPotongan] = useState<{
+    status: 'idle' | 'checking' | 'valid' | 'invalid';
+    message?: string;
+    data?: CheckSkResult | null;
+  }>({ status: 'idle' });
+
+  useEffect(() => {
+    if (skCheckPotongan.status !== 'idle' && skCheckPotongan.data?.nomor_surat !== (watchPotonganNomorSk || '').trim()) {
+      setSkCheckPotongan({ status: 'idle', data: null });
+    }
+  }, [watchPotonganNomorSk, skCheckPotongan.status, skCheckPotongan.data?.nomor_surat]);
+
+  const handleCheckSkPotongan = async () => {
+    const nomor = (watchPotonganNomorSk || '').trim();
+    if (!nomor) {
+      toast.error('Masukkan nomor SK terlebih dahulu untuk dicek');
+      return;
+    }
+
+    setSkCheckPotongan({ status: 'checking' });
+    try {
+      const res = await arsipService.checkNomorSk(nomor);
+      const resData = res?.data;
+      if (resData?.is_valid && resData?.has_document) {
+        setSkCheckPotongan({
+          status: 'valid',
+          message: res.message || 'Nomor SK sah dan dokumen fisik SK terverifikasi di modul Arsip.',
+          data: resData,
+        });
+        toast.success('Nomor SK sah dan dokumen fisik terlampir');
+      } else if (resData && !resData.has_document) {
+        setSkCheckPotongan({
+          status: 'invalid',
+          message: 'Nomor SK terdaftar di sistem Arsip, tetapi dokumen/berkas fisik SK belum diunggah (dokumen masih kosong).',
+          data: resData,
+        });
+        toast.error('Dokumen fisik SK belum diunggah di modul Arsip');
+      } else {
+        setSkCheckPotongan({
+          status: 'invalid',
+          message: res.message || 'Nomor SK tidak memenuhi syarat keabsahan di Arsip.',
+          data: resData,
+        });
+        toast.error('Nomor SK tidak sah');
+      }
+    } catch (err: any) {
+      const respData = err?.response?.data?.data;
+      const msg = err?.response?.data?.message || err?.message || 'Nomor SK tidak ditemukan atau belum sah di modul Arsip.';
+      setSkCheckPotongan({
+        status: 'invalid',
+        message: msg,
+        data: respData || null,
+      });
+      toast.error(msg);
+    }
+  };
 
   const fetchPotongan = async (pendaftaranId: number) => {
     try {
@@ -377,12 +439,36 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
 
   const handleOpenCreatePotongan = () => {
     setEditingPotongan(null);
+    setSkCheckPotongan({ status: 'idle', data: null });
     resetPotongan(emptyPotonganForm());
     setShowPotonganModal(true);
   };
 
   const handleOpenEditPotongan = (item: SpmbPotonganCalon) => {
     setEditingPotongan(item);
+    if (item.nomor_sk) {
+      if (item.arsip_nomor_surat) {
+        setSkCheckPotongan({
+          status: item.arsip_nomor_surat.has_dokumen ? 'valid' : 'invalid',
+          message: item.arsip_nomor_surat.has_dokumen
+            ? 'Nomor SK terhubung dan dokumen fisik terverifikasi di modul Arsip.'
+            : 'Dokumen fisik SK belum diunggah di modul Arsip.',
+          data: {
+            nomor_surat: item.nomor_sk,
+            is_found: true,
+            is_valid: Boolean(item.arsip_nomor_surat.has_dokumen),
+            has_document: Boolean(item.arsip_nomor_surat.has_dokumen),
+            perihal: item.arsip_nomor_surat.perihal,
+            status: item.arsip_nomor_surat.status as any,
+            dokumen_url: item.arsip_nomor_surat.dokumen_url,
+          },
+        });
+      } else {
+        setSkCheckPotongan({ status: 'idle', data: null });
+      }
+    } else {
+      setSkCheckPotongan({ status: 'idle', data: null });
+    }
     resetPotongan({
       komponen_biaya_id: Number(item.komponen_biaya_id),
       nama_potongan: item.nama_potongan,
@@ -403,6 +489,46 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
       toast.error('Potongan persen maksimal 100.');
       return;
     }
+
+    const trimmedSk = values.nomor_sk?.trim() || '';
+    if (trimmedSk) {
+      if (skCheckPotongan.status !== 'valid' || skCheckPotongan.data?.nomor_surat !== trimmedSk || !skCheckPotongan.data?.has_document) {
+        setSavingPotongan(true);
+        try {
+          const res = await arsipService.checkNomorSk(trimmedSk);
+          const resData = res?.data;
+          if (!resData?.is_valid || !resData?.has_document) {
+            const msg = !resData?.has_document
+              ? 'Nomor SK terdaftar di sistem Arsip, tetapi dokumen/berkas fisik SK belum diunggah (dokumen masih kosong).'
+              : 'Nomor SK tidak memenuhi syarat keabsahan di modul Arsip.';
+            toast.error(msg);
+            setSkCheckPotongan({
+              status: 'invalid',
+              message: msg,
+              data: resData || null,
+            });
+            setSavingPotongan(false);
+            return;
+          }
+          setSkCheckPotongan({
+            status: 'valid',
+            message: 'Nomor SK sah dan dokumen fisik SK terverifikasi di modul Arsip.',
+            data: resData,
+          });
+        } catch (err: any) {
+          const msg = err?.response?.data?.message || 'Nomor SK tidak sah atau belum memiliki berkas fisik di modul Arsip.';
+          toast.error(msg);
+          setSkCheckPotongan({
+            status: 'invalid',
+            message: msg,
+            data: err?.response?.data?.data,
+          });
+          setSavingPotongan(false);
+          return;
+        }
+      }
+    }
+
     try {
       setSavingPotongan(true);
       const payload = {
@@ -411,7 +537,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
         tipe_potongan: values.tipe_potongan,
         nilai_potongan: Number(values.nilai_potongan),
         tahap: values.tahap,
-        nomor_sk: values.nomor_sk?.trim() || undefined,
+        nomor_sk: trimmedSk || undefined,
         keterangan: values.keterangan?.trim() || undefined,
         berlaku_mulai: values.berlaku_mulai || null,
         berlaku_sampai: values.berlaku_sampai || null,
@@ -426,6 +552,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
       }
       setShowPotonganModal(false);
       setEditingPotongan(null);
+      setSkCheckPotongan({ status: 'idle', data: null });
       fetchPotongan(id);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
@@ -892,12 +1019,31 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                         <span className="text-xs font-bold text-slate-800 truncate">{p.nama_potongan}</span>
                         <Badge variant={p.status === 'aktif' ? 'success' : p.status === 'draft' ? 'secondary' : 'danger'}>{p.status}</Badge>
                       </div>
-                      <div className="text-2xs text-slate-500 mt-0.5">
-                        {p.nama_komponen || p.komponen_biaya?.nama || '-'}
-                        {' • '}
-                        {p.tipe_potongan === 'persen' ? `${Number(p.nilai_potongan)}%` : formatCurrency(Number(p.nilai_potongan))}
-                        {' • '}Tahap: {String(p.tahap).replace('_', ' ')}
-                        {p.nomor_sk ? ` • SK: ${p.nomor_sk}` : ''}
+                      <div className="text-2xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                        <span>{p.nama_komponen || p.komponen_biaya?.nama || '-'}</span>
+                        <span>•</span>
+                        <span>{p.tipe_potongan === 'persen' ? `${Number(p.nilai_potongan)}%` : formatCurrency(Number(p.nilai_potongan))}</span>
+                        <span>•</span>
+                        <span>Tahap: {String(p.tahap).replace('_', ' ')}</span>
+                        {p.nomor_sk && (
+                          <>
+                            <span>•</span>
+                            {p.arsip_nomor_surat?.dokumen_url ? (
+                              <a
+                                href={p.arsip_nomor_surat.dokumen_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 font-medium text-emerald-700 hover:text-emerald-900 underline"
+                                title="Lihat berkas fisik SK di modul Arsip"
+                              >
+                                <span>SK: {p.nomor_sk}</span>
+                                <ExternalLink size={10} />
+                              </a>
+                            ) : (
+                              <span className="font-mono">SK: {p.nomor_sk}</span>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                     {canKonversiMahasiswa && (
@@ -1257,12 +1403,6 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                 />
               )}
             />
-            <Input
-              label="Nomor SK (Opsional)"
-              placeholder="SK/012/2026"
-              error={errorsPotongan.nomor_sk?.message}
-              {...registerPotongan('nomor_sk')}
-            />
             <Controller
               control={controlPotongan}
               name="status"
@@ -1289,6 +1429,89 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
               error={errorsPotongan.berlaku_sampai?.message}
               {...registerPotongan('berlaku_sampai')}
             />
+
+            {/* Field Nomor SK dengan Tombol CEK ke Modul Arsip */}
+            <div className="col-span-full space-y-2">
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Input
+                    label="Nomor SK Penetapan Potongan (Opsional)"
+                    placeholder="Contoh: 001/SK-POTONGAN/UTI/2026"
+                    className="font-mono uppercase"
+                    error={errorsPotongan.nomor_sk?.message}
+                    {...registerPotongan('nomor_sk')}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 shrink-0"
+                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                  icon={<Search size={16} />}
+                  onClick={handleCheckSkPotongan}
+                  loading={skCheckPotongan.status === 'checking'}
+                  disabled={skCheckPotongan.status === 'checking'}
+                >
+                  CEK
+                </Button>
+              </div>
+              <p className="text-2xs text-slate-500">
+                Nomor SK resmi dari modul Arsip sebagai dasar pemberian potongan khusus (memastikan SK terdaftar dan dokumen fisik tidak kosong).
+              </p>
+
+              {/* Feedback Status Cek SK */}
+              {skCheckPotongan.status === 'valid' && skCheckPotongan.data && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 font-semibold text-emerald-800">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                      <span>SK Sah &amp; Dokumen Fisik Terverifikasi</span>
+                    </div>
+                    <Badge variant="success" className="text-2xs font-mono uppercase">
+                      {skCheckPotongan.data.status || 'Terpakai'}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700 pt-1 border-t border-emerald-100">
+                    <div>
+                      <span className="text-slate-400 text-2xs block">Perihal Surat:</span>
+                      <span className="font-medium">{skCheckPotongan.data.perihal || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-2xs block">Tanggal Surat / Penetapan:</span>
+                      <span className="font-medium">{skCheckPotongan.data.tanggal_surat || '-'}</span>
+                    </div>
+                  </div>
+
+                  {skCheckPotongan.data.dokumen_url && (
+                    <div className="pt-1 flex items-center justify-between border-t border-emerald-100 text-2xs">
+                      <span className="text-emerald-700 font-medium">Dokumen fisik SK terlampir di modul Arsip</span>
+                      <a
+                        href={skCheckPotongan.data.dokumen_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 font-semibold underline"
+                      >
+                        <span>Lihat Berkas SK</span>
+                        <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {skCheckPotongan.status === 'invalid' && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs flex items-start gap-2 text-red-700 animate-fade-in">
+                  <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-semibold block">Pemeriksaan SK Gagal:</span>
+                    <p className="text-2xs text-red-600 leading-relaxed">
+                      {skCheckPotongan.message || 'Nomor SK tidak ditemukan atau belum memiliki lampiran berkas fisik di modul Arsip.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <Textarea
             label="Keterangan / Dasar (Opsional)"

@@ -359,6 +359,16 @@ export interface SpmbPotonganCalon {
   updated_at?: string;
   komponen_biaya?: { id: number; kode?: string; nama: string };
   pembuat?: { id: number; name?: string; username?: string };
+  arsip_nomor_surat?: {
+    id: number;
+    nomor_surat: string;
+    perihal?: string;
+    tanggal_surat?: string;
+    status?: string;
+    file_path?: string | null;
+    dokumen_url?: string | null;
+    has_dokumen?: boolean;
+  } | null;
 }
 
 // ============================================================
