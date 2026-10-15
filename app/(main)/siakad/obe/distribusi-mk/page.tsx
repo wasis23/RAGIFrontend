@@ -196,35 +196,83 @@ export default function DistribusiMengajarPage() {
       ),
     },
     {
-      key: 'dosen',
-      label: 'DOSEN KOORDINATOR DAN ANGGOTA',
-      render: (r) => {
-        const anggotas: any[] = Array.isArray(r.dosen_anggotas) ? r.dosen_anggotas : [];
-        return (
-          <div>
-            <span className="font-bold text-xs block text-[var(--module-primary)]">
-              {r.dosen_koordinator?.nama_lengkap || '-'}
+      key: 'dosen_koordinator',
+      label: 'DOSEN KOORDINATOR',
+      render: (r) => (
+        <div>
+          <span className="font-bold text-xs block text-[var(--module-primary)]">
+            {r.dosen_koordinator?.nama_lengkap || '-'}
+          </span>
+          {r.dosen_koordinator?.nidn && (
+            <span className="text-2xs text-slate-500 font-mono block">
+              NIDN: {r.dosen_koordinator.nidn}
             </span>
-            <span className="text-2xs text-slate-500 block">
-              {anggotas.length > 0
-                ? anggotas.map((a: any) => a.nama_lengkap).join(', ')
-                : 'Tanpa anggota'}
-            </span>
-          </div>
-        );
-      },
+          )}
+        </div>
+      ),
     },
     {
-      key: 'kelas',
-      label: 'KELAS',
+      key: 'dosen_anggota',
+      label: 'DOSEN ANGGOTA',
       render: (r) => {
-        const kelasList: string[] = Array.isArray(r.kelas_list) ? r.kelas_list : [];
+        const anggotas: any[] = Array.isArray(r.dosen_anggotas) && r.dosen_anggotas.length > 0
+          ? r.dosen_anggotas
+          : (Array.isArray(r.dosen_anggota_details) ? r.dosen_anggota_details : []);
+        if (anggotas.length === 0) {
+          return <span className="text-2xs text-slate-400 italic">Tanpa anggota</span>;
+        }
         return (
-          <div>
-            <span className="font-mono font-bold text-slate-900 text-xs block">
-              {r.mata_kuliah?.kode_mk || '-'} ({kelasList.length > 0 ? kelasList.join(',') : '-'})
-            </span>
-            <span className="text-2xs text-slate-500 block">{kelasList.length} kelas dibuka</span>
+          <div className="flex flex-col gap-1.5 min-w-[260px]">
+            {anggotas.map((a: any, idx: number) => {
+              const itemSks =
+                a.sks !== undefined && a.sks !== null
+                  ? `${a.sks} SKS`
+                  : r.mata_kuliah?.total_sks !== undefined && r.mata_kuliah?.total_sks !== null
+                    ? `${r.mata_kuliah.total_sks} SKS`
+                    : '-';
+              const itemKelasList: string[] = Array.isArray(a.kelas_list) && a.kelas_list.length > 0
+                ? a.kelas_list
+                : Array.isArray(r.kelas_list) ? r.kelas_list : [];
+
+              return (
+                <div
+                  key={a.id || a.dosen_id || idx}
+                  className="flex flex-col gap-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-2xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-slate-800 text-xs">
+                      {a.nama_lengkap || a.nama || a.dosen_nama || '-'}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+                      {itemSks}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    {(a.nidn || a.dosen_nidn) ? (
+                      <span className="font-mono text-2xs text-slate-400">
+                        NIDN: {a.nidn || a.dosen_nidn}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    {itemKelasList.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {itemKelasList.map((kName: string, kIdx: number) => (
+                          <span
+                            key={kIdx}
+                            className="px-1.5 py-0.5 rounded text-2xs font-mono font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          >
+                            {kName}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 italic text-2xs">-</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         );
       },

@@ -264,11 +264,13 @@ export default function RpsKelolaPage() {
       label: 'Dosen Koordinator / Anggota',
       render: (row) => {
         const koordinator = row.dosen_koordinator || row.koordinator_rmk || row.koordinatorRmk;
-        const anggotas: any[] = Array.isArray(row.dosen_anggotas) ? row.dosen_anggotas : [];
+        const anggotas: any[] = Array.isArray(row.dosen_anggota_details) && row.dosen_anggota_details.length > 0
+          ? row.dosen_anggota_details
+          : Array.isArray(row.dosen_anggotas) ? row.dosen_anggotas : [];
         const kaprodi = row.kaprodi;
 
         return (
-          <div className="space-y-1 text-2xs leading-snug">
+          <div className="space-y-1.5 text-2xs leading-snug">
             {koordinator && (
               <div>
                 <span style={{ color: 'var(--module-primary)' }} className="font-bold block">Koordinator:</span>
@@ -278,7 +280,30 @@ export default function RpsKelolaPage() {
             {anggotas.length > 0 && (
               <div>
                 <span className="text-slate-500 font-bold block">Anggota:</span>
-                <span className="text-slate-700">{anggotas.map((a: any) => a.nama_lengkap || a.nama || a.name).join(', ')}</span>
+                <div className="space-y-1 mt-0.5">
+                  {anggotas.map((a: any, idx: number) => {
+                    const aName = a.nama_lengkap || a.nama || a.name || a.dosen_nama || '-';
+                    const aKelasList: string[] = Array.isArray(a.kelas_list) ? a.kelas_list : [];
+                    return (
+                      <div key={a.id || a.dosen_id || idx} className="text-slate-700">
+                        <span className="font-semibold">{aName}</span>
+                        {a.sks && <span className="text-slate-400 font-mono text-2xs"> ({a.sks} SKS)</span>}
+                        {aKelasList.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {aKelasList.map((kName, kIdx) => (
+                              <span
+                                key={kIdx}
+                                className="px-1.5 py-0.5 rounded text-2xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200"
+                              >
+                                {kName}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
             {kaprodi && (
@@ -319,17 +344,33 @@ export default function RpsKelolaPage() {
       label: 'Kelas',
       render: (row) => {
         const mk = row.mata_kuliah || row.mataKuliah;
-        const distribusiKelas = row.distribusi_kelas_formatted || (row.distribusi_kelas_list?.length > 0 ? row.distribusi_kelas_list.join(',') : null);
-        const kelasList = mk?.kelas || [];
+        let allKelasNames: string[] = [];
+        if (Array.isArray(row.dosen_anggota_details) && row.dosen_anggota_details.length > 0) {
+          allKelasNames = Array.from(new Set(
+            row.dosen_anggota_details.flatMap((d: any) => d.kelas_list || []).filter(Boolean)
+          ));
+        }
+        if (allKelasNames.length === 0 && Array.isArray(row.distribusi_kelas_list)) {
+          allKelasNames = row.distribusi_kelas_list.filter(Boolean);
+        }
+        if (allKelasNames.length === 0 && row.distribusi_kelas_formatted) {
+          allKelasNames = row.distribusi_kelas_formatted.split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
 
-        if (distribusiKelas) {
+        if (allKelasNames.length > 0) {
           return (
-            <div className="font-mono text-2xs text-slate-900 font-bold">
-              {mk?.kode_mk ? `${mk.kode_mk} (${distribusiKelas})` : distribusiKelas}
+            <div>
+              <span className="font-mono text-2xs font-bold text-slate-900 block">
+                {mk?.kode_mk ? `${mk.kode_mk} (${allKelasNames.join(', ')})` : allKelasNames.join(', ')}
+              </span>
+              <span className="text-2xs text-slate-500 block">
+                {allKelasNames.length} kelas dibuka
+              </span>
             </div>
           );
         }
 
+        const kelasList = mk?.kelas || [];
         return kelasList.length > 0 ? (
           <div className="space-y-0.5 font-mono text-2xs text-slate-800">
             {kelasList.map((k: any) => (

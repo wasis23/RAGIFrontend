@@ -156,12 +156,12 @@ export default function CreateRpsPage() {
         const listDist = resDistribusi?.data || [];
         const dist = Array.isArray(listDist) ? listDist[0] : null;
 
-        if (dist && Array.isArray(dist.dosen_anggota_ids)) {
-          const anggotaIds = dist.dosen_anggota_ids.map(Number).filter(Boolean);
-          setValue('dosen_anggota_ids', anggotaIds);
-        } else {
-          setValue('dosen_anggota_ids', []);
-        }
+        const details = dist?.dosen_anggota_details;
+        const rawIds = Array.isArray(dist?.dosen_anggota_ids) && dist.dosen_anggota_ids.length > 0
+          ? dist.dosen_anggota_ids
+          : Array.isArray(details) ? details.map((d: any) => d.dosen_id) : [];
+        const anggotaIds = rawIds.map(Number).filter(Boolean);
+        setValue('dosen_anggota_ids', anggotaIds);
 
         if (dist?.dosen_koordinator_id) {
           setValue('koordinator_rmk_id', Number(dist.dosen_koordinator_id));

@@ -107,6 +107,7 @@ export default function EditDistribusiMengajarPage() {
                     ? {
                         value: initial.mata_kuliah.id,
                         label: `${initial.mata_kuliah.kode_mk} — ${initial.mata_kuliah.nama}`,
+                        raw: initial.mata_kuliah,
                       }
                     : null,
                   semester: initial.semester,
@@ -120,6 +121,13 @@ export default function EditDistribusiMengajarPage() {
                   dosen_anggota_ids: Array.isArray(initial.dosen_anggota_ids)
                     ? initial.dosen_anggota_ids.map(Number).filter(Boolean)
                     : [],
+                  anggotaOptions: Array.isArray(initial.dosen_anggotas)
+                    ? initial.dosen_anggotas.map((d: any) => ({
+                        value: d.id,
+                        label: `${d.nama_lengkap || d.nama || 'Dosen'} — NIDN ${d.nidn || d.nik || d.nip || '-'}`,
+                        raw: d,
+                      }))
+                    : [],
                   kelas_ids: Array.isArray(initial.kelas_ids)
                     ? initial.kelas_ids.map(Number).filter(Boolean)
                     : [],
@@ -129,6 +137,19 @@ export default function EditDistribusiMengajarPage() {
                         label: `${k.nama_kelas}${k.tahun_angkatan ? ` — Angkatan ${k.tahun_angkatan}` : ''}${k.dosen_pa ? ` (PA: ${k.dosen_pa.nama_lengkap})` : ''}`,
                       }))
                     : [],
+                  dosen_anggota_details: Array.isArray(initial.dosen_anggota_details) && initial.dosen_anggota_details.length > 0
+                    ? initial.dosen_anggota_details
+                    : Array.isArray(initial.dosen_anggotas)
+                      ? initial.dosen_anggotas.map((d: any) => ({
+                          dosen_id: d.id,
+                          dosen_nama: d.nama_lengkap || d.nama,
+                          dosen_nidn: d.nidn,
+                          dosen: d,
+                          sks: d.sks ?? initial.mata_kuliah?.total_sks ?? 1,
+                          kelas_ids: d.kelas_ids || initial.kelas_ids || [],
+                          kelas_list: d.kelas_list || initial.kelas_list || [],
+                        }))
+                      : [],
                 }}
                 onSubmit={handleSubmit}
                 onCancel={() => router.push('/siakad/obe/distribusi-mk')}
