@@ -146,7 +146,7 @@ const potonganCalonSchema = z.object({
   tipe_potongan: z.enum(['nominal', 'persen']),
   nilai_potongan: z.number().min(0, 'Nilai minimal 0'),
   tahap: z.enum(['pendaftaran', 'daftar_ulang', 'keduanya']),
-  nomor_sk: z.string().max(100, 'Maksimal 100 karakter').optional().or(z.literal('')),
+  nomor_sk: z.string().min(1, 'Nomor SK wajib diisi').max(100, 'Maksimal 100 karakter'),
   keterangan: z.string().optional().or(z.literal('')),
   berlaku_mulai: z.string().optional().or(z.literal('')),
   berlaku_sampai: z.string().optional().or(z.literal('')),
@@ -491,41 +491,44 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
     }
 
     const trimmedSk = values.nomor_sk?.trim() || '';
-    if (trimmedSk) {
-      if (skCheckPotongan.status !== 'valid' || skCheckPotongan.data?.nomor_surat !== trimmedSk || !skCheckPotongan.data?.has_document) {
-        setSavingPotongan(true);
-        try {
-          const res = await arsipService.checkNomorSk(trimmedSk);
-          const resData = res?.data;
-          if (!resData?.is_valid || !resData?.has_document) {
-            const msg = !resData?.has_document
-              ? 'Nomor SK terdaftar di sistem Arsip, tetapi dokumen/berkas fisik SK belum diunggah (dokumen masih kosong).'
-              : 'Nomor SK tidak memenuhi syarat keabsahan di modul Arsip.';
-            toast.error(msg);
-            setSkCheckPotongan({
-              status: 'invalid',
-              message: msg,
-              data: resData || null,
-            });
-            setSavingPotongan(false);
-            return;
-          }
-          setSkCheckPotongan({
-            status: 'valid',
-            message: 'Nomor SK sah dan dokumen fisik SK terverifikasi di modul Arsip.',
-            data: resData,
-          });
-        } catch (err: any) {
-          const msg = err?.response?.data?.message || 'Nomor SK tidak sah atau belum memiliki berkas fisik di modul Arsip.';
+    if (!trimmedSk) {
+      toast.error('Nomor SK penetapan potongan wajib diisi.');
+      return;
+    }
+
+    if (skCheckPotongan.status !== 'valid' || skCheckPotongan.data?.nomor_surat !== trimmedSk || !skCheckPotongan.data?.has_document) {
+      setSavingPotongan(true);
+      try {
+        const res = await arsipService.checkNomorSk(trimmedSk);
+        const resData = res?.data;
+        if (!resData?.is_valid || !resData?.has_document) {
+          const msg = !resData?.has_document
+            ? 'Nomor SK terdaftar di sistem Arsip, tetapi dokumen/berkas fisik SK belum diunggah (dokumen masih kosong).'
+            : 'Nomor SK tidak memenuhi syarat keabsahan di modul Arsip.';
           toast.error(msg);
           setSkCheckPotongan({
             status: 'invalid',
             message: msg,
-            data: err?.response?.data?.data,
+            data: resData || null,
           });
           setSavingPotongan(false);
           return;
         }
+        setSkCheckPotongan({
+          status: 'valid',
+          message: 'Nomor SK sah dan dokumen fisik SK terverifikasi di modul Arsip.',
+          data: resData,
+        });
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || 'Nomor SK tidak sah atau belum memiliki berkas fisik di modul Arsip.';
+        toast.error(msg);
+        setSkCheckPotongan({
+          status: 'invalid',
+          message: msg,
+          data: err?.response?.data?.data,
+        });
+        setSavingPotongan(false);
+        return;
       }
     }
 
@@ -537,7 +540,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
         tipe_potongan: values.tipe_potongan,
         nilai_potongan: Number(values.nilai_potongan),
         tahap: values.tahap,
-        nomor_sk: trimmedSk || undefined,
+        nomor_sk: trimmedSk,
         keterangan: values.keterangan?.trim() || undefined,
         berlaku_mulai: values.berlaku_mulai || null,
         berlaku_sampai: values.berlaku_sampai || null,
@@ -1435,7 +1438,8 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
               <div className="flex items-end gap-2">
                 <div className="flex-1">
                   <Input
-                    label="Nomor SK Penetapan Potongan (Opsional)"
+                    label="Nomor SK Penetapan Potongan *"
+                    required
                     placeholder="Contoh: 001/SK-POTONGAN/UTI/2026"
                     className="font-mono uppercase"
                     error={errorsPotongan.nomor_sk?.message}
@@ -1456,7 +1460,7 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                 </Button>
               </div>
               <p className="text-2xs text-slate-500">
-                Nomor SK resmi dari modul Arsip sebagai dasar pemberian potongan khusus (memastikan SK terdaftar dan dokumen fisik tidak kosong).
+                Nomor SK resmi dari modul Arsip wajib diisi sebagai dasar penetapan potongan biaya (memastikan SK terdaftar dan dokumen fisik tidak kosong).
               </p>
 
               {/* Feedback Status Cek SK */}

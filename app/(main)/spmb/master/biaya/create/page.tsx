@@ -24,7 +24,7 @@ import toast from 'react-hot-toast';
 const masterBiayaFormSchema = z.object({
   master_tipe_jalur_id: z.string().min(1, 'Tipe jalur masuk wajib dipilih'),
   program_studi_id: z.string().min(1, 'Program studi wajib dipilih'),
-  nomor_sk: z.string().max(100, 'Nomor SK maksimal 100 karakter').optional().or(z.literal('')),
+  nomor_sk: z.string().min(1, 'Nomor SK wajib diisi').max(100, 'Nomor SK maksimal 100 karakter'),
   is_active: z.boolean(),
   keterangan: z.string().max(255, 'Keterangan maksimal 255 karakter').optional().or(z.literal('')),
   items: z.array(
@@ -222,32 +222,35 @@ export default function CreateMasterBiayaPage() {
     }
 
     const trimmedSk = values.nomor_sk?.trim();
-    if (trimmedSk) {
-      if (skCheck.status !== 'valid' || skCheck.data?.nomor_surat !== trimmedSk) {
-        try {
-          setSubmitting(true);
-          const checkRes = await arsipService.checkNomorSk(trimmedSk);
-          if (!checkRes?.data?.is_valid || !checkRes?.data?.has_document) {
-            toast.error('Nomor SK tidak sah atau dokumen fisik belum diunggah di modul Arsip');
-            setSkCheck({
-              status: 'invalid',
-              message: checkRes?.message || 'Nomor SK belum memiliki berkas fisik di modul Arsip.',
-              data: checkRes?.data,
-            });
-            setSubmitting(false);
-            return;
-          }
-        } catch (err: any) {
-          const msg = err?.response?.data?.message || 'Nomor SK tidak sah atau belum memiliki berkas fisik di modul Arsip.';
-          toast.error(msg);
+    if (!trimmedSk) {
+      toast.error('Nomor SK penetapan biaya wajib diisi');
+      return;
+    }
+
+    if (skCheck.status !== 'valid' || skCheck.data?.nomor_surat !== trimmedSk) {
+      try {
+        setSubmitting(true);
+        const checkRes = await arsipService.checkNomorSk(trimmedSk);
+        if (!checkRes?.data?.is_valid || !checkRes?.data?.has_document) {
+          toast.error('Nomor SK tidak sah atau dokumen fisik belum diunggah di modul Arsip');
           setSkCheck({
             status: 'invalid',
-            message: msg,
-            data: err?.response?.data?.data,
+            message: checkRes?.message || 'Nomor SK belum memiliki berkas fisik di modul Arsip.',
+            data: checkRes?.data,
           });
           setSubmitting(false);
           return;
         }
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || 'Nomor SK tidak sah atau belum memiliki berkas fisik di modul Arsip.';
+        toast.error(msg);
+        setSkCheck({
+          status: 'invalid',
+          message: msg,
+          data: err?.response?.data?.data,
+        });
+        setSubmitting(false);
+        return;
       }
     }
 
@@ -256,7 +259,7 @@ export default function CreateMasterBiayaPage() {
       await spmbService.createMasterBiaya({
         master_tipe_jalur_id: Number(values.master_tipe_jalur_id),
         program_studi_id: Number(values.program_studi_id),
-        nomor_sk: trimmedSk || undefined,
+        nomor_sk: trimmedSk,
         is_active: values.is_active,
         keterangan: values.keterangan?.trim() || undefined,
         items: values.items.map((it) => ({
@@ -346,7 +349,8 @@ export default function CreateMasterBiayaPage() {
                   <div className="flex items-end gap-2">
                     <div className="flex-1">
                       <Input
-                        label="Nomor SK Penetapan Biaya"
+                        label="Nomor SK Penetapan Biaya *"
+                        required
                         placeholder="Contoh: 001/SK-BIAYA/UTI/2026"
                         className="font-mono uppercase"
                         {...register('nomor_sk')}
@@ -367,7 +371,7 @@ export default function CreateMasterBiayaPage() {
                     </Button>
                   </div>
                   <p className="text-2xs text-slate-500">
-                    Nomor SK resmi dari modul Arsip sebagai dasar penetapan tarif biaya institusi (memastikan SK terdaftar dan dokumen fisik tidak kosong).
+                    Nomor SK resmi dari modul Arsip wajib diisi sebagai dasar penetapan tarif biaya institusi (memastikan SK terdaftar dan dokumen fisik tidak kosong).
                   </p>
 
                   {/* Feedback Status Cek SK */}
