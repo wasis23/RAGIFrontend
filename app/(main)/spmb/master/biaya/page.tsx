@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { Plus, Edit, Trash2, Filter, Tag } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Tag, ExternalLink } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable } from '@/components/ui/DataTable';
 import { Drawer } from '@/components/ui/Drawer';
@@ -40,6 +40,7 @@ export default function MasterBiayaPage() {
   const page = Number(searchParams.get('page')) || 1;
   const limit = Number(searchParams.get('limit')) || 10;
   const searchQ = searchParams.get('search') || '';
+  const nomorSkQ = searchParams.get('nomor_sk') || '';
   const orderByQ = searchParams.get('sort_by') || 'created_at';
   const orderDirQ = searchParams.get('sort_dir') || 'desc';
   const tipeJalurQ = searchParams.get('master_tipe_jalur_id') || '';
@@ -52,6 +53,7 @@ export default function MasterBiayaPage() {
   // Local Filter Drawer State
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState(searchQ);
+  const [filterNomorSk, setFilterNomorSk] = useState(nomorSkQ);
   const [filterTipeJalurId, setFilterTipeJalurId] = useState(tipeJalurQ);
   const [filterStatus, setFilterStatus] = useState(statusQ);
   const [filterJumlahKomponen, setFilterJumlahKomponen] = useState(jumlahQ);
@@ -89,10 +91,12 @@ export default function MasterBiayaPage() {
   // Fetch data from API
   const fetchData = useCallback(async () => {
     try {
-      setLoading(true);      const res = await spmbService.getMasterBiayaList({
+      setLoading(true);
+      const res = await spmbService.getMasterBiayaList({
         page,
         limit,
         search: searchQ,
+        nomor_sk: nomorSkQ || undefined,
         master_tipe_jalur_id: tipeJalurQ || undefined,
         is_active: statusQ || undefined,
         jumlah_komponen: jumlahQ || undefined,
@@ -109,7 +113,7 @@ export default function MasterBiayaPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, searchQ, tipeJalurQ, statusQ, jumlahQ, bebanPendaftaranQ, bebanDaftarUlangQ, totalBiayaQ, orderByQ, orderDirQ]);
+  }, [page, limit, searchQ, nomorSkQ, tipeJalurQ, statusQ, jumlahQ, bebanPendaftaranQ, bebanDaftarUlangQ, totalBiayaQ, orderByQ, orderDirQ]);
 
   useEffect(() => {
     fetchData();
@@ -133,6 +137,7 @@ export default function MasterBiayaPage() {
     updateURLParams({
       page: 1,
       search: filterSearch,
+      nomor_sk: filterNomorSk,
       master_tipe_jalur_id: filterTipeJalurId,
       is_active: filterStatus,
       jumlah_komponen: filterJumlahKomponen,
@@ -147,6 +152,7 @@ export default function MasterBiayaPage() {
 
   const handleResetFilter = () => {
     setFilterSearch('');
+    setFilterNomorSk('');
     setFilterTipeJalurId('');
     setFilterStatus('');
     setFilterJumlahKomponen('');
@@ -158,6 +164,7 @@ export default function MasterBiayaPage() {
     updateURLParams({
       page: 1,
       search: '',
+      nomor_sk: '',
       master_tipe_jalur_id: '',
       is_active: '',
       jumlah_komponen: '',
@@ -260,6 +267,36 @@ export default function MasterBiayaPage() {
                   <span className="text-2xs text-slate-500">
                     {row.master_tipe_jalur?.kode}
                   </span>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: 'nomor_sk',
+            label: 'Nomor SK',
+            render: (row) => (
+              <div>
+                {row.nomor_sk ? (
+                  <div className="space-y-0.5">
+                    <span className="font-mono font-bold text-xs text-slate-800 block">
+                      {row.nomor_sk}
+                    </span>
+                    {row.arsip_nomor_surat?.dokumen_url ? (
+                      <a
+                        href={row.arsip_nomor_surat.dokumen_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-2xs text-emerald-700 hover:text-emerald-900 font-semibold underline"
+                      >
+                        <span>Dokumen SK</span>
+                        <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-2xs text-slate-400">Terdaftar di Arsip</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-2xs text-slate-400 italic">Tanpa SK</span>
                 )}
               </div>
             ),
@@ -382,6 +419,13 @@ export default function MasterBiayaPage() {
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
+          <Input
+            label="Nomor SK"
+            placeholder="Cari nomor SK / surat..."
+            value={filterNomorSk}
+            onChange={(e) => setFilterNomorSk(e.target.value)}
+          />
+
           <Select
             label="Tipe Jalur Masuk"
             value={filterTipeJalurId}
@@ -443,6 +487,7 @@ export default function MasterBiayaPage() {
               onChange={(val) => setFilterOrderBy(val)}
               options={[
                 { value: 'created_at', label: 'Tanggal Dibuat' },
+                { value: 'nomor_sk', label: 'Nomor SK' },
                 { value: 'program_studi', label: 'Program Studi' },
                 { value: 'master_tipe_jalur', label: 'Tipe Jalur Masuk' },
                 { value: 'items', label: 'Rincian Komponen' },

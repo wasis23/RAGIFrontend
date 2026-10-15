@@ -346,7 +346,7 @@ export default function DataPendaftarPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="animate-fade-in flex flex-col gap-6">
       {/* Page Header with Real Data Count */}
       <PageHeader
         title="Data Pendaftaran"

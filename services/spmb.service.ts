@@ -561,6 +561,7 @@ export const spmbService = {
   getMasterBiayaList: async (params?: {
     master_tipe_jalur_id?: number | string;
     program_studi_id?: number | string;
+    nomor_sk?: string;
     search?: string;
     is_active?: boolean | string;
     jumlah_komponen?: number | string;
@@ -589,6 +590,7 @@ export const spmbService = {
   createMasterBiaya: async (data: {
     master_tipe_jalur_id: number;
     program_studi_id: number;
+    nomor_sk?: string;
     is_active?: boolean;
     keterangan?: string;
     items: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; berlaku_diskon?: boolean; keterangan?: string }[];
@@ -602,6 +604,7 @@ export const spmbService = {
     data: {
       master_tipe_jalur_id?: number;
       program_studi_id?: number;
+      nomor_sk?: string;
       is_active?: boolean;
       keterangan?: string;
       items?: { komponen_biaya_id: number; nominal: number; dibebankan_saat_pendaftaran?: boolean; berlaku_diskon?: boolean; keterangan?: string }[];

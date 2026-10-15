@@ -15,7 +15,7 @@
 echo "🎨 [Audit 2/3: UI/UX, CRUD, Form & Theming] Memeriksa standar UI/UX frontend dengan AI (AI Muse Spark 1.3)..."
 
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
-AI_ENGINE="${AI_ENGINE:-agy}"
+AI_ENGINE="opencode"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
 MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
 
@@ -97,20 +97,21 @@ Format Respon:
 EOF
 
 AI_EXIT_CODE=1
-if [ "$AI_ENGINE" != "agy" ] && [ -x "$OPENCODE_BIN" ]; then
-    RESULT=$(timeout 90s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
+if [ -x "$OPENCODE_BIN" ]; then
+    RESULT=$(timeout 180s "$OPENCODE_BIN" run --pure -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
-fi
-
-if [ $AI_EXIT_CODE -ne 0 ] && command -v agy &> /dev/null; then
-    RESULT=$(timeout 90s agy --model gemini-3.8-flash-low --print "$(cat "$PROMPT_FILE")" 2>&1)
-    AI_EXIT_CODE=$?
+    if [ $AI_EXIT_CODE -ne 0 ] || echo "$RESULT" | grep -qi "Unexpected server error"; then
+        echo "⚠️ [Audit 2/3] Model $MODEL tidak merespon/error, beralih ke model cadangan..."
+        RESULT=$(timeout 90s "$OPENCODE_BIN" run --pure -m "opencode/cat-jam-free" "$(cat "$PROMPT_FILE")" 2>&1)
+        AI_EXIT_CODE=$?
+    fi
 fi
 
 rm -f "$PROMPT_FILE"
 
 if [ $AI_EXIT_CODE -ne 0 ]; then
     echo "❌ [Audit 2/3: UI/UX, CRUD, Form & Theming] REJECTED: AI Reviewer gagal/timeout (Exit: $AI_EXIT_CODE)!"
+    echo "Detail output: $RESULT"
     exit 1
 fi
 

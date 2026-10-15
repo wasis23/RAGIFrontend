@@ -238,3 +238,19 @@ export interface VerifyRequestNomorSuratPayload {
   perihal?: string;
   tujuan?: string;
 }
+
+export interface CheckSkResult {
+  id?: number;
+  nomor_surat: string;
+  is_found: boolean;
+  is_valid: boolean;
+  has_document: boolean;
+  status?: StatusNomorSurat | null;
+  perihal?: string;
+  tujuan?: string | null;
+  kode_unit?: string;
+  kode_klasifikasi?: string;
+  tanggal_surat?: string;
+  dokumen_url?: string | null;
+  catatan?: string | null;
+}

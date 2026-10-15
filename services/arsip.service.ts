@@ -9,6 +9,7 @@ import type {
   GenerateNomorSuratPayload,
   ApplyRequestNomorSuratPayload,
   VerifyRequestNomorSuratPayload,
+  CheckSkResult,
 } from '@/types/arsip.types';
 
 export const arsipService = {
@@ -26,6 +27,13 @@ export const arsipService = {
 
   getNomorSuratDetail: async (id: number): Promise<ApiResponse<NomorSurat>> => {
     const { data } = await apiClient.get<ApiResponse<NomorSurat>>(`/arsip/nomor-surat/${id}`);
+    return data;
+  },
+
+  checkNomorSk: async (nomorSurat: string): Promise<ApiResponse<CheckSkResult>> => {
+    const { data } = await apiClient.get<ApiResponse<CheckSkResult>>('/arsip/nomor-surat/check', {
+      params: { nomor_surat: nomorSurat },
+    });
     return data;
   },
 
@@ -69,6 +77,15 @@ export const arsipService = {
     return data;
   },
 
+  uploadDokumenNomorSurat: async (id: number, file: File): Promise<ApiResponse<NomorSurat>> => {
+    const formData = new FormData();
+    formData.append('dokumen', file);
+    const { data } = await apiClient.post<ApiResponse<NomorSurat>>(`/arsip/nomor-surat/${id}/upload-dokumen`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
   downloadFileSurat: async (id: number): Promise<{ url?: string; blob?: Blob }> => {
     try {
       const { data } = await apiClient.get<ApiResponse<{ download_url?: string }>>(`/arsip/nomor-surat/${id}/download-surat`);
@@ -87,7 +104,6 @@ export const arsipService = {
     });
     return { blob: response.data };
   },
-
   batalkanNomorSurat: async (id: number, alasan: string): Promise<ApiResponse<NomorSurat>> => {
     const { data } = await apiClient.post<ApiResponse<NomorSurat>>(`/arsip/nomor-surat/${id}/batalkan`, { alasan });
     return data;

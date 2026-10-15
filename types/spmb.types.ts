@@ -312,6 +312,7 @@ export interface MasterBiayaSpmb {
   id: number;
   master_tipe_jalur_id: number | null;
   program_studi_id: number;
+  nomor_sk?: string | null;
   total_biaya: number;
   is_active: boolean;
   keterangan?: string | null;
@@ -329,6 +330,13 @@ export interface MasterBiayaSpmb {
     kode: string;
     nama: string;
   };
+  arsip_nomor_surat?: {
+    id?: number;
+    nomor_surat?: string;
+    perihal?: string;
+    status?: string;
+    dokumen_url?: string | null;
+  } | null;
 }
 
 export interface SpmbPotonganCalon {

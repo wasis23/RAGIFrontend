@@ -28,13 +28,12 @@ if [ -x "$HOOKS_DIR/01-typecheck-and-hygiene.sh" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# TAHAP 2: Parallel Deep AI Audits (02 & 03)
+# TAHAP 2: Deep AI Audits (02 & 03)
 # ------------------------------------------------------------------------------
-echo "⚡ [AGY Agent Audit Runner] Menjalankan modul audit AI secara paralel..."
+echo "⚡ [AGY Agent Audit Runner] Menjalankan modul audit AI secara berurutan..."
 
-PIDS=()
-SCRIPTS=()
-LOG_FILES=()
+FAILED_AUDITS=()
+TOTAL_FAILED=0
 
 for script in "$HOOKS_DIR"/*.sh; do
     NAME=$(basename "$script")
@@ -44,34 +43,12 @@ for script in "$HOOKS_DIR"/*.sh; do
     fi
 
     if [ -x "$script" ]; then
-        LOG_FILE=$(mktemp)
-        "$script" > "$LOG_FILE" 2>&1 &
-        PIDS+=($!)
-        SCRIPTS+=("$NAME")
-        LOG_FILES+=("$LOG_FILE")
-    fi
-done
-
-FAILED_AUDITS=()
-TOTAL_FAILED=0
-
-# Tunggu seluruh proses selesai dan cetak output secara berurutan dan rapi
-for i in "${!PIDS[@]}"; do
-    PID="${PIDS[$i]}"
-    SCRIPT_NAME="${SCRIPTS[$i]}"
-    LOG_FILE="${LOG_FILES[$i]}"
-
-    wait "$PID"
-    EXIT_CODE=$?
-
-    if [ -f "$LOG_FILE" ]; then
-        cat "$LOG_FILE"
-        rm -f "$LOG_FILE"
-    fi
-
-    if [ $EXIT_CODE -ne 0 ]; then
-        TOTAL_FAILED=$((TOTAL_FAILED + 1))
-        FAILED_AUDITS+=("$SCRIPT_NAME")
+        "$script"
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -ne 0 ]; then
+            TOTAL_FAILED=$((TOTAL_FAILED + 1))
+            FAILED_AUDITS+=("$NAME")
+        fi
     fi
 done
 
