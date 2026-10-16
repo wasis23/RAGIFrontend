@@ -10,6 +10,7 @@ import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
 import { menuService } from '@/services/menu.service';
+import { useAuth } from '@/hooks/useAuth';
 import { Menu } from '@/types/menu';
 import { TOKEN_KEY, PUBLIC_ROUTES } from '@/lib/constants';
 import { getCookie, getCookieDomain, getAuthTokenKey } from '@/lib/domain';
@@ -24,6 +25,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const module_colors = useUiStore((s) => s.module_colors);
   const fetchAllModuleColors = useUiStore((s) => s.fetchAllModuleColors);
   const setUser = useAuthStore((s) => s.setUser);
+  const { isSuperAdmin } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -63,8 +65,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             const domainAttr = getCookieDomain();
             document.cookie = `sso_user_role=${primaryRole}; ${domainAttr}path=/; max-age=3600; SameSite=Lax`;
 
-            const isSuperOrAdmin = userRoleSlugs.some((s: string) => ['admin', 'superadmin', 'super-admin'].includes(s));
-            if (isSuperOrAdmin) {
+            if (isSuperAdmin || Boolean(userData.is_superadmin)) {
               setIsNotFound(false);
               return;
             }
@@ -86,7 +87,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 '/siakad/krs',
                 '/siakad/perkuliahan/kelas',
                 '/siakad/nilai',
-                '/siakad/obe',
                 '/sikeu',
                 '/sikeu/mahasiswa/tagihan',
                 '/sikeu/dispensasi',

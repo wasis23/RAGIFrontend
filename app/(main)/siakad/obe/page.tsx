@@ -84,19 +84,19 @@ export function ObeWorkspace({
   requiredPermission,
 }: ObeWorkspaceProps) {
   const router = useRouter();
-  const { user, hasRole, hasPermission } = useAuth();
-  const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
-  // Pengecekan izin granular IAM
+  const { user, hasRole, hasPermission, isSuperAdmin } = useAuth();
+  // Akun dianggap Admin OBE jika terdaftar di siakad_admin_prodis secara aktif
+  const userAdminProdis = ((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || []).filter((p: any) => p.is_active !== false);
+  const isAdminObe = userAdminProdis.length > 0;
+  // Hak verifikasi RPS diperoleh jika user adalah SuperAdmin atau memiliki wewenang can_approve_rps pada prodi penugasan
+  const canApproveRps = isSuperAdmin || userAdminProdis.some((p: any) => p.can_approve_rps !== false);
+
+  // Pengecekan izin: hanya superadmin, akun yang diplot sebagai Admin OBE di prodi, atau permission eksplisit
   const isAllowed =
-    userRoles.includes('superadmin') ||
-    userRoles.includes('admin') ||
-    userRoles.includes('admin_obe') ||
-    userRoles.includes('admin_siakad') ||
-    hasPermission('siakad.master.manage') ||
-    hasPermission('siakad.kurikulum.read') ||
-    hasPermission('siakad.dashboard.read') ||
-    (requiredPermission ? hasPermission(requiredPermission) : true) ||
-    (!allowedRoles || allowedRoles.some((r) => userRoles.includes(r)));
+    isSuperAdmin ||
+    isAdminObe ||
+    (requiredPermission ? hasPermission(requiredPermission) : false) ||
+    (allowedRoles ? allowedRoles.filter((r) => !['admin_siakad', 'admin', 'admin_obe', 'kaprodi', 'wakil_prodi'].includes(r)).some((r) => hasRole(r)) : false);
   const [activeTab, setActiveTab] = useState<ObeTabKey>(
     visibleTabs.includes(initialTab) ? initialTab : visibleTabs[0]
   );
@@ -125,12 +125,9 @@ export function ObeWorkspace({
   const [drillMkId, setDrillMkId] = useState<number | null>(null);
 
   // Dosen murni: hanya MK yang diajarnya (mendukung lintas prodi)
-  const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
-  // Verifikator RPS: Kaprodi, Admin OBE (via relasi), Admin Global
-  const isAdminObe = ((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || []).length > 0;
-  const isRpsVerifier =
-    hasRole(['superadmin', 'admin', 'admin_siakad', 'kaprodi', 'wakil_prodi']) ||
-    hasPermission('siakad.master.manage') || isAdminObe;
+  const isDosenOnly = hasRole('dosen') && !isSuperAdmin && !isAdminObe;
+  // Verifikator RPS: SuperAdmin atau personel prodi dengan wewenang can_approve_rps dari database
+  const isRpsVerifier = isSuperAdmin || canApproveRps;
   const [taughtMkIds, setTaughtMkIds] = useState<number[]>([]);
   const [taughtLoaded, setTaughtLoaded] = useState(false);
 
@@ -2805,7 +2802,6 @@ export default function KurikulumObePage() {
       title="Pemantauan & Master OBE Homebase"
       description="Monitoring ketercapaian CPL, audit kesiapan penilaian MK (bobot 100%), dan pengelolaan master kurikulum homebase prodi."
       breadcrumbLabel="Pemantauan OBE"
-      allowedRoles={['superadmin', 'admin', 'admin_obe', 'admin_siakad', 'kaprodi', 'wakil_prodi', 'dosen']}
     />
   );
 }

@@ -1,25 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import {
-  GraduationCap,
   Plus,
   Filter,
   Edit2,
   Trash2,
   RefreshCw,
   Sparkles,
-  Shuffle,
   Users,
-  UserCheck,
   Download,
   Upload,
   FileSpreadsheet,
   BookOpen,
+  Info,
+  ArrowRight,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -27,41 +23,26 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { Checkbox } from '@/components/ui/Checkbox';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
 import { siakadService } from '@/services/siakad.service';
-import { KELAS_PATTERN, suggestKelas, isKelasValid } from '@/lib/kelas';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
-const plotKelasSchema = z.object({
-  kelas: z
-    .string({ error: 'Kelas wajib diisi' })
-    .min(1, 'Kelas wajib diisi')
-    .max(10, 'Kelas maksimal 10 karakter')
-    .refine((v) => v.trim().length > 0, { message: 'Kelas wajib diisi' })
-    .refine((v) => KELAS_PATTERN.test(v.trim().toUpperCase()), {
-      message: 'Format kelas: 2 digit angkatan + huruf (cth: 25A)',
-    }),
-  program_studi_id: z.number().optional().nullable(),
-  dosen_wali_id: z.number({ error: 'Dosen PA wajib dipilih' }).min(1, 'Dosen PA wajib dipilih'),
-  hanya_belum_punya_pa: z.boolean().optional(),
-});
 
-type PlotKelasFormValues = z.infer<typeof plotKelasSchema>;
 
 export default function MahasiswaPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
-  // Dosen murni (bukan admin/kaprodi): hanya bimbingan, read-only
-  const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
+  const { user, hasRole, hasPermission, isSuperAdmin } = useAuth();
+  const isAdminObe = isSuperAdmin || ((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || []).filter((p: any) => p.is_active !== false).length > 0;
+  // Dosen murni: hanya bimbingan, read-only
+  const isDosenOnly = hasRole('dosen') && !isSuperAdmin && !isAdminObe;
   const [mahasiswas, setMahasiswas] = useState<any[]>([]);
   const [prodis, setProdis] = useState<any[]>([]);
   const [dosens, setDosens] = useState<any[]>([]);
+  const [masterKelases, setMasterKelases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter Drawer States
@@ -83,38 +64,29 @@ export default function MahasiswaPage() {
     kelas: '',
   });
 
-  // Bulk PA Assignment State
-  const [selectedMhsIds, setSelectedMhsIds] = useState<number[]>([]);
-  const [isBulkPaModalOpen, setIsBulkPaModalOpen] = useState(false);
-  const [selectedBulkDosenId, setSelectedBulkDosenId] = useState<number | ''>('');
-  const [assigningPa, setAssigningPa] = useState(false);
-
-  // Auto Distribute PA State
-  const [isAutoDistributeModalOpen, setIsAutoDistributeModalOpen] = useState(false);
-  const [distributeDosenIds, setDistributeDosenIds] = useState<number[]>([]);
-  const [distributeProdiId, setDistributeProdiId] = useState<string>('');
-  const [distributeAngkatan, setDistributeAngkatan] = useState<string>('2025');
-  const [distributeKelas, setDistributeKelas] = useState<string>('');
-  const [distributing, setDistributing] = useState(false);
-
-  // Plotting PA per Kelas State (Zod + RHF)
-  const [isPlotKelasModalOpen, setIsPlotKelasModalOpen] = useState(false);
-  const [plottingKelas, setPlottingKelas] = useState(false);
-  const {
-    register: registerPlotKelas,
-    control: plotKelasControl,
-    handleSubmit: handleSubmitPlotKelas,
-    reset: resetPlotKelas,
-    formState: { errors: plotKelasErrors },
-  } = useForm<PlotKelasFormValues>({
-    resolver: zodResolver(plotKelasSchema),
-    defaultValues: {
-      kelas: '',
-      program_studi_id: null,
-      dosen_wali_id: 0,
-      hanya_belum_punya_pa: true,
+  const loadMasterKelasOptions = useCallback(
+    async (keyword: string) => {
+      try {
+        const res = await siakadService.getMasterKelasList({
+          search: keyword || undefined,
+          program_studi_id: filterProdi ? Number(filterProdi) : undefined,
+          tahun_angkatan: filterAngkatan ? Number(filterAngkatan) : undefined,
+          is_active: true,
+          per_page: 50,
+        });
+        return (res.data || []).map((mk: any) => ({
+          value: mk.nama_kelas,
+          label: `${mk.nama_kelas} (${mk.programStudi?.nama || 'Prodi'} - Angkatan ${mk.tahun_angkatan || '-'})`,
+        }));
+      } catch {
+        return [];
+      }
     },
-  });
+    [filterProdi, filterAngkatan]
+  );
+
+  // Bulk Selection State (untuk Ubah Status Massal)
+  const [selectedMhsIds, setSelectedMhsIds] = useState<number[]>([]);
 
   // Sync & Generate NIM States
   const [syncingSpmb, setSyncingSpmb] = useState(false);
@@ -175,16 +147,18 @@ export default function MahasiswaPage() {
 
   const fetchOptions = async () => {
     try {
-      const [pRes, dRes] = await Promise.all([
+      const [pRes, dRes, kRes] = await Promise.all([
         siakadService.getProdi(),
-        siakadService.getDosens({ per_page: 100 }),
+        siakadService.getDosens({ per_page: 200 }),
+        siakadService.getMasterKelasList({ is_active: true, per_page: 500 }),
       ]);
       if (pRes.data) setProdis(pRes.data);
-      if (dRes.data) {
-        setDosens(dRes.data);
-        if (dRes.data[0]) setSelectedBulkDosenId(dRes.data[0].id);
+      if (dRes.data) setDosens(dRes.data);
+      if (kRes.data) {
+        const kList = Array.isArray(kRes.data) ? kRes.data : (kRes.data?.items || []);
+        setMasterKelases(kList);
       }
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const fetchMahasiswa = async () => {
@@ -391,7 +365,8 @@ export default function MahasiswaPage() {
     }
   };
 
-  const handleImportNim = async (e: React.FormEvent) => {    e.preventDefault();
+  const handleImportNim = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!importFile) {
       toast.error('Pilih file CSV terlebih dahulu');
       return;
@@ -428,123 +403,7 @@ export default function MahasiswaPage() {
     }
   };
 
-  const handleBulkAssignPa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedBulkDosenId) {
-      toast.error('Pilih Dosen PA terlebih dahulu');
-      return;
-    }
-    try {
-      setAssigningPa(true);
-      await siakadService.bulkAssignPa({
-        mahasiswa_ids: selectedMhsIds,
-        dosen_wali_id: Number(selectedBulkDosenId),
-      });
-      toast.success(`Dosen PA berhasil ditetapkan untuk ${selectedMhsIds.length} mahasiswa`);
-      setIsBulkPaModalOpen(false);
-      setSelectedMhsIds([]);
-      fetchMahasiswa();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal menetapkan Dosen PA');
-    } finally {
-      setAssigningPa(false);
-    }
-  };
 
-  const handleAutoDistributePa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (distributeDosenIds.length === 0) {
-      toast.error('Pilih minimal 1 Dosen PA untuk distribusi mahasiswa');
-      return;
-    }
-    try {
-      setDistributing(true);
-      const kelas = distributeKelas ? distributeKelas.trim().toUpperCase() : '';
-      if (kelas && !isKelasValid(kelas)) {
-        toast.error('Format kelas salah. Gunakan 2 digit angkatan + huruf, cth: 25A');
-        setDistributing(false);
-        return;
-      }
-      const res = await siakadService.autoDistributePa({
-        dosen_ids: distributeDosenIds,
-        program_studi_id: distributeProdiId ? Number(distributeProdiId) : undefined,
-        angkatan: distributeAngkatan ? Number(distributeAngkatan) : undefined,
-        kelas: kelas || undefined,
-      });
-      toast.success(res.message || 'Mahasiswa berhasil didistribusikan ke Dosen PA secara merata');
-      setIsAutoDistributeModalOpen(false);
-      fetchMahasiswa();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal mendistribusikan Dosen PA');
-    } finally {
-      setDistributing(false);
-    }
-  };
-
-  const loadDosenOptions = useCallback(async (keyword: string) => {
-    try {
-      const res = await siakadService.getDosens({ per_page: 50, search: keyword || undefined });
-      const list: any[] = res.data || dosens;
-      const q = keyword.toLowerCase();
-      return list
-        .filter((d: any) =>
-          !keyword
-            ? true
-            : d.nama_lengkap?.toLowerCase().includes(q) || d.nidn?.includes(keyword)
-        )
-        .map((d: any) => ({
-          value: d.id,
-          label: `${d.nama_lengkap} — NIDN ${d.nidn || '-'}`,
-          raw: d,
-        }));
-    } catch {
-      return [];
-    }
-  }, [dosens]);
-
-  const loadProdiOptions = useCallback(async (keyword: string) => {
-    try {
-      const res = await siakadService.getProdi({ search: keyword || undefined });
-      const list: any[] = res.data || prodis;
-      const q = keyword.toLowerCase();
-      return list
-        .filter((p: any) => !keyword ? true : p.nama?.toLowerCase().includes(q))
-        .map((p: any) => ({
-          value: p.id,
-          label: `${p.jenjang ? `[${p.jenjang}] ` : ''}${p.nama}`,
-          raw: p,
-        }));
-    } catch {
-      return [];
-    }
-  }, [prodis]);
-
-  const handlePlotKelas = async (values: PlotKelasFormValues) => {
-    try {
-      setPlottingKelas(true);
-      const res = await siakadService.assignPaKelas({
-        kelas: values.kelas.trim().toUpperCase(),
-        program_studi_id: values.program_studi_id ? Number(values.program_studi_id) : undefined,
-        dosen_wali_id: Number(values.dosen_wali_id),
-        hanya_belum_punya_pa: values.hanya_belum_punya_pa ?? true,
-      });
-      const payload: any = res.data ?? res;
-      const updated = payload?.updated_count ?? 0;
-      const dosenName = payload?.dosen_wali?.nama_lengkap || '';
-      toast.success(
-        updated > 0
-          ? `Kelas ${values.kelas.trim().toUpperCase()} berhasil diplotting${dosenName ? ` ke ${dosenName}` : ''} (${updated} mahasiswa)`
-          : res.message || 'Tidak ada mahasiswa yang diperbarui'
-      );
-      setIsPlotKelasModalOpen(false);
-      resetPlotKelas();
-      fetchMahasiswa();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal plotting kelas ke Dosen PA');
-    } finally {
-      setPlottingKelas(false);
-    }
-  };
 
   const handleOpenModal = (item?: any) => {
     if (item) {
@@ -585,30 +444,25 @@ export default function MahasiswaPage() {
     e.preventDefault();
     try {
       setSaving(true);
-      const kelas = form.kelas ? form.kelas.trim().toUpperCase() : '';
-      if (kelas && !isKelasValid(kelas)) {
-        toast.error('Format kelas salah. Gunakan 2 digit angkatan + huruf, cth: 25A');
-        setSaving(false);
-        return;
-      }
-      const payload = {
-        ...form,
-        kelas,
+      const payload: any = {
+        nama_lengkap: form.nama_lengkap,
+        program_studi_id: form.program_studi_id,
+        angkatan: form.angkatan,
+        jenis_kelamin: form.jenis_kelamin,
+        nik: form.nik,
+        telepon: form.telepon,
+        alamat: form.alamat,
       };
       if (editingMhs) {
+        payload.status = form.status;
         await siakadService.updateMahasiswa(editingMhs.id, payload);
         toast.success('Data mahasiswa berhasil diperbarui');
       } else {
         if (!form.nim) {
-          await siakadService.generateNim({
-            nama_lengkap: form.nama_lengkap,
-            program_studi_id: form.program_studi_id,
-            angkatan: form.angkatan,
-            jenis_kelamin: form.jenis_kelamin,
-            ...(payload.kelas ? { kelas: payload.kelas } : {}),
-          } as any);
+          await siakadService.generateNim(payload);
           toast.success('Mahasiswa & NIM baru berhasil di-generate');
         } else {
+          payload.nim = form.nim;
           await siakadService.createMahasiswa(payload);
           toast.success('Mahasiswa berhasil ditambahkan');
         }
@@ -825,116 +679,103 @@ export default function MahasiswaPage() {
       />
 
       {!isDosenOnly && (
-      <>
-      {/* Bilah Alat Massal — dikelompokkan agar header tidak berantakan */}
-      <div className="card p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <FileSpreadsheet size={17} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-extrabold text-slate-900">Kelola NIM Massal</p>
-            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Download size={13} />} onClick={handleExportNim} disabled={isExporting}>
-                {isExporting ? 'Mengunduh...' : 'Export CSV'}
-              </Button>
-              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Upload size={13} />} onClick={() => setIsImportModalOpen(true)}>
-                Import
-              </Button>
-              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Sparkles size={13} />} onClick={() => setIsBatchNimModalOpen(true)}>
-                Generate
-              </Button>
+        <>
+          {/* Bilah Alat Massal — dikelompokkan agar header tidak berantakan */}
+          <div className="card p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <FileSpreadsheet size={17} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-extrabold text-slate-900">Kelola NIM Massal</p>
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Download size={13} />} onClick={handleExportNim} disabled={isExporting}>
+                    {isExporting ? 'Mengunduh...' : 'Export CSV'}
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Upload size={13} />} onClick={() => setIsImportModalOpen(true)}>
+                    Import
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Sparkles size={13} />} onClick={() => setIsBatchNimModalOpen(true)}>
+                    Generate
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <RefreshCw size={17} className={syncingSpmb ? 'animate-spin' : ''} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-extrabold text-slate-900">Sinkronisasi SPMB</p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" onClick={handleSyncSpmb} disabled={syncingSpmb}>
+                    {syncingSpmb ? 'Menyinkronkan...' : 'Tarik Pendaftar Lulus →'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <BookOpen size={17} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-extrabold text-slate-900">Buku Induk</p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-2xs py-1 px-2.5 h-auto"
+                    icon={<Download size={13} />}
+                    onClick={() => {
+                      setBukuProdi(appliedFilters.prodi || '');
+                      setBukuAngkatan('');
+                      setBukuStatus('');
+                      setIsBukuModalOpen(true);
+                    }}
+                  >
+                    Unduh Rekap (CSV)
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
+              <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
+                <Users size={17} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-extrabold text-slate-900">Kelas & Dosen PA</p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  {isAdminObe ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-2xs py-1 px-2.5 h-auto text-primary-700"
+                      onClick={() => router.push('/siakad/obe/pemetaan-mahasiswa-kelas')}
+                      icon={<ArrowRight size={13} />}
+                    >
+                      Kelola di OBE
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-2xs py-1 px-2.5 h-auto text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                      onClick={() => {
+                        toast('Akun Anda belum di-ploting sebagai Admin OBE. Penugasan dapat dilakukan di Master Fakultas > Tab Admin Prodi.');
+                        if (isSuperAdmin || hasPermission('siakad.master.manage')) {
+                          router.push('/siakad/master/fakultas');
+                        }
+                      }}
+                      icon={<Info size={13} />}
+                    >
+                      Dikelola di OBE
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
-          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <RefreshCw size={17} className={syncingSpmb ? 'animate-spin' : ''} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-extrabold text-slate-900">Sinkronisasi SPMB</p>
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" onClick={handleSyncSpmb} disabled={syncingSpmb}>
-                {syncingSpmb ? 'Menyinkronkan...' : 'Tarik Pendaftar Lulus →'}
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <BookOpen size={17} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-extrabold text-slate-900">Buku Induk</p>
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-2xs py-1 px-2.5 h-auto"
-                icon={<Download size={13} />}
-                onClick={() => {
-                  setBukuProdi(appliedFilters.prodi || '');
-                  setBukuAngkatan('');
-                  setBukuStatus('');
-                  setIsBukuModalOpen(true);
-                }}
-              >
-                Unduh Rekap (CSV)
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
-          <div className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
-            <Users size={17} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-extrabold text-slate-900">Dosen PA {selectedMhsIds.length > 0 && <span className="text-primary-600">({selectedMhsIds.length} dipilih)</span>}</p>
-            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-2xs py-1 px-2.5 h-auto"
-                icon={<GraduationCap size={13} />}
-                onClick={() => {
-                  if (selectedMhsIds.length === 0) {
-                    toast('Centang mahasiswa di tabel terlebih dahulu untuk menetapkan Dosen PA.', { icon: 'ℹ️' });
-                  } else {
-                    setIsBulkPaModalOpen(true);
-                  }
-                }}
-              >
-                Plotting PA
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-2xs py-1 px-2.5 h-auto"
-                icon={<Shuffle size={13} />}
-                onClick={() => {
-                  setDistributeDosenIds(dosens.slice(0, 3).map((d) => d.id));
-                  setIsAutoDistributeModalOpen(true);
-                }}
-              >
-                Bagi Rata DPA
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-2xs py-1 px-2.5 h-auto"
-                icon={<UserCheck size={13} />}
-                onClick={() => {
-                  resetPlotKelas();
-                  setIsPlotKelasModalOpen(true);
-                }}
-              >
-                Plot Kelas ke Dosen PA
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-      </>
+        </>
       )}
 
       {isDosenOnly && (
@@ -969,21 +810,14 @@ export default function MahasiswaPage() {
               Batal
             </Button>
             <Button
-              variant="secondary"
-              className="text-xs font-bold py-1.5 px-3 h-auto"
+              variant="primary"
+              className="text-xs font-bold py-1.5 px-4 h-auto shadow-xs"
               onClick={() => {
                 setBulkStatusForm({ status: 'lulus', alasan: '' });
                 setIsBulkStatusOpen(true);
               }}
             >
-              Ubah Status Massal
-            </Button>
-            <Button
-              variant="primary"
-              className="text-xs font-bold py-1.5 px-4 h-auto bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs border-none"
-              onClick={() => setIsBulkPaModalOpen(true)}
-            >
-              Tetapkan Dosen PA Sekarang →
+              Ubah Status Massal →
             </Button>
           </div>
         </div>
@@ -1048,12 +882,14 @@ export default function MahasiswaPage() {
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
-          <Input
-            label="Kelas"
-            placeholder="cth: 25A"
-            maxLength={10}
-            value={filterKelas}
-            onChange={(e) => setFilterKelas(e.target.value.toUpperCase())}
+          <AsyncSelect
+            label="Kelas (Master Kelas OBE)"
+            placeholder="Semua Kelas..."
+            loadOptions={loadMasterKelasOptions}
+            value={filterKelas ? { value: filterKelas, label: filterKelas } : null}
+            onChange={(opt: any) => setFilterKelas(opt?.value || '')}
+            isClearable
+            defaultOptions={true}
           />
 
           <div>
@@ -1129,254 +965,7 @@ export default function MahasiswaPage() {
         </div>
       </Drawer>
 
-      {/* Modal Plotting Dosen PA Massal */}
-      <Modal
-        open={isBulkPaModalOpen}
-        onClose={() => setIsBulkPaModalOpen(false)}
-        title="Plotting Dosen Pembimbing Akademik (PA)"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsBulkPaModalOpen(false)}>
-              Batal
-            </Button>
-            <Button variant="primary" onClick={handleBulkAssignPa} disabled={assigningPa}>
-              {assigningPa ? 'Menyimpan...' : `Tetapkan untuk ${selectedMhsIds.length} Mahasiswa`}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-xs text-slate-500">
-            Pilih Dosen PA yang akan membimbing <strong>{selectedMhsIds.length} mahasiswa</strong> terpilih.
-          </p>
 
-          <div>
-            <label className="label">Pilih Dosen Pembimbing Akademik (PA) *</label>
-            <select
-              required
-              value={selectedBulkDosenId}
-              onChange={(e) => setSelectedBulkDosenId(Number(e.target.value))}
-              className="select w-full font-bold"
-            >
-              {dosens.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nama_lengkap} (NIDN: {d.nidn || '-'})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-2xs text-slate-600 space-y-1">
-            <p>• Dosen PA berhak memverifikasi dan menyetujui pengajuan KRS mahasiswa.</p>
-            <p>• Dosen PA memonitor rekap nilai KHS dan perkembangan indeks prestasi kumulatif.</p>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Distribusi Bagi Rata Dosen PA Otomatis */}
-      <Modal
-        open={isAutoDistributeModalOpen}
-        onClose={() => setIsAutoDistributeModalOpen(false)}
-        title="Distribusi / Bagi Rata Dosen PA Otomatis"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsAutoDistributeModalOpen(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleAutoDistributePa}
-              disabled={distributing || distributeDosenIds.length === 0}
-            >
-              {distributing ? 'Mendistribusikan...' : `Bagi Rata ke (${distributeDosenIds.length}) Dosen`}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 leading-relaxed">
-            Sistem akan mengambil seluruh mahasiswa aktif yang <strong>belum memiliki Dosen PA</strong> pada Program Studi / Angkatan terpilih, kemudian membagikannya secara proporsional dan merata (Round-Robin) kepada daftar dosen yang dicentang di bawah.
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Target Program Studi</label>
-              <select
-                value={distributeProdiId}
-                onChange={(e) => setDistributeProdiId(e.target.value)}
-                className="select w-full text-xs font-bold"
-              >
-                <option value="">Semua Program Studi</option>
-                {prodis.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nama}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Target Angkatan</label>
-              <select
-                value={distributeAngkatan}
-                onChange={(e) => setDistributeAngkatan(e.target.value)}
-                className="select w-full text-xs font-bold"
-              >
-                <option value="">Semua Angkatan</option>
-                {Array.from({ length: 6 }, (_, i) => {
-                  const y = new Date().getFullYear() - i;
-                  return <option key={y} value={y}>{y}</option>;
-                })}
-              </select>
-            </div>
-          </div>
-
-          <Input
-            label="Target Kelas (opsional)"
-            placeholder="cth: 25A (kosongkan = semua kelas)"
-            maxLength={10}
-            value={distributeKelas}
-            onChange={(e) => setDistributeKelas(e.target.value.toUpperCase())}
-          />
-
-          <div>
-            <label className="label flex items-center justify-between">
-              <span>Pilih Dosen PA Penerima Mahasiswa Bimbingan ({distributeDosenIds.length} Dosen) *</span>
-              <button
-                type="button"
-                className="text-2xs text-primary-600 hover:underline font-bold"
-                onClick={() => {
-                  if (distributeDosenIds.length === dosens.length) {
-                    setDistributeDosenIds([]);
-                  } else {
-                    setDistributeDosenIds(dosens.map((d) => d.id));
-                  }
-                }}
-              >
-                {distributeDosenIds.length === dosens.length ? 'Batal Pilih Semua' : 'Pilih Semua Dosen'}
-              </button>
-            </label>
-            <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1.5 bg-slate-50">
-              {dosens.map((d) => {
-                const isChecked = distributeDosenIds.includes(d.id);
-                return (
-                  <label
-                    key={d.id}
-                    className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors ${
-                      isChecked ? 'bg-primary-50 text-primary-900 border border-primary-200' : 'bg-white text-slate-700 hover:bg-slate-100 border border-transparent'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setDistributeDosenIds([...distributeDosenIds, d.id]);
-                        } else {
-                          setDistributeDosenIds(distributeDosenIds.filter((id) => id !== d.id));
-                        }
-                      }}
-                      className="rounded text-primary-600"
-                    />
-                    <span className="font-bold">{d.nama_lengkap}</span>
-                    <span className="text-2xs text-slate-400 font-mono ml-auto">NIDN: {d.nidn || '-'}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Plotting PA per Kelas */}
-      <Modal
-        open={isPlotKelasModalOpen}
-        onClose={() => setIsPlotKelasModalOpen(false)}
-        title="Plot Kelas ke Dosen PA"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsPlotKelasModalOpen(false)}>
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleSubmitPlotKelas(handlePlotKelas)}
-              disabled={plottingKelas}
-            >
-              {plottingKelas ? 'Menyimpan...' : 'Tetapkan Dosen PA'}
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSubmitPlotKelas(handlePlotKelas)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <Input
-              label="Kelas *"
-              placeholder="cth: 25A"
-              maxLength={10}
-              {...registerPlotKelas('kelas', {
-                onChange: (e) => {
-                  e.target.value = e.target.value.toUpperCase().slice(0, 10);
-                },
-              })}
-              error={plotKelasErrors.kelas?.message}
-              hint="Satu kelas per plotting (otomatis kapital)"
-            />
-          </div>
-
-          <Controller
-            name="program_studi_id"
-            control={plotKelasControl}
-            render={({ field }) => (
-              <AsyncSelect
-                label="Program Studi (opsional)"
-                placeholder="Semua prodi..."
-                loadOptions={loadProdiOptions}
-                value={field.value || null}
-                onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : null)}
-                error={plotKelasErrors.program_studi_id?.message}
-                isClearable
-              />
-            )}
-          />
-
-          <Controller
-            name="dosen_wali_id"
-            control={plotKelasControl}
-            render={({ field }) => (
-              <AsyncSelect
-                label="Dosen PA *"
-                placeholder="Cari nama / NIDN dosen..."
-                loadOptions={loadDosenOptions}
-                value={field.value || null}
-                onChange={(opt: any) => field.onChange(opt?.value ? Number(opt.value) : 0)}
-                error={plotKelasErrors.dosen_wali_id?.message}
-                formatOptionLabel={(opt: any) => (
-                  <div>
-                    <span className="block font-semibold">{opt.raw?.nama_lengkap || opt.label}</span>
-                    <span className="block text-xs text-slate-500">
-                      NIDN {opt.raw?.nidn || '-'} • {opt.raw?.program_studi?.nama || ''}
-                    </span>
-                  </div>
-                )}
-              />
-            )}
-          />
-
-          <div className="md:col-span-2">
-            <Controller
-              name="hanya_belum_punya_pa"
-              control={plotKelasControl}
-              render={({ field }) => (
-                <Checkbox
-                  label="Hanya yang belum punya PA"
-                  hint="Centang untuk melewati mahasiswa yang sudah memiliki Dosen PA"
-                  checked={field.value ?? true}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                />
-              )}
-            />
-          </div>
-        </form>
-      </Modal>
 
       {/* Modal Form Mahasiswa */}
       <Modal
@@ -1434,18 +1023,67 @@ export default function MahasiswaPage() {
             value={form.angkatan}
             onChange={(e) => {
               const next = parseInt(e.target.value) || 2025;
-              setForm((prev) => ({ ...prev, angkatan: next, kelas: suggestKelas(prev.kelas, next) }));
+              setForm((prev) => ({ ...prev, angkatan: next }));
             }}
           />
 
-          <Input
-            label="Kelas"
-            placeholder="cth: 25A"
-            maxLength={10}
-            value={form.kelas}
-            onChange={(e) => setForm({ ...form, kelas: e.target.value.toUpperCase().slice(0, 10) })}
-            hint="Opsional, format 2 digit angkatan + huruf (otomatis terisi dari angkatan)"
-          />
+          {/* Info Kelas & Dosen PA (Read-Only: Dikelola di OBE) */}
+          <div className="md:col-span-2 bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700">Penempatan Kelas & Dosen Pembimbing Akademik (PA)</span>
+              {isAdminObe ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-2xs py-0.5 px-2 h-auto text-primary-600 font-semibold"
+                  onClick={() => router.push('/siakad/obe/pemetaan-mahasiswa-kelas')}
+                  icon={<ArrowRight size={12} />}
+                >
+                  Kelola di OBE
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-2xs py-0.5 px-2 h-auto text-slate-400 font-semibold hover:text-slate-600"
+                  onClick={() => {
+                    toast('Akun Anda belum di-ploting sebagai Admin OBE. Penugasan dapat dilakukan di Master Fakultas > Tab Admin Prodi.');
+                    if (isSuperAdmin || hasPermission('siakad.master.manage')) {
+                      router.push('/siakad/master/fakultas');
+                    }
+                  }}
+                  icon={<Info size={12} />}
+                >
+                  Dikelola di OBE
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-2xs text-slate-500 block">Kelas Rombel:</span>
+                {form.kelas ? (
+                  <span className="font-mono font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 inline-block mt-0.5">
+                    {form.kelas}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic mt-0.5 block">Belum dipetakan ke kelas</span>
+                )}
+              </div>
+              <div>
+                <span className="text-2xs text-slate-500 block">Dosen PA (Wali):</span>
+                {editingMhs?.dosen_wali ? (
+                  <span className="font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded border border-primary-200 inline-block mt-0.5">
+                    {editingMhs.dosen_wali.nama_lengkap}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic mt-0.5 block">Belum ada Dosen PA</span>
+                )}
+              </div>
+            </div>
+            <p className="text-2xs text-slate-400">
+              * Rombel kelas dan penugasan Dosen PA dikelola terpusat di menu <strong>OBE &gt; Pemetaan Mahasiswa Kelas</strong>.
+            </p>
+          </div>
 
           <div>
             <label className="label">Jenis Kelamin *</label>

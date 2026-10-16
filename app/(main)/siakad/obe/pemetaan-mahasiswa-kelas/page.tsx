@@ -13,6 +13,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardBody } from '@/components/ui/Card';
 import { siakadService } from '@/services/siakad.service';
+import { useAuth } from '@/hooks/useAuth';
 import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 
@@ -21,6 +22,9 @@ export default function PemetaanMahasiswaKelasPage() {
   const searchParams = useSearchParams();
   const initialKelas = searchParams.get('kelas') || '';
   const initialAngkatan = searchParams.get('angkatan') || '';
+
+  const { user: currentUser, hasRole, hasPermission, isSuperAdmin } = useAuth();
+  const isAdminObe = isSuperAdmin || ((currentUser as any)?.siakad_admin_prodis || (currentUser as any)?.siakadAdminProdis || []).filter((p: any) => p.is_active !== false).length > 0;
 
   const [masterKelases, setMasterKelases] = useState<any[]>([]);
   const [selectedMasterKelasId, setSelectedMasterKelasId] = useState<number | ''>('');
@@ -69,10 +73,12 @@ export default function PemetaanMahasiswaKelasPage() {
   };
 
   useEffect(() => {
+    if (currentUser && !isAdminObe) return;
     fetchMasterKelasList();
-  }, []);
+  }, [currentUser, isAdminObe]);
 
   const fetchMahasiswaList = async () => {
+    if (currentUser && !isAdminObe) return;
     setLoading(true);
     try {
       const res = await siakadService.getMahasiswaForPemetaanKelas({
@@ -229,6 +235,45 @@ export default function PemetaanMahasiswaKelasPage() {
       ),
     },
   ];
+
+  if (currentUser && !isAdminObe) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          title="Pemetaan Mahasiswa ke Kelas"
+          description="Petakan rombongan belajar mahasiswa per angkatan dan sinkronkan dengan Dosen PA secara otomatis."
+          breadcrumbs={[
+            { label: 'Portal SSO', href: '/dashboard' },
+            { label: 'SIAKAD', href: '/siakad' },
+            { label: 'Pemetaan Kelas' },
+          ]}
+        />
+        <Card>
+          <CardBody className="py-14 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+              <Users size={28} />
+            </div>
+            <div className="max-w-md mx-auto space-y-1.5">
+              <h3 className="text-sm font-extrabold text-slate-900">Akses Ditolak: Akun Belum Ditugaskan</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Halaman pengelolaan rombel kelas dan Dosen PA OBE hanya dapat diakses oleh akun personel yang telah di-ploting sebagai <strong>Admin OBE</strong> pada Program Studi.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <Button variant="outline" size="sm" onClick={() => router.push('/siakad/dashboard')}>
+                Kembali ke Dashboard
+              </Button>
+              {(isSuperAdmin || hasPermission('siakad.master.manage')) && (
+                <Button size="sm" onClick={() => router.push('/siakad/master/fakultas')}>
+                  Buka Master Fakultas &rarr;
+                </Button>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

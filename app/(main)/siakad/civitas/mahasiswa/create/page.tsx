@@ -7,14 +7,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { siakadService } from '@/services/siakad.service';
-import { kelasPrefix, suggestKelas, isKelasValid } from '@/lib/kelas';
 import toast from 'react-hot-toast';
 
 export default function CreateMahasiswaPage() {
   const router = useRouter();
 
   const [prodis, setProdis] = useState<any[]>([]);
-  const [dosens, setDosens] = useState<any[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
 
   const [form, setForm] = useState({
@@ -23,10 +21,8 @@ export default function CreateMahasiswaPage() {
     nik: '',
     program_studi_id: 1,
     angkatan: new Date().getFullYear(),
-    kelas: '',
     jenis_kelamin: 'L',
     status: 'aktif',
-    dosen_wali_id: '',
     telepon: '',
     alamat: '',
   });
@@ -36,15 +32,9 @@ export default function CreateMahasiswaPage() {
     const fetchOptions = async () => {
       try {
         setLoadingInitial(true);
-        const [pRes, dRes] = await Promise.all([
-          siakadService.getProdi(),
-          siakadService.getDosens({ per_page: 200 }),
-        ]);
-
+        const pRes = await siakadService.getProdi();
         const pData = pRes.data || [];
-        const dData = dRes.data || [];
         setProdis(pData);
-        setDosens(dData);
 
         if (pData[0]) {
           setForm((prev) => ({ ...prev, program_studi_id: pData[0].id }));
@@ -69,26 +59,20 @@ export default function CreateMahasiswaPage() {
 
     try {
       setSaving(true);
-      const kelas = form.kelas ? form.kelas.trim().toUpperCase() : '';
-      if (kelas && !isKelasValid(kelas)) {
-        toast.error('Format kelas salah. Gunakan 2 digit angkatan + huruf, cth: 25A');
-        setSaving(false);
-        return;
-      }
-      const payload = {
-        ...form,
-        kelas,
+      const payload: any = {
+        nama_lengkap: form.nama_lengkap,
+        nik: form.nik,
+        program_studi_id: form.program_studi_id,
+        angkatan: form.angkatan,
+        jenis_kelamin: form.jenis_kelamin,
+        telepon: form.telepon,
+        alamat: form.alamat,
       };
       if (!form.nim) {
-        await siakadService.generateNim({
-          nama_lengkap: form.nama_lengkap,
-          program_studi_id: form.program_studi_id,
-          angkatan: form.angkatan,
-          jenis_kelamin: form.jenis_kelamin,
-          ...(payload.kelas ? { kelas: payload.kelas } : {}),
-        } as any);
+        await siakadService.generateNim(payload);
         toast.success('Mahasiswa & NIM baru berhasil di-generate!');
       } else {
+        payload.nim = form.nim;
         await siakadService.createMahasiswa(payload);
         toast.success('Mahasiswa baru berhasil ditambahkan!');
       }
@@ -207,33 +191,15 @@ export default function CreateMahasiswaPage() {
               value={form.angkatan}
               onChange={(e) => {
                 const next = parseInt(e.target.value) || new Date().getFullYear();
-                setForm((prev) => ({ ...prev, angkatan: next, kelas: suggestKelas(prev.kelas, next) }));
+                setForm((prev) => ({ ...prev, angkatan: next }));
               }}
             />
 
-            <Input
-              label="Kelas"
-              placeholder={`cth: ${kelasPrefix(form.angkatan) || '25'}A`}
-              maxLength={10}
-              value={form.kelas}
-              onChange={(e) => setForm({ ...form, kelas: e.target.value.toUpperCase().slice(0, 10) })}
-              hint="2 digit angkatan + huruf kelas (otomatis terisi dari angkatan)"
-            />
-
-            <div>
-              <label className="label">Dosen Pembimbing Akademik (Wali)</label>
-              <select
-                value={form.dosen_wali_id}
-                onChange={(e) => setForm({ ...form, dosen_wali_id: e.target.value })}
-                className="select w-full"
-              >
-                <option value="">-- Belum Ditentukan / Tetapkan Nanti --</option>
-                {dosens.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.nama_lengkap} (NIDN: {d.nidn || '-'})
-                  </option>
-                ))}
-              </select>
+            <div className="lg:col-span-2 bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-1">
+              <span className="text-xs font-bold text-slate-800">Penempatan Kelas & Dosen PA</span>
+              <p className="text-2xs text-slate-500 leading-relaxed">
+                Penetapan rombongan belajar (Kelas) dan penugasan Dosen Pembimbing Akademik (PA) dikelola terpusat melalui modul <strong>OBE &gt; Pemetaan Mahasiswa Kelas</strong> setelah mahasiswa resmi terdaftar.
+              </p>
             </div>
 
             <div className="lg:col-span-3">

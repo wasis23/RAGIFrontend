@@ -45,10 +45,16 @@ Evaluasi HANYA baris baru (+) yang ditambahkan atau diubah. Abaikan baris kontek
    - Pengecualian sah: Hanya untuk closed-set domain tetap yang tidak memiliki tabel master (misal: jenis kelamin 'L'/'P', agama) yang dideklarasikan terpusat.
    - Referensi query, filter, dan relasi WAJIB menggunakan ID entitas database (`module_id`, `jalur_id`, dll), bukan label string hardcode.
 
-2. KEBIJAKAN ROLE-BASED ACCESS CONTROL (RBAC):
-   - Seluruh otorisasi frontend WAJIB memeriksa permission granular atau role dari sistem IAM (misal: `hasPermission('...')` atau `hasRole('...')`).
+2. KEBIJAKAN ROLE-BASED ACCESS CONTROL (RBAC) & LARANGAN HARDCODE USERROLES/JABATAN STRUKTURAL:
+   - Seluruh otorisasi frontend WAJIB memeriksa permission granular atau role resmi dari sistem IAM menggunakan helper dari `useAuth()` (misal: `hasPermission('...')` atau `hasRole('...')`).
+   - DILARANG KERAS menggunakan `userRoles.includes(...)`, `roles.includes(...)`, atau ekstraksi array role manual untuk mengecek hak akses:
+     * DILARANG mengecek phantom role yang tidak terdaftar di database IAM (contoh pelanggaran: `userRoles.includes('admin_obe')`).
+     * DILARANG KERAS memperlakukan jabatan struktural (seperti `kaprodi`, `wakil_prodi`, `sekprodi`, `dekan`) sebagai role string IAM (contoh pelanggaran: `hasRole(['kaprodi', 'wakil_prodi'])` atau `userRoles.includes('kaprodi')`). Jabatan struktural adalah penugasan entitas dinamis (pada master prodi atau tabel `siakad_admin_prodis`), BUKAN role sistem global.
+     * Hak akses pengelolaan kurikulum/OBE dan persetujuan RPS WAJIB memeriksa relasi penugasan akun dinamis (misal: `isAdminObe` dari `user.siakad_admin_prodis` dan kolom wewenang `can_approve_rps`) atau permission granular, BUKAN mengecek role string fiktif `kaprodi` / `admin_obe`.
+     * DILARANG melakukan bypass role kaku (seperti `userRoles.includes('admin_siakad')` atau `userRoles.includes('admin')`) pada fitur yang seharusnya memerlukan penugasan unit/prodi khusus atau permission granular.
+     * Untuk role resmi (seperti `superadmin`, `dosen`, `mahasiswa`), WAJIB gunakan `hasRole('role_slug')` atau boolean helper terpusat (`isSuperAdmin`, `isDosen`, `isMahasiswa`) dari `useAuth()`, BUKAN array `userRoles.includes(...)`.
    - DILARANG KERAS mengandalkan atau memeriksa field statis warisan seperti `user_type`, `user.type === 'admin'`, dsb.
-   - Proteksi route dan visibilitas tombol aksi wajib selaras dengan RBAC.
+   - Proteksi route dan visibilitas tombol aksi wajib selaras dengan RBAC dan hak penugasan dinamis akun.
 
 ========================================================================================
 
