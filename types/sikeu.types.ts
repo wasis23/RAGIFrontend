@@ -536,3 +536,100 @@ export interface PerubahanProdi {
   catatan_approval?: string | null;
   created_at?: string;
 }
+
+// ============================================================
+// UMK & TUTUP KAS & LAPORAN BENDAHARA — SIKEU (parity legacy)
+// ============================================================
+
+export type UmkStatus = 'aktif' | 'selesai';
+
+export const UMK_STATUS_OPTIONS: Array<{ value: UmkStatus; label: string }> = [
+  { value: 'aktif', label: 'Aktif / Diberikan' },
+  { value: 'selesai', label: 'Selesai / Dipertanggungjawabkan' },
+];
+
+export const UMK_FILTER_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'all', label: 'Semua Status' },
+  ...UMK_STATUS_OPTIONS,
+];
+
+export const UMK_SORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'tanggal', label: 'Tanggal' },
+  { value: 'total', label: 'Total' },
+  { value: 'nama_penerima', label: 'Nama Penerima' },
+  { value: 'created_at', label: 'Dibuat' },
+];
+
+export const SORT_DIRECTION_OPTIONS: Array<{ value: 'asc' | 'desc'; label: string }> = [
+  { value: 'asc', label: 'Menaik' },
+  { value: 'desc', label: 'Menurun' },
+];
+
+export const LAPORAN_SORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'tanggal', label: 'Tanggal' },
+  { value: 'jumlah', label: 'Jumlah' },
+];
+
+export const TUTUP_KAS_SORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'tanggal', label: 'Tanggal' },
+  { value: 'saldo_akhir', label: 'Saldo Akhir' },
+  { value: 'created_at', label: 'Dibuat' },
+];
+
+export const METODE_KAS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'OFFLINE', label: 'Tunai (Offline)' },
+  { value: 'NON_TUNAI', label: 'Non Tunai' },
+  { value: 'SEMUA', label: 'Semua Metode' },
+];
+
+export interface UangMukaKerja {
+  id: number;
+  unit_kas_id?: number | null;
+  nama_penerima: string;
+  tanggal: string;
+  tanggal_selesai?: string | null;
+  keterangan?: string | null;
+  total: number;
+  status: UmkStatus;
+  unit_kas?: UnitKas;
+  created_at?: string;
+}
+
+export interface TutupKasUnit {
+  id: number;
+  unit_kas_id: number;
+  tanggal: string;
+  saldo_awal: number;
+  saldo_masuk: number;
+  saldo_keluar: number;
+  saldo_akhir: number;
+  is_locked: boolean;
+  unit_kas?: UnitKas;
+  created_at?: string;
+}
+
+export interface LaporanBendaharaSaldo {
+  saldo_masuk: number;
+  saldo_keluar: number;
+  saldo_bersih: number;
+  rincian: {
+    pembayaran_mahasiswa: number;
+    kas_masuk_lain: number;
+    kas_keluar: number;
+  };
+}
+
+export interface LaporanBendaharaBaris {
+  id: string;
+  tanggal?: string | null;
+  kode_transaksi?: string | null;
+  nomor_tagihan?: string | null;
+  mahasiswa_nim?: string | null;
+  mahasiswa_nama?: string | null;
+  mahasiswa_prodi?: string | null;
+  uraian?: string | null;
+  kode_akun?: string | null;
+  jumlah: number;
+  jenis_transaksi: 'masuk' | 'keluar';
+  channel?: string | null;
+}

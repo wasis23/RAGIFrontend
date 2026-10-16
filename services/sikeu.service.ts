@@ -1374,6 +1374,150 @@ export const sikeuService = {
     const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/perubahan-prodi', payload);
     return data;
   },
+
+  // UMK — Uang Muka Kerja (parity legacy transaksi_umk)
+  getUmkList: async (params?: { search?: string; status?: string; unit_kas_id?: number | string; tanggal_awal?: string; tanggal_akhir?: string; sort_by?: string; sort_order?: string; page?: number; per_page?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.append('search', params.search);
+    if (params?.status && params.status !== 'all') q.append('status', params.status);
+    if (params?.unit_kas_id) q.append('unit_kas_id', String(params.unit_kas_id));
+    if (params?.tanggal_awal) q.append('tanggal_awal', params.tanggal_awal);
+    if (params?.tanggal_akhir) q.append('tanggal_akhir', params.tanggal_akhir);
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/umk${qs}`);
+    return data;
+  },
+
+  createUmk: async (payload: { unit_kas_id?: number | null; nama_penerima: string; tanggal: string; tanggal_selesai?: string | null; keterangan?: string; total: number }) => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/umk', payload);
+    return data;
+  },
+
+  getUmkDetail: async (id: number) => {
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/umk/${id}`);
+    return data;
+  },
+
+  updateUmk: async (id: number, payload: { unit_kas_id?: number | null; nama_penerima?: string; tanggal?: string; tanggal_selesai?: string | null; keterangan?: string; total?: number }) => {
+    const { data } = await apiClient.put<ApiResponse<any>>(`/v1/sikeu/umk/${id}`, payload);
+    return data;
+  },
+
+  updateUmkStatus: async (id: number, payload: { status: 'aktif' | 'selesai'; tanggal_selesai?: string | null }) => {
+    const { data } = await apiClient.post<ApiResponse<any>>(`/v1/sikeu/umk/${id}/status`, payload);
+    return data;
+  },
+
+  deleteUmk: async (id: number) => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/umk/${id}`);
+    return data;
+  },
+
+  // Tutup Kas per Unit (parity legacy tutup_bukus divisi)
+  getTutupKasList: async (params?: { unit_kas_id?: number | string; tanggal?: string; search?: string; sort_by?: string; sort_order?: string; page?: number; per_page?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.unit_kas_id) q.append('unit_kas_id', String(params.unit_kas_id));
+    if (params?.tanggal) q.append('tanggal', params.tanggal);
+    if (params?.search) q.append('search', params.search);
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/tutup-kas${qs}`);
+    return data;
+  },
+
+  createTutupKas: async (payload: { unit_kas_id: number; tanggal: string; saldo_awal?: number; saldo_masuk?: number; saldo_keluar?: number; saldo_akhir?: number }) => {
+    const { data } = await apiClient.post<ApiResponse<any>>('/v1/sikeu/tutup-kas', payload);
+    return data;
+  },
+
+  deleteTutupKas: async (id: number) => {
+    const { data } = await apiClient.delete<ApiResponse<any>>(`/v1/sikeu/tutup-kas/${id}`);
+    return data;
+  },
+
+  // Laporan Bendahara (parity legacy menuLaporan, basis kas)
+  getLaporanSaldoHarian: async (params: { tanggal: string; unit_kas_id?: number | string; metode?: string }) => {
+    const q = new URLSearchParams({ tanggal: params.tanggal });
+    if (params?.unit_kas_id) q.append('unit_kas_id', String(params.unit_kas_id));
+    if (params?.metode) q.append('metode', params.metode);
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/laporan-bendahara/saldo-harian?${q.toString()}`);
+    return data;
+  },
+
+  getLaporanHarian: async (params: { tanggal: string; unit_kas_id?: number | string; metode?: string; search?: string; sort_by?: string; sort_order?: string; page?: number; per_page?: number }) => {
+    const q = new URLSearchParams({ tanggal: params.tanggal });
+    if (params?.unit_kas_id) q.append('unit_kas_id', String(params.unit_kas_id));
+    if (params?.metode) q.append('metode', params.metode);
+    if (params?.search) q.append('search', params.search);
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/laporan-bendahara/harian?${q.toString()}`);
+    return data;
+  },
+
+  getLaporanBulanan: async (params: { tanggal: string; unit_kas_id?: number | string; metode?: string; search?: string; sort_by?: string; sort_order?: string; page?: number; per_page?: number }) => {
+    const q = new URLSearchParams({ tanggal: params.tanggal });
+    if (params?.unit_kas_id) q.append('unit_kas_id', String(params.unit_kas_id));
+    if (params?.metode) q.append('metode', params.metode);
+    if (params?.search) q.append('search', params.search);
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/laporan-bendahara/bulanan?${q.toString()}`);
+    return data;
+  },
+
+  getLaporanPeriodik: async (params: { awal: string; akhir: string; code?: string; only_mhs?: boolean; search?: string; sort_by?: string; sort_order?: string; page?: number; per_page?: number }) => {
+    const q = new URLSearchParams({ awal: params.awal, akhir: params.akhir });
+    if (params?.code) q.append('code', params.code);
+    if (params?.only_mhs) q.append('only_mhs', '1');
+    if (params?.search) q.append('search', params.search);
+    if (params?.sort_by) q.append('sort_by', params.sort_by);
+    if (params?.sort_order) q.append('sort_order', params.sort_order);
+    if (params?.page) q.append('page', String(params.page));
+    if (params?.per_page) q.append('per_page', String(params.per_page));
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/laporan-bendahara/periodik?${q.toString()}`);
+    return data;
+  },
+
+  getLaporanPerAkun: async (params: { awal: string; akhir: string; code?: string }) => {
+    const q = new URLSearchParams({ awal: params.awal, akhir: params.akhir });
+    if (params?.code) q.append('code', params.code);
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/laporan-bendahara/perakun?${q.toString()}`);
+    return data;
+  },
+
+  downloadLaporanBendaharaExcel: async (params: { jenis: string; tanggal?: string; awal?: string; akhir?: string; unit_kas_id?: number | string; metode?: string; code?: string }) => {
+    const q = new URLSearchParams({ jenis: params.jenis });
+    if (params?.tanggal) q.append('tanggal', params.tanggal);
+    if (params?.awal) q.append('awal', params.awal);
+    if (params?.akhir) q.append('akhir', params.akhir);
+    if (params?.unit_kas_id) q.append('unit_kas_id', String(params.unit_kas_id));
+    if (params?.metode) q.append('metode', params.metode);
+    if (params?.code) q.append('code', params.code);
+    const res = await apiClient.get<Blob>(`/v1/sikeu/laporan-bendahara/export-excel?${q.toString()}`, {
+      responseType: 'blob',
+    });
+    const blob = res.data;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Bendahara_${params.jenis}_${new Date().toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
 
 
