@@ -30,6 +30,38 @@ if [ ${#STAGED_DIFF} -gt 100000 ]; then
     STAGED_DIFF="${STAGED_DIFF:0:100000}"$'\n\n[CATATAN: diff dipotong pada 100.000 karakter. Nilai HANYA yang terlihat di atas; JANGAN mengarang pelanggaran pada file yang tidak tampak.]'
 fi
 
+# ------------------------------------------------------------------------------
+# 1. DETERMINISTIC STATIC CHECK (Fast Fail sebelum AI)
+# ------------------------------------------------------------------------------
+STATIC_FAIL=0
+ADDED_LINES=$(echo "$STAGED_DIFF" | grep '^+[^+]')
+
+# A. Deteksi hardcode userRoles.includes atau roles.includes
+if echo "$ADDED_LINES" | grep -E '(userRoles|roles)\.includes\(' > /dev/null; then
+    echo "❌ [Audit 3/3 STATIC REJECT] Terdeteksi penggunaan hardcode 'userRoles.includes(...)' atau 'roles.includes(...)'."
+    echo "   Gunakan helper resmi useAuth(): hasRole('...'), hasPermission('...'), atau isSuperAdmin."
+    STATIC_FAIL=1
+fi
+
+# B. Deteksi phantom role atau jabatan struktural sebagai role string
+if echo "$ADDED_LINES" | grep -E "['\"](admin_obe|kaprodi|wakil_prodi|sekprodi|dekan)['\"]" > /dev/null; then
+    echo "❌ [Audit 3/3 STATIC REJECT] Terdeteksi string phantom role atau jabatan struktural sebagai role IAM ('admin_obe', 'kaprodi', 'wakil_prodi', 'sekprodi', 'dekan')."
+    echo "   Jabatan struktural dan hak kelola OBE WAJIB diperiksa melalui penugasan akun dinamis (misal: isAdminObe dari user.siakad_admin_prodis, can_approve_rps) atau permission granular, BUKAN string role."
+    STATIC_FAIL=1
+fi
+
+# C. Deteksi blacklist/whitelist array role statis & prop allowedRoles
+if echo "$ADDED_LINES" | grep -E "(\[.*['\"][a-zA-Z0-9_]+['\"].*\]\.(includes|filter|some)|allowedRoles)" > /dev/null; then
+    echo "❌ [Audit 3/3 STATIC REJECT] Terdeteksi array literal role statis (whitelist/blacklist) atau penggunaan prop 'allowedRoles'."
+    echo "   Dilarang hardcode array role baik untuk inklusi maupun eksklusi. Gunakan permission granular atau penugasan akun dinamis."
+    STATIC_FAIL=1
+fi
+
+if [ $STATIC_FAIL -ne 0 ]; then
+    echo "💡 Harap perbaiki seluruh pelanggaran statis di atas sebelum melakukan commit."
+    exit 1
+fi
+
 PROMPT_FILE=$(mktemp)
 
 cat << 'EOF' > "$PROMPT_FILE"
@@ -45,12 +77,13 @@ Evaluasi HANYA baris baru (+) yang ditambahkan atau diubah. Abaikan baris kontek
    - Pengecualian sah: Hanya untuk closed-set domain tetap yang tidak memiliki tabel master (misal: jenis kelamin 'L'/'P', agama) yang dideklarasikan terpusat.
    - Referensi query, filter, dan relasi WAJIB menggunakan ID entitas database (`module_id`, `jalur_id`, dll), bukan label string hardcode.
 
-2. KEBIJAKAN ROLE-BASED ACCESS CONTROL (RBAC) & LARANGAN HARDCODE USERROLES/JABATAN STRUKTURAL:
+2. KEBIJAKAN ROLE-BASED ACCESS CONTROL (RBAC) & LARANGAN KERAS ARRAY ROLE STATIS:
    - Seluruh otorisasi frontend WAJIB memeriksa permission granular atau role resmi dari sistem IAM menggunakan helper dari `useAuth()` (misal: `hasPermission('...')` atau `hasRole('...')`).
+   - DILARANG KERAS array literal statis berisi nama role/jabatan (misal `['admin_siakad', 'admin', ...]`), baik untuk whitelist, blacklist, filter (misal: `!['...'].includes(...)`), maupun prop `allowedRoles`.
    - DILARANG KERAS menggunakan `userRoles.includes(...)`, `roles.includes(...)`, atau ekstraksi array role manual untuk mengecek hak akses:
-     * DILARANG mengecek phantom role yang tidak terdaftar di database IAM (contoh pelanggaran: `userRoles.includes('admin_obe')`).
-     * DILARANG KERAS memperlakukan jabatan struktural (seperti `kaprodi`, `wakil_prodi`, `sekprodi`, `dekan`) sebagai role string IAM (contoh pelanggaran: `hasRole(['kaprodi', 'wakil_prodi'])` atau `userRoles.includes('kaprodi')`). Jabatan struktural adalah penugasan entitas dinamis (pada master prodi atau tabel `siakad_admin_prodis`), BUKAN role sistem global.
-     * Hak akses pengelolaan kurikulum/OBE dan persetujuan RPS WAJIB memeriksa relasi penugasan akun dinamis (misal: `isAdminObe` dari `user.siakad_admin_prodis` dan kolom wewenang `can_approve_rps`) atau permission granular, BUKAN mengecek role string fiktif `kaprodi` / `admin_obe`.
+     * DILARANG mengecek phantom role yang tidak terdaftar di database IAM (contoh pelanggaran: `userRoles.includes('admin_obe')` atau string `'admin_obe'`).
+     * DILARANG KERAS memperlakukan jabatan struktural (seperti `kaprodi`, `wakil_prodi`, `sekprodi`, `dekan`) sebagai role string IAM (contoh pelanggaran: `hasRole(['kaprodi', 'wakil_prodi'])`, `userRoles.includes('kaprodi')`, atau string `'kaprodi'`). Jabatan struktural adalah penugasan entitas dinamis (pada master prodi atau tabel `siakad_admin_prodis`), BUKAN role sistem global.
+     * Hak akses pengelolaan kurikulum/OBE dan persetujuan RPS WAJIB memeriksa relasi penugasan akun dinamis (misal: `isAdminObe` dari `user.siakad_admin_prodis` dan kolom wewenang `can_approve_rps`) atau permission granular, BUKAN mengecek role string fiktif `kaprodi` / `admin_obe` dan BUKAN memfilter array role.
      * DILARANG melakukan bypass role kaku (seperti `userRoles.includes('admin_siakad')` atau `userRoles.includes('admin')`) pada fitur yang seharusnya memerlukan penugasan unit/prodi khusus atau permission granular.
      * Untuk role resmi (seperti `superadmin`, `dosen`, `mahasiswa`), WAJIB gunakan `hasRole('role_slug')` atau boolean helper terpusat (`isSuperAdmin`, `isDosen`, `isMahasiswa`) dari `useAuth()`, BUKAN array `userRoles.includes(...)`.
    - DILARANG KERAS mengandalkan atau memeriksa field statis warisan seperti `user_type`, `user.type === 'admin'`, dsb.

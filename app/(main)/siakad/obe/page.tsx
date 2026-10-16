@@ -59,7 +59,6 @@ export interface ObeWorkspaceProps {
   title?: string;
   description?: string;
   breadcrumbLabel?: string;
-  allowedRoles?: string[];
   requiredPermission?: string;
 }
 
@@ -80,7 +79,6 @@ export function ObeWorkspace({
   title = 'Kurikulum & Rencana Pembelajaran Semester (RPS OBE)',
   description = 'Perumusan CPL, penurunan CPMK, penyusunan rancangan pembelajaran (RPS 16 Minggu), dan verifikasi Kaprodi.',
   breadcrumbLabel = 'Kurikulum OBE',
-  allowedRoles,
   requiredPermission,
 }: ObeWorkspaceProps) {
   const router = useRouter();
@@ -95,8 +93,7 @@ export function ObeWorkspace({
   const isAllowed =
     isSuperAdmin ||
     isAdminObe ||
-    (requiredPermission ? hasPermission(requiredPermission) : false) ||
-    (allowedRoles ? allowedRoles.filter((r) => !['admin_siakad', 'admin', 'admin_obe', 'kaprodi', 'wakil_prodi'].includes(r)).some((r) => hasRole(r)) : false);
+    (requiredPermission ? hasPermission(requiredPermission) : false);
   const [activeTab, setActiveTab] = useState<ObeTabKey>(
     visibleTabs.includes(initialTab) ? initialTab : visibleTabs[0]
   );
@@ -1052,10 +1049,17 @@ export function ObeWorkspace({
             ]}
           />
           <div className="card p-12 text-center space-y-2">
-            <p className="text-sm font-extrabold text-slate-900">Akses Khusus Peran</p>
-            <p className="text-xs text-slate-500">
-              Menu ini hanya untuk peran: <strong>{allowedRoles?.join(', ')}</strong>. Peran Anda tidak memiliki akses.
+            <p className="text-sm font-extrabold text-slate-900">Akses Terbatas: Akun Belum Ditugaskan</p>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              Menu Kurikulum & Rencana Pembelajaran Semester (OBE) ini hanya dapat diakses oleh akun yang telah di-ploting sebagai <strong>Admin OBE</strong> pada Program Studi atau Administrator Sistem.
             </p>
+            {(isSuperAdmin || hasPermission('siakad.master.manage')) && (
+              <div className="pt-2">
+                <Button size="sm" onClick={() => router.push('/siakad/master/fakultas')}>
+                  Buka Master Fakultas
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       ) : (
