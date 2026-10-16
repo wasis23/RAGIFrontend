@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileSpreadsheet, Plus, Filter, Trash2, CheckCircle2, Edit } from 'lucide-react';
+import { Plus, Filter, Trash2, CheckCircle2, Edit, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,34 +11,43 @@ import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { siakadService } from '@/services/siakad.service';
-import { MkProdiSelect } from '@/components/siakad/MkProdiSelect';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export default function KonversiTransferPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const userRoles = user?.roles?.map((r: any) => typeof r === 'string' ? r : r.slug) || [];
-  const isDosen = userRoles.includes('dosen');
-  const isAdmin = userRoles.includes('superadmin') || userRoles.includes('admin');
+  const { user, isSuperAdmin, hasRole, hasPermission } = useAuth();
+  const isDosen = hasRole('dosen');
+  const isStaff = isSuperAdmin || hasRole('admin') || hasPermission('siakad.master.manage') || hasPermission('siakad.kurikulum.manage');
 
   const [konversis, setKonversis] = useState<any[]>([]);
-  const [mahasiswas, setMahasiswas] = useState<any[]>([]);
-  const [matakuliahs, setMatakuliahs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
+  const [meta, setMeta] = useState<any>(null);
 
   // Filter Drawer States
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
-  const [filterMhsId, setFilterMhsId] = useState('');
+  const [filterMhs, setFilterMhs] = useState<any>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterSortBy, setFilterSortBy] = useState<string>('created_at');
+  const [filterSortOrder, setFilterSortOrder] = useState<string>('desc');
+
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     mhsId: '',
+    status: 'all',
+    sortBy: 'created_at',
+    sortOrder: 'desc',
   });
 
-  const [mhsSearchModal, setMhsSearchModal] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingKonversi, setDeletingKonversi] = useState<any | null>(null);
 
   // Verifikasi per-MK (setujui sebagian / tolak)
@@ -53,6 +62,48 @@ export default function KonversiTransferPage() {
 
   // Kurikulum prodi mhs terpilih (hitung kekurangan SKS)
   const [verifKurikulum, setVerifKurikulum] = useState<any | null>(null);
+
+  const loadMahasiswaOptions = useCallback(async (inputValue: string) => {
+    try {
+      const res = await siakadService.getMahasiswas({
+        search: inputValue || undefined,
+        per_page: 20,
+      });
+      const list = Array.isArray(res.data) ? res.data : [];
+      return list.map((m: any) => ({
+        value: m.id,
+        label: `${m.nim || 'Tanpa NIM'} - ${m.nama_lengkap} (${m.program_studi?.nama || 'Prodi'})`,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const fetchKonversi = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await siakadService.getKonversis({
+        page,
+        per_page: limit,
+        search: appliedFilters.search || undefined,
+        mahasiswa_id: appliedFilters.mhsId || undefined,
+        status: appliedFilters.status !== 'all' ? appliedFilters.status : undefined,
+        sort_by: appliedFilters.sortBy,
+        sort_order: appliedFilters.sortOrder,
+        advisees_only: isDosen && !isStaff ? true : undefined,
+      });
+      if (res.data) setKonversis(res.data);
+      if (res.meta) setMeta(res.meta);
+    } catch (err: any) {
+      toast.error('Gagal memuat data konversi transfer');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, limit, appliedFilters, isDosen, isStaff]);
+
+  useEffect(() => {
+    fetchKonversi();
+  }, [fetchKonversi]);
 
   const openVerifikasi = async (row: any) => {
     setVerifTarget(row);
@@ -127,107 +178,6 @@ export default function KonversiTransferPage() {
       setSavingVerif(false);
     }
   };
-  const [form, setForm] = useState({
-    mahasiswa_id: 1,
-    kampus_asal: '',
-    prodi_asal: '',
-    catatan: '',
-    details: [
-      { mata_kuliah_diakui_id: 1, kode_mk_asal: '', nama_mk_asal: '', sks_asal: 3, nilai_huruf_asal: 'A' },
-    ],
-  });
-  const [saving, setSaving] = useState(false);
-
-  const fetchOptions = async () => {
-    try {
-      const [mRes, mkRes] = await Promise.all([
-        siakadService.getMahasiswas({ per_page: 200 }),
-        siakadService.getMataKuliahs({ per_page: 200 }),
-      ]);
-      if (mRes.data) {
-        setMahasiswas(mRes.data);
-        if (mRes.data.length > 0) setForm((f) => ({ ...f, mahasiswa_id: mRes.data[0].id }));
-      }
-      if (mkRes.data) {
-        setMatakuliahs(mkRes.data);
-        if (mkRes.data.length > 0) {
-          setForm((f) => ({
-            ...f,
-            details: [
-              {
-                mata_kuliah_diakui_id: mkRes.data[0].id,
-                kode_mk_asal: '',
-                nama_mk_asal: '',
-                sks_asal: 3,
-                nilai_huruf_asal: 'A',
-              },
-            ],
-          }));
-        }
-      }
-    } catch (err) {}
-  };
-
-  const fetchKonversi = async () => {
-    try {
-      setLoading(true);
-      const res = await siakadService.getKonversis({
-        search: appliedFilters.search || undefined,
-        mahasiswa_id: appliedFilters.mhsId || undefined,
-        advisees_only: isDosen && !isAdmin ? true : undefined,
-      });
-      if (res.data) setKonversis(res.data);
-    } catch (err: any) {
-      toast.error('Gagal memuat data konversi transfer');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOptions();
-  }, []);
-
-  useEffect(() => {
-    fetchKonversi();
-  }, [appliedFilters, isDosen, isAdmin]);
-
-  const handleAddDetail = () => {
-    setForm({
-      ...form,
-      details: [
-        ...form.details,
-        {
-          mata_kuliah_diakui_id: matakuliahs[0]?.id || 1,
-          kode_mk_asal: '',
-          nama_mk_asal: '',
-          sks_asal: 3,
-          nilai_huruf_asal: 'A',
-        },
-      ],
-    });
-  };
-
-  const handleRemoveDetail = (idx: number) => {
-    const updated = [...form.details];
-    updated.splice(idx, 1);
-    setForm({ ...form, details: updated });
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-      await siakadService.createKonversi(form);
-      toast.success('Konversi transfer mahasiswa berhasil disimpan');
-      setIsModalOpen(false);
-      fetchKonversi();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal menyimpan konversi transfer');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!deletingKonversi) return;
@@ -237,30 +187,31 @@ export default function KonversiTransferPage() {
       setDeletingKonversi(null);
       fetchKonversi();
     } catch (err: any) {
-      toast.error('Gagal menghapus konversi transfer');
+      toast.error(err.response?.data?.message || err.message || 'Gagal menghapus konversi transfer');
     }
   };
 
   const columns: ColumnDef<any>[] = [
     {
       key: 'select',
-      label: '',
-      align: 'center',
-      headerRender: () => (
-        <input
-          type="checkbox"
-          onChange={handleSelectAll}
-          checked={konversis.length > 0 && selectedIds.length === konversis.length}
-          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
-        />
+      label: (
+        <div className="flex items-center justify-center">
+          <Checkbox
+            label=""
+            checked={konversis.length > 0 && selectedIds.length === konversis.length}
+            onChange={handleSelectAll}
+          />
+        </div>
       ),
+      align: 'center',
       render: (row) => (
-        <input
-          type="checkbox"
-          checked={selectedIds.includes(row.id)}
-          onChange={() => handleToggleSelect(row.id)}
-          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
-        />
+        <div className="flex items-center justify-center">
+          <Checkbox
+            label=""
+            checked={selectedIds.includes(row.id)}
+            onChange={() => handleToggleSelect(row.id)}
+          />
+        </div>
       ),
     },
     {
@@ -281,7 +232,7 @@ export default function KonversiTransferPage() {
             {row.mahasiswa?.nama_lengkap}
           </span>
           <span className="font-mono text-2xs text-slate-400">
-            NIM: {row.mahasiswa?.nim || '-'}
+            NIM: {row.mahasiswa?.nim || '-'} • {row.mahasiswa?.program_studi?.nama || 'Prodi'}
           </span>
         </div>
       ),
@@ -310,7 +261,7 @@ export default function KonversiTransferPage() {
               <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">
                 {d.kode_mk_asal} ({d.nilai_huruf_asal})
               </span>
-              <span className="text-slate-400">→</span>
+              <ArrowRight size={11} className="text-slate-400 shrink-0" />
               <span className="font-bold text-primary-700">
                 {d.mata_kuliah_diakui?.nama} ({d.mata_kuliah_diakui?.total_sks} SKS)
               </span>
@@ -402,12 +353,18 @@ export default function KonversiTransferPage() {
         }
       />
 
-      {/* Full-bleed DataTable Card */}
+      {/* Full-bleed DataTable Card with server-side pagination */}
       <DataTable
         columns={columns}
         data={konversis}
         isLoading={loading}
         emptyMessage="Belum ada riwayat konversi transfer mahasiswa."
+        meta={meta}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
       />
 
       {/* Bilah verifikasi massal per mahasiswa */}
@@ -429,8 +386,9 @@ export default function KonversiTransferPage() {
               className="text-xs font-bold py-1.5 px-4 h-auto bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs border-none"
               onClick={() => handleBulkVerifikasi('disetujui')}
               disabled={savingBulkVerif}
+              icon={<ArrowRight size={14} />}
             >
-              Setujui Massal →
+              Setujui Massal
             </Button>
           </div>
         </div>
@@ -447,8 +405,18 @@ export default function KonversiTransferPage() {
               variant="secondary"
               onClick={() => {
                 setFilterSearch('');
-                setFilterMhsId('');
-                setAppliedFilters({ search: '', mhsId: '' });
+                setFilterMhs(null);
+                setFilterStatus('all');
+                setFilterSortBy('created_at');
+                setFilterSortOrder('desc');
+                setAppliedFilters({
+                  search: '',
+                  mhsId: '',
+                  status: 'all',
+                  sortBy: 'created_at',
+                  sortOrder: 'desc',
+                });
+                setPage(1);
                 setShowFilter(false);
               }}
             >
@@ -459,8 +427,12 @@ export default function KonversiTransferPage() {
               onClick={() => {
                 setAppliedFilters({
                   search: filterSearch,
-                  mhsId: filterMhsId,
+                  mhsId: filterMhs?.value ? String(filterMhs.value) : '',
+                  status: filterStatus,
+                  sortBy: filterSortBy,
+                  sortOrder: filterSortOrder,
                 });
+                setPage(1);
                 setShowFilter(false);
               }}
             >
@@ -471,186 +443,59 @@ export default function KonversiTransferPage() {
       >
         <div className="flex flex-col gap-5">
           <Input
-            label="NIM, Nama, atau Kampus Asal"
-            placeholder="Ketik kata kunci pencarian..."
+            label="Pencarian Bebas"
+            placeholder="No Transaksi, Kampus, atau Mahasiswa..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
           />
 
-          <div>
-            <label className="label">Pilih Mahasiswa</label>
-            <select
-              value={filterMhsId}
-              onChange={(e) => setFilterMhsId(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Mahasiswa Transfer</option>
-              {mahasiswas.map((m) => (
-                <option key={m.id} value={m.id.toString()}>
-                  {m.nim || 'Tanpa NIM'} - {m.nama_lengkap}
-                </option>
-              ))}
-            </select>
+          <AsyncSelect
+            label="Mahasiswa Transfer"
+            placeholder="Ketik nama atau NIM mahasiswa..."
+            loadOptions={loadMahasiswaOptions}
+            value={filterMhs}
+            onChange={(val: any) => setFilterMhs(val)}
+            isClearable
+            defaultOptions={true}
+          />
+
+          <Select
+            label="Status Konversi"
+            value={filterStatus}
+            onChange={(val: any) => setFilterStatus(val || 'all')}
+            options={[
+              { value: 'all', label: 'Semua Status' },
+              { value: 'draft', label: 'Draft' },
+              { value: 'diajukan', label: 'Diajukan' },
+              { value: 'disetujui', label: 'Disetujui' },
+              { value: 'ditolak', label: 'Ditolak' },
+            ]}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Urutkan Berdasarkan"
+              value={filterSortBy}
+              onChange={(val: any) => setFilterSortBy(val || 'created_at')}
+              options={[
+                { value: 'created_at', label: 'Waktu Input' },
+                { value: 'no_transaksi', label: 'No Transaksi' },
+                { value: 'status', label: 'Status' },
+                { value: 'kampus_asal', label: 'Kampus Asal' },
+              ]}
+            />
+            <Select
+              label="Arah Urutan"
+              value={filterSortOrder}
+              onChange={(val: any) => setFilterSortOrder(val || 'desc')}
+              options={[
+                { value: 'desc', label: 'Menurun (Z-A / Baru)' },
+                { value: 'asc', label: 'Menaik (A-Z / Lama)' },
+              ]}
+            />
           </div>
         </div>
       </Drawer>
-
-      {/* Modal Form Konversi */}
-      <Modal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Form Konversi Nilai Mahasiswa Transfer"
-        size="lg"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
-              Batal
-            </Button>
-            <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Menyimpan...' : 'Simpan Konversi'}
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleSave} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          <div>
-            <label className="label">1. Pilih Mahasiswa Transfer *</label>
-            <div className="relative mb-2">
-              <Input
-                placeholder="Ketik untuk memfilter nama / NIM mahasiswa..."
-                value={mhsSearchModal}
-                onChange={(e) => setMhsSearchModal(e.target.value)}
-              />
-            </div>
-            <select
-              value={form.mahasiswa_id}
-              onChange={(e) => setForm({ ...form, mahasiswa_id: parseInt(e.target.value) })}
-              className="select w-full font-semibold"
-            >
-              {mahasiswas
-                .filter(
-                  (m) =>
-                    !mhsSearchModal ||
-                    m.nama_lengkap.toLowerCase().includes(mhsSearchModal.toLowerCase()) ||
-                    (m.nim && m.nim.toLowerCase().includes(mhsSearchModal.toLowerCase()))
-                )
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nim || 'Belum ada NIM'} - {m.nama_lengkap} ({m.program_studi?.nama || 'S1'})
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Input
-              label="Perguruan Tinggi / Kampus Asal *"
-              required
-              placeholder="Contoh: Universitas Nusantara"
-              value={form.kampus_asal}
-              onChange={(e) => setForm({ ...form, kampus_asal: e.target.value })}
-            />
-
-            <Input
-              label="Program Studi Asal *"
-              required
-              placeholder="Contoh: Teknik Komputer"
-              value={form.prodi_asal}
-              onChange={(e) => setForm({ ...form, prodi_asal: e.target.value })}
-            />
-          </div>
-
-          {/* Detail Matakuliah */}
-          <div className="space-y-3 pt-3 border-t border-slate-100">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-slate-900 uppercase">Mata Kuliah yang Diakui</h4>
-              <button
-                type="button"
-                onClick={handleAddDetail}
-                className="text-xs font-bold text-primary-600 hover:underline cursor-pointer"
-              >
-                + Tambah Baris Mata Kuliah
-              </button>
-            </div>
-
-            {form.details.map((detail, idx) => (
-              <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 relative">
-                {form.details.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveDetail(idx)}
-                    className="absolute right-3 top-3 text-rose-500 text-xs font-bold hover:underline cursor-pointer"
-                  >
-                    Hapus
-                  </button>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    label="Kode MK Asal"
-                    required
-                    placeholder="CS101"
-                    value={detail.kode_mk_asal}
-                    onChange={(e) => {
-                      const d = [...form.details];
-                      d[idx].kode_mk_asal = e.target.value;
-                      setForm({ ...form, details: d });
-                    }}
-                  />
-                  <Input
-                    label="Nama MK Asal"
-                    required
-                    placeholder="Dasar Pemrograman"
-                    value={detail.nama_mk_asal}
-                    onChange={(e) => {
-                      const d = [...form.details];
-                      d[idx].nama_mk_asal = e.target.value;
-                      setForm({ ...form, details: d });
-                    }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <Input
-                    label="SKS Asal"
-                    type="number"
-                    required
-                    min="1"
-                    value={detail.sks_asal}
-                    onChange={(e) => {
-                      const d = [...form.details];
-                      d[idx].sks_asal = parseInt(e.target.value) || 3;
-                      setForm({ ...form, details: d });
-                    }}
-                  />
-                  <Input
-                    label="Nilai Huruf Asal"
-                    required
-                    placeholder="A / B+"
-                    value={detail.nilai_huruf_asal}
-                    onChange={(e) => {
-                      const d = [...form.details];
-                      d[idx].nilai_huruf_asal = e.target.value;
-                      setForm({ ...form, details: d });
-                    }}
-                  />
-                  <MkProdiSelect
-                    value={detail.mata_kuliah_diakui_id}
-                    onChange={(id) => {
-                      const d = [...form.details];
-                      d[idx].mata_kuliah_diakui_id = id;
-                      setForm({ ...form, details: d });
-                    }}
-                    matakuliahs={matakuliahs}
-                    label="Disetarakan Ke MK"
-                    className="select w-full text-xs"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </form>
-      </Modal>
 
       {/* Delete Modal */}
       <Modal
@@ -707,7 +552,7 @@ export default function KonversiTransferPage() {
             </div>
             <div>
               <span className="text-2xs text-slate-400 block uppercase font-bold">Status Usulan</span>
-              <Badge variant={verifTarget?.status === 'diajukan' ? 'amber' : 'gray'} className="capitalize">{verifTarget?.status}</Badge>
+              <Badge variant={verifTarget?.status === 'disetujui' ? 'green' : verifTarget?.status === 'diajukan' ? 'amber' : verifTarget?.status === 'ditolak' ? 'rose' : 'gray'} className="capitalize">{verifTarget?.status}</Badge>
             </div>
           </div>
 
@@ -737,7 +582,7 @@ export default function KonversiTransferPage() {
               <thead className="bg-slate-50 sticky top-0">
                 <tr className="text-2xs uppercase text-slate-500">
                   <th className="py-2 px-3">MK Asal (kiri)</th>
-                  <th className="py-2 px-3 text-center w-10">→</th>
+                  <th className="py-2 px-3 text-center w-10"></th>
                   <th className="py-2 px-3">MK Lokal Diakui (kanan)</th>
                   <th className="py-2 px-3 text-center">Keputusan</th>
                 </tr>
@@ -753,7 +598,9 @@ export default function KonversiTransferPage() {
                           <strong className="text-slate-900 block">{d.kode_mk_asal} — {d.nama_mk_asal}</strong>
                           <span className="text-2xs text-slate-500">{d.sks_asal} SKS • Nilai {d.nilai_huruf_asal}</span>
                         </td>
-                        <td className="py-2.5 px-3 text-center text-slate-300 font-black">→</td>
+                        <td className="py-2.5 px-3 text-center">
+                          <ArrowRight size={14} className="text-slate-300 mx-auto" />
+                        </td>
                         <td className="py-2.5 px-3">
                           <strong className="text-primary-700 block">{d.mata_kuliah_diakui?.kode_mk} — {d.mata_kuliah_diakui?.nama}</strong>
                           <span className="text-2xs text-slate-500">{d.mata_kuliah_diakui?.total_sks} SKS lokal</span>
@@ -820,8 +667,6 @@ export default function KonversiTransferPage() {
           />
         </div>
       </Modal>
-
     </div>
   );
 }
-
