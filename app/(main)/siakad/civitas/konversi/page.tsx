@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Filter, Trash2, CheckCircle2, Edit, ArrowRight } from 'lucide-react';
+import { Plus, Filter, Trash2, CheckCircle2, Edit, ArrowRight, ExternalLink } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -218,9 +218,21 @@ export default function KonversiTransferPage() {
       key: 'no_transaksi',
       label: 'NO TRANSAKSI',
       render: (row) => (
-        <span className="font-mono font-bold text-slate-900 text-xs">
-          {row.no_transaksi}
-        </span>
+        <div>
+          <span className="font-mono font-bold text-slate-900 text-xs block">
+            {row.no_transaksi}
+          </span>
+          {row.nomor_sk && (
+            <div className="flex items-center gap-1 mt-1">
+              <span className="font-mono text-3xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold inline-flex items-center gap-1" title={row.nomor_sk}>
+                SK: {row.nomor_sk}
+              </span>
+              {row.arsip_nomor_surat?.has_dokumen && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Dokumen fisik SK terverifikasi di modul Arsip" />
+              )}
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -482,6 +494,7 @@ export default function KonversiTransferPage() {
                 { value: 'no_transaksi', label: 'No Transaksi' },
                 { value: 'status', label: 'Status' },
                 { value: 'kampus_asal', label: 'Kampus Asal' },
+                { value: 'nomor_sk', label: 'Nomor SK' },
               ]}
             />
             <Select
@@ -539,7 +552,7 @@ export default function KonversiTransferPage() {
         }
       >
         <div className="space-y-4">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs grid grid-cols-1 sm:grid-cols-4 gap-2">
             <div>
               <span className="text-2xs text-slate-400 block uppercase font-bold">Mahasiswa</span>
               <strong className="text-slate-900">{verifTarget?.mahasiswa?.nama_lengkap}</strong>
@@ -549,6 +562,33 @@ export default function KonversiTransferPage() {
               <span className="text-2xs text-slate-400 block uppercase font-bold">Kampus Asal</span>
               <strong className="text-slate-900 block text-xs">{verifTarget?.kampus_asal}</strong>
               <span className="text-2xs text-slate-500">{verifTarget?.prodi_asal}</span>
+            </div>
+            <div>
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Dasar SK Arsip</span>
+              {verifTarget?.nomor_sk ? (
+                <div>
+                  <span className="font-mono text-xs font-semibold text-slate-900 block truncate" title={verifTarget.nomor_sk}>
+                    {verifTarget.nomor_sk}
+                  </span>
+                  {verifTarget.arsip_nomor_surat?.dokumen_url ? (
+                    <a
+                      href={verifTarget.arsip_nomor_surat.dokumen_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-3xs text-emerald-700 hover:underline inline-flex items-center gap-0.5 font-medium"
+                    >
+                      <span>Lihat Berkas</span>
+                      <ExternalLink size={10} />
+                    </a>
+                  ) : verifTarget.arsip_nomor_surat?.has_dokumen ? (
+                    <span className="text-3xs text-emerald-600 font-medium">✓ Berkas Ada</span>
+                  ) : (
+                    <span className="text-3xs text-slate-400">Tanpa berkas fisik</span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-2xs text-slate-400 italic">Belum diisi</span>
+              )}
             </div>
             <div>
               <span className="text-2xs text-slate-400 block uppercase font-bold">Status Usulan</span>
