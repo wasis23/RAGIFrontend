@@ -176,8 +176,7 @@ export default function MahasiswaPage() {
   // Bulk Selection State (untuk Ubah Status Massal)
   const [selectedMhsIds, setSelectedMhsIds] = useState<number[]>([]);
 
-  // Sync & Generate NIM States
-  const [syncingSpmb, setSyncingSpmb] = useState(false);
+  // Generate NIM States
   const [generatingNims, setGeneratingNims] = useState(false);
 
   // Individual NIM Assignment Modal
@@ -297,19 +296,6 @@ export default function MahasiswaPage() {
   useEffect(() => {
     fetchMahasiswa();
   }, [appliedFilters, isDosenOnly, page, limit]);
-
-  const handleSyncSpmb = async () => {
-    try {
-      setSyncingSpmb(true);
-      const res = await siakadService.syncMahasiswaFromSpmb();
-      toast.success(res.message || 'Data mahasiswa baru berhasil disinkronkan dari SPMB');
-      fetchMahasiswa();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Gagal sinkronisasi data dari SPMB');
-    } finally {
-      setSyncingSpmb(false);
-    }
-  };
 
   const handleOpenNimModal = (mhs: any) => {
     setTargetMhsForNim(mhs);
@@ -780,7 +766,7 @@ export default function MahasiswaPage() {
       {!isDosenOnly && (
         <>
           {/* Bilah Alat Massal — dikelompokkan agar header tidak berantakan */}
-          <div className="card p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="card p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
                 <FileSpreadsheet size={17} />
@@ -796,19 +782,6 @@ export default function MahasiswaPage() {
                   </Button>
                   <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" icon={<Sparkles size={13} />} onClick={() => setIsBatchNimModalOpen(true)}>
                     Generate
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-3">
-              <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                <RefreshCw size={17} className={syncingSpmb ? 'animate-spin' : ''} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-extrabold text-slate-900">Sinkronisasi SPMB</p>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <Button variant="outline" size="sm" className="text-2xs py-1 px-2.5 h-auto" onClick={handleSyncSpmb} disabled={syncingSpmb}>
-                    {syncingSpmb ? 'Menyinkronkan...' : 'Tarik Pendaftar Lulus →'}
                   </Button>
                 </div>
               </div>
