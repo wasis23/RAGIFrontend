@@ -9,8 +9,8 @@ export const siakadService = {
   },
 
   // Tahun Akademik
-  getTahunAkademiks: async (): Promise<ApiResponse<any>> => {
-    const response = await apiClient.get('/v1/siakad/akademik/tahun-akademik');
+  getTahunAkademiks: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/akademik/tahun-akademik', { params });
     return response.data;
   },
 

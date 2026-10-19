@@ -16,22 +16,59 @@ import {
   BookOpen,
   Info,
   ArrowRight,
+  Check,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
-import { Select } from '@/components/ui/Select';
+import { Select, type SelectOption } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Drawer } from '@/components/ui/Drawer';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { siakadService } from '@/services/siakad.service';
 import { useAuth } from '@/hooks/useAuth';
+import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 
+const NIM_STATUS_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Status NIM' },
+  { value: 'unassigned', label: 'Belum Memiliki NIM' },
+  { value: 'assigned', label: 'Sudah Memiliki NIM' },
+];
 
+const STATUS_AKADEMIK_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Status' },
+  { value: 'aktif', label: 'Aktif' },
+  { value: 'cuti', label: 'Cuti' },
+  { value: 'mangkir', label: 'Mangkir' },
+  { value: 'lulus', label: 'Lulus' },
+];
+
+const CURRENT_YEAR = new Date().getFullYear();
+const ANGKATAN_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Angkatan' },
+  ...Array.from({ length: 8 }, (_, i) => CURRENT_YEAR - i).map((yr) => ({
+    value: String(yr),
+    label: `Angkatan ${yr}`,
+  })),
+];
+
+const SORT_BY_OPTIONS: SelectOption[] = [
+  { value: 'nama_lengkap', label: 'Nama Mahasiswa' },
+  { value: 'nim', label: 'Nomor Induk Mahasiswa (NIM)' },
+  { value: 'angkatan', label: 'Tahun Angkatan' },
+  { value: 'kelas', label: 'Kelas' },
+  { value: 'created_at', label: 'Waktu Dibuat' },
+];
+
+const SORT_DIR_OPTIONS: SelectOption[] = [
+  { value: 'asc', label: 'Menaik (A-Z / Lama)' },
+  { value: 'desc', label: 'Menurun (Z-A / Baru)' },
+];
 
 export default function MahasiswaPage() {
   const router = useRouter();
@@ -45,6 +82,11 @@ export default function MahasiswaPage() {
   const [masterKelases, setMasterKelases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination & Limit States
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(15);
+  const [meta, setMeta] = useState<PaginationMeta | undefined>(undefined);
+
   // Filter Drawer States
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
@@ -54,6 +96,8 @@ export default function MahasiswaPage() {
   const [filterDosenPa, setFilterDosenPa] = useState('');
   const [filterNim, setFilterNim] = useState('');
   const [filterKelas, setFilterKelas] = useState('');
+  const [filterSortBy, setFilterSortBy] = useState('nama_lengkap');
+  const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     prodi: '',
@@ -62,7 +106,51 @@ export default function MahasiswaPage() {
     dosenPa: '',
     nim: '',
     kelas: '',
+    sortBy: 'nama_lengkap',
+    sortDir: 'asc' as 'asc' | 'desc',
   });
+
+  const isFiltered = useMemo(() => {
+    return (
+      appliedFilters.search !== '' ||
+      appliedFilters.prodi !== '' ||
+      appliedFilters.angkatan !== '' ||
+      appliedFilters.status !== '' ||
+      appliedFilters.dosenPa !== '' ||
+      appliedFilters.nim !== '' ||
+      appliedFilters.kelas !== '' ||
+      appliedFilters.sortBy !== 'nama_lengkap' ||
+      appliedFilters.sortDir !== 'asc'
+    );
+  }, [appliedFilters]);
+
+  const loadProdiOptions = useCallback(async (keyword: string) => {
+    try {
+      const res = await siakadService.getProdi({ search: keyword || undefined, per_page: 50 });
+      const raw = res.data;
+      const list = Array.isArray(raw) ? raw : (raw?.items || []);
+      return [
+        { value: '', label: 'Semua Program Studi' },
+        ...list.map((p: any) => ({ value: String(p.id), label: p.nama })),
+      ];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  const loadDosenOptions = useCallback(async (keyword: string) => {
+    try {
+      const res = await siakadService.getDosens({ search: keyword || undefined, per_page: 50 });
+      const list = res.data || [];
+      return [
+        { value: '', label: 'Semua Dosen PA' },
+        { value: 'unassigned', label: 'Belum Memiliki Dosen PA' },
+        ...list.map((d: any) => ({ value: String(d.id), label: d.nama_lengkap })),
+      ];
+    } catch {
+      return [];
+    }
+  }, []);
 
   const loadMasterKelasOptions = useCallback(
     async (keyword: string) => {
@@ -165,28 +253,35 @@ export default function MahasiswaPage() {
     try {
       setLoading(true);
       const res = await siakadService.getMahasiswas({
-        search: appliedFilters.search,
-        program_studi_id: appliedFilters.prodi,
-        angkatan: appliedFilters.angkatan,
-        status: appliedFilters.status,
+        page,
+        per_page: limit,
+        search: appliedFilters.search || undefined,
+        program_studi_id: appliedFilters.prodi || undefined,
+        angkatan: appliedFilters.angkatan || undefined,
+        status: appliedFilters.status || undefined,
         kelas: appliedFilters.kelas ? appliedFilters.kelas.toUpperCase() : undefined,
+        dosen_wali_id: appliedFilters.dosenPa || undefined,
+        nim_status: appliedFilters.nim || undefined,
+        sort_by: appliedFilters.sortBy || undefined,
+        sort_order: appliedFilters.sortDir || undefined,
         advisees_only: isDosenOnly ? true : undefined,
       });
       if (res.data) {
-        let list = res.data;
-        if (appliedFilters.dosenPa === 'unassigned') {
-          list = list.filter((m: any) => !m.dosen_wali_id);
-        } else if (appliedFilters.dosenPa) {
-          list = list.filter((m: any) => String(m.dosen_wali_id) === String(appliedFilters.dosenPa));
-        }
-
-        if (appliedFilters.nim === 'unassigned') {
-          list = list.filter((m: any) => !m.nim || m.nim === '');
-        } else if (appliedFilters.nim === 'assigned') {
-          list = list.filter((m: any) => Boolean(m.nim));
-        }
-
+        const raw = res.data;
+        const list = Array.isArray(raw) ? raw : (raw.items || []);
         setMahasiswas(list);
+        if (res.meta) {
+          setMeta(res.meta);
+        } else if (Array.isArray(raw)) {
+          setMeta({
+            current_page: 1,
+            per_page: raw.length,
+            total: raw.length,
+            last_page: 1,
+            from: raw.length > 0 ? 1 : 0,
+            to: raw.length,
+          });
+        }
       }
     } catch (err: any) {
       toast.error('Gagal memuat data mahasiswa');
@@ -201,7 +296,7 @@ export default function MahasiswaPage() {
 
   useEffect(() => {
     fetchMahasiswa();
-  }, [appliedFilters, isDosenOnly]);
+  }, [appliedFilters, isDosenOnly, page, limit]);
 
   const handleSyncSpmb = async () => {
     try {
@@ -494,20 +589,24 @@ export default function MahasiswaPage() {
       label: '',
       align: 'center',
       headerRender: () => (
-        <input
-          type="checkbox"
-          onChange={handleSelectAll}
+        <Checkbox
           checked={mahasiswas.length > 0 && selectedMhsIds.length === mahasiswas.length}
-          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+          onChange={handleSelectAll}
         />
       ),
       render: (row) => (
-        <input
-          type="checkbox"
+        <Checkbox
           checked={selectedMhsIds.includes(row.id)}
           onChange={() => handleToggleSelect(row.id)}
-          className="rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
         />
+      ),
+    },
+    {
+      key: 'no',
+      label: 'NO',
+      align: 'center',
+      render: (_row, idx) => (
+        <span className="font-bold text-slate-400 text-xs">{(meta?.from ?? 1) + idx}</span>
       ),
     },
     {
@@ -537,7 +636,7 @@ export default function MahasiswaPage() {
       label: 'NAMA MAHASISWA',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <span className="font-bold text-slate-900 text-sm">{row.nama_lengkap}</span>
+          <span className="font-bold text-slate-900 text-xs">{row.nama_lengkap}</span>
           {row.konversi_id && (
             <Badge variant="purple" className="text-2xs">Transfer</Badge>
           )}
@@ -569,7 +668,7 @@ export default function MahasiswaPage() {
       align: 'center',
       render: (row) => (
         row.kelas ? (
-          <span className="font-mono text-xs font-bold uppercase text-slate-900 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 inline-block">
+          <span className="font-mono text-2xs font-bold uppercase text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200 inline-block">
             {String(row.kelas).toUpperCase()}
           </span>
         ) : (
@@ -583,11 +682,11 @@ export default function MahasiswaPage() {
       render: (row) => (
         <div>
           {row.dosen_wali ? (
-            <span className="font-bold text-primary-800 bg-primary-50 px-2 py-1 rounded-lg border border-primary-200 text-xs inline-block">
+            <span className="font-bold text-primary-800 bg-primary-50 px-2 py-0.5 rounded-lg border border-primary-200 text-2xs inline-block">
               {row.dosen_wali.nama_lengkap}
             </span>
           ) : (
-            <span className="text-2xs text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 font-bold inline-block">
+            <span className="text-2xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-bold inline-block">
               Belum Ada Dosen PA
             </span>
           )}
@@ -601,7 +700,7 @@ export default function MahasiswaPage() {
       render: (row) => (
         <Badge
           variant={row.status === 'aktif' ? 'green' : row.status === 'cuti' ? 'amber' : 'gray'}
-          className="capitalize"
+          className="capitalize text-2xs"
         >
           {row.status}
         </Badge>
@@ -823,11 +922,92 @@ export default function MahasiswaPage() {
         </div>
       )}
 
+      {/* Active Filter Bar */}
+      {isFiltered && (
+        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-700">Filter Aktif:</span>
+            {appliedFilters.search && (
+              <Badge variant="blue" className="text-2xs">
+                Kata kunci: "{appliedFilters.search}"
+              </Badge>
+            )}
+            {appliedFilters.prodi && (
+              <Badge variant="blue" className="text-2xs">
+                Prodi: {prodis.find((p) => String(p.id) === appliedFilters.prodi)?.nama || appliedFilters.prodi}
+              </Badge>
+            )}
+            {appliedFilters.angkatan && (
+              <Badge variant="blue" className="text-2xs">
+                Angkatan: {appliedFilters.angkatan}
+              </Badge>
+            )}
+            {appliedFilters.kelas && (
+              <Badge variant="purple" className="text-2xs">
+                Kelas: {appliedFilters.kelas}
+              </Badge>
+            )}
+            {appliedFilters.status && (
+              <Badge variant="green" className="text-2xs">
+                Status: {appliedFilters.status}
+              </Badge>
+            )}
+            {appliedFilters.nim && (
+              <Badge variant="amber" className="text-2xs">
+                NIM: {appliedFilters.nim === 'unassigned' ? 'Belum Ada NIM' : 'Sudah Ada NIM'}
+              </Badge>
+            )}
+            {appliedFilters.dosenPa && (
+              <Badge variant="blue" className="text-2xs">
+                PA: {appliedFilters.dosenPa === 'unassigned' ? 'Belum Ada PA' : dosens.find((d) => String(d.id) === appliedFilters.dosenPa)?.nama_lengkap || appliedFilters.dosenPa}
+              </Badge>
+            )}
+            <span className="text-slate-400">({meta?.total ?? mahasiswas.length} mahasiswa ditemukan)</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFilterSearch('');
+              setFilterProdi('');
+              setFilterAngkatan('');
+              setFilterNim('');
+              setFilterDosenPa('');
+              setFilterStatus('');
+              setFilterKelas('');
+              setFilterSortBy('nama_lengkap');
+              setFilterSortDir('asc');
+              setAppliedFilters({
+                search: '',
+                prodi: '',
+                angkatan: '',
+                nim: '',
+                dosenPa: '',
+                status: '',
+                kelas: '',
+                sortBy: 'nama_lengkap',
+                sortDir: 'asc',
+              });
+              setPage(1);
+            }}
+            className="text-2xs text-rose-600 hover:text-rose-700 h-6 px-2 font-medium"
+          >
+            Hapus Filter
+          </Button>
+        </div>
+      )}
+
       {/* Full-bleed DataTable Card */}
       <DataTable
         columns={isDosenOnly ? columns.filter((c) => c.key !== 'select' && c.key !== 'aksi') : columns}
         data={mahasiswas}
         isLoading={loading}
+        meta={meta}
+        onPageChange={(p) => setPage(p)}
+        onLimitChange={(l) => {
+          setLimit(l);
+          setPage(1);
+        }}
         emptyMessage="Belum ada data mahasiswa yang terdaftar."
       />
 
@@ -837,9 +1017,10 @@ export default function MahasiswaPage() {
         onClose={() => setShowFilter(false)}
         title="Filter Mahasiswa"
         footer={
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-2 w-full">
             <Button
               variant="secondary"
+              size="sm"
               onClick={() => {
                 setFilterSearch('');
                 setFilterProdi('');
@@ -848,7 +1029,20 @@ export default function MahasiswaPage() {
                 setFilterDosenPa('');
                 setFilterStatus('');
                 setFilterKelas('');
-                setAppliedFilters({ search: '', prodi: '', angkatan: '', nim: '', dosenPa: '', status: '', kelas: '' });
+                setFilterSortBy('nama_lengkap');
+                setFilterSortDir('asc');
+                setAppliedFilters({
+                  search: '',
+                  prodi: '',
+                  angkatan: '',
+                  nim: '',
+                  dosenPa: '',
+                  status: '',
+                  kelas: '',
+                  sortBy: 'nama_lengkap',
+                  sortDir: 'asc',
+                });
+                setPage(1);
                 setShowFilter(false);
               }}
             >
@@ -856,6 +1050,7 @@ export default function MahasiswaPage() {
             </Button>
             <Button
               variant="primary"
+              size="sm"
               onClick={() => {
                 setAppliedFilters({
                   search: filterSearch,
@@ -865,19 +1060,22 @@ export default function MahasiswaPage() {
                   dosenPa: filterDosenPa,
                   status: filterStatus,
                   kelas: filterKelas ? filterKelas.trim().toUpperCase() : '',
+                  sortBy: filterSortBy,
+                  sortDir: filterSortDir,
                 });
+                setPage(1);
                 setShowFilter(false);
               }}
             >
-              Terapkan
+              Terapkan Filter
             </Button>
           </div>
         }
       >
-        <div className="flex flex-col gap-5">
+        <div className="space-y-4">
           <Input
-            label="NIM, NIK, atau Nama Mahasiswa"
-            placeholder="Ketik kata kunci pencarian..."
+            label="Pencarian Kata Kunci"
+            placeholder="Ketik NIM, NIK, nama, atau kelas..."
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
           />
@@ -892,75 +1090,66 @@ export default function MahasiswaPage() {
             defaultOptions={true}
           />
 
-          <div>
-            <label className="label">Program Studi</label>
-            <select
-              value={filterProdi}
-              onChange={(e) => setFilterProdi(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Program Studi</option>
-              {prodis.map((p) => (
-                <option key={p.id} value={p.id.toString()}>{p.nama}</option>
-              ))}
-            </select>
-          </div>
+          <AsyncSelect
+            label="Program Studi"
+            placeholder="Semua Program Studi..."
+            loadOptions={loadProdiOptions}
+            value={filterProdi ? { value: filterProdi, label: prodis.find((p) => String(p.id) === filterProdi)?.nama || filterProdi } : null}
+            onChange={(opt: any) => setFilterProdi(opt?.value || '')}
+            isClearable
+            defaultOptions={true}
+          />
 
-          <div>
-            <label className="label">Tahun Angkatan</label>
-            <select
-              value={filterAngkatan}
-              onChange={(e) => setFilterAngkatan(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Angkatan</option>
-              {Array.from({ length: 8 }, (_, i) => new Date().getFullYear() - i).map((yr) => (
-                <option key={yr} value={String(yr)}>Angkatan {yr}</option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Tahun Angkatan"
+            value={filterAngkatan}
+            onChange={(val) => setFilterAngkatan(String(val || ''))}
+            options={ANGKATAN_OPTIONS}
+          />
 
-          <div>
-            <label className="label">Status Kepemilikan NIM</label>
-            <select
-              value={filterNim}
-              onChange={(e) => setFilterNim(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Status NIM</option>
-              <option value="unassigned">⚠️ Belum Memiliki NIM</option>
-              <option value="assigned">✓ Sudah Memiliki NIM</option>
-            </select>
-          </div>
+          <Select
+            label="Status Kepemilikan NIM"
+            value={filterNim}
+            onChange={(val) => setFilterNim(String(val || ''))}
+            options={NIM_STATUS_OPTIONS}
+          />
 
-          <div>
-            <label className="label">Dosen Pembimbing Akademik (PA)</label>
-            <select
-              value={filterDosenPa}
-              onChange={(e) => setFilterDosenPa(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Dosen PA</option>
-              <option value="unassigned">⚠️ Belum Memiliki Dosen PA</option>
-              {dosens.map((d) => (
-                <option key={d.id} value={d.id.toString()}>{d.nama_lengkap}</option>
-              ))}
-            </select>
-          </div>
+          <AsyncSelect
+            label="Dosen Pembimbing Akademik (PA)"
+            placeholder="Semua Dosen PA..."
+            loadOptions={loadDosenOptions}
+            value={
+              filterDosenPa === 'unassigned'
+                ? { value: 'unassigned', label: 'Belum Memiliki Dosen PA' }
+                : filterDosenPa
+                ? { value: filterDosenPa, label: dosens.find((d) => String(d.id) === filterDosenPa)?.nama_lengkap || filterDosenPa }
+                : null
+            }
+            onChange={(opt: any) => setFilterDosenPa(opt?.value || '')}
+            isClearable
+            defaultOptions={true}
+          />
 
-          <div>
-            <label className="label">Status Akademik</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="select w-full"
-            >
-              <option value="">Semua Status</option>
-              <option value="aktif">Aktif</option>
-              <option value="cuti">Cuti</option>
-              <option value="mangkir">Mangkir</option>
-              <option value="lulus">Lulus</option>
-            </select>
+          <Select
+            label="Status Akademik"
+            value={filterStatus}
+            onChange={(val) => setFilterStatus(String(val || ''))}
+            options={STATUS_AKADEMIK_OPTIONS}
+          />
+
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+            <Select
+              label="Urutkan"
+              value={filterSortBy}
+              onChange={(val) => setFilterSortBy(String(val || 'nama_lengkap'))}
+              options={SORT_BY_OPTIONS}
+            />
+            <Select
+              label="Arah"
+              value={filterSortDir}
+              onChange={(val) => setFilterSortDir((val as 'asc' | 'desc') || 'asc')}
+              options={SORT_DIR_OPTIONS}
+            />
           </div>
         </div>
       </Drawer>
@@ -1363,8 +1552,8 @@ export default function MahasiswaPage() {
               className="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer border border-slate-200 rounded-xl p-2 bg-white"
             />
             {importFile && (
-              <p className="text-2xs text-emerald-600 font-semibold mt-1.5">
-                ✓ File terpilih: {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
+              <p className="text-2xs text-emerald-600 font-semibold mt-1.5 flex items-center gap-1">
+                <Check size={12} /> File terpilih: {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
               </p>
             )}
           </div>
