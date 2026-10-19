@@ -61,10 +61,10 @@ export default function EditKelasPerkuliahanPage() {
       kelasId={kelasId}
       initialValues={initial}
       loadingInitial={loading}
-      title={`Ubah Kelas ${kelasNama}`}
+      title={`Ubah Jadwal Perkuliahan ${kelasNama}`}
       description="Perbarui nama kelas, pengampu, ruangan, jadwal, dan kuota. Mata kuliah, periode, dan kode kelas terkunci."
-      breadcrumbLabel="Ubah Kelas"
-      submitLabel="Simpan Perubahan Kelas"
+      breadcrumbLabel="Ubah Jadwal"
+      submitLabel="Simpan Perubahan Jadwal"
     />
   );
 }

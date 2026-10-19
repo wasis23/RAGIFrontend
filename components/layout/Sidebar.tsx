@@ -265,9 +265,7 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
       { id: 7020, parent_id: 702, name: 'Tahun Akademik', url: '/siakad/master/tahun-akademik', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 0, is_active: true },
       { id: 7021, parent_id: 702, name: 'Fakultas & Prodi', url: '/siakad/master/fakultas', icon: 'FaBuilding', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
       { id: 7022, parent_id: 702, name: 'Kurikulum OBE', url: '/siakad/master/kurikulum', icon: 'FaBookOpen', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
-      { id: 7023, parent_id: 702, name: 'Mata Kuliah', url: '/siakad/master/matakuliah', icon: 'FaList', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
       { id: 7024, parent_id: 702, name: 'Skala Nilai', url: '/siakad/master/skala-nilai', icon: 'FaAward', module: 'siakad', permission_id: null, order_index: 4, is_active: true },
-      { id: 7025, parent_id: 702, name: 'Konfigurasi Penilaian & OBE', url: '/siakad/master/konfigurasi-penilaian', icon: 'FaSlidersH', module: 'siakad', permission_id: null, order_index: 5, is_active: true },
       { id: 7026, parent_id: 702, name: 'Master Referensi', url: '/siakad/master/referensi', icon: 'FaDatabase', module: 'siakad', permission_id: null, order_index: 6, is_active: true },
       { id: 7027, parent_id: 702, name: 'Master Tipe Referensi', url: '/siakad/master/tipe-referensi', icon: 'FaTags', module: 'siakad', permission_id: null, order_index: 7, is_active: true },
     ]
@@ -275,7 +273,7 @@ const SIAKAD_ADMIN_MENUS: Menu[] = [
   {
     id: 704, parent_id: null, name: 'PERKULIAHAN & OBE', url: '#perkuliahan_siakad', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 4, is_active: true,
     children: [
-      { id: 7041, parent_id: 704, name: 'Kelas & Jadwal', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
+      { id: 7041, parent_id: 704, name: 'Jadwal Perkuliahan', url: '/siakad/perkuliahan/kelas', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 1, is_active: true },
       { id: 70415, parent_id: 704, name: 'Absensi Mahasiswa', url: '/siakad/perkuliahan/absensi', icon: 'FaCalendarCheck', module: 'siakad', permission_id: null, order_index: 2, is_active: true },
       { id: 7042, parent_id: 704, name: 'KRS Mahasiswa', url: '/siakad/krs', icon: 'FaClipboardCheck', module: 'siakad', permission_id: null, order_index: 3, is_active: true },
       { id: 7043, parent_id: 704, name: 'Input Nilai OBE', url: '/siakad/nilai', icon: 'FaPen', module: 'siakad', permission_id: null, order_index: 4, is_active: true },

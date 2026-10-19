@@ -290,14 +290,14 @@ export default function PerkuliahanKelasPage() {
         if (!isMahasiswa && !isDosen) {
           items.push(
             {
-              label: 'Edit Kelas',
+              label: 'Edit Jadwal Kuliah',
               icon: <Edit3 size={14} />,
               onClick: () => {
                 router.push(`/siakad/perkuliahan/kelas/${row.id}/edit`);
               },
             },
             {
-              label: 'Hapus Kelas',
+              label: 'Hapus Jadwal Kuliah',
               icon: <Trash2 size={14} />,
               variant: 'danger' as const,
               onClick: () => {
@@ -350,7 +350,7 @@ export default function PerkuliahanKelasPage() {
                   icon={<Plus size={16} />}
                   onClick={() => router.push('/siakad/perkuliahan/kelas/create')}
                 >
-                  Buka Kelas Baru
+                  Buka Jadwal Baru
                 </Button>
               )}
             </div>
@@ -391,7 +391,7 @@ export default function PerkuliahanKelasPage() {
           columns={columns}
           data={kelas}
           isLoading={loading}
-          emptyMessage="Belum ada kelas perkuliahan yang sesuai filter."
+          emptyMessage="Belum ada jadwal perkuliahan yang sesuai filter."
         />
       </div>
 
@@ -399,7 +399,7 @@ export default function PerkuliahanKelasPage() {
       <Drawer
         open={showFilter}
         onClose={() => setShowFilter(false)}
-        title="Filter Jadwal Kelas"
+        title="Filter Jadwal Perkuliahan"
         footer={
           <div className="flex justify-end gap-3">
             <Button
@@ -481,8 +481,8 @@ export default function PerkuliahanKelasPage() {
         isOpen={!!kelasToDelete}
         onClose={() => setKelasToDelete(null)}
         onConfirm={handleDeleteKelas}
-        title="Hapus Kelas Perkuliahan?"
-        message={`Kelas "${kelasToDelete?.nama_kelas}" (${kelasToDelete?.kode_kelas}) beserta pengampu dan KRS di dalamnya akan dihapus.`}
+        title="Hapus Jadwal Perkuliahan?"
+        message={`Jadwal "${kelasToDelete?.nama_kelas}" (${kelasToDelete?.kode_kelas}) beserta pengampu dan KRS di dalamnya akan dihapus.`}
         confirmText="Ya, Hapus"
         variant="danger"
         isLoading={deletingKelas}

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Save, BookOpen, Users, MapPin, CalendarDays, Snowflake, Projector, Wifi } from 'lucide-react';
+import { ArrowLeft, Save, BookOpen, Users, MapPin, CalendarDays, Snowflake, Projector, Wifi, Sparkles, RotateCcw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -132,6 +132,81 @@ export default function KelasForm({
   const dosenId = watch('dosen_id');
   const tahunAkademikId = watch('tahun_akademik_id');
   const hariOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.HARI_KULIAH);
+
+  const [distribusiObe, setDistribusiObe] = useState<any | null>(null);
+  const [loadingDistribusi, setLoadingDistribusi] = useState<boolean>(false);
+
+  const applyDistribusiObe = useCallback(
+    (distData?: any) => {
+      const dist = distData || distribusiObe;
+      if (!dist) return;
+
+      if (dist.dosen_koordinator_id) {
+        setValue('dosen_id', Number(dist.dosen_koordinator_id), { shouldValidate: true });
+      }
+
+      const details = dist.dosen_anggota_details;
+      const rawIds =
+        Array.isArray(dist.dosen_anggota_ids) && dist.dosen_anggota_ids.length > 0
+          ? dist.dosen_anggota_ids
+          : Array.isArray(details)
+          ? details.map((d: any) => d.dosen_id)
+          : [];
+      const anggotaIds = rawIds.map(Number).filter(Boolean);
+      setValue('team_teaching_dosen_ids', anggotaIds, { shouldValidate: true });
+      toast.success('Dosen pengampu & team teaching diselaraskan dengan Distribusi OBE');
+    },
+    [distribusiObe, setValue]
+  );
+
+  useEffect(() => {
+    if (!mataKuliahId || mataKuliahId <= 0) {
+      setDistribusiObe(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchDistribusi = async () => {
+      setLoadingDistribusi(true);
+      try {
+        const res = await siakadService.getDistribusiMengajarList({
+          mata_kuliah_id: mataKuliahId,
+          per_page: 5,
+        });
+        const list = res?.data || [];
+        const dist = Array.isArray(list) ? list[0] : null;
+        if (isMounted) {
+          setDistribusiObe(dist || null);
+          if (mode === 'create' && dist) {
+            if (dist.dosen_koordinator_id) {
+              setValue('dosen_id', Number(dist.dosen_koordinator_id), { shouldValidate: true });
+            }
+            const details = dist.dosen_anggota_details;
+            const rawIds =
+              Array.isArray(dist.dosen_anggota_ids) && dist.dosen_anggota_ids.length > 0
+                ? dist.dosen_anggota_ids
+                : Array.isArray(details)
+                ? details.map((d: any) => d.dosen_id)
+                : [];
+            const anggotaIds = rawIds.map(Number).filter(Boolean);
+            if (anggotaIds.length > 0) {
+              setValue('team_teaching_dosen_ids', anggotaIds, { shouldValidate: true });
+            }
+          }
+        }
+      } catch {
+        if (isMounted) setDistribusiObe(null);
+      } finally {
+        if (isMounted) setLoadingDistribusi(false);
+      }
+    };
+
+    fetchDistribusi();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mataKuliahId, mode, setValue]);
 
   useEffect(() => {
     const init = async () => {
@@ -266,27 +341,63 @@ export default function KelasForm({
       }));
   }, [refCache, programStudiId]);
 
-  const loadDosenOptions = async (keyword: string) => {
-    try {
-      const res = await siakadService.getDosens({ per_page: 50, search: keyword || undefined });
-      const list: any[] = res.data || refCache.dosens;
-      const q = keyword.toLowerCase();
-      return list
-        .filter((d: any) =>
+  const loadDosenOptions = useCallback(
+    async (keyword: string) => {
+      try {
+        const res = await siakadService.getDosens({ per_page: 50, search: keyword || undefined });
+        const list: any[] = res.data || refCache.dosens;
+        const q = keyword.toLowerCase();
+
+        const distKoordId = distribusiObe?.dosen_koordinator_id
+          ? Number(distribusiObe.dosen_koordinator_id)
+          : null;
+        const distAnggotaDetails = distribusiObe?.dosen_anggota_details || [];
+        const distAnggotaIds = new Set(
+          (Array.isArray(distribusiObe?.dosen_anggota_ids) && distribusiObe.dosen_anggota_ids.length > 0
+            ? distribusiObe.dosen_anggota_ids
+            : distAnggotaDetails.map((d: any) => d.dosen_id)
+          ).map(Number)
+        );
+
+        const filtered = list.filter((d: any) =>
           !keyword
             ? true
             : d.nama_lengkap?.toLowerCase().includes(q) || d.nidn?.includes(keyword)
-        )
-        .map((d: any) => ({
-          value: d.id,
-          label: `${d.nama_lengkap} — NIDN ${d.nidn || '-'}`,
-          sublabel: d.program_studi?.nama || '',
-          raw: d,
-        }));
-    } catch {
-      return [];
-    }
-  };
+        );
+
+        // Prioritaskan Koordinator OBE teratas, lalu Anggota OBE
+        filtered.sort((a: any, b: any) => {
+          const aIsKoord = a.id === distKoordId ? 1 : 0;
+          const bIsKoord = b.id === distKoordId ? 1 : 0;
+          if (aIsKoord !== bIsKoord) return bIsKoord - aIsKoord;
+
+          const aIsAnggota = distAnggotaIds.has(a.id) ? 1 : 0;
+          const bIsAnggota = distAnggotaIds.has(b.id) ? 1 : 0;
+          if (aIsAnggota !== bIsAnggota) return bIsAnggota - aIsAnggota;
+
+          return (a.nama_lengkap || '').localeCompare(b.nama_lengkap || '');
+        });
+
+        return filtered.map((d: any) => {
+          let obeTag = '';
+          if (d.id === distKoordId) obeTag = ' [Koordinator OBE]';
+          else if (distAnggotaIds.has(d.id)) obeTag = ' [Anggota OBE]';
+
+          return {
+            value: d.id,
+            label: `${d.nama_lengkap}${obeTag} — NIDN ${d.nidn || '-'}`,
+            sublabel: d.program_studi?.nama || '',
+            raw: d,
+            isObeKoordinator: d.id === distKoordId,
+            isObeAnggota: distAnggotaIds.has(d.id),
+          };
+        });
+      } catch {
+        return [];
+      }
+    },
+    [distribusiObe, refCache.dosens]
+  );
 
   const loadRuanganOptions = async (keyword: string) => {
     try {
@@ -312,13 +423,32 @@ export default function KelasForm({
   };
 
   const teamTeachingOptions = useMemo(() => {
-    return (refCache.dosens as any[])
-      .filter((d: any) => d.id !== dosenId)
-      .map((d: any) => ({
+    const distAnggotaDetails = distribusiObe?.dosen_anggota_details || [];
+    const distAnggotaIds = new Set(
+      (Array.isArray(distribusiObe?.dosen_anggota_ids) && distribusiObe.dosen_anggota_ids.length > 0
+        ? distribusiObe.dosen_anggota_ids
+        : distAnggotaDetails.map((d: any) => d.dosen_id)
+      ).map(Number)
+    );
+
+    const list = (refCache.dosens as any[]).filter((d: any) => d.id !== dosenId);
+
+    // Prioritaskan anggota OBE di urutan teratas
+    list.sort((a: any, b: any) => {
+      const aIsAnggota = distAnggotaIds.has(a.id) ? 1 : 0;
+      const bIsAnggota = distAnggotaIds.has(b.id) ? 1 : 0;
+      if (aIsAnggota !== bIsAnggota) return bIsAnggota - aIsAnggota;
+      return (a.nama_lengkap || '').localeCompare(b.nama_lengkap || '');
+    });
+
+    return list.map((d: any) => {
+      const isObe = distAnggotaIds.has(d.id);
+      return {
         value: d.id,
-        label: `${d.nama_lengkap} (NIDN ${d.nidn || '-'})`,
-      }));
-  }, [refCache, dosenId]);
+        label: `${isObe ? '★ [OBE] ' : ''}${d.nama_lengkap} (NIDN ${d.nidn || '-'})`,
+      };
+    });
+  }, [refCache.dosens, dosenId, distribusiObe]);
 
   const handleProdiChange = (val: any) => {
     const prodiId = Number(val);
@@ -362,17 +492,17 @@ export default function KelasForm({
           is_gabungan: values.is_gabungan || false,
           gabungan_program_studi_ids: values.gabungan_program_studi_ids || [],
         });
-        toast.success('Kelas perkuliahan berhasil diperbarui');
+        toast.success('Jadwal perkuliahan berhasil diperbarui');
       } else {
         await siakadService.createKelas({
           ...values,
           team_teaching_dosen_ids: values.team_teaching_dosen_ids || [],
         });
-        toast.success('Kelas perkuliahan baru berhasil dibuka');
+        toast.success('Jadwal perkuliahan baru berhasil dibuka');
       }
       router.push('/siakad/perkuliahan/kelas');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || (mode === 'edit' ? 'Gagal memperbarui kelas' : 'Gagal membuka kelas baru'));
+      toast.error(err.response?.data?.message || err.message || (mode === 'edit' ? 'Gagal memperbarui jadwal perkuliahan' : 'Gagal membuka jadwal perkuliahan baru'));
     }
   };
 
@@ -381,7 +511,7 @@ export default function KelasForm({
   if (loadingInitial) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-slate-400">
-        <span className="text-xs font-bold animate-pulse">Memuat data kelas...</span>
+        <span className="text-xs font-bold animate-pulse">Memuat data jadwal perkuliahan...</span>
       </div>
     );
   }
@@ -394,7 +524,7 @@ export default function KelasForm({
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD', href: '/siakad' },
-          { label: 'Jadwal Kelas', href: '/siakad/perkuliahan/kelas' },
+          { label: 'Jadwal Perkuliahan', href: '/siakad/perkuliahan/kelas' },
           { label: breadcrumbLabel },
         ]}
         action={
@@ -557,6 +687,65 @@ export default function KelasForm({
               icon={<Users size={16} />}
             />
 
+            {loadingDistribusi && (
+              <div className="flex items-center gap-2 text-xs text-slate-500 p-3 bg-slate-50 rounded-xl animate-pulse">
+                <Sparkles size={14} className="animate-spin" style={{ color: 'var(--module-primary)' }} />
+                <span>Memeriksa rekomendasi Dosen dari Distribusi Mengajar OBE...</span>
+              </div>
+            )}
+
+            {!loadingDistribusi && distribusiObe && (
+              <div
+                className="p-3.5 border rounded-xl flex items-start justify-between gap-3 flex-wrap"
+                style={{
+                  background: 'var(--module-primary-subtle)',
+                  borderColor: 'var(--module-primary)',
+                }}
+              >
+                <div className="flex items-start gap-2.5">
+                  <span
+                    className="p-1.5 rounded-lg shrink-0 mt-0.5"
+                    style={{ background: 'white', color: 'var(--module-primary)' }}
+                  >
+                    <Sparkles size={16} />
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900">
+                        Sinkronisasi Distribusi Mengajar OBE
+                      </span>
+                      <Badge variant="success" className="text-2xs">Tersedia di OBE</Badge>
+                    </div>
+                    <p className="text-2xs text-slate-600 mt-1">
+                      Koordinator: <strong className="font-semibold text-slate-900">{distribusiObe.dosenKoordinator?.nama_lengkap || 'Dosen Koordinator'}</strong> (NIDN {distribusiObe.dosenKoordinator?.nidn || '-'})
+                      {distribusiObe.dosen_anggota_details?.length > 0 && (
+                        <span> • Tim Anggota ({distribusiObe.dosen_anggota_details.length} dosen): {distribusiObe.dosen_anggota_details.map((d: any) => d.nama_lengkap).join(', ')}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyDistribusiObe()}
+                  icon={<RotateCcw size={12} />}
+                  className="text-2xs h-7 px-3 bg-white"
+                  style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                >
+                  Terapkan Ulang Rekomendasi
+                </Button>
+              </div>
+            )}
+
+            {!loadingDistribusi && !distribusiObe && mataKuliahId > 0 && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-2xs text-slate-500 flex items-center gap-2">
+                <Users size={14} className="text-slate-400 shrink-0" />
+                <span>Belum ada penugasan Distribusi Mengajar OBE untuk mata kuliah ini. Anda dapat memilih dosen secara manual.</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Controller
                 name="dosen_id"
@@ -572,7 +761,15 @@ export default function KelasForm({
                     error={errors.dosen_id?.message}
                     formatOptionLabel={(opt: any) => (
                       <div>
-                        <span className="block font-semibold">{opt.raw?.nama_lengkap || opt.label}</span>
+                        <span className="flex items-center gap-1.5 font-semibold">
+                          {opt.raw?.nama_lengkap || opt.label}
+                          {opt.isObeKoordinator && (
+                            <Badge variant="success" className="text-2xs py-0 px-1">Koordinator OBE</Badge>
+                          )}
+                          {opt.isObeAnggota && (
+                            <Badge variant="info" className="text-2xs py-0 px-1">Anggota Tim OBE</Badge>
+                          )}
+                        </span>
                         <span className="block text-xs text-slate-500">
                           NIDN {opt.raw?.nidn || '-'} • {opt.raw?.program_studi?.nama || ''}
                         </span>

@@ -793,19 +793,6 @@ export default function InputNilaiPage() {
                 </Badge>
               )}
 
-              {isAdmin && selectedTaObj?.mode_penilaian && (
-                <button
-                  onClick={() => router.push('/siakad/master/konfigurasi-penilaian')}
-                  title="Kelola mode penilaian"
-                  className="cursor-pointer"
-                >
-                  <Badge variant="purple" className="inline-flex items-center gap-1.5 px-3 py-1.5">
-                    <Settings size={12} />
-                    {modeOptions.find((o) => o.value === selectedTaObj.mode_penilaian)?.label || selectedTaObj.mode_penilaian}
-                  </Badge>
-                </button>
-              )}
-
               {/* Filter Button (periode via Drawer, termasuk mahasiswa di tab KHS) */}
               {((activeTab === 'khs' && (isMahasiswa || !selectedKelasObj)) ||
                  (activeTab === 'portofolio_obe' && !selectedMahasiswa) ||

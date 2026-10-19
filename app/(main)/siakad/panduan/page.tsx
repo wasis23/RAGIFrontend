@@ -98,11 +98,11 @@ const GUIDES: GuideSection[] = [
     categoryLabel: 'Master & Konfigurasi',
     summary:
       'Mendaftarkan MK ke kurikulum (SKS, semester anjuran, tipe) lalu mengatur mata kuliah prasyaratnya.',
-    targetUrl: '/siakad/master/matakuliah',
+    targetUrl: '/siakad/obe/matakuliah',
     targetLabel: 'Buka Mata Kuliah',
     rolesAllowed: ['superadmin', 'admin'],
     steps: [
-      'Buka menu "MASTER AKADEMIK" → "Mata Kuliah", klik "Tambah Mata Kuliah".',
+      'Buka menu "OBE" → "Mata Kuliah", klik "Tambah Mata Kuliah".',
       'Isi Kode MK, Nama MK, Kurikulum Acuan (dari database), dan Tipe (Wajib / Wajib Prodi / Pilihan).',
       'Isi SKS Teori, SKS Praktik, dan Semester Anjuran (1–14), lalu Simpan.',
       'Kembali ke tabel, pilih "Kelola Prasyarat MK" pada MK tersebut.',
@@ -140,40 +140,17 @@ const GUIDES: GuideSection[] = [
     ],
   },
   {
-    id: 'mode-penilaian',
-    title: 'Cara Mengatur Mode Penilaian Periode (OBE / Konvensional)',
-    category: 'master',
-    categoryLabel: 'Master & Konfigurasi',
-    summary:
-      'Memilih metode evaluasi per periode: Full OBE, Hibrid/Semi-OBE, atau Konvensional — dengan konfirmasi.',
-    targetUrl: '/siakad/master/konfigurasi-penilaian',
-    targetLabel: 'Buka Konfigurasi Penilaian',
-    rolesAllowed: ['superadmin', 'admin'],
-    steps: [
-      'Buka menu "MASTER AKADEMIK" → "Konfigurasi Penilaian & OBE".',
-      'Bandingkan tiga kartu mode (Full OBE / Hibrid / Konvensional) lalu klik "Terapkan ..." pada mode target untuk periode aktif.',
-      'Pada dialog konfirmasi, periksa kembali nama periode dan mode, lalu "Ya, Ubah Mode".',
-      'Untuk arsip semester lain, gunakan tombol "Ubah Mode" pada baris tabel tiap periode.',
-    ],
-    tips: [
-      'Badge mode pada halaman Nilai bisa diklik untuk lompat langsung ke halaman ini.',
-    ],
-    warnings: [
-      'Perubahan mode memengaruhi cara nilai seluruh kelas pada periode tersebut dihitung.',
-    ],
-  },
-  {
     id: 'buka-kelas',
-    title: 'Cara Membuka Kelas Perkuliahan Baru',
+    title: 'Cara Membuka Jadwal Perkuliahan Baru',
     category: 'perkuliahan',
-    categoryLabel: 'Kelas & Jadwal',
+    categoryLabel: 'Jadwal Perkuliahan',
     summary:
       'Alokasi MK, dosen pengampu + team teaching, ruangan SINAPRA, dan jadwal mingguan pada periode aktif.',
     targetUrl: '/siakad/perkuliahan/kelas/create',
-    targetLabel: 'Buka Kelas Baru',
+    targetLabel: 'Buka Jadwal Baru',
     rolesAllowed: ['superadmin', 'admin'],
     steps: [
-      'Buka menu "PERKULIAHAN" → "Kelas & Jadwal", klik "Buka Kelas Baru".',
+      'Buka menu "PERKULIAHAN" → "Jadwal Perkuliahan", klik "Buka Jadwal Baru".',
       'Bagian 0: pastikan Periode Akademik menunjuk semester berjalan (otomatis terpilih yang aktif).',
       'Bagian 1: pilih Program Studi lalu Mata Kuliah yang belum dibuka — Kode dan Nama Kelas terisi otomatis, bisa diubah.',
       'Bagian 2: cari Dosen Pengampu Utama via Nama/NIDN, lalu tambah Dosen Team Teaching bila ada.',
@@ -322,14 +299,14 @@ const GUIDES: GuideSection[] = [
     id: 'rps-kelas-page',
     title: 'Cara Menyusun RPS 16 Minggu per Kelas (Halaman Form)',
     category: 'perkuliahan',
-    categoryLabel: 'Kelas & Jadwal',
+    categoryLabel: 'Jadwal Perkuliahan',
     summary:
       'Editor RPS per kelas di halaman penuh: deskripsi, pustaka, dan 16 pertemuan dengan validasi total bobot 100%.',
     targetUrl: '/siakad/perkuliahan/kelas',
-    targetLabel: 'Buka Jadwal Kelas',
+    targetLabel: 'Buka Jadwal Perkuliahan',
     rolesAllowed: ['dosen', 'superadmin', 'admin'],
     steps: [
-      'Di tabel Jadwal Kelas, menu titik tiga → "Kelola RPS 16 Minggu" (atau tombol Kelola RPS).',
+      'Di tabel Jadwal Perkuliahan, menu titik tiga → "Kelola RPS 16 Minggu" (atau tombol Kelola RPS).',
       'Isi Deskripsi Singkat, Pustaka Utama, dan Pustaka Pendukung.',
       'Isi 16 baris pertemuan (Sub-CPMK, Bahan Kajian, Metode, Bobot %) — pantau badge Total Bobot hingga 100%.',
       'Klik "Simpan RPS & 16 Pertemuan". Tahun ajaran mengikuti periode kelas otomatis.',
@@ -398,7 +375,7 @@ const GUIDES: GuideSection[] = [
     id: 'absensi-dosen',
     title: 'Cara Mengisi Absensi Perkuliahan (Dosen)',
     category: 'perkuliahan',
-    categoryLabel: 'Kelas & Jadwal',
+    categoryLabel: 'Jadwal Perkuliahan',
     summary:
       'Membuat pertemuan 1–16 dan menyimpan status kehadiran mahasiswa per pertemuan.',
     targetUrl: '/siakad/perkuliahan/kelas',
@@ -434,7 +411,7 @@ const GUIDES: GuideSection[] = [
 const CATEGORIES = [
   { id: 'all', label: 'Semua Panduan', icon: BookOpen },
   { id: 'master', label: 'Master & Konfigurasi', icon: Building2 },
-  { id: 'perkuliahan', label: 'Kelas & Jadwal', icon: CalendarCheck },
+  { id: 'perkuliahan', label: 'Jadwal Perkuliahan', icon: CalendarCheck },
   { id: 'krs', label: 'KRS & Studi', icon: ClipboardCheck },
   { id: 'nilai', label: 'Nilai & Kelulusan', icon: Award },
   { id: 'obe', label: 'OBE & Feeder', icon: Sparkles },

@@ -6,10 +6,10 @@ export default function CreateKelasPerkuliahanPage() {
   return (
     <KelasForm
       mode="create"
-      title="Buka Kelas Perkuliahan Baru"
+      title="Buka Jadwal Perkuliahan Baru"
       description="Alokasikan mata kuliah, dosen pengampu, team teaching, ruangan, dan jadwal mingguan pada periode aktif."
-      breadcrumbLabel="Buka Kelas Baru"
-      submitLabel="Buka Kelas Perkuliahan"
+      breadcrumbLabel="Buka Jadwal Baru"
+      submitLabel="Buka Jadwal Perkuliahan"
     />
   );
 }
