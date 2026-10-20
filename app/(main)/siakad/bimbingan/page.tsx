@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,12 +18,18 @@ import {
   GraduationCap,
   UserCheck,
   Phone,
+  Mail,
   RotateCcw,
+  CalendarClock,
+  Briefcase,
+  ShieldAlert,
+  BookOpen,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/Badge';
@@ -32,16 +38,25 @@ import { Drawer } from '@/components/ui/Drawer';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { siakadService } from '@/services/siakad.service';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  EMPTY_PA_REFERENSI,
+  fetchPaReferensi,
+  referensiLabel,
+  referensiOptions,
+  variantFor,
+  RISIKO_BAND_VARIANT,
+  RISIKO_BAND_LABEL,
+  JADWAL_STATUS_VARIANT,
+  BOOKING_STATUS_VARIANT,
+  PKL_STATUS_VARIANT,
+  INSIDEN_STATUS_VARIANT,
+  PA_REFERENSI_TIPE,
+  PA_SINYAL_KEHADIRAN_KRITIS,
+  toLocalDateInput,
+  toLocalMonthInput,
+  type PaReferensiState,
+} from '@/lib/siakad/pa-referensi';
 import toast from 'react-hot-toast';
-
-const KATEGORI = [
-  { value: 'akademik', label: 'Akademik / Nilai' },
-  { value: 'krs', label: 'KRS' },
-  { value: 'khs', label: 'KHS / IPK' },
-  { value: 'keuangan', label: 'Pembayaran / Keuangan' },
-  { value: 'pribadi', label: 'Pribadi / Konseling' },
-  { value: 'lainnya', label: 'Lainnya' },
-];
 
 const ajukanBimbinganSchema = z.object({
   kategori: z.string().min(1, 'Kategori bimbingan wajib dipilih.'),
@@ -51,18 +66,43 @@ const ajukanBimbinganSchema = z.object({
 
 type AjukanBimbinganFormValues = z.infer<typeof ajukanBimbinganSchema>;
 
+const jadwalSchema = z
+  .object({
+    tanggal: z.string().min(1, 'Tanggal wajib diisi.'),
+    jam_mulai: z.string().min(1, 'Jam mulai wajib diisi.'),
+    jam_selesai: z.string().min(1, 'Jam selesai wajib diisi.'),
+    mode: z.string().min(1, 'Mode pertemuan wajib dipilih.'),
+    lokasi: z.string().optional(),
+    kuota: z.coerce.number().int('Kuota harus bilangan bulat.').min(1, 'Kuota minimal 1.'),
+    catatan: z.string().optional(),
+  })
+  .refine((v) => v.jam_selesai > v.jam_mulai, {
+    message: 'Jam selesai harus lebih besar dari jam mulai.',
+    path: ['jam_selesai'],
+  });
+
+type JadwalFormValues = z.input<typeof jadwalSchema>;
+
 export default function BimbinganPaPage() {
-  const { user, hasRole, isSuperAdmin, isAdmin } = useAuth();
+  const { hasRole, hasPermission, isSuperAdmin, isAdmin } = useAuth();
   const isSuperadminOrBaak = isSuperAdmin || isAdmin || hasRole('baak');
-  const isDosenOnly = hasRole('dosen') && !isSuperadminOrBaak && !hasRole('kaprodi') && !hasRole('wakil_prodi');
-  const isMahasiswa = hasRole('mahasiswa') && !hasRole('dosen') && !isSuperadminOrBaak;
+
+  // RBAC granular (bukan negasi role): visibilitas tab & aksi mengikuti izin.
+  const canReadPa = hasPermission('siakad.pa.read');
+  const canCreatePa = hasPermission('siakad.pa.create');
+  const canUpdatePa = hasPermission('siakad.pa.update');
+  const canManagePa = hasPermission('siakad.pa.manage'); // plotting & cakupan semua PA (admin/kaprodi/wakil prodi)
+  const canViewMonitoring = canManagePa || canReadPa;
+  const canViewLayanan = canManagePa || canReadPa;
+  const canViewAllPa = canManagePa;
+  const isMahasiswa = !canManagePa && !hasRole('dosen') && hasRole('mahasiswa');
 
   // Student view states
   const [myPaData, setMyPaData] = useState<any | null>(null);
   const [loadingMyPa, setLoadingMyPa] = useState(false);
   const [isAjukanModalOpen, setIsAjukanModalOpen] = useState(false);
 
-  // Filter riwayat konsultasi mahasiswa. Endpointriwayat PA sudah mengembalikan
+  // Filter riwayat konsultasi mahasiswa. Endpoint riwayat PA sudah mengembalikan
   // seluruh sesi milik mahasiswa itu sendiri, jadi penyaringan cukup di sisi klien.
   const [showRiwayatFilter, setShowRiwayatFilter] = useState(false);
   const [riwayatSearch, setRiwayatSearch] = useState('');
@@ -78,13 +118,13 @@ export default function BimbinganPaPage() {
     resolver: zodResolver(ajukanBimbinganSchema),
     defaultValues: {
       kategori: 'akademik',
-      tanggal_bimbingan: new Date().toISOString().slice(0, 10),
+      tanggal_bimbingan: toLocalDateInput(),
       isi: '',
     },
   });
 
-  // Main Tabs: 'mahasiswa' (Mahasiswa Bimbingan & Jurnal) | 'aktivitas' (Laporan Aktivitas PA Model SIMPA - Superadmin/BAAK only)
-  const [activeMainTab, setActiveMainTab] = useState<'mahasiswa' | 'aktivitas'>('mahasiswa');
+  // Main Tabs: 'mahasiswa' (Mahasiswa Bimbingan & Jurnal) | 'monitoring' (Monitoring Kehadiran/Prestasi/Risiko) | 'layanan' (Jadwal, PKL, Insiden) | 'aktivitas' (Laporan Aktivitas PA - Superadmin/BAAK only)
+  const [activeMainTab, setActiveMainTab] = useState<'mahasiswa' | 'monitoring' | 'layanan' | 'aktivitas'>('mahasiswa');
 
   // Tahun Akademik & Selection
   const [tahunList, setTahunList] = useState<any[]>([]);
@@ -103,11 +143,59 @@ export default function BimbinganPaPage() {
     kategori: 'akademik',
     isi: '',
     kesimpulan: '',
-    tanggal_bimbingan: new Date().toISOString().slice(0, 10),
+    tanggal_bimbingan: toLocalDateInput(),
     butuh_penanganan_khusus: false,
   });
   const [savingCatatan, setSavingCatatan] = useState(false);
   const [deleteCatatan, setDeleteCatatan] = useState<any | null>(null);
+
+  // Monitoring Bimbingan (Fase 1): kehadiran, prestasi, risiko, alerts
+  const [monRisiko, setMonRisiko] = useState<any[]>([]);
+  const [monSummary, setMonSummary] = useState<any | null>(null);
+  const [loadingMon, setLoadingMon] = useState(false);
+
+  // Layanan PA (Fase 2): jadwal & konsultasi, PKL/PL/Magang, insiden, laporan bulanan
+  const [paJadwal, setPaJadwal] = useState<any[]>([]);
+  const [paBooking, setPaBooking] = useState<any[]>([]);
+  const [paPkl, setPaPkl] = useState<any[]>([]);
+  const [paInsiden, setPaInsiden] = useState<any[]>([]);
+  const [paLaporanBulanan, setPaLaporanBulanan] = useState<any | null>(null);
+  const [loadingLayanan, setLoadingLayanan] = useState(false);
+  const [layananSubTab, setLayananSubTab] = useState<'jadwal' | 'pkl' | 'insiden' | 'laporan'>('jadwal');
+  const [laporanBulan, setLaporanBulan] = useState<string>(toLocalMonthInput());
+  const [isJadwalModalOpen, setIsJadwalModalOpen] = useState(false);
+  const [savingJadwal, setSavingJadwal] = useState(false);
+
+  // Master referensi PA (sumber tunggal nilai domain: mode/status/jenis/eskalasi).
+  const [paReferensi, setPaReferensi] = useState<PaReferensiState>(EMPTY_PA_REFERENSI);
+  const kategoriOptions = useMemo(
+    () => referensiOptions(paReferensi[PA_REFERENSI_TIPE.catatanKategori]),
+    [paReferensi]
+  );
+  const modeOptions = useMemo(
+    () => referensiOptions(paReferensi[PA_REFERENSI_TIPE.jadwalMode]),
+    [paReferensi]
+  );
+
+  // Form Buat Jadwal (Zod + react-hook-form)
+  const {
+    register: registerJadwal,
+    handleSubmit: handleJadwalSubmit,
+    control: jadwalControl,
+    reset: resetJadwal,
+    formState: { errors: jadwalErrors },
+  } = useForm<JadwalFormValues>({
+    resolver: zodResolver(jadwalSchema),
+    defaultValues: {
+      tanggal: toLocalDateInput(),
+      jam_mulai: '09:00',
+      jam_selesai: '10:00',
+      mode: '',
+      lokasi: '',
+      kuota: 5,
+      catatan: '',
+    },
+  });
 
   // Filter Drawer State (Tab Mahasiswa)
   const [showFilter, setShowFilter] = useState(false);
@@ -142,7 +230,7 @@ export default function BimbinganPaPage() {
   });
 
   const [aktivitasForm, setAktivitasForm] = useState({
-    tanggal: new Date().toISOString().slice(0, 10),
+    tanggal: toLocalDateInput(),
     mhs_aktif: 0,
     mhs_nonaktif: 0,
     mhs_cuti: 0,
@@ -234,6 +322,24 @@ export default function BimbinganPaPage() {
           </div>
         </div>
 
+        {/* Kontak Mahasiswa Bimbingan (telepon & email dari advisees) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center gap-2">
+            <span className="text-primary-600"><Phone size={14} /></span>
+            <div className="min-w-0">
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Telepon</span>
+              <span className="font-mono text-slate-800 truncate block">{mhs.telepon || '-'}</span>
+            </div>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center gap-2">
+            <span className="text-primary-600"><Mail size={14} /></span>
+            <div className="min-w-0">
+              <span className="text-2xs text-slate-400 block uppercase font-bold">Email</span>
+              <span className="text-slate-800 truncate block">{mhs.email || '-'}</span>
+            </div>
+          </div>
+        </div>
+
         {info.konversi ? (
           <div className="bg-white border border-amber-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
             <div>
@@ -319,6 +425,113 @@ export default function BimbinganPaPage() {
       }
     } catch {}
     fetchRekap();
+  };
+
+  // Monitoring Bimbingan PA: muat skor risiko (tabel) + ringkasan alerts (kartu)
+  const fetchMonitoring = async () => {
+    setLoadingMon(true);
+    try {
+      const [risikoRes, alertsRes] = await Promise.all([
+        siakadService.getPaRisiko().catch(() => null),
+        siakadService.getPaAlerts().catch(() => null),
+      ]);
+      setMonRisiko(Array.isArray((risikoRes as any)?.data) ? (risikoRes as any).data : []);
+      setMonSummary((alertsRes as any)?.summary || null);
+    } catch {
+      toast.error('Gagal memuat monitoring bimbingan');
+    } finally {
+      setLoadingMon(false);
+    }
+  };
+
+  // Layanan PA (Fase 2): jadwal/konsultasi, PKL, insiden, laporan bulanan (lazy per sub-tab)
+  const fetchPaJadwal = async () => {
+    try {
+      const [jadwalRes, bookingRes] = await Promise.all([
+        siakadService.getPaJadwal().catch(() => null),
+        siakadService.getPaBooking().catch(() => null),
+      ]);
+      setPaJadwal(Array.isArray((jadwalRes as any)?.data) ? (jadwalRes as any).data : []);
+      setPaBooking(Array.isArray((bookingRes as any)?.data) ? (bookingRes as any).data : []);
+    } catch {
+      toast.error('Gagal memuat jadwal konsultasi');
+    }
+  };
+
+  const fetchPaPkl = async () => {
+    try {
+      const res = await siakadService.getPaPkl().catch(() => null);
+      setPaPkl(Array.isArray((res as any)?.data) ? (res as any).data : []);
+    } catch {
+      toast.error('Gagal memuat status PKL/PL/Magang');
+    }
+  };
+
+  const fetchPaInsiden = async () => {
+    try {
+      const res = await siakadService.getPaInsiden().catch(() => null);
+      setPaInsiden(Array.isArray((res as any)?.data) ? (res as any).data : []);
+    } catch {
+      toast.error('Gagal memuat laporan insiden');
+    }
+  };
+
+  const fetchPaLaporanBulanan = async () => {
+    try {
+      const res = await siakadService.getPaLaporanBulanan({ bulan: laporanBulan }).catch(() => null);
+      setPaLaporanBulanan((res as any)?.data || null);
+    } catch {
+      toast.error('Gagal memuat laporan monitoring bulanan');
+    }
+  };
+
+  const fetchLayanan = async () => {
+    setLoadingLayanan(true);
+    try {
+      if (layananSubTab === 'jadwal') await fetchPaJadwal();
+      else if (layananSubTab === 'pkl') await fetchPaPkl();
+      else if (layananSubTab === 'insiden') await fetchPaInsiden();
+      else if (layananSubTab === 'laporan') await fetchPaLaporanBulanan();
+    } finally {
+      setLoadingLayanan(false);
+    }
+  };
+
+  const handleSaveJadwal = handleJadwalSubmit(async (values) => {
+    setSavingJadwal(true);
+    try {
+      const res = await siakadService.createPaJadwal({
+        tanggal: values.tanggal,
+        jam_mulai: values.jam_mulai,
+        jam_selesai: values.jam_selesai,
+        mode: values.mode,
+        lokasi: values.lokasi?.trim() || null,
+        kuota: Number(values.kuota),
+        catatan: values.catatan?.trim() || null,
+      });
+      if ((res as any)?.status === 'success') {
+        toast.success('Jadwal bimbingan berhasil dibuat');
+        setIsJadwalModalOpen(false);
+        fetchPaJadwal();
+      }
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Gagal membuat jadwal bimbingan');
+    } finally {
+      setSavingJadwal(false);
+    }
+  });
+
+  const openJadwalModal = () => {
+    resetJadwal({
+      tanggal: toLocalDateInput(),
+      jam_mulai: '09:00',
+      jam_selesai: '10:00',
+      mode: modeOptions[0]?.value ?? '',
+      lokasi: '',
+      kuota: 5,
+      catatan: '',
+    });
+    setIsJadwalModalOpen(true);
   };
 
   const fetchAdvisees = async () => {
@@ -413,6 +626,18 @@ export default function BimbinganPaPage() {
     }
   };
 
+  // Muat master referensi PA sekali untuk seluruh nilai domain (mode, status, jenis, eskalasi).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const ref = await fetchPaReferensi();
+      if (alive) setPaReferensi(ref);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (isMahasiswa) {
       fetchMyPa();
@@ -449,6 +674,22 @@ export default function BimbinganPaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMainTab, selectedTaId, selectedKelas]);
 
+  // Layanan PA (Fase 2): muat data saat tab/sub-tab dibuka
+  useEffect(() => {
+    if (activeMainTab === 'layanan' && canViewLayanan) {
+      fetchLayanan();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMainTab, layananSubTab, laporanBulan]);
+
+  // Muat data monitoring saat tab Monitoring dibuka
+  useEffect(() => {
+    if (activeMainTab === 'monitoring' && canViewMonitoring) {
+      fetchMonitoring();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMainTab, canViewMonitoring]);
+
   // Handler Tab 1: Simpan Catatan Bimbingan Mahasiswa
   const handleSaveCatatan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,7 +709,7 @@ export default function BimbinganPaPage() {
         kategori: 'akademik',
         isi: '',
         kesimpulan: '',
-        tanggal_bimbingan: new Date().toISOString().slice(0, 10),
+        tanggal_bimbingan: toLocalDateInput(),
         butuh_penanganan_khusus: false,
       });
       fetchCatatan();
@@ -484,7 +725,7 @@ export default function BimbinganPaPage() {
   const openTambahAktivitasModal = () => {
     setEditingAktivitasId(null);
     setAktivitasForm({
-      tanggal: new Date().toISOString().slice(0, 10),
+      tanggal: toLocalDateInput(),
       mhs_aktif: komposisiKelas.mhs_aktif || 0,
       mhs_nonaktif: komposisiKelas.mhs_nonaktif || 0,
       mhs_cuti: komposisiKelas.mhs_cuti || 0,
@@ -500,7 +741,7 @@ export default function BimbinganPaPage() {
   const openEditAktivitasModal = (row: any) => {
     setEditingAktivitasId(row.id);
     setAktivitasForm({
-      tanggal: row.tanggal || new Date().toISOString().slice(0, 10),
+      tanggal: row.tanggal || toLocalDateInput(),
       mhs_aktif: Number(row.mhs_aktif) || 0,
       mhs_nonaktif: Number(row.mhs_nonaktif) || 0,
       mhs_cuti: Number(row.mhs_cuti) || 0,
@@ -638,9 +879,9 @@ export default function BimbinganPaPage() {
           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Cuti {r.komposisi?.cuti || 0}</span>
           <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Mangkir {r.komposisi?.mangkir || 0}</span>
           <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">Keluar {r.komposisi?.keluar || 0}</span>
-          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">Lulus {r.komposisi?.lulus || 0}</span>
+          <span className="px-2 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200">Lulus {r.komposisi?.lulus || 0}</span>
           {Number(r.butuh_khusus_aktif || 0) > 0 && (
-            <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">Khusus {r.butuh_khusus_aktif}</span>
+            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">Khusus {r.butuh_khusus_aktif}</span>
           )}
         </div>
       ),
@@ -714,7 +955,7 @@ export default function BimbinganPaPage() {
               kategori: 'akademik',
               isi: '',
               kesimpulan: '',
-              tanggal_bimbingan: new Date().toISOString().slice(0, 10),
+              tanggal_bimbingan: toLocalDateInput(),
               butuh_penanganan_khusus: false,
             });
             setIsCatatanOpen(true);
@@ -722,6 +963,84 @@ export default function BimbinganPaPage() {
         >
           Catatan
         </Button>
+      ),
+    },
+  ];
+
+  // Kolom Monitoring Bimbingan (Fase 1): kehadiran, IPS/IPK, sinyal risiko, band
+  const monColumns: ColumnDef<any>[] = [
+    {
+      key: 'mhs',
+      label: 'NIM & MAHASISWA',
+      render: (r) => (
+        <div>
+          <span className="font-bold text-slate-900 block text-xs">{r.nama_lengkap}</span>
+          <span className="font-mono text-2xs text-slate-500">{r.nim}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'kehadiran',
+      label: 'KEHADIRAN',
+      align: 'center',
+      render: (r) => {
+        if (r.persentase_hadir === null || r.persentase_hadir === undefined) {
+          return <span className="text-2xs text-slate-400">Belum ada data</span>;
+        }
+        const kritis = (r.sinyal || []).some((s: { kode: string }) => s.kode === PA_SINYAL_KEHADIRAN_KRITIS);
+        return (
+          <Badge variant={kritis ? 'danger' : 'success'} dot>
+            {r.persentase_hadir}%
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'prestasi',
+      label: 'IPS / IPK',
+      align: 'center',
+      render: (r) => (
+        <div className="space-y-0.5">
+          <span className="block font-mono text-xs text-slate-800">
+            IPS {r.ips_terakhir !== null && r.ips_terakhir !== undefined ? Number(r.ips_terakhir).toFixed(2) : '-'}
+          </span>
+          <span className="block font-mono text-2xs text-slate-500">
+            IPK {r.ipk !== null && r.ipk !== undefined && r.ipk !== '' ? Number(r.ipk).toFixed(2) : '-'}
+          </span>
+          {r.ips_menurun && <Badge variant="warning">IPS menurun</Badge>}
+        </div>
+      ),
+    },
+    {
+      key: 'sinyal',
+      label: 'SINYAL RISIKO',
+      render: (r) => (
+        <div className="flex flex-wrap gap-1">
+          {(r.sinyal || []).map((s: any) => (
+            <span
+              key={s.kode}
+              className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-2xs font-bold"
+            >
+              {s.label}
+            </span>
+          ))}
+          {(!r.sinyal || r.sinyal.length === 0) && (
+            <span className="text-2xs text-slate-400">Tidak ada sinyal</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'band',
+      label: 'RISIKO',
+      align: 'center',
+      render: (r) => (
+        <div className="space-y-0.5">
+          <Badge variant={variantFor(RISIKO_BAND_VARIANT, r.band_risiko)}>
+            {RISIKO_BAND_LABEL[r.band_risiko] ?? r.band_risiko ?? '-'}
+          </Badge>
+          <span className="block font-mono text-2xs text-slate-500">Skor {r.skor}</span>
+        </div>
       ),
     },
   ];
@@ -1023,7 +1342,7 @@ export default function BimbinganPaPage() {
                             Sesi Bimbingan #{catatanTersaring.length - idx}
                           </span>
                           <span className="capitalize text-slate-700 font-bold text-xs bg-slate-100 px-2 py-0.5 rounded">
-                            {KATEGORI.find((k) => k.value === c.kategori)?.label || c.kategori}
+                            {referensiLabel(paReferensi[PA_REFERENSI_TIPE.catatanKategori], c.kategori)}
                           </span>
                           {c.butuh_penanganan_khusus && (
                             <span className="bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded text-2xs font-bold">
@@ -1091,12 +1410,13 @@ export default function BimbinganPaPage() {
               value={riwayatSearch}
               onChange={(e) => setRiwayatSearch(e.target.value)}
             />
-            <Select
+            <AsyncSelect
               label="Kategori Bimbingan"
               placeholder="Semua kategori"
-              value={riwayatKategori}
-              onChange={(val) => setRiwayatKategori(val ? String(val) : '')}
-              options={KATEGORI}
+              loadOptions={async () => kategoriOptions}
+              defaultOptions={kategoriOptions}
+              value={riwayatKategori ? kategoriOptions.find((o) => o.value === riwayatKategori) || null : null}
+              onChange={(val: any) => setRiwayatKategori(val ? String(val.value) : '')}
               isClearable
             />
           </div>
@@ -1130,12 +1450,14 @@ export default function BimbinganPaPage() {
               name="kategori"
               control={ajukanControl}
               render={({ field }) => (
-                <Select
+                <AsyncSelect
                   label="Kategori Bimbingan"
-                  options={KATEGORI}
-                  value={field.value}
-                  onChange={(val: any) => field.onChange(String(val))}
+                  loadOptions={async () => kategoriOptions}
+                  defaultOptions={kategoriOptions}
+                  value={kategoriOptions.find((o) => o.value === field.value) || null}
+                  onChange={(val: any) => field.onChange(val ? String(val.value) : '')}
                   error={ajukanErrors.kategori?.message}
+                  isClearable={false}
                 />
               )}
             />
@@ -1163,11 +1485,11 @@ export default function BimbinganPaPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title={isDosenOnly ? 'Bimbingan PA (Pembimbing Akademik)' : 'Bimbingan PA (Rekap & Aktivitas)'}
+        title={canViewAllPa ? 'Bimbingan PA (Rekap & Aktivitas)' : 'Bimbingan PA (Pembimbing Akademik)'}
         description={
-          isDosenOnly
-            ? 'Pantau progres mahasiswa bimbingan, catat log pertemuan, dan kelola laporan aktivitas per kelas (SIMPA).'
-            : 'Rekap menyeluruh per dosen PA, pantau penanganan khusus, dan evaluasi laporan aktivitas.'
+          canViewAllPa
+            ? 'Rekap menyeluruh per dosen PA, pantau penanganan khusus, dan evaluasi laporan aktivitas.'
+            : 'Pantau progres mahasiswa bimbingan, catat log pertemuan, dan kelola laporan aktivitas per kelas (SIMPA).'
         }
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
@@ -1225,21 +1547,49 @@ export default function BimbinganPaPage() {
         }
       />
 
-      {/* Tab Navigasi Utama: Mahasiswa & Jurnal (Dosen & Admin) VS Laporan Aktivitas PA (Superadmin & BAAK) */}
-      {isSuperadminOrBaak && (
-        <div className="flex border-b border-slate-200 gap-2">
+      {/* Tab Navigasi Utama: Mahasiswa & Jurnal / Monitoring Bimbingan / Laporan Aktivitas PA (Superadmin & BAAK) */}
+      <div className="flex flex-wrap border-b border-slate-200 gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('mahasiswa')}
+          className={`px-4 py-3 -mb-px text-xs font-extrabold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+            activeMainTab === 'mahasiswa'
+              ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <ClipboardList size={14} />
+          Mahasiswa Bimbingan & Jurnal Sesi
+        </button>
+        {canViewMonitoring && (
           <button
             type="button"
-            onClick={() => setActiveMainTab('mahasiswa')}
+            onClick={() => setActiveMainTab('monitoring')}
             className={`px-4 py-3 -mb-px text-xs font-extrabold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
-              activeMainTab === 'mahasiswa'
+              activeMainTab === 'monitoring'
                 ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
-            <ClipboardList size={14} />
-            Mahasiswa Bimbingan & Jurnal Sesi
+            <AlertTriangle size={14} />
+            Monitoring Bimbingan
           </button>
+        )}
+        {canViewLayanan && (
+          <button
+            type="button"
+            onClick={() => setActiveMainTab('layanan')}
+            className={`px-4 py-3 -mb-px text-xs font-extrabold transition-all border-b-2 flex items-center gap-1.5 cursor-pointer ${
+              activeMainTab === 'layanan'
+                ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <CalendarClock size={14} />
+            Jadwal, PKL &amp; Layanan
+          </button>
+        )}
+        {isSuperadminOrBaak && (
           <button
             type="button"
             onClick={() => setActiveMainTab('aktivitas')}
@@ -1252,8 +1602,8 @@ export default function BimbinganPaPage() {
             <FileText size={14} />
             Laporan Aktivitas PA per Kelas (Monev BAAK)
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ======================================================== */}
       {/* TAB 1: MAHASISWA BIMBINGAN & JURNAL SESI                 */}
@@ -1263,26 +1613,26 @@ export default function BimbinganPaPage() {
           {/* Ringkasan Komposisi Mahasiswa */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
             {[
-              ['Total Bimbingan', totals.total || 0, 'text-slate-900'],
-              ['Aktif', totals.aktif || 0, 'text-emerald-700'],
-              ['Cuti', totals.cuti || 0, 'text-slate-500'],
-              ['Mangkir', totals.mangkir || 0, 'text-amber-700'],
-              ['Keluar', totals.keluar || 0, 'text-rose-700'],
-              ['Lulus', totals.lulus || 0, 'text-blue-700'],
-              ['Butuh Khusus', totals.khusus || 0, 'text-purple-700'],
-            ].map(([label, val, cls]) => (
+              ['Total Bimbingan', totals.total || 0],
+              ['Aktif', totals.aktif || 0],
+              ['Cuti', totals.cuti || 0],
+              ['Mangkir', totals.mangkir || 0],
+              ['Keluar', totals.keluar || 0],
+              ['Lulus', totals.lulus || 0],
+              ['Butuh Khusus', totals.khusus || 0],
+            ].map(([label, val]) => (
               <div key={label as string} className="card p-4 text-center">
                 <span className="text-2xs font-bold text-slate-500 uppercase block whitespace-nowrap">{label}</span>
-                <span className={`text-2xl font-black font-mono ${cls}`}>{val as number}</span>
+                <span className="text-2xl font-black font-mono text-slate-900">{val as number}</span>
               </div>
             ))}
           </div>
 
-          {!isDosenOnly && (
+          {canViewAllPa && (
             <div className="card p-5 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                  <Users size={16} className="text-primary-600" /> Rekap per Dosen PA
+                  <Users size={16} className="text-[var(--module-primary)]" /> Rekap per Dosen PA
                 </h3>
                 {(filterNamaDosen || filterTglDari || filterTglSampai) && (
                   <span className="text-2xs text-slate-500">
@@ -1304,8 +1654,8 @@ export default function BimbinganPaPage() {
           <div className="card p-5 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <ClipboardList size={16} className="text-primary-600" />
-                {isDosenOnly ? 'Mahasiswa Bimbingan Saya' : 'Mahasiswa Bimbingan (semua PA)'}
+                <ClipboardList size={16} className="text-[var(--module-primary)]" />
+                {canViewAllPa ? 'Mahasiswa Bimbingan (semua PA)' : 'Mahasiswa Bimbingan Saya'}
               </h3>
               {(searchAdv || filterAngkatan) && (
                 <span className="text-2xs text-slate-500">
@@ -1346,7 +1696,7 @@ export default function BimbinganPaPage() {
                       <button
                         type="button"
                         onClick={() => setDeleteCatatan(c)}
-                        className="text-slate-300 hover:text-rose-600 cursor-pointer"
+                        className="text-slate-300 hover:text-[var(--module-primary)] cursor-pointer"
                         title="Hapus"
                       >
                         <Trash2 size={13} />
@@ -1367,6 +1717,260 @@ export default function BimbinganPaPage() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB: MONITORING BIMBINGAN (Kehadiran, Prestasi, Risiko)  */}
+      {/* ======================================================== */}
+      {activeMainTab === 'monitoring' && canViewMonitoring && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Ringkasan Monitoring (dari endpoint alerts) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {[
+              ['Total Advisees', monSummary?.total_advisees ?? 0, 'text-slate-900'],
+              ['Risiko Tinggi', monSummary?.risiko_tinggi ?? 0, 'text-rose-700'],
+              ['Risiko Sedang', monSummary?.risiko_sedang ?? 0, 'text-amber-700'],
+              ['Kehadiran Kritis', monSummary?.kehadiran_kritis ?? 0, 'text-orange-700'],
+              ['Perlu Perhatian', monSummary?.perlu_perhatian ?? 0, 'text-purple-700'],
+            ].map(([label, val]) => (
+              <div key={label as string} className="card p-4 text-center">
+                <span className="text-2xs font-bold text-slate-500 uppercase block whitespace-nowrap">{label}</span>
+                <span className="text-2xl font-black font-mono text-slate-900">{val as number}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tabel Monitoring Risiko & Prestasi */}
+          <div className="card p-5 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <AlertTriangle size={16} className="text-[var(--module-primary)]" />
+                {canViewAllPa ? 'Monitoring Bimbingan (semua PA)' : 'Monitoring Bimbingan Saya'}
+              </h3>
+              <span className="text-2xs text-slate-500">Kehadiran &bull; IPS/IPK &bull; Sinyal &amp; Skor Risiko</span>
+            </div>
+            <DataTable
+              columns={monColumns}
+              data={monRisiko}
+              isLoading={loadingMon}
+              emptyMessage="Belum ada data monitoring (kehadiran/prestasi) untuk advisees Anda."
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB: JADWAL, PKL & LAYANAN PA (Fase 2)                    */}
+      {/* ======================================================== */}
+      {activeMainTab === 'layanan' && canViewLayanan && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Sub-tab navigasi layanan PA */}
+          <div className="flex flex-wrap gap-2">
+            {([
+              ['jadwal', 'Jadwal & Konsultasi', <CalendarClock key="i" size={14} />],
+              ['pkl', 'Status PKL/PL/Magang', <Briefcase key="i" size={14} />],
+              ['insiden', 'Laporan Insiden & Konseling', <ShieldAlert key="i" size={14} />],
+              ['laporan', 'Laporan Monitoring Bulanan', <FileText key="i" size={14} />],
+            ] as const).map(([key, label, icon]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setLayananSubTab(key)}
+                className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  layananSubTab === key
+                    ? 'bg-[var(--module-primary)] text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sub: Jadwal & Konsultasi */}
+          {layananSubTab === 'jadwal' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="card p-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <CalendarClock size={16} className="text-[var(--module-primary)]" />
+                    Slot Jadwal Bimbingan
+                  </h3>
+                  {canCreatePa && (
+                    <Button
+                      variant="primary"
+                      icon={<Plus size={14} />}
+                      className="text-xs font-bold py-1.5 px-3 h-auto"
+                      onClick={openJadwalModal}
+                    >
+                      Buat Jadwal
+                    </Button>
+                  )}
+                </div>
+                <DataTable
+                  columns={[
+                    { key: 'tanggal', label: 'Tanggal', render: (r: any) => <span className="text-xs font-semibold">{r.tanggal}</span> },
+                    { key: 'jam', label: 'Jam', render: (r: any) => <span className="text-xs font-mono">{r.jam_mulai}–{r.jam_selesai}</span> },
+                    { key: 'mode', label: 'Mode', render: (r: any) => <Badge variant="blue" className="text-2xs">{referensiLabel(paReferensi[PA_REFERENSI_TIPE.jadwalMode], r.mode)}</Badge> },
+                    { key: 'lokasi', label: 'Lokasi', render: (r: any) => <span className="text-2xs text-slate-600">{r.lokasi || '-'}</span> },
+                    { key: 'kuota', label: 'Kuota', render: (r: any) => <span className="text-xs font-mono">{r.bookings_count ?? 0}/{r.kuota}</span> },
+                    { key: 'status', label: 'Status', render: (r: any) => <Badge variant={variantFor(JADWAL_STATUS_VARIANT, r.status)} className="text-2xs">{referensiLabel(paReferensi[PA_REFERENSI_TIPE.jadwalStatus], r.status)}</Badge> },
+                  ] as ColumnDef<any>[]}
+                  data={paJadwal}
+                  isLoading={loadingLayanan && layananSubTab === 'jadwal'}
+                  emptyMessage="Belum ada slot jadwal bimbingan."
+                />
+              </div>
+              <div className="card p-5 space-y-3">
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <UserCheck size={16} className="text-[var(--module-primary)]" />
+                  Pengajuan Konsultasi Mahasiswa
+                </h3>
+                <DataTable
+                  columns={[
+                    { key: 'mahasiswa', label: 'Mahasiswa', render: (r: any) => (
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-800">{r.mahasiswa?.nama_lengkap || '-'}</span>
+                        <span className="text-2xs text-slate-500 font-mono">{r.mahasiswa?.nim || ''}</span>
+                      </div>
+                    ) },
+                    { key: 'topik', label: 'Topik', render: (r: any) => <span className="text-2xs text-slate-600">{r.topik || '-'}</span> },
+                    { key: 'status', label: 'Status', render: (r: any) => (
+                      <Badge variant={variantFor(BOOKING_STATUS_VARIANT, r.status)} className="text-2xs">
+                        {referensiLabel(paReferensi[PA_REFERENSI_TIPE.bookingStatus], r.status)}
+                      </Badge>
+                    ) },
+                  ] as ColumnDef<any>[]}
+                  data={paBooking}
+                  isLoading={loadingLayanan && layananSubTab === 'jadwal'}
+                  emptyMessage="Belum ada pengajuan konsultasi."
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Sub: PKL/PL/Magang */}
+          {layananSubTab === 'pkl' && (
+            <div className="card p-5 space-y-3">
+              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <Briefcase size={16} className="text-[var(--module-primary)]" />
+                Status PKL / PL / Magang Mahasiswa Bimbingan
+              </h3>
+              <DataTable
+                columns={[
+                  { key: 'mahasiswa', label: 'Mahasiswa', render: (r: any) => (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-slate-800">{r.mahasiswa?.nama_lengkap || '-'}</span>
+                      <span className="text-2xs text-slate-500 font-mono">{r.mahasiswa?.nim || ''}</span>
+                    </div>
+                  ) },
+                  { key: 'jenis', label: 'Jenis', render: (r: any) => <Badge variant="purple" className="text-2xs">{referensiLabel(paReferensi[PA_REFERENSI_TIPE.pklJenis], r.jenis)}</Badge> },
+                  { key: 'instansi', label: 'Instansi', render: (r: any) => <span className="text-xs text-slate-700">{r.instansi}</span> },
+                  { key: 'periode', label: 'Periode', render: (r: any) => <span className="text-2xs font-mono text-slate-600">{r.tanggal_mulai || '-'} s.d {r.tanggal_selesai || '-'}</span> },
+                  { key: 'status', label: 'Status', render: (r: any) => (
+                    <Badge variant={variantFor(PKL_STATUS_VARIANT, r.status)} className="text-2xs">{referensiLabel(paReferensi[PA_REFERENSI_TIPE.pklStatus], r.status)}</Badge>
+                  ) },
+                ] as ColumnDef<any>[]}
+                data={paPkl}
+                isLoading={loadingLayanan && layananSubTab === 'pkl'}
+                emptyMessage="Belum ada data PKL/PL/Magang."
+              />
+            </div>
+          )}
+
+          {/* Sub: Insiden & Konseling */}
+          {layananSubTab === 'insiden' && (
+            <div className="card p-5 space-y-3">
+              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <ShieldAlert size={16} className="text-[var(--module-primary)]" />
+                Laporan Insiden (Kekerasan/Pelecehan) &amp; Rujukan Konseling
+              </h3>
+              <DataTable
+                columns={[
+                  { key: 'identitas', label: 'Pelapor', render: (r: any) => (
+                    r.anonim
+                      ? <Badge variant="gray" className="text-2xs">Anonim</Badge>
+                      : <span className="text-xs font-semibold text-slate-800">{r.mahasiswa?.nama_lengkap || '-'}</span>
+                  ) },
+                  { key: 'jenis', label: 'Jenis Insiden', render: (r: any) => <Badge variant="red" className="text-2xs">{referensiLabel(paReferensi[PA_REFERENSI_TIPE.insidenJenis], r.jenis)}</Badge> },
+                  { key: 'status', label: 'Status', render: (r: any) => (
+                    <Badge variant={variantFor(INSIDEN_STATUS_VARIANT, r.status)} className="text-2xs">{referensiLabel(paReferensi[PA_REFERENSI_TIPE.insidenStatus], r.status)}</Badge>
+                  ) },
+                  { key: 'eskalasi', label: 'Eskalasi', render: (r: any) => r.eskalasi_tujuan ? <Badge variant="blue" className="text-2xs">{referensiLabel(paReferensi[PA_REFERENSI_TIPE.eskalasiTujuan], r.eskalasi_tujuan)}</Badge> : <span className="text-2xs text-slate-400">-</span> },
+                  { key: 'konseling', label: 'Konseling', render: (r: any) => r.rujukan_konseling ? <Badge variant="green" className="text-2xs">{r.konseling_ke || '-'}</Badge> : <span className="text-2xs text-slate-400">-</span> },
+                ] as ColumnDef<any>[]}
+                data={paInsiden}
+                isLoading={loadingLayanan && layananSubTab === 'insiden'}
+                emptyMessage="Belum ada laporan insiden."
+              />
+            </div>
+          )}
+
+          {/* Sub: Laporan Monitoring Bulanan */}
+          {layananSubTab === 'laporan' && (
+            <div className="space-y-4">
+              <div className="card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 border border-slate-200">
+                <span className="text-xs font-bold text-slate-700">Periode Laporan Bulanan</span>
+                <Input
+                  type="month"
+                  value={laporanBulan}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLaporanBulan(e.target.value)}
+                  className="text-xs font-semibold py-1.5 px-3"
+                />
+              </div>
+              {paLaporanBulanan ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      ['Total Advisees', paLaporanBulanan.kehadiran?.total_advisees ?? 0],
+                      ['Kehadiran Kritis', paLaporanBulanan.kehadiran?.kehadiran_kritis ?? 0],
+                      ['Risiko Tinggi', paLaporanBulanan.risiko?.tinggi ?? 0],
+                      ['Risiko Sedang', paLaporanBulanan.risiko?.sedang ?? 0],
+                      ['Pengajuan Konsultasi', paLaporanBulanan.konsultasi?.total_pengajuan ?? 0],
+                      ['PKL Berjalan', paLaporanBulanan.pkl?.berjalan ?? 0],
+                      ['Insiden', paLaporanBulanan.insiden?.total ?? 0],
+                      ['Rujukan Konseling', paLaporanBulanan.insiden?.rujukan_konseling ?? 0],
+                    ].map(([label, val]) => (
+                      <div key={label as string} className="card p-4 text-center">
+                        <span className="text-2xs font-bold text-slate-500 uppercase block whitespace-nowrap">{label}</span>
+                        <span className="text-2xl font-black font-mono text-slate-900">{val as number}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="card p-5 space-y-3">
+                    <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                      <AlertTriangle size={16} className="text-[var(--module-primary)]" />
+                      Mahasiswa Perlu Perhatian ({paLaporanBulanan.periode?.bulan})
+                    </h3>
+                    <DataTable
+                      columns={[
+                        { key: 'nama', label: 'Mahasiswa', render: (r: any) => (
+                          <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-slate-800">{r.nama_lengkap}</span>
+                            <span className="text-2xs text-slate-500 font-mono">{r.nim}</span>
+                          </div>
+                        ) },
+                        { key: 'skor', label: 'Skor', render: (r: any) => <span className="text-xs font-mono font-bold">{r.skor}</span> },
+                        { key: 'band', label: 'Band Risiko', render: (r: any) => (
+                          <Badge variant={variantFor(RISIKO_BAND_VARIANT, r.band_risiko)} className="text-2xs">{RISIKO_BAND_LABEL[r.band_risiko] ?? r.band_risiko ?? '-'}</Badge>
+                        ) },
+                        { key: 'sinyal', label: 'Sinyal', render: (r: any) => <span className="text-2xs text-slate-600">{(r.sinyal || []).map((s: any) => s.label).join(' • ')}</span> },
+                      ] as ColumnDef<any>[]}
+                      data={paLaporanBulanan.risiko?.daftar_perlu_perhatian || []}
+                      isLoading={loadingLayanan && layananSubTab === 'laporan'}
+                      emptyMessage="Tidak ada mahasiswa yang perlu perhatian khusus."
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="card p-6 text-center text-xs text-slate-500">
+                  {loadingLayanan && layananSubTab === 'laporan' ? 'Memuat laporan…' : 'Tidak ada data laporan untuk periode ini.'}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1496,7 +2100,7 @@ export default function BimbinganPaPage() {
             value={searchAdv}
             onChange={(e) => setSearchAdv(e.target.value)}
           />
-          {!isDosenOnly && (
+          {canViewAllPa && (
             <Input
               label="Nama Dosen PA"
               placeholder="Cari nama / NIDN dosen..."
@@ -1569,12 +2173,13 @@ export default function BimbinganPaPage() {
           </div>
         </div>
         <form onSubmit={handleSaveCatatan} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select
+          <AsyncSelect
             label="Kategori Kendala"
             required
-            options={KATEGORI}
-            value={catatanForm.kategori}
-            onChange={(v: any) => setCatatanForm({ ...catatanForm, kategori: String(v) })}
+            loadOptions={async () => kategoriOptions}
+            defaultOptions={kategoriOptions}
+            value={kategoriOptions.find((o) => o.value === catatanForm.kategori) || null}
+            onChange={(v: any) => setCatatanForm({ ...catatanForm, kategori: v ? String(v.value) : '' })}
           />
           <div className="flex items-end pb-1">
             <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
@@ -1802,6 +2407,86 @@ export default function BimbinganPaPage() {
           Aktivitas bimbingan tanggal <strong>{deletingAktivitas?.tanggal}</strong> untuk kelas{' '}
           <strong>{deletingAktivitas?.kelas || selectedKelas}</strong> akan dihapus permanen.
         </p>
+      </Modal>
+
+      {/* Modal Buat Jadwal Bimbingan PA (Fase 2) */}
+      <Modal
+        open={isJadwalModalOpen}
+        onClose={() => setIsJadwalModalOpen(false)}
+        title="Buat Slot Jadwal Bimbingan PA"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setIsJadwalModalOpen(false)}>
+              Batal
+            </Button>
+            <Button type="submit" form="jadwal-pa-form" variant="primary" disabled={savingJadwal}>
+              {savingJadwal ? 'Menyimpan...' : 'Simpan Jadwal'}
+            </Button>
+          </>
+        }
+      >
+        <form id="jadwal-pa-form" onSubmit={handleSaveJadwal} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Tanggal"
+            type="date"
+            required
+            {...registerJadwal('tanggal')}
+            error={jadwalErrors.tanggal?.message}
+          />
+          <Input
+            label="Kuota Peserta"
+            type="number"
+            min={1}
+            required
+            {...registerJadwal('kuota')}
+            error={jadwalErrors.kuota?.message}
+          />
+          <Input
+            label="Jam Mulai"
+            type="time"
+            required
+            {...registerJadwal('jam_mulai')}
+            error={jadwalErrors.jam_mulai?.message}
+          />
+          <Input
+            label="Jam Selesai"
+            type="time"
+            required
+            {...registerJadwal('jam_selesai')}
+            error={jadwalErrors.jam_selesai?.message}
+          />
+          <Controller
+            name="mode"
+            control={jadwalControl}
+            render={({ field }) => (
+              <AsyncSelect
+                label="Mode Pertemuan"
+                required
+                loadOptions={async () => modeOptions}
+                defaultOptions={modeOptions}
+                value={modeOptions.find((o) => o.value === field.value) || null}
+                onChange={(v: any) => field.onChange(v ? String(v.value) : '')}
+                error={jadwalErrors.mode?.message}
+                isClearable={false}
+              />
+            )}
+          />
+          <Input
+            label="Lokasi / Tautan"
+            placeholder="cth. R. 201 / meet.google.com/xxx"
+            {...registerJadwal('lokasi')}
+            error={jadwalErrors.lokasi?.message}
+          />
+          <div className="md:col-span-2">
+            <Textarea
+              label="Catatan"
+              rows={2}
+              placeholder="cth. Khusus bimbingan KRS semester ganjil"
+              {...registerJadwal('catatan')}
+              error={jadwalErrors.catatan?.message}
+            />
+          </div>
+        </form>
       </Modal>
     </div>
   );

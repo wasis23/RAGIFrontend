@@ -1,6 +1,45 @@
 import apiClient from '@/lib/axios';
 import { ApiResponse } from '@/types/api.types';
 
+/**
+ * Payload terketik untuk fitur Bimbingan PA.
+ * Nilai `mode`/`status`/`jenis`/`eskalasi_tujuan`/`konseling_ke` mengacu pada
+ * `kode` master referensi (spmb_master_referensi, modul=siakad, tipe=pa_*)
+ * sehingga tetap stabil dan tidak berupa label tampilan.
+ */
+export interface PaJadwalPayload {
+  tanggal: string;
+  jam_mulai: string;
+  jam_selesai: string;
+  mode: string;
+  lokasi?: string | null;
+  kuota: number;
+  catatan?: string | null;
+}
+
+export interface PaPklPayload {
+  mahasiswa_id: number;
+  tahun_akademik_id?: number | null;
+  jenis: string;
+  instansi: string;
+  lokasi?: string | null;
+  pembimbing_lapangan?: string | null;
+  tanggal_mulai?: string | null;
+  tanggal_selesai?: string | null;
+  status?: string | null;
+  catatan?: string | null;
+}
+
+export interface PaInsidenPayload {
+  jenis: string;
+  tingkat?: string | null;
+  deskripsi: string;
+  tanggal_kejadian?: string | null;
+  lokasi?: string | null;
+  anonim?: boolean;
+  mahasiswa_id?: number | null;
+}
+
 export const siakadService = {
   // Dashboard & Metrics
   getDashboardSummary: async (): Promise<ApiResponse<any>> => {
@@ -153,8 +192,124 @@ export const siakadService = {
     return response.data;
   },
 
+  // ===== Bimbingan PA — payload terketik (Fase 1 & 2) =====
   getPaAdvisees: async (params?: { dosen_id?: number; search?: string }): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/bimbingan/advisees', { params });
+    return response.data;
+  },
+
+  // Monitoring Bimbingan PA (Fase 1): kehadiran, prestasi, risiko, alerts
+  getPaKehadiran: async (params?: { dosen_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/kehadiran', { params });
+    return response.data;
+  },
+
+  getPaPrestasi: async (params?: { dosen_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/prestasi', { params });
+    return response.data;
+  },
+
+  getPaRisiko: async (params?: { dosen_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/risiko', { params });
+    return response.data;
+  },
+
+  getPaAlerts: async (params?: { dosen_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/alerts', { params });
+    return response.data;
+  },
+
+  // Fase 2 — Jadwal & Konsultasi PA
+  getPaJadwal: async (params?: { dosen_id?: number; dari?: string; sampai?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/jadwal', { params });
+    return response.data;
+  },
+
+  createPaJadwal: async (payload: PaJadwalPayload): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/bimbingan/jadwal', payload);
+    return response.data;
+  },
+
+  updatePaJadwal: async (id: number, payload: Partial<PaJadwalPayload> & { status?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/bimbingan/jadwal/${id}`, payload);
+    return response.data;
+  },
+
+  deletePaJadwal: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/bimbingan/jadwal/${id}`);
+    return response.data;
+  },
+
+  getPaBooking: async (params?: { dosen_id?: number; status?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/booking', { params });
+    return response.data;
+  },
+
+  prosesPaBooking: async (id: number, payload: { status: string; catatan_dosen?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/bimbingan/booking/${id}/proses`, payload);
+    return response.data;
+  },
+
+  getMyPaJadwal: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/my-jadwal');
+    return response.data;
+  },
+
+  ajukanPaBooking: async (jadwalId: number, payload: { topik?: string; catatan_mahasiswa?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/bimbingan/jadwal/${jadwalId}/ajukan`, payload);
+    return response.data;
+  },
+
+  // Fase 2 — Status PKL/PL/Magang
+  getPaPkl: async (params?: { dosen_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/pkl', { params });
+    return response.data;
+  },
+
+  createPaPkl: async (payload: PaPklPayload): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/bimbingan/pkl', payload);
+    return response.data;
+  },
+
+  updatePaPkl: async (id: number, payload: Partial<PaPklPayload> & { status?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/bimbingan/pkl/${id}`, payload);
+    return response.data;
+  },
+
+  deletePaPkl: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/bimbingan/pkl/${id}`);
+    return response.data;
+  },
+
+  // Fase 2 — Insiden (kekerasan/pelecehan) + konseling + eskalasi
+  getPaInsiden: async (params?: { status?: string; jenis?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/insiden', { params });
+    return response.data;
+  },
+
+  createPaInsiden: async (payload: PaInsidenPayload): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/bimbingan/insiden', payload);
+    return response.data;
+  },
+
+  eskalasiPaInsiden: async (id: number, payload: { eskalasi_tujuan: string; catatan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/bimbingan/insiden/${id}/eskalasi`, payload);
+    return response.data;
+  },
+
+  rujukPaKonseling: async (id: number, payload: { konseling_ke: string; catatan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/bimbingan/insiden/${id}/konseling`, payload);
+    return response.data;
+  },
+
+  updatePaInsiden: async (id: number, payload: Partial<PaInsidenPayload> & { status?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/bimbingan/insiden/${id}`, payload);
+    return response.data;
+  },
+
+  // Fase 2 — Laporan monitoring bulanan
+  getPaLaporanBulanan: async (params: { bulan: string; dosen_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/bimbingan/laporan-bulanan', { params });
     return response.data;
   },
 
@@ -512,6 +667,57 @@ export const siakadService = {
 
   bulkApproveKrs: async (krsIds: number[]): Promise<ApiResponse<any>> => {
     const response = await apiClient.post('/v1/siakad/perkuliahan/krs/bulk-approve', { krs_ids: krsIds });
+    return response.data;
+  },
+
+  // Paket MK per Rombel & Hak Akses KRS
+  getPaketMk: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/paket-mk', { params });
+    return response.data;
+  },
+
+  createPaketMk: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/paket-mk', payload);
+    return response.data;
+  },
+
+  bulkSyncPaketMk: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/paket-mk/bulk-sync', payload);
+    return response.data;
+  },
+
+  updatePaketMk: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/perkuliahan/paket-mk/${id}`, payload);
+    return response.data;
+  },
+
+  deletePaketMk: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/perkuliahan/paket-mk/${id}`);
+    return response.data;
+  },
+
+  getPaketSaya: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/krs/paket-saya', { params });
+    return response.data;
+  },
+
+  ambilPaketKrs: async (payload?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/krs/ambil-paket', payload);
+    return response.data;
+  },
+
+  getHakaksesKrs: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/krs/hakakses', { params });
+    return response.data;
+  },
+
+  setHakaksesKrs: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/krs/hakakses', payload);
+    return response.data;
+  },
+
+  setHakaksesRombel: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/krs/hakakses-rombel', payload);
     return response.data;
   },
 
@@ -1237,6 +1443,102 @@ export const siakadService = {
 
   applyPindahProdi: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.post(`/v1/siakad/pindah-prodi/${id}/apply`);
+    return response.data;
+  },
+
+  // Status Akademik: Cuti
+  getCutiList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/status/cuti', { params });
+    return response.data;
+  },
+
+  createCuti: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/status/cuti', payload);
+    return response.data;
+  },
+
+  prosesCuti: async (id: number, payload: { status: 'disetujui' | 'ditolak'; alasan?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/status/cuti/${id}/proses`, payload);
+    return response.data;
+  },
+
+  getStatusLog: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/status/log', { params });
+    return response.data;
+  },
+
+  // Kelulusan / Yudisium
+  getKelulusanList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/kelulusan', { params });
+    return response.data;
+  },
+
+  getKelulusanSensing: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/kelulusan/sensing');
+    return response.data;
+  },
+
+  cekSyaratKelulusan: async (mahasiswaId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/kelulusan/cek-syarat/${mahasiswaId}`);
+    return response.data;
+  },
+
+  createKelulusan: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/kelulusan', payload);
+    return response.data;
+  },
+
+  // KHS (daftar + pengesahan BAAK)
+  getKhsList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/khs', { params });
+    return response.data;
+  },
+
+  lockKhs: async (id: number, is_locked: boolean): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/perkuliahan/khs/${id}/lock`, { is_locked });
+    return response.data;
+  },
+
+  // Kartu Ujian UTS/UAS (syarat lunas SIKEU + QR validasi publik)
+  getKartuUjian: async (params: { tipe_ujian: 'UTS' | 'UAS'; mahasiswa_id?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/kartu-ujian', { params });
+    return response.data;
+  },
+
+  getKartuUjianMonitoring: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/kartu-ujian/monitoring', { params });
+    return response.data;
+  },
+
+  nonaktifkanKartuUjian: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/perkuliahan/kartu-ujian/${id}/nonaktifkan`);
+    return response.data;
+  },
+
+  validasiKartuUjianPublic: async (token: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/kartu-ujian/validasi/${encodeURIComponent(token)}`);
+    return response.data;
+  },
+
+  // Pengesahan KHS massal
+  bulkLockKhs: async (payload: { tahun_akademik_id: number; program_studi_id?: number; is_locked: boolean }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/khs/bulk-lock', payload);
+    return response.data;
+  },
+
+  // Dokumen resmi KHS/Transkrip + QR validasi publik
+  terbitkanDokumen: async (payload: { jenis: 'KHS' | 'TRANSKRIP'; mahasiswa_id?: number; tahun_akademik_id?: number }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/dokumen/terbitkan', payload);
+    return response.data;
+  },
+
+  getDokumenMonitoring: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/dokumen', { params });
+    return response.data;
+  },
+
+  validasiDokumenPublic: async (token: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/dokumen/validasi/${encodeURIComponent(token)}`);
     return response.data;
   },
 };
