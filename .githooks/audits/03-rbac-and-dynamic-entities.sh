@@ -8,12 +8,12 @@
 # 2. RBAC Policy: Pengecekan izin/role murni, dilarang atribut statis 'user_type'
 # ==============================================================================
 
-echo "🛡️ [Audit 3/3: RBAC & Dynamic Entities] Memeriksa kebijakan Zero Hardcode & RBAC frontend dengan AI (AI Muse Spark 1.3)..."
+echo "🛡️ [Audit 3/3: RBAC & Dynamic Entities] Memeriksa kebijakan Zero Hardcode & RBAC frontend dengan AI..."
 
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
 AI_ENGINE="opencode"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
-MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
+MODEL="${OPENCODE_MODEL:-opencode/deepseek-v4.1-flash-free}"
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "app/**" "components/**" "services/**" "types/**")
@@ -57,6 +57,13 @@ if echo "$ADDED_LINES" | grep -E "(\[.*['\"][a-zA-Z0-9_]+['\"].*\]\.(includes|fi
     STATIC_FAIL=1
 fi
 
+# D. Deteksi hardcode menu fallback atau registry menu statis
+if echo "$ADDED_LINES" | grep -E '(_FALLBACK_MENUS|FALLBACK_MENUS_REGISTRY|getFallbackMenusForModule|SIAKAD_DOSEN_MENUS|SIAKAD_MAHASISWA_MENUS|SIAKAD_ADMIN_MENUS)' > /dev/null; then
+    echo "❌ [Audit 3/3 STATIC REJECT] Terdeteksi hardcode fallback menu statis di frontend."
+    echo "   Dilarang mendefinisikan array menu statis/hardcoded untuk navigasi. Seluruh menu WAJIB 100% dinamis dari database via API menuService.getMyMenus()."
+    STATIC_FAIL=1
+fi
+
 if [ $STATIC_FAIL -ne 0 ]; then
     echo "💡 Harap perbaiki seluruh pelanggaran statis di atas sebelum melakukan commit."
     exit 1
@@ -89,6 +96,12 @@ Evaluasi HANYA baris baru (+) yang ditambahkan atau diubah. Abaikan baris kontek
    - DILARANG KERAS mengandalkan atau memeriksa field statis warisan seperti `user_type`, `user.type === 'admin'`, dsb.
    - Proteksi route dan visibilitas tombol aksi wajib selaras dengan RBAC dan hak penugasan dinamis akun.
 
+3. KEBIJAKAN ZERO HARDCODE MENU (100% DYNAMIC DB-DRIVEN MENUS):
+   - Seluruh daftar menu dan hierarki navigasi (misal di Sidebar/Navbar) WAJIB bersumber 100% secara dinamis dari API backend database (`/api/menus/my-menus` via `menuService.getMyMenus`).
+   - DILARANG KERAS mendefinisikan array statis menu fallback (misal: `..._FALLBACK_MENUS`, `SIAKAD_DOSEN_MENUS`, array objek `Menu[]` statis untuk navigasi fallback, dsb).
+   - DILARANG KERAS melakukan pemilihan/percabangan menu berdasarkan role statis di frontend (misal: `if (isDosen) return DOSEN_MENUS`).
+   - Jika endpoint menu backend gagal atau error, frontend WAJIB fail-safe dengan mengosongkan menu atau menampilkan error/empty state, BUKAN menyajikan menu palsu/hardcode yang mengabaikan konfigurasi database.
+
 ========================================================================================
 
 Catatan Penilaian:
@@ -119,7 +132,7 @@ if [ -x "$OPENCODE_BIN" ]; then
     AI_EXIT_CODE=$?
     if [ $AI_EXIT_CODE -ne 0 ] || echo "$RESULT" | grep -qi "Unexpected server error"; then
         echo "⚠️ [Audit 3/3] Model $MODEL tidak merespon/error, beralih ke model cadangan..."
-        RESULT=$(timeout 90s "$OPENCODE_BIN" run --pure -m "opencode/cat-jam-free" "$(cat "$PROMPT_FILE")" 2>&1)
+        RESULT=$(timeout 90s "$OPENCODE_BIN" run --pure -m "opencode/glm-5.3-flash-free" "$(cat "$PROMPT_FILE")" 2>&1)
         AI_EXIT_CODE=$?
     fi
 fi

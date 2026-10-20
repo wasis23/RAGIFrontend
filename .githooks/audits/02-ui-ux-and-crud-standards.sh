@@ -17,7 +17,7 @@ echo "🎨 [Audit 2/3: UI/UX, CRUD, Form & Theming] Memeriksa standar UI/UX fron
 export PATH="$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/bin:$PATH"
 AI_ENGINE="opencode"
 OPENCODE_BIN=$(command -v opencode || echo "$HOME/.opencode/bin/opencode")
-MODEL="${OPENCODE_MODEL:-opencode/muse-spark-1.3-contributor-free}"
+MODEL="${OPENCODE_MODEL:-opencode/deepseek-v4.1-flash-free}"
 
 if [ -n "$DIFF_TARGET" ]; then
     STAGED_DIFF=$(git diff "$DIFF_TARGET" -- "app/**" "components/**" "hooks/**" "store/**")
@@ -102,7 +102,7 @@ if [ -x "$OPENCODE_BIN" ]; then
     AI_EXIT_CODE=$?
     if [ $AI_EXIT_CODE -ne 0 ] || echo "$RESULT" | grep -qi "Unexpected server error"; then
         echo "⚠️ [Audit 2/3] Model $MODEL tidak merespon/error, beralih ke model cadangan..."
-        RESULT=$(timeout 90s "$OPENCODE_BIN" run --pure -m "opencode/cat-jam-free" "$(cat "$PROMPT_FILE")" 2>&1)
+        RESULT=$(timeout 90s "$OPENCODE_BIN" run --pure -m "opencode/glm-5.3-flash-free" "$(cat "$PROMPT_FILE")" 2>&1)
         AI_EXIT_CODE=$?
     fi
 fi
