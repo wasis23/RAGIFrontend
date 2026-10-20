@@ -617,6 +617,20 @@ export const siakadService = {
     return response.data;
   },
 
+  getObeSettings: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/settings');
+    return response.data;
+  },
+
+  updateObeSettings: async (payload: {
+    tahun_akademik_id: number;
+    semester: string;
+    kurikulum_id: number;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/settings', payload);
+    return response.data;
+  },
+
   getRps: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/rps', { params });
     return response.data;

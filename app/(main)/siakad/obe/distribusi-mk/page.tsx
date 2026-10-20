@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Filter, Edit2, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { useCallback } from 'react';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
 import { loadMataKuliahOptions } from '@/components/siakad/DistribusiMengajarForm';
 import { Drawer } from '@/components/ui/Drawer';
@@ -16,6 +15,8 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { SEMESTER_OPTIONS } from '@/components/siakad/DistribusiMengajarForm';
 import { siakadService } from '@/services/siakad.service';
+import { useObeFilterContext } from '@/lib/obe-settings';
+import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 
 const SORT_BY_OPTIONS = [
@@ -31,8 +32,25 @@ const SORT_DIR_OPTIONS = [
 
 export default function DistribusiMengajarPage() {
   const router = useRouter();
-  const [items, setItems] = useState<any[]>([]);
+  const { user, hasPermission, isSuperAdmin } = useAuth();
+  const isAdminObe = Boolean(
+    isSuperAdmin ||
+    (((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || []).filter((p: any) => p.is_active !== false).length > 0)
+  );
+  const canManageObeSettings = hasPermission('siakad.kurikulum.manage') || isAdminObe;
 
+  const {
+    settings: obeSettings,
+    setTaLabels,
+    setKurikulumLabels,
+    loadTahunAkademikOptions,
+    loadKurikulumOptions,
+    recordLabelsFromItems,
+    getActiveTaLabel,
+    getActiveKurikulumLabel,
+  } = useObeFilterContext();
+
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [meta, setMeta] = useState<any>(undefined);
   const [page, setPage] = useState(1);
@@ -40,6 +58,7 @@ export default function DistribusiMengajarPage() {
 
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
+  const [filterTahunAkademikId, setFilterTahunAkademikId] = useState('');
   const [filterSemester, setFilterSemester] = useState('');
   const [filterKurikulumId, setFilterKurikulumId] = useState('');
   const [filterMataKuliahId, setFilterMataKuliahId] = useState('');
@@ -47,6 +66,7 @@ export default function DistribusiMengajarPage() {
   const [filterOrderDir, setFilterOrderDir] = useState('asc');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
+    tahunAkademikId: '',
     semester: '',
     kurikulumId: '',
     mataKuliahId: '',
@@ -57,26 +77,59 @@ export default function DistribusiMengajarPage() {
   const [deletingItem, setDeletingItem] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadKurikulumOptions = useCallback(async (keyword: string) => {
-    try {
-      const kurRes = await siakadService.getKurikulums({ search: keyword || undefined, per_page: 50 });
-      const raw = kurRes?.data;
-      const list: any[] = Array.isArray(raw) ? raw : (raw?.items || raw || []);
-      return list.map((k: any) => ({
-        value: k.id,
-        label: `${k.nama || k.kode}${k.tahun_berlaku ? ` — ${k.tahun_berlaku}` : ''}`,
-        raw: k,
+  // Sinkronisasi otomatis konteks filter awal dari Pengaturan OBE
+  useEffect(() => {
+    if (obeSettings) {
+      const taId = obeSettings.tahun_akademik_id ? String(obeSettings.tahun_akademik_id) : '';
+      const kurId = obeSettings.kurikulum_id ? String(obeSettings.kurikulum_id) : '';
+
+      setFilterTahunAkademikId(taId);
+      if (kurId && !filterKurikulumId) {
+        setFilterKurikulumId(kurId);
+      }
+
+      setAppliedFilters((prev) => ({
+        ...prev,
+        tahunAkademikId: prev.tahunAkademikId || taId,
+        kurikulumId: prev.kurikulumId || kurId,
       }));
-    } catch {
-      return [];
     }
-  }, []);
+  }, [obeSettings]);
+
+  // Ekstrak label dari relasi data yang dimuat ke tabel
+  useEffect(() => {
+    recordLabelsFromItems(items);
+  }, [items, recordLabelsFromItems]);
+
+  const activeTaLabel = useMemo(
+    () => getActiveTaLabel(appliedFilters.tahunAkademikId),
+    [getActiveTaLabel, appliedFilters.tahunAkademikId]
+  );
+
+  const activeKurikulumLabel = useMemo(
+    () => getActiveKurikulumLabel(appliedFilters.kurikulumId),
+    [getActiveKurikulumLabel, appliedFilters.kurikulumId]
+  );
+
+  // Lazy fetch opsi jika label belum tersedia di dictionary
+  useEffect(() => {
+    if (appliedFilters.tahunAkademikId && !activeTaLabel) {
+      loadTahunAkademikOptions('');
+    }
+  }, [appliedFilters.tahunAkademikId, activeTaLabel, loadTahunAkademikOptions]);
+
+  useEffect(() => {
+    if (appliedFilters.kurikulumId && !activeKurikulumLabel) {
+      loadKurikulumOptions('');
+    }
+  }, [appliedFilters.kurikulumId, activeKurikulumLabel, loadKurikulumOptions]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await siakadService.getDistribusiMengajarList({
         search: appliedFilters.search || undefined,
+        tahun_akademik_id: appliedFilters.tahunAkademikId || undefined,
         semester: appliedFilters.semester || undefined,
         kurikulum_id: appliedFilters.kurikulumId || undefined,
         mata_kuliah_id: appliedFilters.mataKuliahId || undefined,
@@ -117,6 +170,7 @@ export default function DistribusiMengajarPage() {
   const handleApplyFilter = () => {
     setAppliedFilters({
       search: filterSearch,
+      tahunAkademikId: filterTahunAkademikId,
       semester: filterSemester,
       kurikulumId: filterKurikulumId,
       mataKuliahId: filterMataKuliahId,
@@ -128,16 +182,21 @@ export default function DistribusiMengajarPage() {
   };
 
   const handleResetFilter = () => {
+    const defaultTa = obeSettings?.tahun_akademik_id ? String(obeSettings.tahun_akademik_id) : '';
+    const defaultKur = obeSettings?.kurikulum_id ? String(obeSettings.kurikulum_id) : '';
+
     setFilterSearch('');
+    setFilterTahunAkademikId(defaultTa);
     setFilterSemester('');
-    setFilterKurikulumId('');
+    setFilterKurikulumId(defaultKur);
     setFilterMataKuliahId('');
     setFilterOrderBy('semester');
     setFilterOrderDir('asc');
     setAppliedFilters({
       search: '',
+      tahunAkademikId: defaultTa,
       semester: '',
-      kurikulumId: '',
+      kurikulumId: defaultKur,
       mataKuliahId: '',
       orderBy: 'semester',
       orderDir: 'asc',
@@ -329,6 +388,32 @@ export default function DistribusiMengajarPage() {
         }
       />
 
+      {appliedFilters.tahunAkademikId && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 bg-slate-50 border border-slate-200/80 rounded-lg text-xs text-slate-600">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-700">Filter Aktif Pengaturan OBE:</span>
+            <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800 font-medium">
+              Tahun Akademik: {activeTaLabel || 'Memuat...'}
+            </span>
+            {appliedFilters.kurikulumId && (
+              <span className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-800 font-medium">
+                Kurikulum: {activeKurikulumLabel || 'Memuat...'}
+              </span>
+            )}
+          </div>
+          {canManageObeSettings && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/siakad/obe/settings')}
+              className="text-xs font-semibold text-[var(--module-primary)] hover:opacity-80 p-0 h-auto shrink-0"
+            >
+              Ubah Pengaturan →
+            </Button>
+          )}
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={items}
@@ -364,6 +449,20 @@ export default function DistribusiMengajarPage() {
             value={filterSearch}
             onChange={(e) => setFilterSearch(e.target.value)}
           />
+          <AsyncSelect
+            label="Tahun Akademik"
+            placeholder="Semua Tahun Akademik..."
+            loadOptions={loadTahunAkademikOptions}
+            value={filterTahunAkademikId ? Number(filterTahunAkademikId) : null}
+            onChange={(opt: any) => {
+              const val = opt?.value ? String(opt.value) : '';
+              setFilterTahunAkademikId(val);
+              if (val && (opt?.cleanLabel || opt?.label)) {
+                setTaLabels((prev) => ({ ...prev, [val]: opt.cleanLabel || opt.label }));
+              }
+            }}
+            isClearable
+          />
           <Select
             label="Semester"
             options={[{ value: '', label: 'Semua Semester' }, ...SEMESTER_OPTIONS]}
@@ -376,8 +475,12 @@ export default function DistribusiMengajarPage() {
             loadOptions={loadKurikulumOptions}
             value={filterKurikulumId ? Number(filterKurikulumId) : null}
             onChange={(opt: any) => {
-              setFilterKurikulumId(opt?.value ? String(opt.value) : '');
+              const val = opt?.value ? String(opt.value) : '';
+              setFilterKurikulumId(val);
               setFilterMataKuliahId('');
+              if (val && (opt?.cleanLabel || opt?.label)) {
+                setKurikulumLabels((prev) => ({ ...prev, [val]: opt.cleanLabel || opt.label }));
+              }
             }}
             isClearable
           />
