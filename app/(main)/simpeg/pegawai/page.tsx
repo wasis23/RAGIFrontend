@@ -107,12 +107,12 @@ export default function PegawaiPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'template_import_pegawai.csv');
+      link.setAttribute('download', 'template_import_pegawai.xlsx');
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('Template impor berhasil diunduh!');
+      toast.success('Template impor Excel (.xlsx) berhasil diunduh!');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal mengunduh template impor');
     } finally {
@@ -887,9 +887,9 @@ export default function PegawaiPage() {
                 <FileSpreadsheet size={20} />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-800 text-sm">Unduh Template Berkas</h4>
+                <h4 className="font-semibold text-slate-800 text-sm">Unduh Template Berkas (.xlsx)</h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Format CSV terstandarisasi dengan contoh format kolom NIP, NIK, Nama, dan Unit Kerja.
+                  Format Excel resmi dengan dropdown otomatis dari data master sistem (Unit Kerja, JAD Dosen, Shift Kerja Presensi, Lokasi Presensi, dll).
                 </p>
               </div>
             </div>
