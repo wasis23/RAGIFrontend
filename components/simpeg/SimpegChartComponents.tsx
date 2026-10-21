@@ -123,7 +123,7 @@ export function AttendanceMonthlyTrendChart({ data }: { data: MonthlyAttendanceI
                 </div>
 
                 {/* Label Bulan */}
-                <span className={`text-2xs font-bold mt-2 ${isHovered ? 'text-emerald-700' : 'text-slate-500'}`}>
+                <span className={`text-xs font-semibold mt-2.5 ${isHovered ? 'text-emerald-700 font-bold' : 'text-slate-600'}`}>
                   {item.month_name}
                 </span>
 
@@ -226,7 +226,7 @@ export function SpMonthlyTrendChart({ data }: { data: MonthlySpItem[] }) {
               >
                 {/* Floating indicator total SP di atas bar */}
                 {item.total_sp > 0 && (
-                  <span className="text-2xs font-bold text-rose-600 mb-1 leading-none">
+                  <span className="text-xs font-mono font-bold text-rose-600 mb-1 leading-none">
                     {item.total_sp}
                   </span>
                 )}
@@ -250,7 +250,7 @@ export function SpMonthlyTrendChart({ data }: { data: MonthlySpItem[] }) {
                 </div>
 
                 {/* Label Bulan */}
-                <span className={`text-2xs font-bold mt-2 ${isHovered ? 'text-rose-700' : 'text-slate-500'}`}>
+                <span className={`text-xs font-semibold mt-2.5 ${isHovered ? 'text-rose-700 font-bold' : 'text-slate-600'}`}>
                   {item.month_name}
                 </span>
 
@@ -329,7 +329,7 @@ export function UnitKerjaDisciplineChart({
                     <span className="font-semibold text-slate-800 truncate max-w-48" title={item.unit_kerja_nama}>
                       {idx + 1}. {item.unit_kerja_nama}
                     </span>
-                    <span className="font-mono font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded text-2xs">
+                    <span className="font-mono font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded text-xs">
                       {item.persentase_disiplin}%
                     </span>
                   </div>
@@ -339,7 +339,7 @@ export function UnitKerjaDisciplineChart({
                       className="bg-emerald-500 h-full rounded-full transition-all duration-500"
                     />
                   </div>
-                  <div className="flex justify-between text-2xs text-slate-400 mt-1">
+                  <div className="flex justify-between text-2xs text-slate-500 mt-1.5">
                     <span>{item.total_tepat_waktu} tepat waktu</span>
                     <span>Total {item.total_presensi} log</span>
                   </div>
@@ -372,7 +372,7 @@ export function UnitKerjaDisciplineChart({
                       <span className="font-semibold text-slate-800 truncate max-w-48" title={item.unit_kerja_nama}>
                         {idx + 1}. {item.unit_kerja_nama}
                       </span>
-                      <span className="font-mono font-bold text-rose-700 bg-rose-100/70 px-2 py-0.5 rounded text-2xs">
+                      <span className="font-mono font-bold text-rose-700 bg-rose-100/80 px-2 py-0.5 rounded text-xs">
                         {item.total_terlambat} Kali Terlambat
                       </span>
                     </div>
@@ -382,7 +382,7 @@ export function UnitKerjaDisciplineChart({
                         className="bg-rose-500 h-full rounded-full transition-all duration-500"
                       />
                     </div>
-                    <div className="flex justify-between text-2xs text-slate-400 mt-1">
+                    <div className="flex justify-between text-2xs text-slate-500 mt-1.5">
                       <span>{item.persentase_disiplin}% ketepatan</span>
                       <span>Total {item.total_presensi} log</span>
                     </div>
@@ -402,8 +402,6 @@ export function UnitKerjaDisciplineChart({
 // ============================================================================
 
 export function JadPyramidChart({ data }: { data: JadPyramidItem[] }) {
-  const maxCount = Math.max(1, ...data.map((d) => d.count));
-
   // Urutkan dari Guru Besar (atas) ke Tenaga Pengajar (bawah)
   const sorted = [...data].sort((a, b) => b.order - a.order);
 
@@ -421,7 +419,9 @@ export function JadPyramidChart({ data }: { data: JadPyramidItem[] }) {
 
       <div className="pt-5 space-y-3.5">
         {sorted.map((item) => {
-          const barWidth = Math.max(12, Math.min(100, (item.count / maxCount) * 100));
+          // Ketika nilainya 0, barWidth harus 0% (tidak ada warna yang muncul).
+          // Jika > 0, lebar bar mengikuti persentase riil (misal 99.3%, tidak full 100%).
+          const barWidth = item.count === 0 ? 0 : Math.max(1, Math.min(100, item.percentage));
 
           return (
             <div key={item.level} className="space-y-1.5">
@@ -429,19 +429,22 @@ export function JadPyramidChart({ data }: { data: JadPyramidItem[] }) {
                 <span className="font-semibold text-slate-800 flex items-center gap-2">
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: item.color }}
+                    style={{ backgroundColor: item.count > 0 ? item.color : '#cbd5e1' }}
                   />
                   {item.label}
                 </span>
-                <span className="font-mono text-2xs text-slate-600">
-                  <strong className="text-slate-900">{item.count}</strong> Dosen ({item.percentage}%)
+                <span className="font-mono text-xs text-slate-600">
+                  <strong className="text-slate-900 font-bold">{item.count}</strong> Dosen{' '}
+                  <span className="text-slate-400 text-2xs font-normal">({item.percentage}%)</span>
                 </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                <div
-                  style={{ width: `${barWidth}%`, backgroundColor: item.color }}
-                  className="h-full rounded-full transition-all duration-500 shadow-xs"
-                />
+                {barWidth > 0 && (
+                  <div
+                    style={{ width: `${barWidth}%`, backgroundColor: item.color }}
+                    className="h-full rounded-full transition-all duration-500 shadow-xs"
+                  />
+                )}
               </div>
             </div>
           );
@@ -479,15 +482,15 @@ export function SerdosRadialGauge({
       </div>
 
       <div className="flex flex-col sm:flex-row items-center justify-around gap-6 py-4">
-        {/* Radial Progress Gauge (CSS Conic-Gradient Ring) */}
+        {/* Radial Progress Gauge (CSS Conic-Gradient Ring: Hijau Lulus & Merah Belum) */}
         <div
           className="relative w-36 h-36 rounded-full flex items-center justify-center shrink-0 shadow-inner"
           style={{
-            background: `conic-gradient(#10b981 ${persentase * 3.6}deg, #f1f5f9 ${persentase * 3.6}deg 360deg)`,
+            background: `conic-gradient(#10b981 ${persentase * 3.6}deg, #ef4444 ${persentase * 3.6}deg 360deg)`,
           }}
         >
           <div className="w-24 h-24 rounded-full bg-white flex flex-col items-center justify-center text-center shadow-xs">
-            <span className="text-2xl font-extrabold text-slate-800 font-mono leading-none">
+            <span className="text-2xl font-black text-slate-800 font-mono leading-none">
               {persentase}%
             </span>
             <span className="text-3xs uppercase tracking-wider text-slate-400 font-bold mt-1">
@@ -496,27 +499,27 @@ export function SerdosRadialGauge({
           </div>
         </div>
 
-        {/* Legend Rincian Angka */}
+        {/* Legend Rincian Angka: Hijau (Lulus) vs Merah (Belum Serdos) */}
         <div className="flex flex-col gap-2.5 w-full sm:max-w-56">
-          <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200/60 flex items-center justify-between">
+          <div className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200/70 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
               <span className="text-xs font-semibold text-emerald-950">Lulus Serdos</span>
             </div>
             <span className="font-mono font-bold text-xs text-emerald-800">{tersertifikasi} Dosen</span>
           </div>
 
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+          <div className="p-2.5 rounded-lg bg-rose-50/80 border border-rose-200/70 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-              <span className="text-xs font-semibold text-slate-700">Belum Serdos</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
+              <span className="text-xs font-semibold text-rose-950">Belum Serdos</span>
             </div>
-            <span className="font-mono font-bold text-xs text-slate-600">{belumTersertifikasi} Dosen</span>
+            <span className="font-mono font-bold text-xs text-rose-700">{belumTersertifikasi} Dosen</span>
           </div>
 
-          <div className="text-2xs text-slate-500 px-1 pt-1 flex justify-between border-t border-slate-100">
+          <div className="text-xs text-slate-500 px-1 pt-1 flex justify-between border-t border-slate-100">
             <span>Total Dosen Aktif:</span>
-            <span className="font-bold text-slate-700">{totalDosen} Orang</span>
+            <span className="font-mono font-bold text-xs text-slate-800">{totalDosen} Orang</span>
           </div>
         </div>
       </div>
@@ -558,8 +561,9 @@ export function AgeDistributionChart({ data }: { data: AgeDistributionItem[] }) 
 
             return (
               <div key={item.group} className="flex flex-col items-center justify-end h-full group">
-                <span className="text-2xs font-mono font-bold text-slate-800 mb-1">
-                  {item.count} <span className="text-3xs text-slate-400">({item.percentage}%)</span>
+                <span className="text-xs font-mono font-bold text-slate-800 mb-1.5 text-center">
+                  {item.count}{' '}
+                  <span className="text-2xs font-normal text-slate-400">({item.percentage}%)</span>
                 </span>
 
                 <div
@@ -574,12 +578,14 @@ export function AgeDistributionChart({ data }: { data: AgeDistributionItem[] }) 
                   }}
                 />
 
-                <span className={`text-2xs font-bold mt-2 text-center leading-tight ${
-                  item.is_mpp ? 'text-rose-700' : 'text-slate-700'
-                }`}>
+                <span
+                  className={`text-xs font-bold mt-2.5 text-center leading-tight ${
+                    item.is_mpp ? 'text-rose-700 font-extrabold' : 'text-slate-800'
+                  }`}
+                >
                   {item.label}
                 </span>
-                <span className="text-3xs text-slate-400 text-center leading-none mt-0.5 hidden sm:block">
+                <span className="text-2xs text-slate-400 text-center leading-none mt-1 hidden sm:block">
                   {item.sublabel}
                 </span>
               </div>
