@@ -735,3 +735,91 @@ export interface AnnualSpMonitoringMeta {
     total_sp_terbit: number;
   };
 }
+
+// -------------------------------------------------------------
+// ANALYTICS DASHBOARD SIMPEG TYPES
+// -------------------------------------------------------------
+
+export interface MonthlyAttendanceItem {
+  month_code: string;
+  month_name: string;
+  tepat_waktu: number;
+  terlambat: number;
+  izin_sakit_cuti: number;
+  alfa: number;
+  total_kehadiran: number;
+}
+
+export interface MonthlySpItem {
+  month_code: string;
+  month_name: string;
+  sp_1: number;
+  sp_2: number;
+  sp_3: number;
+  total_sp: number;
+}
+
+export interface UnitKerjaDisciplineItem {
+  unit_kerja_id: number;
+  unit_kerja_nama: string;
+  total_presensi: number;
+  total_tepat_waktu: number;
+  total_terlambat: number;
+  persentase_disiplin: number;
+}
+
+export interface PresensiAnalyticsData {
+  tahun: number;
+  summary: {
+    total_kehadiran: number;
+    total_tepat_waktu: number;
+    total_terlambat: number;
+    total_sp: number;
+    tingkat_disiplin_persen: number;
+  };
+  monthly_attendance: MonthlyAttendanceItem[];
+  monthly_sp: MonthlySpItem[];
+  top_unit_kerja: {
+    disiplin: UnitKerjaDisciplineItem[];
+    rawan: UnitKerjaDisciplineItem[];
+  };
+}
+
+export interface JadPyramidItem {
+  level: string;
+  label: string;
+  order: number;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+export interface SerdosRatioData {
+  total_dosen: number;
+  tersertifikasi: number;
+  belum_tersertifikasi: number;
+  persentase: number;
+}
+
+export interface AgeDistributionItem {
+  group: string;
+  label: string;
+  sublabel: string;
+  count: number;
+  percentage: number;
+  color: string;
+  is_mpp: boolean;
+}
+
+export interface DemografiAnalyticsData {
+  jad_pyramid: JadPyramidItem[];
+  serdos_ratio: SerdosRatioData;
+  age_distribution: AgeDistributionItem[];
+  summary: {
+    total_dosen: number;
+    total_pegawai_terdata: number;
+    persentase_dosen_ber_jad: number;
+    total_mpp_pensiun: number;
+  };
+}
+

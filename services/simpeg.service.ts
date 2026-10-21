@@ -35,6 +35,8 @@ import type {
   SuratPeringatan,
   AnnualSpMonitoringRow,
   AnnualSpMonitoringMeta,
+  PresensiAnalyticsData,
+  DemografiAnalyticsData,
 } from '@/types/simpeg.types';
 
 export const simpegService = {
@@ -182,6 +184,18 @@ export const simpegService = {
     recent_pegawai: Pegawai[];
   }>> => {
     const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/dashboard-stats');
+    return data;
+  },
+
+  getPresensiAnalytics: async (tahun?: number): Promise<ApiResponse<PresensiAnalyticsData>> => {
+    const { data } = await apiClient.get<ApiResponse<PresensiAnalyticsData>>('/simpeg/analytics/presensi', {
+      params: tahun ? { tahun } : undefined,
+    });
+    return data;
+  },
+
+  getDemografiAnalytics: async (): Promise<ApiResponse<DemografiAnalyticsData>> => {
+    const { data } = await apiClient.get<ApiResponse<DemografiAnalyticsData>>('/simpeg/analytics/demografi');
     return data;
   },
 

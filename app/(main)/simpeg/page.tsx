@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   Eye,
   Printer,
+  ShieldAlert,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Hero } from '@/components/ui/Hero';
@@ -33,8 +34,28 @@ import { Button } from '@/components/ui/Button';
 import { DataTable, type ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { Badge } from '@/components/ui/Badge';
+import { Select } from '@/components/ui/Select';
+import {
+  AttendanceMonthlyTrendChart,
+  SpMonthlyTrendChart,
+  UnitKerjaDisciplineChart,
+  JadPyramidChart,
+  SerdosRadialGauge,
+  AgeDistributionChart,
+} from '@/components/simpeg/SimpegChartComponents';
 import { simpegService } from '@/services/simpeg.service';
-import type { Pegawai, UnitKerja, DokumenPegawai, PengajuanCuti, PresensiPegawai, GajiPegawai, UsulanJafung, SuratPeringatan } from '@/types/simpeg.types';
+import type {
+  Pegawai,
+  UnitKerja,
+  DokumenPegawai,
+  PengajuanCuti,
+  PresensiPegawai,
+  GajiPegawai,
+  UsulanJafung,
+  SuratPeringatan,
+  PresensiAnalyticsData,
+  DemografiAnalyticsData,
+} from '@/types/simpeg.types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/lib/utils';
@@ -55,6 +76,58 @@ export default function SimpegDashboardPage() {
     totalTendik: 0,
     totalUnitKerja: 0,
   });
+
+  // Admin Analytics State (2 Tab Segmentasi)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => {
+    const yr = currentYear - i;
+    return { value: yr, label: String(yr) };
+  });
+
+  const [activeTabAnalytics, setActiveTabAnalytics] = useState<'presensi' | 'demografi'>('presensi');
+  const [analyticsYear, setAnalyticsYear] = useState<number>(currentYear);
+  const [presensiAnalytics, setPresensiAnalytics] = useState<PresensiAnalyticsData | null>(null);
+  const [demografiAnalytics, setDemografiAnalytics] = useState<DemografiAnalyticsData | null>(null);
+  const [loadingPresensi, setLoadingPresensi] = useState(false);
+  const [loadingDemografi, setLoadingDemografi] = useState(false);
+
+  const fetchPresensiAnalytics = useCallback(async (year: number) => {
+    setLoadingPresensi(true);
+    try {
+      const res = await simpegService.getPresensiAnalytics(year);
+      if (res?.data) {
+        setPresensiAnalytics(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load presensi analytics', err);
+    } finally {
+      setLoadingPresensi(false);
+    }
+  }, []);
+
+  const fetchDemografiAnalytics = useCallback(async () => {
+    setLoadingDemografi(true);
+    try {
+      const res = await simpegService.getDemografiAnalytics();
+      if (res?.data) {
+        setDemografiAnalytics(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load demografi analytics', err);
+    } finally {
+      setLoadingDemografi(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (canAccess) {
+      if (activeTabAnalytics === 'presensi') {
+        fetchPresensiAnalytics(analyticsYear);
+      } else {
+        fetchDemografiAnalytics();
+      }
+    }
+  }, [canAccess, activeTabAnalytics, analyticsYear, fetchPresensiAnalytics, fetchDemografiAnalytics]);
 
   // Personal Dosen/Tendik State
   const [myPegawai, setMyPegawai] = useState<Pegawai | null>(null);
@@ -582,6 +655,113 @@ export default function SimpegDashboardPage() {
           iconVariant="amber"
           footer="Fakultas, Prodi & Biro"
         />
+      </div>
+
+      {/* ========================================================= */}
+      {/* ANALITIK SDM & KEPEGAWAIAN (2 TAB SEGMENTASI)              */}
+      {/* ========================================================= */}
+      <div className="space-y-4">
+        {/* Tab Switcher & Filter Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200">
+          <div className="flex items-center gap-1 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTabAnalytics('presensi')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+                activeTabAnalytics === 'presensi'
+                  ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <Clock size={16} />
+              Kedisiplinan & Presensi
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTabAnalytics('demografi')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+                activeTabAnalytics === 'demografi'
+                  ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <GraduationCap size={16} />
+              Kualifikasi & Demografi SDM
+            </button>
+          </div>
+
+          {/* Opsi Filter Tahun (khusus tab presensi) */}
+          {activeTabAnalytics === 'presensi' && (
+            <div className="flex items-center gap-2 pb-2 sm:pb-0">
+              <span className="text-2xs text-slate-500 font-bold uppercase tracking-wider">
+                Periode Tahun:
+              </span>
+              <div className="w-28">
+                <Select
+                  value={analyticsYear}
+                  onChange={(val) => setAnalyticsYear(Number(val))}
+                  options={yearOptions}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tab 1 Content: Kedisiplinan & Presensi */}
+        {activeTabAnalytics === 'presensi' && (
+          <div className="space-y-6">
+            {loadingPresensi && !presensiAnalytics ? (
+              <div className="bg-white border border-slate-200 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-2 border-[var(--module-primary)] border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-slate-500">Memuat visual analitik kedisiplinan & presensi...</span>
+              </div>
+            ) : presensiAnalytics ? (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <AttendanceMonthlyTrendChart data={presensiAnalytics.monthly_attendance} />
+                  <SpMonthlyTrendChart data={presensiAnalytics.monthly_sp} />
+                </div>
+                <UnitKerjaDisciplineChart
+                  topDisiplin={presensiAnalytics.top_unit_kerja?.disiplin || []}
+                  topRawan={presensiAnalytics.top_unit_kerja?.rawan || []}
+                />
+              </>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-400">
+                Data analitik presensi belum tersedia.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2 Content: Kualifikasi & Demografi SDM */}
+        {activeTabAnalytics === 'demografi' && (
+          <div className="space-y-6">
+            {loadingDemografi && !demografiAnalytics ? (
+              <div className="bg-white border border-slate-200 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-3">
+                <div className="w-8 h-8 border-2 border-[var(--module-primary)] border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-slate-500">Memuat visual analitik kualifikasi & demografi SDM...</span>
+              </div>
+            ) : demografiAnalytics ? (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <JadPyramidChart data={demografiAnalytics.jad_pyramid} />
+                  <SerdosRadialGauge
+                    tersertifikasi={demografiAnalytics.serdos_ratio.tersertifikasi}
+                    belumTersertifikasi={demografiAnalytics.serdos_ratio.belum_tersertifikasi}
+                    totalDosen={demografiAnalytics.serdos_ratio.total_dosen}
+                    persentase={demografiAnalytics.serdos_ratio.persentase}
+                  />
+                </div>
+                <AgeDistributionChart data={demografiAnalytics.age_distribution} />
+              </>
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-xs text-slate-400">
+                Data analitik demografi belum tersedia.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Navigation Cards */}
