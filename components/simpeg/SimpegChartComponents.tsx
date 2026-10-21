@@ -39,31 +39,31 @@ export function AttendanceMonthlyTrendChart({ data }: { data: MonthlyAttendanceI
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+      <div className="pb-3 border-b border-slate-100 space-y-2">
         <div>
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <Clock size={18} className="text-emerald-600" />
-            Tren Kehadiran & Keterlambatan Bulanan
+            <Clock size={18} className="text-emerald-600 shrink-0" />
+            <span>Tren Kehadiran & Keterlambatan Bulanan</span>
           </h3>
-          <p className="text-2xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Komposisi tepat waktu, keterlambatan, dan izin sepanjang 12 bulan
           </p>
         </div>
-        <div className="flex items-center gap-3 text-2xs flex-wrap">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+        <div className="flex items-center gap-4 text-xs pt-1 flex-wrap">
+          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shrink-0" />
             Tepat Waktu
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block shrink-0" />
             Terlambat
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block" />
+          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block shrink-0" />
             Izin / Sakit
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block" />
+          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block shrink-0" />
             Alfa
           </span>
         </div>
@@ -175,32 +175,32 @@ export function SpMonthlyTrendChart({ data }: { data: MonthlySpItem[] }) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+      <div className="pb-3 border-b border-slate-100 space-y-2">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <ShieldAlert size={18} className="text-rose-600" />
-              Tren Penerbitan Surat Peringatan (SP)
+              <ShieldAlert size={18} className="text-rose-600 shrink-0" />
+              <span>Tren Penerbitan Surat Peringatan (SP)</span>
             </h3>
-            <span className="text-2xs font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+            <span className="text-2xs font-extrabold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 shrink-0">
               {totalSpAll} SP Terbit
             </span>
           </div>
-          <p className="text-2xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Distribusi sanksi kedisiplinan SP 1, SP 2, dan SP 3 per bulan
           </p>
         </div>
-        <div className="flex items-center gap-3 text-2xs flex-wrap">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" />
+        <div className="flex items-center gap-4 text-xs pt-1 flex-wrap">
+          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block shrink-0" />
             SP 1 (Pertama)
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block" />
+          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block shrink-0" />
             SP 2 (Kedua)
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block" />
+          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block shrink-0" />
             SP 3 (Ketiga)
           </span>
         </div>
@@ -299,12 +299,12 @@ export function UnitKerjaDisciplineChart({
 }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-      <div className="pb-4 border-b border-slate-100">
+      <div className="pb-3 border-b border-slate-100 space-y-1">
         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <Building2 size={18} className="text-indigo-600" />
-          Komparasi Kedisiplinan Unit Kerja Kampus
+          <Building2 size={18} className="text-indigo-600 shrink-0" />
+          <span>Komparasi Kedisiplinan Unit Kerja Kampus</span>
         </h3>
-        <p className="text-2xs text-slate-500 mt-0.5">
+        <p className="text-xs text-slate-500 mt-0.5">
           Perbandingan 5 unit kerja dengan rasio kehadiran terbaik vs 5 unit kerja paling rawan keterlambatan
         </p>
       </div>
@@ -409,12 +409,12 @@ export function JadPyramidChart({ data }: { data: JadPyramidItem[] }) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-      <div className="pb-4 border-b border-slate-100">
+      <div className="pb-3 border-b border-slate-100 space-y-1">
         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <GraduationCap size={18} className="text-purple-600" />
-          Piramida Jabatan Fungsional Dosen (JAD)
+          <GraduationCap size={18} className="text-purple-600 shrink-0" />
+          <span>Piramida Jabatan Fungsional Dosen (JAD)</span>
         </h3>
-        <p className="text-2xs text-slate-500 mt-0.5">
+        <p className="text-xs text-slate-500 mt-0.5">
           Struktur kepangkatan akademik dosen aktif Politeknik Indonusa Surakarta
         </p>
       </div>
@@ -468,12 +468,12 @@ export function SerdosRadialGauge({
 }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-      <div className="pb-3 border-b border-slate-100">
+      <div className="pb-3 border-b border-slate-100 space-y-1">
         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <Award size={18} className="text-emerald-600" />
-          Rasio Dosen Bersertifikasi (Serdos)
+          <Award size={18} className="text-emerald-600 shrink-0" />
+          <span>Rasio Dosen Bersertifikasi (Serdos)</span>
         </h3>
-        <p className="text-2xs text-slate-500 mt-0.5">
+        <p className="text-xs text-slate-500 mt-0.5">
           Pencapaian kepemilikan Sertifikat Pendidik resmi Kemdikbudristek
         </p>
       </div>
@@ -534,23 +534,21 @@ export function AgeDistributionChart({ data }: { data: AgeDistributionItem[] }) 
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <Users size={18} className="text-sky-600" />
-              Distribusi Usia & Proyeksi Masa Pensiun (MPP)
-            </h3>
-            {totalMpp > 0 && (
-              <span className="text-2xs font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
-                {totalMpp} Pegawai MPP
-              </span>
-            )}
-          </div>
-          <p className="text-2xs text-slate-500 mt-0.5">
-            Komposisi usia seluruh Dosen dan Tendik untuk regenerasi SDM kampus
-          </p>
+      <div className="pb-3 border-b border-slate-100 space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Users size={18} className="text-sky-600 shrink-0" />
+            <span>Distribusi Usia & Proyeksi Masa Pensiun (MPP)</span>
+          </h3>
+          {totalMpp > 0 && (
+            <span className="text-2xs font-extrabold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 shrink-0">
+              {totalMpp} Pegawai MPP
+            </span>
+          )}
         </div>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Komposisi usia seluruh Dosen dan Tendik untuk regenerasi SDM kampus
+        </p>
       </div>
 
       <div className="pt-6 pb-2">
