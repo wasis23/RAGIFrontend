@@ -484,16 +484,16 @@ export function SerdosRadialGauge({
       <div className="flex-1 flex flex-col sm:flex-row items-center justify-around gap-6 py-6 my-auto">
         {/* Radial Progress Gauge (CSS Conic-Gradient Ring: Hijau Lulus & Merah Belum) */}
         <div
-          className="relative w-40 h-40 rounded-full flex items-center justify-center shrink-0 shadow-inner"
+          className="relative w-44 h-44 rounded-full flex items-center justify-center shrink-0 shadow-inner"
           style={{
             background: `conic-gradient(#10b981 ${persentase * 3.6}deg, #ef4444 ${persentase * 3.6}deg 360deg)`,
           }}
         >
-          <div className="w-28 h-28 rounded-full bg-white flex flex-col items-center justify-center text-center shadow-xs p-2">
-            <span className="text-2xl font-black text-slate-800 font-mono leading-none">
+          <div className="w-32 h-32 rounded-full bg-white flex flex-col items-center justify-center text-center shadow-xs p-2">
+            <span className="text-3xl font-black text-slate-800 font-mono leading-none">
               {persentase}%
             </span>
-            <span className="text-3xs uppercase tracking-wider text-slate-500 font-bold mt-1.5">
+            <span className="text-2xs font-semibold text-slate-500 mt-1">
               Tersertifikasi
             </span>
           </div>
