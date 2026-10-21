@@ -87,6 +87,7 @@ const getIconComponent = (iconName?: string | null) => {
     'FaAward': Award,
     'FaLayers': Layers,
     'FaListOl': List,
+    'FaThList': List,
     'FaProjectDiagram': Share2,
     'FaLayerGroup': Layers,
     'FaShapes': Shapes,

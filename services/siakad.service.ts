@@ -1239,4 +1239,44 @@ export const siakadService = {
     const response = await apiClient.post(`/v1/siakad/pindah-prodi/${id}/apply`);
     return response.data;
   },
+
+  // Paket Mata Kuliah Rombel
+  getPaketMkList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/paket-mk', { params });
+    return response.data;
+  },
+
+  bulkSyncPaketMk: async (payload: {
+    master_kelas_id: number;
+    tahun_akademik_id?: number | null;
+    items: Array<{
+      mata_kuliah_id: number;
+      semester_anjuran?: number | null;
+      is_wajib?: boolean;
+    }>;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/paket-mk/bulk-sync', payload);
+    return response.data;
+  },
+
+  deletePaketMk: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/perkuliahan/paket-mk/${id}`);
+    return response.data;
+  },
+
+  // Hak Akses KRS Rombel
+  getHakaksesList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/perkuliahan/krs/hakakses', { params });
+    return response.data;
+  },
+
+  setHakaksesRombel: async (payload: {
+    master_kelas_id: number;
+    tahun_akademik_id: number;
+    is_dibuka: boolean;
+  }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/perkuliahan/krs/hakakses-rombel', payload);
+    return response.data;
+  },
 };
+
