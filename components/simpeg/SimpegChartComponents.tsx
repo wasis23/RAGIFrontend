@@ -406,7 +406,7 @@ export function JadPyramidChart({ data }: { data: JadPyramidItem[] }) {
   const sorted = [...data].sort((a, b) => b.order - a.order);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col h-full">
       <div className="pb-3 border-b border-slate-100 space-y-1">
         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
           <GraduationCap size={18} className="text-purple-600 shrink-0" />
@@ -470,7 +470,7 @@ export function SerdosRadialGauge({
   persentase: number;
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col h-full">
       <div className="pb-3 border-b border-slate-100 space-y-1">
         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
           <Award size={18} className="text-emerald-600 shrink-0" />
@@ -481,27 +481,27 @@ export function SerdosRadialGauge({
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-around gap-6 py-4">
+      <div className="flex-1 flex flex-col sm:flex-row items-center justify-around gap-6 py-6 my-auto">
         {/* Radial Progress Gauge (CSS Conic-Gradient Ring: Hijau Lulus & Merah Belum) */}
         <div
-          className="relative w-36 h-36 rounded-full flex items-center justify-center shrink-0 shadow-inner"
+          className="relative w-40 h-40 rounded-full flex items-center justify-center shrink-0 shadow-inner"
           style={{
             background: `conic-gradient(#10b981 ${persentase * 3.6}deg, #ef4444 ${persentase * 3.6}deg 360deg)`,
           }}
         >
-          <div className="w-24 h-24 rounded-full bg-white flex flex-col items-center justify-center text-center shadow-xs">
+          <div className="w-28 h-28 rounded-full bg-white flex flex-col items-center justify-center text-center shadow-xs p-2">
             <span className="text-2xl font-black text-slate-800 font-mono leading-none">
               {persentase}%
             </span>
-            <span className="text-3xs uppercase tracking-wider text-slate-400 font-bold mt-1">
+            <span className="text-3xs uppercase tracking-wider text-slate-500 font-bold mt-1.5">
               Tersertifikasi
             </span>
           </div>
         </div>
 
         {/* Legend Rincian Angka: Hijau (Lulus) vs Merah (Belum Serdos) */}
-        <div className="flex flex-col gap-2.5 w-full sm:max-w-56">
-          <div className="p-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200/70 flex items-center justify-between">
+        <div className="flex flex-col gap-3 w-full sm:max-w-56">
+          <div className="p-3 rounded-lg bg-emerald-50/80 border border-emerald-200/70 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
               <span className="text-xs font-semibold text-emerald-950">Lulus Serdos</span>
@@ -509,7 +509,7 @@ export function SerdosRadialGauge({
             <span className="font-mono font-bold text-xs text-emerald-800">{tersertifikasi} Dosen</span>
           </div>
 
-          <div className="p-2.5 rounded-lg bg-rose-50/80 border border-rose-200/70 flex items-center justify-between">
+          <div className="p-3 rounded-lg bg-rose-50/80 border border-rose-200/70 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
               <span className="text-xs font-semibold text-rose-950">Belum Serdos</span>
@@ -517,7 +517,7 @@ export function SerdosRadialGauge({
             <span className="font-mono font-bold text-xs text-rose-700">{belumTersertifikasi} Dosen</span>
           </div>
 
-          <div className="text-xs text-slate-500 px-1 pt-1 flex justify-between border-t border-slate-100">
+          <div className="text-xs text-slate-500 px-1 pt-2 flex justify-between border-t border-slate-100">
             <span>Total Dosen Aktif:</span>
             <span className="font-mono font-bold text-xs text-slate-800">{totalDosen} Orang</span>
           </div>
