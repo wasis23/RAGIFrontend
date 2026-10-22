@@ -17,6 +17,8 @@ import {
   Lock,
   Plus,
   Loader2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { sikeuService } from '@/services/sikeu.service';
@@ -67,6 +69,19 @@ export default function BukuBesarPage() {
   const [submittingPeriode, setSubmittingPeriode] = useState(false);
   const [tutupItem, setTutupItem] = useState<any | null>(null);
   const [tutupLoading, setTutupLoading] = useState(false);
+  const [showPeriodeDitutup, setShowPeriodeDitutup] = useState(false);
+
+  // Periode terbuka selalu tampil; yang sudah ditutup dilipat (tampilkan 3 terbaru)
+  const { periodeTerbuka, periodeDitutupTampil, sisaPeriodeDitutup } = useMemo(() => {
+    const terbuka = periodeList.filter((p: any) => p?.status !== 'ditutup');
+    const ditutup = periodeList.filter((p: any) => p?.status === 'ditutup');
+    const tampil = showPeriodeDitutup ? ditutup : ditutup.slice(0, 3);
+    return {
+      periodeTerbuka: terbuka,
+      periodeDitutupTampil: tampil,
+      sisaPeriodeDitutup: ditutup.length - tampil.length,
+    };
+  }, [periodeList, showPeriodeDitutup]);
 
   const fetchPeriode = useCallback(async () => {
     setLoadingPeriode(true);
@@ -535,8 +550,9 @@ export default function BukuBesarPage() {
             Belum ada periode akuntansi. Buat periode (misal Semester Ganjil 2026/2027) untuk mulai tutup buku.
           </div>
         ) : (
+          <>
           <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
-            {periodeList.map((p: any) => (
+            {[...periodeTerbuka, ...periodeDitutupTampil].map((p: any) => (
               <div key={p.id} className="p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white">
                 <div>
                   <span className="font-bold text-slate-900 text-xs block">{p.nama_periode}</span>
@@ -567,6 +583,24 @@ export default function BukuBesarPage() {
               </div>
             ))}
           </div>
+          {(sisaPeriodeDitutup > 0 || showPeriodeDitutup) && (
+            <button
+              type="button"
+              onClick={() => setShowPeriodeDitutup((v) => !v)}
+              className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-[var(--module-primary)] hover:underline cursor-pointer"
+            >
+              {showPeriodeDitutup ? (
+                <>
+                  <ChevronUp size={14} /> Sembunyikan periode yang sudah ditutup
+                </>
+              ) : (
+                <>
+                  <ChevronDown size={14} /> Tampilkan {sisaPeriodeDitutup} periode ditutup lainnya
+                </>
+              )}
+            </button>
+          )}
+          </>
         )}
       </div>
 
