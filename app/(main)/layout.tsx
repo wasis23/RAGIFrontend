@@ -84,6 +84,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 '/checkout',
                 '/siakad',
                 '/siakad/dashboard',
+                '/siakad/rps',
+                '/siakad/nilai',
                 '/siakad/obe/krs',
                 '/siakad/obe/krs/paket',
                 '/siakad/obe/krs/monitoring',
