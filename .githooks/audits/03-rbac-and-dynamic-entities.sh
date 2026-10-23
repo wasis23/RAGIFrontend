@@ -114,7 +114,13 @@ Format Respon:
 EOF
 
 AI_EXIT_CODE=1
-if [ -x "$OPENCODE_BIN" ]; then
+if command -v agy &> /dev/null; then
+    AGY_OUT=$(timeout 180s agy --model gemini-3.8-flash-low --disable-slash-commands --print "$(cat "$PROMPT_FILE")" < /dev/null 2>&1)
+    AI_EXIT_CODE=$?
+    RESULT="$AGY_OUT"
+fi
+
+if [ $AI_EXIT_CODE -ne 0 ] && [ -x "$OPENCODE_BIN" ]; then
     RESULT=$(timeout 180s "$OPENCODE_BIN" run -m "$MODEL" "$(cat "$PROMPT_FILE")" 2>&1)
     AI_EXIT_CODE=$?
     if [ $AI_EXIT_CODE -ne 0 ] || echo "$RESULT" | grep -qi "Unexpected server error"; then

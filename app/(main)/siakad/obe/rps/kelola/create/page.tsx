@@ -182,9 +182,9 @@ export default function CreateRpsPage() {
     if (paramMkId) {
       const initMk = async () => {
         try {
-          const res = await siakadService.getMataKuliahs({ per_page: 200 });
+          const res = await siakadService.getMataKuliahs({ id: Number(paramMkId) });
           const list = Array.isArray(res?.data) ? res.data : (res?.data?.items || []);
-          const found = list.find((m: any) => Number(m.id) === Number(paramMkId));
+          const found = list.find((m: any) => Number(m.id) === Number(paramMkId)) || list[0];
           if (found) {
             onMataKuliahChange({ value: found.id, label: `${found.kode_mk} - ${found.nama}`, raw: found });
           }
@@ -236,7 +236,13 @@ export default function CreateRpsPage() {
           <Button
             variant="outline"
             icon={<ArrowLeft size={16} />}
-            onClick={() => router.push('/siakad/obe/rps/kelola')}
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.history.length > 1) {
+                router.back();
+              } else {
+                router.push('/siakad/obe/rps/kelola');
+              }
+            }}
             style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
           >
             Kembali
@@ -271,6 +277,11 @@ export default function CreateRpsPage() {
                         value={field.value || null}
                         onChange={onMataKuliahChange}
                         error={errors.mata_kuliah_id?.message}
+                        defaultOptions={
+                          selectedMk
+                            ? [{ value: selectedMk.id, label: `${selectedMk.kode_mk} - ${selectedMk.nama}` }]
+                            : true
+                        }
                       />
                     )}
                   />
