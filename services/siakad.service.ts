@@ -1617,5 +1617,117 @@ export const siakadService = {
     const response = await apiClient.get(`/v1/siakad/dokumen/validasi/${encodeURIComponent(token)}`);
     return response.data;
   },
+
+  // ==========================================
+  // Pipeline Modul PKL (Praktek Kerja Lapangan)
+  // ==========================================
+  getPklList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/pkl', { params });
+    return response.data;
+  },
+
+  getPklDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/pkl/${id}`);
+    return response.data;
+  },
+
+  submitPkl: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/pkl', payload);
+    return response.data;
+  },
+
+  updatePkl: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/pkl/${id}`, payload);
+    return response.data;
+  },
+
+  deletePkl: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/pkl/${id}`);
+    return response.data;
+  },
+
+  getPklLogbook: async (pklId: number, params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/pkl/${pklId}/bimbingan`, { params });
+    return response.data;
+  },
+
+  createPklLogbook: async (pklId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/pkl/${pklId}/bimbingan`, payload);
+    return response.data;
+  },
+
+  verifyPklLogbook: async (pklId: number, logbookId: number, payload: { status_verifikasi: 'disetujui' | 'revisi'; catatan_dosen?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/pkl/${pklId}/bimbingan/${logbookId}/verifikasi`, payload);
+    return response.data;
+  },
+
+  getPklPenilaian: async (pklId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/pkl/${pklId}/nilai`);
+    return response.data;
+  },
+
+  savePklPenilaian: async (pklId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/pkl/${pklId}/nilai`, payload);
+    return response.data;
+  },
+
+  // ==========================================
+  // Pipeline Modul Tugas Akhir / Skripsi
+  // ==========================================
+  getTugasAkhirList: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/ta', { params });
+    return response.data;
+  },
+
+  getTugasAkhirDetail: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/ta/${id}`);
+    return response.data;
+  },
+
+  submitTugasAkhir: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/ta', payload);
+    return response.data;
+  },
+
+  updateTugasAkhir: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/ta/${id}`, payload);
+    return response.data;
+  },
+
+  approveProposalTa: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/ta/${id}/approve-proposal`, payload);
+    return response.data;
+  },
+
+  getTaBimbingan: async (taId: number, params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/ta/${taId}/bimbingan`, { params });
+    return response.data;
+  },
+
+  createTaBimbingan: async (taId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/ta/${taId}/bimbingan`, payload);
+    return response.data;
+  },
+
+  verifyTaBimbingan: async (taId: number, bimbinganId: number, payload: { status_validasi: 'acc' | 'revisi'; arahan_revisi?: string }): Promise<ApiResponse<any>> => {
+    const response = await apiClient.patch(`/v1/siakad/ta/${taId}/bimbingan/${bimbinganId}/verifikasi`, payload);
+    return response.data;
+  },
+
+  getTaSidangList: async (taId: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get(`/v1/siakad/ta/${taId}/sidang`);
+    return response.data;
+  },
+
+  scheduleTaSidang: async (taId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/ta/${taId}/sidang`, payload);
+    return response.data;
+  },
+
+  submitTaSidangNilai: async (sidangId: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post(`/v1/siakad/ta/sidang/${sidangId}/nilai`, payload);
+    return response.data;
+  },
+
 };
 
