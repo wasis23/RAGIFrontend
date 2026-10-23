@@ -1,7 +1,7 @@
 'use client';
 
 import Script from 'next/script';
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 // ============================================================
 // TURNSTILE WIDGET — Cloudflare Turnstile (explicit render)
@@ -48,8 +48,13 @@ interface TurnstileWidgetProps {
 export const TurnstileWidget = forwardRef<TurnstileHandle, TurnstileWidgetProps>(
   function TurnstileWidget({ action, onVerify, className }, ref) {
     const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+    const [mounted, setMounted] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const widgetIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+      setMounted(true);
+    }, []);
 
     const renderWidget = useCallback(() => {
       if (!siteKey || !containerRef.current || widgetIdRef.current !== null) return;
@@ -64,10 +69,12 @@ export const TurnstileWidget = forwardRef<TurnstileHandle, TurnstileWidgetProps>
       });
     }, [siteKey, action, onVerify]);
 
-    // Jika script sudah dimuat sebelumnya (navigasi client), render langsung.
+    // Jika script sudah dimuat sebelumnya (navigasi client), render langsung setelah mounted.
     useEffect(() => {
-      renderWidget();
-    }, [renderWidget]);
+      if (mounted) {
+        renderWidget();
+      }
+    }, [mounted, renderWidget]);
 
     useImperativeHandle(
       ref,
@@ -82,7 +89,7 @@ export const TurnstileWidget = forwardRef<TurnstileHandle, TurnstileWidgetProps>
       [onVerify],
     );
 
-    if (!siteKey) return null;
+    if (!mounted || !siteKey) return null;
 
     return (
       <>

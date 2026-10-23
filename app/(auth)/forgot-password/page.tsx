@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,14 +22,24 @@ export default function ForgotPasswordPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [sentEmail, setSentEmail] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
+  const [mounted, setMounted] = useState(false);
   const captchaRef = useRef<TurnstileHandle>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
   const onSubmit = async (data: FormValues) => {
+    if (siteKey && !captchaToken) {
+      toast.error('Silakan selesaikan verifikasi keamanan.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await authService.forgotPassword({ email: data.email, captcha_token: captchaToken });
@@ -119,7 +129,7 @@ export default function ForgotPasswordPage() {
           full
           size="lg"
           loading={isLoading}
-          disabled={isLoading || (!!siteKey && !captchaToken)}
+          disabled={isLoading || (mounted && Boolean(siteKey) && !captchaToken)}
           icon={<Send size={16} />}
         >
           Kirim Tautan Reset

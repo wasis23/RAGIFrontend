@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,9 +27,14 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
+  const [mounted, setMounted] = useState(false);
   const captchaRef = useRef<TurnstileHandle>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const { login, is_loading } = useAuth();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const {
     register,
@@ -41,6 +46,11 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormValues) => {
+    if (siteKey && !captchaToken) {
+      toast.error('Silakan selesaikan verifikasi keamanan.');
+      return;
+    }
+
     const params = new URLSearchParams(window.location.search);
     // F-001: sanitasi sejak di page; useAuth memvalidasi ulang sebelum navigasi.
     const redirect = getSafeRedirectTarget(params.get('redirect'));
@@ -157,7 +167,7 @@ export default function LoginPage() {
           type="submit"
           id="btn-login"
           className="btn-login-submit"
-          disabled={is_loading || (!!siteKey && !captchaToken)}
+          disabled={is_loading || (mounted && Boolean(siteKey) && !captchaToken)}
         >
           {is_loading ? (
             <span className="login-spinner" />

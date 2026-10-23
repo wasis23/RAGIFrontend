@@ -11,6 +11,7 @@ import { Eye, EyeOff, Loader2, Gift, CheckCircle2, XCircle, Search } from 'lucid
 import { useAuth } from '@/hooks/useAuth';
 import { spmbService } from '@/services/spmb.service';
 import { TurnstileWidget, type TurnstileHandle } from '@/components/ui/TurnstileWidget';
+import toast from 'react-hot-toast';
 
 // Skema validasi: kode referral opsional, format REF-XXXXXX bila diisi.
 const registerSchema = z
@@ -47,8 +48,13 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [referralCheck, setReferralCheck] = useState<ReferralCheckState>({ status: 'idle' });
   const [captchaToken, setCaptchaToken] = useState('');
+  const [mounted, setMounted] = useState(false);
   const captchaRef = useRef<TurnstileHandle>(null);
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const {
     register,
@@ -133,6 +139,11 @@ export default function RegisterPage() {
   }, [referralValue]);
 
   const onSubmit = async (data: RegisterFormValues) => {
+    if (siteKey && !captchaToken) {
+      toast.error('Silakan selesaikan verifikasi keamanan.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const payload: Record<string, unknown> = {
@@ -297,7 +308,7 @@ export default function RegisterPage() {
         <div className="pt-6">
           <Button
             type="submit"
-            disabled={isLoading || (!!siteKey && !captchaToken)}
+            disabled={isLoading || (mounted && Boolean(siteKey) && !captchaToken)}
             className="w-full h-12 text-[15px] font-semibold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[10px] transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? (
