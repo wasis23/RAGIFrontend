@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarCheck, MapPin, Plus, Search, Filter, Clock, Users, Edit3, Trash2, BookOpen, FileText, CheckCircle2, Award, Download, MoreVertical } from 'lucide-react';
+import { CalendarCheck, MapPin, Plus, Search, Filter, Clock, Users, Edit3, Trash2, BookOpen, FileText, CheckCircle2, Download, MoreVertical } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -282,16 +282,6 @@ export default function PerkuliahanKelasPage() {
             },
           },
         ];
-
-        if (isDosen || isAdmin) {
-          items.push({
-            label: 'Input Nilai Mahasiswa (OBE)',
-            icon: <Award size={14} />,
-            onClick: () => {
-              router.push(`/siakad/nilai/input/${row.id}`);
-            },
-          });
-        }
 
         if (isDosen || isAdmin) {
           items.push({

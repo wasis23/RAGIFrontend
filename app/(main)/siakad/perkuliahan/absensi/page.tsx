@@ -7,7 +7,6 @@ import {
   Filter,
   Clock,
   MapPin,
-  Award,
   BookOpen,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -270,11 +269,6 @@ export default function PresensiPerkuliahanPage() {
                   label: 'Input Absensi Mahasiswa',
                   icon: <CalendarCheck size={14} />,
                   onClick: () => router.push(`/siakad/perkuliahan/kelas/${row.id}/absensi`),
-                },
-                {
-                  label: 'Input Nilai OBE',
-                  icon: <Award size={14} />,
-                  onClick: () => router.push(`/siakad/nilai/input/${row.id}`),
                 },
                 {
                   label: 'Lihat RPS & Pertemuan',

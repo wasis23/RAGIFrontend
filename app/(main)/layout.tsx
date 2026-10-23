@@ -88,7 +88,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 '/siakad/obe/krs/paket',
                 '/siakad/obe/krs/monitoring',
                 '/siakad/perkuliahan/kelas',
-                '/siakad/nilai',
                 '/lms',
                 '/sikeu',
                 '/sikeu/mahasiswa/tagihan',

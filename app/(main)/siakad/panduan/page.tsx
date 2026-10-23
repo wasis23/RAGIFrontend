@@ -208,52 +208,6 @@ const GUIDES: GuideSection[] = [
     ],
   },
   {
-    id: 'input-nilai-obe',
-    title: 'Cara Menginput Nilai & Menerbitkan KHS/Transkrip',
-    category: 'nilai',
-    categoryLabel: 'Nilai & Kelulusan',
-    summary:
-      'Penilaian komponen OBE per kelas oleh dosen; hasil final mengalir ke KHS, Transkrip, dan Portofolio di menu Hasil Studi.',
-    targetUrl: '/siakad/nilai',
-    targetLabel: 'Buka Penilaian',
-    rolesAllowed: ['dosen', 'superadmin', 'admin'],
-    steps: [
-      'Pastikan RPS mata kuliah sudah terisi dan total bobot (CPMK/komponen) sudah 100% — bila belum, tombol input terkunci otomatis.',
-      'Buka menu "Penilaian Kelas", pilih kelas yang diampu untuk membuka matriks penilaian dan daftar peserta.',
-      'Sinkronkan Komponen Asesmen dari Master OBE bila tersedia ("Sync dari Master OBE"), atau tambah manual: Teknik Asesmen dari database, bobot, dan target CPMK bila mode Hybrid.',
-      'Klik "Input Nilai Kelas (Halaman Penuh)", isi skor 0–100 tiap mahasiswa per komponen, Simpan Draft atau Publikasikan (Final).',
-      'Nilai Final otomatis memperbarui KHS/IPK dan tampil di menu Hasil Studi (KHS, Transkrip, Portofolio).',
-    ],
-    tips: [
-      'Teknik asesmen yang tersedia (Tes Tulis, Praktikum, Portofolio, dsb.) berasal dari master referensi.',
-      'Konversi angka → huruf memakai Master Skala Nilai (umum/khusus prodi).',
-    ],
-    warnings: [
-      'Publikasi Final mengunci nilai — perubahan setelahnya hanya oleh Administrator.',
-    ],
-  },
-  {
-    id: 'hasil-studi',
-    title: 'Cara Membaca Hasil Studi (KHS, Transkrip, Portofolio OBE)',
-    category: 'nilai',
-    categoryLabel: 'Nilai & Kelulusan',
-    summary:
-      'Satu profil mahasiswa: KHS per semester (nilai Final + IPS live), Transkrip kumulatif (IPK), dan Portofolio CPL/CPMK.',
-    targetUrl: '/siakad/hasil-studi',
-    targetLabel: 'Buka Hasil Studi',
-    rolesAllowed: ['mahasiswa', 'dosen', 'superadmin', 'admin'],
-    steps: [
-      'Buka menu "Hasil Studi". Admin/dosen: cari dan pilih 1 mahasiswa di direktori (pilihan berlaku untuk semua sub-tab).',
-      'Tab KHS Semester: ganti periode lewat dropdown Periode. Hanya nilai Final yang tampil dan dihitung; IPS dihitung live dari baris tersebut.',
-      'Tab Transkrip Kumulatif: nilai terbaik per MK bila mengulang, lengkap dengan IPK dan predikat.',
-      'Tab Portofolio: kartu CPL (target ≥ 65) + rincian MK per semester beserta skor tiap CPMK.',
-      'Cetak dokumen resmi via tombol Cetak.',
-    ],
-    warnings: [
-      'Nilai Draft (belum dipublikasikan dosen) tidak masuk KHS/IPK.',
-    ],
-  },
-  {
     id: 'alur-obe-split',
     title: 'Alur OBE per Menu: Pemantauan, CPL, CPMK, RPS, Ketertiban',
     category: 'obe',
@@ -348,27 +302,6 @@ const GUIDES: GuideSection[] = [
     ],
     warnings: [
       'Status non-aktif wajib disertai alasan.',
-    ],
-  },
-  {
-    id: 'bimbingan-pa',
-    title: 'Bimbingan PA: Pantau, Catat, dan Laporkan Aktivitas',
-    category: 'krs',
-    categoryLabel: 'KRS & Studi',
-    summary:
-      'Dosen PA memantau komposisi bimbingan, mencatat kendala, dan menyusun laporan; Kaprodi memantau seluruh prodi.',
-    targetUrl: '/siakad/bimbingan',
-    targetLabel: 'Buka Bimbingan PA',
-    rolesAllowed: ['dosen', 'kaprodi', 'superadmin', 'admin'],
-    steps: [
-      'Buka menu "Bimbingan PA". Dosen melihat ringkasan + mahasiswa bimbingannya; Kaprodi/Admin melihat rekap semua dosen.',
-      'Periksa badge kendala tiap mahasiswa (status non-aktif, KRS belum disetujui, IPK rendah, penanganan khusus).',
-      'Klik "Catatan" untuk mencatat kendala (kategori: akademik/KRS/KHS/keuangan/pribadi) dan tandai bila butuh penanganan khusus.',
-      'Isi Kesimpulan + Rekomendasi pada panel Laporan Aktivitas per periode, lalu "Simpan Laporan (Final)".',
-      'Tindak lanjut catatan (dipantau/diproses/selesai) diperbarui berkala hingga tuntas.',
-    ],
-    tips: [
-      'Direktori mahasiswa di menu Civitas & Hasil Studi otomatis terbatas pada bimbingan Anda (dosen).',
     ],
   },
   {

@@ -359,16 +359,13 @@ export default function SiakadDashboardPage() {
                 <h4 className="text-sm font-extrabold text-slate-900">Skala Prestasi (maks 4.00)</h4>
                 <HBar label="IPS Semester Berjalan" value={ipsNum} max={4} color="var(--module-primary)" hint="/ 4.00" />
                 <HBar label="IPK Kumulatif" value={ipkNum} max={4} color="#10b981" hint="/ 4.00" />
-                <Link href="/siakad/hasil-studi" className="text-2xs font-bold text-primary-600 hover:underline">
-                  Lihat KHS & Portofolio OBE →
-                </Link>
               </div>
             </div>
           );
         })()}
 
         {/* Quick Menu Shortcuts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
           <Link
             href="/siakad/profil"
             className="card p-4 hover:border-primary-300 hover:shadow-md transition flex items-center gap-3.5 group"
@@ -392,32 +389,6 @@ export default function SiakadDashboardPage() {
             <div>
               <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">KRS Online</p>
               <p className="text-2xs text-slate-500">Ambil & batalkan kelas</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/siakad/hasil-studi"
-            className="card p-4 hover:border-primary-300 hover:shadow-md transition flex items-center gap-3.5 group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-              <Award size={18} />
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">Hasil Studi</p>
-              <p className="text-2xs text-slate-500">KHS, Transkrip & Porto OBE</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/siakad/nilai"
-            className="card p-4 hover:border-primary-300 hover:shadow-md transition flex items-center gap-3.5 group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
-              <Layers size={18} />
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 text-xs group-hover:text-primary-700 transition">Penilaian Kelas</p>
-              <p className="text-2xs text-slate-500">Input Nilai OBE Dosen</p>
             </div>
           </Link>
 
@@ -569,22 +540,6 @@ export default function SiakadDashboardPage() {
       icon: <CalendarCheck size={20} className="text-cyan-600" />,
       href: '/siakad/perkuliahan/absensi',
       badge: 'Presensi',
-      roles: ['superadmin', 'admin', 'dosen'],
-    },
-    {
-      title: 'Penilaian Kelas (OBE)',
-      desc: 'Input nilai asesmen dan capaian CPMK per kelas',
-      icon: <Award size={20} className="text-rose-600" />,
-      href: '/siakad/nilai',
-      badge: 'OBE Grading',
-      roles: ['superadmin', 'admin', 'dosen'],
-    },
-    {
-      title: 'Hasil Studi Mahasiswa',
-      desc: 'KHS semester, transkrip, dan portofolio CPL/CPMK',
-      icon: <GraduationCap size={20} className="text-indigo-600" />,
-      href: '/siakad/hasil-studi',
-      badge: 'Transkrip + Porto',
       roles: ['superadmin', 'admin', 'dosen'],
     },
     {
