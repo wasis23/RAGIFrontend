@@ -28,10 +28,18 @@ export interface UpdateModulePayload {
 
 export const moduleService = {
   /**
-   * Mengambil semua module
+   * Mengambil semua module (Khusus Admin)
    */
   getAllModules: async (): Promise<AppModule[]> => {
     const response = await apiClient.get<ApiResponse<AppModule[]>>('/admin/modules');
+    return response.data.data || [];
+  },
+
+  /**
+   * Mengambil module aktif yang berizin diakses oleh user login (dinamis dari server)
+   */
+  getMyModules: async (): Promise<AppModule[]> => {
+    const response = await apiClient.get<ApiResponse<AppModule[]>>('/modules/my-modules');
     return response.data.data || [];
   },
 

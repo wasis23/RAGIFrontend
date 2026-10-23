@@ -12,48 +12,50 @@ import {
   FlaskConical,
   LayoutGrid,
   Building2,
+  Archive,
+  GraduationCap,
   X,
   ChevronRight,
 } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
 import { moduleService, AppModule } from '@/services/module.service';
 import { getModuleUrl } from '@/lib/domain';
 
-const MODULE_META: Record<string, any> = {
+const MODULE_META: Record<string, { subpath: string; icon: any }> = {
   sso: {
-    subpath: '/admin/users',
+    subpath: '',
     icon: Shield,
-    badgeColor: 'bg-blue-50 text-blue-600',
   },
   simpeg: {
     subpath: '',
     icon: Users,
-    badgeColor: 'bg-emerald-50 text-emerald-600',
   },
   sippm: {
     subpath: '/proposal',
     icon: FlaskConical,
-    badgeColor: 'bg-purple-50 text-purple-600',
   },
   sikeu: {
     subpath: '',
     icon: CreditCard,
-    badgeColor: 'bg-amber-50 text-amber-600',
   },
   spmb: {
     subpath: '',
     icon: UserPlus,
-    badgeColor: 'bg-indigo-50 text-indigo-600',
   },
   siakad: {
     subpath: '',
     icon: BookOpen,
-    badgeColor: 'bg-cyan-50 text-cyan-600',
   },
   sinapra: {
     subpath: '',
     icon: Building2,
-    badgeColor: 'bg-rose-50 text-rose-600',
+  },
+  arsip: {
+    subpath: '',
+    icon: Archive,
+  },
+  lms: {
+    subpath: '',
+    icon: GraduationCap,
   },
 };
 
@@ -61,8 +63,6 @@ export function AppLauncher() {
   const [isOpen, setIsOpen] = useState(false);
   const [modules, setModules] = useState<AppModule[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const { isAdmin, isSuperAdmin, isAdminSimpeg, isDosen, isTendik, isMahasiswa, hasRole } = useAuth();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -76,37 +76,15 @@ export function AppLauncher() {
 
   useEffect(() => {
     moduleService
-      .getAllModules()
+      .getMyModules()
       .then((res) => {
-        setModules(res.filter((m) => m.is_active));
+        setModules(Array.isArray(res) ? res.filter((m) => m.is_active) : []);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Failed to load user modules:', err);
+        setModules([]);
+      });
   }, []);
-
-  const checkAccess = (code: string) => {
-    if (isAdmin || isSuperAdmin) return true;
-
-    switch (code) {
-      case 'sso':
-        return false;
-      case 'simpeg':
-        return isAdminSimpeg || isDosen || isTendik;
-      case 'sippm':
-        return isDosen || hasRole('reviewer');
-      case 'sikeu':
-        return isMahasiswa || isTendik;
-      case 'siakad':
-        return isDosen || isMahasiswa;
-      case 'sinapra':
-        return isTendik || hasRole('admin_sarpras');
-      case 'spmb':
-        return true;
-      default:
-        return true;
-    }
-  };
-
-  const accessibleModules = modules.filter((m) => checkAccess(m.code));
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
@@ -138,7 +116,7 @@ export function AppLauncher() {
                 </div>
                 <span className="font-bold text-sm text-slate-900">Sub-Sistem SSO</span>
                 <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-2xs font-bold">
-                  {accessibleModules.length} Modul
+                  {modules.length} Modul
                 </span>
               </div>
 
@@ -153,25 +131,29 @@ export function AppLauncher() {
 
             {/* Modules Grid (Mobile: 1-column list | Desktop: 3-column grid) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {accessibleModules.map((app) => {
+              {modules.map((app) => {
                 const meta = MODULE_META[app.code] || {
                   subpath: '',
                   icon: LayoutGrid,
-                  badgeColor: 'bg-slate-100 text-slate-700',
                 };
                 const targetHref = getModuleUrl(app.code, meta.subpath);
-
                 const IconComp = meta.icon;
+                const primaryColor = app.primary_color || 'var(--module-primary, #3b82f6)';
+
                 return (
                   <Link
                     key={app.id}
                     href={targetHref}
                     onClick={() => setIsOpen(false)}
-                    className="group flex items-center sm:flex-col sm:items-start p-3 rounded-xl border border-slate-100 hover:border-primary-200 bg-slate-50/60 hover:bg-primary-50/40 transition-all text-left"
+                    className="group flex items-center sm:flex-col sm:items-start p-3 rounded-xl border border-slate-100 hover:border-slate-300 bg-slate-50/60 hover:bg-slate-50 transition-all text-left"
                     role="menuitem"
                   >
                     <div
-                      className={`w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 mb-0 sm:mb-2 mr-3 sm:mr-0 ${meta.badgeColor}`}
+                      className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 mb-0 sm:mb-2 mr-3 sm:mr-0 transition-colors"
+                      style={{
+                        backgroundColor: app.primary_color ? `${app.primary_color}1A` : 'rgba(59, 130, 246, 0.1)',
+                        color: primaryColor,
+                      }}
                     >
                       <IconComp size={18} />
                     </div>
