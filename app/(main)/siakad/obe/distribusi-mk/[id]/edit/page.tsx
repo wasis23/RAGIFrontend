@@ -138,12 +138,40 @@ export default function EditDistribusiMengajarPage() {
                       }))
                     : [],
                   dosen_anggota_details: Array.isArray(initial.dosen_anggota_details) && initial.dosen_anggota_details.length > 0
-                    ? initial.dosen_anggota_details
+                    ? initial.dosen_anggota_details.map((d: any) => {
+                        const matchedDosen = Array.isArray(initial.dosen_anggotas)
+                          ? initial.dosen_anggotas.find((a: any) => Number(a.id || a.dosen_id) === Number(d.dosen_id || d.id))
+                          : null;
+                        const dName =
+                          d.nama_lengkap ||
+                          d.dosen_nama ||
+                          d.dosen?.nama_lengkap ||
+                          matchedDosen?.nama_lengkap ||
+                          matchedDosen?.nama ||
+                          '';
+                        const dNidn =
+                          d.nidn ||
+                          d.dosen_nidn ||
+                          d.dosen?.nidn ||
+                          matchedDosen?.nidn ||
+                          '';
+                        return {
+                          ...d,
+                          dosen_id: Number(d.dosen_id || d.id),
+                          dosen_nama: dName,
+                          nama_lengkap: dName,
+                          dosen_nidn: dNidn,
+                          nidn: dNidn,
+                          dosen: d.dosen || matchedDosen || (dName ? { id: Number(d.dosen_id || d.id), nama_lengkap: dName, nidn: dNidn } : null),
+                        };
+                      })
                     : Array.isArray(initial.dosen_anggotas)
                       ? initial.dosen_anggotas.map((d: any) => ({
-                          dosen_id: d.id,
-                          dosen_nama: d.nama_lengkap || d.nama,
-                          dosen_nidn: d.nidn,
+                          dosen_id: Number(d.id || d.dosen_id),
+                          dosen_nama: d.nama_lengkap || d.nama || '',
+                          nama_lengkap: d.nama_lengkap || d.nama || '',
+                          dosen_nidn: d.nidn || '',
+                          nidn: d.nidn || '',
                           dosen: d,
                           sks: d.sks ?? initial.mata_kuliah?.total_sks ?? 1,
                           kelas_ids: d.kelas_ids || initial.kelas_ids || [],

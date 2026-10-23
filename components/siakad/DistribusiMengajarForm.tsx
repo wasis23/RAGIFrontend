@@ -36,7 +36,9 @@ const toId = (v: unknown): number | null => {
 export interface DosenAnggotaDetail {
   dosen_id: number;
   dosen_nama?: string;
+  nama_lengkap?: string;
   dosen_nidn?: string;
+  nidn?: string;
   dosen?: any;
   sks: number;
   kelas_ids: number[];
@@ -204,12 +206,27 @@ export function DistribusiMengajarForm({
 
   useEffect(() => {
     if (defaultValues?.dosen_anggota_details && defaultValues.dosen_anggota_details.length > 0) {
-      setDetails(defaultValues.dosen_anggota_details);
+      const normalized: DosenAnggotaDetail[] = defaultValues.dosen_anggota_details.map((d: any) => {
+        const dName = d.dosen_nama || d.nama_lengkap || d.dosen?.nama_lengkap || (d as any)?.nama || '';
+        const dNidn = d.dosen_nidn || d.nidn || d.dosen?.nidn || '';
+        return {
+          ...d,
+          dosen_id: Number(d.dosen_id || d.id),
+          dosen_nama: dName,
+          nama_lengkap: dName,
+          dosen_nidn: dNidn,
+          nidn: dNidn,
+          dosen: d.dosen || (dName ? { id: Number(d.dosen_id || d.id), nama_lengkap: dName, nidn: dNidn } : null),
+        };
+      });
+      setDetails(normalized);
     } else if (defaultValues?.anggotaOptions && defaultValues.anggotaOptions.length > 0) {
       const syn: DosenAnggotaDetail[] = defaultValues.anggotaOptions.map((opt) => ({
         dosen_id: Number(opt.value),
         dosen_nama: (opt as any)?.raw?.nama_lengkap || opt.label.split(' — ')[0],
+        nama_lengkap: (opt as any)?.raw?.nama_lengkap || opt.label.split(' — ')[0],
         dosen_nidn: (opt as any)?.raw?.nidn || '',
+        nidn: (opt as any)?.raw?.nidn || '',
         dosen: (opt as any)?.raw || null,
         sks: selectedMk?.total_sks || 1,
         kelas_ids: defaultValues?.kelas_ids || [],
@@ -255,12 +272,22 @@ export function DistribusiMengajarForm({
     const item = details[idx];
     if (!item) return;
     setEditIndex(idx);
+    const dosenName =
+      item.dosen?.nama_lengkap ||
+      item.nama_lengkap ||
+      item.dosen_nama ||
+      (item as any)?.nama;
+    const dosenNidn =
+      item.dosen?.nidn ||
+      item.nidn ||
+      item.dosen_nidn;
+
     setModalDosenOption({
       value: item.dosen_id,
-      label: item.dosen?.nama_lengkap || item.dosen_nama
-        ? `${item.dosen?.nama_lengkap || item.dosen_nama}${item.dosen?.nidn || item.dosen_nidn ? ` — NIDN ${item.dosen?.nidn || item.dosen_nidn}` : ''}`
+      label: dosenName
+        ? `${dosenName}${dosenNidn ? ` — NIDN ${dosenNidn}` : ''}`
         : `Dosen ID ${item.dosen_id}`,
-      raw: item.dosen,
+      raw: item.dosen || (dosenName ? { id: item.dosen_id, nama_lengkap: dosenName, nidn: dosenNidn } : null),
     });
     setModalKelasOptions(
       (item.kelas_ids || []).map((kid, kIdx) => ({
@@ -338,18 +365,31 @@ export function DistribusiMengajarForm({
     {
       key: 'dosen',
       label: 'DOSEN ANGGOTA',
-      render: (item) => (
-        <div>
-          <span className="block text-xs font-bold text-slate-800">
-            {item.dosen?.nama_lengkap || item.dosen_nama || `Dosen ID ${item.dosen_id}`}
-          </span>
-          {(item.dosen?.nidn || item.dosen_nidn) && (
-            <span className="font-mono text-2xs text-slate-400 block">
-              NIDN: {item.dosen?.nidn || item.dosen_nidn}
+      render: (item) => {
+        const displayName =
+          item.dosen?.nama_lengkap ||
+          item.nama_lengkap ||
+          item.dosen_nama ||
+          (item as any)?.nama ||
+          `Dosen ID ${item.dosen_id}`;
+        const displayNidn =
+          item.dosen?.nidn ||
+          item.nidn ||
+          item.dosen_nidn;
+
+        return (
+          <div>
+            <span className="block text-xs font-bold text-slate-800">
+              {displayName}
             </span>
-          )}
-        </div>
-      ),
+            {displayNidn && (
+              <span className="font-mono text-2xs text-slate-400 block">
+                NIDN: {displayNidn}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'sks',

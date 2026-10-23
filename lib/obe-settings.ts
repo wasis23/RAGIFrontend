@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { siakadService } from '@/services/siakad.service';
+import { useAuthStore } from '@/store/authStore';
 
 export interface ObeSettings {
   tahun_akademik_id?: number | null;
@@ -12,12 +13,19 @@ export interface ObeSettings {
   updated_at?: string | null;
 }
 
-const STORAGE_KEY = 'ragi_obe_active_settings';
+export function getStorageKey(userId?: number | string | null): string {
+  return userId ? `ragi_obe_active_settings_${userId}` : 'ragi_obe_active_settings';
+}
 
-export function getStoredObeSettings(): ObeSettings | null {
+export function getStoredObeSettings(userId?: number | string | null): ObeSettings | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const key = getStorageKey(userId);
+    const raw = localStorage.getItem(key);
+    if (!raw && userId) {
+      const fallback = localStorage.getItem('ragi_obe_active_settings');
+      if (fallback) return JSON.parse(fallback);
+    }
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {
@@ -25,11 +33,12 @@ export function getStoredObeSettings(): ObeSettings | null {
   }
 }
 
-export function saveStoredObeSettings(settings: ObeSettings): void {
+export function saveStoredObeSettings(settings: ObeSettings, userId?: number | string | null): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    window.dispatchEvent(new CustomEvent('obe-settings-changed', { detail: settings }));
+    const key = getStorageKey(userId);
+    localStorage.setItem(key, JSON.stringify(settings));
+    window.dispatchEvent(new CustomEvent('obe-settings-changed', { detail: { settings, userId } }));
   } catch {
     // Abaikan kegagalan localStorage
   }
@@ -90,7 +99,9 @@ export async function fetchKurikulumOptions(keyword?: string) {
 }
 
 export function useObeSettings() {
-  const [settings, setSettings] = useState<ObeSettings | null>(() => getStoredObeSettings());
+  const user = useAuthStore((s) => s.user);
+  const userId = user?.id ?? null;
+  const [settings, setSettings] = useState<ObeSettings | null>(() => getStoredObeSettings(userId));
   const [loading, setLoading] = useState(false);
 
   const fetchSettings = useCallback(async () => {
@@ -99,21 +110,30 @@ export function useObeSettings() {
       const res = await siakadService.getObeSettings();
       if (res?.data) {
         setSettings(res.data);
-        saveStoredObeSettings(res.data);
+        saveStoredObeSettings(res.data, userId);
       }
     } catch {
       // Jika gagal fetch ke server, gunakan yang tersimpan di localStorage
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
+    const cached = getStoredObeSettings(userId);
+    if (cached) {
+      setSettings(cached);
+    }
     fetchSettings();
 
     const handleChanged = (e: any) => {
-      if (e?.detail) {
-        setSettings(e.detail);
+      const detail = e?.detail;
+      if (detail?.settings) {
+        if (!detail.userId || detail.userId === userId) {
+          setSettings(detail.settings);
+        }
+      } else if (detail) {
+        setSettings(detail);
       }
     };
 
@@ -121,7 +141,7 @@ export function useObeSettings() {
     return () => {
       window.removeEventListener('obe-settings-changed', handleChanged);
     };
-  }, [fetchSettings]);
+  }, [fetchSettings, userId]);
 
   const updateSettings = async (newSettings: {
     tahun_akademik_id: number;
@@ -131,7 +151,7 @@ export function useObeSettings() {
     const res = await siakadService.updateObeSettings(newSettings);
     if (res?.data) {
       setSettings(res.data);
-      saveStoredObeSettings(res.data);
+      saveStoredObeSettings(res.data, userId);
     }
     return res;
   };

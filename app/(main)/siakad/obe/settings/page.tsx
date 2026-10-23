@@ -31,7 +31,9 @@ export default function ObeSettingsPage() {
     (((user as any)?.siakad_admin_prodis || (user as any)?.siakadAdminProdis || []).filter((p: any) => p.is_active !== false).length > 0)
   );
   const canRead = hasPermission('siakad.kurikulum.read') || isAdminObe;
-  const canManage = hasPermission('siakad.kurikulum.manage') || isAdminObe;
+  // Karena Pengaturan Konteks OBE sekarang diterapkan per-user (preferensi filter aktif pengguna),
+  // setiap pengguna/dosen yang memiliki hak akses halaman ini berhak mengubah preferensinya sendiri.
+  const canManage = canRead;
 
   const { settings, loading: settingsLoading, updateSettings } = useObeSettings();
   const [saving, setSaving] = useState(false);
