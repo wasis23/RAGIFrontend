@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
@@ -12,7 +12,12 @@ import toast from 'react-hot-toast';
 export default function CreateSesiPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
+  const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
   const rpsId = Number(params?.id);
+  const rpsListUrl = fromParam || '/siakad/obe/rps/kelola';
+  const editRpsUrl = `/siakad/obe/rps/${rpsId}/edit${fromQuery}`;
 
   const [loading, setLoading] = useState(true);
   const [mataKuliahId, setMataKuliahId] = useState<number | undefined>(undefined);
@@ -64,8 +69,8 @@ export default function CreateSesiPage() {
           breadcrumbs={[
             { label: 'Portal SSO', href: '/dashboard' },
             { label: 'SIAKAD', href: '/siakad' },
-            { label: 'RPS', href: '/siakad/obe/rps/kelola' },
-            { label: 'Edit RPS', href: `/siakad/obe/rps/${rpsId}/edit` },
+            { label: 'RPS', href: rpsListUrl },
+            { label: 'Edit RPS', href: editRpsUrl },
             { label: 'Tambah Sesi' },
           ]}
         />
@@ -85,15 +90,15 @@ export default function CreateSesiPage() {
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD', href: '/siakad' },
-          { label: 'RPS', href: '/siakad/obe/rps/kelola' },
-          { label: 'Edit RPS', href: `/siakad/obe/rps/${rpsId}/edit` },
+          { label: 'RPS', href: rpsListUrl },
+          { label: 'Edit RPS', href: editRpsUrl },
           { label: 'Tambah Sesi' },
         ]}
         action={
           <Button
             variant="outline"
             icon={<ArrowLeft size={16} />}
-            onClick={() => router.push(`/siakad/obe/rps/${rpsId}/edit`)}
+            onClick={() => router.push(editRpsUrl)}
             style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
           >
             Kembali

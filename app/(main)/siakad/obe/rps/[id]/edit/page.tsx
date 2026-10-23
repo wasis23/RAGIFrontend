@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,6 +67,10 @@ const dosenDisplayLabel = (d: any) =>
 export default function EditRpsPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
+  const backUrl = fromParam || '/siakad/obe/rps/kelola';
+  const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
   const rpsId = Number(params?.id);
 
   const [loading, setLoading] = useState(true);
@@ -740,7 +744,7 @@ export default function EditRpsPage() {
             {
               label: 'Ubah Sesi',
               icon: <Pencil size={14} />,
-              onClick: () => router.push(`/siakad/obe/rps/${rpsId}/sesi/${row.id}/edit`),
+              onClick: () => router.push(`/siakad/obe/rps/${rpsId}/sesi/${row.id}/edit${fromQuery}`),
             },
             {
               label: 'Hapus Sesi',
@@ -787,7 +791,7 @@ export default function EditRpsPage() {
         kaprodi_id: values.kaprodi_id || undefined,
       });
       toast.success('Dokumen RPS berhasil diperbarui');
-      router.push('/siakad/obe/rps/kelola');
+      router.push(backUrl);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal memperbarui dokumen RPS');
     } finally {
@@ -804,7 +808,7 @@ export default function EditRpsPage() {
           breadcrumbs={[
             { label: 'Portal SSO', href: '/dashboard' },
             { label: 'SIAKAD', href: '/siakad' },
-            { label: 'RPS', href: '/siakad/obe/rps/kelola' },
+            { label: 'RPS', href: backUrl },
             { label: 'Edit RPS' },
           ]}
         />
@@ -825,14 +829,14 @@ export default function EditRpsPage() {
           breadcrumbs={[
             { label: 'Portal SSO', href: '/dashboard' },
             { label: 'SIAKAD', href: '/siakad' },
-            { label: 'RPS', href: '/siakad/obe/rps/kelola' },
+            { label: 'RPS', href: backUrl },
             { label: 'Edit RPS' },
           ]}
           action={
             <Button
               variant="outline"
               icon={<ArrowLeft size={16} />}
-              onClick={() => router.push('/siakad/obe/rps/kelola')}
+              onClick={() => router.push(backUrl)}
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Kembali
@@ -856,14 +860,14 @@ export default function EditRpsPage() {
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD', href: '/siakad' },
-          { label: 'RPS', href: '/siakad/obe/rps/kelola' },
+          { label: 'RPS', href: backUrl },
           { label: 'Edit RPS' },
         ]}
         action={
           <Button
             variant="outline"
             icon={<ArrowLeft size={16} />}
-            onClick={() => router.push('/siakad/obe/rps/kelola')}
+            onClick={() => router.push(backUrl)}
             style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
           >
             Kembali
@@ -1058,7 +1062,7 @@ export default function EditRpsPage() {
                   <Button
                     variant="secondary"
                     type="button"
-                    onClick={() => router.push('/siakad/obe/rps/kelola')}
+                    onClick={() => router.push(backUrl)}
                     disabled={saving}
                   >
                     Batal
@@ -1168,7 +1172,7 @@ export default function EditRpsPage() {
                   type="button"
                   variant="outline"
                   icon={<Plus size={14} />}
-                  onClick={() => router.push(`/siakad/obe/rps/${rpsId}/sesi/create`)}
+                  onClick={() => router.push(`/siakad/obe/rps/${rpsId}/sesi/create${fromQuery}`)}
                   style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
                 >
                   Tambah Sesi

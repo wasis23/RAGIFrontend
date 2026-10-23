@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   Printer,
@@ -28,8 +28,11 @@ export default function CetakRpsPage({
   params: Promise<{ id: string }>;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
   const resolvedParams = use(params);
   const rpsId = Number(resolvedParams.id);
+  const backUrl = fromParam || `/siakad/obe/rps/${rpsId}`;
 
   const [loading, setLoading] = useState(true);
   const [rps, setRps] = useState<any | null>(null);
@@ -211,8 +214,8 @@ export default function CetakRpsPage({
       <div className="max-w-4xl mx-auto py-12 px-4 text-center space-y-4">
         <h2 className="text-lg font-bold text-slate-800">Dokumen RPS Tidak Ditemukan</h2>
         <p className="text-sm text-slate-500">Data dokumen RPS dengan ID {rpsId} tidak tersedia atau telah dihapus.</p>
-        <Button variant="outline" onClick={() => router.push('/siakad/obe/rps/kelola')}>
-          Kembali ke Kelola RPS
+        <Button variant="outline" onClick={() => router.push(backUrl)}>
+          Kembali
         </Button>
       </div>
     );
@@ -228,7 +231,7 @@ export default function CetakRpsPage({
               variant="outline"
               size="sm"
               icon={<ArrowLeft size={16} />}
-              onClick={() => router.push(`/siakad/obe/rps/${rpsId}`)}
+              onClick={() => router.push(backUrl)}
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Kembali

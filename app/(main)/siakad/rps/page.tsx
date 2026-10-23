@@ -386,9 +386,9 @@ export default function SiakadDosenRpsPage() {
                 icon: <Edit2 size={14} />,
                 onClick: () => {
                   if (row.has_rps && row.id) {
-                    router.push(`/siakad/obe/rps/${row.id}/edit`);
+                    router.push(`/siakad/obe/rps/${row.id}/edit?from=/siakad/rps`);
                   } else {
-                    router.push(`/siakad/obe/rps/kelola/create?mata_kuliah_id=${row.mata_kuliah_id}`);
+                    router.push(`/siakad/obe/rps/kelola/create?mata_kuliah_id=${row.mata_kuliah_id}&from=/siakad/rps`);
                   }
                 },
               },
@@ -397,9 +397,9 @@ export default function SiakadDosenRpsPage() {
                 icon: <Eye size={14} />,
                 onClick: () => {
                   if (row.has_rps && row.id) {
-                    router.push(`/siakad/obe/rps/${row.id}`);
+                    router.push(`/siakad/obe/rps/${row.id}?from=/siakad/rps`);
                   } else {
-                    router.push(`/siakad/obe/rps/kelola/create?mata_kuliah_id=${row.mata_kuliah_id}`);
+                    router.push(`/siakad/obe/rps/kelola/create?mata_kuliah_id=${row.mata_kuliah_id}&from=/siakad/rps`);
                   }
                 },
               },
@@ -413,7 +413,7 @@ export default function SiakadDosenRpsPage() {
                 icon: <Printer size={14} />,
                 onClick: () => {
                   if (row.has_rps && row.id) {
-                    window.open(`/siakad/obe/rps/${row.id}/cetak`, '_blank');
+                    window.open(`/siakad/obe/rps/${row.id}/cetak?from=/siakad/rps`, '_blank');
                   } else {
                     toast.error('Dokumen RPS belum disusun, silakan buat dokumen RPS terlebih dahulu');
                   }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -90,6 +90,11 @@ export function SesiForm({
   totalSisaBobot = 100,
 }: SesiFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get("from");
+  const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : "";
+  const backToRpsEditUrl = `/siakad/obe/rps/${rpsId}/edit${fromQuery}`;
+
   const [currentSesiId, setCurrentSesiId] = useState<number | undefined>(
     initial?.id,
   );
@@ -1281,7 +1286,7 @@ export function SesiForm({
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => router.push(`/siakad/obe/rps/${rpsId}/edit`)}
+                onClick={() => router.push(backToRpsEditUrl)}
               >
                 Selesai / Kembali
               </Button>

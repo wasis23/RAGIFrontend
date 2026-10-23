@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -34,6 +34,12 @@ import toast from 'react-hot-toast';
 export default function DetailRpsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
+  const backUrl = fromParam || '/siakad/obe/rps/kelola';
+  const fromQuery = fromParam ? `?from=${encodeURIComponent(fromParam)}` : '';
+  const editUrl = `/siakad/obe/rps/${params?.id}/edit${fromQuery}`;
+  const cetakUrl = `/siakad/obe/rps/${params?.id}/cetak${fromQuery}`;
   const rpsId = Number(params?.id);
 
   const [loading, setLoading] = useState(true);
@@ -376,7 +382,7 @@ export default function DetailRpsPage() {
           breadcrumbs={[
             { label: 'Portal SSO', href: '/dashboard' },
             { label: 'SIAKAD', href: '/siakad' },
-            { label: 'RPS', href: '/siakad/obe/rps/kelola' },
+            { label: 'RPS', href: backUrl },
             { label: 'Detail' },
           ]}
         />
@@ -397,14 +403,14 @@ export default function DetailRpsPage() {
           breadcrumbs={[
             { label: 'Portal SSO', href: '/dashboard' },
             { label: 'SIAKAD', href: '/siakad' },
-            { label: 'RPS', href: '/siakad/obe/rps/kelola' },
+            { label: 'RPS', href: backUrl },
             { label: 'Detail' },
           ]}
           action={
             <Button
               variant="outline"
               icon={<ArrowLeft size={16} />}
-              onClick={() => router.push('/siakad/obe/rps/kelola')}
+              onClick={() => router.push(backUrl)}
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Kembali
@@ -432,7 +438,7 @@ export default function DetailRpsPage() {
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD', href: '/siakad' },
-          { label: 'RPS', href: '/siakad/obe/rps/kelola' },
+          { label: 'RPS', href: backUrl },
           { label: 'Detail' },
         ]}
         action={
@@ -440,7 +446,7 @@ export default function DetailRpsPage() {
             <Button
               variant="outline"
               icon={<ArrowLeft size={16} />}
-              onClick={() => router.push('/siakad/obe/rps/kelola')}
+              onClick={() => router.push(backUrl)}
               style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
             >
               Kembali
@@ -448,14 +454,14 @@ export default function DetailRpsPage() {
             <Button
               variant="outline"
               icon={<Printer size={16} />}
-              onClick={() => window.open(`/siakad/obe/rps/${rpsId}/cetak`, '_blank')}
+              onClick={() => window.open(cetakUrl, '_blank')}
             >
               Cetak RPS
             </Button>
             <Button
               variant="secondary"
               icon={<Edit2 size={16} />}
-              onClick={() => router.push(`/siakad/obe/rps/${rpsId}/edit`)}
+              onClick={() => router.push(editUrl)}
             >
               Edit RPS
             </Button>

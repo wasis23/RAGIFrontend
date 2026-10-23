@@ -43,6 +43,8 @@ export default function CreateRpsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramMkId = searchParams.get('mata_kuliah_id');
+  const fromParam = searchParams.get('from');
+  const backUrl = fromParam || '/siakad/obe/rps/kelola';
 
   const [saving, setSaving] = useState(false);
   const [selectedMk, setSelectedMk] = useState<any | null>(null);
@@ -213,7 +215,7 @@ export default function CreateRpsPage() {
         kaprodi_id: values.kaprodi_id || undefined,
       });
       toast.success('Dokumen RPS baru berhasil dibuat');
-      router.push('/siakad/obe/rps/kelola');
+      router.push(backUrl);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Gagal menyimpan dokumen RPS');
     } finally {
@@ -229,20 +231,14 @@ export default function CreateRpsPage() {
         breadcrumbs={[
           { label: 'Portal SSO', href: '/dashboard' },
           { label: 'SIAKAD', href: '/siakad' },
-          { label: 'RPS', href: '/siakad/obe/rps/kelola' },
+          { label: 'RPS', href: backUrl },
           { label: 'Buat RPS' },
         ]}
         action={
           <Button
             variant="outline"
             icon={<ArrowLeft size={16} />}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.history.length > 1) {
-                router.back();
-              } else {
-                router.push('/siakad/obe/rps/kelola');
-              }
-            }}
+            onClick={() => router.push(backUrl)}
             style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
           >
             Kembali
@@ -467,7 +463,7 @@ export default function CreateRpsPage() {
                   <Button
                     variant="secondary"
                     type="button"
-                    onClick={() => router.push('/siakad/obe/rps/kelola')}
+                    onClick={() => router.push(backUrl)}
                     disabled={saving}
                   >
                     Batal
