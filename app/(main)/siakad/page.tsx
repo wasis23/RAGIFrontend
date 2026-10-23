@@ -564,14 +564,6 @@ export default function SiakadDashboardPage() {
       roles: ['superadmin', 'admin', 'dosen'],
     },
     {
-      title: 'Rencana Studi (KRS)',
-      desc: 'Persetujuan KRS & validasi tagihan SIKEU',
-      icon: <CheckCircle2 size={20} className="text-teal-600" />,
-      href: '/siakad/krs',
-      badge: 'Bimbingan PA',
-      roles: ['superadmin', 'admin', 'dosen'],
-    },
-    {
       title: 'Presensi & Absensi Kuliah',
       desc: 'Pencatatan dan rekap kehadiran mahasiswa',
       icon: <CalendarCheck size={20} className="text-cyan-600" />,

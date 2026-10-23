@@ -1,5 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
+<<<<<<< HEAD
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -1721,4 +1722,8 @@ export default function KrsMahasiswaPage() {
 
     </div>
   );
+=======
+export default function KrsLegacyRedirect() {
+  redirect('/siakad/obe/krs/paket');
+>>>>>>> 740913495f8f7b0c16000aebe28d51df4e134c7a
 }
