@@ -655,9 +655,35 @@ export default function KrsMahasiswaPage() {
                 </Link>
               )}
 
+              {/* Admin/BAAK: susun paket MK per rombel */}
+              {!isMahasiswa && (
+                <Link href="/siakad/krs/paket">
+                  <Button
+                    variant="outline"
+                    icon={<Sparkles size={14} />}
+                    className="font-bold text-xs py-2 px-3 h-auto"
+                    style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                    title="Susun paket MK per rombel & kelola akses KRS"
+                  >
+                    Paket Rombel
+                  </Button>
+                </Link>
+              )}
+
               {/* Mahasiswa Action Buttons */}
               {isMahasiswa && (
                 <div className="flex items-center gap-2">
+                  <Link href="/siakad/krs/paket">
+                    <Button
+                      variant="outline"
+                      icon={<Sparkles size={15} />}
+                      className="font-bold min-h-[38px] text-xs"
+                      style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
+                      title="Ambil seluruh MK rombel Anda sekaligus dalam 1 klik"
+                    >
+                      Ambil Paket Rombel
+                    </Button>
+                  </Link>
                   <Button
                     variant="primary"
                     icon={<Plus size={15} />}

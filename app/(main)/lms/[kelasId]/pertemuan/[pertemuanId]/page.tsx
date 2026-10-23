@@ -18,6 +18,7 @@ import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import PertemuanQuizTab from '@/components/lms/PertemuanQuizTab';
 import PertemuanDiskusi from '@/components/lms/PertemuanDiskusi';
+import ExportLaporanModal from '@/components/lms/ExportLaporanModal';
 import { lmsService } from '@/services/lms.service';
 import { referensiService, MasterReferensiItem } from '@/services/referensi.service';
 import {
@@ -58,7 +59,8 @@ import {
   ClipboardList,
   MessagesSquare,
   GraduationCap,
-  Pencil
+  Pencil,
+  Undo2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -134,11 +136,10 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   const router = useRouter();
   const { hasPermission, hasRole } = useAuth();
   // Samakan dengan halaman detail kelas: dosen dikenali via role ATAU
-  // permission kelola (slug `lms.kelas.manage` tidak ada di DB — yang ada
-  // `siakad.kelas.manage`; cek itu saja agar dosen tak jatuh ke tampilan mhs).
+  // permission kelola. Slug `lms.kelas.manage` tidak ada di DB — yang tersedia
+  // `siakad.kelas.manage`; cek itu saja agar dosen tak jatuh ke tampilan mhs.
   const isDosen =
-    hasRole(['dosen', 'admin', 'superadmin', 'kaprodi', 'wakil_prodi']) ||
-    hasPermission('lms.kelas.manage') ||
+    hasRole(['dosen', 'admin', 'superadmin', 'kaprodi', 'wakil_prodi', 'admin_siakad']) ||
     hasPermission('siakad.kelas.manage');
   const canManageKelas = isDosen;
   const canInputPresensi = isDosen;
@@ -197,6 +198,10 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   const [showTugasModal, setShowTugasModal] = useState<boolean>(false);
   const [selectedPengumpulan, setSelectedPengumpulan] = useState<LmsPengumpulanTugas | null>(null);
 
+  // ID tugas yang sedang diekspor (null = modal export tertutup).
+  const [exportTugasId, setExportTugasId] = useState<number | null>(null);
+  const canExportNilai = hasPermission('siakad.nilai.manage');
+
   // Modal State Mahasiswa
   const [showTokenModal, setShowTokenModal] = useState<boolean>(false);
   const [showKumpulModal, setShowKumpulModal] = useState<boolean>(false);
@@ -218,6 +223,18 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
     name: '',
   });
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  // Modal Konfirmasi Tarik Kembali Pengumpulan (mahasiswa)
+  const [tarikKembaliConfirm, setTarikKembaliConfirm] = useState<{
+    isOpen: boolean;
+    tugasId: number | null;
+    judul: string;
+  }>({
+    isOpen: false,
+    tugasId: null,
+    judul: '',
+  });
+  const [isMenarikKembali, setIsMenarikKembali] = useState<boolean>(false);
 
   // Presensi Manual Dosen Grid State
   const [attendanceChanges, setAttendanceChanges] = useState<Record<number, number>>({});
@@ -575,6 +592,8 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
   };
 
   // Submit Pengumpulan Tugas oleh Mahasiswa
+  // Bila sudah ada pengumpulan sebelumnya → gunakan endpoint perbarui;
+  // bila belum ada → gunakan endpoint kirim pengumpulan.
   const onKumpulTugas = async (values: KumpulTugasFormValues) => {
     if (!selectedTugasForKumpul) return;
 
@@ -586,10 +605,19 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
       formData.append('file', berkasTugasFile);
     }
 
+    const sudahAda = Boolean(detail?.my_pengumpulan?.[selectedTugasForKumpul.id]);
+
     try {
-      const res = await lmsService.kumpulkanTugas(selectedTugasForKumpul.id, formData);
+      const res = sudahAda
+        ? await lmsService.updatePengumpulanTugas(selectedTugasForKumpul.id, formData)
+        : await lmsService.kumpulkanTugas(selectedTugasForKumpul.id, formData);
+
       if (res.status === 'success') {
-        toast.success('Tugas perkuliahan berhasil dikumpulkan');
+        toast.success(
+          sudahAda
+            ? 'Pengumpulan tugas berhasil diperbarui'
+            : 'Tugas perkuliahan berhasil dikumpulkan'
+        );
         setShowKumpulModal(false);
         setSelectedTugasForKumpul(null);
         setBerkasTugasFile(null);
@@ -598,6 +626,23 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
       }
     } catch (err: any) {
       toast.error(err.message || 'Gagal mengumpulkan tugas');
+    }
+  };
+
+  // Tarik kembali / hapus pengumpulan tugas oleh mahasiswa
+  const handleTarikKembali = async () => {
+    if (!tarikKembaliConfirm.tugasId) return;
+
+    setIsMenarikKembali(true);
+    try {
+      await lmsService.hapusPengumpulanTugas(tarikKembaliConfirm.tugasId);
+      toast.success('Pengumpulan tugas berhasil ditarik kembali');
+      setTarikKembaliConfirm({ isOpen: false, tugasId: null, judul: '' });
+      fetchDetail();
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal menarik kembali pengumpulan tugas');
+    } finally {
+      setIsMenarikKembali(false);
     }
   };
 
@@ -1580,6 +1625,10 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
           <div className="space-y-4">
             {detail?.tugas_list?.map((t: LmsTugasItem) => {
               const mySubmisi = detail.my_pengumpulan?.[t.id];
+              // Pengumpulan yang sudah dinilai dikunci backend — mahasiswa tidak
+              // boleh memperbarui maupun menarik kemalinya.
+              const sudahDinilai =
+                mySubmisi?.nilai !== null && mySubmisi?.nilai !== undefined;
 
               return (
                 <div key={t.id} className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs space-y-4">
@@ -1606,10 +1655,19 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                     {!isMahasiswa && (
                       <DropdownMenu
                         items={[
+                          ...(canExportNilai
+                            ? [
+                                {
+                                  label: 'Export Pengumpulan',
+                                  icon: <Download size={16} />,
+                                  onClick: () => setExportTugasId(t.id),
+                                },
+                              ]
+                            : []),
                           {
                             label: 'Hapus Tugas',
                             icon: <Trash2 size={16} />,
-                            variant: 'danger',
+                            variant: 'danger' as const,
                             onClick: () => setDeleteConfirm({ isOpen: true, type: 'tugas', id: t.id, name: t.judul }),
                           },
                         ]}
@@ -1628,14 +1686,20 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                         <Button
                           size="sm"
                           icon={<UploadCloud size={16} />}
+                          disabled={sudahDinilai}
                           onClick={() => {
                             setSelectedTugasForKumpul(t);
                             kumpulFormHook.setValue('catatan_mahasiswa', mySubmisi?.catatan_mahasiswa || '');
                             setShowKumpulModal(true);
                           }}
                         >
-                          {mySubmisi ? 'Kumpulkan Ulang' : 'Kumpulkan Tugas'}
+                          {mySubmisi ? 'Perbarui Pengumpulan' : 'Kumpulkan Tugas'}
                         </Button>
+                        {sudahDinilai && (
+                          <p className="text-2xs text-slate-500 w-full">
+                            Pengumpulan sudah dinilai sehingga tidak dapat diubah atau ditarik kembali.
+                          </p>
+                        )}
                       </div>
 
                       {mySubmisi ? (
@@ -1652,16 +1716,34 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
                               )}
                             </div>
 
-                            {mySubmisi.file_path && (
+                            {(mySubmisi.file_path || !sudahDinilai) && (
                               <DropdownMenu
                                 items={[
-                                  {
-                                    label: 'Unduh Berkas Saya',
-                                    icon: <Download size={16} />,
-                                    onClick: () => {
-                                      window.open(mySubmisi.file_path || '#', '_blank');
-                                    },
-                                  },
+                                  ...(mySubmisi.file_path
+                                    ? [
+                                        {
+                                          label: 'Unduh Berkas Saya',
+                                          icon: <Download size={16} />,
+                                          onClick: () => {
+                                            window.open(mySubmisi.file_path || '#', '_blank');
+                                          },
+                                        },
+                                      ]
+                                    : []),
+                                  ...(!sudahDinilai
+                                    ? [
+                                        {
+                                          label: 'Tarik Kembali Pengumpulan',
+                                          icon: <Undo2 size={16} />,
+                                          onClick: () =>
+                                            setTarikKembaliConfirm({
+                                              isOpen: true,
+                                              tugasId: t.id,
+                                              judul: t.judul,
+                                            }),
+                                        },
+                                      ]
+                                    : []),
                                 ]}
                               />
                             )}
@@ -1985,11 +2067,11 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         </form>
       </Modal>
 
-      {/* Modal Kumpulkan Tugas Mahasiswa */}
+      {/* Modal Kumpulkan / Perbarui Tugas Mahasiswa */}
       <Modal
         open={showKumpulModal}
         onClose={() => setShowKumpulModal(false)}
-        title={`Kumpulkan Tugas: ${selectedTugasForKumpul?.judul || ''}`}
+        title={`${selectedTugasForKumpul && detail?.my_pengumpulan?.[selectedTugasForKumpul.id] ? 'Perbarui Pengumpulan' : 'Kumpulkan Tugas'}: ${selectedTugasForKumpul?.judul || ''}`}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="outline" icon={<X size={16} />} onClick={() => setShowKumpulModal(false)}>
@@ -2002,7 +2084,9 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
               disabled={kumpulFormHook.formState.isSubmitting}
               icon={<UploadCloud size={16} />}
             >
-              Simpan & Kumpulkan
+              {selectedTugasForKumpul && detail?.my_pengumpulan?.[selectedTugasForKumpul.id]
+                ? 'Simpan Perubahan'
+                : 'Simpan & Kumpulkan'}
             </Button>
           </div>
         }
@@ -2092,6 +2176,25 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         variant="danger"
       />
 
+      {/* Modal Konfirmasi Tarik Kembali Pengumpulan */}
+      <ConfirmDialog
+        isOpen={tarikKembaliConfirm.isOpen}
+        onClose={() => setTarikKembaliConfirm({ isOpen: false, tugasId: null, judul: '' })}
+        onConfirm={handleTarikKembali}
+        isLoading={isMenarikKembali}
+        title="Tarik Kembali Pengumpulan"
+        message={
+          <span>
+            Apakah Anda yakin ingin menarik kembali pengumpulan tugas{' '}
+            <strong>{tarikKembaliConfirm.judul}</strong>? Berkas yang sudah diunggah akan
+            dihapus dan Anda perlu mengunggah ulang bila ingin mengumpulkan kembali.
+          </span>
+        }
+        confirmText="Tarik Kembali"
+        cancelText="Batal"
+        variant="danger"
+      />
+
       {/* Modal Konfirmasi Tutup Sesi Presensi */}
       <ConfirmDialog
         isOpen={tutupConfirm}
@@ -2110,6 +2213,14 @@ export default function LmsPertemuanDetailPage({ params }: PageProps) {
         confirmText="Tutup Sesi"
         cancelText="Batal"
         variant="danger"
+      />
+
+      {/* Modal Export Pengumpulan Tugas (dosen) */}
+      <ExportLaporanModal
+        open={exportTugasId !== null}
+        onClose={() => setExportTugasId(null)}
+        scope={{ tugasId: exportTugasId ?? undefined }}
+        jenis={['pengumpulan']}
       />
     </div>
   );

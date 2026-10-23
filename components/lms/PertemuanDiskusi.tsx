@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import ForumChat from '@/components/lms/ForumChat';
 import { lmsService } from '@/services/lms.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { LmsForumTopik, LmsForumPost } from '@/types/lms.types';
 import { Plus, X, Send, Trash2 } from 'lucide-react';
 
@@ -136,6 +137,16 @@ export default function PertemuanDiskusi({ kelasId, pertemuanId, pertemuanKe, ca
     }
   };
 
+  const handleEditPost = async (postId: number, isi: string) => {
+    try {
+      await lmsService.updateForumPost(postId, { isi });
+      toast.success('Pesan diperbarui');
+      if (topik) fetchPost(topik.id);
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Gagal mengubah pesan'));
+    }
+  };
+
   if (loading) return <p className="text-xs text-slate-500">Memuat diskusi pertemuan...</p>;
 
   if (!topik) {
@@ -189,8 +200,11 @@ export default function PertemuanDiskusi({ kelasId, pertemuanId, pertemuanKe, ca
           loadingPost={loadingPost}
           onSend={handleSend}
           onDeletePost={handleDeletePost}
+          onEditPost={handleEditPost}
           sending={sending}
           currentName={currentName}
+          currentUserId={user?.id ?? null}
+          canManage={canManage}
           pollIntervalMs={15000}
           onRefresh={() => topik && fetchPost(topik.id)}
           headerExtra={

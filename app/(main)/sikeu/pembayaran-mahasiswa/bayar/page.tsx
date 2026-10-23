@@ -161,6 +161,38 @@ function BayarKasirContent() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<StudentInfo[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<StudentInfo | null>(null);
+  // Scope pencarian ala legacy: prodi + angkatan dulu agar tidak memuat seluruh data
+  const [searchProdi, setSearchProdi] = useState('');
+  const [searchAngkatan, setSearchAngkatan] = useState('');
+  const [prodiOptions, setProdiOptions] = useState<{ value: string; label: string }[]>([]);
+  const [angkatanOptions, setAngkatanOptions] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    const loadMasters = async () => {
+      try {
+        const [resProdi, resAngkatan] = await Promise.all([
+          sikeuService.getProgramStudiList(),
+          sikeuService.getAngkatanList().catch(() => ({ data: [] })),
+        ]);
+        if (Array.isArray((resProdi as any).data)) {
+          setProdiOptions(
+            (resProdi as any).data.map((p: any) => ({
+              value: String(p.id),
+              label: p.jenjang ? `${p.jenjang} - ${p.nama || p.nama_prodi}` : (p.nama || p.nama_prodi),
+            }))
+          );
+        }
+        if (Array.isArray((resAngkatan as any).data)) {
+          setAngkatanOptions(
+            (resAngkatan as any).data.map((a: number) => ({ value: String(a), label: `Angkatan ${a}` }))
+          );
+        }
+      } catch {
+        // Fallback: pencarian tetap jalan tanpa scope master
+      }
+    };
+    loadMasters();
+  }, []);
 
   const [bills, setBills] = useState<BillItem[]>([]);
   const [loadingBills, setLoadingBills] = useState(false);
@@ -316,7 +348,10 @@ function BayarKasirContent() {
 
     setSearching(true);
     try {
-      const res = await sikeuService.searchMahasiswa(searchQuery.trim());
+      const res = await sikeuService.searchMahasiswa(searchQuery.trim(), {
+        program_studi_id: searchProdi || undefined,
+        angkatan: searchAngkatan || undefined,
+      });
       const list = res.data || [];
       setSearchResults(list);
       if (list.length === 0) {
@@ -1136,6 +1171,20 @@ function BayarKasirContent() {
 
             {!selectedStudent ? (
               <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <Select
+                    label="Program Studi (opsional — persempit pencarian)"
+                    value={searchProdi}
+                    onChange={(val) => setSearchProdi(val as string)}
+                    options={[{ value: '', label: 'Semua Prodi' }, ...prodiOptions]}
+                  />
+                  <Select
+                    label="Tahun Angkatan (opsional)"
+                    value={searchAngkatan}
+                    onChange={(val) => setSearchAngkatan(val as string)}
+                    options={[{ value: '', label: 'Semua Angkatan' }, ...angkatanOptions]}
+                  />
+                </div>
                 <form onSubmit={handleSearch} className="flex gap-2">
                   <div className="flex-1">
                     <Input

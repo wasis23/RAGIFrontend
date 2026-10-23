@@ -171,6 +171,8 @@ export interface LmsKelasSetting {
   can_submit_late: boolean;
   show_nilai_to_mahasiswa: boolean;
   storage_disk?: string | null;
+  /** `true` bila kelas belum pernah dikonfigurasi (backend mengembalikan setting bawaan). */
+  is_default?: boolean;
 }
 
 /**
@@ -265,6 +267,19 @@ export interface LmsMateriFile {
   disk: string;
   mime_type?: string | null;
   ukuran_bytes?: number | null;
+}
+
+/**
+ * Hasil permintaan URL unduh berkas LMS.
+ *
+ * Sesuai backend `LmsService::getDownloadUrl()`:
+ * - `materi` → id = `lms_materi_file.id`
+ * - `pengumpulan` → id = `lms_pengumpulan_tugas.id`
+ */
+export interface LmsDownloadUrl {
+  nama_file: string;
+  download_url: string;
+  disk: string;
 }
 
 export interface LmsMateriItem {
@@ -480,6 +495,8 @@ export interface LmsQuizItem {
   deskripsi?: string | null;
   durasi_menit?: number | null;
   max_attempt: number;
+  /** Ambang kelulusan 0–100; `null` = tanpa ambang (status lulus tidak ditampilkan). */
+  passing_score?: number | string | null;
   acak_soal: boolean;
   acak_jawaban: boolean;
   batch_size?: number | null;
@@ -528,6 +545,8 @@ export interface LmsQuizAttempt {
   dimulai_at: string;
   disubmit_at?: string | null;
   nilai_akhir?: number | null;
+  /** Kelulusan attempt terhadap `passing_score`; `null`/undefined = ambang belum ditetapkan atau belum dinilai. */
+  is_lulus?: boolean | null;
   butuh_penilaian_manual: boolean;
   feedback_dosen?: string | null;
   mahasiswa?: { id: number; nim: string; nama_lengkap: string };
@@ -538,6 +557,17 @@ export interface LmsTryoutPeserta {
   quiz_id: number;
   mahasiswa_id: number;
   mahasiswa?: { id: number; nim: string; nama_lengkap: string };
+}
+
+/** Hasil pencarian mahasiswa untuk pemilih peserta tryout (`GET /lms/mahasiswa/search`). */
+export interface LmsMahasiswaRingkas {
+  id: number;
+  nim: string;
+  nama_lengkap: string;
+  program_studi_id?: number | null;
+  kelas?: string | null;
+  status?: string | null;
+  program_studi?: { id: number; kode_prodi: string; nama: string; jenjang?: string } | null;
 }
 
 // ── Detail attempt & preview tryout (dosen kelola) ──
@@ -579,6 +609,8 @@ export interface LmsQuizPreview {
 export interface LmsForumTopik {
   id: number;
   judul: string;
+  /** Penanda topik default kelas ("Diskusi Umum"); null untuk topik buatan pengguna. */
+  slug?: string | null;
   kelas_id?: number | null;
   pertemuan_id?: number | null;
   is_pinned: boolean;
@@ -592,6 +624,8 @@ export interface LmsForumTopik {
   posts_count?: number;
   /** Hanya terisi pada endpoint agregat `/lms/forum`. */
   kelas?: LmsKelasRingkas | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface LmsForumPost {
@@ -602,6 +636,9 @@ export interface LmsForumPost {
   nama_penulis: string;
   isi: string;
   created_at: string;
+  updated_at?: string;
+  /** Atribut terhitung dari backend: pesan pernah diedit (`updated_at > created_at`). */
+  is_edited?: boolean;
   balasan?: LmsForumPost[];
 }
 
@@ -685,3 +722,372 @@ export interface LmsQuizKolaborator {
     nama_lengkap: string;
   } | null;
 }
+
+// ── Export Laporan LMS ──
+
+/**
+ * Format berkas export laporan LMS.
+ *
+ * Closed-set dari domain (bukan entitas master), dideklarasikan sebagai
+ * konstanta terpusat agar sinkron dengan `LmsExportService::FORMATS`
+ * di backend. Jangan menulis ulang daftar ini di komponen lain.
+ */
+export type LmsExportFormat = 'csv' | 'xlsx';
+
+export const LMS_EXPORT_FORMAT_OPTIONS: SelectOption[] = [
+  { value: 'csv', label: 'CSV (.csv)' },
+  { value: 'xlsx', label: 'Excel (.xlsx)' },
+];
+
+export const LMS_EXPORT_FORMAT_VALUES = LMS_EXPORT_FORMAT_OPTIONS.map(
+  (option) => option.value
+) as [LmsExportFormat, ...LmsExportFormat[]];
+
+export const LMS_EXPORT_FORMAT_LABEL: Record<LmsExportFormat, string> = {
+  csv: 'CSV',
+  xlsx: 'Excel (XLSX)',
+};
+
+/**
+ * Hasil unduh laporan: blob berkas + nama berkas final dari header
+ * `Content-Disposition` backend.
+ */
+export interface LmsExportFile {
+  blob: Blob;
+  filename: string;
+}
+
+/**
+ * Jenis laporan export LMS.
+ *
+ * Setiap jenis memetakan ke satu endpoint backend (bukan entitas master),
+ * sehingga tetap berupa closed-set yang stabil dan dideklarasikan sebagai
+ * konstanta terpusat.
+ */
+export type LmsExportJenis = 'presensi' | 'izin' | 'nilai' | 'pengumpulan' | 'quiz' | 'tryout';
+
+export const LMS_EXPORT_JENIS_LABEL: Record<LmsExportJenis, string> = {
+  presensi: 'Rekap Absensi',
+  izin: 'Rekap Pengajuan Izin',
+  nilai: 'Rekap Nilai (Tugas & Quiz)',
+  pengumpulan: 'Status Pengumpulan Tugas',
+  quiz: 'Hasil Pengerjaan Quiz',
+  tryout: 'Hasil Pengerjaan Tryout',
+};
+
+// ── Integrasi PresensiV2 (Panel Administrasi Presensi LMS) ──
+
+/**
+ * Status sinkronisasi satu baris data presensi terhadap PresensiV2.
+ *
+ * Closed-set dari domain, dinormalisasi di backend pada trait
+ * `App\Models\Concerns\HasPresensiSyncStatus` (LMS-03). Tidak ada tabel
+ * master untuk nilai ini — tetap sebagai konstanta terpusat.
+ */
+export type LmsPresensiSyncStatus = 'local' | 'pending' | 'synced' | 'failed';
+
+export const LMS_PRESENSI_SYNC_STATUS_OPTIONS: SelectOption[] = [
+  { value: 'local', label: 'Hanya di LMS' },
+  { value: 'pending', label: 'Menunggu Sinkron' },
+  { value: 'synced', label: 'Tersinkron' },
+  { value: 'failed', label: 'Gagal Sinkron' },
+];
+
+export const LMS_PRESENSI_SYNC_STATUS_LABEL: Record<LmsPresensiSyncStatus, string> = {
+  local: 'Hanya di LMS',
+  pending: 'Menunggu Sinkron',
+  synced: 'Tersinkron',
+  failed: 'Gagal Sinkron',
+};
+
+/**
+ * Status kehadiran mahasiswa pada satu pertemuan.
+ *
+ * Sejalan dengan CHECK constraint `siakad_absensi_mahasiswa.status`.
+ */
+export type LmsPresensiAbsenStatus = 'hadir' | 'sakit' | 'izin' | 'alfa';
+
+export const LMS_PRESENSI_ABSEN_STATUS_OPTIONS: SelectOption[] = [
+  { value: 'hadir', label: 'Hadir' },
+  { value: 'sakit', label: 'Sakit' },
+  { value: 'izin', label: 'Izin' },
+  { value: 'alfa', label: 'Alfa' },
+];
+
+export const LMS_PRESENSI_ABSEN_STATUS_LABEL: Record<LmsPresensiAbsenStatus, string> = {
+  hadir: 'Hadir',
+  sakit: 'Sakit',
+  izin: 'Izin',
+  alfa: 'Alfa',
+};
+
+/**
+ * Status percobaan sinkronisasi yang tercatat pada log integrasi.
+ *
+ * Sejalan dengan `LmsPresensiSyncLog::STATUS_*` di backend.
+ */
+export type LmsPresensiLogStatus = 'success' | 'failed' | 'partial' | 'skipped';
+
+export const LMS_PRESENSI_LOG_STATUS_OPTIONS: SelectOption[] = [
+  { value: 'success', label: 'Berhasil' },
+  { value: 'failed', label: 'Gagal' },
+  { value: 'partial', label: 'Sebagian' },
+  { value: 'skipped', label: 'Dilewati' },
+];
+
+export const LMS_PRESENSI_LOG_STATUS_LABEL: Record<LmsPresensiLogStatus, string> = {
+  success: 'Berhasil',
+  failed: 'Gagal',
+  partial: 'Sebagian',
+  skipped: 'Dilewati',
+};
+
+/**
+ * Transport sinkronisasi integrasi PresensiV2.
+ *
+ * Sejalan dengan config `lms_integration.presensi.mode` di backend.
+ */
+export type LmsPresensiTransport = 'api' | 'db' | 'none';
+
+export const LMS_PRESENSI_TRANSPORT_LABEL: Record<LmsPresensiTransport, string> = {
+  api: 'REST API PresensiV2',
+  db: 'Direct Database PresensiV2',
+  none: 'Belum Terintegrasi',
+};
+
+/** Ringkasan status integrasi PresensiV2 + feature flag presensi LMS. */
+export interface LmsPresensiStatus {
+  configured: boolean;
+  mode: string;
+  via: LmsPresensiTransport;
+  api_url: string;
+  timeout: number;
+  db_connection: string;
+  api_reachable: boolean;
+  db_reachable: boolean;
+  message: string;
+  fitur_presensi_aktif: boolean;
+  total_pertemuan: number;
+  total_gagal_sync: number;
+  total_tersinkron: number;
+  sinkron_terakhir?: LmsPresensiSinkronTerakhir | null;
+}
+
+/** Ringkasan percobaan sinkronisasi terakhir (dipotong oleh backend). */
+export interface LmsPresensiSinkronTerakhir {
+  aksi: string;
+  status: LmsPresensiLogStatus;
+  via: LmsPresensiTransport;
+  message: string | null;
+  created_at: string;
+}
+
+/** Ringkasan absensi sebuah kelas pada panel administrasi presensi. */
+export interface LmsPresensiKelasItem {
+  id: number;
+  kode_kelas: string;
+  nama_kelas: string;
+  mata_kuliah?: { id: number; nama: string } | null;
+  program_studi?: { id: number; nama: string; kode_prodi?: string } | null;
+  tahun_akademik?: { id: number; kode: string; nama: string } | null;
+  jumlah_sesi: number;
+  jumlah_gagal_sync: number;
+  jumlah_tersinkron: number;
+  jumlah_rekap: number;
+  jumlah_hadir: number;
+}
+
+/** Baris rekap kehadiran (satu baris per mahasiswa per pertemuan). */
+export interface LmsPresensiRekapItem {
+  id: number;
+  status: LmsPresensiAbsenStatus;
+  catatan: string | null;
+  sync_status: LmsPresensiSyncStatus;
+  synced_at: string | null;
+  pertemuan_id: number;
+  pertemuan_ke: number;
+  tanggal: string;
+  materi: string | null;
+  kelas_id: number;
+  kode_kelas: string;
+  nama_kelas: string;
+  nama_mk: string | null;
+  nim: string;
+  nama_lengkap: string;
+}
+
+/** Jejak percobaan sinkronisasi ke PresensiV2. */
+export interface LmsPresensiSyncLogItem {
+  id: number;
+  entitas: string;
+  entitas_id: number;
+  kelas_id: number | null;
+  pertemuan_ke: number | null;
+  aksi: string;
+  status: LmsPresensiLogStatus;
+  via: LmsPresensiTransport;
+  message: string | null;
+  created_at: string;
+  updated_at?: string;
+  /** Pengguna yang memicu sinkronisasi (bila ada). */
+  user?: { id: number; name: string; username: string } | null;
+}
+
+/** Cakupan sinkronisasi ulang: satu pertemuan atau satu kelas. */
+export interface LmsPresensiSyncPayload {
+  pertemuan_id?: number | null;
+  kelas_id?: number | null;
+}
+
+/** Hasil aksi sinkronisasi ulang (LMS → PresensiV2). */
+export interface LmsPresensiSyncResult {
+  success: boolean;
+  message: string;
+  pertemuan?: Record<string, { success: boolean; message: string; via?: string }>;
+}
+
+/** Hasil penarikan riwayat dari PresensiV2 ke LMS. */
+export interface LmsPresensiTarikResult {
+  success: boolean;
+  message: string;
+  via?: LmsPresensiTransport;
+  jurnal_ditarik?: number;
+  rekap_ditarik?: number;
+}
+
+/** Pilihan kolom pengurutan daftar kelas pada panel presensi. */
+export const LMS_PRESENSI_SORT_BY_OPTIONS: SelectOption[] = [
+  { value: 'kode_kelas', label: 'Kode Kelas' },
+  { value: 'nama_kelas', label: 'Nama Kelas' },
+  { value: 'jumlah_sesi', label: 'Jumlah Sesi' },
+  { value: 'created_at', label: 'Tanggal Dibuat' },
+];
+
+/* ══════════════════════════════════════════════════════════════
+ * Notifikasi In-App LMS (LMS-04 / Fase 3A)
+ * ══════════════════════════════════════════════════════════════ */
+
+/**
+ * Jenis notifikasi LMS.
+ *
+ * Closed-set dari domain backend (`App\Models\Lms\LmsNotifikasi::JENIS`).
+ * Tidak ada tabel master untuk nilai ini, jadi dideklarasikan sebagai
+ * konstanta terpusat di sini.
+ */
+export type LmsNotifikasiJenis =
+  | 'deadline_tugas'
+  | 'deadline_quiz'
+  | 'tugas_baru'
+  | 'quiz_baru'
+  | 'forum'
+  | 'info';
+
+export const LMS_NOTIFIKASI_JENIS_OPTIONS: SelectOption[] = [
+  { value: 'deadline_tugas', label: 'Deadline Tugas' },
+  { value: 'deadline_quiz', label: 'Deadline Kuis' },
+  { value: 'tugas_baru', label: 'Tugas Baru' },
+  { value: 'quiz_baru', label: 'Kuis Baru' },
+  { value: 'forum', label: 'Forum Diskusi' },
+  { value: 'info', label: 'Informasi' },
+];
+
+/**
+ * Prioritas notifikasi (closed-set domain backend).
+ */
+export type LmsNotifikasiPrioritas = 'rendah' | 'normal' | 'tinggi';
+
+export const LMS_NOTIFIKASI_PRIORITAS_OPTIONS: SelectOption[] = [
+  { value: 'rendah', label: 'Rendah' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'tinggi', label: 'Tinggi' },
+];
+
+/** Label jenis notifikasi untuk badge. */
+export const LMS_NOTIFIKASI_JENIS_LABEL: Record<LmsNotifikasiJenis, string> = {
+  deadline_tugas: 'Deadline Tugas',
+  deadline_quiz: 'Deadline Kuis',
+  tugas_baru: 'Tugas Baru',
+  quiz_baru: 'Kuis Baru',
+  forum: 'Forum Diskusi',
+  info: 'Informasi',
+};
+
+/** Satu notifikasi milik pengguna yang sedang login. */
+export interface LmsNotifikasiItem {
+  id: number;
+  user_id: number;
+  jenis: LmsNotifikasiJenis;
+  judul: string;
+  pesan: string | null;
+  /** Rute frontend tujuan (mis. `/lms/tugas/9`). */
+  rute: string | null;
+  kelas_id: number | null;
+  entitas_type: string | null;
+  entitas_id: number | null;
+  prioritas: LmsNotifikasiPrioritas;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+  updated_at?: string;
+  kelas?: { id: number; kode_kelas: string; nama_kelas: string } | null;
+}
+
+/** Hasil endpoint jumlah notifikasi belum dibaca. */
+export interface LmsNotifikasiUnreadCount {
+  unread_count: number;
+}
+
+/** Pilihan kolom pengurutan daftar notifikasi. */
+export const LMS_NOTIFIKASI_SORT_BY_OPTIONS: SelectOption[] = [
+  { value: 'created_at', label: 'Waktu Diterima' },
+  { value: 'read_at', label: 'Waktu Dibaca' },
+  { value: 'prioritas', label: 'Prioritas' },
+  { value: 'jenis', label: 'Jenis' },
+];
+
+/**
+ * Opsi filter status baca notifikasi (closed-set boolean, bukan entitas master).
+ */
+export const LMS_NOTIFIKASI_READ_OPTIONS: SelectOption[] = [
+  { value: 'false', label: 'Belum Dibaca' },
+  { value: 'true', label: 'Sudah Dibaca' },
+];
+
+/** Ringkasan dashboard LMS (`GET /lms/dashboard/overview`). */
+export interface LmsDashboardOverview {
+  role: 'mahasiswa' | 'dosen' | 'pengelola';
+  ringkasan: {
+    kelas: number;
+    tugas_aktif: number;
+    tryout_aktif: number;
+    forum_topik: number;
+    notifikasi_belum_dibaca: number;
+  };
+  tambahan: Record<string, number>;
+  tren: Array<{ tanggal: string; pengumpulan: number; attempt: number }>;
+}
+
+/** Tipe nilai pengaturan modul LMS (mengikuti definisi backend). */
+export type LmsSettingType = 'boolean' | 'integer' | 'string';
+
+/** Definisi satu field pengaturan modul LMS. */
+export interface LmsPengaturanDefinition {
+  key: string;
+  label: string;
+  group: string;
+  type: LmsSettingType;
+  min?: number;
+  max?: number;
+  default: boolean | number | string;
+  public?: boolean;
+  description?: string;
+}
+
+/** Payload `GET /lms/pengaturan/modul`. */
+export interface LmsPengaturanModul {
+  values: Record<string, boolean | number | string>;
+  definitions: LmsPengaturanDefinition[];
+}
+
+/** Pengaturan publik (`GET /lms/public/settings`). */
+export type LmsPublicSettings = Record<string, boolean | number | string>;

@@ -1,4 +1,5 @@
 import apiClient from '@/lib/axios';
+import { buildExportFile } from '@/lib/download';
 import { ApiResponse } from '@/types/api.types';
 import {
   LmsKelasItem,
@@ -21,12 +22,28 @@ import {
   LmsAttemptDetail,
   LmsQuizPreview,
   LmsTryoutPeserta,
+  LmsMahasiswaRingkas,
   LmsForumTopik,
   LmsForumPost,
   LmsPertemuanItem,
   LmsPertemuanPayload,
+  LmsDownloadUrl,
+  LmsExportFile,
+  LmsExportFormat,
   MetodeAbsensi,
   PengaturanStatus,
+  LmsPresensiStatus,
+  LmsPresensiKelasItem,
+  LmsPresensiRekapItem,
+  LmsPresensiSyncLogItem,
+  LmsPresensiSyncPayload,
+  LmsPresensiSyncResult,
+  LmsPresensiTarikResult,
+  LmsNotifikasiItem,
+  LmsNotifikasiUnreadCount,
+  LmsDashboardOverview,
+  LmsPengaturanModul,
+  LmsPublicSettings,
 } from '@/types/lms.types';
 
 export const lmsService = {
@@ -140,6 +157,15 @@ export const lmsService = {
     status_konfigurasi?: PengaturanStatus;
   }): Promise<ApiResponse<LmsKelasItem[]>> => {
     const response = await apiClient.get('/v1/lms/pengaturan', { params });
+    return response.data;
+  },
+
+  /**
+   * Pengaturan LMS satu kelas (read-only). Bila kelas belum pernah
+   * dikonfigurasi, backend mengembalikan setting bawaan.
+   */
+  getKelasSetting: async (kelasId: number): Promise<ApiResponse<LmsKelasSetting>> => {
+    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/setting`);
     return response.data;
   },
 
@@ -266,6 +292,28 @@ export const lmsService = {
     return response.data;
   },
 
+  /**
+   * Perbarui pengumpulan tugas (berkas &/atau catatan).
+   * Hanya bisa dilakukan bila pengumpulan belum dinilai.
+   */
+  updatePengumpulanTugas: async (
+    tugasId: number,
+    formData: FormData
+  ): Promise<ApiResponse<LmsPengumpulanTugas>> => {
+    const response = await apiClient.put(`/v1/lms/tugas/${tugasId}/kumpulan`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  /**
+   * Tarik kembali / hapus pengumpulan tugas milik sendiri.
+   */
+  hapusPengumpulanTugas: async (tugasId: number): Promise<ApiResponse<null>> => {
+    const response = await apiClient.delete(`/v1/lms/tugas/${tugasId}/kumpulan`);
+    return response.data;
+  },
+
   ajukanIzin: async (
     pertemuanId: number,
     formData: FormData
@@ -277,7 +325,10 @@ export const lmsService = {
   },
 
   // 7. Download / Berkas Aman
-  getDownloadUrl: async (type: 'materi' | 'tugas' | 'izin', id: number): Promise<ApiResponse<{ url: string; file_name: string }>> => {
+  // Tipe & bentuk response mengikuti backend `LmsService::getDownloadUrl()`:
+  // - type `materi` → id `lms_materi_file.id`
+  // - type `pengumpulan` → id `lms_pengumpulan_tugas.id`
+  getDownloadUrl: async (type: 'materi' | 'pengumpulan', id: number): Promise<ApiResponse<LmsDownloadUrl>> => {
     const response = await apiClient.get(`/v1/lms/download/${type}/${id}`);
     return response.data;
   },
@@ -376,6 +427,34 @@ export const lmsService = {
     return response.data;
   },
 
+  /** Salin peserta eksplisit dari tryout lain pada kelas yang sama (idempoten). */
+  copyTryoutPeserta: async (
+    quizId: number,
+    sourceQuizId: number
+  ): Promise<ApiResponse<{ added: number; skipped: number; source_quiz_id: number }>> => {
+    const response = await apiClient.post(`/v1/lms/quiz/${quizId}/peserta-copy`, {
+      source_quiz_id: sourceQuizId,
+    });
+    return response.data;
+  },
+
+  /** Lepas beberapa soal sekaligus dari satu quiz/tryout (ditolak bila attempt sudah ada). */
+  bulkDeleteQuizSoal: async (
+    quizId: number,
+    quizSoalIds: number[]
+  ): Promise<ApiResponse<{ deleted: number; ids: number[] }>> => {
+    const response = await apiClient.post(`/v1/lms/quiz/${quizId}/soal/bulk-delete`, {
+      quiz_soal_ids: quizSoalIds,
+    });
+    return response.data;
+  },
+
+  /** Cari mahasiswa berdasarkan NIM/nama untuk pemilih peserta tryout. */
+  searchMahasiswa: async (q: string, limit = 20): Promise<ApiResponse<LmsMahasiswaRingkas[]>> => {
+    const response = await apiClient.get('/v1/lms/mahasiswa/search', { params: { q, limit } });
+    return response.data;
+  },
+
   // 10. Pengerjaan Quiz/Tryout (mahasiswa)
   getQuizMahasiswa: async (quizId: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.get(`/v1/lms/quiz/${quizId}`);
@@ -463,8 +542,31 @@ export const lmsService = {
     return response.data;
   },
 
+  /**
+   * Pastikan topik default "Diskusi Umum" tersedia pada kelas (idempoten).
+   *
+   * Endpoint baca (`listForumTopik`) tidak lagi membuat topik secara otomatis
+   * supaya GET tidak menulis data. Frontend memanggil ini saat daftar topik
+   * kosong agar mahasiswa tetap bisa berdiskusi.
+   */
+  ensureForumTopikUmum: async (kelasId: number): Promise<ApiResponse<LmsForumTopik>> => {
+    const response = await apiClient.post(`/v1/lms/kelas/${kelasId}/forum/umum`);
+    return response.data;
+  },
+
   deleteForumTopik: async (topikId: number): Promise<ApiResponse<{ id: number; is_deleted: boolean }>> => {
     const response = await apiClient.delete(`/v1/lms/forum/${topikId}`);
+    return response.data;
+  },
+
+  /**
+   * Ubah judul dan/atau status sematan topik (pengelola kelas).
+   */
+  updateForumTopik: async (
+    topikId: number,
+    payload: { judul: string; is_pinned?: boolean }
+  ): Promise<ApiResponse<LmsForumTopik>> => {
+    const response = await apiClient.put(`/v1/lms/forum/${topikId}`, payload);
     return response.data;
   },
 
@@ -480,6 +582,14 @@ export const lmsService = {
 
   deleteForumPost: async (postId: number): Promise<ApiResponse<{ id: number; is_deleted: boolean }>> => {
     const response = await apiClient.delete(`/v1/lms/forum-post/${postId}`);
+    return response.data;
+  },
+
+  /**
+   * Edit isi pesan (penulis sendiri atau pengelola kelas).
+   */
+  updateForumPost: async (postId: number, payload: { isi: string }): Promise<ApiResponse<LmsForumPost>> => {
+    const response = await apiClient.put(`/v1/lms/forum-post/${postId}`, payload);
     return response.data;
   },
 
@@ -499,6 +609,230 @@ export const lmsService = {
 
   removeKolaborator: async (kolaboratorId: number): Promise<ApiResponse<{ id: number; is_deleted: boolean }>> => {
     const response = await apiClient.delete(`/v1/lms/quiz-kolaborator/${kolaboratorId}`);
+    return response.data;
+  },
+
+  // 13. Export laporan (CSV / XLSX)
+  // Endpoint ini membalas berkas (bukan JSON) — dipakai `responseType: 'blob'`
+  // dan nama berkas diambil dari header `Content-Disposition`.
+  exportRekapNilai: async (kelasId: number, format: LmsExportFormat = 'csv'): Promise<LmsExportFile> => {
+    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/export/nilai`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return buildExportFile(response.data, response.headers['content-disposition'], 'Rekap_Nilai_Kelas');
+  },
+
+  exportRekapPresensi: async (kelasId: number, format: LmsExportFormat = 'csv'): Promise<LmsExportFile> => {
+    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/export/presensi`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return buildExportFile(response.data, response.headers['content-disposition'], 'Rekap_Absensi_Kelas');
+  },
+
+  exportRekapIzin: async (kelasId: number, format: LmsExportFormat = 'csv'): Promise<LmsExportFile> => {
+    const response = await apiClient.get(`/v1/lms/kelas/${kelasId}/export/absensi-izin`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return buildExportFile(response.data, response.headers['content-disposition'], 'Rekap_Izin_Absensi');
+  },
+
+  exportPengumpulanTugas: async (tugasId: number, format: LmsExportFormat = 'csv'): Promise<LmsExportFile> => {
+    const response = await apiClient.get(`/v1/lms/tugas/${tugasId}/export/pengumpulan`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return buildExportFile(response.data, response.headers['content-disposition'], 'Rekap_Pengumpulan_Tugas');
+  },
+
+  exportHasilQuiz: async (quizId: number, format: LmsExportFormat = 'csv'): Promise<LmsExportFile> => {
+    const response = await apiClient.get(`/v1/lms/quiz/${quizId}/export/hasil`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return buildExportFile(response.data, response.headers['content-disposition'], 'Hasil_Quiz');
+  },
+
+  exportHasilTryout: async (quizId: number, format: LmsExportFormat = 'csv'): Promise<LmsExportFile> => {
+    const response = await apiClient.get(`/v1/lms/tryout/${quizId}/export/hasil`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return buildExportFile(response.data, response.headers['content-disposition'], 'Hasil_Tryout');
+  },
+
+  // 14. Integrasi PresensiV2 (panel administrasi presensi LMS)
+  // Semua endpoint berada di bawah gate `lms.presensi.*` dan hanya dapat
+  // diakses admin/superadmin.
+  getStatusPresensi: async (): Promise<ApiResponse<LmsPresensiStatus>> => {
+    const response = await apiClient.get<ApiResponse<LmsPresensiStatus>>('/v1/lms/admin/presensi/status');
+    return response.data;
+  },
+
+  indexKelasPresensi: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    tahun_akademik_id?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }): Promise<ApiResponse<LmsPresensiKelasItem[]>> => {
+    const response = await apiClient.get<ApiResponse<LmsPresensiKelasItem[]>>(
+      '/v1/lms/admin/presensi/kelas',
+      { params }
+    );
+    return response.data;
+  },
+
+  indexRekapPresensi: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    kelas_id?: number;
+    pertemuan_ke?: number;
+    status?: string;
+    sync_status?: string;
+  }): Promise<ApiResponse<LmsPresensiRekapItem[]>> => {
+    const response = await apiClient.get<ApiResponse<LmsPresensiRekapItem[]>>(
+      '/v1/lms/admin/presensi/rekap',
+      { params }
+    );
+    return response.data;
+  },
+
+  logSinkronisasiPresensi: async (params?: {
+    page?: number;
+    per_page?: number;
+    status?: string;
+    kelas_id?: number;
+  }): Promise<ApiResponse<LmsPresensiSyncLogItem[]>> => {
+    const response = await apiClient.get<ApiResponse<LmsPresensiSyncLogItem[]>>(
+      '/v1/lms/admin/presensi/log',
+      { params }
+    );
+    return response.data;
+  },
+
+  exportRekapPresensiAdmin: async (params?: {
+    format?: LmsExportFormat;
+    search?: string;
+    kelas_id?: number;
+    pertemuan_ke?: number;
+    status?: string;
+    sync_status?: string;
+  }): Promise<LmsExportFile> => {
+    const response = await apiClient.get('/v1/lms/admin/presensi/export', {
+      params: { format: params?.format ?? 'csv', ...params },
+      responseType: 'blob',
+    });
+    return buildExportFile(response.data, response.headers['content-disposition'], 'Rekap_Presensi_LMS');
+  },
+
+  syncPresensi: async (
+    payload: LmsPresensiSyncPayload
+  ): Promise<ApiResponse<LmsPresensiSyncResult>> => {
+    const response = await apiClient.post<ApiResponse<LmsPresensiSyncResult>>(
+      '/v1/lms/admin/presensi/sync',
+      payload
+    );
+    return response.data;
+  },
+
+  tarikPresensi: async (
+    kelasId: number
+  ): Promise<ApiResponse<LmsPresensiTarikResult>> => {
+    const response = await apiClient.post<ApiResponse<LmsPresensiTarikResult>>(
+      '/v1/lms/admin/presensi/tarik',
+      { kelas_id: kelasId }
+    );
+    return response.data;
+  },
+
+  // 15. Notifikasi In-App LMS
+  /**
+   * Daftar notifikasi milik pengguna yang sedang login.
+   */
+  getNotifikasi: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    jenis?: string;
+    is_read?: boolean;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
+  }): Promise<ApiResponse<LmsNotifikasiItem[]>> => {
+    const response = await apiClient.get<ApiResponse<LmsNotifikasiItem[]>>(
+      '/v1/lms/notifikasi',
+      { params }
+    );
+    return response.data;
+  },
+
+  /**
+   * Jumlah notifikasi yang belum dibaca (untuk lonceng notifikasi).
+   */
+  getNotifikasiUnreadCount: async (): Promise<ApiResponse<LmsNotifikasiUnreadCount>> => {
+    const response = await apiClient.get<ApiResponse<LmsNotifikasiUnreadCount>>(
+      '/v1/lms/notifikasi/unread-count'
+    );
+    return response.data;
+  },
+
+  /**
+   * Tandai satu notifikasi sebagai sudah dibaca.
+   */
+  markNotifikasiRead: async (notifikasiId: number): Promise<ApiResponse<LmsNotifikasiItem>> => {
+    const response = await apiClient.post<ApiResponse<LmsNotifikasiItem>>(
+      `/v1/lms/notifikasi/${notifikasiId}/read`
+    );
+    return response.data;
+  },
+
+  /**
+   * Tandai seluruh notifikasi sebagai sudah dibaca.
+   */
+  markAllNotifikasiRead: async (): Promise<ApiResponse<{ updated: number }>> => {
+    const response = await apiClient.post<ApiResponse<{ updated: number }>>(
+      '/v1/lms/notifikasi/read-all'
+    );
+    return response.data;
+  },
+
+  // 16. Dashboard & Pengaturan Modul LMS
+  /** Ringkasan dashboard split role + tren 7 hari (cache 5 menit di backend). */
+  getDashboardOverview: async (): Promise<ApiResponse<LmsDashboardOverview>> => {
+    const response = await apiClient.get<ApiResponse<LmsDashboardOverview>>(
+      '/v1/lms/dashboard/overview'
+    );
+    return response.data;
+  },
+
+  /** Pengaturan global modul LMS (`lms.pengaturan.read`). */
+  getPengaturanModul: async (): Promise<ApiResponse<LmsPengaturanModul>> => {
+    const response = await apiClient.get<ApiResponse<LmsPengaturanModul>>(
+      '/v1/lms/pengaturan/modul'
+    );
+    return response.data;
+  },
+
+  /** Simpan pengaturan global modul LMS (`lms.pengaturan.manage`). */
+  updatePengaturanModul: async (
+    payload: Record<string, boolean | number | string>
+  ): Promise<ApiResponse<Record<string, boolean | number | string>>> => {
+    const response = await apiClient.put<ApiResponse<Record<string, boolean | number | string>>>(
+      '/v1/lms/pengaturan/modul',
+      payload
+    );
+    return response.data;
+  },
+
+  /** Pengaturan publik non-sensitif (tanpa autentikasi, cache 24 jam). */
+  getPublicSettings: async (): Promise<ApiResponse<LmsPublicSettings>> => {
+    const response = await apiClient.get<ApiResponse<LmsPublicSettings>>(
+      '/v1/lms/public/settings'
+    );
     return response.data;
   },
 };

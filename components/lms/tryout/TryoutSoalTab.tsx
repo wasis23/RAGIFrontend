@@ -12,6 +12,7 @@ import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { lmsService } from '@/services/lms.service';
 import { siakadService } from '@/services/siakad.service';
+import { getApiErrorMessage } from '@/lib/utils';
 import { Plus, Trash2, Lock } from 'lucide-react';
 import { extractOptionValue } from './tryoutHelpers';
 
@@ -33,6 +34,9 @@ export default function TryoutSoalTab({ quizId, soal, totalSoal, totalPoin, tota
     id: null,
   });
   const [deleting, setDeleting] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const locked = totalAttempt > 0;
 
@@ -63,6 +67,23 @@ export default function TryoutSoalTab({ quizId, soal, totalSoal, totalPoin, tota
       toast.error(err.response?.data?.errors?.quiz?.[0] || 'Gagal melepas soal (tryout terkunci attempt?)');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleBulkDetach = async () => {
+    const ids = selectedKeys.map((k) => Number(k)).filter((id) => !Number.isNaN(id));
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      const res = await lmsService.bulkDeleteQuizSoal(quizId, ids);
+      toast.success(`${res.data?.deleted ?? ids.length} soal dilepas dari tryout`);
+      setSelectedKeys([]);
+      setShowBulkDelete(false);
+      onChanged();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Gagal melepas soal'));
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -171,12 +192,49 @@ export default function TryoutSoalTab({ quizId, soal, totalSoal, totalPoin, tota
         </div>
       </Card>
 
+      {selectedKeys.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50">
+          <span className="text-xs text-slate-700">
+            <strong>{selectedKeys.length}</strong> soal terpilih
+          </span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setSelectedKeys([])} disabled={bulkDeleting}>
+              Batal Pilih
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              icon={<Trash2 size={16} />}
+              onClick={() => setShowBulkDelete(true)}
+              disabled={bulkDeleting || locked}
+            >
+              Lepas Terpilih
+            </Button>
+          </div>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={soal}
+        selectable={!locked}
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
         meta={{ current_page: 1, last_page: 1, per_page: soal.length || 50, total: totalSoal }}
         onPageChange={() => {}}
         emptyMessage="Belum ada soal. Lampirkan dari bank soal di atas."
+      />
+
+      <ConfirmDialog
+        isOpen={showBulkDelete}
+        onClose={() => setShowBulkDelete(false)}
+        onConfirm={handleBulkDetach}
+        isLoading={bulkDeleting}
+        title="Lepas Soal Terpilih"
+        message={<span>Yakin melepas <strong>{selectedKeys.length}</strong> soal dari tryout ini?</span>}
+        confirmText="Lepas"
+        cancelText="Batal"
+        variant="danger"
       />
 
       <ConfirmDialog

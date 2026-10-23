@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, Filter, CheckCircle2, Clock, XCircle, Loader2, Save, Eye, Search, AlertTriangle, Printer, User, ShieldAlert, FileText, Trash2
@@ -63,13 +63,17 @@ export default function DispensasiListPage() {
   const [data, setData] = useState<DispensasiItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filter Drawer State — 2-stage
+  // Filter Drawer State — 2-stage (server-side; prodi+angkatan dulu ala legacy)
   const [showFilter, setShowFilter] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [filterOrderBy, setFilterOrderBy] = useState('nama_mahasiswa');
-  const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('asc');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'all', orderBy: 'nama_mahasiswa', orderDir: 'asc' as 'asc' | 'desc' });
+  const [filterProdi, setFilterProdi] = useState('all');
+  const [filterAngkatan, setFilterAngkatan] = useState('all');
+  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'all', prodi: 'all', angkatan: 'all' });
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>(undefined);
+  const [prodiList, setProdiList] = useState<{ value: string; label: string }[]>([]);
+  const [angkatanList, setAngkatanList] = useState<{ value: string; label: string }[]>([]);
 
   // Detail / Print Modal State
   const [detailItem, setDetailItem] = useState<DispensasiItem | null>(null);
@@ -123,9 +127,24 @@ export default function DispensasiListPage() {
   const fetchDispensasi = async () => {
     try {
       setLoading(true);
-      const res = await sikeuService.getDispensasiList();
-      const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
-      setData(raw);
+      const res = await sikeuService.getDispensasiList({
+        search: appliedFilters.search || undefined,
+        status: appliedFilters.status,
+        program_studi_id: appliedFilters.prodi !== 'all' ? appliedFilters.prodi : undefined,
+        angkatan: appliedFilters.angkatan !== 'all' ? appliedFilters.angkatan : undefined,
+        page,
+        per_page: 15,
+      });
+      const payload: any = (res as any).data;
+      // Backend mengembalikan envelope { current_page, data: [...], total, per_page, last_page }
+      const rows = Array.isArray(payload) ? payload : (payload?.data ?? []);
+      setData(rows);
+      setMeta({
+        current_page: payload?.current_page ?? 1,
+        per_page: payload?.per_page ?? 15,
+        total: payload?.total ?? rows.length,
+        last_page: payload?.last_page ?? 1,
+      });
     } catch {
       setData([]);
       toast.error('Gagal memuat data dispensasi tagihan');
@@ -136,6 +155,34 @@ export default function DispensasiListPage() {
 
   useEffect(() => {
     fetchDispensasi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedFilters, page]);
+
+  useEffect(() => {
+    const loadMasters = async () => {
+      try {
+        const [resProdi, resAngkatan] = await Promise.all([
+          sikeuService.getProgramStudiList(),
+          sikeuService.getAngkatanList().catch(() => ({ data: [] })),
+        ]);
+        if (Array.isArray((resProdi as any).data)) {
+          setProdiList(
+            (resProdi as any).data.map((p: any) => ({
+              value: String(p.id),
+              label: p.jenjang ? `${p.jenjang} - ${p.nama || p.nama_prodi}` : (p.nama || p.nama_prodi),
+            }))
+          );
+        }
+        if (Array.isArray((resAngkatan as any).data)) {
+          setAngkatanList(
+            (resAngkatan as any).data.map((a: number) => ({ value: String(a), label: `Angkatan ${a}` }))
+          );
+        }
+      } catch {
+        // Fallback: tetap bisa cari tanpa master
+      }
+    };
+    loadMasters();
   }, []);
 
 
@@ -337,43 +384,20 @@ export default function DispensasiListPage() {
   };
 
   const handleApplyFilter = () => {
-    setAppliedFilters({ search: filterSearch, status: filterStatus, orderBy: filterOrderBy, orderDir: filterOrderDir });
+    setAppliedFilters({ search: filterSearch, status: filterStatus, prodi: filterProdi, angkatan: filterAngkatan });
+    setPage(1);
     setShowFilter(false);
   };
 
   const handleResetFilter = () => {
     setFilterSearch('');
     setFilterStatus('all');
-    setFilterOrderBy('nama_mahasiswa');
-    setFilterOrderDir('asc');
-    setAppliedFilters({ search: '', status: 'all', orderBy: 'nama_mahasiswa', orderDir: 'asc' });
+    setFilterProdi('all');
+    setFilterAngkatan('all');
+    setAppliedFilters({ search: '', status: 'all', prodi: 'all', angkatan: 'all' });
+    setPage(1);
     setShowFilter(false);
   };
-
-  const filteredData = useMemo(() => {
-    const list = data.filter((item) => {
-      if (appliedFilters.search) {
-        const q = appliedFilters.search.toLowerCase();
-        const matchNama = item.nama_mahasiswa?.toLowerCase().includes(q);
-        const matchNim = item.nim?.toLowerCase().includes(q);
-        const matchAlasan = item.alasan?.toLowerCase().includes(q);
-        const matchTagihan = item.tagihan?.nomor_tagihan?.toLowerCase().includes(q);
-        if (!matchNama && !matchNim && !matchAlasan && !matchTagihan) return false;
-      }
-      if (appliedFilters.status !== 'all' && item.status !== appliedFilters.status) return false;
-      return true;
-    });
-
-    return [...list].sort((a, b) => {
-      let valA: any = a[appliedFilters.orderBy as keyof DispensasiItem] ?? '';
-      let valB: any = b[appliedFilters.orderBy as keyof DispensasiItem] ?? '';
-      if (typeof valA === 'string') valA = valA.toLowerCase();
-      if (typeof valB === 'string') valB = valB.toLowerCase();
-      if (valA < valB) return appliedFilters.orderDir === 'asc' ? -1 : 1;
-      if (valA > valB) return appliedFilters.orderDir === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [data, appliedFilters]);
 
   const columns: ColumnDef<DispensasiItem>[] = [
     {
@@ -544,10 +568,12 @@ export default function DispensasiListPage() {
       />
 
       <DataTable
-        data={filteredData}
+        data={data}
+        meta={meta}
         isLoading={loading}
         columns={columns}
         emptyMessage="Belum ada permohonan dispensasi tagihan."
+        onPageChange={(p) => setPage(p)}
       />
 
       {/* Modal Detail & Cetak Bukti Resmi */}
@@ -868,29 +894,18 @@ export default function DispensasiListPage() {
 
           <hr className="border-t border-slate-200 my-2" />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Urut Berdasarkan"
-              value={filterOrderBy}
-              onChange={(val) => setFilterOrderBy(val as string)}
-              options={[
-                { value: 'nama_mahasiswa', label: 'Nama Mahasiswa' },
-                { value: 'nim', label: 'NIM' },
-                { value: 'nominal_per_cicilan', label: 'Nominal Cicilan' },
-                { value: 'jatuh_tempo_baru', label: 'Jatuh Tempo Baru' },
-                { value: 'status', label: 'Status' },
-              ]}
-            />
-            <Select
-              label="Arah"
-              value={filterOrderDir}
-              onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
-              options={[
-                { value: 'asc', label: 'A - Z (Naik)' },
-                { value: 'desc', label: 'Z - A (Turun)' },
-              ]}
-            />
-          </div>
+          <Select
+            label="Program Studi (filter dulu)"
+            value={filterProdi}
+            onChange={(val) => setFilterProdi(val as string)}
+            options={[{ value: 'all', label: 'Semua Prodi' }, ...prodiList]}
+          />
+          <Select
+            label="Tahun Angkatan (filter dulu)"
+            value={filterAngkatan}
+            onChange={(val) => setFilterAngkatan(val as string)}
+            options={[{ value: 'all', label: 'Semua Angkatan' }, ...angkatanList]}
+          />
         </div>
       </Drawer>
     </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, LogOut, User, Shield, Bell, ArrowLeftCircle } from 'lucide-react';
+import { Menu, LogOut, User, Shield, ArrowLeftCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUiStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
@@ -14,6 +14,7 @@ import { ROUTES } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 import { AppLauncher } from '@/components/layout/AppLauncher';
+import NotifikasiBell from '@/components/lms/NotifikasiBell';
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -60,11 +61,8 @@ export function Navbar() {
       <div className="topbar-section">
         {/* Module Switcher 9-dot */}
         <AppLauncher />
-        {/* Notification Bell mock */}
-        <button className="btn btn-ghost btn-icon topbar-bell" aria-label="Notifikasi">
-          <Bell size={18} />
-          <span className="topbar-bell-dot" />
-        </button>
+        {/* Notification Bell (LMS-04) — lonceng notifikasi in-app */}
+        <NotifikasiBell />
 
         {/* User Menu Dropdown */}
         <div className="topbar-user-menu">

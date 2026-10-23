@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Award, BookOpen, Target, Filter, Printer, Eye, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
+import { Award, BookOpen, Target, Filter, Printer, Eye, ArrowLeft, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -18,7 +18,6 @@ type SubTab = 'khs' | 'transkrip' | 'portofolio';
 
 export default function HasilStudiPage() {
   const { user } = useAuthStore();
-  const router = useRouter();
   const userRoles = user?.roles?.map((r: any) => (typeof r === 'string' ? r : r.slug)) || [];
   const isMahasiswa = userRoles.includes('mahasiswa');
   const isDosenOnly = userRoles.includes('dosen') && !userRoles.includes('superadmin') && !userRoles.includes('admin') && !userRoles.includes('kaprodi') && !userRoles.includes('wakil_prodi');
@@ -44,7 +43,13 @@ export default function HasilStudiPage() {
   const [loadingTrx, setLoadingTrx] = useState(false);
   const [porto, setPorto] = useState<any | null>(null);
   const [loadingPorto, setLoadingPorto] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
+
+  const cetakHref = (mode: 'khs' | 'transkrip') => {
+    const q = new URLSearchParams({ mode });
+    if (!isMahasiswa && selectedMhs?.id) q.set('mhs', String(selectedMhs.id));
+    if (mode === 'khs' && selectedTaId) q.set('ta', String(selectedTaId));
+    return `/siakad/hasil-studi/cetak?${q.toString()}`;
+  };
 
   const activeMhsId = isMahasiswa ? undefined : selectedMhs?.id;
 
@@ -323,7 +328,7 @@ export default function HasilStudiPage() {
       key={key}
       onClick={() => setSubTab(key)}
       className={`flex items-center gap-2 px-5 py-3 text-xs font-extrabold border-b-2 transition -mb-px cursor-pointer ${
-        subTab === key ? 'border-primary-600 text-primary-600 bg-primary-50/40 rounded-t-xl' : 'border-transparent text-slate-500 hover:text-slate-900'
+        subTab === key ? 'border-[var(--module-primary)] text-[var(--module-primary)] bg-[var(--module-primary-subtle)] rounded-t-lg border-b-2' : 'border-transparent text-slate-500 hover:text-slate-900'
       }`}
     >
       {icon}
@@ -340,7 +345,7 @@ export default function HasilStudiPage() {
         action={
           <div className="flex items-center gap-2">
             {!isMahasiswa && !selectedMhs && (
-              <Button variant="outline" icon={<Filter size={15} />} className="font-bold text-xs min-h-[38px]" onClick={() => setShowFilter(true)}>
+              <Button variant="outline" icon={<Filter size={15} />} className="font-bold text-xs min-h-[38px]" style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }} onClick={() => setShowFilter(true)}>
                 Filter
               </Button>
             )}
@@ -349,10 +354,19 @@ export default function HasilStudiPage() {
                 Ganti Mahasiswa
               </Button>
             )}
-            {(isMahasiswa || selectedMhs) && (
-              <Button variant="primary" icon={<Printer size={15} />} className="font-bold text-xs min-h-[38px]" onClick={() => setIsPrintOpen(true)}>
-                Cetak
-              </Button>
+            {(isMahasiswa || selectedMhs) && subTab === 'khs' && (
+              <Link href={cetakHref('khs')}>
+                <Button variant="primary" icon={<FileText size={15} />} className="font-bold text-xs min-h-[38px]">
+                  Cetak KHS
+                </Button>
+              </Link>
+            )}
+            {(isMahasiswa || selectedMhs) && subTab === 'transkrip' && (
+              <Link href={cetakHref('transkrip')}>
+                <Button variant="primary" icon={<Printer size={15} />} className="font-bold text-xs min-h-[38px]">
+                  Cetak Transkrip
+                </Button>
+              </Link>
             )}
           </div>
         }
@@ -462,33 +476,6 @@ export default function HasilStudiPage() {
         </div>
       )}
 
-      {isPrintOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 print:p-0 print:static print:bg-white">
-          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 max-h-[95vh] overflow-y-auto space-y-4 print:max-w-none print:shadow-none print:max-h-none">
-            <div className="flex items-center justify-between border-b pb-3 print:hidden">
-              <span className="text-xs font-bold">Cetak Hasil Studi — {mhs?.nama_lengkap} ({mhs?.nim})</span>
-              <div className="flex gap-2">
-                <Button variant="primary" icon={<Printer size={15} />} className="text-xs font-bold" onClick={() => window.print()}>Cetak (PDF)</Button>
-                <Button variant="outline" className="text-xs" onClick={() => setIsPrintOpen(false)}>Tutup</Button>
-              </div>
-            </div>
-            <div className="printable-document space-y-4 text-xs text-slate-900">
-              <h2 className="font-black uppercase">Transkrip Akademik — {mhs?.program_studi?.nama}</h2>
-              <p>Nama: <strong>{mhs?.nama_lengkap}</strong> • NIM: <strong className="font-mono">{mhs?.nim}</strong> • IPK: <strong className="font-mono">{transkrip?.ringkasan?.ipk}</strong> • SKS Lulus: <strong>{transkrip?.ringkasan?.total_sks_lulus}</strong></p>
-              <table className="w-full text-left border border-slate-300">
-                <thead className="bg-slate-100 border-b border-slate-300">
-                  <tr><th className="py-2 px-3">Kode</th><th className="py-2 px-3">Mata Kuliah</th><th className="py-2 px-3 text-center">SKS</th><th className="py-2 px-3 text-center">Nilai</th><th className="py-2 px-3 text-center">SKS×Mutu</th></tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(transkrip?.items || []).map((it: any, i: number) => (
-                    <tr key={i}><td className="py-1.5 px-3 font-mono">{it.kode_mk}</td><td className="py-1.5 px-3">{it.nama_mk}</td><td className="py-1.5 px-3 text-center">{it.sks}</td><td className="py-1.5 px-3 text-center font-bold">{it.nilai_huruf}</td><td className="py-1.5 px-3 text-center font-mono">{Number(it.mutu_x_sks).toFixed(2)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -25,11 +25,25 @@ import {
   TipeSoal,
 } from '@/types/bank-soal.types';
 import { SORT_ORDER_OPTIONS } from '@/lib/constants';
+import { getApiErrorMessage } from '@/lib/utils';
 import { PaginationMeta } from '@/types/api.types';
 import { useAuth } from '@/hooks/useAuth';
-import { Filter, RotateCcw, Check, Plus, Pencil, Trash2, ListChecks } from 'lucide-react';
+import {
+  Filter,
+  RotateCcw,
+  Check,
+  Plus,
+  Pencil,
+  Trash2,
+  ListChecks,
+  Upload,
+  FolderInput,
+  X,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { loadKategoriOptions } from '@/components/lms/bank-soal/BankSoalForm';
+import ImportSoalModal from '@/components/lms/bank-soal/ImportSoalModal';
+import BulkMoveSoalModal from '@/components/lms/bank-soal/BulkMoveSoalModal';
 
 function extractVal(val: unknown): string {
   if (val === null || val === undefined || val === '') return '';
@@ -62,6 +76,11 @@ export default function BankSoalListPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [targetHapus, setTargetHapus] = useState<BankSoal | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showBulkMove, setShowBulkMove] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
   const filterForm = useForm<FilterValues>({
     resolver: zodResolver(filterSchema) as any,
@@ -136,6 +155,31 @@ export default function BankSoalListPage() {
   };
 
   const stripHtml = (html: string) => String(html || '').replace(/<[^>]*>/g, '').trim();
+
+  const selectedIds = selectedKeys.map((key) => Number(key)).filter((id) => !Number.isNaN(id));
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBulkDeleting(true);
+    try {
+      const res = await siakadService.bulkDeleteSoal(selectedIds);
+      const totalDeleted = res?.data?.total_deleted ?? 0;
+      const totalSkipped = res?.data?.total_skipped ?? 0;
+
+      if (totalSkipped > 0) {
+        toast.error(`${totalDeleted} dihapus, ${totalSkipped} dilewati (dipakai quiz LMS).`, { duration: 6000 });
+      } else {
+        toast.success(`${totalDeleted} soal berhasil dihapus.`);
+      }
+      setShowBulkDeleteConfirm(false);
+      setSelectedKeys([]);
+      fetchData(meta.current_page, meta.per_page);
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus soal secara massal.'));
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   const columns: ColumnDef<BankSoal>[] = [
     {
@@ -227,19 +271,63 @@ export default function BankSoalListPage() {
               Filter
             </Button>
             {canManage ? (
-              <Button variant="primary" icon={<Plus size={16} />} onClick={() => router.push('/lms/bank-soal/create')}>
-                Tambah Data
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  icon={<Upload size={16} />}
+                  onClick={() => setShowImport(true)}
+                >
+                  Import
+                </Button>
+                <Button variant="primary" icon={<Plus size={16} />} onClick={() => router.push('/lms/bank-soal/create')}>
+                  Tambah Data
+                </Button>
+              </>
             ) : null}
           </div>
         }
       />
+
+      {canManage && selectedIds.length > 0 ? (
+        <div className="card bg-white border border-slate-200">
+          <div className="card-body flex flex-col md:flex-row md:items-center gap-3 justify-between p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-700">{selectedIds.length} soal dipilih</span>
+              <Button variant="ghost" size="sm" icon={<X size={16} />} onClick={() => setSelectedKeys([])}>
+                Batalkan Pilihan
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={<FolderInput size={16} />}
+                onClick={() => setShowBulkMove(true)}
+              >
+                Pindahkan
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                icon={<Trash2 size={16} />}
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                disabled={isBulkDeleting}
+              >
+                Hapus Terpilih
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <DataTable
         columns={columns}
         data={rows}
         isLoading={isLoading}
         meta={meta}
+        selectable={canManage}
+        selectedKeys={selectedKeys}
+        onSelectionChange={setSelectedKeys}
         onPageChange={(p) => setMeta((m) => ({ ...m, current_page: p }))}
         onLimitChange={(lim) => setMeta((m) => ({ ...m, per_page: lim, current_page: 1 }))}
         emptyMessage="Belum ada soal di bank soal."
@@ -333,6 +421,37 @@ export default function BankSoalListPage() {
         confirmText="Hapus"
         cancelText="Batal"
         variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={handleBulkDelete}
+        isLoading={isBulkDeleting}
+        title="Hapus Soal Terpilih"
+        message={`Yakin menghapus ${selectedIds.length} soal yang dipilih? Soal yang sudah dipakai quiz LMS akan dilewati.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+        variant="danger"
+      />
+
+      <ImportSoalModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        onImported={() => {
+          setSelectedKeys([]);
+          fetchData(meta.current_page, meta.per_page);
+        }}
+      />
+
+      <BulkMoveSoalModal
+        open={showBulkMove}
+        onClose={() => setShowBulkMove(false)}
+        ids={selectedIds}
+        onMoved={() => {
+          setSelectedKeys([]);
+          fetchData(meta.current_page, meta.per_page);
+        }}
       />
     </div>
   );

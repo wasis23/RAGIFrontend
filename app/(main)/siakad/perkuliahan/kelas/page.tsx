@@ -33,11 +33,13 @@ export default function PerkuliahanKelasPage() {
   const [filterHari, setFilterHari] = useState('');
   const [filterProdi, setFilterProdi] = useState('');
   const [filterPeriode, setFilterPeriode] = useState('');
+  const [filterTipeSesi, setFilterTipeSesi] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({
     search: '',
     hari: '',
     prodi: '',
     periode: '',
+    tipe_sesi: '',
   });
   const activePeriode = tahunAkademiks.find((t) => String(t.id) === String(appliedFilters.periode || filterPeriode)) || tahunAkademiks.find((t) => t.is_active);
   const hariOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.HARI_KULIAH);
@@ -86,6 +88,7 @@ export default function PerkuliahanKelasPage() {
         hari: appliedFilters.hari || undefined,
         program_studi_id: appliedFilters.prodi || undefined,
         tahun_akademik_id: appliedFilters.periode || undefined,
+        tipe_sesi: (appliedFilters as any).tipe_sesi || undefined,
         my_teaching_only: isDosen && !isAdmin ? true : undefined,
         my_enrolled_only: isMahasiswa && !isAdmin ? true : undefined,
       });
@@ -136,6 +139,19 @@ export default function PerkuliahanKelasPage() {
             <span className="badge badge-purple text-2xs font-bold mt-0.5" title={`Gabungan: ${((row.program_studis || []).map((p: any) => p.nama).join(', ') || row.program_studi?.nama || '')}`}>
               Gabungan {(row.program_studis || []).length > 0 ? `(${(row.program_studis || []).length} prodi)` : ''}
             </span>
+          )}
+          {(row.tipe_sesi === 'teori' || (!row.parent_kelas_id && (row.children?.length || 0) > 0)) && (
+            <span className="badge badge-blue text-2xs font-bold mt-0.5 block w-fit" title={`Induk teori${(row.children?.length || 0) > 0 ? `: ${(row.children || []).map((c: any) => c.kode_kelas).join(', ')}` : ''}`}>
+              Teori Induk{(row.children?.length || 0) > 0 ? ` (${row.children.length} praktik)` : ''}
+            </span>
+          )}
+          {row.parent_kelas_id && (
+            <span className="badge badge-amber text-2xs font-bold mt-0.5 block w-fit" title={`Anak praktik dari ${row.parent?.kode_kelas || row.parent_kelas_id}`}>
+              Praktik • Induk {row.parent?.kode_kelas || ''}
+            </span>
+          )}
+          {(row.rombels?.length || 0) > 0 && (
+            <span className="block text-2xs text-slate-500 mt-0.5">Rombel: {(row.rombels || []).map((r: any) => r.nama_kelas).join(', ')}</span>
           )}
         </div>
       ),
@@ -408,8 +424,9 @@ export default function PerkuliahanKelasPage() {
                 setSearch('');
                 setFilterHari('');
                 setFilterProdi('');
+                setFilterTipeSesi('');
                 setFilterPeriode(activePeriode ? String(activePeriode.id) : '');
-                setAppliedFilters({ search: '', hari: '', prodi: '', periode: activePeriode ? String(activePeriode.id) : '' });
+                setAppliedFilters({ search: '', hari: '', prodi: '', periode: activePeriode ? String(activePeriode.id) : '', tipe_sesi: '' });
                 setShowFilter(false);
               }}
             >
@@ -423,6 +440,7 @@ export default function PerkuliahanKelasPage() {
                   hari: filterHari,
                   prodi: filterProdi,
                   periode: filterPeriode,
+                  tipe_sesi: filterTipeSesi,
                 });
                 setShowFilter(false);
               }}
@@ -469,6 +487,19 @@ export default function PerkuliahanKelasPage() {
             options={hariOptions}
             value={filterHari || ''}
             onChange={(val: any) => setFilterHari(String(val || ''))}
+            isClearable
+          />
+
+          <Select
+            label="Tipe Sesi"
+            placeholder="Semua Tipe"
+            options={[
+              { value: 'gabungan', label: 'Gabungan (biasa)' },
+              { value: 'teori', label: 'Teori — induk gabungan' },
+              { value: 'praktik', label: 'Praktik — anak per rombel' },
+            ]}
+            value={filterTipeSesi || ''}
+            onChange={(val: any) => setFilterTipeSesi(String(val || ''))}
             isClearable
           />
         </div>

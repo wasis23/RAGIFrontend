@@ -91,16 +91,15 @@ export default function BankSoalEditPage() {
 
   const onSubmit = async (values: BankSoalFormValues) => {
     try {
-      await siakadService.saveSoal({
-        id: soalId,
+      await siakadService.updateSoal(soalId, {
         rps_id: Number(values.rps_id),
-        kategori_id: values.kategori_id ? Number(values.kategori_id) : undefined,
+        kategori_id: values.kategori_id ? Number(values.kategori_id) : null,
         tipe_soal: values.tipe_soal,
         tingkat_kesulitan: values.tingkat_kesulitan,
         bobot: Number(values.bobot) || 0,
         pertanyaan: values.pertanyaan.trim(),
-        kunci_jawaban: values.kunci_jawaban?.trim() || undefined,
-        pembahasan: values.pembahasan?.trim() || undefined,
+        kunci_jawaban: values.kunci_jawaban?.trim() || null,
+        pembahasan: values.pembahasan?.trim() || null,
       });
       toast.success('Soal berhasil diperbarui.');
       router.push('/lms/bank-soal');

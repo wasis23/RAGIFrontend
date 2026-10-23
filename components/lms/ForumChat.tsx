@@ -1,15 +1,29 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import type { LmsForumPost, LmsForumTopik } from '@/types/lms.types';
-import { MessageSquare, Send, Trash2 } from 'lucide-react';
+import { formatRelativeTime } from '@/lib/utils';
+import { MessageSquare, Pencil, Send, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
+
+const editSchema = z.object({
+  isi: z
+    .string()
+    .min(1, 'Isi pesan wajib diisi')
+    .max(5000, 'Isi pesan maksimal 5000 karakter'),
+});
+
+type EditFormValues = z.infer<typeof editSchema>;
 
 interface ForumChatProps {
   topik: LmsForumTopik | null;
@@ -17,8 +31,14 @@ interface ForumChatProps {
   loadingPost: boolean;
   onSend: (isi: string, parentId: number | null) => Promise<void> | void;
   onDeletePost: (postId: number) => Promise<void> | void;
+  /** Aksi edit pesan; bila tidak diberikan, menu Edit tidak ditampilkan. */
+  onEditPost?: (postId: number, isi: string) => Promise<void> | void;
   sending?: boolean;
   currentName?: string;
+  /** ID pengguna aktif — dipakai agar kepemilikan pesan akurat (fallback: nama). */
+  currentUserId?: number | null;
+  /** Pengelola kelas boleh mengedit pesan siapa pun (moderasi). */
+  canManage?: boolean;
   allowReply?: boolean;
   /** Interval polling opsional (ms). Bila diisi + onRefresh ada, auto-refresh tiap interval. */
   pollIntervalMs?: number;
@@ -35,8 +55,11 @@ export default function ForumChat({
   loadingPost,
   onSend,
   onDeletePost,
+  onEditPost,
   sending = false,
   currentName = '',
+  currentUserId = null,
+  canManage = false,
   allowReply = true,
   pollIntervalMs,
   onRefresh,
@@ -47,7 +70,14 @@ export default function ForumChat({
   const [pesan, setPesan] = useState('');
   const [replyTo, setReplyTo] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [editTarget, setEditTarget] = useState<LmsForumPost | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const editForm = useForm<EditFormValues>({
+    resolver: zodResolver(editSchema) as any,
+    defaultValues: { isi: '' },
+  });
 
   useEffect(() => {
     if (!topik || !pollIntervalMs || !onRefresh) return;
@@ -68,6 +98,9 @@ export default function ForumChat({
   }, [topik?.id]);
 
   const isMine = (p: LmsForumPost) => {
+    if (currentUserId !== null && p.user_id !== null && p.user_id !== undefined) {
+      return Number(p.user_id) === Number(currentUserId);
+    }
     if (!currentName) return false;
     return p.nama_penulis === currentName;
   };
@@ -78,6 +111,22 @@ export default function ForumChat({
     setPesan('');
     setReplyTo(null);
   };
+
+  const openEdit = (p: LmsForumPost) => {
+    setEditTarget(p);
+    editForm.reset({ isi: p.isi });
+  };
+
+  const submitEdit = editForm.handleSubmit(async (values) => {
+    if (!editTarget || !onEditPost) return;
+    setSavingEdit(true);
+    try {
+      await onEditPost(editTarget.id, values.isi.trim());
+      setEditTarget(null);
+    } finally {
+      setSavingEdit(false);
+    }
+  });
 
   const renderBubble = (p: LmsForumPost, mine: boolean, withReply: boolean) => (
     <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -102,12 +151,20 @@ export default function ForumChat({
                 ...(withReply
                   ? [{ label: 'Balas', icon: <Send size={16} />, onClick: () => setReplyTo(p.id) }]
                   : []),
+                ...(onEditPost && (mine || canManage)
+                  ? [{ label: 'Edit Pesan', icon: <Pencil size={16} />, onClick: () => openEdit(p) }]
+                  : []),
                 { label: 'Hapus', icon: <Trash2 size={16} />, onClick: () => setDeleteId(p.id) },
               ]}
             />
           </div>
         </div>
         <p className={`text-xs whitespace-pre-wrap mt-1 ${mine ? 'text-white' : 'text-slate-800'}`}>{p.isi}</p>
+        {p.is_edited && (
+          <span className={`text-2xs mt-1 block ${mine ? 'text-white/60' : 'text-slate-400'}`}>
+            diedit{p.updated_at ? ` · ${formatRelativeTime(p.updated_at)}` : ''}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -155,6 +212,37 @@ export default function ForumChat({
           </Button>
         </div>
       </div>
+
+      <Modal
+        open={editTarget !== null}
+        onClose={() => setEditTarget(null)}
+        title="Edit Pesan"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditTarget(null)}>
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              form="form-edit-pesan-forum"
+              icon={<Pencil size={16} />}
+              loading={savingEdit}
+              disabled={savingEdit}
+            >
+              Simpan
+            </Button>
+          </div>
+        }
+      >
+        <form id="form-edit-pesan-forum" onSubmit={submitEdit} className="grid grid-cols-1 gap-4">
+          <Textarea
+            label="Isi Pesan"
+            placeholder="Tulis pesan diskusi..."
+            error={editForm.formState.errors.isi?.message}
+            {...editForm.register('isi')}
+          />
+        </form>
+      </Modal>
 
       <ConfirmDialog
         isOpen={deleteId !== null}

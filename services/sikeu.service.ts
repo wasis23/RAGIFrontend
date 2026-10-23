@@ -104,10 +104,15 @@ export const sikeuService = {
   },
 
   // Dispensasi Tagihan
-  getDispensasiList: async (params?: { status?: string; mahasiswa_id?: number }) => {
+  getDispensasiList: async (params?: { status?: string; mahasiswa_id?: number; search?: string; program_studi_id?: number | string; angkatan?: number | string; page?: number; per_page?: number }) => {
     const query = new URLSearchParams();
     if (params?.status && params.status !== 'all') query.append('status', params.status);
     if (params?.mahasiswa_id) query.append('mahasiswa_id', params.mahasiswa_id.toString());
+    if (params?.search) query.append('search', params.search);
+    if (params?.program_studi_id) query.append('program_studi_id', String(params.program_studi_id));
+    if (params?.angkatan) query.append('angkatan', String(params.angkatan));
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.per_page) query.append('per_page', String(params.per_page));
     const qStr = query.toString();
     const { data } = await apiClient.get<ApiResponse<DispensasiTagihan[]>>(`/v1/sikeu/dispensasi${qStr ? `?${qStr}` : ''}`);
     return data;
@@ -527,9 +532,12 @@ export const sikeuService = {
     return data;
   },
 
-  // Pencarian Mahasiswa untuk Tagihan & Dispensasi
-  searchMahasiswa: async (q: string) => {
-    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa-search?q=${encodeURIComponent(q)}`);
+  // Pencarian Mahasiswa untuk Tagihan & Dispensasi (batasi via prodi/angkatan dulu ala legacy)
+  searchMahasiswa: async (q: string, filters?: { program_studi_id?: number | string; angkatan?: number | string }) => {
+    const query = new URLSearchParams({ q });
+    if (filters?.program_studi_id) query.append('program_studi_id', String(filters.program_studi_id));
+    if (filters?.angkatan) query.append('angkatan', String(filters.angkatan));
+    const { data } = await apiClient.get<ApiResponse<any[]>>(`/v1/sikeu/mahasiswa-search?${query.toString()}`);
     return data;
   },
 

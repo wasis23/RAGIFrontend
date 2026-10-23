@@ -21,6 +21,7 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react';
 import TryoutSoalTab from '@/components/lms/tryout/TryoutSoalTab';
 import TryoutPesertaTab from '@/components/lms/tryout/TryoutPesertaTab';
@@ -28,6 +29,7 @@ import TryoutJadwalTab from '@/components/lms/tryout/TryoutJadwalTab';
 import TryoutHasilTab from '@/components/lms/tryout/TryoutHasilTab';
 import TryoutNilaiTab from '@/components/lms/tryout/TryoutNilaiTab';
 import TryoutPreviewTab from '@/components/lms/tryout/TryoutPreviewTab';
+import ExportLaporanModal from '@/components/lms/ExportLaporanModal';
 import { formatJadwal } from '@/components/lms/tryout/tryoutHelpers';
 
 type KelolaTab = 'soal' | 'peserta' | 'jadwal' | 'hasil' | 'nilai' | 'preview';
@@ -70,6 +72,8 @@ export default function KelolaTryoutPage({ params }: PageProps) {
   const [komponenObe, setKomponenObe] = useState<Array<{ id: number; nama_komponen: string; bobot: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [hasilRefreshKey, setHasilRefreshKey] = useState(0);
+  const [showExport, setShowExport] = useState(false);
+  const canExportHasil = hasPermission('siakad.nilai.manage');
 
   const fetchManage = useCallback(async () => {
     if (!Number.isFinite(id)) return;
@@ -166,9 +170,21 @@ export default function KelolaTryoutPage({ params }: PageProps) {
         backUrl="/lms/tryout"
         action={
           quiz ? (
-            <Badge variant={quiz.is_archived ? 'gray' : quiz.is_published ? 'green' : 'amber'}>
-              {quiz.is_archived ? 'Diarsipkan' : quiz.is_published ? 'Terbit' : 'Draft'}
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant={quiz.is_archived ? 'gray' : quiz.is_published ? 'green' : 'amber'}>
+                {quiz.is_archived ? 'Diarsipkan' : quiz.is_published ? 'Terbit' : 'Draft'}
+              </Badge>
+              {canExportHasil && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon={<Download size={16} />}
+                  onClick={() => setShowExport(true)}
+                >
+                  Export Hasil
+                </Button>
+              )}
+            </div>
           ) : undefined
         }
       />
@@ -219,6 +235,7 @@ export default function KelolaTryoutPage({ params }: PageProps) {
           {activeTab === 'peserta' && (
             <TryoutPesertaTab
               quizId={id}
+              kelasId={quiz.kelas_id}
               peserta={peserta}
               krsCount={krsCount}
               kodeAkses={(quiz as any).kode_akses}
@@ -254,6 +271,14 @@ export default function KelolaTryoutPage({ params }: PageProps) {
           </div>
         </>
       )}
+
+      {/* Modal Export Hasil Tryout (dosen) */}
+      <ExportLaporanModal
+        open={showExport}
+        onClose={() => setShowExport(false)}
+        scope={{ quizId: id }}
+        jenis={['tryout']}
+      />
     </div>
   );
 }

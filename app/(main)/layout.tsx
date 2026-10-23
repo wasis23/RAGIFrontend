@@ -87,6 +87,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 '/siakad/krs',
                 '/siakad/perkuliahan/kelas',
                 '/siakad/nilai',
+                '/lms',
                 '/sikeu',
                 '/sikeu/mahasiswa/tagihan',
                 '/sikeu/dispensasi',

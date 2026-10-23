@@ -173,6 +173,19 @@ export default function TryoutHasilTab({ quizId, refreshKey }: TryoutHasilTabPro
       ),
     },
     {
+      key: 'kelulusan',
+      label: 'KELULUSAN',
+      align: 'center',
+      render: (a) =>
+        a.is_lulus === true ? (
+          <Badge variant="green">Lulus</Badge>
+        ) : a.is_lulus === false ? (
+          <Badge variant="red">Tidak Lulus</Badge>
+        ) : (
+          <span className="text-2xs text-slate-400">-</span>
+        ),
+    },
+    {
       key: 'rincian',
       label: 'BENAR / SALAH / KOSONG',
       align: 'center',

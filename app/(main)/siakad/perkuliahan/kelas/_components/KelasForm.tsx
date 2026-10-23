@@ -34,6 +34,9 @@ const kelasSchema = z.object({
   jam_selesai: z.string().min(1, 'Jam selesai wajib diisi'),
   is_gabungan: z.boolean().optional(),
   gabungan_program_studi_ids: z.array(z.number()).optional(),
+  tipe_sesi: z.enum(['gabungan', 'teori', 'praktik']).optional(),
+  parent_kelas_id: z.number().nullable().optional(),
+  rombel_ids: z.array(z.number()).optional(),
 });
 
 export type KelasFormValues = z.infer<typeof kelasSchema>;
@@ -54,6 +57,9 @@ export interface KelasFormInitial {
   jam_selesai: string;
   is_gabungan: boolean;
   gabungan_program_studi_ids: number[];
+  tipe_sesi: 'gabungan' | 'teori' | 'praktik';
+  parent_kelas_id: number | null;
+  rombel_ids: number[];
 }
 
 function SectionTitle({ step, title, description, icon }: { step: string; title: string; description: string; icon: React.ReactNode }) {
@@ -124,6 +130,9 @@ export default function KelasForm({
       jam_selesai: '10:30',
       is_gabungan: false,
       gabungan_program_studi_ids: [],
+      tipe_sesi: 'gabungan' as const,
+      parent_kelas_id: null,
+      rombel_ids: [],
     },
   });
 
@@ -131,7 +140,36 @@ export default function KelasForm({
   const mataKuliahId = watch('mata_kuliah_id');
   const dosenId = watch('dosen_id');
   const tahunAkademikId = watch('tahun_akademik_id');
+  const tipeSesi = watch('tipe_sesi');
+  const parentKelasId = watch('parent_kelas_id');
   const hariOptions = useSiakadOptions(SIAKAD_OPTION_TYPES.HARI_KULIAH);
+  const [parentCandidates, setParentCandidates] = useState<any[]>([]);
+  const [rombelOptions, setRombelOptions] = useState<{ value: number; label: string }[]>([]);
+
+  useEffect(() => {
+    siakadService.getMasterKelasList({ per_page: 200 }).then((res: any) => {
+      const list: any[] = res.data || [];
+      setRombelOptions(list.map((r: any) => ({ value: r.id, label: `${r.nama_kelas} — Angkatan ${r.tahun_angkatan || '-'}${r.program_studi?.nama ? ` (${r.program_studi.nama})` : ''}` })));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!tahunAkademikId) {
+      setParentCandidates([]);
+      return;
+    }
+    // Induk boleh beda MK (teori MK sendiri, praktik MK sendiri); syarat hanya satu periode.
+    siakadService.getKelas({ tahun_akademik_id: tahunAkademikId }).then((res: any) => {
+      const list: any[] = res.data || [];
+      setParentCandidates(
+        list.filter(
+          (k: any) =>
+            !k.parent_kelas_id &&
+            (mode === 'edit' ? Number(k.id) !== Number(kelasId) : true)
+        )
+      );
+    }).catch(() => setParentCandidates([]));
+  }, [tahunAkademikId, mode, kelasId]);
 
   const [distribusiObe, setDistribusiObe] = useState<any | null>(null);
   const [loadingDistribusi, setLoadingDistribusi] = useState<boolean>(false);
@@ -267,6 +305,9 @@ export default function KelasForm({
             jam_selesai: '10:30',
             is_gabungan: false,
             gabungan_program_studi_ids: [],
+            tipe_sesi: 'gabungan' as const,
+            parent_kelas_id: null,
+            rombel_ids: [],
           });
         }
       } catch {
@@ -295,6 +336,9 @@ export default function KelasForm({
         jam_selesai: initialValues.jam_selesai || '10:30',
         is_gabungan: initialValues.is_gabungan || false,
         gabungan_program_studi_ids: initialValues.gabungan_program_studi_ids || [],
+        tipe_sesi: initialValues.tipe_sesi || 'gabungan',
+        parent_kelas_id: initialValues.parent_kelas_id ?? null,
+        rombel_ids: initialValues.rombel_ids || [],
       });
     }
   }, [mode, initialValues, reset]);
@@ -491,6 +535,9 @@ export default function KelasForm({
           jam_selesai: values.jam_selesai,
           is_gabungan: values.is_gabungan || false,
           gabungan_program_studi_ids: values.gabungan_program_studi_ids || [],
+          tipe_sesi: values.tipe_sesi || 'gabungan',
+          parent_kelas_id: values.parent_kelas_id ?? null,
+          rombel_ids: values.rombel_ids || [],
         });
         toast.success('Jadwal perkuliahan berhasil diperbarui');
       } else {
@@ -673,6 +720,66 @@ export default function KelasForm({
                     </div>
                   )}
                 </div>
+              </div>
+              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 p-3 bg-amber-50/60 border border-amber-200 rounded-xl">
+                <Controller
+                  name="tipe_sesi"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Tipe Sesi Kelas"
+                      required
+                      placeholder="Pilih tipe sesi..."
+                      options={[
+                        { value: 'gabungan', label: 'Gabungan (teori+praktik satu jadwal)' },
+                        { value: 'teori', label: 'Teori — induk gabungan' },
+                        { value: 'praktik', label: 'Praktik — anak per rombel' },
+                      ]}
+                      value={field.value || 'gabungan'}
+                      onChange={(val: any) => {
+                        field.onChange(val);
+                        if (val !== 'praktik') setValue('parent_kelas_id', null, { shouldValidate: true });
+                      }}
+                      hint={tipeSesi === 'teori' ? 'Satu jadwal besar untuk 2 rombel (cth. 24A+24B)' : tipeSesi === 'praktik' ? 'Wajib pilih induk teori + rombel sendiri' : 'Kelas biasa satu jadwal'}
+                      error={errors.tipe_sesi?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="parent_kelas_id"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Kelas Induk Teori"
+                      placeholder={tipeSesi === 'praktik' ? 'Pilih induk teori...' : 'Hanya untuk sesi praktik'}
+                      options={parentCandidates.map((k: any) => ({ value: k.id, label: `${k.kode_kelas} — ${k.nama_kelas}${k.mata_kuliah ? ` (${k.mata_kuliah.kode_mk})` : ''}` }))}
+                      value={field.value || ''}
+                      onChange={(val: any) => field.onChange(val ? Number(val) : null)}
+                      isDisabled={tipeSesi !== 'praktik'}
+                      isClearable
+                      hint="Anak praktik wajib satu periode dengan induk; MK boleh beda (teori & praktikum MK sendiri)"
+                      error={errors.parent_kelas_id?.message}
+                    />
+                  )}
+                />
+                <Controller
+                  name="rombel_ids"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      label="Rombel Peserta (24A/24B)"
+                      placeholder="Pilih rombel..."
+                      options={rombelOptions}
+                      value={field.value || []}
+                      onChange={(vals: any) => field.onChange((vals || []).map(Number))}
+                      isMulti
+                      hint={parentKelasId ? 'Praktik: cukup 1 rombel' : 'Teori gabungan: bisa banyak rombel'}
+                    />
+                  )}
+                />
+                {tipeSesi === 'praktik' && !parentKelasId && (
+                  <p className="md:col-span-3 text-2xs text-amber-700 font-bold">Pilih kelas induk teori terlebih dahulu agar jadwal praktik terhubung ke teori gabungannya.</p>
+                )}
               </div>
             </div>
           </CardBody>

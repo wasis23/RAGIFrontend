@@ -1,5 +1,13 @@
 import apiClient from '@/lib/axios';
 import { ApiResponse } from '@/types/api.types';
+import { buildExportFile } from '@/lib/download';
+import type {
+  BankSoal,
+  BankSoalBulkDeleteResult,
+  BankSoalBulkMoveResult,
+  BankSoalImportResult,
+  BankSoalPayload,
+} from '@/types/bank-soal.types';
 
 /**
  * Payload terketik untuk fitur Bimbingan PA.
@@ -908,8 +916,61 @@ export const siakadService = {
     return response.data;
   },
 
+  updateSoal: async (id: number, payload: BankSoalPayload): Promise<ApiResponse<BankSoal>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/soal/${id}`, payload);
+    return response.data;
+  },
+
   deleteSoal: async (id: number): Promise<ApiResponse<any>> => {
     const response = await apiClient.delete(`/v1/siakad/obe/soal/${id}`);
+    return response.data;
+  },
+
+  /** Import bank soal dari file XLSX/CSV. */
+  importSoal: async (payload: {
+    file: File;
+    rps_id: number;
+    rps_mingguan_id?: number | null;
+    sub_cpmk_id?: number | null;
+    kategori_id?: number | null;
+    tingkat_kesulitan?: string | null;
+  }): Promise<ApiResponse<BankSoalImportResult>> => {
+    const form = new FormData();
+    form.append('file', payload.file);
+    form.append('rps_id', String(payload.rps_id));
+    if (payload.rps_mingguan_id) form.append('rps_mingguan_id', String(payload.rps_mingguan_id));
+    if (payload.sub_cpmk_id) form.append('sub_cpmk_id', String(payload.sub_cpmk_id));
+    if (payload.kategori_id) form.append('kategori_id', String(payload.kategori_id));
+    if (payload.tingkat_kesulitan) form.append('tingkat_kesulitan', payload.tingkat_kesulitan);
+
+    const response = await apiClient.post('/v1/siakad/obe/soal/import', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  /** Unduh template import bank soal (XLSX). */
+  downloadTemplateSoal: async (): Promise<{ blob: Blob; filename: string }> => {
+    const response = await apiClient.get('/v1/siakad/obe/soal/import/template', { responseType: 'blob' });
+    return buildExportFile(
+      response.data,
+      response.headers?.['content-disposition'],
+      'template-import-bank-soal.xlsx'
+    );
+  },
+
+  /** Hapus banyak bank soal sekaligus. */
+  bulkDeleteSoal: async (ids: number[]): Promise<ApiResponse<BankSoalBulkDeleteResult>> => {
+    const response = await apiClient.post('/v1/siakad/obe/soal/bulk-delete', { ids });
+    return response.data;
+  },
+
+  /** Pindahkan banyak bank soal (kategori / RPS mingguan / Sub-CPMK). */
+  bulkMoveSoal: async (
+    ids: number[],
+    payload: { kategori_id?: number | null; rps_mingguan_id?: number | null; sub_cpmk_id?: number | null }
+  ): Promise<ApiResponse<BankSoalBulkMoveResult>> => {
+    const response = await apiClient.post('/v1/siakad/obe/soal/bulk-move', { ids, ...payload });
     return response.data;
   },
 

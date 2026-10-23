@@ -92,13 +92,37 @@ export interface BankSoalListParams {
 export interface BankSoalPayload {
   id?: number;
   rps_id: number;
-  rps_mingguan_id?: number;
-  sub_cpmk_id?: number;
-  kategori_id?: number;
+  rps_mingguan_id?: number | null;
+  sub_cpmk_id?: number | null;
+  kategori_id?: number | null;
   tipe_soal?: TipeSoal;
   tingkat_kesulitan?: TingkatKesulitan;
   bobot?: number;
   pertanyaan: string;
-  kunci_jawaban?: string;
-  pembahasan?: string;
+  kunci_jawaban?: string | null;
+  pembahasan?: string | null;
+}
+
+/** Hasil import bank soal dari XLSX/CSV (import parsial — baris invalid dilaporkan). */
+export interface BankSoalImportResult {
+  total_imported: number;
+  total_rows: number;
+  total_skipped: number;
+  ids: number[];
+  errors: string[];
+}
+
+/** Hasil hapus massal bank soal (soal yang dipakai quiz LMS dilewati). */
+export interface BankSoalBulkDeleteResult {
+  total_deleted: number;
+  total_skipped: number;
+  deleted_ids: number[];
+  skipped: { id: number; pertanyaan?: string | null; reason: string }[];
+}
+
+/** Hasil pemindahan massal bank soal. */
+export interface BankSoalBulkMoveResult {
+  total_updated: number;
+  ids: number[];
+  updates: Record<string, number | null>;
 }

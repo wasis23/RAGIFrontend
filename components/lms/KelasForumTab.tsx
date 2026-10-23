@@ -17,8 +17,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import ForumChat from '@/components/lms/ForumChat';
 import { lmsService } from '@/services/lms.service';
 import { useAuth } from '@/hooks/useAuth';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { LmsForumTopik, LmsForumPost, LmsPertemuanItem } from '@/types/lms.types';
-import { Plus, X, Send, Trash2, Pin, MessageSquare } from 'lucide-react';
+import { Plus, X, Send, Trash2, Pin, MessageSquare, Pencil } from 'lucide-react';
 
 const topikSchema = z.object({
   judul: z.string().min(1, 'Judul topik wajib diisi'),
@@ -26,6 +27,12 @@ const topikSchema = z.object({
 });
 
 type TopikFormValues = z.infer<typeof topikSchema>;
+
+const renameSchema = z.object({
+  judul: z.string().min(1, 'Judul topik wajib diisi').max(255, 'Judul maksimal 255 karakter'),
+});
+
+type RenameFormValues = z.infer<typeof renameSchema>;
 
 const filterSchema = z.object({
   filter: z.string().optional().default(''),
@@ -51,6 +58,7 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
   const [loadingTopik, setLoadingTopik] = useState(true);
   const [loadingPost, setLoadingPost] = useState(false);
   const [showTopikModal, setShowTopikModal] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<LmsForumTopik | null>(null);
   const [sending, setSending] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; kind: 'topik' | 'post'; id: number | null }>({
     isOpen: false,
@@ -61,6 +69,11 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
   const topikForm = useForm<TopikFormValues>({
     resolver: zodResolver(topikSchema) as any,
     defaultValues: { judul: '', pertemuan_id: '' },
+  });
+
+  const renameForm = useForm<RenameFormValues>({
+    resolver: zodResolver(renameSchema) as any,
+    defaultValues: { judul: '' },
   });
 
   const filterForm = useForm<FilterFormValues>({
@@ -104,7 +117,24 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
       const res = await lmsService.listForumTopik(kelasId);
       if (res.status === 'success') {
         const rawData = res.data as any;
-        const topik: LmsForumTopik[] = Array.isArray(rawData) ? rawData : (rawData?.topik || []);
+        let topik: LmsForumTopik[] = Array.isArray(rawData) ? rawData : (rawData?.topik || []);
+
+        // Endpoint baca tidak lagi membuat topik default secara otomatis
+        // (GET tidak boleh menulis data). Bila kelas belum punya topik, pastikan
+        // topik "Diskusi Umum" ada lewat aksi eksplisit yang idempoten.
+        if (topik.length === 0) {
+          try {
+            const ensured = await lmsService.ensureForumTopikUmum(kelasId);
+            if (ensured.status === 'success' && ensured.data) {
+              topik = [ensured.data as LmsForumTopik];
+            }
+          } catch (err: any) {
+            //_topik default gagal dibuat (mis. user tanpa izin) — abaikan,
+            // halaman tetap menampilkan daftar topik yang memang kosong.
+            console.warn('Gagal menyiapkan topik diskusi umum:', err?.message);
+          }
+        }
+
         setTopikList(topik);
         if (!activeTopik && topik.length > 0) {
           setActiveTopik(topik[0]);
@@ -163,6 +193,26 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
     }
   };
 
+  const openRenameTopik = (topik: LmsForumTopik) => {
+    setRenameTarget(topik);
+    renameForm.reset({ judul: topik.judul });
+  };
+
+  const onRenameTopik = async (values: RenameFormValues) => {
+    if (!renameTarget) return;
+    try {
+      const res = await lmsService.updateForumTopik(renameTarget.id, { judul: values.judul.trim() });
+      const judul = res.data?.judul ?? values.judul.trim();
+      setTopikList((prev) => prev.map((t) => (t.id === renameTarget.id ? { ...t, judul } : t)));
+      setActiveTopik((prev) => (prev && prev.id === renameTarget.id ? { ...prev, judul } : prev));
+      toast.success('Topik berhasil diperbarui');
+      setRenameTarget(null);
+      fetchTopik();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Gagal mengubah topik'));
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirm.id) return;
     try {
@@ -206,6 +256,16 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
     }
   };
 
+  const handleEditPost = async (postId: number, isi: string) => {
+    try {
+      await lmsService.updateForumPost(postId, { isi });
+      toast.success('Pesan diperbarui');
+      if (activeTopik) fetchPost(activeTopik.id);
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Gagal mengubah pesan'));
+    }
+  };
+
   if (loadingTopik) return <p className="text-xs text-slate-500">Memuat forum...</p>;
 
   return (
@@ -245,7 +305,10 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
                 <span className="text-xs font-bold flex-1">{t.judul}</span>
                 {canManage && (
                   <DropdownMenu
-                    items={[{ label: 'Hapus Topik', icon: <Trash2 size={16} />, onClick: () => setDeleteConfirm({ isOpen: true, kind: 'topik', id: t.id }) }]}
+                    items={[
+                      { label: 'Ubah Topik', icon: <Pencil size={16} />, onClick: () => openRenameTopik(t) },
+                      { label: 'Hapus Topik', icon: <Trash2 size={16} />, onClick: () => setDeleteConfirm({ isOpen: true, kind: 'topik', id: t.id }) },
+                    ]}
                   />
                 )}
               </div>
@@ -271,8 +334,11 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
             loadingPost={loadingPost}
             onSend={handleSend}
             onDeletePost={handleDeletePost}
+            onEditPost={handleEditPost}
             sending={sending}
             currentName={currentName}
+            currentUserId={user?.id ?? null}
+            canManage={canManage}
             pollIntervalMs={15000}
             onRefresh={() => activeTopik && fetchPost(activeTopik.id)}
           />
@@ -307,6 +373,35 @@ export default function KelasForumTab({ kelasId, isMahasiswa, canManage, pertemu
                 error={topikForm.formState.errors.pertemuan_id?.message}
               />
             )}
+          />
+        </form>
+      </Modal>
+
+      <Modal
+        open={renameTarget !== null}
+        onClose={() => setRenameTarget(null)}
+        title="Ubah Topik Diskusi"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" icon={<X size={16} />} onClick={() => setRenameTarget(null)}>Batal</Button>
+            <Button
+              type="submit"
+              form="form-rename-topik"
+              loading={renameForm.formState.isSubmitting}
+              disabled={renameForm.formState.isSubmitting}
+              icon={<Pencil size={16} />}
+            >
+              Simpan
+            </Button>
+          </div>
+        }
+      >
+        <form id="form-rename-topik" onSubmit={renameForm.handleSubmit(onRenameTopik)} className="grid grid-cols-1 gap-4">
+          <Input
+            label="Judul Topik"
+            placeholder="cth: Tanya Jawab UAS"
+            error={renameForm.formState.errors.judul?.message}
+            {...renameForm.register('judul')}
           />
         </form>
       </Modal>

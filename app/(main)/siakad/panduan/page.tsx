@@ -389,6 +389,26 @@ const GUIDES: GuideSection[] = [
     ],
   },
   {
+    id: 'sinkron-feeder',
+    title: 'Sinkronisasi Data ke Neo Feeder PDDIKTI',
+    category: 'obe',
+    categoryLabel: 'OBE & Feeder',
+    summary:
+      'Mengirim data dosen, mahasiswa, kelas, nilai, dan aktivitas ke Neo Feeder. Menu khusus feeder digabung ke panduan ini.',
+    targetUrl: '/siakad/feeder-sync',
+    targetLabel: 'Buka Sinkronisasi Feeder',
+    rolesAllowed: ['superadmin', 'admin'],
+    steps: [
+      'Buka halaman "Sinkronisasi Feeder" lewat tombol di panduan ini (/siakad/feeder-sync).',
+      'Periksa konfigurasi & token Neo Feeder terlebih dahulu.',
+      'Jalankan trigger sinkronisasi per entitas, lalu pantau log dan mapping ID Feeder.',
+      'Pastikan KHS terkunci dan RPS disetujui sebelum sinkron nilai/kelas.',
+    ],
+    warnings: [
+      'Butuh permission siakad.feeder.manage.',
+    ],
+  },
+  {
     id: 'akun-pengujian',
     title: 'Daftar Peran Penguji & Akses Modul SIAKAD',
     category: 'akun',

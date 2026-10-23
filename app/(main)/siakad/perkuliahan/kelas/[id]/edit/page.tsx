@@ -45,6 +45,9 @@ export default function EditKelasPerkuliahanPage() {
           jam_selesai: (k.jam_selesai || '10:30').substring(0, 5),
           is_gabungan: Boolean(k.is_gabungan),
           gabungan_program_studi_ids: (k.program_studis || []).map((p: any) => p.id),
+          tipe_sesi: k.tipe_sesi || (k.parent_kelas_id ? 'praktik' : 'gabungan'),
+          parent_kelas_id: k.parent_kelas_id ?? null,
+          rombel_ids: (k.rombels || []).map((r: any) => r.id),
         });
       } catch (err: any) {
         toast.error(err.response?.data?.message || 'Gagal memuat detail kelas');

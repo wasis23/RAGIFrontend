@@ -222,9 +222,9 @@ export function TambahPesertaForm({ quizId, onAdded }: { quizId: number; onAdded
               onChange={(val) => field.onChange(extractOptionValue(val))}
               loadOptions={async (input) => {
                 try {
-                  const res: any = await siakadService.getMahasiswas({ search: input, per_page: 20 });
-                  const items = Array.isArray(res.data) ? res.data : res.data?.data || [];
-                  return items.map((m: any) => ({ value: String(m.id), label: `${m.nim} — ${m.nama_lengkap}` }));
+                  const res = await lmsService.searchMahasiswa(input || '', 20);
+                  const items = Array.isArray(res.data) ? res.data : [];
+                  return items.map((m) => ({ value: String(m.id), label: `${m.nim} — ${m.nama_lengkap}` }));
                 } catch {
                   return [];
                 }

@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { lmsService } from '@/services/lms.service';
 import { siakadService } from '@/services/siakad.service';
 import { KELAS_PATTERN } from '@/lib/kelas';
+import { getApiErrorMessage } from '@/lib/utils';
 import type { LmsTryoutPeserta } from '@/types/lms.types';
 import { Copy, Check, Trash2, KeyRound, Users } from 'lucide-react';
 import TryoutKolaboratorCard, { TambahPesertaForm } from './TryoutKolaboratorCard';
@@ -30,6 +31,87 @@ const pesertaKelasSchema = z.object({
 });
 
 type PesertaKelasFormValues = z.infer<typeof pesertaKelasSchema>;
+
+const salinPesertaSchema = z.object({
+  source_quiz_id: z.string().min(1, 'Tryout sumber wajib dipilih.'),
+});
+
+type SalinPesertaFormValues = z.infer<typeof salinPesertaSchema>;
+
+function SalinPesertaForm({
+  quizId,
+  kelasId,
+  onCopied,
+}: {
+  quizId: number;
+  kelasId?: number | null;
+  onCopied: () => void;
+}) {
+  const form = useForm<SalinPesertaFormValues>({
+    resolver: zodResolver(salinPesertaSchema) as any,
+    defaultValues: { source_quiz_id: '' },
+  });
+
+  const loadTryoutOptions = useCallback(async () => {
+    if (!kelasId) return [];
+    try {
+      const res = await lmsService.listTryout(kelasId);
+      return (res.data || [])
+        .filter((q) => q.id !== quizId)
+        .map((q) => ({ value: String(q.id), label: q.judul }));
+    } catch {
+      return [];
+    }
+  }, [kelasId, quizId]);
+
+  const onSubmit = async (values: SalinPesertaFormValues) => {
+    try {
+      const res = await lmsService.copyTryoutPeserta(quizId, Number(values.source_quiz_id));
+      const data = res.data ?? { added: 0, skipped: 0, source_quiz_id: 0 };
+      toast.success(
+        `Berhasil menyalin ${data.added} peserta${data.skipped ? ` (${data.skipped} dilewati karena sudah terdaftar)` : ''}`
+      );
+      form.reset({ source_quiz_id: '' });
+      onCopied();
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, 'Gagal menyalin peserta'));
+    }
+  };
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+      <Controller
+        name="source_quiz_id"
+        control={form.control}
+        render={({ field }) => (
+          <AsyncSelect
+            label="Tryout Sumber"
+            placeholder="Pilih tryout pada kelas ini..."
+            value={field.value}
+            onChange={(val) => field.onChange(extractOptionValue(val))}
+            loadOptions={loadTryoutOptions}
+            isDisabled={!kelasId}
+            hint={kelasId ? undefined : 'Kelas tryout tidak diketahui.'}
+            isClearable
+            error={form.formState.errors.source_quiz_id?.message}
+          />
+        )}
+      />
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          type="submit"
+          variant="outline"
+          icon={<Copy size={16} />}
+          loading={form.formState.isSubmitting}
+          disabled={form.formState.isSubmitting || !kelasId}
+        >
+          Salin Peserta
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 function TambahPesertaKelasForm({ quizId, onAdded }: { quizId: number; onAdded: () => void }) {
   const form = useForm<PesertaKelasFormValues>({
@@ -118,13 +200,14 @@ function TambahPesertaKelasForm({ quizId, onAdded }: { quizId: number; onAdded: 
 
 interface TryoutPesertaTabProps {
   quizId: number;
+  kelasId?: number | null;
   peserta: LmsTryoutPeserta[];
   krsCount: number | null;
   kodeAkses?: string | null;
   onChanged: () => void;
 }
 
-export default function TryoutPesertaTab({ quizId, peserta, krsCount, kodeAkses, onChanged }: TryoutPesertaTabProps) {
+export default function TryoutPesertaTab({ quizId, kelasId, peserta, krsCount, kodeAkses, onChanged }: TryoutPesertaTabProps) {
   const [copied, setCopied] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ isOpen: boolean; id: number | null; name: string }>({
     isOpen: false,
@@ -247,6 +330,14 @@ export default function TryoutPesertaTab({ quizId, peserta, krsCount, kodeAkses,
             <h6 className="text-xs font-bold uppercase tracking-wider text-slate-700">Tambah per Kelas</h6>
           </div>
           <TambahPesertaKelasForm quizId={quizId} onAdded={onChanged} />
+        </div>
+        <hr className="border-t border-slate-100" />
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Copy size={16} style={{ color: 'var(--module-primary)' }} />
+            <h6 className="text-xs font-bold uppercase tracking-wider text-slate-700">Salin dari Tryout Lain</h6>
+          </div>
+          <SalinPesertaForm quizId={quizId} kelasId={kelasId} onCopied={onChanged} />
         </div>
         <DataTable
           columns={columns}

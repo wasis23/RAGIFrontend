@@ -28,6 +28,12 @@ interface DataTableProps<T> {
   defaultExpandedAll?: boolean;
   keyExtractor?: (row: T, index: number) => string | number;
   customHeader?: React.ReactNode;
+  /** Aktifkan checkbox pemilihan baris (untuk aksi massal). Diabaikan bila `customHeader` dipakai. */
+  selectable?: boolean;
+  /** Kunci baris yang sedang terpilih. */
+  selectedKeys?: string[];
+  /** Callback saat pilihan baris berubah. */
+  onSelectionChange?: (keys: string[]) => void;
 }
 
 export function DataTable<T extends object>({
@@ -43,6 +49,9 @@ export function DataTable<T extends object>({
   defaultExpandedAll = false,
   keyExtractor,
   customHeader,
+  selectable = false,
+  selectedKeys = [],
+  onSelectionChange,
 }: DataTableProps<T>) {
   const [expandedAll, setExpandedAll] = useState(defaultExpandedAll);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
@@ -74,7 +83,47 @@ export function DataTable<T extends object>({
   const to = meta?.to ?? 0;
   const total = meta?.total ?? 0;
   const expandable = typeof renderExpandedRow === 'function';
-  const colCount = columns.length + (expandable ? 1 : 0);
+  // Kolom checkbox hanya ditampilkan bila header tabel dibuat otomatis (bukan `customHeader`).
+  const showSelect = selectable && !customHeader;
+  const colCount = columns.length + (expandable ? 1 : 0) + (showSelect ? 1 : 0);
+
+  // ── Pemilihan baris (bulk action) ────────────────────────────────────────
+  const selectedSet = new Set(selectedKeys);
+  const pageKeys = data.map((row, index) => rowKey(row, index));
+  const allSelected = pageKeys.length > 0 && pageKeys.every((key) => selectedSet.has(key));
+
+  const toggleRowSelection = (key: string) => {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedSet);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+    }
+    onSelectionChange(Array.from(next));
+  };
+
+  const toggleSelectAll = () => {
+    if (!onSelectionChange) return;
+    const next = new Set(selectedSet);
+    if (allSelected) {
+      pageKeys.forEach((key) => next.delete(key));
+    } else {
+      pageKeys.forEach((key) => next.add(key));
+    }
+    onSelectionChange(Array.from(next));
+  };
+
+  const renderSelectCell = (key: string) => (
+    <input
+      type="checkbox"
+      className="h-4 w-4 rounded border-slate-300 text-[var(--module-primary)] focus:ring-[var(--module-primary)]"
+      checked={selectedSet.has(key)}
+      onChange={() => toggleRowSelection(key)}
+      onClick={(e) => e.stopPropagation()}
+      aria-label="Pilih baris"
+    />
+  );
 
   return (
     <div className="table-container bg-white shadow-xs">
@@ -85,6 +134,18 @@ export function DataTable<T extends object>({
               customHeader
             ) : (
               <tr className="bg-slate-50/90">
+                {showSelect && (
+                  <th className="bg-slate-50/90" style={{ width: '36px', padding: '0.5rem' }}>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-[var(--module-primary)] focus:ring-[var(--module-primary)]"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      disabled={data.length === 0}
+                      aria-label="Pilih semua baris"
+                    />
+                  </th>
+                )}
                 {expandable && (
                   <th className="bg-slate-50/90" style={{ width: '36px', padding: '0.5rem' }}>
                     {data.length > 0 && !isLoading && (
@@ -134,6 +195,11 @@ export function DataTable<T extends object>({
                   <tr
                     className={`bg-white hover:bg-slate-50 transition-colors ${rowClassName ? rowClassName(row, rowIndex) : ''}`}
                   >
+                    {showSelect && (
+                      <td style={{ width: '36px', padding: '0.5rem' }}>
+                        {renderSelectCell(rowKey(row, rowIndex))}
+                      </td>
+                    )}
                     {expandable && (
                       <td style={{ width: '36px', padding: '0.5rem' }}>
                         <button

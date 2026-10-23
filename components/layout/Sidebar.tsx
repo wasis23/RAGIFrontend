@@ -17,6 +17,7 @@ import {
   Activity,
   History,
   ExternalLink,
+  Bell,
   ChevronLeft,
   X,
   GraduationCap,
@@ -53,6 +54,7 @@ import {
   DoorOpen,
   Handshake,
   HeartHandshake,
+  Fingerprint,
   Ruler,
   Package,
   Boxes,
@@ -154,6 +156,8 @@ const getIconComponent = (iconName?: string | null) => {
     'FileSignature': FileText,
     'FileText': FileText,
     'FaStamp': Stamp,
+    'FaFingerprint': Fingerprint,
+    'FaBell': Bell,
   };
   const IconComponent = (iconName && iconMap[iconName]) || LayoutDashboard;
   return IconComponent;

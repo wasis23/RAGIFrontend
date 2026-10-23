@@ -23,6 +23,8 @@ const PUBLIC_PATHS = new Set([
   '/error',
   '/validasi-pembayaran',
   '/validasi-dispensasi',
+  '/validasi-kartu-ujian',
+  '/validasi-dokumen',
   '/sikeu/validasi-pembayaran',
 ]);
 

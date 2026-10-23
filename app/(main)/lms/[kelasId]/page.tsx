@@ -19,6 +19,7 @@ import { lmsService } from '@/services/lms.service';
 import { siakadService } from '@/services/siakad.service';
 import KelasForumTab from '@/components/lms/KelasForumTab';
 import KelasSelect from '@/components/lms/KelasSelect';
+import ExportLaporanModal from '@/components/lms/ExportLaporanModal';
 import { referensiService, MasterReferensiItem } from '@/services/referensi.service';
 import {
   LmsKelasOverview,
@@ -26,6 +27,7 @@ import {
   LmsRekapMatrix,
   LmsKetercapaian,
   LmsQuizItem,
+  LmsExportJenis,
 } from '@/types/lms.types';
 import {
   formatJadwal,
@@ -56,6 +58,7 @@ import {
   X,
   Pencil,
   Plus,
+  Download,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -119,7 +122,11 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { hasRole, hasPermission } = useAuth();
-  const isDosen = hasRole(['dosen', 'admin', 'superadmin', 'kaprodi', 'admin_siAkad'.toLowerCase()]) || hasPermission('lms.kelas.manage') || hasPermission('siakad.kelas.manage');
+  // Dosen/kelola kelas dikenali lewat role ATAU permission `siakad.kelas.manage`
+  // (slug `lms.kelas.manage` tidak pernah dibuat di DB sehingga ceknya sia-sia).
+  const isDosen =
+    hasRole(['dosen', 'admin', 'superadmin', 'kaprodi', 'wakil_prodi', 'admin_siakad']) ||
+    hasPermission('siakad.kelas.manage');
   const isMahasiswa = !isDosen;
 
   const initialTab: ActiveTab = (searchParams.get('tab') as ActiveTab) || 'pertemuan';
@@ -142,6 +149,16 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
   const [showImport, setShowImport] = useState(false);
   const [showTambah, setShowTambah] = useState(false);
   const [metodeAbsensiOptions, setMetodeAbsensiOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [showExport, setShowExport] = useState(false);
+
+  // Permission export laporan: absensi/izin → kelola kelas, nilai → kelola nilai.
+  const canExportPresensi = hasPermission('siakad.kelas.manage');
+  const canExportNilai = hasPermission('siakad.nilai.manage');
+
+  const exportJenis: LmsExportJenis[] = [
+    ...(canExportPresensi ? (['presensi', 'izin'] as LmsExportJenis[]) : []),
+    ...(canExportNilai ? (['nilai'] as LmsExportJenis[]) : []),
+  ];
 
   const {
     register,
@@ -641,12 +658,24 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
       {/* Tab: Rekap Presensi (dosen, matrix) */}
       {activeTab === 'rekap' && isDosen && (
         <div className="space-y-4">
-          <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs">
-            <h3 className="text-xs font-bold text-slate-800">Rekapitulasi Kehadiran Mahasiswa</h3>
-            <p className="text-2xs text-slate-500">
-              Batas minimal kehadiran: {matrix?.batas_min_hadir_persen || 75}% • H=Hadir S=Sakit
-              I=Izin A=Alfa
-            </p>
+          <div className="p-4 bg-white rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h3 className="text-xs font-bold text-slate-800">Rekapitulasi Kehadiran Mahasiswa</h3>
+              <p className="text-2xs text-slate-500">
+                Batas minimal kehadiran: {matrix?.batas_min_hadir_persen || 75}% • H=Hadir S=Sakit
+                I=Izin A=Alfa
+              </p>
+            </div>
+            {exportJenis.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                icon={<Download size={16} />}
+                onClick={() => setShowExport(true)}
+              >
+                Export Laporan
+              </Button>
+            )}
           </div>
 
           {matrixLoading ? (
@@ -990,6 +1019,14 @@ export default function LmsKelasDetailPage({ params }: PageProps) {
           />
         </form>
       </Modal>
+
+      {/* Modal Export Laporan (dosen) */}
+      <ExportLaporanModal
+        open={showExport}
+        onClose={() => setShowExport(false)}
+        scope={{ kelasId }}
+        jenis={exportJenis}
+      />
     </div>
   );
 }
