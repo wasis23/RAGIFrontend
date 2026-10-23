@@ -68,9 +68,18 @@ export default function PaketKrsListPage() {
 
   const isAdminObe = isSuperAdmin || userAdminProdis.length > 0;
 
-  // Context Selection States
-  const [selectedProdiId, setSelectedProdiId] = useState<number | null>(null);
-  const [selectedTaId, setSelectedTaId] = useState<number | null>(null);
+  // Context Selection States (Defaults & Applied)
+  const [defaultProdiId, setDefaultProdiId] = useState<number | null>(null);
+  const [defaultTaId, setDefaultTaId] = useState<number | null>(null);
+
+  const [appliedProdiId, setAppliedProdiId] = useState<number | null>(null);
+  const [appliedTaId, setAppliedTaId] = useState<number | null>(null);
+  const [appliedProdiName, setAppliedProdiName] = useState('');
+  const [appliedTaName, setAppliedTaName] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedAngkatan, setAppliedAngkatan] = useState('');
+  const [appliedSortBy, setAppliedSortBy] = useState('nama_kelas');
+  const [appliedSortDir, setAppliedSortDir] = useState<'asc' | 'desc'>('asc');
 
   // List & Pagination States
   const [items, setItems] = useState<any[]>([]);
@@ -79,17 +88,16 @@ export default function PaketKrsListPage() {
   const [limit, setLimit] = useState(15);
   const [loading, setLoading] = useState(true);
 
-  // Filter Drawer States
+  // Filter Drawer Staged States
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-  const [filterSearch, setFilterSearch] = useState('');
-  const [filterAngkatan, setFilterAngkatan] = useState('');
-  const [filterSortBy, setFilterSortBy] = useState('nama_kelas');
-  const [filterSortDir, setFilterSortDir] = useState<'asc' | 'desc'>('asc');
-
-  const [appliedSearch, setAppliedSearch] = useState('');
-  const [appliedAngkatan, setAppliedAngkatan] = useState('');
-  const [appliedSortBy, setAppliedSortBy] = useState('nama_kelas');
-  const [appliedSortDir, setAppliedSortDir] = useState<'asc' | 'desc'>('asc');
+  const [drawerProdiId, setDrawerProdiId] = useState<number | null>(null);
+  const [drawerTaId, setDrawerTaId] = useState<number | null>(null);
+  const [drawerProdiName, setDrawerProdiName] = useState('');
+  const [drawerTaName, setDrawerTaName] = useState('');
+  const [drawerSearch, setDrawerSearch] = useState('');
+  const [drawerAngkatan, setDrawerAngkatan] = useState('');
+  const [drawerSortBy, setDrawerSortBy] = useState('nama_kelas');
+  const [drawerSortDir, setDrawerSortDir] = useState<'asc' | 'desc'>('asc');
 
   // Copy Modal States
   const [copySourceRombel, setCopySourceRombel] = useState<any | null>(null);
@@ -126,16 +134,29 @@ export default function PaketKrsListPage() {
                 userAdminProdis.some((uap: any) => Number(uap.program_studi_id) === Number(p.id))
               );
 
-          if (permitted.length > 0 && selectedProdiId === null) {
-            setSelectedProdiId(Number(permitted[0].id));
+          if (permitted.length > 0 && appliedProdiId === null) {
+            const firstProdi = permitted[0];
+            const pId = Number(firstProdi.id);
+            const pName = `${firstProdi.nama} (${firstProdi.jenjang || 'S1'})`;
+            setDefaultProdiId(pId);
+            setAppliedProdiId(pId);
+            setAppliedProdiName(pName);
+            setDrawerProdiId(pId);
+            setDrawerProdiName(pName);
           }
         }
 
         if (taRes?.data) {
           const taList: any[] = Array.isArray(taRes.data) ? taRes.data : taRes.data.items || [];
           const activeTa = taList.find((t) => t.is_active) || taList[0];
-          if (activeTa && selectedTaId === null) {
-            setSelectedTaId(Number(activeTa.id));
+          if (activeTa && appliedTaId === null) {
+            const tId = Number(activeTa.id);
+            const tName = `${formatTahunAkademikLabel(activeTa)} ${activeTa.is_active ? '• (Aktif)' : ''}`;
+            setDefaultTaId(tId);
+            setAppliedTaId(tId);
+            setAppliedTaName(tName);
+            setDrawerTaId(tId);
+            setDrawerTaName(tName);
           }
         }
       } catch (err) {
@@ -145,7 +166,7 @@ export default function PaketKrsListPage() {
     };
 
     loadInitialContext();
-  }, [isAuthLoading, user, isAdminObe, isSuperAdmin, userAdminProdis, selectedProdiId, selectedTaId]);
+  }, [isAuthLoading, user, isAdminObe, isSuperAdmin, userAdminProdis, appliedProdiId, appliedTaId]);
 
   // AsyncSelect loaders
   const loadProdiOptions = useCallback(
@@ -187,10 +208,10 @@ export default function PaketKrsListPage() {
 
   const loadTargetKelasOptions = useCallback(
     async (keyword: string) => {
-      if (!selectedProdiId) return [];
+      if (!appliedProdiId) return [];
       try {
         const res = await siakadService.getMasterKelasList({
-          program_studi_id: selectedProdiId,
+          program_studi_id: appliedProdiId,
           search: keyword || undefined,
           is_active: true,
           per_page: 100,
@@ -206,12 +227,12 @@ export default function PaketKrsListPage() {
         return [];
       }
     },
-    [selectedProdiId, copySourceRombel]
+    [appliedProdiId, copySourceRombel]
   );
 
   // 2. Fetch Master Kelas Data List
   const fetchData = useCallback(async () => {
-    if (!selectedProdiId) {
+    if (!appliedProdiId) {
       setItems([]);
       setMeta(undefined);
       setLoading(false);
@@ -221,8 +242,8 @@ export default function PaketKrsListPage() {
     try {
       setLoading(true);
       const res = await siakadService.getMasterKelasList({
-        program_studi_id: selectedProdiId,
-        tahun_akademik_id: selectedTaId || undefined,
+        program_studi_id: appliedProdiId,
+        tahun_akademik_id: appliedTaId || undefined,
         tahun_angkatan: appliedAngkatan || undefined,
         search: appliedSearch || undefined,
         sort_by: appliedSortBy,
@@ -241,8 +262,8 @@ export default function PaketKrsListPage() {
       setLoading(false);
     }
   }, [
-    selectedProdiId,
-    selectedTaId,
+    appliedProdiId,
+    appliedTaId,
     appliedAngkatan,
     appliedSearch,
     appliedSortBy,
@@ -255,48 +276,42 @@ export default function PaketKrsListPage() {
     fetchData();
   }, [fetchData]);
 
-  // Overall Statistics from loaded items
-  const stats = useMemo(() => {
-    const totalRombel = meta?.total || items.length;
-    let berpaket = 0;
-    let totalMks = 0;
-    let totalMhs = 0;
-
-    items.forEach((item) => {
-      const pMks = item.paket_mks || [];
-      if (pMks.length > 0) {
-        berpaket++;
-        totalMks += pMks.length;
-      }
-      totalMhs += item.mahasiswas_count || 0;
-    });
-
-    const belumBerpaket = totalRombel - berpaket;
-
-    return {
-      totalRombel,
-      berpaket,
-      belumBerpaket,
-      totalMks,
-      totalMhs,
-    };
-  }, [items, meta]);
-
   // Filter Drawer Handlers
+  const handleOpenDrawer = () => {
+    setDrawerProdiId(appliedProdiId);
+    setDrawerTaId(appliedTaId);
+    setDrawerProdiName(appliedProdiName);
+    setDrawerTaName(appliedTaName);
+    setDrawerSearch(appliedSearch);
+    setDrawerAngkatan(appliedAngkatan);
+    setDrawerSortBy(appliedSortBy);
+    setDrawerSortDir(appliedSortDir);
+    setIsFilterDrawerOpen(true);
+  };
+
   const handleApplyFilter = () => {
-    setAppliedSearch(filterSearch);
-    setAppliedAngkatan(filterAngkatan);
-    setAppliedSortBy(filterSortBy);
-    setAppliedSortDir(filterSortDir);
+    setAppliedProdiId(drawerProdiId);
+    setAppliedTaId(drawerTaId);
+    setAppliedProdiName(drawerProdiName);
+    setAppliedTaName(drawerTaName);
+    setAppliedSearch(drawerSearch);
+    setAppliedAngkatan(drawerAngkatan);
+    setAppliedSortBy(drawerSortBy);
+    setAppliedSortDir(drawerSortDir);
     setPage(1);
     setIsFilterDrawerOpen(false);
   };
 
   const handleResetFilter = () => {
-    setFilterSearch('');
-    setFilterAngkatan('');
-    setFilterSortBy('nama_kelas');
-    setFilterSortDir('asc');
+    setDrawerProdiId(defaultProdiId);
+    setDrawerTaId(defaultTaId);
+    setDrawerSearch('');
+    setDrawerAngkatan('');
+    setDrawerSortBy('nama_kelas');
+    setDrawerSortDir('asc');
+
+    setAppliedProdiId(defaultProdiId);
+    setAppliedTaId(defaultTaId);
     setAppliedSearch('');
     setAppliedAngkatan('');
     setAppliedSortBy('nama_kelas');
@@ -304,6 +319,8 @@ export default function PaketKrsListPage() {
     setPage(1);
     setIsFilterDrawerOpen(false);
   };
+
+
 
   // Open Copy Package Modal
   const handleOpenCopy = (row: any) => {
@@ -336,7 +353,7 @@ export default function PaketKrsListPage() {
       setCopying(true);
       await siakadService.bulkSyncPaketMk({
         master_kelas_id: values.target_master_kelas_id,
-        tahun_akademik_id: selectedTaId || undefined,
+        tahun_akademik_id: appliedTaId || undefined,
         nomor_sk: sourceSk,
         items: itemsPayload,
       });
@@ -462,7 +479,7 @@ export default function PaketKrsListPage() {
                     router.push(
                       `/siakad/obe/krs/paket/create?master_kelas_id=${row.id}&program_studi_id=${
                         row.program_studi_id
-                      }${selectedTaId ? `&tahun_akademik_id=${selectedTaId}` : ''}`
+                      }${appliedTaId ? `&tahun_akademik_id=${appliedTaId}` : ''}`
                     ),
                 },
                 {
@@ -564,7 +581,7 @@ export default function PaketKrsListPage() {
               variant="outline"
               size="sm"
               icon={<Filter size={16} />}
-              onClick={() => setIsFilterDrawerOpen(true)}
+              onClick={handleOpenDrawer}
               className="text-xs font-bold"
             >
               Filter
@@ -576,8 +593,8 @@ export default function PaketKrsListPage() {
               onClick={() =>
                 router.push(
                   `/siakad/obe/krs/paket/create${
-                    selectedProdiId ? `?program_studi_id=${selectedProdiId}` : ''
-                  }${selectedTaId ? `&tahun_akademik_id=${selectedTaId}` : ''}`
+                    appliedProdiId ? `?program_studi_id=${appliedProdiId}` : ''
+                  }${appliedTaId ? `&tahun_akademik_id=${appliedTaId}` : ''}`
                 )
               }
               className="text-xs font-bold shadow-xs"
@@ -588,81 +605,51 @@ export default function PaketKrsListPage() {
         }
       />
 
-      {/* 2. Context Filter Bar (Prodi & Tahun Akademik) */}
-      <Card className="border border-slate-200 shadow-2xs bg-white">
-        <CardBody className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-            <div>
-              <AsyncSelect
-                label="Program Studi"
-                placeholder="Pilih Program Studi..."
-                loadOptions={loadProdiOptions}
-                value={selectedProdiId}
-                onChange={(opt: any) => {
-                  setSelectedProdiId(opt?.value ? Number(opt.value) : null);
-                  setPage(1);
-                }}
-                defaultOptions={true}
-              />
-            </div>
-
-            <div>
-              <AsyncSelect
-                label="Tahun Akademik"
-                placeholder="Pilih Tahun Akademik..."
-                loadOptions={loadTahunAkademikOptions}
-                value={selectedTaId}
-                onChange={(opt: any) => {
-                  setSelectedTaId(opt?.value ? Number(opt.value) : null);
-                  setPage(1);
-                }}
-                defaultOptions={true}
-              />
-            </div>
+      {/* 2. Active Filter Bar (Konteks Ringkas) */}
+      {(appliedProdiName || appliedTaName || appliedSearch || appliedAngkatan) && (
+        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-700">Filter Aktif:</span>
+            {appliedProdiName && (
+              <Badge variant="blue" className="text-2xs font-semibold">
+                Prodi: {appliedProdiName}
+              </Badge>
+            )}
+            {appliedTaName && (
+              <Badge variant="green" className="text-2xs font-semibold">
+                Tahun Akademik: {appliedTaName}
+              </Badge>
+            )}
+            {appliedSearch && (
+              <Badge variant="purple" className="text-2xs font-semibold">
+                Pencarian: "{appliedSearch}"
+              </Badge>
+            )}
+            {appliedAngkatan && (
+              <Badge variant="amber" className="text-2xs font-semibold">
+                Angkatan: {appliedAngkatan}
+              </Badge>
+            )}
           </div>
-        </CardBody>
-      </Card>
+          {(appliedSearch ||
+            appliedAngkatan ||
+            appliedSortBy !== 'nama_kelas' ||
+            appliedSortDir !== 'asc' ||
+            (defaultProdiId && appliedProdiId !== defaultProdiId) ||
+            (defaultTaId && appliedTaId !== defaultTaId)) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilter}
+              className="text-2xs text-slate-500 hover:text-slate-800 h-auto py-1 px-2"
+            >
+              Reset Filter
+            </Button>
+          )}
+        </div>
+      )}
 
-      {/* 3. Real-time Summary Statistics Card Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border border-slate-200 bg-white">
-          <CardBody className="p-3 text-center">
-            <span className="text-2xs font-bold text-slate-500 uppercase block">Total Rombel Kelas</span>
-            <span className="text-xl font-extrabold text-slate-900 tabular-nums">
-              {stats.totalRombel} <span className="text-2xs font-medium text-slate-500">Kelas</span>
-            </span>
-          </CardBody>
-        </Card>
-
-        <Card className="border border-slate-200 bg-white">
-          <CardBody className="p-3 text-center">
-            <span className="text-2xs font-bold text-slate-500 uppercase block">Rombel Sudah Berpaket</span>
-            <span className="text-xl font-extrabold text-emerald-600 tabular-nums">
-              {stats.berpaket} <span className="text-2xs font-medium text-slate-500">Kelas</span>
-            </span>
-          </CardBody>
-        </Card>
-
-        <Card className="border border-slate-200 bg-white">
-          <CardBody className="p-3 text-center">
-            <span className="text-2xs font-bold text-slate-500 uppercase block">Rombel Belum Berpaket</span>
-            <span className="text-xl font-extrabold text-amber-600 tabular-nums">
-              {stats.belumBerpaket} <span className="text-2xs font-medium text-slate-500">Kelas</span>
-            </span>
-          </CardBody>
-        </Card>
-
-        <Card className="border border-slate-200 bg-white">
-          <CardBody className="p-3 text-center">
-            <span className="text-2xs font-bold text-slate-500 uppercase block">Total Mahasiswa Ter-cover</span>
-            <span className="text-xl font-extrabold text-[var(--module-primary)] tabular-nums">
-              {stats.totalMhs} <span className="text-2xs font-medium text-slate-500">Mhs</span>
-            </span>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* 4. Main DataTable */}
+      {/* 3. Main DataTable */}
       <DataTable
         columns={columns}
         data={items}
@@ -674,56 +661,88 @@ export default function PaketKrsListPage() {
           setPage(1);
         }}
         emptyMessage={
-          selectedProdiId
+          appliedProdiId
             ? 'Tidak ada rombongan belajar (Master Kelas) pada program studi ini.'
-            : 'Silakan pilih Program Studi terlebih dahulu untuk memuat daftar rombel.'
+            : 'Silakan buka panel Filter untuk memilih Program Studi.'
         }
       />
 
-      {/* 5. Filter Drawer */}
+      {/* 4. Filter Drawer */}
       <Drawer
         isOpen={isFilterDrawerOpen}
         onClose={() => setIsFilterDrawerOpen(false)}
         title="Filter Rombongan Belajar"
         footer={
-          <div className="flex justify-end gap-2 w-full">
-            <Button variant="outline" size="sm" onClick={handleResetFilter}>
+          <div className="flex items-center justify-between gap-3 w-full">
+            <Button variant="outline" size="sm" onClick={handleResetFilter} className="text-xs">
               Reset
             </Button>
-            <Button variant="primary" size="sm" onClick={handleApplyFilter}>
+            <Button variant="primary" size="sm" onClick={handleApplyFilter} className="text-xs font-bold">
               Terapkan Filter
             </Button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <Input
-            label="Pencarian Kelas / DPA"
-            placeholder="Ketik nama kelas atau nama DPA..."
-            value={filterSearch}
-            onChange={(e) => setFilterSearch(e.target.value)}
-          />
+        <div className="space-y-4 text-xs">
+          <div>
+            <AsyncSelect
+              label="Program Studi"
+              placeholder="Pilih Program Studi..."
+              loadOptions={loadProdiOptions}
+              value={drawerProdiId}
+              onChange={(opt: any) => {
+                setDrawerProdiId(opt?.value ? Number(opt.value) : null);
+                setDrawerProdiName(opt?.label || '');
+              }}
+              defaultOptions={true}
+            />
+          </div>
 
-          <Input
-            label="Tahun Angkatan"
-            placeholder="Contoh: 2024"
-            type="number"
-            value={filterAngkatan}
-            onChange={(e) => setFilterAngkatan(e.target.value)}
-          />
+          <div>
+            <AsyncSelect
+              label="Tahun Akademik"
+              placeholder="Pilih Tahun Akademik..."
+              loadOptions={loadTahunAkademikOptions}
+              value={drawerTaId}
+              onChange={(opt: any) => {
+                setDrawerTaId(opt?.value ? Number(opt.value) : null);
+                setDrawerTaName(opt?.label || '');
+              }}
+              defaultOptions={true}
+            />
+          </div>
+
+          <div>
+            <Input
+              label="Pencarian Kelas / DPA"
+              placeholder="Ketik nama kelas atau nama DPA..."
+              value={drawerSearch}
+              onChange={(e) => setDrawerSearch(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Input
+              label="Tahun Angkatan"
+              placeholder="Contoh: 2024"
+              type="number"
+              value={drawerAngkatan}
+              onChange={(e) => setDrawerAngkatan(e.target.value)}
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Select
               label="Urutkan Berdasarkan"
               options={SORT_BY_OPTIONS}
-              value={filterSortBy}
-              onChange={(val) => setFilterSortBy(val)}
+              value={drawerSortBy}
+              onChange={(val) => setDrawerSortBy(val)}
             />
             <Select
               label="Arah Urutan"
               options={SORT_DIR_OPTIONS}
-              value={filterSortDir}
-              onChange={(val) => setFilterSortDir(val as 'asc' | 'desc')}
+              value={drawerSortDir}
+              onChange={(val) => setDrawerSortDir(val as 'asc' | 'desc')}
             />
           </div>
         </div>
