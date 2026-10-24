@@ -860,6 +860,26 @@ export const siakadService = {
     return response.data;
   },
 
+  getAturanSks: async (params?: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get('/v1/siakad/obe/aturan-sks', { params: { all: true, ...params } });
+    return response.data;
+  },
+
+  saveAturanSks: async (payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post('/v1/siakad/obe/aturan-sks', payload);
+    return response.data;
+  },
+
+  updateAturanSks: async (id: number, payload: any): Promise<ApiResponse<any>> => {
+    const response = await apiClient.put(`/v1/siakad/obe/aturan-sks/${id}`, payload);
+    return response.data;
+  },
+
+  deleteAturanSks: async (id: number): Promise<ApiResponse<any>> => {
+    const response = await apiClient.delete(`/v1/siakad/obe/aturan-sks/${id}`);
+    return response.data;
+  },
+
   getRps: async (params?: any): Promise<ApiResponse<any>> => {
     const response = await apiClient.get('/v1/siakad/obe/rps', { params });
     return response.data;
