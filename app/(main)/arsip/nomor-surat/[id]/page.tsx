@@ -250,6 +250,11 @@ export default function DetailNomorSuratPage() {
             >
               {nomor.status}
             </Badge>
+            {nomor.is_backdate && (
+              <Badge variant="amber" className="text-2xs font-bold uppercase">
+                Penerbitan Backdate
+              </Badge>
+            )}
           </div>
           <h2 className="font-mono text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
             {nomor.nomor_surat}
@@ -345,6 +350,17 @@ export default function DetailNomorSuratPage() {
                 </Badge>
               </div>
             </div>
+
+            {nomor.is_backdate && (
+              <div className="pt-2 border-t border-slate-100 bg-amber-50/70 p-3 rounded-lg border border-amber-200">
+                <span className="text-amber-800 font-bold block text-2xs uppercase">
+                  Alasan / Justifikasi Penerbitan Backdate
+                </span>
+                <p className="font-medium text-amber-900 text-xs mt-0.5">
+                  {nomor.alasan_backdate || 'Penerbitan surat bertanggal mundur.'}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

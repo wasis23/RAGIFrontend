@@ -226,7 +226,14 @@ export default function SimpegNomorSuratPage() {
       label: 'NOMOR SURAT RESMI',
       render: (row: NomorSurat) => (
         <div className="flex flex-col">
-          <span className="font-mono font-bold text-xs text-slate-900">{row.nomor_surat}</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono font-bold text-xs text-slate-900">{row.nomor_surat}</span>
+            {row.is_backdate && (
+              <Badge variant="amber" className="text-2xs font-bold uppercase">
+                Backdate
+              </Badge>
+            )}
+          </div>
           <span className="text-2xs text-slate-400 font-mono">
             Urut: #{row.nomor_urut} • Tgl: {row.tanggal_surat}
           </span>

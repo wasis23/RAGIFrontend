@@ -39,6 +39,7 @@ import {
   type NomorSurat, 
   STATUS_NOMOR_SURAT_OPTIONS,
   STATUS_FILE_SURAT_OPTIONS,
+  FILTER_IS_BACKDATE_OPTIONS,
   SORT_DIR_OPTIONS,
 } from '@/types/arsip.types';
 import type { PaginationMeta } from '@/types/api.types';
@@ -81,6 +82,7 @@ function DaftarNomorSuratContent() {
   const [filterTahun, setFilterTahun] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterHasFile, setFilterHasFile] = useState<string>('');
+  const [filterIsBackdate, setFilterIsBackdate] = useState<string>('');
   const [filterModule, setFilterModule] = useState('');
   const [sortBy, setSortBy] = useState('nomor_surat');
   const [sortDir, setSortDir] = useState('desc');
@@ -127,6 +129,7 @@ function DaftarNomorSuratContent() {
       if (filterTahun) params.tahun = filterTahun;
       if (filterStatus) params.status = filterStatus;
       if (filterHasFile !== '') params.has_file = filterHasFile;
+      if (filterIsBackdate !== '') params.is_backdate = filterIsBackdate;
       if (filterModule) params.module_origin = filterModule;
       if (sortBy) params.sort_by = sortBy;
       if (sortDir) params.sort_dir = sortDir;
@@ -146,7 +149,7 @@ function DaftarNomorSuratContent() {
 
   useEffect(() => {
     fetchNomorSurat();
-  }, [page, limit, filterTahun, filterStatus, filterHasFile, filterModule]);
+  }, [page, limit, filterTahun, filterStatus, filterHasFile, filterIsBackdate, filterModule]);
 
   const handleApplyFilter = () => {
     setPage(1);
@@ -161,6 +164,7 @@ function DaftarNomorSuratContent() {
     setFilterTahun('');
     setFilterStatus('');
     setFilterHasFile('');
+    setFilterIsBackdate('');
     setFilterModule('');
     setSortBy('nomor_surat');
     setSortDir('desc');
@@ -262,7 +266,14 @@ function DaftarNomorSuratContent() {
       label: 'NOMOR SURAT RESMI',
       render: (row: NomorSurat) => (
         <div className="flex flex-col">
-          <span className="font-mono font-bold text-xs text-slate-900">{row.nomor_surat}</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono font-bold text-xs text-slate-900">{row.nomor_surat}</span>
+            {row.is_backdate && (
+              <Badge variant="amber" className="text-2xs font-bold uppercase">
+                Backdate
+              </Badge>
+            )}
+          </div>
           <span className="text-2xs text-slate-400 font-mono">
             Urut: #{row.nomor_urut} • Tgl: {row.tanggal_surat}
           </span>
@@ -525,6 +536,13 @@ function DaftarNomorSuratContent() {
             value={filterHasFile}
             onChange={(val) => setFilterHasFile(val || '')}
             options={STATUS_FILE_SURAT_OPTIONS}
+          />
+
+          <Select
+            label="Penerbitan Backdate"
+            value={filterIsBackdate}
+            onChange={(val) => setFilterIsBackdate(val || '')}
+            options={FILTER_IS_BACKDATE_OPTIONS}
           />
 
           <AsyncSelect

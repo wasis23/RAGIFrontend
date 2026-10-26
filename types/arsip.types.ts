@@ -55,6 +55,12 @@ export const SORT_DIR_OPTIONS = [
   { value: 'asc', label: 'A-Z / Terlama' },
 ];
 
+export const FILTER_IS_BACKDATE_OPTIONS = [
+  { value: '', label: 'Semua Penerbitan' },
+  { value: '1', label: 'Hanya Backdate' },
+  { value: '0', label: 'Bukan Backdate (Reguler)' },
+];
+
 export interface KlasifikasiSurat {
   id: number;
   kode: string;
@@ -114,6 +120,8 @@ export interface NomorSurat {
   has_file?: boolean;
   status_pengajuan?: StatusRequestNomor | string;
   is_request_only?: boolean;
+  is_backdate?: boolean;
+  alasan_backdate?: string | null;
   catatan?: string | null;
   created_by: number;
   created_at: string;
@@ -215,6 +223,7 @@ export interface GenerateNomorSuratPayload {
   keterangan_item?: string[];
   tujuan_item?: string[];
   pegawai_id?: number | null;
+  alasan_backdate?: string;
   file_surat?: File | null;
 }
 

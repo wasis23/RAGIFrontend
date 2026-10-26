@@ -7,7 +7,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import toast from 'react-hot-toast';
-import { CheckCircle2, ShieldAlert, FileText, Hash, ArrowLeft, Upload, User, UserCheck } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, FileText, Hash, ArrowLeft, Upload, User, UserCheck, AlertCircle } from 'lucide-react';
 
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
@@ -32,6 +32,7 @@ const generateFormSchema = z.object({
   jumlah_nomor: z.number().int().min(1, 'Minimal 1 nomor').max(100, 'Maksimal 100 nomor'),
   catatan: z.string().optional(),
   pegawai_id: z.number().nullable().optional(),
+  alasan_backdate: z.string().optional(),
   file_surat: z
     .custom<File | null>()
     .optional()
@@ -39,7 +40,19 @@ const generateFormSchema = z.object({
     .refine((file) => !file || file.size <= 10 * 1024 * 1024, {
       message: 'Ukuran berkas maksimal 10 MB',
     }),
-});
+}).refine(
+  (data) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (data.tanggal_surat < today) {
+      return Boolean(data.alasan_backdate && data.alasan_backdate.trim().length >= 5);
+    }
+    return true;
+  },
+  {
+    message: 'Alasan / justifikasi wajib diisi minimal 5 karakter untuk penerbitan nomor surat bertanggal mundur (backdate)',
+    path: ['alasan_backdate'],
+  }
+);
 
 type GenerateFormData = z.infer<typeof generateFormSchema>;
 
@@ -71,6 +84,7 @@ export default function CreateNomorSuratPage() {
       jumlah_nomor: 1,
       catatan: '',
       pegawai_id: null,
+      alasan_backdate: '',
       file_surat: null,
     },
   });
@@ -80,6 +94,9 @@ export default function CreateNomorSuratPage() {
   const watchUnit = watch('kode_unit');
   const watchKlasifikasi = watch('kode_klasifikasi');
   const watchJumlah = watch('jumlah_nomor');
+
+  // Deteksi Backdate (apakah tanggal sebelum hari ini)
+  const isBackdate = Boolean(watchTanggal && watchTanggal < todayStr);
 
   // Preview format kalkulasi
   const parsedDate = watchTanggal ? new Date(watchTanggal) : new Date();
@@ -105,6 +122,7 @@ export default function CreateNomorSuratPage() {
         jumlah_nomor: data.mode === 'bulk' ? data.jumlah_nomor : 1,
         catatan: data.catatan || undefined,
         pegawai_id: data.pegawai_id || undefined,
+        alasan_backdate: data.alasan_backdate || undefined,
         file_surat: data.file_surat || undefined,
       });
 
@@ -262,6 +280,34 @@ export default function CreateNomorSuratPage() {
                     />
                   )}
                 />
+              )}
+
+              {/* Banner Informasi Backdate & Input Alasan */}
+              {isBackdate && (
+                <div className="sm:col-span-2 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2.5">
+                  <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-0.5 text-xs text-amber-800">
+                    <span className="font-bold text-amber-900">Mode Penerbitan Nomor Surat Backdate Terdeteksi</span>
+                    <span className="text-2xs text-amber-700">
+                      Tanggal surat ({watchTanggal}) mendahului hari ini ({todayStr}). Sistem akan melanjutkan urutan arsip pada tahun {letterYear} dan mewajibkan alasan/justifikasi backdate demi akuntabilitas audit.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {isBackdate && (
+                <div className="sm:col-span-2">
+                  <Textarea
+                    label="Alasan / Justifikasi Penerbitan Backdate *"
+                    placeholder="Contoh: Penerbitan nomor surat susulan untuk lampiran laporan akreditasi tahun lalu..."
+                    rows={2}
+                    {...register('alasan_backdate')}
+                    error={errors.alasan_backdate?.message}
+                  />
+                  <p className="text-2xs text-amber-700 mt-1">
+                    Wajib diisi minimal 5 karakter untuk keperluan audit trail penerbitan nomor surat mundur.
+                  </p>
+                </div>
               )}
 
               <Controller
@@ -456,8 +502,22 @@ export default function CreateNomorSuratPage() {
             </div>
 
             <div className="text-2xs text-slate-500 space-y-2 pt-1">
+              <div className="flex items-center gap-1.5 pb-1">
+                {isBackdate ? (
+                  <Badge variant="amber" className="text-2xs font-semibold">
+                    Status: Penerbitan Backdate ({letterYear})
+                  </Badge>
+                ) : (
+                  <Badge variant="success" className="text-2xs font-semibold">
+                    Status: Nomor Reguler ({letterYear})
+                  </Badge>
+                )}
+              </div>
               <p>
-                <strong className="text-slate-700">Urutan Otomatis:</strong> Nomor urut (XXX) dihitung otomatis oleh sistem per kombinasi unit kerja, klasifikasi surat, dan tahun surat tanpa risiko bentrok.
+                <strong className="text-slate-700">Reset Otomatis 1 Januari:</strong> Nomor urut surat otomatis di-reset ke 1 pada awal tahun baru, sementara arsip nomor surat tahun-tahun sebelumnya tetap tersimpan utuh.
+              </p>
+              <p>
+                <strong className="text-slate-700">Urutan Otomatis:</strong> {isBackdate ? `Nomor urut (XXX) melanjutkan urutan nomor terakhir yang tercatat pada arsip tahun ${letterYear}.` : `Nomor urut (XXX) dihitung otomatis berurutan pada tahun berjalan ${letterYear} tanpa risiko nomor ganda.`}
               </p>
               <p>
                 <strong className="text-slate-700">Lampiran Kop Surat:</strong> Sesuai tahun dokumen ({letterYear}), kop surat versi {letterYear >= 2021 ? 'Baru (≥ 2021)' : 'Lama (< 2021)'} akan otomatis dikaitkan saat cetak atau unduh.

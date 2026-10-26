@@ -51,6 +51,7 @@ export const arsipService = {
       if (payload.catatan) formData.append('catatan', payload.catatan);
       if (payload.jumlah_nomor) formData.append('jumlah_nomor', String(payload.jumlah_nomor));
       if (payload.pegawai_id) formData.append('pegawai_id', String(payload.pegawai_id));
+      if (payload.alasan_backdate) formData.append('alasan_backdate', payload.alasan_backdate);
       formData.append('file_surat', payload.file_surat);
 
       const { data } = await apiClient.post<ApiResponse<NomorSurat | NomorSurat[]>>('/arsip/nomor-surat', formData, {
