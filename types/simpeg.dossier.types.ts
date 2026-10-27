@@ -28,6 +28,8 @@ export interface TridharmaMetrics {
   total_kelas_ajar: number;
   total_sks_ajar: number;
   total_mhs_wali: number;
+  total_bimbingan_ta?: number;
+  total_bimbingan_pkl?: number;
   total_penelitian: number;
   total_dana_penelitian: number;
   total_pengabdian: number;
@@ -64,6 +66,31 @@ export interface TridharmaMahasiswaWali {
   program_studi?: string | null;
   angkatan: string | number;
   status: string;
+}
+
+export interface TridharmaBimbinganTa {
+  id: number;
+  nim: string;
+  nama_mahasiswa: string;
+  program_studi?: string | null;
+  judul: string;
+  tahun_akademik: string;
+  peran: string;
+  tahap: string;
+  status: string;
+  nilai_huruf?: string | null;
+}
+
+export interface TridharmaBimbinganPkl {
+  id: number;
+  nim: string;
+  nama_mahasiswa: string;
+  program_studi?: string | null;
+  instansi: string;
+  judul_laporan: string;
+  tahun_akademik: string;
+  status: string;
+  jenis: string;
 }
 
 export interface TridharmaProposal {
@@ -119,6 +146,8 @@ export interface TridharmaDossierData {
   pengajaran: {
     kelas: TridharmaKelasAjar[];
     mahasiswa_wali: TridharmaMahasiswaWali[];
+    bimbingan_ta?: TridharmaBimbinganTa[];
+    bimbingan_pkl?: TridharmaBimbinganPkl[];
   };
   penelitian: {
     hibah_ketua: TridharmaProposal[];

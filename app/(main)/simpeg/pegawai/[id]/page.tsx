@@ -39,7 +39,16 @@ import { simpegKompetensiService } from '@/services/simpeg.kompetensi.service';
 import { simpegDossierService } from '@/services/simpeg.dossier.service';
 import type { Pegawai } from '@/types/simpeg.types';
 import type { SertifikasiDosen, RiwayatTes, RiwayatPelatihan } from '@/types/simpeg.kompetensi.types';
-import type { TridharmaDossierData, TridharmaKelasAjar, TridharmaMahasiswaWali, TridharmaProposal, TridharmaPublikasi, TridharmaHki } from '@/types/simpeg.dossier.types';
+import type {
+  TridharmaDossierData,
+  TridharmaKelasAjar,
+  TridharmaMahasiswaWali,
+  TridharmaBimbinganTa,
+  TridharmaBimbinganPkl,
+  TridharmaProposal,
+  TridharmaPublikasi,
+  TridharmaHki,
+} from '@/types/simpeg.dossier.types';
 import { formatDate } from '@/lib/utils';
 
 export default function DetailPegawaiPage({ params }: { params: Promise<{ id: string }> }) {
@@ -216,6 +225,115 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
       render: (row) => (
         <Badge variant={row.status === 'aktif' ? 'green' : 'gray'} className="capitalize">
           {row.status}
+        </Badge>
+      ),
+    },
+  ];
+
+  const taColumns: ColumnDef<TridharmaBimbinganTa>[] = [
+    {
+      key: 'mahasiswa',
+      label: 'Mahasiswa',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 text-xs">{row.nama_mahasiswa}</div>
+          <div className="font-mono text-2xs text-slate-400">NIM: {row.nim} • {row.program_studi || '-'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'judul',
+      label: 'Judul Tugas Akhir / Skripsi',
+      render: (row) => (
+        <div className="max-w-[420px]">
+          <div className="font-semibold text-slate-800 text-xs line-clamp-2">{row.judul}</div>
+          <div className="text-2xs text-slate-400 mt-0.5">TA: {row.tahun_akademik}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'peran',
+      label: 'Peran Pembimbing',
+      render: (row) => (
+        <Badge
+          style={{
+            backgroundColor: 'var(--module-primary-subtle)',
+            color: 'var(--module-primary)',
+            borderColor: 'var(--module-primary)',
+          }}
+          className="text-2xs font-semibold"
+        >
+          {row.peran}
+        </Badge>
+      ),
+    },
+    {
+      key: 'tahap_status',
+      label: 'Tahap & Status',
+      render: (row) => (
+        <div>
+          <Badge variant={row.status === 'selesai' || row.status === 'siap_sidang' ? 'green' : 'gray'} className="text-2xs capitalize">
+            {row.status.replace(/_/g, ' ')}
+          </Badge>
+          <div className="text-2xs text-slate-400 mt-0.5 capitalize">Tahap: {row.tahap.replace(/_/g, ' ')}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'nilai',
+      label: 'Nilai Akhir',
+      render: (row) => (
+        row.nilai_huruf ? (
+          <Badge variant="green" className="text-xs font-bold px-2 py-0.5">
+            {row.nilai_huruf}
+          </Badge>
+        ) : (
+          <span className="text-2xs text-slate-400 italic">Dalam Proses</span>
+        )
+      ),
+    },
+  ];
+
+  const pklColumns: ColumnDef<TridharmaBimbinganPkl>[] = [
+    {
+      key: 'mahasiswa',
+      label: 'Mahasiswa',
+      render: (row) => (
+        <div>
+          <div className="font-bold text-slate-800 text-xs">{row.nama_mahasiswa}</div>
+          <div className="font-mono text-2xs text-slate-400">NIM: {row.nim} • {row.program_studi || '-'}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'instansi',
+      label: 'Instansi / Perusahaan',
+      render: (row) => (
+        <div>
+          <div className="font-semibold text-slate-800 text-xs">{row.instansi}</div>
+          <div className="text-2xs text-slate-400 uppercase tracking-wider">{row.jenis.replace(/_/g, ' ')}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'judul',
+      label: 'Judul Laporan PKL',
+      render: (row) => (
+        <div className="max-w-[400px]">
+          <div className="text-xs text-slate-800 line-clamp-2">{row.judul_laporan}</div>
+          <div className="text-2xs text-slate-400 mt-0.5">TA: {row.tahun_akademik}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => (
+        <Badge
+          variant={row.status === 'laporan_selesai' || row.status === 'dinilai' ? 'green' : 'warning'}
+          className="text-2xs capitalize"
+        >
+          {row.status.replace(/_/g, ' ')}
         </Badge>
       ),
     },
@@ -414,9 +532,13 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="card p-3 bg-white border border-slate-100 shadow-sm text-center">
-            <div className="text-2xs text-slate-500 font-semibold uppercase tracking-wider">Bimbingan Wali</div>
-            <div className="text-xl font-bold text-slate-900 mt-0.5">{metrics.total_mhs_wali}</div>
-            <div className="text-2xs text-slate-400">Mahasiswa Aktif</div>
+            <div className="text-2xs text-slate-500 font-semibold uppercase tracking-wider">Bimbingan Mhs</div>
+            <div className="text-xl font-bold text-slate-900 mt-0.5">
+              {(metrics.total_mhs_wali || 0) + (metrics.total_bimbingan_ta || 0) + (metrics.total_bimbingan_pkl || 0)}
+            </div>
+            <div className="text-2xs text-slate-400">
+              {metrics.total_mhs_wali || 0} Wali • {metrics.total_bimbingan_ta || 0} TA • {metrics.total_bimbingan_pkl || 0} PKL
+            </div>
           </div>
 
           <div className="card p-3 bg-white border border-slate-100 shadow-sm text-center">
@@ -472,9 +594,12 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
           >
             <GraduationCap size={16} />
             Pengajaran (SIAKAD)
-            {dossier?.pengajaran?.kelas && (
+            {dossier?.pengajaran && (
               <span className="ml-1 px-1.5 py-0.2 bg-slate-100 text-slate-700 rounded-full text-2xs font-bold">
-                {dossier.pengajaran.kelas.length}
+                {(dossier.pengajaran.kelas?.length || 0) +
+                  (dossier.pengajaran.mahasiswa_wali?.length || 0) +
+                  (dossier.pengajaran.bimbingan_ta?.length || 0) +
+                  (dossier.pengajaran.bimbingan_pkl?.length || 0)}
               </span>
             )}
           </button>
@@ -890,6 +1015,54 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
               emptyMessage={
                 <div className="py-8 text-center text-slate-400">
                   Tidak ada mahasiswa perwalian yang diasuh saat ini.
+                </div>
+              }
+            />
+          </div>
+
+          {/* Bimbingan Tugas Akhir / Skripsi */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FileText size={20} className="text-[var(--module-primary)]" />
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Bimbingan &amp; Sidang Tugas Akhir / Skripsi (SIAKAD)</h3>
+                  <p className="text-xs text-slate-500">Rekam jejak pembimbingan tugas akhir, proposal, dan sidang skripsi mahasiswa</p>
+                </div>
+              </div>
+            </div>
+
+            <DataTable
+              columns={taColumns}
+              data={dossier?.pengajaran?.bimbingan_ta || []}
+              isLoading={false}
+              emptyMessage={
+                <div className="py-8 text-center text-slate-400">
+                  Belum ada data bimbingan tugas akhir / skripsi mahasiswa di SIAKAD.
+                </div>
+              }
+            />
+          </div>
+
+          {/* Bimbingan PKL / Magang */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Briefcase size={20} className="text-[var(--module-primary)]" />
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Bimbingan Praktik Kerja Lapangan / Magang (SIAKAD)</h3>
+                  <p className="text-xs text-slate-500">Monitoring bimbingan magang industri dan PKL reguler mahasiswa</p>
+                </div>
+              </div>
+            </div>
+
+            <DataTable
+              columns={pklColumns}
+              data={dossier?.pengajaran?.bimbingan_pkl || []}
+              isLoading={false}
+              emptyMessage={
+                <div className="py-8 text-center text-slate-400">
+                  Belum ada data bimbingan PKL atau magang industri mahasiswa di SIAKAD.
                 </div>
               }
             />
