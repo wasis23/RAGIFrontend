@@ -275,6 +275,10 @@ export default function LaporanKeuanganPage() {
                         <span>Aset Tetap, Gedung & Peralatan</span>
                         <span className="font-mono font-semibold">{formatRupiah(neraca?.aset?.aset_tetap || 0)}</span>
                       </div>
+                      <div className="flex justify-between text-slate-700">
+                        <span>Aset Lainnya</span>
+                        <span className="font-mono font-semibold">{formatRupiah(neraca?.aset?.aset_lainnya || 0)}</span>
+                      </div>
                       <div className="flex justify-between font-extrabold border-t border-slate-200 pt-3 text-indigo-950 text-base">
                         <span>TOTAL ASET</span>
                         <span className="font-mono">{formatRupiah(neraca?.aset?.total_aset || 0)}</span>
@@ -292,12 +296,28 @@ export default function LaporanKeuanganPage() {
                         <span className="font-mono font-semibold">{formatRupiah(neraca?.liabilitas?.utang_pajak || 0)}</span>
                       </div>
                       <div className="flex justify-between text-slate-700">
+                        <span>Utang Lainnya</span>
+                        <span className="font-mono font-semibold">{formatRupiah(neraca?.liabilitas?.utang_lainnya || 0)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold border-t border-slate-200 pt-2 text-slate-900">
+                        <span>TOTAL LIABILITAS</span>
+                        <span className="font-mono">{formatRupiah(neraca?.liabilitas?.total_liabilitas || 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-700 pt-1">
                         <span>Ekuitas Dana Awal Institusi</span>
                         <span className="font-mono font-semibold">{formatRupiah(neraca?.ekuitas?.ekuitas_awal || 0)}</span>
                       </div>
                       <div className="flex justify-between text-slate-700">
+                        <span>Laba Ditahan (301.02)</span>
+                        <span className="font-mono font-semibold">{formatRupiah(neraca?.ekuitas?.laba_ditahan_301 || 0)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-700">
                         <span>Surplus Laba Tahun Berjalan</span>
                         <span className="font-mono font-semibold text-emerald-700">{formatRupiah(neraca?.ekuitas?.surplus_tahun_berjalan || 0)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold border-t border-slate-200 pt-2 text-slate-900">
+                        <span>TOTAL EKUITAS</span>
+                        <span className="font-mono">{formatRupiah(neraca?.ekuitas?.total_ekuitas || 0)}</span>
                       </div>
                       <div className="flex justify-between font-extrabold border-t border-slate-200 pt-3 text-purple-950 text-base">
                         <span>TOTAL PASIVA</span>

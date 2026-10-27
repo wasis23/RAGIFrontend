@@ -61,7 +61,8 @@ import {
   Stamp,
   Shapes,
   Lightbulb,
-  FlaskConical
+  FlaskConical,
+  Scale
 } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -76,6 +77,7 @@ const getIconComponent = (iconName?: string | null) => {
     'FaHome': Home,
     'FaUserPlus': UserPlus,
     'FaChartPie': PieChart,
+    'FaBalanceScale': Scale,
     'FaUsers': Users,
     'FaUserCheck': UserCheck,
     'FaList': List,

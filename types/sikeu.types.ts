@@ -208,6 +208,53 @@ export interface DetailJurnalUmum {
   jurnal?: JurnalUmum;
 }
 
+export interface SaldoAwalDetail {
+  id: number;
+  saldo_awal_id: number;
+  akun_id: number;
+  debet: number;
+  kredit: number;
+  keterangan?: string | null;
+  akun?: AkunKeuangan;
+}
+
+export interface SaldoAwal {
+  id: number;
+  tanggal: string;
+  periode_id?: number | null;
+  status: 'draft' | 'posted';
+  keterangan?: string | null;
+  total_debet: number;
+  total_kredit: number;
+  /** Positif = tambahan kredit ke ekuitas 301.03; negatif = tambahan debet. */
+  nominal_penyeimbang: number;
+  akun_penyeimbang_id?: number | null;
+  jurnal_id?: number | null;
+  created_by?: number | null;
+  posted_by?: number | null;
+  posted_at?: string | null;
+  details?: SaldoAwalDetail[];
+  akun_penyeimbang?: AkunKeuangan;
+  jurnal?: JurnalUmum;
+  periode?: PeriodeAkuntansi;
+}
+
+export interface SaldoAwalData {
+  saldo_awal: SaldoAwal | null;
+  akun_penyeimbang: AkunKeuangan;
+  coa: AkunKeuangan[];
+  validasi: ValidasiSaldoAwal;
+  riwayat: (SaldoAwal & { details_count?: number })[];
+}
+
+export interface ValidasiSaldoAwal {
+  tanggal_saldo_awal: string;
+  jumlah_jurnal_sebelum: number;
+  tanggal_jurnal_terawal?: string | null;
+  siap_posting: boolean;
+  pesan: string;
+}
+
 export interface PengeluaranKampus {
   id: number;
   nomor_transaksi: string;

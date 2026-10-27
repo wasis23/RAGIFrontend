@@ -17,6 +17,7 @@ const JENIS_LABEL: Record<string, string> = {
   pembatalan_potongan: 'Pembatalan potongan',
   dispensasi_memo: 'Memo dispensasi',
   penutupan: 'Penutup periode (tutup buku)',
+  saldo_awal: 'Saldo awal akuntansi (opening balance)',
   pemasukan: 'Pemasukan dana',
   pengeluaran: 'Pengeluaran dana',
   manual: 'Jurnal manual',

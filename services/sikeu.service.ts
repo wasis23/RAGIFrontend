@@ -5,7 +5,9 @@ import {
   PemasukanKampus,
   AkunKeuangan,
   JurnalUmum,
-  DetailJurnalUmum
+  DetailJurnalUmum,
+  SaldoAwalData,
+  SaldoAwal
 } from '@/types/sikeu.types';
 
 import apiClient from '@/lib/axios';
@@ -290,6 +292,31 @@ export const sikeuService = {
     if (params?.sampai) query.append('sampai', params.sampai);
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const { data } = await apiClient.get<ApiResponse<any>>(`/v1/sikeu/akuntansi/laporan${queryString}`);
+    return data;
+  },
+
+  // Saldo Awal Akuntansi (opening balance)
+  getSaldoAwal: async () => {
+    const { data } = await apiClient.get<ApiResponse<SaldoAwalData>>('/v1/sikeu/akuntansi/saldo-awal');
+    return data;
+  },
+
+  saveSaldoAwal: async (payload: {
+    tanggal: string;
+    keterangan?: string;
+    details: { akun_id: number; debet: number; kredit: number; keterangan?: string }[];
+  }) => {
+    const { data } = await apiClient.put<ApiResponse<SaldoAwal>>('/v1/sikeu/akuntansi/saldo-awal', payload);
+    return data;
+  },
+
+  postSaldoAwal: async () => {
+    const { data } = await apiClient.post<ApiResponse<SaldoAwal>>('/v1/sikeu/akuntansi/saldo-awal');
+    return data;
+  },
+
+  cancelSaldoAwal: async () => {
+    const { data } = await apiClient.delete<ApiResponse<null>>('/v1/sikeu/akuntansi/saldo-awal');
     return data;
   },
 
