@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -28,6 +28,11 @@ import {
   Database,
   Cloud,
   BookOpen,
+  Image as ImageIcon,
+  UploadCloud,
+  Trash2,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/axios';
@@ -117,6 +122,11 @@ const settingsSchema = z.object({
   lms_max_file_tugas_mb: z.string().min(1, 'Batas ukuran file tugas minimal 1 MB'),
   lms_allow_token_absensi: z.string().min(1),
   lms_token_ttl_minutes: z.string().min(1, 'Masa berlaku token minimal 1 menit'),
+
+  // Branding & Banner Login (SSO/IAM)
+  login_banner_url: z.string().optional(),
+  login_banner_title: z.string().optional(),
+  login_banner_subtitle: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsSchema>;
@@ -162,6 +172,9 @@ const defaultValues: SettingsFormValues = {
   lms_max_file_tugas_mb: '50',
   lms_allow_token_absensi: 'true',
   lms_token_ttl_minutes: '15',
+  login_banner_url: '',
+  login_banner_title: 'SSO Campus',
+  login_banner_subtitle: 'Enterprise Identity Platform',
 };
 
 export default function SystemSettingsPage() {
@@ -169,6 +182,10 @@ export default function SystemSettingsPage() {
   const [initialValues, setInitialValues] = useState<SettingsFormValues>(defaultValues);
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [savedSections, setSavedSections] = useState<Record<string, boolean>>({});
+
+  // Banner upload state
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
   // SMTP state
   const [showPassword, setShowPassword] = useState(false);
@@ -296,6 +313,10 @@ export default function SystemSettingsPage() {
         lms_max_file_tugas_mb: String(settingsData?.lms_max_file_tugas_mb?.value ?? defaultValues.lms_max_file_tugas_mb),
         lms_allow_token_absensi: settingsData?.lms_allow_token_absensi?.value ?? defaultValues.lms_allow_token_absensi,
         lms_token_ttl_minutes: String(settingsData?.lms_token_ttl_minutes?.value ?? defaultValues.lms_token_ttl_minutes),
+
+        login_banner_url: settingsData?.login_banner_url?.value ?? defaultValues.login_banner_url,
+        login_banner_title: settingsData?.login_banner_title?.value ?? defaultValues.login_banner_title,
+        login_banner_subtitle: settingsData?.login_banner_subtitle?.value ?? defaultValues.login_banner_subtitle,
       };
 
       setInitialValues(loadedValues);
@@ -366,6 +387,12 @@ export default function SystemSettingsPage() {
           currentValues.google_workspace_admin_email !== initialValues.google_workspace_admin_email ||
           currentValues.google_workspace_credentials !== initialValues.google_workspace_credentials
         );
+      case 'loginBanner':
+        return (
+          (currentValues.login_banner_url || '') !== (initialValues.login_banner_url || '') ||
+          (currentValues.login_banner_title || '') !== (initialValues.login_banner_title || '') ||
+          (currentValues.login_banner_subtitle || '') !== (initialValues.login_banner_subtitle || '')
+        );
       default:
         return false;
     }
@@ -374,6 +401,11 @@ export default function SystemSettingsPage() {
   // Reset a specific section's values
   const resetSection = (section: string) => {
     switch (section) {
+      case 'loginBanner':
+        setValue('login_banner_url', initialValues.login_banner_url);
+        setValue('login_banner_title', initialValues.login_banner_title);
+        setValue('login_banner_subtitle', initialValues.login_banner_subtitle);
+        break;
       case 'smtp':
         setValue('mail_host', initialValues.mail_host);
         setValue('mail_port', initialValues.mail_port);
@@ -505,6 +537,13 @@ export default function SystemSettingsPage() {
         { key: 'google_workspace_credentials', value: vals.google_workspace_credentials || '' },
       ];
       successMessage = 'Konfigurasi Google Workspace berhasil disimpan.';
+    } else if (section === 'loginBanner') {
+      settingsToSave = [
+        { key: 'login_banner_url', value: vals.login_banner_url || '' },
+        { key: 'login_banner_title', value: vals.login_banner_title || 'SSO Campus' },
+        { key: 'login_banner_subtitle', value: vals.login_banner_subtitle || 'Enterprise Identity Platform' },
+      ];
+      successMessage = 'Pengaturan Banner & Branding Login berhasil disimpan.';
     }
 
     if (fieldsToValidate.length > 0) {
@@ -545,6 +584,44 @@ export default function SystemSettingsPage() {
     } finally {
       setSavingSection(null);
     }
+  };
+
+  const handleBannerFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran berkas gambar melebihi batas maksimal 5MB.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('banner', file);
+
+    setIsUploadingBanner(true);
+    try {
+      const res = await apiClient.post('/admin/system-settings/upload-banner', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data?.data?.url;
+      if (url) {
+        setValue('login_banner_url', url, { shouldDirty: true });
+        toast.success('Foto banner berhasil diunggah! Jangan lupa klik Simpan Banner Login.');
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Gagal mengunggah foto banner.';
+      toast.error(msg);
+    } finally {
+      setIsUploadingBanner(false);
+      if (bannerFileInputRef.current) {
+        bannerFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleClearBanner = () => {
+    setValue('login_banner_url', '', { shouldDirty: true });
+    toast.success('Foto banner dihapus (kembali ke latar gelap bawaan). Klik Simpan Banner Login untuk menerapkan.');
   };
 
   const handleTestSmtp = async () => {
@@ -684,6 +761,202 @@ export default function SystemSettingsPage() {
       <div className="settings-page-grid">
         {/* ── Left: Settings Sections ── */}
         <div className="settings-sections space-y-6">
+
+          {/* ════════ Section 0: Branding & Banner Foto Halaman Login (SSO/IAM) ════════ */}
+          <div className="settings-section-card card">
+            <div className="settings-section-header">
+              <div className="settings-section-icon bg-violet-100 text-violet-700">
+                <ImageIcon size={18} />
+              </div>
+              <div className="settings-section-title-group">
+                <h2 className="settings-section-title">Branding & Banner Halaman Login (SSO/IAM)</h2>
+                <p className="settings-section-desc">
+                  Atur foto banner visual yang tampil pada panel sisi kanan halaman Login, Register, dan Autentikasi SSO Campus menggantikan area kosong gelap bawaan.
+                </p>
+              </div>
+            </div>
+
+            <div className="settings-section-divider" />
+
+            <div className="settings-section-body space-y-6">
+              {isLoading ? (
+                <div className="settings-loading">
+                  <Loader2 size={20} className="animate-spin text-slate-400" />
+                  <span className="text-sm text-slate-500">Memuat pengaturan banner login...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    ref={bannerFileInputRef}
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                    onChange={handleBannerFileSelect}
+                    className="hidden"
+                  />
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Form Controls (7 cols) */}
+                    <div className="lg:col-span-7 space-y-4">
+                      {/* Upload Box */}
+                      <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/80 hover:bg-slate-50 transition-colors space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <UploadCloud size={18} className="text-violet-600" />
+                            <span className="text-sm font-semibold text-slate-800">
+                              Unggah Berkas Gambar
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-500">Maks. 5 MB</span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Pilih foto lanskap kampus atau grafis resmi (rekomendasi resolusi: 1920×1080 atau rasio 16:9). Berkas akan otomatis disimpan ke storage sistem.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={() => bannerFileInputRef.current?.click()}
+                            loading={isUploadingBanner}
+                            icon={<UploadCloud size={14} />}
+                          >
+                            {isUploadingBanner ? 'Mengunggah Berkas...' : 'Pilih & Unggah Foto Banner'}
+                          </Button>
+
+                          {currentValues.login_banner_url && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleClearBanner}
+                              icon={<Trash2 size={14} className="text-rose-600" />}
+                              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                            >
+                              Gunakan Tema Gelap Bawaan
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Direct URL Input */}
+                      <Input
+                        label="Tautan / URL Gambar Banner"
+                        placeholder="https://domain.com/storage/branding/banner.jpg"
+                        error={errors.login_banner_url?.message}
+                        hint="Terisi otomatis saat Anda mengunggah file di atas, atau masukkan tautan gambar langsung."
+                        {...register('login_banner_url')}
+                      />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                          label="Judul Lencana Identitas"
+                          placeholder="SSO Campus"
+                          error={errors.login_banner_title?.message}
+                          hint="Teks nama institusi di lencana pojok kanan bawah."
+                          {...register('login_banner_title')}
+                        />
+                        <Input
+                          label="Subjudul / Slogan"
+                          placeholder="Enterprise Identity Platform"
+                          error={errors.login_banner_subtitle?.message}
+                          hint="Slogan di bawah nama institusi."
+                          {...register('login_banner_subtitle')}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Right Live Preview Box (5 cols) */}
+                    <div className="lg:col-span-5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <Sparkles size={13} className="text-violet-600" />
+                          Pratinjau Langsung Halaman Login
+                        </span>
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                          currentValues.login_banner_url
+                            ? 'bg-violet-100 text-violet-700 border border-violet-200'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {currentValues.login_banner_url ? 'Foto Kustom' : 'Tema Gelap Default'}
+                        </span>
+                      </div>
+
+                      {/* Mockup Frame */}
+                      <div className="rounded-xl border border-slate-200 overflow-hidden shadow-md bg-white select-none">
+                        {/* Browser Top Bar Mockup */}
+                        <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-rose-400" />
+                          <div className="w-2 h-2 rounded-full bg-amber-400" />
+                          <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                          <span className="text-[10px] text-slate-400 ml-2 font-mono">sso.kampus.ac.id/login</span>
+                        </div>
+
+                        {/* Split Mockup */}
+                        <div className="flex h-48 sm:h-56">
+                          {/* Mini Left: Form */}
+                          <div className="w-[45%] bg-white p-3 flex flex-col justify-between border-r border-slate-100">
+                            <div>
+                              <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white mb-2">
+                                <Layers size={10} />
+                              </div>
+                              <div className="h-2 w-16 bg-slate-800 rounded-sm mb-1" />
+                              <div className="h-1.5 w-10 bg-slate-300 rounded-sm mb-3" />
+                              <div className="space-y-1.5">
+                                <div className="h-3 w-full bg-slate-100 rounded border border-slate-200" />
+                                <div className="h-3 w-full bg-slate-100 rounded border border-slate-200" />
+                                <div className="h-3.5 w-full bg-blue-600 rounded" />
+                              </div>
+                            </div>
+                            <div className="h-1 w-12 bg-slate-200 rounded-sm" />
+                          </div>
+
+                          {/* Mini Right: Dynamic Banner Visual */}
+                          <div className="w-[55%] relative bg-[#0B0F19] overflow-hidden flex items-end p-2.5">
+                            {currentValues.login_banner_url ? (
+                              <>
+                                <div
+                                  className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                                  style={{ backgroundImage: `url(${currentValues.login_banner_url})` }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F19]/90 via-[#0B0F19]/35 to-transparent" />
+                              </>
+                            ) : (
+                              <>
+                                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-blue-600/30 blur-lg" />
+                                <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full bg-indigo-600/30 blur-lg" />
+                                <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:8px_8px] opacity-40" />
+                              </>
+                            )}
+
+                            {/* Mini Badge Card */}
+                            <div className="relative z-10 w-full bg-slate-900/70 backdrop-blur-md px-2 py-1.5 rounded-lg border border-white/20 shadow flex items-center gap-1.5">
+                              <div className="w-4 h-4 rounded bg-blue-600 flex items-center justify-center text-white shrink-0">
+                                <Layers size={8} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[9px] font-bold text-white truncate leading-none">
+                                  {currentValues.login_banner_title || 'SSO Campus'}
+                                </div>
+                                <div className="text-[7px] text-slate-300 truncate leading-none mt-0.5">
+                                  {currentValues.login_banner_subtitle || 'Enterprise Identity Platform'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500 italic">
+                        *Panel kanan di atas adalah representasi langsung dari tampilan halaman login publik.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {renderSectionFooter('loginBanner', 'Simpan Banner Login')}
+          </div>
 
           {/* ════════ Section 1: Server SMTP & Email Notifikasi ════════ */}
           <div className="settings-section-card card">
@@ -1444,6 +1717,10 @@ export default function SystemSettingsPage() {
             <div className="settings-info-divider" />
 
             <div className="space-y-3 mt-4 text-xs text-slate-600 leading-relaxed">
+              <div className="flex items-start gap-2">
+                <ImageIcon size={14} className="text-violet-600 shrink-0 mt-0.5" />
+                <span><strong>Banner Login:</strong> Mengatur foto banner visual di sisi kanan halaman autentikasi/login SSO & IAM.</span>
+              </div>
               <div className="flex items-start gap-2">
                 <Server size={14} className="text-amber-600 shrink-0 mt-0.5" />
                 <span><strong>Server SMTP:</strong> Mengontrol email keluar untuk reset password, aktivasi akun, dan notifikasi.</span>
