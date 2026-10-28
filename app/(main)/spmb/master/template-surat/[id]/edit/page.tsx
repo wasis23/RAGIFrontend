@@ -22,7 +22,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 import { spmbService } from '@/services/spmb.service';
-import { moduleService } from '@/services/module.service';
 import { JalurMasuk, GelombangPenerimaan, JENIS_SURAT_OPTIONS } from '@/types/spmb.types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -45,7 +44,6 @@ const schema = z.object({
   kop_nama_institusi: z.string().optional().nullable(),
   kop_nama_sub: z.string().optional().nullable(),
   kop_alamat_kontak: z.string().optional().nullable(),
-  format_nomor_surat: z.string().optional().nullable(),
   judul_surat: z.string().optional().nullable(),
   teks_pembuka: z.string().optional().nullable(),
   teks_pernyataan: z.string().optional().nullable(),
@@ -60,6 +58,17 @@ const schema = z.object({
   jabatan_penandatangan: z.string().optional().nullable(),
   nip_penandatangan: z.string().optional().nullable(),
   catatan_kaki: z.string().optional().nullable(),
+}).superRefine((values, ctx) => {
+  if (!values.is_active) return;
+  if (!values.module_id) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['module_id'], message: 'Modul pemohon wajib dipilih.' });
+  }
+  if (!values.klasifikasi_surat_id) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['klasifikasi_surat_id'], message: 'Klasifikasi Arsip wajib dipilih.' });
+  }
+  if (!values.unit_surat_id) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['unit_surat_id'], message: 'Unit penerbit INDO wajib dipilih.' });
+  }
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -104,6 +113,7 @@ function replacePlaceholders(text: string, values: Record<string, string>): stri
 }
 
 interface ArsipOptions {
+  modules: { id: number; name: string; code: string }[];
   klasifikasi: { id: number; kode: string; nama: string }[];
   unit: { id: number; kode: string; nama: string }[];
   kop_surat: {
@@ -208,15 +218,11 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
   };
 
   const loadModuleOptions = async (inputValue: string) => {
-    try {
-      const modules = await moduleService.getAllModules();
-      const q = inputValue.toLowerCase();
-      return (modules || [])
-        .filter((m) => m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q))
-        .map((m) => ({ value: String(m.id), label: `${m.name} (${m.code})` }));
-    } catch {
-      return [];
-    }
+    const modules = arsipOpts?.modules || [];
+    const q = inputValue.toLowerCase();
+    return modules
+      .filter((m) => m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q))
+      .map((m) => ({ value: String(m.id), label: `${m.name} (${m.code})` }));
   };
 
   const loadKlasifikasiOptions = async (inputValue: string) => {
@@ -258,7 +264,6 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
       kop_nama_institusi: '',
       kop_nama_sub: '',
       kop_alamat_kontak: '',
-      format_nomor_surat: '',
       judul_surat: '',
       teks_pembuka: '',
       teks_pernyataan: '',
@@ -314,7 +319,6 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
             kop_nama_institusi: d.kop_nama_institusi || '',
             kop_nama_sub: d.kop_nama_sub || '',
             kop_alamat_kontak: d.kop_alamat_kontak || '',
-            format_nomor_surat: d.format_nomor_surat || '',
             judul_surat: d.judul_surat || 'SURAT KETERANGAN TANDA LULUS SELEKSI',
             teks_pembuka:
               d.teks_pembuka ||
@@ -422,7 +426,6 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
     replacePlaceholders(text || '', { ...SAMPLE, kota: values?.kota_penetapan || 'Surakarta' });
 
   const kopSurat = arsipOpts?.kop_surat ?? null;
-  const nomorSurat = ph(values?.format_nomor_surat || 'SKL/SPMB/{tahun}/{romawi_bulan}/{no_pendaftaran}');
   const isDitolak = values?.hasil === 'ditolak';
   const fontFamily = "'DejaVu Serif', 'Times New Roman', Times, serif";
 
@@ -593,36 +596,40 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
                   <div className="min-w-0">
                     <h3 className="text-sm font-bold text-slate-800">Penomoran & Integrasi Arsip</h3>
                     <p className="text-2xs text-slate-500 mt-0.5">
-                      Format nomor internal & penomoran resmi dari modul Arsip.
+                      Nomor resmi dan urutannya diterbitkan oleh Arsip.
                     </p>
                   </div>
                 </div>
               </div>
               <div className="card-body">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <Input
-                      label="Format Nomor Surat"
-                      placeholder="SKL/SPMB/{tahun}/{romawi_bulan}/{no_pendaftaran}"
-                      hint="Dapat memakai token dinamis."
-                      error={errors.format_nomor_surat?.message}
-                      {...register('format_nomor_surat')}
-                    />
+                  <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <span className="text-2xs font-semibold uppercase tracking-wider text-slate-500">
+                      Format Nomor SK dari Arsip
+                    </span>
+                    <code className="mt-1 block text-xs font-mono font-bold text-slate-800">
+                      {'{nomor_urut}/{kode_klasifikasi}/INDO/{bulan_romawi}/{tahun}'}
+                    </code>
+                    <p className="mt-1 text-2xs text-slate-500">
+                      Arsip menerbitkan nomor setelah permohonan disetujui. SPMB tidak membuat nomor sendiri.
+                    </p>
                   </div>
                   <Controller
                     name="module_id"
                     control={control}
                     render={({ field }) => (
                       <AsyncSelect
-                        label="Modul Asal Nomor"
-                        placeholder="Pilih modul (mis. SPMB)"
+                        label="Modul Pemohon"
+                        placeholder="Pilih modul SPMB..."
                         value={field.value}
                         onChange={(opt: { value: string; label: string } | null) =>
                           field.onChange(opt ? opt.value : '')
                         }
                         loadOptions={loadModuleOptions}
                         isClearable
-                        hint="Modul asal permohonan nomor surat."
+                        required={Boolean(values?.is_active)}
+                        error={errors.module_id?.message}
+                        hint="Asal permohonan dicatat sebagai SPMB; unit INDO di Arsip menerbitkan nomor."
                       />
                     )}
                   />
@@ -639,6 +646,8 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
                         }
                         loadOptions={loadKlasifikasiOptions}
                         isClearable
+                        required={Boolean(values?.is_active)}
+                        error={errors.klasifikasi_surat_id?.message}
                         hint="Dari master Klasifikasi Surat Arsip."
                       />
                     )}
@@ -648,15 +657,17 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
                     control={control}
                     render={({ field }) => (
                       <AsyncSelect
-                        label="Unit Pengolah (Arsip)"
-                        placeholder="Cari kode/nama unit pengolah..."
+                        label="Unit Penerbit (Arsip)"
+                        placeholder="Pilih unit INDO..."
                         value={field.value}
                         onChange={(opt: { value: string; label: string } | null) =>
                           field.onChange(opt ? opt.value : '')
                         }
                         loadOptions={loadUnitOptions}
                         isClearable
-                        hint="Dari master Kode Unit Arsip."
+                        required={Boolean(values?.is_active)}
+                        error={errors.unit_surat_id?.message}
+                        hint="Nomor SK SPMB wajib memakai unit penerbit INDO dari master Arsip."
                       />
                     )}
                   />
@@ -671,8 +682,7 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
                 >
                   <Info size={14} className="mt-0.5 shrink-0" />
                   <span>
-                    Bila Modul, Klasifikasi, dan Unit diisi, nomor SK terbit resmi dari modul Arsip.
-                    Bila kosong, SK memakai format nomor internal di atas.
+                    Setiap nomor SK dimohonkan ke Arsip dan menunggu persetujuan. Nomor urut, format, dan unit penerbit ditentukan oleh master Arsip.
                   </span>
                 </div>
               </div>
@@ -816,7 +826,7 @@ export default function EditorTemplateSuratPage({ params }: { params: Promise<{ 
                               letterSpacing: 0.5,
                             }}
                           />
-                          <div style={{ fontSize: 16, marginTop: 2 }}>Nomor: {nomorSurat}</div>
+                          <div style={{ fontSize: 16, marginTop: 2 }}>Nomor: Diterbitkan oleh Arsip</div>
                         </div>
 
                         <Editable

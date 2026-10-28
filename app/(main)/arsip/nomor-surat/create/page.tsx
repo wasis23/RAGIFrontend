@@ -494,7 +494,7 @@ export default function CreateNomorSuratPage() {
                 Simulasi Format Nomor
               </span>
               <p className="font-mono text-xs font-bold text-slate-900 break-all">
-                XXX/{unitPreview}/{klasifikasiPreview}/{romanMonth}/{letterYear}
+                XXX/{klasifikasiPreview}/{unitPreview}/{romanMonth}/{letterYear}
               </p>
               <span className="text-2xs text-slate-500 block">
                 Tahun Dokumen: {letterYear} • Bulan: {romanMonth}

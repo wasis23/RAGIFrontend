@@ -190,10 +190,12 @@ export default function DetailTemplateSuratPage({ params }: { params: Promise<{ 
                 <p className="text-slate-700 whitespace-pre-line text-xs">{template.kop_alamat_kontak || '-'}</p>
               </div>
               <div>
-                <span className="text-slate-400 block text-2xs uppercase">Format Nomor Surat</span>
+                <span className="text-slate-400 block text-2xs uppercase">Format Penomoran Arsip</span>
                 <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-800">
-                  {template.format_nomor_surat || '-'}
+                  {'{nomor_urut}/'}{template.klasifikasi_surat?.kode || '{kode_klasifikasi}'}/
+                  {template.unit_surat?.kode || '{kode_unit}'}/{'{bulan_romawi}/{tahun}'}
                 </code>
+                <p className="mt-1 text-2xs text-slate-500">Nomor resmi diterbitkan dan disetujui melalui Arsip.</p>
               </div>
             </div>
           </div>

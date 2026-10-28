@@ -73,6 +73,12 @@ export interface PendaftaranCalonMhs {
   sk_file_path?: string | null;
   sk_file_url?: string | null;
   sk_generated_at?: string | null;
+  sk_arsip_request_id?: number | null;
+  sk_arsip_request?: {
+    id: number;
+    kode_request: string;
+    status: 'menunggu_verifikasi' | 'disetujui' | 'ditolak';
+  } | null;
   nama_lengkap: string;
   nik: string;
   tanggal_lahir: string;
@@ -316,7 +322,13 @@ export const spmbService = {
   ): Promise<{
     status: string;
     message: string;
-    data: { nomor_sk: string | null; sk_file_path: string; sk_file_url: string | null };
+    data: {
+      status: 'menunggu_verifikasi' | 'diterbitkan';
+      arsip_request_id: number;
+      nomor_sk: string | null;
+      sk_file_path: string | null;
+      sk_file_url: string | null;
+    };
   }> => {
     const response = await api.post(`/spmb/pendaftaran/${id}/terbitkan-sk`);
     return response.data;
@@ -776,6 +788,7 @@ export const spmbService = {
   },
 
   getTemplateSuratArsipOptions: async (): Promise<{
+    modules: { id: number; name: string; code: string }[];
     klasifikasi: { id: number; kode: string; nama: string }[];
     unit: { id: number; kode: string; nama: string }[];
     kop_surat: {

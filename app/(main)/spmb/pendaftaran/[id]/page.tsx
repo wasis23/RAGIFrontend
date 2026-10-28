@@ -239,7 +239,10 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
       setTerbitkanLoading(true);
       const res = await spmbService.terbitkanSk(pendaftar.id);
       const nomor = res.data?.nomor_sk ? ` Nomor SK: ${res.data.nomor_sk}.` : '';
-      toast.success((res.message || 'SK Tanda Lulus berhasil diterbitkan dan diarsipkan.') + nomor);
+      const fallbackMessage = res.data?.status === 'menunggu_verifikasi'
+        ? 'Permohonan nomor SK dikirim ke Arsip dan menunggu persetujuan.'
+        : 'Nomor Arsip disetujui dan PDF SK berhasil diterbitkan.';
+      toast.success((res.message || fallbackMessage) + nomor);
       fetchDetail(id);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -750,6 +753,11 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
   const tagihanDaftarUlang = daftarUlang?.tagihan ?? null;
   const statusDaftarUlang = daftarUlang?.status_daftar_ulang || 'belum';
   const daftarUlangLunas = (tagihanDaftarUlang?.sisa_kurang ?? 0) <= 0;
+  const skIssueButtonLabel = pendaftar.sk_arsip_request?.status === 'menunggu_verifikasi'
+    ? 'Cek Status Arsip'
+    : pendaftar.nomor_sk
+      ? (pendaftar.sk_file_path ? 'Terbitkan Ulang SK' : 'Buat PDF SK dari Nomor Arsip')
+      : 'Ajukan Nomor SK ke Arsip';
 
   return (
     <div className="animate-fade-in space-y-6 pb-16">
@@ -769,13 +777,14 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                 style={{ backgroundColor: 'var(--module-primary)' }}
                 className="font-bold text-xs"
               >
-                {terbitkanLoading ? 'Menerbitkan...' : (pendaftar.nomor_sk ? 'Terbitkan Ulang SK' : 'Terbitkan & Arsipkan SK')}
+                {terbitkanLoading ? 'Memproses Arsip...' : skIssueButtonLabel}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadSk}
                 isLoading={downloadingSk}
+                disabled={!pendaftar.nomor_sk}
                 icon={<Download size={15} />}
                 style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}
                 className="font-bold text-xs"
@@ -1228,6 +1237,16 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                       Nomor SK (Arsip): <span className="font-mono font-bold text-slate-800">{pendaftar.nomor_sk}</span>
                     </p>
                   )}
+                  {pendaftar.sk_arsip_request?.status === 'menunggu_verifikasi' && !pendaftar.nomor_sk && (
+                    <p className="text-2xs text-amber-700">
+                      Permohonan nomor SK {pendaftar.sk_arsip_request.kode_request} menunggu persetujuan Arsip.
+                    </p>
+                  )}
+                  {pendaftar.sk_arsip_request?.status === 'ditolak' && !pendaftar.nomor_sk && (
+                    <p className="text-2xs text-rose-700">
+                      Permohonan nomor SK sebelumnya ditolak Arsip. Anda dapat mengajukan ulang.
+                    </p>
+                  )}
                   <Button 
                     onClick={handleTerbitkanSk} 
                     isLoading={terbitkanLoading}
@@ -1236,11 +1255,12 @@ export default function DetailPendaftaranPage({ params }: { params: Promise<{ id
                     style={{ backgroundColor: 'var(--module-primary)' }}
                     className="w-full font-bold text-xs py-2.5"
                   >
-                    {terbitkanLoading ? 'Menerbitkan...' : (pendaftar.nomor_sk ? 'Terbitkan Ulang SK (Arsip)' : 'Terbitkan & Arsipkan SK')}
+                    {terbitkanLoading ? 'Memproses Arsip...' : skIssueButtonLabel}
                   </Button>
                   <Button 
                     onClick={handleDownloadSk} 
                     isLoading={downloadingSk}
+                    disabled={!pendaftar.nomor_sk}
                     variant="outline"
                     icon={<Download size={16} />}
                     style={{ borderColor: 'var(--module-primary)', color: 'var(--module-primary)' }}

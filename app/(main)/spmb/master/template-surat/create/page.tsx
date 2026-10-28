@@ -9,7 +9,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { AxiosError } from 'axios';
 import { spmbService } from '@/services/spmb.service';
-import { moduleService } from '@/services/module.service';
 import { JalurMasuk, GelombangPenerimaan, JENIS_SURAT_OPTIONS } from '@/types/spmb.types';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -32,7 +31,6 @@ const schema = z.object({
   kop_nama_institusi: z.string().optional().nullable(),
   kop_nama_sub: z.string().optional().nullable(),
   kop_alamat_kontak: z.string().optional().nullable(),
-  format_nomor_surat: z.string().optional().nullable(),
   judul_surat: z.string().optional().nullable(),
   teks_pembuka: z.string().optional().nullable(),
   teks_keputusan: z.string().optional().nullable(),
@@ -42,6 +40,17 @@ const schema = z.object({
   jabatan_penandatangan: z.string().optional().nullable(),
   nip_penandatangan: z.string().optional().nullable(),
   catatan_kaki: z.string().optional().nullable(),
+}).superRefine((values, ctx) => {
+  if (!values.is_active) return;
+  if (!values.module_id) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['module_id'], message: 'Modul pemohon wajib dipilih.' });
+  }
+  if (!values.klasifikasi_surat_id) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['klasifikasi_surat_id'], message: 'Klasifikasi Arsip wajib dipilih.' });
+  }
+  if (!values.unit_surat_id) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['unit_surat_id'], message: 'Unit penerbit INDO wajib dipilih.' });
+  }
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -94,7 +103,7 @@ export default function CreateTemplateSuratPage() {
 
   const loadModuleOptions = async (inputValue: string) => {
     try {
-      const modules = await moduleService.getAllModules();
+      const { modules } = await spmbService.getTemplateSuratArsipOptions();
       const q = inputValue.toLowerCase();
       return (modules || [])
         .filter((m) => m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q))
@@ -132,6 +141,7 @@ export default function CreateTemplateSuratPage() {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -149,7 +159,6 @@ export default function CreateTemplateSuratPage() {
       kop_nama_sub: 'PANITIA PENERIMAAN MAHASISWA BARU (SPMB)',
       kop_alamat_kontak:
         'Sekretariat SPMB Kampus Terpadu • Email: spmb@kampus.ac.id • Website: spmb.kampus.ac.id\nTahun Akademik {tahun_akademik}',
-      format_nomor_surat: 'SKL/SPMB/{tahun}/{romawi_bulan}/{no_pendaftaran}',
       judul_surat: 'SURAT KETERANGAN TANDA LULUS SELEKSI',
       teks_pembuka:
         'Berdasarkan hasil evaluasi verifikasi kelengkapan berkas administrasi dan pemenuhan syarat seleksi penerimaan mahasiswa baru Tahun Akademik {tahun_akademik}, Panitia Penerimaan Mahasiswa Baru menyatakan bahwa:',
@@ -214,8 +223,8 @@ export default function CreateTemplateSuratPage() {
           </span>
         </div>
         <p className="text-2xs text-slate-600 mb-3">
-          Anda dapat memasukkan token di bawah ini ke dalam format nomor surat, teks pembuka, teks
-          keputusan, atau petunjuk daftar ulang. Nilainya akan diganti otomatis sesuai data pendaftar.
+          Anda dapat memasukkan token di bawah ini ke dalam isi surat. Nilainya akan diganti otomatis
+          sesuai data pendaftar; nomor SK resmi selalu diterbitkan melalui Arsip.
         </p>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_PLACEHOLDERS.map((item) => (
@@ -340,13 +349,17 @@ export default function CreateTemplateSuratPage() {
               {...register('kop_nama_sub')}
             />
 
-            <Input
-              label="Format Nomor Surat"
-              placeholder="SKL/SPMB/{tahun}/{romawi_bulan}/{no_pendaftaran}"
-              hint="Dapat menggunakan token {tahun}, {romawi_bulan}, {no_pendaftaran}."
-              error={errors.format_nomor_surat?.message}
-              {...register('format_nomor_surat')}
-            />
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <span className="text-2xs font-semibold uppercase tracking-wider text-slate-500">
+                Format Nomor SK dari Arsip
+              </span>
+              <code className="mt-1 block text-xs font-mono font-bold text-slate-800">
+                {'{nomor_urut}/{kode_klasifikasi}/INDO/{bulan_romawi}/{tahun}'}
+              </code>
+              <p className="mt-1 text-2xs text-slate-500">
+                Nomor urut, bulan, dan tahun ditetapkan Arsip saat permohonan disetujui.
+              </p>
+            </div>
 
             <div className="col-span-full">
               <Textarea
@@ -363,11 +376,10 @@ export default function CreateTemplateSuratPage() {
         {/* Section 2b: Integrasi Arsip */}
         <div className="card p-4 space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b pb-2">
-            2b. Integrasi Penomoran Arsip (Opsional)
+            2b. Penerbitan Nomor melalui Arsip
           </h3>
           <p className="text-2xs text-slate-500">
-            Bila Modul, Klasifikasi, dan Unit diisi, nomor SK akan diterbitkan otomatis dari modul
-            Arsip sesuai master data (bukan format internal SPMB).
+            Template aktif wajib terhubung ke master Arsip. Permohonan menunggu persetujuan Arsip; SPMB tidak membuat nomor sendiri.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Controller
@@ -375,13 +387,15 @@ export default function CreateTemplateSuratPage() {
               control={control}
               render={({ field }) => (
                 <AsyncSelect
-                  label="Modul Asal Nomor"
-                  placeholder="Pilih modul (mis. SPMB)"
+                  label="Modul Pemohon"
+                  placeholder="Pilih modul SPMB..."
                   value={field.value}
                   onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
                   loadOptions={loadModuleOptions}
                   isClearable
-                  hint="Modul yang menjadi asal permohonan nomor surat."
+                  required={watch('is_active')}
+                  error={errors.module_id?.message}
+                  hint="Asal permohonan dicatat sebagai SPMB; unit INDO di Arsip menerbitkan nomor."
                 />
               )}
             />
@@ -397,6 +411,8 @@ export default function CreateTemplateSuratPage() {
                   onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
                   loadOptions={loadKlasifikasiOptions}
                   isClearable
+                  required={watch('is_active')}
+                  error={errors.klasifikasi_surat_id?.message}
                   hint="Diambil dari master Klasifikasi Surat Arsip."
                 />
               )}
@@ -407,13 +423,15 @@ export default function CreateTemplateSuratPage() {
               control={control}
               render={({ field }) => (
                 <AsyncSelect
-                  label="Unit Pengolah (Arsip)"
-                  placeholder="Cari kode/nama unit pengolah..."
+                  label="Unit Penerbit (Arsip)"
+                  placeholder="Pilih unit INDO..."
                   value={field.value}
                   onChange={(opt: { value: string; label: string } | null) => field.onChange(opt ? opt.value : '')}
                   loadOptions={loadUnitOptions}
                   isClearable
-                  hint="Diambil dari master Kode Unit Arsip."
+                  required={watch('is_active')}
+                  error={errors.unit_surat_id?.message}
+                  hint="Nomor SK SPMB wajib memakai unit penerbit INDO dari master Arsip."
                 />
               )}
             />

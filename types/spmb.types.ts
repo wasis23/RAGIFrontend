@@ -488,6 +488,7 @@ export interface TemplateSuratSpmb {
   kop_nama_institusi?: string | null;
   kop_nama_sub?: string | null;
   kop_alamat_kontak?: string | null;
+  /** @deprecated Arsip owns SK numbering; retained for legacy API records only. */
   format_nomor_surat?: string | null;
   judul_surat?: string | null;
   teks_pembuka?: string | null;
@@ -527,6 +528,7 @@ export interface TemplateSuratSpmbPayload {
   kop_nama_institusi?: string | null;
   kop_nama_sub?: string | null;
   kop_alamat_kontak?: string | null;
+  /** @deprecated Arsip owns SK numbering; retained for backwards compatibility. */
   format_nomor_surat?: string | null;
   judul_surat?: string | null;
   teks_pembuka?: string | null;
