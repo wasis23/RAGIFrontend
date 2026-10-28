@@ -288,6 +288,8 @@ export interface UsulanJafung {
   pegawai_id: number;
   jafung_asal_id?: number | null;
   jafung_tujuan_id: number;
+  nomor_sk?: string | null;
+  tanggal_mulai_berlaku?: string | null;
   angka_kredit_usulan: number;
   status_usulan: StatusUsulanJafung;
   file_sk_hasil?: string | null;

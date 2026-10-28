@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Filter, ShieldAlert, FileText, Trash2, ExternalLink, UploadCloud, CheckCircle2 } from 'lucide-react';
+import { Plus, Filter, ShieldAlert, FileText, Trash2, ExternalLink, UploadCloud } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { AsyncSelect } from '@/components/ui/AsyncSelect';
-import { Textarea } from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
@@ -25,15 +24,14 @@ import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
-const jadRecordSchema = z.object({
+const jadUploadSchema = z.object({
   pegawai_id: z.string().min(1, 'Pilih Dosen'),
-  jafung_asal_id: z.string().optional().nullable(),
-  jafung_tujuan_id: z.string().min(1, 'Pilih Jabatan Akademik (JAD) yang ditetapkan'),
-  angka_kredit_usulan: z.number().min(0, 'Angka kredit KUM minimal 0'),
-  catatan_reviewer: z.string().optional().nullable(),
+  jafung_tujuan_id: z.string().min(1, 'Pilih Jabatan Akademik'),
+  nomor_sk: z.string().min(1, 'Nomor SK wajib diisi'),
+  tanggal_mulai_berlaku: z.string().min(1, 'Tanggal mulai berlaku (TMT) wajib diisi'),
 });
 
-type JadRecordFormValues = z.infer<typeof jadRecordSchema>;
+type JadUploadFormValues = z.infer<typeof jadUploadSchema>;
 
 export default function JabatanAkademikDosenPage() {
   const { isAdmin, hasPermission } = useAuth();
@@ -69,17 +67,15 @@ export default function JabatanAkademikDosenPage() {
     handleSubmit,
     control,
     setValue,
-    watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<JadRecordFormValues>({
-    resolver: zodResolver(jadRecordSchema),
+  } = useForm<JadUploadFormValues>({
+    resolver: zodResolver(jadUploadSchema),
     defaultValues: {
       pegawai_id: '',
-      jafung_asal_id: '',
       jafung_tujuan_id: '',
-      angka_kredit_usulan: 150,
-      catatan_reviewer: '',
+      nomor_sk: '',
+      tanggal_mulai_berlaku: '',
     },
   });
 
@@ -164,14 +160,13 @@ export default function JabatanAkademikDosenPage() {
           setSelectedPegawai(me);
           reset({
             pegawai_id: String(me.id),
-            jafung_asal_id: me.jabatan_fungsional_id ? String(me.jabatan_fungsional_id) : '',
             jafung_tujuan_id: '',
-            angka_kredit_usulan: 150,
-            catatan_reviewer: '',
+            nomor_sk: '',
+            tanggal_mulai_berlaku: '',
           });
         }
       } catch (err) {
-        console.error('Gagal mengambil profil dosen', err);
+        console.error('Gagal mengambil data dosen', err);
       } finally {
         setIsCheckingPegawai(false);
       }
@@ -179,44 +174,30 @@ export default function JabatanAkademikDosenPage() {
       if (!selectedPegawai) {
         reset({
           pegawai_id: '',
-          jafung_asal_id: '',
           jafung_tujuan_id: '',
-          angka_kredit_usulan: 150,
-          catatan_reviewer: '',
+          nomor_sk: '',
+          tanggal_mulai_berlaku: '',
         });
       }
     }
   };
 
-  const handleSelectDosen = async (opt: any) => {
+  const handleSelectDosen = (opt: any) => {
     setSelectedPegawaiOption(opt);
     if (!opt) {
       setSelectedPegawai(null);
       setValue('pegawai_id', '', { shouldValidate: true });
-      setValue('jafung_asal_id', '');
       setValue('jafung_tujuan_id', '');
       return;
     }
 
-    setIsCheckingPegawai(true);
-    try {
-      const res = await simpegService.getPegawaiDetail(Number(opt.value));
-      const peg = res.data;
-      if (peg) {
-        setSelectedPegawai(peg);
-        setValue('pegawai_id', String(peg.id), { shouldValidate: true });
-        setValue('jafung_asal_id', peg.jabatan_fungsional_id ? String(peg.jabatan_fungsional_id) : '');
-        setValue('jafung_tujuan_id', '');
-      }
-    } catch (err) {
-      console.error('Gagal memuat rincian dosen', err);
-      toast.error('Gagal memuat rincian dosen');
-    } finally {
-      setIsCheckingPegawai(false);
-    }
+    const peg = opt.pegawai;
+    setSelectedPegawai(peg);
+    setValue('pegawai_id', String(peg.id), { shouldValidate: true });
+    setValue('jafung_tujuan_id', '');
   };
 
-  const onSubmit = async (values: JadRecordFormValues) => {
+  const onSubmit = async (values: JadUploadFormValues) => {
     if (!canCreate) {
       toast.error('Akses Ditolak: Anda tidak memiliki hak akses mencatat data JAD.');
       return;
@@ -225,14 +206,9 @@ export default function JabatanAkademikDosenPage() {
     try {
       const formData = new FormData();
       formData.append('pegawai_id', values.pegawai_id);
-      if (values.jafung_asal_id) {
-        formData.append('jafung_asal_id', values.jafung_asal_id);
-      }
       formData.append('jafung_tujuan_id', values.jafung_tujuan_id);
-      formData.append('angka_kredit_usulan', String(values.angka_kredit_usulan));
-      if (values.catatan_reviewer) {
-        formData.append('catatan_reviewer', values.catatan_reviewer);
-      }
+      formData.append('nomor_sk', values.nomor_sk);
+      formData.append('tanggal_mulai_berlaku', values.tanggal_mulai_berlaku);
       if (selectedFile) {
         formData.append('file_sk_hasil', selectedFile);
       }
@@ -262,10 +238,17 @@ export default function JabatanAkademikDosenPage() {
     }
   };
 
+  // Hanya 6 kolom sesuai instruksi:
+  // 1. nama dosen
+  // 2. Jabatan Akademik nya apa
+  // 3. no sk nya berapa
+  // 4. tanggal mulai berlaku atau tmt nya kapan
+  // 5. berkas sk
+  // 6. aksi
   const columns: ColumnDef<UsulanJafung>[] = [
     {
       key: 'nama_dosen',
-      label: 'Dosen',
+      label: 'Nama Dosen',
       render: (u) => (
         <div className="flex flex-col">
           <span className="font-semibold text-slate-900 text-xs">
@@ -278,48 +261,46 @@ export default function JabatanAkademikDosenPage() {
       ),
     },
     {
-      key: 'jafung_tujuan',
-      label: 'Jabatan Akademik (JAD)',
+      key: 'jabatan_akademik',
+      label: 'Jabatan Akademik',
       render: (u) => (
-        <div className="flex flex-col gap-0.5">
-          <Badge
-            style={{
-              backgroundColor: 'var(--module-primary-subtle)',
-              color: 'var(--module-primary)',
-              borderColor: 'var(--module-primary)',
-            }}
-            className="font-bold text-2xs inline-block w-fit"
-          >
-            {u.jafung_tujuan?.nama || `JAD ID ${u.jafung_tujuan_id}`}
-          </Badge>
-          {u.jafung_asal && (
-            <span className="text-2xs text-slate-400">
-              Sebelumnya: {u.jafung_asal.nama}
-            </span>
-          )}
-        </div>
+        <Badge
+          style={{
+            backgroundColor: 'var(--module-primary-subtle)',
+            color: 'var(--module-primary)',
+            borderColor: 'var(--module-primary)',
+          }}
+          className="font-bold text-2xs inline-block w-fit"
+        >
+          {u.jafung_tujuan?.nama || `JAD ID ${u.jafung_tujuan_id}`}
+        </Badge>
       ),
     },
     {
-      key: 'angka_kredit',
-      label: 'Angka Kredit (KUM)',
+      key: 'no_sk',
+      label: 'No. SK',
       render: (u) => (
-        <span className="font-bold text-xs text-emerald-600">
-          {u.angka_kredit_usulan} KUM
+        <span className="text-xs font-medium text-slate-800">
+          {u.nomor_sk || u.catatan_reviewer || '-'}
         </span>
       ),
     },
     {
-      key: 'catatan_reviewer',
-      label: 'Nomor SK / Keterangan',
-      render: (u) => (
-        <span className="text-xs text-slate-700 max-w-[220px] truncate block" title={u.catatan_reviewer || '-'}>
-          {u.catatan_reviewer || '-'}
-        </span>
-      ),
+      key: 'tmt_berlaku',
+      label: 'Tanggal Mulai Berlaku / TMT',
+      render: (u) => {
+        if (!u.tanggal_mulai_berlaku) {
+          return <span className="text-2xs text-slate-400">-</span>;
+        }
+        const d = new Date(u.tanggal_mulai_berlaku);
+        const formatted = isNaN(d.getTime())
+          ? u.tanggal_mulai_berlaku
+          : d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        return <span className="text-xs text-slate-700">{formatted}</span>;
+      },
     },
     {
-      key: 'file_sk',
+      key: 'berkas_sk',
       label: 'Berkas SK',
       render: (u) => {
         const fileUrl = u.file_sk_hasil_url || (u.file_sk_hasil ? `/api/files/view?path=${encodeURIComponent(u.file_sk_hasil)}` : null);
@@ -338,18 +319,6 @@ export default function JabatanAkademikDosenPage() {
           </a>
         );
       },
-    },
-    {
-      key: 'status_usulan',
-      label: 'Status Penetapan',
-      render: (u) => (
-        <Badge
-          variant={u.status_usulan === 'disetujui' ? 'success' : 'gray'}
-          className="text-2xs font-medium"
-        >
-          {u.status_usulan === 'disetujui' ? 'Ditetapkan' : u.status_usulan}
-        </Badge>
-      ),
     },
     {
       key: 'aksi',
@@ -392,7 +361,7 @@ export default function JabatanAkademikDosenPage() {
       <div className="animate-fade-in space-y-6">
         <PageHeader
           title="Data Jabatan Akademik Dosen (JAD & SK)"
-          description="Pencatatan & Unggah Berkas SK Penetapan Jabatan Fungsional Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
+          description="Pencatatan & Unggah Berkas SK Penetapan Jabatan Fungsional Akademik Dosen"
         />
         <Card>
           <EmptyState
@@ -409,7 +378,7 @@ export default function JabatanAkademikDosenPage() {
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Data Jabatan Akademik Dosen (JAD & SK)"
-        description="Pencatatan & Unggah Berkas SK Penetapan Jabatan Fungsional Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
+        description="Pencatatan & Unggah Berkas SK Penetapan Jabatan Fungsional Akademik Dosen"
         action={
           <div className="flex items-center gap-2">
             <Button
@@ -453,7 +422,7 @@ export default function JabatanAkademikDosenPage() {
       >
         <div className="space-y-4">
           <Input
-            label="Cari Dosen / Keterangan SK"
+            label="Cari Dosen / No. SK"
             placeholder="Ketik nama, NIP, atau nomor SK..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -468,7 +437,8 @@ export default function JabatanAkademikDosenPage() {
               onChange={(val) => setFilterOrderBy(val)}
               options={[
                 { value: 'created_at', label: 'Tanggal Input' },
-                { value: 'angka_kredit_usulan', label: 'Total Angka Kredit' },
+                { value: 'tanggal_mulai_berlaku', label: 'Tanggal Mulai Berlaku (TMT)' },
+                { value: 'nomor_sk', label: 'Nomor SK' },
                 { value: 'id', label: 'ID' },
               ]}
             />
@@ -531,6 +501,7 @@ export default function JabatanAkademikDosenPage() {
             </>
           }
         >
+          {/* Form input HANYA: Dosen, Jabatan Akademik, Nomor SK, TMT, Berkas SK */}
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             {canAccess ? (
               <AsyncSelect
@@ -563,36 +534,20 @@ export default function JabatanAkademikDosenPage() {
               </div>
             )}
 
-            {selectedPegawai && !isCheckingPegawai && (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                <div className="text-xs flex flex-col">
-                  <span className="font-semibold text-slate-800">
-                    JAD Saat Ini: {selectedPegawai.jabatan_fungsional?.nama || 'Belum Memiliki JAD (Pengangkatan Pertama)'}
-                  </span>
-                  {selectedPegawai.jabatan_fungsional && (
-                    <span className="text-2xs text-slate-500">
-                      KUM saat ini: {selectedPegawai.jabatan_fungsional.angka_kredit_min ?? 0} KUM
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
             <Controller
               name="jafung_tujuan_id"
               control={control}
               render={({ field }) => (
                 <Select
-                  label="Jabatan Akademik Dosen (JAD) yang Ditetapkan"
+                  label="Jabatan Akademik (JAD)"
                   value={field.value}
                   onChange={field.onChange}
                   error={errors.jafung_tujuan_id?.message}
                   options={[
-                    { value: '', label: '-- Pilih JAD Penetapan --' },
+                    { value: '', label: '-- Pilih Jabatan Akademik --' },
                     ...jafungList.map((jf) => ({
                       value: String(jf.id),
-                      label: `${jf.nama} (Standar ${jf.angka_kredit_min} KUM)`,
+                      label: jf.nama,
                     })),
                   ]}
                   required
@@ -602,28 +557,28 @@ export default function JabatanAkademikDosenPage() {
             />
 
             <Input
-              label="Total Angka Kredit Penetapan (KUM)"
-              type="number"
+              label="Nomor SK"
+              placeholder="Contoh: SK LLDIKTI No. 123/LL6/AK/2026"
               required
               disabled={!selectedPegawai || isCheckingPegawai}
-              error={errors.angka_kredit_usulan?.message}
-              {...register('angka_kredit_usulan', { valueAsNumber: true })}
+              error={errors.nomor_sk?.message}
+              {...register('nomor_sk')}
             />
 
-            <Textarea
-              label="Nomor SK & Keterangan Penetapan"
-              rows={2}
-              placeholder="Contoh: SK LLDIKTI Wilayah VI No. 1234/LL6/AK/2026 tanggal 10 Januari 2026..."
+            <Input
+              type="date"
+              label="Tanggal Mulai Berlaku (TMT)"
+              required
               disabled={!selectedPegawai || isCheckingPegawai}
-              error={errors.catatan_reviewer?.message}
-              {...register('catatan_reviewer')}
+              error={errors.tanggal_mulai_berlaku?.message}
+              {...register('tanggal_mulai_berlaku')}
             />
 
             <Input
               type="file"
-              label="Berkas Fisik SK Penetapan JAD (PDF / Gambar)"
+              label="Berkas SK"
               accept=".pdf,.jpg,.jpeg,.png"
-              hint="Format: PDF, JPG, atau PNG. Maksimal 5MB. Dokumen disimpan aman secara privat."
+              hint="Format: PDF, JPG, atau PNG. Maksimal 10MB."
               prefixIcon={<UploadCloud size={16} />}
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
