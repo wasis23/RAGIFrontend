@@ -27,6 +27,9 @@ import {
   RotateCcw,
   MapPin,
   PackageCheck,
+  ShieldCheck,
+  BookmarkCheck,
+  Medal,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -1066,6 +1069,271 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
             ) : (
               <div className="py-8 text-center text-slate-400 text-xs">
                 Belum ada SK penugasan yang tercatat.
+              </div>
+            )}
+          </div>
+
+          {/* Jabatan Akademik Dosen (JAD) & Angka Kredit */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Medal size={20} style={{ color: 'var(--module-primary)' }} />
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Jabatan Akademik Dosen (JAD) &amp; Angka Kredit</h3>
+                  <p className="text-xs text-slate-500">Jenjang jabatan fungsional akademik, penetapan KUM, dan riwayat promosi</p>
+                </div>
+              </div>
+              {dossier?.penunjang?.jabatan_fungsional_aktif && (
+                <Badge
+                  style={{
+                    backgroundColor: 'var(--module-primary-subtle)',
+                    color: 'var(--module-primary)',
+                    borderColor: 'var(--module-primary)',
+                  }}
+                  className="font-bold text-xs"
+                >
+                  JAD Aktif: {dossier.penunjang.jabatan_fungsional_aktif.nama} ({dossier.penunjang.jabatan_fungsional_aktif.angka_kredit_min} - {dossier.penunjang.jabatan_fungsional_aktif.angka_kredit_max} KUM)
+                </Badge>
+              )}
+            </div>
+
+            {dossier?.penunjang?.riwayat_jad && dossier.penunjang.riwayat_jad.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {dossier.penunjang.riwayat_jad.map((jad) => (
+                  <div
+                    key={jad.id}
+                    className={`p-4 rounded-xl border ${
+                      jad.is_active ? 'shadow-xs' : 'border-slate-200 bg-slate-50/50'
+                    } space-y-2`}
+                    style={
+                      jad.is_active
+                        ? {
+                            borderColor: 'var(--module-primary)',
+                            backgroundColor: 'var(--module-primary-subtle)',
+                          }
+                        : undefined
+                    }
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-900">
+                          {jad.jabatan_fungsional?.nama || 'Jabatan Akademik'}
+                        </span>
+                        {jad.is_active && (
+                          <Badge variant="green" className="text-2xs">Aktif</Badge>
+                        )}
+                      </div>
+                      <span className="text-2xs font-semibold text-slate-600 bg-slate-200/60 px-2 py-0.5 rounded">
+                        Golongan {jad.jabatan_fungsional?.golongan || '-'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                      <div>
+                        <span className="text-2xs text-slate-400 block font-medium">Beban KUM</span>
+                        <span className="font-mono font-semibold text-slate-800">
+                          {jad.jabatan_fungsional?.angka_kredit_min || 0} - {jad.jabatan_fungsional?.angka_kredit_max || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs text-slate-400 block font-medium">TMT Mulai</span>
+                        <span className="font-semibold text-slate-800">{formatDate(jad.mulai_jabatan)}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-500 font-mono bg-white p-2 rounded border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <span className="text-2xs text-slate-400 block font-sans">Nomor SK:</span>
+                        <span className="font-semibold text-slate-700">{jad.sk_nomor || '-'}</span>
+                      </div>
+                      {jad.sk_tanggal && (
+                        <div className="text-right">
+                          <span className="text-2xs text-slate-400 block font-sans">Tanggal SK:</span>
+                          <span className="text-slate-600">{formatDate(jad.sk_tanggal)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Belum ada data riwayat Jabatan Akademik Dosen (JAD) yang tercatat.
+              </div>
+            )}
+          </div>
+
+          {/* Sertifikat Pendidik Dosen (Serdos) */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <GraduationCap size={20} style={{ color: 'var(--module-primary)' }} />
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Sertifikat Pendidik Dosen (Serdos)</h3>
+                  <p className="text-xs text-slate-500">Sertifikasi dosen profesional resmi Kementerian Pendidikan, Kebudayaan, Riset, dan Teknologi</p>
+                </div>
+              </div>
+              {dossier?.penunjang?.sertifikasi_pendidik && dossier.penunjang.sertifikasi_pendidik.length > 0 && (
+                <Badge variant="green" className="text-xs">
+                  <CheckCircle2 size={12} className="mr-1 inline" /> Tersertifikasi Pendidik
+                </Badge>
+              )}
+            </div>
+
+            {dossier?.penunjang?.sertifikasi_pendidik && dossier.penunjang.sertifikasi_pendidik.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {dossier.penunjang.sertifikasi_pendidik.map((serdos) => (
+                  <div key={serdos.id} className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/20 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-900">{serdos.nama_sertifikat}</span>
+                      <Badge variant="simpeg" className="text-2xs">Tahun {serdos.tahun_sertifikasi}</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-emerald-100/70">
+                      <div>
+                        <span className="text-2xs text-slate-400 block font-medium">Bidang Studi</span>
+                        <span className="font-semibold text-slate-800">{serdos.bidang_studi}</span>
+                      </div>
+                      <div>
+                        <span className="text-2xs text-slate-400 block font-medium">Penyelenggara / PTP</span>
+                        <span className="font-semibold text-slate-800">{serdos.penyelenggara}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-600 bg-white p-2.5 rounded border border-emerald-100 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xs text-slate-400">No. Registrasi Pendidik:</span>
+                        <span className="font-mono font-bold text-slate-800">{serdos.nomor_registrasi || '-'}</span>
+                      </div>
+                      {serdos.nomor_sk && (
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-1">
+                          <span className="text-2xs text-slate-400">No. SK Kelulusan:</span>
+                          <span className="font-mono text-slate-700">{serdos.nomor_sk}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Belum ada Sertifikat Pendidik Dosen (Serdos) yang tercatat.
+              </div>
+            )}
+          </div>
+
+          {/* Sertifikat Kompetensi & Profesi */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <BookmarkCheck size={20} style={{ color: 'var(--module-primary)' }} />
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Sertifikat Kompetensi &amp; Lisensi Profesi</h3>
+                  <p className="text-xs text-slate-500">Sertifikasi BNSP, sertifikasi vendor industri (Cisco, Microsoft, Oracle, dll.), dan asosiasi profesi</p>
+                </div>
+              </div>
+              {dossier?.penunjang?.sertifikasi_kompetensi && dossier.penunjang.sertifikasi_kompetensi.length > 0 && (
+                <span className="text-xs font-semibold text-slate-500">
+                  {dossier.penunjang.sertifikasi_kompetensi.length} Sertifikat
+                </span>
+              )}
+            </div>
+
+            {dossier?.penunjang?.sertifikasi_kompetensi && dossier.penunjang.sertifikasi_kompetensi.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dossier.penunjang.sertifikasi_kompetensi.map((sert) => (
+                  <div key={sert.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 flex flex-col justify-between">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="simpeg" className="text-2xs">
+                          {sert.jenis_sertifikasi?.nama || 'Kompetensi'}
+                        </Badge>
+                        <span className="text-2xs text-slate-400 font-semibold">{sert.tahun_sertifikasi}</span>
+                      </div>
+                      <div className="font-bold text-xs text-slate-900 leading-snug">{sert.nama_sertifikat}</div>
+                      <div className="text-2xs text-slate-500">Bidang: <span className="font-medium text-slate-700">{sert.bidang_studi}</span></div>
+                      <div className="text-2xs text-slate-500">Penerbit: <span className="font-medium text-slate-700">{sert.penyelenggara}</span></div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/80 text-2xs text-slate-500 font-mono flex items-center justify-between">
+                      <span>No: {sert.nomor_registrasi || sert.nomor_sk || '-'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Belum ada sertifikat kompetensi atau lisensi profesi yang tercatat.
+              </div>
+            )}
+          </div>
+
+          {/* Sertifikat Pelatihan, Diklat & Workshop */}
+          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FileCheck size={20} style={{ color: 'var(--module-primary)' }} />
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Sertifikat Pelatihan, Diklat &amp; Workshop</h3>
+                  <p className="text-xs text-slate-500">Kegiatan peningkatan kompetensi, pelatihan pekerti/applied approach, dan workshop keahlian</p>
+                </div>
+              </div>
+              {dossier?.penunjang?.pelatihan && dossier.penunjang.pelatihan.length > 0 && (
+                <span className="text-xs font-semibold text-slate-500">
+                  {dossier.penunjang.pelatihan.length} Kegiatan
+                </span>
+              )}
+            </div>
+
+            {dossier?.penunjang?.pelatihan && dossier.penunjang.pelatihan.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {dossier.penunjang.pelatihan.map((pel) => (
+                  <div key={pel.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="simpeg" className="text-2xs">
+                        {pel.jenis_pelatihan?.nama || 'Pelatihan'}
+                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {pel.peran?.nama && (
+                          <span className="text-2xs font-semibold text-slate-600 bg-slate-200/60 px-2 py-0.5 rounded">
+                            {pel.peran.nama}
+                          </span>
+                        )}
+                        {pel.tingkat?.nama && (
+                          <span className="text-2xs font-semibold text-slate-600 bg-slate-200/60 px-2 py-0.5 rounded">
+                            {pel.tingkat.nama}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="font-bold text-xs text-slate-900">{pel.nama_kegiatan}</div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                      <div>
+                        <span className="text-2xs text-slate-400 block font-medium">Penyelenggara</span>
+                        <span className="font-semibold text-slate-800">{pel.penyelenggara}</span>
+                      </div>
+                      <div>
+                        <span className="text-2xs text-slate-400 block font-medium">Waktu / Durasi</span>
+                        <span className="font-semibold text-slate-800">
+                          {formatDate(pel.tanggal_mulai)} {pel.jumlah_jam ? `(${pel.jumlah_jam} JP)` : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    {pel.nomor_sertifikat && (
+                      <div className="text-xs text-slate-500 font-mono bg-white p-2 rounded border border-slate-100">
+                        <span className="text-2xs text-slate-400 block font-sans">No. Sertifikat:</span>
+                        <span className="font-semibold text-slate-700">{pel.nomor_sertifikat}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Belum ada data pelatihan atau workshop yang tercatat.
               </div>
             )}
           </div>

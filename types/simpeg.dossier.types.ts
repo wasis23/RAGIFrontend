@@ -41,7 +41,10 @@ export interface TridharmaMetrics {
   total_surat_tugas: number;
   total_sk_penugasan: number;
   total_sertifikasi: number;
+  total_sertifikasi_pendidik?: number;
+  total_sertifikasi_kompetensi?: number;
   total_pelatihan: number;
+  total_jad?: number;
   rerata_nilai_skp: number;
   rerata_nilai_bkd: number;
 }
@@ -163,7 +166,33 @@ export interface TridharmaDossierData {
     surat_tugas: SuratTugas[];
     sk_pegawai: SkPegawai[];
     sertifikasi: SertifikasiDosen[];
+    sertifikasi_pendidik?: SertifikasiDosen[];
+    sertifikasi_kompetensi?: SertifikasiDosen[];
     pelatihan: RiwayatPelatihan[];
+    riwayat_jad?: TridharmaRiwayatJad[];
+    jabatan_fungsional_aktif?: TridharmaJabatanFungsional | null;
     kinerja_skp: PenilaianKinerja[];
   };
+}
+
+export interface TridharmaJabatanFungsional {
+  id: number;
+  nama: string;
+  angka_kredit_min: number;
+  angka_kredit_max: number;
+  golongan: string;
+  tunjangan_nominal?: number;
+}
+
+export interface TridharmaRiwayatJad {
+  id: number;
+  pegawai_id: number;
+  jabatan_fungsional_id: number;
+  mulai_jabatan?: string | null;
+  selesai_jabatan?: string | null;
+  sk_nomor?: string | null;
+  sk_tanggal?: string | null;
+  file_sk?: string | null;
+  is_active: boolean;
+  jabatan_fungsional?: TridharmaJabatanFungsional | null;
 }
