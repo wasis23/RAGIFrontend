@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -86,8 +86,8 @@ const pelatihanSchema = z.object({
 
 export default function KompetensiPage() {
   const router = useRouter();
-  const { user, isAdmin, hasPermission } = useAuth();
-  const isManager = isAdmin || hasPermission('simpeg.kompetensi.manage');
+  const { user, hasPermission } = useAuth();
+  const isManager = hasPermission('simpeg.kompetensi.manage');
 
   const [activeTab, setActiveTab] = useState<'sertifikasi' | 'tes' | 'pelatihan'>('sertifikasi');
   const [masters, setMasters] = useState<KompetensiMasters | null>(null);
@@ -670,6 +670,19 @@ export default function KompetensiPage() {
     },
   ];
 
+  const visibleColumnsSertifikasi = useMemo(
+    () => (isManager ? columnsSertifikasi : columnsSertifikasi.filter((c) => c.key !== 'pegawai')),
+    [isManager, columnsSertifikasi]
+  );
+  const visibleColumnsTes = useMemo(
+    () => (isManager ? columnsTes : columnsTes.filter((c) => c.key !== 'pegawai')),
+    [isManager, columnsTes]
+  );
+  const visibleColumnsPelatihan = useMemo(
+    () => (isManager ? columnsPelatihan : columnsPelatihan.filter((c) => c.key !== 'pegawai')),
+    [isManager, columnsPelatihan]
+  );
+
   const [showFilter, setShowFilter] = useState(false);
   const [filterOrderBy, setFilterOrderBy] = useState('created_at');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
@@ -745,7 +758,7 @@ export default function KompetensiPage() {
       <div className="space-y-4">
         {activeTab === 'sertifikasi' && (
           <DataTable
-            columns={columnsSertifikasi}
+            columns={visibleColumnsSertifikasi}
             data={sertifikasiList}
             isLoading={isLoading}
             meta={meta}
@@ -756,7 +769,7 @@ export default function KompetensiPage() {
         )}
         {activeTab === 'tes' && (
           <DataTable
-            columns={columnsTes}
+            columns={visibleColumnsTes}
             data={tesList}
             isLoading={isLoading}
             meta={meta}
@@ -767,7 +780,7 @@ export default function KompetensiPage() {
         )}
         {activeTab === 'pelatihan' && (
           <DataTable
-            columns={columnsPelatihan}
+            columns={visibleColumnsPelatihan}
             data={pelatihanList}
             isLoading={isLoading}
             meta={meta}
