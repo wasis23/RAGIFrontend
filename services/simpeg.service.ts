@@ -771,8 +771,14 @@ export const simpegService = {
     return data;
   },
 
-  createUsulanJafung: async (payload: Partial<UsulanJafung>): Promise<ApiResponse<UsulanJafung>> => {
-    const { data } = await apiClient.post<ApiResponse<UsulanJafung>>('/simpeg/usulan-jafung', payload);
+  createUsulanJafung: async (payload: FormData | Partial<UsulanJafung>): Promise<ApiResponse<UsulanJafung>> => {
+    const headers = payload instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined;
+    const { data } = await apiClient.post<ApiResponse<UsulanJafung>>('/simpeg/usulan-jafung', payload, { headers });
+    return data;
+  },
+
+  deleteUsulanJafung: async (id: number): Promise<ApiResponse<void>> => {
+    const { data } = await apiClient.delete<ApiResponse<void>>(`/simpeg/usulan-jafung/${id}`);
     return data;
   },
 

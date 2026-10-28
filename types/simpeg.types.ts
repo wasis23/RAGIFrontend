@@ -291,6 +291,7 @@ export interface UsulanJafung {
   angka_kredit_usulan: number;
   status_usulan: StatusUsulanJafung;
   file_sk_hasil?: string | null;
+  file_sk_hasil_url?: string | null;
   catatan_reviewer?: string | null;
   pegawai?: Pegawai | null;
   jafung_asal?: JabatanFungsionalAkademik | null;

@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
-import { Award, Plus, Filter, ShieldAlert, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Plus, Filter, ShieldAlert, FileText, Trash2, ExternalLink, UploadCloud, CheckCircle2 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +16,8 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { simpegService } from '@/services/simpeg.service';
 import type { UsulanJafung, JabatanFungsionalAkademik, Pegawai } from '@/types/simpeg.types';
@@ -24,24 +25,25 @@ import type { PaginationMeta } from '@/types/api.types';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 
-const usulanJafungSchema = z.object({
-  pegawai_id: z.string().min(1, 'Pilih Dosen Pengusul'),
-  jafung_asal_id: z.string().min(1, 'Jabatan Fungsional asal belum diisi di biodata dosen'),
-  jafung_tujuan_id: z.string().min(1, 'Pilih Jabatan Fungsional target'),
-  angka_kredit_usulan: z.number().min(0, 'Angka kredit usulan minimal 0'),
+const jadRecordSchema = z.object({
+  pegawai_id: z.string().min(1, 'Pilih Dosen'),
+  jafung_asal_id: z.string().optional().nullable(),
+  jafung_tujuan_id: z.string().min(1, 'Pilih Jabatan Akademik (JAD) yang ditetapkan'),
+  angka_kredit_usulan: z.number().min(0, 'Angka kredit KUM minimal 0'),
   catatan_reviewer: z.string().optional().nullable(),
 });
 
-type UsulanJafungFormValues = z.infer<typeof usulanJafungSchema>;
+type JadRecordFormValues = z.infer<typeof jadRecordSchema>;
 
-export default function UsulanJafungPage() {
+export default function JabatanAkademikDosenPage() {
   const { isAdmin, hasPermission } = useAuth();
   const canAccess = isAdmin || hasPermission('simpeg.usulan_jafung.verify') || hasPermission('simpeg.usulan_jafung.manage');
   const canRead = hasPermission('simpeg.usulan_jafung.read') || hasPermission('simpeg.usulan_jafung.request') || hasPermission('simpeg.usulan_jafung.verify');
   const canCreate = hasPermission('simpeg.usulan_jafung.create') || hasPermission('simpeg.usulan_jafung.request');
+  const canDelete = hasPermission('simpeg.usulan_jafung.delete') || canAccess;
 
   const [loading, setLoading] = useState(true);
-  const [usulanList, setUsulanList] = useState<UsulanJafung[]>([]);
+  const [jadList, setJadList] = useState<UsulanJafung[]>([]);
   const [jafungList, setJafungList] = useState<JabatanFungsionalAkademik[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -51,11 +53,16 @@ export default function UsulanJafungPage() {
   const [filterOrderBy, setFilterOrderBy] = useState('created_at');
   const [filterOrderDir, setFilterOrderDir] = useState<'asc' | 'desc'>('desc');
 
-  // Modal Request State
+  // Modal State
   const [showModal, setShowModal] = useState(false);
   const [selectedPegawai, setSelectedPegawai] = useState<Pegawai | null>(null);
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<{ value: string; label: string } | null>(null);
   const [isCheckingPegawai, setIsCheckingPegawai] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Delete State
+  const [deleteTarget, setDeleteTarget] = useState<UsulanJafung | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     register,
@@ -65,19 +72,16 @@ export default function UsulanJafungPage() {
     watch,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<UsulanJafungFormValues>({
-    resolver: zodResolver(usulanJafungSchema),
+  } = useForm<JadRecordFormValues>({
+    resolver: zodResolver(jadRecordSchema),
     defaultValues: {
       pegawai_id: '',
       jafung_asal_id: '',
       jafung_tujuan_id: '',
-      angka_kredit_usulan: 200,
+      angka_kredit_usulan: 150,
       catatan_reviewer: '',
     },
   });
-
-  const jafungAsalId = watch('jafung_asal_id');
-  const jafungTujuanId = watch('jafung_tujuan_id');
 
   const loadData = async () => {
     if (!canRead) return;
@@ -88,24 +92,37 @@ export default function UsulanJafungPage() {
         if (resMe.data) {
           const pegId = resMe.data.id;
           const [resUsulan, resJaf] = await Promise.all([
-            simpegService.getUsulanJafungList({ pegawai_id: pegId, page, limit, search: search || undefined, sort_by: filterOrderBy, sort_dir: filterOrderDir }),
+            simpegService.getUsulanJafungList({
+              pegawai_id: pegId,
+              page,
+              limit,
+              search: search || undefined,
+              sort_by: filterOrderBy,
+              sort_dir: filterOrderDir,
+            }),
             simpegService.getJabatanFungsionalList(),
           ]);
-          setUsulanList(resUsulan.data || []);
+          setJadList(resUsulan.data || []);
           if ((resUsulan as any).meta) setMeta((resUsulan as any).meta);
           setJafungList(resJaf.data || []);
         }
       } else {
         const [resUsulan, resJaf] = await Promise.all([
-          simpegService.getUsulanJafungList({ page, limit, search: search || undefined, sort_by: filterOrderBy, sort_dir: filterOrderDir }),
+          simpegService.getUsulanJafungList({
+            page,
+            limit,
+            search: search || undefined,
+            sort_by: filterOrderBy,
+            sort_dir: filterOrderDir,
+          }),
           simpegService.getJabatanFungsionalList(),
         ]);
-        setUsulanList(resUsulan.data || []);
+        setJadList(resUsulan.data || []);
         if ((resUsulan as any).meta) setMeta((resUsulan as any).meta);
         setJafungList(resJaf.data || []);
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal memuat Usulan Jafung');
+      toast.error(err?.response?.data?.message || 'Gagal memuat data Jabatan Akademik Dosen');
     } finally {
       setLoading(false);
     }
@@ -137,6 +154,7 @@ export default function UsulanJafungPage() {
 
   const handleOpenModal = async () => {
     setShowModal(true);
+    setSelectedFile(null);
     if (!canAccess) {
       setIsCheckingPegawai(true);
       try {
@@ -148,7 +166,7 @@ export default function UsulanJafungPage() {
             pegawai_id: String(me.id),
             jafung_asal_id: me.jabatan_fungsional_id ? String(me.jabatan_fungsional_id) : '',
             jafung_tujuan_id: '',
-            angka_kredit_usulan: 200,
+            angka_kredit_usulan: 150,
             catatan_reviewer: '',
           });
         }
@@ -163,7 +181,7 @@ export default function UsulanJafungPage() {
           pegawai_id: '',
           jafung_asal_id: '',
           jafung_tujuan_id: '',
-          angka_kredit_usulan: 200,
+          angka_kredit_usulan: 150,
           catatan_reviewer: '',
         });
       }
@@ -175,7 +193,7 @@ export default function UsulanJafungPage() {
     if (!opt) {
       setSelectedPegawai(null);
       setValue('pegawai_id', '', { shouldValidate: true });
-      setValue('jafung_asal_id', '', { shouldValidate: true });
+      setValue('jafung_asal_id', '');
       setValue('jafung_tujuan_id', '');
       return;
     }
@@ -187,7 +205,7 @@ export default function UsulanJafungPage() {
       if (peg) {
         setSelectedPegawai(peg);
         setValue('pegawai_id', String(peg.id), { shouldValidate: true });
-        setValue('jafung_asal_id', peg.jabatan_fungsional_id ? String(peg.jabatan_fungsional_id) : '', { shouldValidate: true });
+        setValue('jafung_asal_id', peg.jabatan_fungsional_id ? String(peg.jabatan_fungsional_id) : '');
         setValue('jafung_tujuan_id', '');
       }
     } catch (err) {
@@ -198,72 +216,174 @@ export default function UsulanJafungPage() {
     }
   };
 
-  const onSubmit = async (values: UsulanJafungFormValues) => {
+  const onSubmit = async (values: JadRecordFormValues) => {
     if (!canCreate) {
-      toast.error('Akses Ditolak: Anda tidak memiliki permission mengajukan Usulan Jafung.');
+      toast.error('Akses Ditolak: Anda tidak memiliki hak akses mencatat data JAD.');
       return;
     }
 
     try {
-      await simpegService.createUsulanJafung({
-        pegawai_id: Number(values.pegawai_id),
-        jafung_asal_id: Number(values.jafung_asal_id),
-        jafung_tujuan_id: Number(values.jafung_tujuan_id),
-        angka_kredit_usulan: Number(values.angka_kredit_usulan),
-        catatan_reviewer: values.catatan_reviewer || null,
-      });
-      toast.success('Usulan kenaikan Jafung Dosen berhasil diajukan!');
+      const formData = new FormData();
+      formData.append('pegawai_id', values.pegawai_id);
+      if (values.jafung_asal_id) {
+        formData.append('jafung_asal_id', values.jafung_asal_id);
+      }
+      formData.append('jafung_tujuan_id', values.jafung_tujuan_id);
+      formData.append('angka_kredit_usulan', String(values.angka_kredit_usulan));
+      if (values.catatan_reviewer) {
+        formData.append('catatan_reviewer', values.catatan_reviewer);
+      }
+      if (selectedFile) {
+        formData.append('file_sk_hasil', selectedFile);
+      }
+
+      await simpegService.createUsulanJafung(formData);
+      toast.success('Data penetapan JAD dan SK berhasil disimpan!');
       setShowModal(false);
+      setSelectedFile(null);
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal mengajukan usulan Jafung');
+      toast.error(err?.response?.data?.message || 'Gagal menyimpan data JAD');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await simpegService.deleteUsulanJafung(deleteTarget.id);
+      toast.success('Data penetapan JAD berhasil dihapus');
+      setDeleteTarget(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Gagal menghapus data penetapan JAD');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const columns: ColumnDef<UsulanJafung>[] = [
     {
       key: 'nama_dosen',
-      label: 'Nama Dosen',
+      label: 'Dosen',
       render: (u) => (
-        <span className="font-bold">
-          {u.pegawai?.nama_lengkap || `Dosen ID ${u.pegawai_id}`}
-        </span>
-      ),
-    },
-    {
-      key: 'jafung_asal',
-      label: 'JAD Asal',
-      render: (u) => (
-        <span className="text-slate-700 font-medium">
-          {u.jafung_asal?.nama || u.pegawai?.jabatan_fungsional?.nama || '-'}
-        </span>
+        <div className="flex flex-col">
+          <span className="font-semibold text-slate-900 text-xs">
+            {u.pegawai?.nama_lengkap || `Dosen ID ${u.pegawai_id}`}
+          </span>
+          <span className="text-2xs text-slate-500">
+            NIP: {u.pegawai?.nip || '-'} • {u.pegawai?.unit_kerja?.nama || 'Dosen'}
+          </span>
+        </div>
       ),
     },
     {
       key: 'jafung_tujuan',
-      label: 'JAD Tujuan',
+      label: 'Jabatan Akademik (JAD)',
       render: (u) => (
-        <Badge
-          style={{
-            backgroundColor: 'var(--module-primary-subtle)',
-            color: 'var(--module-primary)',
-            borderColor: 'var(--module-primary)',
-          }}
-          className="font-bold"
-        >
-          {u.jafung_tujuan?.nama || `JAD ID ${u.jafung_tujuan_id}`}
-        </Badge>
+        <div className="flex flex-col gap-0.5">
+          <Badge
+            style={{
+              backgroundColor: 'var(--module-primary-subtle)',
+              color: 'var(--module-primary)',
+              borderColor: 'var(--module-primary)',
+            }}
+            className="font-bold text-2xs inline-block w-fit"
+          >
+            {u.jafung_tujuan?.nama || `JAD ID ${u.jafung_tujuan_id}`}
+          </Badge>
+          {u.jafung_asal && (
+            <span className="text-2xs text-slate-400">
+              Sebelumnya: {u.jafung_asal.nama}
+            </span>
+          )}
+        </div>
       ),
     },
     {
       key: 'angka_kredit',
       label: 'Angka Kredit (KUM)',
-      render: (u) => <span className="font-bold text-[var(--success)]">{u.angka_kredit_usulan} KUM</span>,
+      render: (u) => (
+        <span className="font-bold text-xs text-emerald-600">
+          {u.angka_kredit_usulan} KUM
+        </span>
+      ),
     },
     {
       key: 'catatan_reviewer',
-      label: 'Catatan Reviewer Tim Senat',
-      render: (u) => <span className="text-sm text-[var(--text-secondary)]">{u.catatan_reviewer || '-'}</span>,
+      label: 'Nomor SK / Keterangan',
+      render: (u) => (
+        <span className="text-xs text-slate-700 max-w-[220px] truncate block" title={u.catatan_reviewer || '-'}>
+          {u.catatan_reviewer || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'file_sk',
+      label: 'Berkas SK',
+      render: (u) => {
+        const fileUrl = u.file_sk_hasil_url || (u.file_sk_hasil ? `/api/files/view?path=${encodeURIComponent(u.file_sk_hasil)}` : null);
+        if (!fileUrl) {
+          return <span className="text-2xs text-slate-400 italic">Tidak ada berkas</span>;
+        }
+        return (
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 px-2.5 py-1 text-2xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            <FileText size={12} />
+            <span>Lihat SK</span>
+          </a>
+        );
+      },
+    },
+    {
+      key: 'status_usulan',
+      label: 'Status Penetapan',
+      render: (u) => (
+        <Badge
+          variant={u.status_usulan === 'disetujui' ? 'success' : 'gray'}
+          className="text-2xs font-medium"
+        >
+          {u.status_usulan === 'disetujui' ? 'Ditetapkan' : u.status_usulan}
+        </Badge>
+      ),
+    },
+    {
+      key: 'aksi',
+      label: 'Aksi',
+      align: 'right',
+      render: (u) => {
+        const fileUrl = u.file_sk_hasil_url || (u.file_sk_hasil ? `/api/files/view?path=${encodeURIComponent(u.file_sk_hasil)}` : null);
+        const menuItems = [];
+
+        if (fileUrl) {
+          menuItems.push({
+            label: 'Lihat Berkas SK',
+            icon: <ExternalLink size={14} />,
+            onClick: () => {
+              window.open(fileUrl, '_blank');
+            },
+          });
+        }
+
+        if (canDelete) {
+          menuItems.push({
+            label: 'Hapus Data',
+            icon: <Trash2 size={14} />,
+            variant: 'danger' as const,
+            onClick: () => setDeleteTarget(u),
+          });
+        }
+
+        if (menuItems.length === 0) {
+          return <span className="text-2xs text-slate-400">-</span>;
+        }
+
+        return <DropdownMenu items={menuItems} align="right" />;
+      },
     },
   ];
 
@@ -271,14 +391,14 @@ export default function UsulanJafungPage() {
     return (
       <div className="animate-fade-in space-y-6">
         <PageHeader
-          title="Usulan Kenaikan Jabatan Akademik Dosen (JAD & KUM)"
-          description="Pengajuan & Verifikasi Angka Kredit Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
+          title="Data Jabatan Akademik Dosen (JAD & SK)"
+          description="Pencatatan & Unggah Berkas SK Penetapan Jabatan Fungsional Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
         />
         <Card>
           <EmptyState
             icon={<ShieldAlert size={48} className="text-[var(--danger)]" />}
             title="Akses Ditolak / Dibatasi"
-            description="Peran Anda saat ini tidak memiliki permission untuk melihat atau mengajukan Usulan JAD Dosen."
+            description="Peran Anda saat ini tidak memiliki hak akses untuk melihat data Jabatan Akademik Dosen."
           />
         </Card>
       </div>
@@ -288,10 +408,10 @@ export default function UsulanJafungPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Usulan Kenaikan Jabatan Akademik Dosen (JAD & KUM)"
-        description="Pengajuan & Verifikasi Angka Kredit Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
+        title="Data Jabatan Akademik Dosen (JAD & SK)"
+        description="Pencatatan & Unggah Berkas SK Penetapan Jabatan Fungsional Akademik Dosen (Asisten Ahli, Lektor, Lektor Kepala, Guru Besar)"
         action={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               icon={<Filter size={16} />}
@@ -300,8 +420,12 @@ export default function UsulanJafungPage() {
               Filter
             </Button>
             {canCreate && (
-              <Button icon={<Plus size={16} />} onClick={handleOpenModal}>
-                Ajukan Kenaikan JAD
+              <Button
+                icon={<Plus size={16} />}
+                onClick={handleOpenModal}
+                style={{ backgroundColor: 'var(--module-primary)' }}
+              >
+                Unggah SK JAD
               </Button>
             )}
           </div>
@@ -310,7 +434,7 @@ export default function UsulanJafungPage() {
 
       <DataTable
         columns={columns}
-        data={usulanList}
+        data={jadList}
         isLoading={loading}
         meta={meta}
         onPageChange={(newPage) => setPage(newPage)}
@@ -318,19 +442,19 @@ export default function UsulanJafungPage() {
           setLimit(newLimit);
           setPage(1);
         }}
-        emptyMessage="Belum ada usulan kenaikan Jabatan Akademik Dosen (JAD)."
+        emptyMessage="Belum ada data penetapan Jabatan Akademik Dosen (JAD) yang dicatat."
       />
 
       {/* Drawer Filter */}
       <Drawer
         open={showFilter}
         onClose={() => setShowFilter(false)}
-        title="Filter Usulan JAD Dosen"
+        title="Filter Data JAD Dosen"
       >
         <div className="space-y-4">
           <Input
-            label="Cari Dosen / JAD"
-            placeholder="Ketik nama dosen..."
+            label="Cari Dosen / Keterangan SK"
+            placeholder="Ketik nama, NIP, atau nomor SK..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -343,18 +467,18 @@ export default function UsulanJafungPage() {
               value={filterOrderBy}
               onChange={(val) => setFilterOrderBy(val)}
               options={[
-                { value: 'created_at', label: 'Tanggal Dibuat' },
-                { value: 'angka_kredit_usulan', label: 'KUM Usulan' },
+                { value: 'created_at', label: 'Tanggal Input' },
+                { value: 'angka_kredit_usulan', label: 'Total Angka Kredit' },
                 { value: 'id', label: 'ID' },
               ]}
             />
             <Select
-              label="Arah"
+              label="Arah Urutan"
               value={filterOrderDir}
               onChange={(val) => setFilterOrderDir(val as 'asc' | 'desc')}
               options={[
-                { value: 'desc', label: 'Z - A (Terbaru)' },
-                { value: 'asc', label: 'A - Z (Terlama)' },
+                { value: 'desc', label: 'Terbaru ke Terlama' },
+                { value: 'asc', label: 'Terlama ke Terbaru' },
               ]}
             />
           </div>
@@ -375,6 +499,7 @@ export default function UsulanJafungPage() {
                 setShowFilter(false);
                 loadData();
               }}
+              style={{ backgroundColor: 'var(--module-primary)' }}
             >
               Terapkan
             </Button>
@@ -382,12 +507,12 @@ export default function UsulanJafungPage() {
         </div>
       </Drawer>
 
-      {/* Modal Ajukan Jafung */}
+      {/* Modal Unggah SK Penetapan JAD */}
       {canCreate && (
         <Modal
           open={showModal}
           onClose={() => setShowModal(false)}
-          title="Ajukan Kenaikan Jabatan Akademik Dosen (JAD)"
+          title="Unggah SK Penetapan Jabatan Akademik (JAD)"
           footer={
             <>
               <Button variant="secondary" onClick={() => setShowModal(false)}>
@@ -398,14 +523,10 @@ export default function UsulanJafungPage() {
                 variant="primary"
                 onClick={handleSubmit(onSubmit)}
                 loading={isSubmitting}
-                disabled={
-                  !selectedPegawai ||
-                  !jafungAsalId ||
-                  isCheckingPegawai ||
-                  isSubmitting
-                }
+                disabled={!selectedPegawai || isCheckingPegawai || isSubmitting}
+                style={{ backgroundColor: 'var(--module-primary)' }}
               >
-                Kirim Usulan JAD
+                Simpan Data JAD
               </Button>
             </>
           }
@@ -413,7 +534,7 @@ export default function UsulanJafungPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
             {canAccess ? (
               <AsyncSelect
-                label="Pilih Dosen Pengusul"
+                label="Pilih Dosen"
                 required
                 placeholder="Ketik nama atau NIP dosen..."
                 loadOptions={loadDosenOptions}
@@ -424,8 +545,8 @@ export default function UsulanJafungPage() {
               />
             ) : (
               selectedPegawai && (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs flex flex-col gap-2">
-                  <span className="text-slate-400 font-medium block">Dosen Pengusul:</span>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs flex flex-col gap-1">
+                  <span className="text-slate-400 font-medium block">Dosen Terkait:</span>
                   <span className="font-semibold text-slate-800 text-sm">
                     {selectedPegawai.nama_lengkap}
                   </span>
@@ -437,56 +558,25 @@ export default function UsulanJafungPage() {
             )}
 
             {isCheckingPegawai && (
-              <div className="p-4 text-xs text-slate-500 bg-slate-50 rounded-xl text-center animate-pulse">
+              <div className="p-3 text-xs text-slate-500 bg-slate-50 rounded-xl text-center animate-pulse">
                 Memeriksa data kepegawaian dosen...
               </div>
             )}
 
             {selectedPegawai && !isCheckingPegawai && (
-              <>
-                {jafungAsalId ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2">
-                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                    <div className="text-xs flex flex-col gap-2">
-                      <span className="font-bold text-emerald-900 block">
-                        Jabatan Akademik Dosen (JAD) Asal: {selectedPegawai.jabatan_fungsional?.nama || 'Terdaftar'}
-                      </span>
-                      <span className="text-emerald-700 block">
-                        Otomatis terisi dari biodata kepegawaian dosen (KUM Minimal: {selectedPegawai.jabatan_fungsional?.angka_kredit_min ?? 0} KUM).
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
-                    <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-                    <div className="text-xs flex-1 flex flex-col gap-2">
-                      <span className="font-bold text-amber-900 block">
-                        Jabatan Akademik Dosen (JAD) Asal Belum Diisi
-                      </span>
-                      <span className="text-amber-700 block leading-relaxed">
-                        Dosen ini belum memiliki data Jabatan Akademik (JAD) di biodata kepegawaian. Harap lengkapi terlebih dahulu JAD di biodata dosen sebelum mengajukan usulan kenaikan.
-                      </span>
-                      {canAccess && (
-                        <div>
-                          <Link
-                            href={`/simpeg/pegawai/${selectedPegawai.id}/edit`}
-                            target="_blank"
-                          >
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              icon={<ExternalLink size={16} />}
-                            >
-                              Lengkapi JAD di Data Pegawai
-                            </Button>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                <div className="text-xs flex flex-col">
+                  <span className="font-semibold text-slate-800">
+                    JAD Saat Ini: {selectedPegawai.jabatan_fungsional?.nama || 'Belum Memiliki JAD (Pengangkatan Pertama)'}
+                  </span>
+                  {selectedPegawai.jabatan_fungsional && (
+                    <span className="text-2xs text-slate-500">
+                      KUM saat ini: {selectedPegawai.jabatan_fungsional.angka_kredit_min ?? 0} KUM
+                    </span>
+                  )}
+                </div>
+              </div>
             )}
 
             <Controller
@@ -494,45 +584,79 @@ export default function UsulanJafungPage() {
               control={control}
               render={({ field }) => (
                 <Select
-                  label="Jabatan Akademik Dosen (JAD) Target"
+                  label="Jabatan Akademik Dosen (JAD) yang Ditetapkan"
                   value={field.value}
                   onChange={field.onChange}
                   error={errors.jafung_tujuan_id?.message}
                   options={[
-                    { value: '', label: '-- Pilih JAD Target --' },
-                    ...jafungList
-                      .filter((jf) => !jafungAsalId || jf.id !== Number(jafungAsalId))
-                      .map((jf) => ({
-                        value: String(jf.id),
-                        label: `${jf.nama} (${jf.angka_kredit_min} KUM)`,
-                      })),
+                    { value: '', label: '-- Pilih JAD Penetapan --' },
+                    ...jafungList.map((jf) => ({
+                      value: String(jf.id),
+                      label: `${jf.nama} (Standar ${jf.angka_kredit_min} KUM)`,
+                    })),
                   ]}
                   required
-                  disabled={!selectedPegawai || !jafungAsalId || isCheckingPegawai}
+                  disabled={!selectedPegawai || isCheckingPegawai}
                 />
               )}
             />
 
             <Input
-              label="Total Angka Kredit Usulan (KUM)"
+              label="Total Angka Kredit Penetapan (KUM)"
               type="number"
               required
-              disabled={!selectedPegawai || !jafungAsalId || isCheckingPegawai}
+              disabled={!selectedPegawai || isCheckingPegawai}
               error={errors.angka_kredit_usulan?.message}
               {...register('angka_kredit_usulan', { valueAsNumber: true })}
             />
 
             <Textarea
-              label="Catatan Pengajuan / Ringkasan Tridharma"
-              rows={3}
-              placeholder="Tuliskan karya ilmiah & pengajaran pendukung..."
-              disabled={!selectedPegawai || !jafungAsalId || isCheckingPegawai}
+              label="Nomor SK & Keterangan Penetapan"
+              rows={2}
+              placeholder="Contoh: SK LLDIKTI Wilayah VI No. 1234/LL6/AK/2026 tanggal 10 Januari 2026..."
+              disabled={!selectedPegawai || isCheckingPegawai}
               error={errors.catatan_reviewer?.message}
               {...register('catatan_reviewer')}
+            />
+
+            <Input
+              type="file"
+              label="Berkas Fisik SK Penetapan JAD (PDF / Gambar)"
+              accept=".pdf,.jpg,.jpeg,.png"
+              hint="Format: PDF, JPG, atau PNG. Maksimal 5MB. Dokumen disimpan aman secara privat."
+              prefixIcon={<UploadCloud size={16} />}
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setSelectedFile(file);
+              }}
+              disabled={!selectedPegawai || isCheckingPegawai}
             />
           </form>
         </Modal>
       )}
+
+      {/* Modal Konfirmasi Hapus UI */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Data Penetapan JAD"
+        message={
+          deleteTarget ? (
+            <span>
+              Apakah Anda yakin ingin menghapus data penetapan JAD{' '}
+              <strong>{deleteTarget.jafung_tujuan?.nama || `ID ${deleteTarget.jafung_tujuan_id}`}</strong> untuk dosen{' '}
+              <strong>{deleteTarget.pegawai?.nama_lengkap || `ID ${deleteTarget.pegawai_id}`}</strong>?
+            </span>
+          ) : (
+            'Apakah Anda yakin ingin menghapus data penetapan JAD ini?'
+          )
+        }
+        confirmText="Ya, Hapus Data"
+        cancelText="Batal"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

@@ -358,7 +358,7 @@ export default function SimpegDashboardPage() {
               </Link>
               {canJafung && (
                 <Link href="/simpeg/usulan-jafung" className="btn btn-outline btn-sm justify-start no-underline">
-                  <Award size={16} /> Ajukan Usulan JAD (KUM)
+                  <Award size={16} /> Data JAD & SK Penetapan
                 </Link>
               )}
             </div>
