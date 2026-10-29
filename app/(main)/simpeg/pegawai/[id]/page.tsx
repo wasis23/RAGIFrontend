@@ -964,123 +964,15 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
 
       {/* TAB CONTENT 5: PENUNJANG & KINERJA (SIMPEG) */}
       {activeTab === 'penunjang' && (
-        <div className="space-y-6 animate-fade-in">
-          {/* Riwayat Evaluasi SKP */}
-          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={20} className="text-primary-600" />
+        <div className="space-y-4 animate-fade-in">
+          {/* 1. Jabatan Akademik Dosen (JAD) & Angka Kredit */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <Medal size={18} style={{ color: 'var(--module-primary)' }} />
                 <div>
-                  <h3 className="font-bold text-base text-slate-900">Riwayat Sasaran Kinerja Pegawai (SKP &amp; BKD)</h3>
-                  <p className="text-xs text-slate-500">Evaluasi capaian tahunan dan predikat kinerja</p>
-                </div>
-              </div>
-            </div>
-
-            {dossier?.penunjang?.kinerja_skp && dossier.penunjang.kinerja_skp.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {dossier.penunjang.kinerja_skp.map((k) => (
-                  <div key={k.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-slate-900">Tahun {k.tahun} ({k.semester.toUpperCase()})</span>
-                      <Badge variant="success" className="uppercase text-2xs">{k.predikat}</Badge>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-bold text-slate-900">{k.nilai_skp}</span>
-                      <span className="text-xs text-slate-400">/ 100</span>
-                      {k.nilai_bkd && (
-                        <span className="text-xs font-semibold text-slate-600 ml-auto bg-slate-200/60 px-2 py-0.5 rounded">
-                          BKD: {k.nilai_bkd} SKS
-                        </span>
-                      )}
-                    </div>
-                    {k.catatan_evaluator && (
-                      <div className="text-2xs text-slate-500 italic bg-white p-2 rounded border border-slate-100">
-                        &quot;{k.catatan_evaluator}&quot;
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                Belum ada evaluasi kinerja SKP yang tercatat.
-              </div>
-            )}
-          </div>
-
-          {/* Surat Tugas Kedinasan Luar */}
-          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Briefcase size={20} className="text-primary-600" />
-                <div>
-                  <h3 className="font-bold text-base text-slate-900">Surat Tugas &amp; Kedinasan Luar Kampus</h3>
-                  <p className="text-xs text-slate-500">Penugasan resmi mewakili kampus serta laporan LPJ</p>
-                </div>
-              </div>
-            </div>
-
-            {dossier?.penunjang?.surat_tugas && dossier.penunjang.surat_tugas.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {dossier.penunjang.surat_tugas.map((st) => (
-                  <div key={st.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="simpeg" className="text-2xs capitalize">{st.kategori_kegiatan?.nama || 'Tugas Dinas'}</Badge>
-                      <Badge variant={st.status === 'disetujui' ? 'green' : 'gray'} className="text-2xs capitalize">{st.status}</Badge>
-                    </div>
-                    <div className="font-bold text-xs text-slate-900">{st.nama_kegiatan}</div>
-                    <div className="text-xs text-slate-500">Tujuan: {st.lokasi_tujuan} • {formatDate(st.tanggal_mulai)}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                Belum ada surat tugas dinas luar yang tercatat.
-              </div>
-            )}
-          </div>
-
-          {/* SK Penugasan Mandiri */}
-          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <FileText size={20} className="text-primary-600" />
-                <div>
-                  <h3 className="font-bold text-base text-slate-900">Surat Keputusan (SK) Mandiri &amp; Penugasan Dosen</h3>
-                  <p className="text-xs text-slate-500">SK Mengajar, Pembimbingan, dan Jabatan Fungsional</p>
-                </div>
-              </div>
-            </div>
-
-            {dossier?.penunjang?.sk_pegawai && dossier.penunjang.sk_pegawai.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {dossier.penunjang.sk_pegawai.map((sk) => (
-                  <div key={sk.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="simpeg" className="text-2xs">{sk.kategori_sk?.nama || (sk as any).kategori?.nama || 'SK Penugasan'}</Badge>
-                      <span className="text-2xs text-slate-400">{formatDate(sk.tanggal_sk)}</span>
-                    </div>
-                    <div className="font-bold text-xs text-slate-900">{sk.judul_sk}</div>
-                    <div className="text-xs text-slate-500 font-mono">No: {sk.nomor_sk}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-8 text-center text-slate-400 text-xs">
-                Belum ada SK penugasan yang tercatat.
-              </div>
-            )}
-          </div>
-
-          {/* Jabatan Akademik Dosen (JAD) & Angka Kredit */}
-          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Medal size={20} style={{ color: 'var(--module-primary)' }} />
-                <div>
-                  <h3 className="font-bold text-base text-slate-900">Jabatan Akademik Dosen (JAD) &amp; Angka Kredit</h3>
-                  <p className="text-xs text-slate-500">Jenjang jabatan fungsional akademik, penetapan KUM, dan riwayat promosi</p>
+                  <h3 className="font-bold text-sm text-slate-900 tracking-tight">Jabatan Akademik Dosen (JAD) &amp; Angka Kredit</h3>
+                  <p className="text-2xs text-slate-500">Jenjang jabatan fungsional akademik, penetapan KUM, dan riwayat promosi</p>
                 </div>
               </div>
               {dossier?.penunjang?.jabatan_fungsional_aktif && (
@@ -1090,7 +982,7 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                     color: 'var(--module-primary)',
                     borderColor: 'var(--module-primary)',
                   }}
-                  className="font-bold text-xs"
+                  className="font-bold text-2xs"
                 >
                   JAD Aktif: {dossier.penunjang.jabatan_fungsional_aktif.nama} ({dossier.penunjang.jabatan_fungsional_aktif.angka_kredit_min} - {dossier.penunjang.jabatan_fungsional_aktif.angka_kredit_max} KUM)
                 </Badge>
@@ -1098,12 +990,12 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
             </div>
 
             {dossier?.penunjang?.riwayat_jad && dossier.penunjang.riwayat_jad.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {dossier.penunjang.riwayat_jad.map((jad) => (
                   <div
                     key={jad.id}
-                    className={`p-4 rounded-xl border ${
-                      jad.is_active ? 'shadow-xs' : 'border-slate-200 bg-slate-50/50'
+                    className={`p-3.5 rounded-xl border ${
+                      jad.is_active ? 'shadow-xs' : 'border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors'
                     } space-y-2`}
                     style={
                       jad.is_active
@@ -1128,20 +1020,20 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200/60">
                       <div>
                         <span className="text-2xs text-slate-400 block font-medium">Beban KUM</span>
-                        <span className="font-mono font-semibold text-slate-800">
+                        <span className="font-mono text-xs font-semibold text-slate-800">
                           {jad.jabatan_fungsional?.angka_kredit_min || 0} - {jad.jabatan_fungsional?.angka_kredit_max || 0}
                         </span>
                       </div>
                       <div>
                         <span className="text-2xs text-slate-400 block font-medium">TMT Mulai</span>
-                        <span className="font-semibold text-slate-800">{formatDate(jad.mulai_jabatan)}</span>
+                        <span className="text-xs font-semibold text-slate-800">{formatDate(jad.mulai_jabatan)}</span>
                       </div>
                     </div>
 
-                    <div className="text-xs text-slate-500 font-mono bg-white p-2 rounded border border-slate-100 flex items-center justify-between">
+                    <div className="text-xs font-mono bg-white p-2.5 rounded-lg border border-slate-200/70 flex items-center justify-between">
                       <div>
                         <span className="text-2xs text-slate-400 block font-sans">Nomor SK:</span>
                         <span className="font-semibold text-slate-700">{jad.sk_nomor || '-'}</span>
@@ -1149,7 +1041,7 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                       {jad.sk_tanggal && (
                         <div className="text-right">
                           <span className="text-2xs text-slate-400 block font-sans">Tanggal SK:</span>
-                          <span className="text-slate-600">{formatDate(jad.sk_tanggal)}</span>
+                          <span className="text-slate-600 font-sans">{formatDate(jad.sk_tanggal)}</span>
                         </div>
                       )}
                     </div>
@@ -1163,27 +1055,27 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
-          {/* Sertifikat Pendidik Dosen (Serdos) */}
-          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <GraduationCap size={20} style={{ color: 'var(--module-primary)' }} />
+          {/* 2. Sertifikat Pendidik Dosen (Serdos) */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <GraduationCap size={18} style={{ color: 'var(--module-primary)' }} />
                 <div>
-                  <h3 className="font-bold text-base text-slate-900">Sertifikat Pendidik Dosen (Serdos)</h3>
-                  <p className="text-xs text-slate-500">Sertifikasi dosen profesional resmi Kementerian Pendidikan, Kebudayaan, Riset, dan Teknologi</p>
+                  <h3 className="font-bold text-sm text-slate-900 tracking-tight">Sertifikat Pendidik Dosen (Serdos)</h3>
+                  <p className="text-2xs text-slate-500">Sertifikasi dosen profesional resmi Kementerian Pendidikan, Kebudayaan, Riset, dan Teknologi</p>
                 </div>
               </div>
               {dossier?.penunjang?.sertifikasi_pendidik && dossier.penunjang.sertifikasi_pendidik.length > 0 && (
-                <Badge variant="green" className="text-xs">
+                <Badge variant="green" className="text-2xs font-semibold">
                   <CheckCircle2 size={12} className="mr-1 inline" /> Tersertifikasi Pendidik
                 </Badge>
               )}
             </div>
 
             {dossier?.penunjang?.sertifikasi_pendidik && dossier.penunjang.sertifikasi_pendidik.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {dossier.penunjang.sertifikasi_pendidik.map((serdos) => (
-                  <div key={serdos.id} className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/20 space-y-2">
+                  <div key={serdos.id} className="p-3.5 rounded-xl border border-emerald-200/80 bg-emerald-50/20 space-y-2 hover:bg-emerald-50/30 transition-colors">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-xs text-slate-900">{serdos.nama_sertifikat}</span>
                       <Badge variant="simpeg" className="text-2xs">Tahun {serdos.tahun_sertifikasi}</Badge>
@@ -1192,23 +1084,23 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-emerald-100/70">
                       <div>
                         <span className="text-2xs text-slate-400 block font-medium">Bidang Studi</span>
-                        <span className="font-semibold text-slate-800">{serdos.bidang_studi}</span>
+                        <span className="text-xs font-semibold text-slate-800">{serdos.bidang_studi}</span>
                       </div>
                       <div>
                         <span className="text-2xs text-slate-400 block font-medium">Penyelenggara / PTP</span>
-                        <span className="font-semibold text-slate-800">{serdos.penyelenggara}</span>
+                        <span className="text-xs font-semibold text-slate-800">{serdos.penyelenggara}</span>
                       </div>
                     </div>
 
-                    <div className="text-xs text-slate-600 bg-white p-2.5 rounded border border-emerald-100 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-2xs text-slate-400">No. Registrasi Pendidik:</span>
-                        <span className="font-mono font-bold text-slate-800">{serdos.nomor_registrasi || '-'}</span>
+                    <div className="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-emerald-100/80 space-y-1">
+                      <div className="flex items-center justify-between font-mono">
+                        <span className="text-2xs text-slate-400 font-sans">No. Registrasi:</span>
+                        <span className="font-bold text-slate-800">{serdos.nomor_registrasi || '-'}</span>
                       </div>
                       {serdos.nomor_sk && (
-                        <div className="flex items-center justify-between border-t border-slate-100 pt-1">
-                          <span className="text-2xs text-slate-400">No. SK Kelulusan:</span>
-                          <span className="font-mono text-slate-700">{serdos.nomor_sk}</span>
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-1 font-mono">
+                          <span className="text-2xs text-slate-400 font-sans">No. SK Kelulusan:</span>
+                          <span className="text-slate-700">{serdos.nomor_sk}</span>
                         </div>
                       )}
                     </div>
@@ -1222,27 +1114,27 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
-          {/* Sertifikat Kompetensi & Profesi */}
-          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <BookmarkCheck size={20} style={{ color: 'var(--module-primary)' }} />
+          {/* 3. Sertifikat Kompetensi & Lisensi Profesi */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <BookmarkCheck size={18} style={{ color: 'var(--module-primary)' }} />
                 <div>
-                  <h3 className="font-bold text-base text-slate-900">Sertifikat Kompetensi &amp; Lisensi Profesi</h3>
-                  <p className="text-xs text-slate-500">Sertifikasi BNSP, sertifikasi vendor industri (Cisco, Microsoft, Oracle, dll.), dan asosiasi profesi</p>
+                  <h3 className="font-bold text-sm text-slate-900 tracking-tight">Sertifikat Kompetensi &amp; Lisensi Profesi</h3>
+                  <p className="text-2xs text-slate-500">Sertifikasi BNSP, sertifikasi vendor industri (Cisco, Microsoft, Oracle, dll.), dan asosiasi profesi</p>
                 </div>
               </div>
               {dossier?.penunjang?.sertifikasi_kompetensi && dossier.penunjang.sertifikasi_kompetensi.length > 0 && (
-                <span className="text-xs font-semibold text-slate-500">
+                <span className="text-2xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
                   {dossier.penunjang.sertifikasi_kompetensi.length} Sertifikat
                 </span>
               )}
             </div>
 
             {dossier?.penunjang?.sertifikasi_kompetensi && dossier.penunjang.sertifikasi_kompetensi.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {dossier.penunjang.sertifikasi_kompetensi.map((sert) => (
-                  <div key={sert.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 flex flex-col justify-between">
+                  <div key={sert.id} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-2 flex flex-col justify-between hover:bg-slate-50 transition-colors">
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <Badge variant="simpeg" className="text-2xs">
@@ -1255,8 +1147,9 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
                       <div className="text-2xs text-slate-500">Penerbit: <span className="font-medium text-slate-700">{sert.penyelenggara}</span></div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200/80 text-2xs text-slate-500 font-mono flex items-center justify-between">
-                      <span>No: {sert.nomor_registrasi || sert.nomor_sk || '-'}</span>
+                    <div className="pt-2 border-t border-slate-200/70 text-2xs text-slate-600 font-mono flex items-center justify-between">
+                      <span className="text-slate-400 font-sans">No:</span>
+                      <span className="font-semibold text-slate-700">{sert.nomor_registrasi || sert.nomor_sk || '-'}</span>
                     </div>
                   </div>
                 ))}
@@ -1268,27 +1161,27 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
-          {/* Sertifikat Pelatihan, Diklat & Workshop */}
-          <div className="card p-6 bg-white border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <FileCheck size={20} style={{ color: 'var(--module-primary)' }} />
+          {/* 4. Sertifikat Pelatihan, Diklat & Workshop */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <FileCheck size={18} style={{ color: 'var(--module-primary)' }} />
                 <div>
-                  <h3 className="font-bold text-base text-slate-900">Sertifikat Pelatihan, Diklat &amp; Workshop</h3>
-                  <p className="text-xs text-slate-500">Kegiatan peningkatan kompetensi, pelatihan pekerti/applied approach, dan workshop keahlian</p>
+                  <h3 className="font-bold text-sm text-slate-900 tracking-tight">Sertifikat Pelatihan, Diklat &amp; Workshop</h3>
+                  <p className="text-2xs text-slate-500">Kegiatan peningkatan kompetensi, pelatihan pekerti/applied approach, dan workshop keahlian</p>
                 </div>
               </div>
               {dossier?.penunjang?.pelatihan && dossier.penunjang.pelatihan.length > 0 && (
-                <span className="text-xs font-semibold text-slate-500">
+                <span className="text-2xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
                   {dossier.penunjang.pelatihan.length} Kegiatan
                 </span>
               )}
             </div>
 
             {dossier?.penunjang?.pelatihan && dossier.penunjang.pelatihan.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {dossier.penunjang.pelatihan.map((pel) => (
-                  <div key={pel.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                  <div key={pel.id} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-2 hover:bg-slate-50 transition-colors">
                     <div className="flex items-center justify-between">
                       <Badge variant="simpeg" className="text-2xs">
                         {pel.jenis_pelatihan?.nama || 'Pelatihan'}
@@ -1309,22 +1202,22 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
 
                     <div className="font-bold text-xs text-slate-900">{pel.nama_kegiatan}</div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-100">
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200/60">
                       <div>
                         <span className="text-2xs text-slate-400 block font-medium">Penyelenggara</span>
-                        <span className="font-semibold text-slate-800">{pel.penyelenggara}</span>
+                        <span className="text-xs font-semibold text-slate-800">{pel.penyelenggara}</span>
                       </div>
                       <div>
                         <span className="text-2xs text-slate-400 block font-medium">Waktu / Durasi</span>
-                        <span className="font-semibold text-slate-800">
+                        <span className="text-xs font-semibold text-slate-800">
                           {formatDate(pel.tanggal_mulai)} {pel.jumlah_jam ? `(${pel.jumlah_jam} JP)` : ''}
                         </span>
                       </div>
                     </div>
 
                     {pel.nomor_sertifikat && (
-                      <div className="text-xs text-slate-500 font-mono bg-white p-2 rounded border border-slate-100">
-                        <span className="text-2xs text-slate-400 block font-sans">No. Sertifikat:</span>
+                      <div className="text-xs font-mono bg-white p-2.5 rounded-lg border border-slate-200/70 flex items-center justify-between">
+                        <span className="text-2xs text-slate-400 font-sans">No. Sertifikat:</span>
                         <span className="font-semibold text-slate-700">{pel.nomor_sertifikat}</span>
                       </div>
                     )}
@@ -1334,6 +1227,114 @@ export default function DetailPegawaiPage({ params }: { params: Promise<{ id: st
             ) : (
               <div className="py-8 text-center text-slate-400 text-xs">
                 Belum ada data pelatihan atau workshop yang tercatat.
+              </div>
+            )}
+          </div>
+
+          {/* 5. Surat Tugas & Kedinasan Luar Kampus */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <Briefcase size={18} style={{ color: 'var(--module-primary)' }} />
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 tracking-tight">Surat Tugas &amp; Kedinasan Luar Kampus</h3>
+                  <p className="text-2xs text-slate-500">Penugasan resmi mewakili kampus serta laporan pertanggungjawaban (LPJ)</p>
+                </div>
+              </div>
+            </div>
+
+            {dossier?.penunjang?.surat_tugas && dossier.penunjang.surat_tugas.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {dossier.penunjang.surat_tugas.map((st) => (
+                  <div key={st.id} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1.5 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="simpeg" className="text-2xs capitalize">{st.kategori_kegiatan?.nama || 'Tugas Dinas'}</Badge>
+                      <Badge variant={st.status === 'disetujui' ? 'green' : 'gray'} className="text-2xs capitalize">{st.status}</Badge>
+                    </div>
+                    <div className="font-bold text-xs text-slate-900">{st.nama_kegiatan}</div>
+                    <div className="text-2xs text-slate-500">Tujuan: <span className="font-medium text-slate-700">{st.lokasi_tujuan}</span> • {formatDate(st.tanggal_mulai)}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Belum ada surat tugas dinas luar yang tercatat.
+              </div>
+            )}
+          </div>
+
+          {/* 6. Surat Keputusan (SK) Mandiri & Penugasan Dosen */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <FileText size={18} style={{ color: 'var(--module-primary)' }} />
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 tracking-tight">Surat Keputusan (SK) Mandiri &amp; Penugasan Dosen</h3>
+                  <p className="text-2xs text-slate-500">SK Mengajar, Pembimbingan, dan Jabatan Fungsional Pegawai</p>
+                </div>
+              </div>
+            </div>
+
+            {dossier?.penunjang?.sk_pegawai && dossier.penunjang.sk_pegawai.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {dossier.penunjang.sk_pegawai.map((sk) => (
+                  <div key={sk.id} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-1.5 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="simpeg" className="text-2xs">{sk.kategori_sk?.nama || (sk as any).kategori?.nama || 'SK Penugasan'}</Badge>
+                      <span className="text-2xs text-slate-400 font-medium">{formatDate(sk.tanggal_sk)}</span>
+                    </div>
+                    <div className="font-bold text-xs text-slate-900">{sk.judul_sk}</div>
+                    <div className="text-2xs text-slate-500 font-mono">No: {sk.nomor_sk}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Belum ada SK penugasan yang tercatat.
+              </div>
+            )}
+          </div>
+
+          {/* 7. Riwayat Sasaran Kinerja Pegawai (SKP & BKD) */}
+          <div className="card p-4 sm:p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <TrendingUp size={18} style={{ color: 'var(--module-primary)' }} />
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 tracking-tight">Riwayat Sasaran Kinerja Pegawai (SKP &amp; BKD)</h3>
+                  <p className="text-2xs text-slate-500">Evaluasi capaian tahunan, predikat kinerja, dan pemenuhan beban kerja dosen (BKD)</p>
+                </div>
+              </div>
+            </div>
+
+            {dossier?.penunjang?.kinerja_skp && dossier.penunjang.kinerja_skp.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {dossier.penunjang.kinerja_skp.map((k) => (
+                  <div key={k.id} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-2 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-900">Tahun {k.tahun} ({k.semester.toUpperCase()})</span>
+                      <Badge variant="success" className="uppercase text-2xs">{k.predikat}</Badge>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-lg font-bold text-slate-900">{k.nilai_skp}</span>
+                      <span className="text-2xs text-slate-400">/ 100</span>
+                      {k.nilai_bkd && (
+                        <span className="text-2xs font-semibold text-slate-600 ml-auto bg-slate-200/60 px-2 py-0.5 rounded">
+                          BKD: {k.nilai_bkd} SKS
+                        </span>
+                      )}
+                    </div>
+                    {k.catatan_evaluator && (
+                      <div className="text-2xs text-slate-500 italic bg-white p-2 rounded-md border border-slate-100">
+                        &quot;{k.catatan_evaluator}&quot;
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                Belum ada evaluasi kinerja SKP yang tercatat.
               </div>
             )}
           </div>
