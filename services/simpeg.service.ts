@@ -1116,5 +1116,24 @@ export const simpegService = {
     const { data } = await apiClient.get<ApiResponse<AnnualSpMonitoringRow[]> & { meta?: AnnualSpMonitoringMeta }>('/simpeg/surat-peringatan/monitoring-tahunan', { params });
     return data;
   },
+
+  // ── ANALITIK PEGAWAI & JAD ──────────────────────────────────
+  getAnalitikRingkasan: async (params?: Record<string, unknown>): Promise<ApiResponse<any>> => {
+    const { data } = await apiClient.get<ApiResponse<any>>('/simpeg/analitik/ringkasan', { params });
+    return data;
+  },
+
+  getAnalitikPegawai: async (params?: Record<string, unknown>): Promise<ApiResponse<any[]>> => {
+    const { data } = await apiClient.get<ApiResponse<any[]>>('/simpeg/analitik/pegawai', { params });
+    return data;
+  },
+
+  exportAnalitikExcel: async (params?: Record<string, unknown>): Promise<Blob> => {
+    const response = await apiClient.get('/simpeg/analitik/export-excel', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
 

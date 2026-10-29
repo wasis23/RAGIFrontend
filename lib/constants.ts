@@ -201,6 +201,18 @@ export const STATUS_ABSENSI_OPTIONS: SelectOption[] = [
   { value: 'false', label: 'Bebas Absensi' },
 ];
 
+export const SERDOS_OPTIONS: SelectOption[] = [
+  { value: '', label: 'Semua Status Serdos' },
+  { value: 'true', label: 'Sudah Tersertifikasi (Serdos)' },
+  { value: 'false', label: 'Belum Tersertifikasi' },
+];
+
+export const SORT_BY_ANALITIK_OPTIONS: SelectOption[] = [
+  { value: 'created_at', label: 'Tanggal Input' },
+  { value: 'nama', label: 'Nama Pegawai' },
+  { value: 'nip', label: 'NIP' },
+];
+
 // ============================================================
 // HARI — Nilai tetap domain kalender (tabel master tidak ada)
 // ============================================================

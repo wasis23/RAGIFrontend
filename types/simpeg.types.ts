@@ -826,3 +826,86 @@ export interface DemografiAnalyticsData {
   };
 }
 
+// ── ANALITIK PEGAWAI & JAD ──────────────────────────────────
+export interface AnalitikPegawaiItem {
+  id: number;
+  nama_lengkap: string;
+  nama_gelar?: string | null;
+  nip?: string | null;
+  nidn?: string | null;
+  jenis_pegawai: string;
+  status_kepegawaian?: string | null;
+  status_aktif?: string | null;
+  is_active: boolean;
+  unit_kerja?: {
+    id: number;
+    nama: string;
+    kode: string;
+    tipe?: string;
+  } | null;
+  jabatan_fungsional?: {
+    id: number;
+    nama: string;
+    angka_kredit?: number | null;
+  } | null;
+  jad_aktif?: {
+    tmt?: string | null;
+    sk_nomor?: string | null;
+    sk_tanggal?: string | null;
+    file_sk_url?: string | null;
+  };
+  is_serdos: boolean;
+  nomor_serdos?: string | null;
+}
+
+export interface AnalitikRingkasanData {
+  total_pegawai: number;
+  total_dosen: number;
+  total_tendik: number;
+  kategori_jad: {
+    tenaga_pengajar: number;
+    asisten_ahli: number;
+    lektor: number;
+    lektor_kepala: number;
+    guru_besar: number;
+    belum_ada: number;
+  };
+  jad_detail: Array<{
+    id: number;
+    nama: string;
+    angka_kredit: number;
+    total: number;
+  }>;
+  unit_kerja_distribusi: Array<{
+    id: number;
+    nama: string;
+    kode: string;
+    tipe?: string;
+    total: number;
+  }>;
+  serdos: {
+    sudah_serdos: number;
+    belum_serdos: number;
+  };
+  periode_tmt: {
+    start?: string | null;
+    end?: string | null;
+  };
+}
+
+export interface AnalitikFilterParams {
+  search?: string;
+  tmt_start?: string;
+  tmt_end?: string;
+  jabatan_fungsional_id?: string | number;
+  unit_kerja_id?: string | number;
+  status_kepegawaian?: string;
+  jenis_pegawai?: string;
+  is_serdos?: string | boolean;
+  sort_by?: string;
+  sort_order?: string;
+  page?: number;
+  per_page?: number;
+}
+
+
