@@ -582,7 +582,7 @@ export default function AnalitikPegawaiPage() {
           <Select
             label="Jabatan Akademik (JAD)"
             value={String(filters.jabatan_fungsional_id || '')}
-            onChange={(e) => setFilters((prev) => ({ ...prev, jabatan_fungsional_id: e.target.value }))}
+            onChange={(val) => setFilters((prev) => ({ ...prev, jabatan_fungsional_id: String(val || '') }))}
             options={jafungOptions}
           />
 
@@ -590,7 +590,7 @@ export default function AnalitikPegawaiPage() {
           <Select
             label="Program Studi / Unit Kerja"
             value={String(filters.unit_kerja_id || '')}
-            onChange={(e) => setFilters((prev) => ({ ...prev, unit_kerja_id: e.target.value }))}
+            onChange={(val) => setFilters((prev) => ({ ...prev, unit_kerja_id: String(val || '') }))}
             options={unitKerjaOptions}
           />
 
@@ -598,7 +598,7 @@ export default function AnalitikPegawaiPage() {
           <Select
             label="Jenis Pegawai"
             value={String(filters.jenis_pegawai || '')}
-            onChange={(e) => setFilters((prev) => ({ ...prev, jenis_pegawai: e.target.value }))}
+            onChange={(val) => setFilters((prev) => ({ ...prev, jenis_pegawai: String(val || '') }))}
             options={JENIS_PEGAWAI_OPTIONS}
           />
 
@@ -606,7 +606,7 @@ export default function AnalitikPegawaiPage() {
           <Select
             label="Status Sertifikasi Dosen (Serdos)"
             value={String(filters.is_serdos || '')}
-            onChange={(e) => setFilters((prev) => ({ ...prev, is_serdos: e.target.value }))}
+            onChange={(val) => setFilters((prev) => ({ ...prev, is_serdos: String(val || '') }))}
             options={SERDOS_OPTIONS}
           />
 
@@ -615,13 +615,13 @@ export default function AnalitikPegawaiPage() {
             <Select
               label="Urutkan Berdasarkan"
               value={String(filters.sort_by || 'created_at')}
-              onChange={(e) => setFilters((prev) => ({ ...prev, sort_by: e.target.value }))}
+              onChange={(val) => setFilters((prev) => ({ ...prev, sort_by: String(val || 'created_at') }))}
               options={SORT_BY_ANALITIK_OPTIONS}
             />
             <Select
               label="Arah Urutan"
               value={String(filters.sort_order || 'desc')}
-              onChange={(e) => setFilters((prev) => ({ ...prev, sort_order: e.target.value }))}
+              onChange={(val) => setFilters((prev) => ({ ...prev, sort_order: String(val || 'desc') }))}
               options={SORT_ORDER_OPTIONS}
             />
           </div>
