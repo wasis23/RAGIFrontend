@@ -57,6 +57,7 @@ export default function JabatanAkademikDosenPage() {
   const [selectedPegawaiOption, setSelectedPegawaiOption] = useState<{ value: string; label: string } | null>(null);
   const [isCheckingPegawai, setIsCheckingPegawai] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [recordedJafungIds, setRecordedJafungIds] = useState<number[]>([]);
 
   // Delete State
   const [deleteTarget, setDeleteTarget] = useState<UsulanJafung | null>(null);
@@ -148,6 +149,16 @@ export default function JabatanAkademikDosenPage() {
     }
   }, []);
 
+  const fetchRecordedJafungIds = async (pegId: number) => {
+    try {
+      const res = await simpegService.getUsulanJafungList({ pegawai_id: pegId, limit: 100 });
+      const ids: number[] = (res.data || []).map((u: any) => u.jafung_tujuan_id).filter(Boolean);
+      setRecordedJafungIds(ids);
+    } catch {
+      setRecordedJafungIds([]);
+    }
+  };
+
   const handleOpenModal = async () => {
     setShowModal(true);
     setSelectedFile(null);
@@ -164,6 +175,7 @@ export default function JabatanAkademikDosenPage() {
             nomor_sk: '',
             tanggal_mulai_berlaku: '',
           });
+          await fetchRecordedJafungIds(me.id);
         }
       } catch (err) {
         console.error('Gagal mengambil data dosen', err);
@@ -172,12 +184,15 @@ export default function JabatanAkademikDosenPage() {
       }
     } else {
       if (!selectedPegawai) {
+        setRecordedJafungIds([]);
         reset({
           pegawai_id: '',
           jafung_tujuan_id: '',
           nomor_sk: '',
           tanggal_mulai_berlaku: '',
         });
+      } else {
+        await fetchRecordedJafungIds(selectedPegawai.id);
       }
     }
   };
@@ -186,6 +201,7 @@ export default function JabatanAkademikDosenPage() {
     setSelectedPegawaiOption(opt);
     if (!opt) {
       setSelectedPegawai(null);
+      setRecordedJafungIds([]);
       setValue('pegawai_id', '', { shouldValidate: true });
       setValue('jafung_tujuan_id', '');
       return;
@@ -195,11 +211,17 @@ export default function JabatanAkademikDosenPage() {
     setSelectedPegawai(peg);
     setValue('pegawai_id', String(peg.id), { shouldValidate: true });
     setValue('jafung_tujuan_id', '');
+    fetchRecordedJafungIds(peg.id);
   };
 
   const onSubmit = async (values: JadUploadFormValues) => {
     if (!canCreate) {
       toast.error('Akses Ditolak: Anda tidak memiliki hak akses mencatat data JAD.');
+      return;
+    }
+
+    if (recordedJafungIds.includes(Number(values.jafung_tujuan_id))) {
+      toast.error('Jabatan Akademik ini sudah pernah tercatat untuk dosen yang bersangkutan.');
       return;
     }
 
@@ -219,7 +241,10 @@ export default function JabatanAkademikDosenPage() {
       setSelectedFile(null);
       loadData();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menyimpan data JAD');
+      const errMsg = err?.response?.data?.errors?.jafung_tujuan_id?.[0]
+        || err?.response?.data?.message
+        || 'Gagal menyimpan data JAD';
+      toast.error(errMsg);
     }
   };
 
@@ -545,10 +570,14 @@ export default function JabatanAkademikDosenPage() {
                   error={errors.jafung_tujuan_id?.message}
                   options={[
                     { value: '', label: '-- Pilih Jabatan Akademik --' },
-                    ...jafungList.map((jf) => ({
-                      value: String(jf.id),
-                      label: jf.nama,
-                    })),
+                    ...jafungList.map((jf) => {
+                      const isRecorded = recordedJafungIds.includes(jf.id);
+                      return {
+                        value: String(jf.id),
+                        label: isRecorded ? `${jf.nama} (Sudah Tercatat)` : jf.nama,
+                        isDisabled: isRecorded,
+                      };
+                    }),
                   ]}
                   required
                   disabled={!selectedPegawai || isCheckingPegawai}
