@@ -45,7 +45,8 @@ export interface ApiIntegrationSyncResult {
   skipped: number;
   skipped_items: Array<{
     source_id: string | number | null;
-    kode_prodi: string | null;
+    kode_prodi?: string | null;
+    item_ref?: string | null;
     row: number;
     reason: string;
   }>;

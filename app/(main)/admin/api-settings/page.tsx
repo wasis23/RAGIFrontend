@@ -259,7 +259,10 @@ export default function ApiSettingsPage() {
   };
 
   const handleCopyMigrationPrompt = async (item: IamApiIntegration) => {
-    const prompt = `Saya sedang menyiapkan integrasi migrasi Program Studi dari sistem sumber ke SIAKAD.
+    let prompt = '';
+
+    if (item.key === 'siakad_program_studi') {
+      prompt = `Saya sedang menyiapkan integrasi migrasi Program Studi dari sistem sumber ke SIAKAD.
 
 Bantu siapkan endpoint API sumber yang read-only dengan method GET untuk mengambil daftar Program Studi. Ikuti kontrak data berikut:
 ${JSON.stringify(item.expected_schema, null, 2)}
@@ -284,13 +287,59 @@ Ketentuan:
 - Kembalikan JSON berupa array data atau objek dengan properti data berisi array. Sertakan pagination bila datanya banyak.
 - Jelaskan URL endpoint, format autentikasi, parameter pagination/filter yang tersedia, serta contoh respons sukses dan error.
 - Jangan melakukan perubahan atau impor data ke database tujuan; berikan rancangan dan hasil validasi terlebih dahulu.`;
+    } else if (item.key === 'sikeu_transaksi_kas') {
+      prompt = `Saya sedang menyiapkan integrasi migrasi Transaksi Kas dari sistem keuangan legacy ke modul SIKEU RAG.
+
+Bantu siapkan endpoint API sumber yang read-only dengan method GET untuk mengambil daftar Transaksi Kas. Ikuti kontrak data berikut:
+${JSON.stringify(item.expected_schema, null, 2)}
+
+Contoh satu data:
+{
+  "no_tran": "TRX-2023-00123",
+  "tgl_tran": "2023-08-15",
+  "kd_perkiraan": "4111",
+  "jenis": 1,
+  "jumlah": 2500000,
+  "keterangan": "Penerimaan Pembayaran SPP Mahasiswa"
+}
+
+Ketentuan:
+- no_tran harus unik dan konsisten untuk mencegah duplikasi jurnal (idempotent).
+- kd_perkiraan adalah kode akun lawan sistem lama yang akan dipetakan ke Chart of Accounts (COA) RAG.
+- jenis: bernilai 1 untuk Kas Masuk (Penerimaan/Debet Kas), atau 2 untuk Kas Keluar (Pengeluaran/Kredit Kas).
+- jumlah harus bernilai positif (> 0).
+- Format data berupa JSON array atau objek berbalut properti "data" dengan dukungan paginasi (page & per_page).`;
+    } else if (item.key === 'sikeu_transaksi_pembayaran') {
+      prompt = `Saya sedang menyiapkan integrasi migrasi Pembayaran Mahasiswa dari sistem keuangan legacy ke modul SIKEU RAG.
+
+Bantu siapkan endpoint API sumber yang read-only dengan method GET untuk mengambil daftar Pembayaran Mahasiswa. Ikuti kontrak data berikut:
+${JSON.stringify(item.expected_schema, null, 2)}
+
+Contoh satu data:
+{
+  "no_tran": "BYR-2023-0987",
+  "nim": "202301001",
+  "tgl_tran": "2023-08-20",
+  "jumlah": 3500000,
+  "metode_bayar": "TRANSFER_BANK",
+  "keterangan": "Pembayaran UKT Semester Ganjil 2023/2024"
+}
+
+Ketentuan:
+- no_tran harus unik untuk idempoten pencatatan kwitansi pembayaran.
+- nim wajib sesuai dengan data mahasiswa yang terdaftar di SIAKAD.
+- jumlah harus berupa nominal angka valid (> 0).
+- Format data berupa JSON array atau objek berbalut properti "data" dengan dukungan paginasi (page & per_page).`;
+    } else {
+      prompt = `Kontrak Data Integrasi API (${item.name}):\n${JSON.stringify(item.expected_schema, null, 2)}`;
+    }
 
     try {
       if (!navigator.clipboard?.writeText) {
         throw new Error('Clipboard tidak didukung oleh browser ini.');
       }
       await navigator.clipboard.writeText(prompt);
-      toast.success('Prompt migrasi Program Studi berhasil disalin');
+      toast.success(`Prompt integrasi ${item.name} berhasil disalin`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Gagal menyalin prompt');
     }
@@ -463,13 +512,11 @@ Ketentuan:
           });
         }
 
-        if (row.key === 'siakad_program_studi') {
-          actionItems.push({
-            label: 'Salin Prompt Migrasi Prodi',
-            icon: <Copy size={14} />,
-            onClick: () => handleCopyMigrationPrompt(row),
-          });
-        }
+        actionItems.push({
+          label: 'Salin Prompt API Sumber',
+          icon: <Copy size={14} />,
+          onClick: () => handleCopyMigrationPrompt(row),
+        });
 
         return (
           <div className="flex justify-end">
@@ -861,7 +908,7 @@ Ketentuan:
                     {syncResult.skipped_items.map((item, index) => (
                       <div key={`${item.source_id ?? item.row}-${index}`} className="border-b border-slate-100 pb-2 text-2xs last:border-0">
                         <div className="font-semibold text-slate-800">
-                          {item.kode_prodi || 'Kode tidak tersedia'} · Baris {item.row}
+                          {item.item_ref || item.kode_prodi || (item.source_id ? `ID: ${item.source_id}` : 'Rincian')} · Baris {item.row}
                         </div>
                         <div className="text-slate-600">{item.reason}</div>
                       </div>
