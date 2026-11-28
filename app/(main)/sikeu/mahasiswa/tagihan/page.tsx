@@ -46,30 +46,34 @@ import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 
 // Helper angka ke terbilang bahasa Indonesia
-function angkaTerbilang(nilai: number): string {
-  const angka = Math.floor(Math.abs(nilai));
+function terbilangInt(angka: number): string {
+  const n = Math.floor(Math.abs(angka));
   const huruf = ['', 'Satu', 'Dua', 'Tiga', 'Empat', 'Lima', 'Enam', 'Tujuh', 'Delapan', 'Sembilan', 'Sepuluh', 'Sebelas'];
   let hasil = '';
-  if (angka < 12) {
-    hasil = huruf[angka];
-  } else if (angka < 20) {
-    hasil = angkaTerbilang(angka - 10) + ' Belas';
-  } else if (angka < 100) {
-    hasil = angkaTerbilang(Math.floor(angka / 10)) + ' Puluh ' + huruf[angka % 10];
-  } else if (angka < 200) {
-    hasil = 'Seratus ' + angkaTerbilang(angka - 100);
-  } else if (angka < 1000) {
-    hasil = angkaTerbilang(Math.floor(angka / 100)) + ' Ratus ' + angkaTerbilang(angka % 100);
-  } else if (angka < 2000) {
-    hasil = 'Seribu ' + angkaTerbilang(angka - 1000);
-  } else if (angka < 1000000) {
-    hasil = angkaTerbilang(Math.floor(angka / 1000)) + ' Ribu ' + angkaTerbilang(angka % 1000);
-  } else if (angka < 1000000000) {
-    hasil = angkaTerbilang(Math.floor(angka / 1000000)) + ' Juta ' + angkaTerbilang(angka % 1000000);
-  } else if (angka < 1000000000000) {
-    hasil = angkaTerbilang(Math.floor(angka / 1000000000)) + ' Milyar ' + angkaTerbilang(angka % 1000000000);
+  if (n < 12) {
+    hasil = huruf[n];
+  } else if (n < 20) {
+    hasil = terbilangInt(n - 10) + ' Belas';
+  } else if (n < 100) {
+    hasil = terbilangInt(Math.floor(n / 10)) + ' Puluh ' + huruf[n % 10];
+  } else if (n < 200) {
+    hasil = 'Seratus ' + terbilangInt(n - 100);
+  } else if (n < 1000) {
+    hasil = terbilangInt(Math.floor(n / 100)) + ' Ratus ' + terbilangInt(n % 100);
+  } else if (n < 2000) {
+    hasil = 'Seribu ' + terbilangInt(n - 1000);
+  } else if (n < 1000000) {
+    hasil = terbilangInt(Math.floor(n / 1000)) + ' Ribu ' + terbilangInt(n % 1000);
+  } else if (n < 1000000000) {
+    hasil = terbilangInt(Math.floor(n / 1000000)) + ' Juta ' + terbilangInt(n % 1000000);
+  } else if (n < 1000000000000) {
+    hasil = terbilangInt(Math.floor(n / 1000000000)) + ' Milyar ' + terbilangInt(n % 1000000000);
   }
-  return (hasil.replace(/\s+/g, ' ').trim() || 'Nol') + ' Rupiah';
+  return hasil.replace(/\s+/g, ' ').trim();
+}
+
+function angkaTerbilang(nilai: number): string {
+  return (terbilangInt(nilai) || 'Nol') + ' Rupiah';
 }
 
 export default function StudentTagihanPage() {
@@ -153,9 +157,8 @@ export default function StudentTagihanPage() {
 
       if (Array.isArray(resBills.data)) {
         setBills(resBills.data);
-        // Auto select unpaid bills by default
-        const unpaid = resBills.data.filter((b: any) => b.status !== 'lunas').map((b: any) => b.id);
-        setSelectedBillIds(unpaid);
+        // Jangan auto-centang agar tombol kanan bawah hanya muncul saat mahasiswa memilih tagihan
+        setSelectedBillIds([]);
       } else {
         setBills([]);
         setSelectedBillIds([]);
@@ -338,6 +341,60 @@ export default function StudentTagihanPage() {
 
     setProcessingPay(true);
     try {
+      // Untuk kanal Payment Gateway langsung (seperti Midtrans Snap), buka Snap Popup asli
+      if (channel.is_direct_gateway) {
+        const resSnap = await sikeuService.createMidtransSnapToken({
+          tagihan_id: selectedBillIds[0],
+        });
+        if (resSnap.status === 'success' && resSnap.data?.token) {
+          const { token, client_key, environment, redirect_url } = resSnap.data;
+          const snapUrl =
+            environment === 'production'
+              ? 'https://app.midtrans.com/snap/snap.js'
+              : 'https://app.sandbox.midtrans.com/snap/snap.js';
+
+          const openSnap = () => {
+            const win = window as any;
+            if (win.snap) {
+              setShowPayModal(false);
+              win.snap.pay(token, {
+                onSuccess: async () => {
+                  toast.success('Pembayaran berhasil diverifikasi!');
+                  await fetchStudentData();
+                },
+                onPending: async () => {
+                  toast('Pembayaran sedang diproses / menunggu penyelesaian.');
+                  await fetchStudentData();
+                },
+                onError: () => {
+                  toast.error('Pembayaran gagal diproses oleh Midtrans.');
+                },
+                onClose: async () => {
+                  await fetchStudentData();
+                },
+              });
+            } else if (redirect_url) {
+              window.open(redirect_url, '_blank');
+            }
+          };
+
+          if ((window as any).snap) {
+            openSnap();
+          } else {
+            const script = document.createElement('script');
+            script.src = snapUrl;
+            script.setAttribute('data-client-key', client_key);
+            script.onload = openSnap;
+            script.onerror = () => {
+              if (redirect_url) window.open(redirect_url, '_blank');
+              else toast.error('Gagal memuat Midtrans Snap.');
+            };
+            document.body.appendChild(script);
+          }
+          return;
+        }
+      }
+
       const channelBayar = channel.code === 'QRIS' ? 'QRIS' : `VA_${channel.code}`;
       const res = await sikeuService.payStudentBills({
         tagihan_ids: selectedBillIds,
@@ -518,26 +575,15 @@ export default function StudentTagihanPage() {
 
               <div className="flex items-center gap-2 ml-auto">
                 {selectedBillIds.length > 0 && (
-                  <>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<FileText size={14} />}
-                      onClick={() => handleOpenInvoice()}
-                      className="text-xs font-bold"
-                    >
-                      Invoice Gabungan ({selectedBillIds.length})
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={<CreditCard size={14} />}
-                      onClick={() => setShowPayModal(true)}
-                      className="text-xs font-bold shadow-xs bg-emerald-600 hover:bg-emerald-500 border-none text-white"
-                    >
-                      Bayar Sekarang ({formatRupiah(selectedTotalSisa)})
-                    </Button>
-                  </>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<FileText size={14} />}
+                    onClick={() => handleOpenInvoice()}
+                    className="text-xs font-bold"
+                  >
+                    Invoice Gabungan ({selectedBillIds.length})
+                  </Button>
                 )}
               </div>
             </div>
@@ -642,7 +688,7 @@ export default function StudentTagihanPage() {
                             Dispensasi disetujui
                           </span>
                         )}
-                        {!isLunas && !b.pending_verification && (
+                        {!isLunas && !b.pending_verification && !isSelected && (
                           <button
                             type="button"
                             onClick={() => {
@@ -653,6 +699,11 @@ export default function StudentTagihanPage() {
                           >
                             <CreditCard size={14} /> Bayar Sekarang ({formatRupiah(b.sisa_bayar)})
                           </button>
+                        )}
+                        {!isLunas && !b.pending_verification && isSelected && (
+                          <span className="text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                            Dipilih untuk dibayar ↓
+                          </span>
                         )}
                       </div>
                     </div>
@@ -752,86 +803,31 @@ export default function StudentTagihanPage() {
                       )}
                     </div>
 
-                    {/* Financial Matrix & VA Card */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-                      <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200">
-                        <div>
-                          <span className="text-2xs text-slate-500 font-bold block">Total Biaya</span>
-                          <span className="font-mono font-extrabold text-slate-900 text-sm block mt-0.5">
-                            {formatRupiah(b.total_tagihan)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-2xs text-emerald-700 font-bold block">Beasiswa/Diskon</span>
-                          <span className="font-mono font-extrabold text-emerald-700 text-sm block mt-0.5">
-                            -{formatRupiah(b.total_potongan)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-2xs text-indigo-700 font-bold block">Telah Dibayar</span>
-                          <span className="font-mono font-extrabold text-indigo-700 text-sm block mt-0.5">
-                            {formatRupiah(b.total_bayar)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-2xs text-rose-700 font-bold block">Sisa Tagihan</span>
-                          <span className="font-mono font-extrabold text-rose-700 text-sm block mt-0.5">
-                            {formatRupiah(b.sisa_bayar)}
-                          </span>
-                        </div>
+                    {/* Financial Matrix */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-4 rounded-xl border border-slate-200">
+                      <div>
+                        <span className="text-2xs text-slate-500 font-bold block">Total Biaya</span>
+                        <span className="font-mono font-extrabold text-slate-900 text-sm block mt-0.5">
+                          {formatRupiah(b.total_tagihan)}
+                        </span>
                       </div>
-
-                      {/* Right: Xendit Payment Options Box */}
-                      <div className="lg:col-span-5 bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white p-4 rounded-xl shadow-xs space-y-3 flex flex-col justify-between">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-2xs font-extrabold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
-                              <CreditCard size={13} className="text-indigo-400" /> Multi-Payment Gateway (1 VA)
-                            </span>
-                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-400/30">
-                              Online Checkout
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {paymentChannels.filter((c) => c.category === 'va' || c.category === 'instant').length > 0 ? (
-                              paymentChannels
-                                .filter((c) => c.category === 'va' || c.category === 'instant')
-                                .map((c) => c.code)
-                                .map((ch) => (
-                                  <span
-                                    key={ch}
-                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-slate-200 border border-white/10"
-                                  >
-                                    {ch}
-                                  </span>
-                                ))
-                            ) : (
-                              <span className="text-[10px] text-slate-400 italic">
-                                Tidak ada kanal pembayaran online aktif
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
-                          <div className="text-[10px] text-slate-300 leading-tight">
-                            <span>Bisa digabung dengan semester lain</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!isSelected) {
-                                setSelectedBillIds((prev) => [...prev, b.id]);
-                              }
-                              setShowPayModal(true);
-                            }}
-                            className="btn btn-primary btn-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-2xs border-none flex items-center gap-1 cursor-pointer shadow-sm px-3 py-1.5 rounded-lg"
-                          >
-                            <CreditCard size={12} />
-                            {isSelected ? 'Lanjut ke Checkout' : 'Pilih & Checkout'}
-                          </button>
-                        </div>
+                      <div>
+                        <span className="text-2xs text-emerald-700 font-bold block">Beasiswa/Diskon</span>
+                        <span className="font-mono font-extrabold text-emerald-700 text-sm block mt-0.5">
+                          -{formatRupiah(b.total_potongan)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs text-indigo-700 font-bold block">Telah Dibayar</span>
+                        <span className="font-mono font-extrabold text-indigo-700 text-sm block mt-0.5">
+                          {formatRupiah(b.total_bayar)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs text-rose-700 font-bold block">Sisa Tagihan</span>
+                        <span className="font-mono font-extrabold text-rose-700 text-sm block mt-0.5">
+                          {formatRupiah(b.sisa_bayar)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1015,7 +1011,7 @@ export default function StudentTagihanPage() {
 
       {/* ── MODAL INVOICE RESMI (SINGLE / GABUNGAN) ─────────────────────────────── */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:static print:bg-transparent print:p-0 print:overflow-visible print:block">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:fixed print:inset-0 print:z-[9999] print:bg-white print:p-0 print:overflow-visible print:block">
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 print:max-w-none print:max-h-none print:overflow-visible print:rounded-none print:shadow-none print:p-0">
             <div className="flex items-center justify-between border-b pb-4 print:hidden">
               <div className="flex items-center gap-2">
@@ -1166,7 +1162,7 @@ export default function StudentTagihanPage() {
 
       {/* ── MODAL KUITANSI PEMBAYARAN RESMI ─────────────────────────────────────── */}
       {selectedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:static print:bg-transparent print:p-0 print:overflow-visible print:block">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto print:fixed print:inset-0 print:z-[9999] print:bg-white print:p-0 print:overflow-visible print:block">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-6 print:max-w-none print:max-h-none print:overflow-visible print:rounded-none print:shadow-none print:p-0">
             <div className="flex items-center justify-between border-b pb-4 print:hidden">
               <div className="flex items-center gap-2">
@@ -1192,7 +1188,8 @@ export default function StudentTagihanPage() {
             </div>
 
             {/* DOKUMEN CETAK KUITANSI RESMI */}
-            <div className="printable-document p-6 sm:p-8 border-2 border-slate-900 rounded-xl bg-white space-y-6 text-slate-900 relative overflow-hidden">
+            <div className="printable-document">
+              <div className="p-6 sm:p-8 border-2 border-slate-900 rounded-xl bg-white space-y-5 text-slate-900 relative overflow-hidden print:border-2 print:border-slate-900 print:rounded-lg print:p-6">
               {/* Watermark Lunas */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-10 rotate-[-25deg]">
                 <span className="text-7xl font-black text-emerald-800 uppercase tracking-widest border-8 border-emerald-800 px-8 py-4 rounded-3xl">
@@ -1215,7 +1212,7 @@ export default function StudentTagihanPage() {
               </div>
 
               {/* Isi Kuitansi */}
-              <div className="space-y-3.5 text-xs relative z-10">
+              <div className="space-y-3 text-xs relative z-10">
                 <div className="grid grid-cols-12 gap-2 py-1 border-b border-slate-200">
                   <span className="col-span-4 text-slate-500 font-semibold">Telah Terima Dari:</span>
                   <span className="col-span-8 font-extrabold text-slate-900 text-sm">
@@ -1230,7 +1227,7 @@ export default function StudentTagihanPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-12 gap-2 py-2 border-b border-slate-200 bg-slate-50 p-2.5 rounded-lg">
+                <div className="grid grid-cols-12 gap-2 py-2 border-b border-slate-200 bg-slate-50 p-2.5 rounded-lg print:border print:border-slate-300">
                   <span className="col-span-4 text-slate-500 font-semibold">Uang Sejumlah:</span>
                   <span className="col-span-8 font-serif italic font-bold text-slate-900 text-sm">
                     &quot;{selectedReceipt.terbilang}&quot;
@@ -1253,10 +1250,10 @@ export default function StudentTagihanPage() {
               </div>
 
               {/* Total Box & Signature + QR Verifikasi */}
-              <div className="grid grid-cols-2 items-end pt-4 gap-4">
-                <div className="bg-slate-900 text-white p-3.5 rounded-xl inline-block">
-                  <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Jumlah Terbayar (IDR):</div>
-                  <div className="font-mono text-xl font-black text-amber-300 mt-0.5">
+              <div className="grid grid-cols-2 items-end pt-3 gap-4">
+                <div className="bg-slate-900 text-white p-3.5 rounded-xl inline-block print:bg-slate-100 print:text-slate-900 print:border-2 print:border-slate-900">
+                  <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider print:text-slate-600">Jumlah Terbayar (IDR):</div>
+                  <div className="font-mono text-xl font-black text-amber-300 mt-0.5 print:text-slate-900">
                     {formatRupiah(selectedReceipt.jumlah_bayar)}
                   </div>
                 </div>
@@ -1278,6 +1275,7 @@ export default function StudentTagihanPage() {
 
               <div className="pt-2 text-[9px] text-slate-400 font-mono text-center border-t border-dashed">
                 BUKTI PEMBAYARAN SAH KEUANGAN MAHASISWA UNIVERSITAS TERINTEGRASI
+              </div>
               </div>
             </div>
           </div>

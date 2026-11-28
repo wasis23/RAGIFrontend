@@ -13,7 +13,7 @@ import {
   ArrowRight,
   ChevronRight,
   ChevronDown,
-  RefreshCw,
+  Loader2,
   FileText,
   X,
   ExternalLink,
@@ -42,6 +42,8 @@ export interface PaymentChannel {
   description: string;
   fee: number;
   is_active: boolean;
+  is_direct_gateway?: boolean;
+  checkout_label?: string;
 }
 
 export interface ManualAccount {
@@ -181,13 +183,14 @@ export function XenditStudentPaymentModal({
     },
   ];
 
-  const availableChannels = channels && channels.length > 0 ? channels : defaultChannels;
+  const availableChannels = channels && channels.length > 0 ? channels : [];
 
   const vaChannels = availableChannels.filter((c) => c.category === 'va');
   const instantChannels = availableChannels.filter((c) => c.category === 'instant');
 
   const selectedChannel =
-    availableChannels.find((c) => c.id === selectedChannelId) || availableChannels[0];
+    availableChannels.find((c) => c.id === selectedChannelId) || availableChannels[0] || null;
+  const activeChannelId = selectedChannel?.id || '';
 
   function pregClean(str: string) {
     const res = (str || '').replace(/[^0-9]/g, '');
@@ -196,19 +199,21 @@ export function XenditStudentPaymentModal({
 
   // Calculate dynamic Virtual Account number based on channel prefix & student NIM
   const cleanNim = pregClean(studentNim || '20240001');
-  const computedVaNumber =
-    selectedChannel.code === 'QRIS'
+  const computedVaNumber = !selectedChannel
+    ? ''
+    : selectedChannel.code === 'QRIS'
       ? `QRIS-${cleanNim}`
       : `${selectedChannel.prefix}${cleanNim}`;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedVa(true);
-    toast.success(`Nomor ${selectedChannel.name} disalin!`);
+    toast.success(`Nomor ${selectedChannel?.name || 'pembayaran'} disalin!`);
     setTimeout(() => setCopiedVa(false), 2500);
   };
 
   const handlePay = async () => {
+    if (!selectedChannel) return;
     await onConfirmPayment(selectedChannel, computedVaNumber);
   };
 
@@ -324,12 +329,12 @@ export function XenditStudentPaymentModal({
           <div className="flex items-center gap-3">
             {/* Xendit Official Style Badge */}
             <div className="flex items-center gap-1.5 font-sans">
-              <div className="w-6 h-6 rounded bg-[#1e40af] text-white flex items-center justify-center font-black text-xs tracking-tighter">
-                x
+              <div className="w-6 h-6 rounded bg-[var(--module-primary)] text-white flex items-center justify-center font-black text-xs tracking-tighter">
+                S
               </div>
-              <span className="font-extrabold text-sm text-slate-800 tracking-tight">xendit</span>
+              <span className="font-extrabold text-sm text-slate-800 tracking-tight">SIKEU</span>
               <span className="text-slate-300 mx-1">|</span>
-              <span className="text-xs font-semibold text-slate-600">Checkout Terpadu SIKEU</span>
+              <span className="text-xs font-semibold text-slate-600">Checkout Terpadu</span>
             </div>
           </div>
 
@@ -464,7 +469,7 @@ export function XenditStudentPaymentModal({
             </div>
 
             {/* Bottom Invoice Button */}
-            {onPrintInvoice && (
+            {onPrintInvoice && selectedChannel && (
               <div className="pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -499,11 +504,12 @@ export function XenditStudentPaymentModal({
                     Pilih Metode Pembayaran
                   </h4>
                   <span className="text-2xs text-slate-500 font-medium">
-                    Didukung resmi oleh Xendit
+                    Didukung resmi oleh Payment Gateway SIKEU
                   </span>
                 </div>
 
                 {/* Virtual Account Group */}
+                {vaChannels.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                     <Building2 size={13} className="text-primary-600" /> Virtual Account (Transfer Bank)
@@ -511,7 +517,7 @@ export function XenditStudentPaymentModal({
 
                   <div className="grid grid-cols-1 gap-2">
                     {vaChannels.map((channel) => {
-                      const isSelected = selectedChannelId === channel.id;
+                      const isSelected = activeChannelId === channel.id;
                       return (
                         <button
                           key={channel.id}
@@ -541,7 +547,7 @@ export function XenditStudentPaymentModal({
 
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 hidden sm:inline-block">
-                              Bebas Biaya
+                              {channel.badge || 'Otomatis'}
                             </span>
                             <div
                               className={`w-4 h-4 rounded-full border flex items-center justify-center ${
@@ -558,16 +564,18 @@ export function XenditStudentPaymentModal({
                     })}
                   </div>
                 </div>
+                )}
 
-                {/* Instant Payment Group: QRIS */}
+                {/* Instant Payment Group: Midtrans Snap / QRIS */}
+                {instantChannels.length > 0 && (
                 <div className="space-y-2 pt-2">
                   <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                    <QrCode size={13} className="text-emerald-600" /> QRIS & E-Wallet
+                    <QrCode size={13} className="text-emerald-600" /> Pembayaran Online (Gateway Aktif)
                   </div>
 
                   <div className="grid grid-cols-1 gap-2">
                     {instantChannels.map((channel) => {
-                      const isSelected = selectedChannelId === channel.id;
+                      const isSelected = activeChannelId === channel.id;
                       return (
                         <button
                           key={channel.id}
@@ -597,7 +605,7 @@ export function XenditStudentPaymentModal({
 
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60 hidden sm:inline-block">
-                              Instan
+                              {channel.badge || 'Instan'}
                             </span>
                             <div
                               className={`w-4 h-4 rounded-full border flex items-center justify-center ${
@@ -614,13 +622,14 @@ export function XenditStudentPaymentModal({
                     })}
                   </div>
                 </div>
+                )}
 
                 {/* Xendit Security Notice */}
                 <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-start gap-2.5 text-[11px] text-slate-600">
                   <ShieldCheck size={16} className="text-blue-600 shrink-0 mt-0.5" />
                   <div>
                     <span>
-                      Pembayaran Anda diproses secara aman oleh <strong>Xendit Payment Gateway</strong>. Seluruh tagihan yang dicentang ({selectedBills.length} semester) akan otomatis terverifikasi lunas dalam 1 transaksi.
+                      Pembayaran Anda diproses secara aman oleh <strong>Payment Gateway Terintegrasi</strong>. Seluruh tagihan yang dicentang ({selectedBills.length} semester) akan otomatis terverifikasi lunas dalam 1 transaksi.
                     </span>
                   </div>
                 </div>
@@ -756,7 +765,7 @@ export function XenditStudentPaymentModal({
                       }`}
                     >
                       {requestingKode ? (
-                        <><RefreshCw size={15} className="animate-spin" /><span>Menerbitkan kode...</span></>
+                        <><Loader2 size={15} className="animate-spin" /><span>Menerbitkan kode...</span></>
                       ) : (
                         <><Hash size={15} /><span>Minta Kode Unik & Nominal Transfer</span></>
                       )}
@@ -834,7 +843,7 @@ export function XenditStudentPaymentModal({
                               }`}
                             >
                               {sendingBukti[init.pembayaran_id] ? (
-                                <><RefreshCw size={14} className="animate-spin" /><span>Mengunggah...</span></>
+                                <><Loader2 size={14} className="animate-spin" /><span>Mengunggah...</span></>
                               ) : (
                                 <><Upload size={14} /><span>Kirim Struk Pembayaran</span></>
                               )}
@@ -854,7 +863,7 @@ export function XenditStudentPaymentModal({
                   </div>
                 )}
               </div>
-            ) : (
+            ) : selectedChannel ? (
               <div className="space-y-4 animate-fade-in">
                 <div className="flex items-center justify-between">
                   <button
@@ -967,7 +976,7 @@ export function XenditStudentPaymentModal({
                   )}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Bottom Actions Card */}
             <div className="pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -982,15 +991,37 @@ export function XenditStudentPaymentModal({
                 {currentStep === 'checkout' ? (
                   <button
                     type="button"
-                    onClick={() => setCurrentStep('payment_detail')}
-                    disabled={totalAmount <= 0 || isLockedSelection}
+                    onClick={() => {
+                      if (!selectedChannel) return;
+                      if (selectedChannel.is_direct_gateway) {
+                        void handlePay();
+                      } else {
+                        setCurrentStep('payment_detail');
+                      }
+                    }}
+                    disabled={!selectedChannel || isProcessing || totalAmount <= 0 || isLockedSelection}
                     title={isLockedSelection ? lockTitle : undefined}
                     className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-2 shadow-md transition cursor-pointer ${
-                      isLockedSelection ? 'bg-slate-300 cursor-not-allowed' : 'bg-[#1e40af] hover:bg-[#1d4ed8]'
+                      !selectedChannel || isLockedSelection
+                        ? 'bg-slate-300 cursor-not-allowed'
+                        : 'bg-[var(--module-primary)] hover:opacity-90'
                     }`}
                   >
-                    <span>Lanjut Bayar via {selectedChannel.code}</span>
-                    <ArrowRight size={15} />
+                    {isProcessing ? (
+                      <>
+                        <Loader2 size={15} className="animate-spin" />
+                        <span>Membuka Gateway...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {selectedChannel
+                            ? (selectedChannel.checkout_label || `Lanjut Bayar via ${selectedChannel.code}`)
+                            : 'Pilih Rekening Manual di Atas'}
+                        </span>
+                        <ArrowRight size={15} />
+                      </>
+                    )}
                   </button>
                 ) : currentStep === 'manual' ? (
                   <button
@@ -1016,7 +1047,7 @@ export function XenditStudentPaymentModal({
                   >
                     {isProcessing ? (
                       <>
-                        <RefreshCw size={15} className="animate-spin" />
+                        <Loader2 size={15} className="animate-spin" />
                         <span>Memvalidasi Pembayaran...</span>
                       </>
                     ) : (
